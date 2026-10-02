@@ -103,11 +103,13 @@ impl ServerActor {
                     finish_outcome(&inbox, &workspace_id, outcome)
                 }
             };
-            let _ = inbox.send(ServerCommand::LinkedIssueRequestFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::LinkedIssueRequestFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }
@@ -132,7 +134,7 @@ enum LinkedIssueTask {
 }
 
 fn finish_outcome(
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     workspace_id: &str,
     outcome: anyhow::Result<crate::linked_issue_service::LinkedIssueOutcome>,
 ) -> HostResult<Value> {
@@ -150,7 +152,7 @@ fn state_error(error: impl std::fmt::Display) -> HostError {
 /// Stores the local association before creation is acknowledged; fetching stays deferred.
 pub(super) async fn persist_created_workspace_issue(
     store: &alera_core::runtime::RuntimeStore,
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     workspace_id: Option<&str>,
     url: Option<&str>,
 ) -> Option<alera_core::runtime::LinkedIssue> {
@@ -171,7 +173,7 @@ pub(super) async fn persist_created_workspace_issue(
 
 pub(super) async fn refresh_created_workspace_issue(
     store: &alera_core::runtime::RuntimeStore,
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     record: alera_core::runtime::LinkedIssue,
 ) {
     let workspace_id = record.workspace_id.clone();

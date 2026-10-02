@@ -43,6 +43,7 @@ class AgentStatusHostForwarder({
   Map<String, AgentStatusEntry> _lastSeen = const <String, AgentStatusEntry>{};
   late final StreamSubscription<RuntimeHostEvent> _runtimeEventSub;
   Timer? _timer;
+  var _retryAttempt = 0;
   bool _disposed = false;
 
   void onStatusChanged(
@@ -114,7 +115,7 @@ class AgentStatusHostForwarder({
             'entries': entries,
           })
           .then<void>(
-            (_) {},
+            (_) => _retryAttempt = 0,
             onError: (Object error) {
               if (!_isPermanentOrchestrationCapabilityError(error)) {
                 _retry(entries);
@@ -137,6 +138,7 @@ class AgentStatusHostForwarder({
       }
     }
     if (_pending.isNotEmpty) {
+      _retryAttempt++;
       _timer ??= Timer(_retryDelay, _flush);
     }
   }
@@ -155,8 +157,21 @@ class AgentStatusHostForwarder({
         entry['tabId'] == current.tabId;
   }
 
-  Duration get _retryDelay =>
-      debounce == Duration.zero ? const Duration(milliseconds: 1) : debounce;
+  Duration get _retryDelay {
+    final base = debounce == Duration.zero
+        ? const Duration(milliseconds: 1)
+        : debounce;
+    final exponent = _retryAttempt <= 1
+        ? 0
+        : _retryAttempt >= 7
+        ? 6
+        : _retryAttempt - 1;
+    final candidate = Duration(
+      microseconds: base.inMicroseconds * (1 << exponent),
+    );
+    const maximum = Duration(seconds: 5);
+    return candidate > maximum ? maximum : candidate;
+  }
 
   void dispose() {
     if (_disposed) {

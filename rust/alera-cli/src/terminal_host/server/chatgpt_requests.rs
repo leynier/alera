@@ -56,11 +56,13 @@ impl ServerActor {
                 }
             }
             .await;
-            let _ = inbox.send(ServerCommand::AiAssistFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiAssistFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

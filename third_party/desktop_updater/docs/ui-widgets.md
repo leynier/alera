@@ -1,0 +1,604 @@
+# Ready-Made UI Widgets
+
+desktop_updater ships several UI surfaces on purpose. They all read the same
+`DesktopUpdaterController` state, but they fit different app shells: a plain
+`Scaffold` body, an existing `CustomScrollView`, a modal update prompt, or a
+fully custom product surface.
+
+This split keeps update mechanics consistent without forcing every desktop app
+to restructure its layout. The ready-made widgets stay hidden while the updater
+is idle or the user has skipped the version, then appear only when there is an
+actionable update state.
+
+## Why There Are Multiple Widgets
+
+- Some apps need an inline card above their main content.
+- Some apps already own their scroll view and only need a sliver.
+- Some apps want an interruptive dialog for important update prompts.
+- Some apps need custom UI but still want the package to provide state and
+  actions.
+- The same controller state drives every surface, so download, skip, restart,
+  mandatory update, and failure behavior stays aligned.
+
+## `DesktopUpdateWidget`
+
+`DesktopUpdateWidget` is the simplest stock wrapper. It creates a
+`CustomScrollView`, places `DesktopUpdateSliver` first, and renders your child
+below it.
+
+![DesktopUpdateWidget screenshot](assets/ui-widgets/desktop-update-widget.png)
+
+Use it when your screen can let the updater own the top-level scroll container.
+It is best for simple pages, settings screens, or apps that do not already have
+a custom sliver layout.
+
+```dart
+DesktopUpdateWidget(
+  controller: controller,
+  child: const YourHomePage(),
+)
+```
+
+Why it exists: the common "show update UI above my app content" case should be
+one widget, not a hand-built `CustomScrollView` in every app.
+
+## `DesktopUpdateSliver`
+
+`DesktopUpdateSliver` is the scroll-native version. It reveals the same stock
+card inside a large sliver app bar when the controller is in an active update
+state.
+
+![DesktopUpdateSliver screenshot](assets/ui-widgets/desktop-update-sliver.png)
+
+Use it when your app already uses a `CustomScrollView` and you want the update
+surface to participate in the same scroll layout as the rest of the page.
+
+```dart
+CustomScrollView(
+  slivers: [
+    DesktopUpdateSliver(controller: controller),
+    const SliverToBoxAdapter(child: YourHomePage()),
+  ],
+)
+```
+
+Why it exists: sliver-based desktop screens should not need an extra nested
+scroll view just to show update UI.
+
+## `DesktopUpdateDirectCard`
+
+`DesktopUpdateDirectCard` shows the stock card exactly where you place it. It
+wraps `UpdateCard` in `DesktopUpdaterInheritedNotifier`, so you can drop it into
+an existing `Column`, `ListView`, side panel, settings page, or dashboard slot.
+
+![DesktopUpdateDirectCard screenshot](assets/ui-widgets/desktop-update-direct-card.png)
+
+Use it when your app already owns the page structure and you only want the
+updater card as one child in that structure.
+
+```dart
+Column(
+  children: [
+    DesktopUpdateDirectCard(controller: controller),
+    const Expanded(child: YourHomePage()),
+  ],
+)
+```
+
+Why it exists: many desktop apps already have a layout and should not have to
+adopt the package's scroll wrapper to use the stock UI.
+
+## `UpdateCard`
+
+`UpdateCard` is the shared Material card used by the direct card and sliver
+surfaces. It can read an explicit `controller` or the nearest
+`DesktopUpdaterInheritedNotifier`.
+
+Use it directly when you need tighter control over inherited scope or card
+margin:
+
+```dart
+DesktopUpdaterInheritedNotifier(
+  controller: controller,
+  child: const UpdateCard(
+    margin: EdgeInsets.all(12),
+  ),
+)
+```
+
+Why it exists: it keeps the visual card implementation reusable while the
+wrapper widgets handle placement.
+
+`UpdateCard` switches its actions from the typed update state:
+
+- `UpdateAvailable`: shows download and, when optional, skip actions.
+- `UpdateFreshInstallRequired`: shows the fresh-install message and
+  `Download latest` action instead of in-app download.
+- `UpdateBlockedBySupportPolicy`: shows blocking required-update UI and hides
+  skip actions.
+- `UpdateDownloading`: shows a progress action.
+- `UpdateReadyToInstall`: shows the restart/install action. Optional releases
+  keep the normal "Not now" restart prompt. Mandatory releases keep the staged
+  update active, hide "Not now", and show "Save first" plus "Restart" so users
+  can save unsaved work without skipping the required update.
+- `UpdateFailed`: shows a retry action and, when a diagnostics report exists,
+  a "View report" action.
+
+## Release Notes Patterns
+
+Release notes are an optional controller capability attached to the selected
+update descriptor. The built-in card and custom UI should both use
+`controller.loadReleaseNotes()` rather than fetching notes directly in a widget.
+
+Do not fetch release notes directly from a widget when the controller already
+has a loader. Use the controller so caching, retry state, descriptor context,
+and ready-made UI stay aligned.
+
+### Built-in card and bottom sheet
+
+Pass either a descriptor-aware loader or a simple URL. The stock card shows a
+description icon when the active update can load notes, then opens a Material
+bottom sheet:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  releaseNotesLoader: (descriptor) {
+    return myNotesApi.fetch(
+      version: descriptor.version,
+      platform: descriptor.platform,
+      channel: descriptor.channel,
+    );
+  },
+);
+
+DesktopUpdateDirectCard(controller: controller);
+```
+
+Simple hosted notes can use `releaseNotesUrl` instead:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  releaseNotesUrl: Uri.parse("https://updates.example.com/release-notes.json"),
+);
+```
+
+### Inline panel
+
+Inline panels work well inside Settings > Updates, where the app already has
+room to show the changelog below the update actions:
+
+```dart
+Future<void> loadInlineNotes() async {
+  final notes = await controller.loadReleaseNotes();
+  setState(() => visibleNotes = notes);
+}
+```
+
+Render from `controller.releaseNotesState` so loading, empty, loaded, and failed
+states stay consistent with the built-in bottom sheet.
+
+### Side sheet
+
+For wide desktop layouts, keep update actions in the main pane and open notes
+in a side sheet or drawer:
+
+```dart
+Future<void> openSideSheet(BuildContext context) async {
+  final notes = await controller.loadReleaseNotes();
+  if (!context.mounted) return;
+  showDialog<void>(
+    context: context,
+    builder: (_) => Dialog(
+      alignment: Alignment.centerRight,
+      child: ReleaseNotesSidePane(notes: notes),
+    ),
+  );
+}
+```
+
+### Changelog page
+
+A dedicated changelog page is useful when Settings already has an Updates tab.
+The page can request notes on entry, retry through
+`controller.loadReleaseNotes(forceRefresh: true)`, and keep the rest of the
+update flow on the same controller:
+
+```dart
+class ChangelogPage extends StatelessWidget {
+  const ChangelogPage({super.key, required this.controller});
+
+  final DesktopUpdaterController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        return switch (controller.releaseNotesState) {
+          ReleaseNotesLoaded(:final notes) => NotesList(notes: notes),
+          ReleaseNotesFailed() => TextButton(
+              onPressed: () {
+                controller.loadReleaseNotes(forceRefresh: true);
+              },
+              child: const Text("Retry"),
+            ),
+          _ => const CircularProgressIndicator(),
+        };
+      },
+    );
+  }
+}
+```
+
+## `UpdateDialogListener` And Dialog Helpers
+
+`UpdateDialogListener` is an invisible listener. Place it in your widget tree and
+it opens `UpdateDialogWidget` after the current frame when an update becomes
+available.
+
+![UpdateDialogWidget screenshot](assets/ui-widgets/update-dialog-widget.png)
+
+Use it when an available update should become a modal prompt instead of an
+inline surface.
+
+```dart
+Stack(
+  children: [
+    const YourHomePage(),
+    UpdateDialogListener(controller: controller),
+  ],
+)
+```
+
+Why it exists: some apps want update discovery to interrupt the current screen,
+while others prefer quiet inline UI. The listener keeps that choice explicit.
+It also guards against duplicate dialogs while the same update request is
+already being shown.
+
+Mandatory update dialogs are intentionally not the same as optional restart
+prompts. A mandatory release removes skip and "Not now" choices, but still keeps
+a "Save first" action in the restart confirmation by default. In
+`UpdateDialogListener`, that action dismisses the modal update flow so the user
+can return to the app and save work; it does not persist a skipped version.
+
+If a dialog-based integration should restart without the extra confirmation,
+pass `mandatoryReadyToInstallBehavior:
+MandatoryReadyToInstallBehavior.restartWithoutPrompt` to
+`UpdateDialogListener` or `showUpdateDialog()`.
+
+Fresh-install dialogs use the package default copy plus the optional
+release-specific `freshInstall.message`, and route users to `Download latest`.
+Support-policy blocking dialogs are not dismissible through the ready-made
+listener.
+
+You can also open the dialog yourself:
+
+```dart
+await showUpdateDialog<void>(
+  context,
+  controller: controller,
+  mandatoryReadyToInstallBehavior:
+      MandatoryReadyToInstallBehavior.restartWithoutPrompt,
+);
+```
+
+For user-triggered update checks, use `checkForUpdates()` and show feedback for
+all outcomes:
+
+```dart
+final result = await controller.checkForUpdates();
+
+await showManualUpdateCheckResultDialog(
+  context,
+  controller: controller,
+  result: result,
+);
+```
+
+Why this helper exists: automatic startup checks should usually stay quiet when
+nothing is available, but a manual "Check for updates" button should still be
+able to tell the user "up to date" or "check failed".
+
+Automatic startup checks also stay quiet when the version check itself fails.
+The controller still moves to `UpdateFailed`, so inline surfaces and custom
+state UI can show retry affordances, but the initial `init()` check does not
+throw into app startup. For strict flows, explicitly `await
+controller.checkVersion()` and handle the thrown error. For user-triggered
+checks, prefer `checkForUpdates()`, which returns `ManualUpdateCheckFailed`
+instead of throwing.
+
+## Update Problem Reports
+
+When a check, download, verification, staging, or install handoff fails, the
+controller builds a local `UpdateProblemReport` and attaches it to
+`UpdateFailed.report`. The report is kept in memory, bounded to a safe entry
+count, and redacted before `toPlainText()` is copied or exported. The package
+does not write report files, upload logs, or include a reporting backend.
+
+Stock UI shows "View report" only when `UpdateFailed.report` is available. The
+dialog starts with a short user-facing summary, keeps technical details
+collapsed, and lets the user copy the redacted report. The "Report issue" action
+is hidden unless your app supplies `onProblemReport`.
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  onProblemReport: (report) async {
+    await myIssueReporter.send(report.toPlainText());
+  },
+);
+```
+
+Use `onProblemReport` for app-owned integrations such as Sentry, email,
+pre-filled issue forms, customer support tickets, or your own API. It is invoked
+only after an explicit user action in the report dialog.
+
+Custom UI can open the same dialog:
+
+```dart
+if (controller.state case UpdateFailed(:final report) when report != null) {
+  await showUpdateProblemReportDialog(
+    context,
+    controller: controller,
+    report: report,
+  );
+}
+```
+
+## Runtime Extension Points
+
+The controller keeps skip, retry, and telemetry behavior optional so apps do not
+need to adopt a storage or analytics package just to use the updater.
+
+Skip preferences are in-memory by default. To persist "skip this version"
+across controller recreation, provide an app-owned `UpdatePreferences` adapter:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: Uri.parse("https://updates.example.com/app-archive.json"),
+  preferences: MyUpdatePreferencesStore(),
+);
+```
+
+The adapter stores one skipped version per channel with
+`skippedVersion({required channel})`,
+`skipVersion({required version, required channel})`, and
+`clearSkippedVersion({required channel})`. Mandatory updates ignore skipped
+versions.
+
+Staged rollouts use an app-owned stable identity. Pass an opaque
+`installationIdentity` when you want `rollout.percentage` metadata in
+`app-archive.json` to filter update eligibility:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  installationIdentity: myInstallIdentity,
+);
+```
+
+Use a generated install ID or hashed app-owned identifier. Avoid emails, license
+keys, names, or support IDs. Without an identity, partial rollout items are
+ignored; full rollout and non-rollout items still work normally.
+
+Telemetry is also app-owned. Pass a callback to receive typed lifecycle events
+such as `checkStarted`, `checkFailed`, `updateSelected`, `downloadStarted`,
+`downloadFailed`, `artifactVerified`, `installScheduled`, and `installFailed`:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  telemetry: (event) {
+    analytics.record("desktop_update_${event.type.name}");
+  },
+);
+```
+
+Telemetry callback failures are ignored by the updater. The callback is for
+observation only and is never required for update checks, downloads, or install
+handoff.
+
+Install scheduling also keeps a small cleanup report in memory. Read
+`controller.lastCleanupReport` after `restartApp()` or pass `onCleanupReport`
+to persist the staging path, descriptor version, cleanup status, native rollback
+status when known, and error text when scheduling or cleanup fails:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  onCleanupReport: (report) async {
+    await myReleaseAuditStore.save(report);
+  },
+);
+```
+
+The callback is observational. If it throws or your persistence backend is
+unavailable, the updater still treats install scheduling according to the
+native helper result.
+
+### Diagnostics And Support
+
+Apps that want a durable lifecycle log can supply an app-owned diagnostics
+recorder with a sink. The package forwards redacted entries but does not choose
+a file path, retention policy, upload target, or storage package:
+
+```dart
+class AppUpdateLogSink implements UpdateDiagnosticsSink {
+  AppUpdateLogSink(this.file);
+  final File file;
+
+  @override
+  void record(UpdateDiagnosticEntry entry) {
+    file.writeAsStringSync(
+      "${entry.toRedactedLogLine()}\n",
+      mode: FileMode.append,
+      flush: true,
+    );
+  }
+}
+
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  diagnosticsRecorder: UpdateDiagnosticsRecorder(
+    sink: AppUpdateLogSink(appOwnedLogFile),
+  ),
+);
+```
+
+Sink failures are ignored by the updater. In-memory problem reports remain
+available even when the app-owned log destination cannot be written.
+
+Apps can also opt into a pending install recovery marker. The package never
+chooses a marker file, database, or retention policy; provide an app-owned
+`UpdateRecoveryStore` when you want post-relaunch install failure reports:
+
+```dart
+class AppUpdateRecoveryStore implements UpdateRecoveryStore {
+  @override
+  Future<UpdateInstallRecoveryMarker?> readPendingInstall({
+    required String channel,
+  }) async {
+    return myStore.readMarker(channel);
+  }
+
+  @override
+  Future<void> writePendingInstall(
+    UpdateInstallRecoveryMarker marker,
+  ) async {
+    await myStore.writeMarker(marker.channel, marker);
+  }
+
+  @override
+  Future<void> clearPendingInstall({required String channel}) async {
+    await myStore.deleteMarker(channel);
+  }
+}
+
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  recoveryStore: AppUpdateRecoveryStore(),
+);
+```
+
+Before native install handoff, `restartApp()` writes a marker with the current
+app version, target update version/build, staging path, and redacted diagnostics
+text. If the native method throws before the app exits, the marker is cleared
+and the current-session `UpdateFailed(report)` is preserved. On relaunch,
+`recoverPendingInstall()` reads the marker: a target version match clears it,
+while the old version or an unverifiable version becomes `UpdateFailed(report)`.
+Store failures are captured as diagnostics warnings and do not crash startup or
+block install handoff.
+
+For post-exit native helper diagnostics, pass an explicit app-owned log path.
+The helpers append bounded JSONL-style lifecycle events only when a path is
+provided; logging failures are ignored so update install and rollback work are
+not blocked by support logging:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  diagnosticsLogPath: appOwnedHelperLogFile.path,
+);
+```
+
+Use this with an app-owned recovery store when support needs evidence from
+after the Flutter process has exited.
+
+For support flows, keep the integration level explicit:
+
+1. In-memory problem report only: this is the default. The package writes no
+   files and uploads nothing.
+2. App-owned Dart lifecycle log: add `UpdateDiagnosticsRecorder(sink: ...)`
+   when your app wants a redacted durable log at a path it controls.
+3. App-owned native helper log plus recovery store: add `diagnosticsLogPath`
+   and `UpdateRecoveryStore` when support needs post-exit install, rollback,
+   cleanup, or relaunch evidence.
+
+Suggested user-facing support copy:
+
+```text
+Open Settings > Updates > Copy update report. If the app cannot open that
+screen, attach the update log from the location your app shows in Settings.
+```
+
+Do not hardcode a package-owned support path. The app should choose the path,
+retention behavior, and whether the user approves sharing the file.
+
+See [Diagnostics and recovery](diagnostics-and-recovery.md) for the full log
+location, native helper, and recovery-store model.
+
+If your app wants to enforce descriptor `minimumOS` metadata, provide a
+deterministic policy callback:
+
+```dart
+final controller = DesktopUpdaterController(
+  appArchiveUrl: archiveUrl,
+  isMinimumOSSupported: ({required platform, required minimumOS}) {
+    return myRuntimePolicy.supports(platform, minimumOS);
+  },
+);
+```
+
+When the callback returns false for the current platform, the descriptor is
+skipped. If no callback is supplied, `minimumOS` is parsed and preserved but not
+enforced by the controller.
+
+## Custom UI With `DesktopUpdaterInheritedNotifier`
+
+For product-specific UI, wrap your own widget with
+`DesktopUpdaterInheritedNotifier` and switch on the typed controller state.
+
+![Custom update UI screenshot](assets/ui-widgets/custom-state-ui.png)
+
+```dart
+DesktopUpdaterInheritedNotifier(
+  controller: controller,
+  child: Builder(
+    builder: (context) {
+      final updater = DesktopUpdaterInheritedNotifier.of(context).notifier!;
+
+      return switch (updater.state) {
+        UpdateAvailable(:final mandatory) => ListTile(
+            title: Text(mandatory ? "Required update" : "Update available"),
+            subtitle: Text("${updater.appName} ${updater.appVersion}"),
+            trailing: FilledButton(
+              onPressed: updater.downloadUpdate,
+              child: const Text("Download"),
+            ),
+          ),
+        UpdateDownloading(:final receivedBytes, :final totalBytes) =>
+          LinearProgressIndicator(
+            value: totalBytes <= 0 ? null : receivedBytes / totalBytes,
+          ),
+        UpdateReadyToInstall() => FilledButton(
+            onPressed: updater.restartApp,
+            child: const Text("Install"),
+          ),
+        UpdateFailed(:final error) => Text("Update failed: $error"),
+        _ => const SizedBox.shrink(),
+      };
+    },
+  ),
+)
+```
+
+Why it exists: package defaults are useful for fast adoption, but desktop apps
+often need the update prompt to match their own navigation, density, and visual
+language.
+
+## Visibility Rules
+
+| Surface | Visible for | Hidden for |
+| --- | --- | --- |
+| `DesktopUpdateWidget` | Whatever `DesktopUpdateSliver` shows | Idle or skipped updates |
+| `DesktopUpdateSliver` | Available, downloading, ready to install | Idle, skipped, failed |
+| `DesktopUpdateDirectCard` | Available, downloading, ready to install, failed | Idle or skipped updates |
+| `UpdateCard` | Available, downloading, ready to install, failed | Idle or skipped updates |
+| `UpdateDialogListener` | Available update | Idle, skipped, downloading, ready, failed |
+| Custom state UI | Whatever your `switch` returns | Whatever your `switch` hides |
+
+Mandatory updates hide skip actions and make dialogs non-dismissible. Optional
+updates keep the skip action visible so the user can dismiss the current
+version.

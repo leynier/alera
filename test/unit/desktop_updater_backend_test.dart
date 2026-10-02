@@ -1,12 +1,20 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
+import 'package:alera/src/features/updater/infra/bounded_update_transport.dart';
 import 'package:alera/src/features/updater/infra/desktop_updater_backend.dart';
+import 'package:alera/src/shared/infra/process/process_runner.dart'
+    as alera_process;
 import 'package:cryptography/cryptography.dart';
 import 'package:desktop_updater/desktop_updater.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
+
+part 'desktop_updater_backend_artifact_cases.dart';
+part 'desktop_updater_backend_cancellation_cases.dart';
 
 void main() {
   group('DesktopUpdaterBackend', () {
@@ -144,6 +152,96 @@ void main() {
         throwsA(isA<HttpException>()),
       );
     });
+
+    test('times out a metadata request instead of waiting forever', () async {
+      final pending = Completer<http.Response>();
+      final backend = DesktopUpdaterBackend(
+        client: MockClient((_) => pending.future),
+        requestTimeout: const Duration(milliseconds: 10),
+      );
+
+      await expectLater(
+        backend.checkForUpdate(
+          archiveUrl: _archiveUrl,
+          channel: 'stable',
+          currentVersion: '1.0.0',
+          currentBuildNumber: '1',
+          platform: 'macos',
+          requireSignature: false,
+          publicKeyId: '',
+          publicKeyBase64: '',
+        ),
+        throwsA(
+          isA<HttpException>().having(
+            (error) => error.message,
+            'message',
+            contains('timed out'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects unexpectedly large metadata before parsing it', () async {
+      final backend = DesktopUpdaterBackend(
+        client: MockClient(
+          (_) async => http.Response('x' * (1024 * 1024 + 1), 200),
+        ),
+      );
+
+      await expectLater(
+        backend.checkForUpdate(
+          archiveUrl: _archiveUrl,
+          channel: 'stable',
+          currentVersion: '1.0.0',
+          currentBuildNumber: '1',
+          platform: 'macos',
+          requireSignature: false,
+          publicKeyId: '',
+          publicKeyBase64: '',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test(
+      'does not publish a selection after disposal during descriptor fetch',
+      () async {
+        final fixture = await _signedFixture();
+        final descriptorStarted = Completer<void>();
+        final releaseDescriptor = Completer<void>();
+        final backend = DesktopUpdaterBackend(
+          client: MockClient((request) async {
+            if (request.url == _archiveUrl) {
+              return http.Response(jsonEncode(fixture.index), 200);
+            }
+            if (request.url == _releaseUrl) {
+              descriptorStarted.complete();
+              await releaseDescriptor.future;
+              return http.Response(jsonEncode(fixture.descriptor), 200);
+            }
+            return http.Response('', 404);
+          }),
+        );
+
+        final check = backend.checkForUpdate(
+          archiveUrl: _archiveUrl,
+          channel: 'stable',
+          currentVersion: '1.0.0',
+          currentBuildNumber: '1',
+          platform: 'macos',
+          requireSignature: true,
+          publicKeyId: _publicKeyId,
+          publicKeyBase64: fixture.publicKey,
+        );
+        await descriptorStarted.future;
+        backend.dispose();
+        releaseDescriptor.complete();
+
+        await expectLater(check, throwsA(isA<StateError>()));
+      },
+    );
+    registerDesktopUpdaterBackendArtifactTests();
+    registerDesktopUpdaterBackendCancellationTests();
   });
 }
 
@@ -161,6 +259,10 @@ MockClient _metadataClient(_SignedFixture fixture) {
 
 Future<_SignedFixture> _signedFixture({
   String descriptorPlatform = 'macos',
+  String indexPlatform = 'macos',
+  Uri? artifactUrl,
+  int artifactLength = 42,
+  String artifactKind = 'zip',
 }) async {
   final keyPair = await Ed25519().newKeyPairFromSeed(List<int>.filled(32, 7));
   final publicKey = await keyPair.extractPublicKey();
@@ -173,16 +275,25 @@ Future<_SignedFixture> _signedFixture({
     'platform': descriptorPlatform,
     'channel': 'stable',
     'artifact': <String, dynamic>{
-      'kind': 'zip',
-      'url': _artifactUrl.toString(),
+      'kind': artifactKind,
+      'url': (artifactUrl ?? _artifactUrl).toString(),
       'sha256': _sha256,
-      'length': 42,
+      'length': artifactLength,
     },
-    'install': <String, dynamic>{
-      'strategy': descriptorPlatform == 'macos'
-          ? 'wholeBundleReplace'
-          : 'wholeDirectoryReplace',
-    },
+    'install': artifactKind == 'pkgInstaller'
+        ? <String, dynamic>{
+            'strategy': 'pkgInstaller',
+            'macosPkg': <String, dynamic>{
+              'launchMode': 'installerApp',
+              'expectedPackageIds': <String>['dev.leynier.alera'],
+              'relaunchAfterInstall': false,
+            },
+          }
+        : <String, dynamic>{
+            'strategy': descriptorPlatform == 'macos'
+                ? 'wholeBundleReplace'
+                : 'wholeDirectoryReplace',
+          },
     'minimumUpdaterVersion': '2.5.0',
     'generatedAt': '2026-07-27T00:00:00.000Z',
     'signature': <String, dynamic>{
@@ -210,7 +321,7 @@ Future<_SignedFixture> _signedFixture({
         <String, dynamic>{
           'version': '1.2.3',
           'buildNumber': 2,
-          'platform': 'macos',
+          'platform': indexPlatform,
           'channel': 'stable',
           'mandatory': false,
           'release': _releaseUrl.toString(),

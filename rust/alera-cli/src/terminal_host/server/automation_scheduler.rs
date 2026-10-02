@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use alera_core::runtime::{next_occurrence, AutomationSchedule, AutomationState, RuntimeStore};
 use chrono::{DateTime, Utc};
-use tokio::sync::{mpsc::UnboundedSender, Notify};
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use super::ServerCommand;
@@ -14,7 +14,7 @@ const OVERDUE_CIRCUIT_RETRY: Duration = Duration::from_secs(5);
 
 pub(super) fn spawn(
     store: RuntimeStore,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     wake: Arc<Notify>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {

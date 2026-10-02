@@ -19,12 +19,17 @@ enum AgentTaskAccessPolicy { repositoryReadOnly, diffOnly }
 
 enum AgentTaskOutputContract { plainText, readingDiffPlanV1 }
 
+/// Agent CLIs are user-configurable processes, so their output must not be
+/// allowed to grow without a bound while the desktop waits for completion.
+const int aiAssistAgentMaxOutputBytes = 4 * 1024 * 1024;
+
 class const AiAssistAgentRunRequest({
   required final AiAssistSettings settings,
   required final String prompt,
   required final String runId,
   required final String? workingDirectory,
   final AiAssistAgent? agent,
+  final AiAssistOperation? operation,
   final String? model,
   final String? reasoning,
   final String Function(String) cleanOutput = cleanGeneratedText,
@@ -160,7 +165,7 @@ class CliAiAssistAgentRunner({
       }
       final rawOutput = plan.outputFile == null
           ? output.stdout
-          : await plan.outputFile!.readAsString();
+          : await _readBoundedOutputFile(plan.outputFile!);
       final text = request.outputContract == AgentTaskOutputContract.plainText
           ? request.cleanOutput(rawOutput)
           : _cleanStructuredOutput(request.cleanOutput(rawOutput));
@@ -168,6 +173,10 @@ class CliAiAssistAgentRunner({
         throw AiAssistException('${plan.label} returned no text.');
       }
       return AiAssistAgentRunResult(text: text, agentLabel: plan.label);
+    } on _AiAssistAgentOutputLimitException {
+      throw AiAssistException(
+        '${plan?.label ?? 'Agent'} returned too much output.',
+      );
     } finally {
       _pending.remove(request.runId);
       _running.remove(request.runId);
@@ -209,12 +218,38 @@ class CliAiAssistAgentRunner({
             defaultModelIdForAgent(agent, request.settings),
         extraModels: discoveredModelsForAgent(request.settings, agent),
       );
+      final operation = request.operation;
+      final selectedThinkingByModel = request.settings.selectedThinkingByModel;
+      final selectedThinkingByOperation = operation == null
+          ? const <String, String>{}
+          : request.settings.selectedThinkingByOperation[operation] ??
+                const <String, String>{};
+      final hasSavedThinking =
+          selectedThinkingByModel.isNotEmpty ||
+          selectedThinkingByOperation.isNotEmpty;
+      final thinkingContext =
+          agent == AiAssistAgent.chatgpt &&
+              model.id.trim().isEmpty &&
+              hasSavedThinking
+          ? AiAssistThinkingContext(
+              operation: operation,
+              selectedThinkingByModel: selectedThinkingByModel,
+              selectedThinkingByOperation: selectedThinkingByOperation,
+            )
+          : null;
       final result = await completer.complete(
         prompt: request.prompt,
         model: model.id,
         sessionId: request.runId,
         operationId: request.runId,
         timeoutSeconds: request.settings.timeoutSeconds,
+        thinkingLevel: agent == AiAssistAgent.chatgpt
+            ? request.reasoning ?? request.settings.thinkingForModel(model.id)
+            : null,
+        serviceTier: agent == AiAssistAgent.chatgpt
+            ? request.settings.effectiveChatGptServiceTier
+            : null,
+        thinkingContext: thinkingContext,
       );
       if (_canceled.contains(request.runId)) {
         throw const AiAssistCanceledException();
@@ -253,15 +288,48 @@ class CliAiAssistAgentRunner({
   Future<ProcessRunOutput> _collectProcess(StartedProcess process) async {
     final stdout = StringBuffer();
     final stderr = StringBuffer();
-    final stdoutDone = utf8.decoder.bind(process.stdout).forEach(stdout.write);
-    final stderrDone = utf8.decoder.bind(process.stderr).forEach(stderr.write);
-    final exitCode = await process.exitCode;
-    await Future.wait(<Future<void>>[stdoutDone, stderrDone]);
-    return ProcessRunOutput(
-      exitCode: exitCode,
-      stdout: stdout.toString(),
-      stderr: stderr.toString(),
+    final collector = _AiAssistProcessOutputCollector(
+      maxBytes: aiAssistAgentMaxOutputBytes,
     );
+    try {
+      final stdoutDone = collector.collect(process.stdout, stdout);
+      final stderrDone = collector.collect(process.stderr, stderr);
+      var exitCode = 0;
+      final exitDone = process.exitCode.then<void>((value) {
+        exitCode = value;
+      });
+      await Future.wait<void>(<Future<void>>[
+        stdoutDone,
+        stderrDone,
+        exitDone,
+      ], eagerError: true);
+      return ProcessRunOutput(
+        exitCode: exitCode,
+        stdout: stdout.toString(),
+        stderr: stderr.toString(),
+      );
+    } catch (error, stackTrace) {
+      // A decoder or stream error stops one reader before the child exits. Kill
+      // the process tree first, cancel the sibling reader, and reap the child
+      // before returning the original error to the caller.
+      _killProcess(process);
+      await collector.cancel();
+      await _waitForProcessExit(process.exitCode);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+
+  Future<String> _readBoundedOutputFile(File file) async {
+    final bytes = await file
+        .openRead(0, aiAssistAgentMaxOutputBytes + 1)
+        .fold<List<int>>(<int>[], (buffer, chunk) {
+          buffer.addAll(chunk);
+          return buffer;
+        });
+    if (bytes.length > aiAssistAgentMaxOutputBytes) {
+      throw const _AiAssistAgentOutputLimitException();
+    }
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   String _cleanStructuredOutput(String output) {
@@ -288,6 +356,89 @@ class CliAiAssistAgentRunner({
       caseSensitive: false,
     ).firstMatch(trimmed);
     return fenced?.group(1)?.trim() ?? trimmed;
+  }
+}
+
+class const _AiAssistAgentOutputLimitException() implements Exception;
+
+class _AiAssistProcessOutputCollector {
+  _AiAssistProcessOutputCollector({required this.maxBytes});
+
+  final int maxBytes;
+  var _totalBytes = 0;
+  final List<StreamSubscription<String>> _subscriptions =
+      <StreamSubscription<String>>[];
+  final List<Completer<void>> _completers = <Completer<void>>[];
+
+  Future<void> collect(Stream<List<int>> stream, StringBuffer buffer) {
+    final completer = Completer<void>();
+    final counted = stream.map((chunk) {
+      _totalBytes += chunk.length;
+      if (_totalBytes > maxBytes) {
+        throw const _AiAssistAgentOutputLimitException();
+      }
+      return chunk;
+    });
+    final decoded = utf8.decoder.bind(counted);
+    final subscription = decoded.listen(
+      buffer.write,
+      onError: (Object error, StackTrace stackTrace) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
+      },
+      onDone: () {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+      cancelOnError: true,
+    );
+    _subscriptions.add(subscription);
+    _completers.add(completer);
+    return completer.future;
+  }
+
+  Future<void> cancel() async {
+    await Future.wait<void>(<Future<void>>[
+      for (final subscription in _subscriptions)
+        _cancelSubscription(subscription),
+    ], eagerError: false);
+    for (final completer in _completers) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+    await Future.wait<void>(<Future<void>>[
+      for (final completer in _completers) _ignoreOutputError(completer.future),
+    ], eagerError: false);
+  }
+}
+
+Future<void> _cancelSubscription(
+  StreamSubscription<String> subscription,
+) async {
+  try {
+    await subscription.cancel().timeout(const Duration(seconds: 1));
+  } on Object {
+    // The process has already been terminated; a broken stream cancellation
+    // must not hide the original output error or keep the runner waiting.
+  }
+}
+
+Future<void> _ignoreOutputError(Future<void> future) async {
+  try {
+    await future;
+  } on Object {
+    // The first output error is rethrown by _collectProcess.
+  }
+}
+
+void _killProcess(StartedProcess process) {
+  try {
+    process.kill();
+  } on Object {
+    // Preserve the output or stream failure that caused the termination.
   }
 }
 

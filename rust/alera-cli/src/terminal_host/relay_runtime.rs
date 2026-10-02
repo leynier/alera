@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::{
-    mpsc::{self, Sender, UnboundedSender},
+    mpsc::{self, Sender},
     oneshot, Semaphore,
 };
 use tokio::task::JoinHandle;
@@ -72,7 +72,7 @@ impl RelayAccount for AleraAccountService {
 pub fn spawn(
     service: Arc<AleraAccountService>,
     runtime_id: String,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
     generation: u64,
 ) -> (JoinHandle<()>, oneshot::Sender<()>) {
@@ -93,7 +93,7 @@ pub fn spawn(
 async fn run(
     service: Arc<AleraAccountService>,
     runtime_id: String,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
     mut stop: oneshot::Receiver<()>,
     generation: u64,
@@ -140,7 +140,7 @@ async fn run(
 async fn connect_and_serve(
     service: &dyn RelayAccount,
     runtime_id: &str,
-    inbox: &UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     next_id: &Arc<AtomicU64>,
     verifier: &GrantVerifier,
     backoff: &mut RelayRetryBackoff,
@@ -331,7 +331,7 @@ mod cross_language_tests;
 mod tests;
 
 fn report(
-    inbox: &UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     generation: u64,
     state: &str,
     error: Option<&str>,

@@ -57,20 +57,26 @@ Stream<T> runtimeSnapshotStream<T>({
   StreamSubscription<RuntimeHostEvent>? eventSub;
   Timer? retryTimer;
   var backoff = retryDelay;
+  var cancelled = false;
+  Future<void>? inFlight;
+  var refreshPending = false;
+  late final Future<void> Function() refresh;
 
-  Future<void> refresh() async {
-    if (controller.isClosed) {
+  Future<void> readAndPublish() async {
+    if (cancelled || controller.isClosed) {
       return;
     }
     try {
       final value = await readSnapshot();
-      if (controller.isClosed) {
+      if (cancelled || controller.isClosed) {
         return;
       }
       controller.add(value);
+      retryTimer?.cancel();
+      retryTimer = null;
       backoff = retryDelay;
     } on Object {
-      if (controller.isClosed) {
+      if (cancelled || controller.isClosed) {
         return;
       }
       retryTimer?.cancel();
@@ -79,6 +85,26 @@ Stream<T> runtimeSnapshotStream<T>({
       backoff = next > maxRetryDelay ? maxRetryDelay : next;
     }
   }
+
+  refresh = () {
+    if (cancelled || controller.isClosed) {
+      return Future<void>.value();
+    }
+    final active = inFlight;
+    if (active != null) {
+      refreshPending = true;
+      return active;
+    }
+    final future = readAndPublish();
+    inFlight = future;
+    return future.whenComplete(() {
+      inFlight = null;
+      if (refreshPending && !cancelled) {
+        refreshPending = false;
+        coalescer.schedule(coalesceKey, coalesceOwner, refresh);
+      }
+    });
+  };
 
   controller = StreamController<T>(
     onListen: () {
@@ -100,6 +126,9 @@ Stream<T> runtimeSnapshotStream<T>({
       unawaited(refresh());
     },
     onCancel: () {
+      // Cancelling the subscription does not close its controller. An RPC
+      // settling later must not restart the reconnect loop without a listener.
+      cancelled = true;
       retryTimer?.cancel();
       retryTimer = null;
       coalescer.cancel(coalesceKey, coalesceOwner);

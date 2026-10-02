@@ -87,7 +87,7 @@ abstract final class AppLogger._() {
       // Plain text so a foreground `flutter run` stays readable, but redacted
       // like the file: console output gets pasted into bug reports too.
       _consoleWriter(
-        '[${record.level.name}] ${record.loggerName}: '
+        '[${record.level.name}] ${redactLogText(record.loggerName)}: '
         '${redactLogText(record.message)}',
       );
     } on Object {

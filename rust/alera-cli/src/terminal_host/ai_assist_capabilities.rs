@@ -15,3 +15,6 @@ pub const RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY: &str =
 /// Additive: do not bump `aleraTerminalHostProtocolVersion`.
 pub const RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY: &str = "aiAssistOpenCodeGoV1";
 pub const RUNTIME_HOST_AI_ASSIST_CHATGPT_CAPABILITY: &str = "aiAssistChatGptV1";
+/// Direct ChatGPT completion options such as reasoning effort and service tier.
+/// Additive: older clients can continue using the base ChatGPT capability.
+pub const RUNTIME_HOST_AI_ASSIST_CHATGPT_OPTIONS_CAPABILITY: &str = "aiAssistChatGptOptionsV1";

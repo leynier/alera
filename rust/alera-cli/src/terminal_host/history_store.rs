@@ -3,7 +3,7 @@ use std::path::Path;
 use alera_core::runtime::{
     harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory,
 };
-use anyhow::Result;
+use anyhow::{bail, Result};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::{Row, SqlitePool};
@@ -156,17 +156,54 @@ impl TerminalHostHistoryStore {
         if data.is_empty() {
             return Ok(());
         }
-        sqlx::query(
+        // A durable write can report an error after SQLite has committed (for
+        // example, when the task is cancelled while its result is delivered).
+        // Keep retries idempotent without changing the legacy schema: SQLite
+        // serializes the INSERT, and the second writer verifies the bytes that
+        // already occupy the session/sequence key before it returns success.
+        let result = sqlx::query(
             "INSERT INTO outputChunks (sessionId, sequence, createdAt, data) \
-             SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM checkpoints WHERE sessionId = ?)",
+             SELECT ?, ?, ?, ? \
+             WHERE EXISTS (SELECT 1 FROM checkpoints WHERE sessionId = ?) \
+               AND NOT EXISTS ( \
+                 SELECT 1 FROM outputChunks \
+                 WHERE sessionId = ? AND sequence = ? \
+               )",
         )
         .bind(session_id)
         .bind(sequence)
         .bind(format_timestamp(Utc::now()))
         .bind(data)
         .bind(session_id)
+        .bind(session_id)
+        .bind(sequence)
         .execute(&self.pool)
         .await?;
+        if result.rows_affected() != 0 {
+            return Ok(());
+        }
+
+        // No row can also mean that the checkpoint disappeared, which was the
+        // existing append contract. In that case preserve the no-op behavior.
+        let existing_rows = sqlx::query(
+            "SELECT data FROM outputChunks \
+             WHERE sessionId = ? AND sequence = ? \
+               AND EXISTS (SELECT 1 FROM checkpoints WHERE sessionId = ?)",
+        )
+        .bind(session_id)
+        .bind(sequence)
+        .bind(session_id)
+        .fetch_all(&self.pool)
+        .await?;
+        if existing_rows.is_empty() {
+            return Ok(());
+        }
+        for row in existing_rows {
+            let existing: Vec<u8> = row.try_get("data")?;
+            if existing != data {
+                bail!("history output conflict for session {session_id} at sequence {sequence}");
+            }
+        }
         Ok(())
     }
 

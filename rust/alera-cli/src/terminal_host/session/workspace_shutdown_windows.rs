@@ -138,7 +138,7 @@ fn capture_processes(job: &OwnedHandle) -> HostResult<Vec<OwnedHandle>> {
             } {
                 Ok(handle) => handle,
                 Err(error) if error.code() == HRESULT::from_win32(ERROR_INVALID_PARAMETER.0) => {
-                    continue
+                    continue;
                 }
                 Err(error) => return Err(shutdown_error(error)),
             };

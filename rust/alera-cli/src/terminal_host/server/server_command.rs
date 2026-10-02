@@ -78,6 +78,11 @@ pub enum ServerCommand {
         id: u64,
         line: String,
     },
+    HistoryRequestRetry {
+        client_id: u64,
+        request_id: i64,
+        line: String,
+    },
     RelayClientLine {
         id: u64,
         line: String,
@@ -108,6 +113,10 @@ pub enum ServerCommand {
     DurableOutputBatchTick {
         session_id: String,
         generation: u64,
+    },
+    /// Wakes the actor to collect a per-session history writer completion.
+    HistoryWriterReady {
+        session_id: String,
     },
     CheckpointTick {
         session_id: String,
@@ -264,6 +273,8 @@ pub enum ServerCommand {
     },
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
+        captured_shutdown:
+            Option<Box<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>>,
         completion: tokio::sync::oneshot::Sender<
             HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
         >,

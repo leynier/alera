@@ -106,6 +106,17 @@ test('respects reduced motion', async ({ browser }) => {
   await context.close();
 });
 
+test('pauses when reduced motion is enabled after playback starts', async ({ page }) => {
+  await openDemo(page);
+  await expect(demo(page)).toHaveAttribute('data-state', 'playing');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(demo(page)).toHaveAttribute('data-state', 'paused');
+  const pausedAt = await demo(page).evaluate((element) => element.style.getPropertyValue('--demo-t'));
+  await page.waitForTimeout(500);
+  await expect(demo(page)).toHaveAttribute('data-state', 'paused');
+  expect(await demo(page).evaluate((element) => element.style.getPropertyValue('--demo-t'))).toBe(pausedAt);
+});
+
 test('draws the same frame for the same time in capture mode', async ({ page }) => {
   await openDemo(page, '/?demo=capture');
   await expect(demo(page)).toHaveAttribute('data-capture', '');

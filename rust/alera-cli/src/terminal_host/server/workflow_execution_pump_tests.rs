@@ -55,7 +55,7 @@ async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let frozen = launch::claim_and_validate(&fixture.store, &record)
         .await
@@ -162,9 +162,7 @@ async fn cancellation_stops_only_matching_workers_while_execution_is_busy() {
 
 async fn drain_cancellation(
     actor: &mut super::ServerActor,
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<
-        crate::terminal_host::server::ServerCommand,
-    >,
+    commands: &mut crate::terminal_host::server::ServerInboxReceiver,
 ) {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
     while actor.workflow_execution.cancelling {
@@ -194,7 +192,7 @@ async fn execution_pump_launches_to_concurrency_without_a_board_or_desktop_clien
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor.wake_workflow_execution();
     assert_eq!(actor.managed_workspace_jobs, 0);
@@ -272,7 +270,7 @@ async fn execution_pump_launches_to_concurrency_without_a_board_or_desktop_clien
 async fn waiting_execution_does_not_reschedule_itself() {
     let dir = tempfile::tempdir().unwrap();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor.workflow_execution.ready = true;
     // Consume fixture initialization revisions before checking the idle lane.

@@ -30,6 +30,7 @@ pub(crate) mod restart;
 pub(crate) mod runtime_build_info;
 pub(crate) mod runtime_owner;
 pub mod server;
+pub(crate) use server::ServerInbox;
 pub mod session;
 pub mod sleep_detector;
 pub(crate) mod voice_capabilities;

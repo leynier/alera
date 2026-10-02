@@ -1923,10 +1923,12 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(effective_timeout_ms)).await;
-            let _ = inbox.send(ServerCommand::OrchestrationWaitTimeout {
-                waiter_id,
-                effective_timeout_ms,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::OrchestrationWaitTimeout {
+                    waiter_id,
+                    effective_timeout_ms,
+                })
+                .await;
         });
     }
 }

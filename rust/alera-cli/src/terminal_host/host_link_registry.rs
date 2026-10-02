@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 
 use alera_core::runtime::RuntimeStore;
 use serde_json::{json, Value};
-use tokio::sync::mpsc::UnboundedSender;
 
 use super::host_error::{HostError, HostResult};
 use super::host_link::{HostLink, HostLinkLauncher, HostLinkState};
@@ -26,7 +25,7 @@ struct HostSlot {
 #[derive(Clone)]
 pub(crate) struct HostLinkRegistry {
     store: RuntimeStore,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     launcher: Arc<HostLinkLauncher>,
     hosts: Arc<Mutex<HashMap<String, Arc<HostSlot>>>>,
     /// Satellite-issued session ids (Quick Open) mapped to the host that owns
@@ -35,13 +34,13 @@ pub(crate) struct HostLinkRegistry {
 }
 
 impl HostLinkRegistry {
-    pub(crate) fn new(store: RuntimeStore, inbox: UnboundedSender<ServerCommand>) -> Self {
+    pub(crate) fn new(store: RuntimeStore, inbox: crate::terminal_host::ServerInbox) -> Self {
         Self::with_launcher(store, inbox, Arc::new(super::host_link::ssh_launcher))
     }
 
     pub(crate) fn with_launcher(
         store: RuntimeStore,
-        inbox: UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
         launcher: Arc<HostLinkLauncher>,
     ) -> Self {
         Self {

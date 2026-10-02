@@ -30,7 +30,7 @@ async fn terminal_exit_fails_active_orchestration_dispatch() {
         .create_orchestration_dispatch(&task.id, "term-1")
         .await
         .unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     let mut actor = ServerActor {
         runtime_dir: dir.path().to_path_buf(),
         control_file_path: dir.path().join("runtime-host.json"),
@@ -63,7 +63,8 @@ async fn terminal_exit_fails_active_orchestration_dispatch() {
         account_push: account_push_for_test(&dir, &runtime_store).await,
         clients: HashMap::new(),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        history_writers: HashMap::new(),
+        pending_history_requests: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
@@ -155,7 +156,7 @@ async fn host_dispose_fails_active_orchestration_dispatch() {
     )
     .await
     .unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     let mut actor = ServerActor {
         runtime_dir: dir.path().to_path_buf(),
         control_file_path: dir.path().join("runtime-host.json"),
@@ -188,7 +189,8 @@ async fn host_dispose_fails_active_orchestration_dispatch() {
         account_push: account_push_for_test(&dir, &runtime_store).await,
         clients: HashMap::new(),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        history_writers: HashMap::new(),
+        pending_history_requests: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
@@ -252,7 +254,7 @@ async fn coordinator_does_not_spawn_worker_tab_for_cli_only_client() {
         })
         .await
         .unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     let (handle, _control_out_rx) = ClientHandle::test_channels();
     let mut actor = ServerActor {
         runtime_dir: dir.path().to_path_buf(),
@@ -286,7 +288,8 @@ async fn coordinator_does_not_spawn_worker_tab_for_cli_only_client() {
         account_push: account_push_for_test(&dir, &runtime_store).await,
         clients: HashMap::from([(1, ClientState::local(handle, false))]),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        history_writers: HashMap::new(),
+        pending_history_requests: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),

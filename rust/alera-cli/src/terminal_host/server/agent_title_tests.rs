@@ -376,7 +376,7 @@ async fn hook_identity_is_independent_of_activity_and_late_closure_is_ignored() 
 async fn empty_terminal_fallback_fails_once_and_retains_the_title() {
     let dir = tempfile::tempdir().unwrap();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
-    let (inbox, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let mut tab = tab();
     initialize(&mut tab, "");

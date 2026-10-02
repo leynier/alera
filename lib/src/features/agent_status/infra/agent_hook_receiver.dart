@@ -46,9 +46,10 @@ class AgentHookReceiver._(
 
   final CodexTranscriptStatusWatcher _codexTranscriptStatusWatcher;
 
-  Future<void>? _starting;
+  Future<void> _lifecycle = Future<void>.value();
   AgentHookEndpoint? _endpoint;
   StreamSubscription<AgentHookEventBatch>? _eventSubscription;
+  var _eventGeneration = 0;
   bool _disposed = false;
 
   bool get isRunning => _endpoint != null;
@@ -59,33 +60,25 @@ class AgentHookReceiver._(
     if (_disposed) {
       throw StateError('Agent hook receiver is disposed.');
     }
-    if (_endpoint != null) {
-      return Future<void>.value();
-    }
-    return _starting ??= _start();
+    return _enqueueLifecycle(() async {
+      if (_disposed || _endpoint != null) {
+        return;
+      }
+      await _start();
+    });
   }
 
-  Future<void> updateEnabledAgents() async {
-    if (_disposed || _endpoint == null) {
-      return;
-    }
-    await _hookServer.setEnabledAgents(_enabledAgentKeys());
+  Future<void> updateEnabledAgents() {
+    return _enqueueLifecycle(() async {
+      if (_disposed || _endpoint == null) {
+        return;
+      }
+      await _hookServer.setEnabledAgents(_enabledAgentKeys());
+    });
   }
 
-  Future<void> stop() async {
-    final starting = _starting;
-    if (starting != null) {
-      await starting.catchError((_) {});
-    }
-    final shouldStopServer = _endpoint != null || _eventSubscription != null;
-    _starting = null;
-    _endpoint = null;
-    _codexTranscriptStatusWatcher.clear();
-    if (shouldStopServer) {
-      await _hookServer.stop();
-    }
-    await _eventSubscription?.cancel();
-    _eventSubscription = null;
+  Future<void> stop() {
+    return _enqueueLifecycle(_stop);
   }
 
   /// Releases per-terminal watch state once the terminal session is gone.
@@ -112,10 +105,54 @@ class AgentHookReceiver._(
     _codexTranscriptStatusWatcher.dispose();
   }
 
+  Future<void> _enqueueLifecycle(Future<void> Function() operation) {
+    final next = _lifecycle.then<void>((_) => operation());
+    // Keep the queue usable after a failed start while returning the original
+    // error to the caller that requested the operation.
+    _lifecycle = next.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return next;
+  }
+
+  Future<void> _stop() async {
+    final shouldStopServer = _endpoint != null || _eventSubscription != null;
+    final eventSubscription = _eventSubscription;
+    _endpoint = null;
+    _eventGeneration++;
+    _codexTranscriptStatusWatcher.clear();
+    _eventSubscription = null;
+
+    Object? firstError;
+    StackTrace? firstStackTrace;
+    if (shouldStopServer) {
+      try {
+        // The native producer owns the FRB stream sink. Stop it first so that
+        // cancelling the Dart subscription cannot wait for a sink that is
+        // still receiving events.
+        await _hookServer.stop();
+      } catch (error, stackTrace) {
+        firstError = error;
+        firstStackTrace = stackTrace;
+      }
+    }
+    try {
+      await eventSubscription?.cancel();
+    } catch (error, stackTrace) {
+      firstError ??= error;
+      firstStackTrace ??= stackTrace;
+    }
+    if (firstError != null) {
+      Error.throwWithStackTrace(
+        firstError,
+        firstStackTrace ?? StackTrace.current,
+      );
+    }
+  }
+
   Future<void> _start() async {
     int? startedPort;
+    final eventGeneration = ++_eventGeneration;
     try {
-      _ensureEventSubscription();
+      _ensureEventSubscription(eventGeneration);
       startedPort = await _hookServer.start(
         token: _token,
         enabledAgents: _enabledAgentKeys(),
@@ -142,19 +179,32 @@ class AgentHookReceiver._(
       );
     } catch (_) {
       if (startedPort != null) {
-        await _hookServer.stop();
+        try {
+          await _hookServer.stop();
+        } catch (_) {
+          // Preserve the startup failure and let the next lifecycle operation
+          // attempt a fresh server start.
+        }
       }
+      _eventGeneration++;
+      try {
+        await _eventSubscription?.cancel();
+      } catch (_) {
+        // A failed stream cancellation must not leave the lifecycle queue
+        // pointing at the failed subscription.
+      }
+      _eventSubscription = null;
       rethrow;
-    } finally {
-      _starting = null;
     }
   }
 
-  void _ensureEventSubscription() {
-    _eventSubscription ??= _hookServer.watchEventBatches().listen(
-      _handleEventBatch,
-      onError: (_) {},
-    );
+  void _ensureEventSubscription(int eventGeneration) {
+    _eventSubscription = _hookServer.watchEventBatches().listen((batch) {
+      if (_disposed || eventGeneration != _eventGeneration) {
+        return;
+      }
+      _handleEventBatch(batch);
+    }, onError: (_) {});
   }
 
   void _handleEventBatch(AgentHookEventBatch batch) {

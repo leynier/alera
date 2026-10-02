@@ -5,7 +5,7 @@ use std::sync::{
 
 use futures_util::{stream::SplitSink, SinkExt as _, StreamExt as _};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::{self, error::TryRecvError, Receiver, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, error::TryRecvError, Receiver, UnboundedReceiver};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
@@ -17,7 +17,7 @@ use crate::terminal_host::server::{ClientKind, ServerCommand};
 
 pub fn spawn_mobile_gateway_accept_loop(
     listener: TcpListener,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
@@ -37,17 +37,19 @@ pub fn spawn_mobile_gateway_accept_loop(
 async fn accept_mobile_connection(
     stream: TcpStream,
     id: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
 ) -> anyhow::Result<()> {
     let socket = accept_async(stream).await?;
     let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<ClientFrame>();
     let (terminal_out_tx, terminal_out_rx) =
         mpsc::channel::<ClientFrame>(MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
-    inbox.send(ServerCommand::ClientConnected {
-        id,
-        handle: ClientHandle::new(control_out_tx, terminal_out_tx),
-        kind: ClientKind::Mobile,
-    })?;
+    inbox
+        .send_wait(ServerCommand::ClientConnected {
+            id,
+            handle: ClientHandle::new(control_out_tx, terminal_out_tx),
+            kind: ClientKind::Mobile,
+        })
+        .await?;
     mobile_websocket_loop(socket, id, inbox, control_out_rx, terminal_out_rx).await;
     Ok(())
 }
@@ -55,7 +57,7 @@ async fn accept_mobile_connection(
 async fn mobile_websocket_loop(
     socket: tokio_tungstenite::WebSocketStream<TcpStream>,
     id: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     mut control_out_rx: UnboundedReceiver<ClientFrame>,
     mut terminal_out_rx: Receiver<ClientFrame>,
 ) {
@@ -76,7 +78,6 @@ async fn mobile_websocket_loop(
                     .await
                     .is_err()
                     {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                         break;
                     }
                     continue;
@@ -89,7 +90,6 @@ async fn mobile_websocket_loop(
                         .await
                         .is_err()
                     {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                         break;
                     }
                     continue;
@@ -101,13 +101,13 @@ async fn mobile_websocket_loop(
             inbound = read.next() => {
                 match inbound {
                     Some(Ok(Message::Text(text))) => {
-                        if inbox.send(ServerCommand::ClientLine { id, line: text.to_string() }).is_err() {
+                        if inbox.send_wait(ServerCommand::ClientLine { id, line: text.to_string() }).await.is_err() {
                             break;
                         }
                     }
                     Some(Ok(Message::Binary(bytes))) => {
                         if let Ok(line) = String::from_utf8(bytes.to_vec()) {
-                            if inbox.send(ServerCommand::ClientLine { id, line }).is_err() {
+                            if inbox.send_wait(ServerCommand::ClientLine { id, line }).await.is_err() {
                                 break;
                             }
                         }
@@ -118,12 +118,10 @@ async fn mobile_websocket_loop(
                         }
                     }
                     Some(Ok(Message::Close(_))) | None => {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                         break;
                     }
                     Some(Ok(_)) => {}
                     Some(Err(_)) => {
-                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                         break;
                     }
                 }
@@ -140,7 +138,6 @@ async fn mobile_websocket_loop(
                         )
                         .await
                         .is_err() {
-                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
                     }
@@ -171,7 +168,6 @@ async fn mobile_websocket_loop(
                             Err(TryRecvError::Disconnected) => break,
                         };
                         if result.is_err() {
-                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
                     }
@@ -180,6 +176,9 @@ async fn mobile_websocket_loop(
             }
         }
     }
+    let _ = inbox
+        .send_wait(ServerCommand::ClientDisconnected { id })
+        .await;
 }
 
 async fn send_mobile_control_frame(
@@ -211,11 +210,11 @@ async fn send_mobile_value(
         return Ok(());
     }
     if let ClientFrame::RestartRuntimeAfterWrite { inbox } = frame {
-        let _ = inbox.send(ServerCommand::RequestedRestart);
+        let _ = inbox.send_wait(ServerCommand::RequestedRestart).await;
         return Ok(());
     }
     if let ClientFrame::ShutdownRuntimeAfterWrite { inbox } = frame {
-        let _ = inbox.send(ServerCommand::RequestedShutdown);
+        let _ = inbox.send_wait(ServerCommand::RequestedShutdown).await;
         return Ok(());
     }
     if *binary {
@@ -243,10 +242,65 @@ mod tests {
     use tokio_tungstenite::connect_async;
 
     #[tokio::test]
+    async fn saturated_mobile_admission_preserves_binary_text_order_and_cleanup() {
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
+        let mut admitted = 0;
+        while inbox
+            .send(ServerCommand::ClientDisconnected { id: admitted })
+            .is_ok()
+        {
+            admitted += 1;
+        }
+        assert!(admitted > 0);
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (controls, control_rx) = mpsc::unbounded_channel();
+        let (_terminal, terminal_rx) = mpsc::channel(16);
+        let connection_inbox = inbox.clone();
+        let connection = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let socket = accept_async(stream).await.unwrap();
+            mobile_websocket_loop(socket, 900, connection_inbox, control_rx, terminal_rx).await;
+        });
+        let (mut client, _) = connect_async(format!("ws://{address}")).await.unwrap();
+        client
+            .send(Message::Binary(b"first".to_vec().into()))
+            .await
+            .unwrap();
+        client.send(Message::Text("second".into())).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+        assert!(!connection.is_finished());
+        for _ in 0..admitted {
+            commands.try_recv().unwrap();
+        }
+        for expected in ["first", "second"] {
+            let command =
+                tokio::time::timeout(std::time::Duration::from_secs(2), inbox.recv(&mut commands))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert!(
+                matches!(command, ServerCommand::ClientLine { id: 900, line } if line == expected)
+            );
+        }
+        drop(controls);
+        let command =
+            tokio::time::timeout(std::time::Duration::from_secs(2), inbox.recv(&mut commands))
+                .await
+                .unwrap()
+                .unwrap();
+        assert!(matches!(
+            command,
+            ServerCommand::ClientDisconnected { id: 900 }
+        ));
+        connection.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn control_response_stays_between_mobile_terminal_frames() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
-        let (inbox, _inbox_rx) = mpsc::unbounded_channel();
+        let (inbox, _inbox_rx) = crate::terminal_host::ServerInbox::channel();
         let (control_tx, control_rx) = mpsc::unbounded_channel();
         let (terminal_tx, terminal_rx) = mpsc::channel(MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
         let handle = ClientHandle::new(control_tx, terminal_tx);

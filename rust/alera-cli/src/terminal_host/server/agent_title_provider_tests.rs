@@ -17,7 +17,7 @@ async fn fake_agent_title_provider_runs_in_background_and_applies_its_result() {
     let fixture = dir.path().join("provider.sh");
     std::fs::write(&fixture, "cat >/dev/null\nprintf 'Fix Login With Google'\n").unwrap();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
-    let (inbox, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor
         .runtime_store

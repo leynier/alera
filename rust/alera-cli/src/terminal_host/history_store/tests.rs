@@ -59,6 +59,107 @@ async fn read_orders_chunks_by_sequence_not_insert_order() {
 }
 
 #[tokio::test]
+async fn retrying_after_an_ambiguous_commit_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    store.upsert(sample("s1")).await.unwrap();
+
+    store.append_output("s1", 0, b"committed").await.unwrap();
+    // The caller cannot distinguish this replay from a retry after a result
+    // delivery failure, so the second append must acknowledge the same row.
+    store.append_output("s1", 0, b"committed").await.unwrap();
+
+    let count: i64 = sqlx::query("SELECT COUNT(*) AS count FROM outputChunks")
+        .fetch_one(&store.pool)
+        .await
+        .unwrap()
+        .try_get("count")
+        .unwrap();
+    assert_eq!(count, 1);
+    assert_eq!(
+        store.read("s1", 1024).await.unwrap().unwrap().buffer,
+        b"committed"
+    );
+}
+
+#[tokio::test]
+async fn retrying_a_sequence_with_different_bytes_is_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    store.upsert(sample("s1")).await.unwrap();
+    store.append_output("s1", 0, b"original").await.unwrap();
+
+    let error = store
+        .append_output("s1", 0, b"different")
+        .await
+        .expect_err("a sequence may not be reused for different output");
+    assert!(error.to_string().contains("history output conflict"));
+    assert_eq!(
+        store.read("s1", 1024).await.unwrap().unwrap().buffer,
+        b"original"
+    );
+}
+
+#[tokio::test]
+async fn concurrent_duplicate_writers_persist_one_chunk() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    store.upsert(sample("s1")).await.unwrap();
+    let first = store.clone();
+    let second = store.clone();
+
+    let (first_result, second_result) = tokio::join!(
+        first.append_output("s1", 0, b"same"),
+        second.append_output("s1", 0, b"same"),
+    );
+    first_result.unwrap();
+    second_result.unwrap();
+
+    let count: i64 = sqlx::query(
+        "SELECT COUNT(*) AS count FROM outputChunks WHERE sessionId = 's1' AND sequence = 0",
+    )
+    .fetch_one(&store.pool)
+    .await
+    .unwrap()
+    .try_get("count")
+    .unwrap();
+    assert_eq!(count, 1);
+}
+
+#[tokio::test]
+async fn concurrent_conflicting_writers_reject_one_payload() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    store.upsert(sample("s1")).await.unwrap();
+    let first = store.clone();
+    let second = store.clone();
+
+    let (first_result, second_result) = tokio::join!(
+        first.append_output("s1", 0, b"first"),
+        second.append_output("s1", 0, b"second"),
+    );
+    assert!(first_result.is_ok() ^ second_result.is_ok());
+    let error = first_result
+        .err()
+        .or_else(|| second_result.err())
+        .expect("one writer must report the conflicting bytes");
+    assert!(error.to_string().contains("history output conflict"));
+
+    let read = store.read("s1", 1024).await.unwrap().unwrap();
+    assert!(read.buffer == b"first" || read.buffer == b"second");
+}
+
+#[tokio::test]
+async fn append_without_checkpoint_remains_a_noop() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+
+    store.append_output("missing", 0, b"ignored").await.unwrap();
+
+    assert!(store.read("missing", 1024).await.unwrap().is_none());
+}
+
+#[tokio::test]
 async fn next_output_sequence_advances_persisted_history() {
     let dir = tempfile::tempdir().unwrap();
     let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();

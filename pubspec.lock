@@ -338,10 +338,9 @@ packages:
   desktop_updater:
     dependency: "direct main"
     description:
-      name: desktop_updater
-      sha256: "671dd9ec9e7776000e64c42c8bfa87d3cc91f2da53a00ab05de3ffa0119c02c3"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/desktop_updater"
+      relative: true
+    source: path
     version: "2.7.0"
   directory_tree:
     dependency: "direct main"

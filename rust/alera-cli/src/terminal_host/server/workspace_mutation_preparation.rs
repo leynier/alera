@@ -3,10 +3,24 @@ use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 use super::runtime_mutations::RuntimeMutationRequest;
 use super::ServerActor;
 
+#[cfg(test)]
+#[path = "remote_pointer_shutdown_tests.rs"]
+mod remote_pointer_shutdown_tests;
+
 impl ServerActor {
+    #[cfg(test)]
     pub(super) async fn prepare_runtime_mutation(
         &mut self,
         request: &RuntimeMutationRequest,
+    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+        self.prepare_runtime_mutation_with_shutdown(request, None)
+            .await
+    }
+
+    pub(super) async fn prepare_runtime_mutation_with_shutdown(
+        &mut self,
+        request: &RuntimeMutationRequest,
+        captured_shutdown: Option<WorkspaceShutdown>,
     ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
         use crate::terminal_host::host_error::HostError;
 
@@ -54,16 +68,26 @@ impl ServerActor {
                     ));
                 }
                 let Some(proof) = remote_retirement else {
-                    return Ok(WorkspaceShutdown::default());
+                    // Retain local pointer identities before owner retirement can
+                    // close the transport and let its reader reap the shell.
+                    let mut shutdown = WorkspaceShutdown::capture(
+                        self.sessions
+                            .values()
+                            .filter(|session| session.workspace_id == request.id),
+                    )
+                    .await?;
+                    shutdown.closed_tab_ids.clear();
+                    return Ok(shutdown);
                 };
                 proof
                     .verify(&workspace)
                     .map_err(|error| HostError::state(error.to_string()))?;
             }
             return self
-                .prepare_workspace_session_shutdown(
+                .prepare_workspace_session_shutdown_with_capture(
                     request,
                     workspace.host_id == alera_core::runtime::LOCAL_HOST_ID,
+                    captured_shutdown,
                 )
                 .await;
         }

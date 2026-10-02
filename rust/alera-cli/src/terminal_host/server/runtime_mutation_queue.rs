@@ -7,7 +7,34 @@ use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 use super::runtime_mutations::{
     run_runtime_mutation, RuntimeMutationFinished, RuntimeMutationOutcome, RuntimeMutationRequest,
 };
-use super::{ServerActor, ServerCommand};
+use super::{ServerActor, ServerCommand, ServerInbox};
+
+async fn prepare_with_history_retry(
+    inbox: &ServerInbox,
+    request: &RuntimeMutationRequest,
+    mut captured_shutdown: Option<Box<WorkspaceShutdown>>,
+) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+    loop {
+        let (completion, receiver) = tokio::sync::oneshot::channel();
+        inbox
+            .send_wait(ServerCommand::PrepareRuntimeMutation {
+                request: request.clone(),
+                captured_shutdown: captured_shutdown.take(),
+                completion,
+            })
+            .await
+            .map_err(|_| HostError::state("Runtime stopped before workspace cleanup"))?;
+        let result = receiver
+            .await
+            .unwrap_or_else(|_| Err(HostError::state("Runtime stopped before workspace cleanup")));
+        if matches!(&result, Err(HostError::Conflict { code, .. }) if code == "terminalHistoryPending")
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+        return result;
+    }
+}
 
 const MAX_MUTATIONS: usize = 256;
 
@@ -139,14 +166,7 @@ impl ServerActor {
                 | RuntimeMutationRequest::RemoveWorkspace { .. }
                 | RuntimeMutationRequest::RemoveProject { .. }
                 | RuntimeMutationRequest::RemoveProjectWorkspaces { .. } => {
-                    let (completion, receiver) = tokio::sync::oneshot::channel();
-                    let _ = inbox.send(ServerCommand::PrepareRuntimeMutation {
-                        request: request.mutation.clone(),
-                        completion,
-                    });
-                    receiver.await.unwrap_or_else(|_| {
-                        Err(HostError::state("Runtime stopped before workspace cleanup"))
-                    })
+                    prepare_with_history_retry(&inbox, &request.mutation, None).await
                 }
                 _ => Ok(WorkspaceShutdown::default()),
             };
@@ -197,12 +217,14 @@ impl ServerActor {
                 .await;
                 match remote {
                     Ok(true) => {
-                        let (completion, receiver) = tokio::sync::oneshot::channel();
-                        let _ = inbox.send(ServerCommand::PrepareRuntimeMutation {
-                            request: request.mutation.clone(),
-                            completion,
-                        });
-                        prepared = receiver.await.unwrap_or_else(|_| Err(HostError::state("Runtime stopped after remote retirement; retry to recover the owner receipt")));
+                        let captured =
+                            prepared.expect("remote retirement has prepared local ownership");
+                        prepared = prepare_with_history_retry(
+                            &inbox,
+                            &request.mutation,
+                            Some(Box::new(captured)),
+                        )
+                        .await;
                     }
                     Ok(false) => {}
                     Err(error) => prepared = Err(error),
@@ -237,6 +259,7 @@ impl ServerActor {
                 Ok(()) => run_runtime_mutation(runtime_store, request.mutation).await,
                 Err(error) => RuntimeMutationOutcome {
                     result: Err(error),
+                    completion_on_error: None,
                     ended_pointer_tab_ids: Vec::new(),
                     closed_session_tab_ids: Vec::new(),
                     committed_tab_ids: Vec::new(),
@@ -247,13 +270,15 @@ impl ServerActor {
             };
             outcome.stopped_workspace_tab_ids = stopped_workspace_tab_ids;
             outcome.pending_workspace_shutdown = pending_workspace_shutdown;
-            let _ = inbox.send(ServerCommand::RuntimeMutationFinished(
-                RuntimeMutationFinished {
-                    client_id: request.client_id,
-                    request_id: request.request_id,
-                    outcome,
-                },
-            ));
+            let _ = inbox
+                .send_wait(ServerCommand::RuntimeMutationFinished(
+                    RuntimeMutationFinished {
+                        client_id: request.client_id,
+                        request_id: request.request_id,
+                        outcome,
+                    },
+                ))
+                .await;
         });
     }
 }

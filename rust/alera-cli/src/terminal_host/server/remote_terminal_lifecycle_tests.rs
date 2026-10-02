@@ -101,7 +101,7 @@ async fn home_retry_preserves_pending_identity_and_detach_never_dispatches() {
             "neighbor".into(),
             Session::driver_test_stub("neighbor", 80, 24),
         );
-        let (inbox, mut commands) = mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         let calls = Arc::new(Mutex::new(Vec::new()));
         let remote = |fail| Remote {

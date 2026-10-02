@@ -57,7 +57,7 @@ async fn default_preserve_policy_never_starts_a_cleanup_job() {
 #[tokio::test]
 async fn unavailable_runtime_records_unverified_cleanup_and_releases_job_lifetime() {
     let (_root, mut actor, run) = successful().await;
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = sender;
     actor
         .cleanup_automation_owned_target(&run, AutomationRunStatus::Success)
@@ -137,7 +137,7 @@ async fn cleanup_job_uses_loopback_buffer_handshake_and_refuses_dirty_editors() 
         }
         assert!(lines.next_line().await.unwrap().is_none());
     });
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = sender;
     actor
         .cleanup_automation_owned_target(&run, AutomationRunStatus::Success)
@@ -289,7 +289,7 @@ async fn recovery_retries_once_and_leaves_unavailable_runtime_pending() {
     let (root, mut actor, run) = successful().await;
     let old = interrupted(&actor, &run).await;
     actor.runtime_store = RuntimeStore::open(root.path()).await.unwrap();
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = sender;
     actor.recover_automation_shared_cleanups().await;
     actor.recover_automation_shared_cleanups().await;

@@ -62,25 +62,40 @@ const timeline = compileStoryboard(STORYBOARD);
 
 <script>
   import { STORYBOARD } from '../../data/demo/storyboard';
-  import { mountDemo } from '../../scripts/demo/player';
+  import { mountDemo, type DemoPlayer } from '../../scripts/demo/player';
 
   const root = document.querySelector<HTMLElement>('[data-demo-root]');
   if (root) {
+    let player: DemoPlayer | undefined;
+    let disposed = false;
+    let lazyObserver: IntersectionObserver | undefined;
+    const dispose = () => {
+      disposed = true;
+      lazyObserver?.disconnect();
+      player?.destroy();
+    };
+    const mount = async () => {
+      const mounted = await mountDemo(root, STORYBOARD);
+      if (disposed) mounted.destroy();
+      else player = mounted;
+    };
+    window.addEventListener('pagehide', dispose, { once: true });
+    document.addEventListener('astro:before-swap', dispose, { once: true });
     const capture = new URLSearchParams(window.location.search).get('demo') === 'capture';
     if (capture) {
-      void mountDemo(root, STORYBOARD);
+      void mount();
     } else {
       // Measuring the scene means rendering its frames once, so wait until
       // the demo is about to scroll into view.
-      const observer = new IntersectionObserver(
+      lazyObserver = new IntersectionObserver(
         (entries) => {
           if (!entries.some((entry) => entry.isIntersecting)) return;
-          observer.disconnect();
-          void mountDemo(root, STORYBOARD);
+          lazyObserver?.disconnect();
+          void mount();
         },
         { rootMargin: '400px 0px' },
       );
-      observer.observe(root);
+      lazyObserver.observe(root);
     }
   }
 </script>

@@ -6,10 +6,17 @@ use super::*;
 use crate::terminal_host::session::PtyEvent;
 
 impl ServerActor {
-    pub(super) async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
+    pub(super) async fn handle_pty_event(
+        &mut self,
+        session_id: String,
+        pty_event: PtyEvent,
+    ) -> bool {
         match pty_event {
             #[cfg(unix)]
-            PtyEvent::BeforeReap => self.capture_owner_natural_exit(&session_id).await,
+            PtyEvent::BeforeReap => {
+                self.capture_owner_natural_exit(&session_id).await;
+                true
+            }
             PtyEvent::Output(data) => self.handle_pty_output(session_id, data).await,
             #[cfg(windows)]
             PtyEvent::ChildExited => {
@@ -17,24 +24,30 @@ impl ServerActor {
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.close_pty_after_child_exit();
                 }
+                true
             }
             PtyEvent::Error(message) => {
-                self.flush_all_output(&session_id);
+                self.flush_all_output(&session_id).await;
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     let payload = session.error_payload(&message);
                     let clients: Vec<u64> = session.clients.iter().copied().collect();
                     self.broadcast(&clients, event("error", payload));
                 }
+                true
             }
             PtyEvent::InputWritten { completion, error } => {
                 self.handle_pty_input_written(session_id, completion, error)
                     .await;
+                true
             }
-            PtyEvent::Exit(code) => self.handle_session_exit(session_id, code).await,
+            PtyEvent::Exit(code) => {
+                self.handle_session_exit(session_id, code).await;
+                true
+            }
         }
     }
 
-    async fn handle_pty_output(&mut self, session_id: String, data: Vec<u8>) {
+    async fn handle_pty_output(&mut self, session_id: String, data: Vec<u8>) -> bool {
         let state = self.sessions.get_mut(&session_id).map(|session| {
             let (output_generation, durable_generation, title_change) =
                 session.append_output(&data);
@@ -67,8 +80,12 @@ impl ServerActor {
             title_event,
         )) = state
         else {
-            return;
+            return true;
         };
+        let checkpoint_blocked = self
+            .sessions
+            .get(&session_id)
+            .is_some_and(Session::checkpoint_output_blocked);
         if let Some(title_event) = title_event {
             self.broadcast_authenticated_mobile(title_event);
         }
@@ -82,12 +99,22 @@ impl ServerActor {
         if output_len >= OUTPUT_BATCH_MAX_BYTES {
             self.flush_output_batch(&session_id);
         }
-        if durable_len >= OUTPUT_BATCH_MAX_BYTES {
-            self.flush_durable_output_batch(&session_id);
+        if durable_len >= OUTPUT_BATCH_MAX_BYTES && !checkpoint_blocked {
+            self.flush_durable_output_batch(&session_id).await;
         }
         if let Some(generation) = checkpoint {
-            self.spawn_checkpoint_timer(session_id, generation);
+            self.spawn_checkpoint_timer(session_id.clone(), generation);
         }
+        let should_pause = self.sessions.get(&session_id).is_some_and(|session| {
+            checkpoint_blocked
+                || session.should_pause_pty_output(
+                    crate::terminal_host::session::DURABLE_OUTPUT_BATCH_MAX_BYTES,
+                )
+        });
+        if should_pause {
+            self.inbox.pause_pty_session(&session_id);
+        }
+        should_pause
     }
 
     async fn record_orchestration_output_activity(&mut self, session_id: &str) {
@@ -266,7 +293,7 @@ impl ServerActor {
             || self.is_ssh_owner_terminal(&session_id).await;
         self.settle_closed_workflow_terminal(&session_id, &reason)
             .await;
-        self.flush_all_output(&session_id);
+        self.flush_all_output(&session_id).await;
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
             let clients: Vec<u64> = session.clients.iter().copied().collect();
@@ -349,6 +376,13 @@ impl ServerActor {
             return Ok(false);
         }
         let workflow_owned = self.retains_workflow_terminal_history(session_id).await;
+        self.hold_history_barrier(session_id);
+        self.flush_all_output(session_id).await;
+        if !self.await_output_writes(session_id).await {
+            return Err(HostError::state(
+                "Terminal history could not be persisted; the session remains open for retry.",
+            ));
+        }
         if !workflow_owned {
             self.runtime_store
                 .remove_workspace_tab(&tab_id)
@@ -362,9 +396,8 @@ impl ServerActor {
         {
             tracing::error!("failed to record activity for workspace {workspace_id}: {error}");
         }
-        self.flush_all_output(session_id);
-        self.await_output_writes(session_id).await;
         if let Some(mut session) = self.sessions.remove(session_id) {
+            self.inbox.resume_pty_session(session_id);
             session.terminate(!workflow_owned, &self.store).await;
         }
         if workflow_owned {
@@ -401,90 +434,6 @@ impl ServerActor {
             .is_some_and(|session| session.output_batch_due(generation))
         {
             self.flush_output_batch(&session_id);
-        }
-    }
-
-    pub(super) fn handle_durable_output_batch_tick(&mut self, session_id: String, generation: u64) {
-        if self
-            .sessions
-            .get(&session_id)
-            .is_some_and(|session| session.durable_output_batch_due(generation))
-        {
-            self.flush_durable_output_batch(&session_id);
-        }
-    }
-
-    fn flush_durable_output_batch(&mut self, session_id: &str) {
-        let batch = self
-            .sessions
-            .get_mut(session_id)
-            .and_then(Session::flush_durable_output_batch);
-        if let Some(batch) = batch {
-            self.persist_output_batch(session_id.to_string(), batch.sequence, batch.data);
-        }
-    }
-
-    pub(super) fn flush_all_output(&mut self, session_id: &str) {
-        self.flush_output_batch(session_id);
-        self.flush_durable_output_batch(session_id);
-    }
-
-    pub(super) async fn handle_checkpoint_tick(&mut self, session_id: String, generation: u64) {
-        let store = self.store.clone();
-        let due = self
-            .sessions
-            .get_mut(&session_id)
-            .is_some_and(|session| session.checkpoint_due(generation));
-        if due {
-            self.flush_durable_output_batch(&session_id);
-            self.await_output_writes(&session_id).await;
-            if let Some(session) = self.sessions.get_mut(&session_id) {
-                let _ = session.write_checkpoint(&store, None).await;
-            }
-            let _ = store
-                .trim_session(&session_id, self.config.scrollback_bytes as usize)
-                .await;
-        }
-    }
-
-    pub(super) async fn immediate_checkpoint(&mut self, session_id: &str) {
-        let store = self.store.clone();
-        self.flush_durable_output_batch(session_id);
-        self.await_output_writes(session_id).await;
-        if let Some(session) = self.sessions.get_mut(session_id) {
-            session.invalidate_checkpoint();
-            let _ = session.write_checkpoint(&store, None).await;
-            let _ = store
-                .trim_session(session_id, self.config.scrollback_bytes as usize)
-                .await;
-        }
-    }
-
-    fn persist_output_batch(&mut self, session_id: String, sequence: i64, data: Vec<u8>) {
-        let store = self.store.clone();
-        let task_session_id = session_id.clone();
-        let handle = tokio::spawn(async move {
-            let _ = store.append_output(&task_session_id, sequence, &data).await;
-        });
-        let pending = self.pending_output_writes.entry(session_id).or_default();
-        pending.retain(|existing| !existing.is_finished());
-        pending.push(handle);
-    }
-
-    pub(super) async fn await_output_writes(&mut self, session_id: &str) {
-        let Some(handles) = self.pending_output_writes.remove(session_id) else {
-            return;
-        };
-        if tokio::time::timeout(
-            OUTPUT_PERSISTENCE_BARRIER_TIMEOUT,
-            futures_util::future::join_all(handles),
-        )
-        .await
-        .is_err()
-        {
-            tracing::warn!(
-                "terminal output persistence barrier timed out for session {session_id}; continuing without blocking the host actor"
-            );
         }
     }
 }

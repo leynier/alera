@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use super::super::ServerCommand;
 use super::*;
 
 #[test]
@@ -45,7 +46,7 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
     let git_ignore_sources = Arc::new(RwLock::new(
         GitIgnoreSources::discover(&repository, &git_config_environment).unwrap(),
     ));
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let worker = thread::spawn({
         let pending_event_sequence = Arc::clone(&pending_event_sequence);
         let cancelled = Arc::clone(&cancelled);
@@ -72,6 +73,7 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
                 git_config_environment,
                 ignored_git_status_paths: HashSet::new(),
                 failure_reported: Arc::new(AtomicBool::new(false)),
+                runtime_handle: None,
             }
             .run()
         }

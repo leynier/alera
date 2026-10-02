@@ -136,7 +136,14 @@ pub(super) fn evaluate(watch: &PullRequestWatch, snapshot: &Value) -> Evaluation
                 thread_ids.into_iter().collect::<Vec<_>>().join(", ")
             ));
         }
-        return Evaluation::Dispatch { mark, prompt: format!("Review pull request #{} and address these problems:\n{}\nRun relevant validation and push the fixes. Do not merge the pull request; the runtime watch handles merging when eligible.", watch.review_number, concerns.join("\n")) };
+        return Evaluation::Dispatch {
+            mark,
+            prompt: format!(
+                "Review pull request #{} and address these problems:\n{}\nRun relevant validation and push the fixes. Do not merge the pull request; the runtime watch handles merging when eligible.",
+                watch.review_number,
+                concerns.join("\n")
+            ),
+        };
     }
     if watch.mode == "fixAndMerge"
         && green

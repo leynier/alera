@@ -64,7 +64,7 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
     .await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut events) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut events) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let frozen = launch::claim_and_validate(&fixture.store, &record)
         .await
@@ -145,6 +145,14 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
         .as_str()
         .unwrap()
         .contains("Commit the task changes"));
+    actor.flush_all_output(&record.terminal_handle).await;
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while !actor.await_output_writes(&record.terminal_handle).await {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("workflow launch history must drain before removing its terminal");
     assert!(actor
         .remove_terminal_session_tab(&record.terminal_handle)
         .await

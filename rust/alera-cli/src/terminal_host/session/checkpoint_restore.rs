@@ -48,15 +48,23 @@ impl Session {
             #[cfg(windows)]
             process_job: None,
             terminated: false,
+            termination_requested: false,
+            history_barrier_held: false,
             checkpoint_gen: 0,
             checkpoint_armed: false,
+            checkpoint_retry_timer: None,
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
             durable_output_batch: Vec::new(),
             durable_output_batch_gen: 0,
             durable_output_batch_armed: false,
+            durable_retry_timer: None,
             durable_output_batch_sequence: 0,
+            durable_output_failures: VecDeque::new(),
+            pending_pty_ack: None,
+            checkpoint_job: None,
+            checkpoint_output_blocked: false,
             output_stream_bytes: checkpoint
                 .output_stream_bytes
                 .max(checkpoint.buffer.len() as u64),

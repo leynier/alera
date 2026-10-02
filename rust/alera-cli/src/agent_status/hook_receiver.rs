@@ -9,10 +9,9 @@ use axum::routing::post;
 use axum::Router;
 use serde_json::Value;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
-use crate::terminal_host::server::ServerCommand;
+use crate::terminal_host::server::{ServerCommand, ServerInbox};
 
 const TOKEN_HEADER: &str = "X-Alera-Agent-Hook-Token";
 /// Where the receiver records the reporting agent's process id in the payload.
@@ -47,13 +46,10 @@ pub struct AgentHookEvent {
 #[derive(Clone)]
 struct HookState {
     token: String,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: ServerInbox,
 }
 
-pub async fn start_hook_receiver(
-    runtime_dir: &Path,
-    inbox: UnboundedSender<ServerCommand>,
-) -> anyhow::Result<u16> {
+pub async fn start_hook_receiver(runtime_dir: &Path, inbox: ServerInbox) -> anyhow::Result<u16> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     let token = Uuid::new_v4().to_string();
@@ -94,10 +90,13 @@ async fn handle_hook(
     let Some(event) = parse_hook_event(&agent, &content_type, &body) else {
         return StatusCode::NO_CONTENT;
     };
-    let _ = state.inbox.send(ServerCommand::AgentHookEvent {
-        event,
-        relayed: false,
-    });
+    let _ = state
+        .inbox
+        .send_wait(ServerCommand::AgentHookEvent {
+            event,
+            relayed: false,
+        })
+        .await;
     StatusCode::NO_CONTENT
 }
 

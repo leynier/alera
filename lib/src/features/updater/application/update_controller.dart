@@ -102,13 +102,31 @@ class AleraUpdateController extends _$AleraUpdateController {
     );
 
     try {
+      final progressClock = Stopwatch()..start();
+      var lastPublishedProgress = -1.0;
       await _service.installUpdate(
         latest,
         onProgress: (progress) {
           if (_disposed) {
             return;
           }
-          state = state.copyWith(progress: progress.clamp(0, 1).toDouble());
+          final normalized = progress.clamp(0, 1).toDouble();
+          // HTTP transports report progress for every received chunk. A large
+          // archive can produce hundreds of callbacks per second, and
+          // publishing each one needlessly rebuilds the settings pane. Keep
+          // visible progress smooth while bounding UI work to roughly 10 Hz
+          // or a meaningful one-percent change.
+          final shouldPublish =
+              normalized >= 1 ||
+              lastPublishedProgress < 0 ||
+              normalized - lastPublishedProgress >= 0.01 ||
+              progressClock.elapsed >= const Duration(milliseconds: 100);
+          if (!shouldPublish) {
+            return;
+          }
+          lastPublishedProgress = normalized;
+          progressClock.reset();
+          state = state.copyWith(progress: normalized);
         },
       );
       if (_disposed) {

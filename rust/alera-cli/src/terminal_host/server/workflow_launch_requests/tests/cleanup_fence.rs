@@ -298,7 +298,7 @@ async fn cleanup_and_wait(
     verb: &str,
     expected_ok: bool,
 ) {
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     assert!(actor
         .try_start_deferred_request(

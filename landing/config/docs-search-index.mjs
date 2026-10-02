@@ -10,29 +10,32 @@ export function docsSearchIndex() {
     hooks: {
       'astro:build:done': async ({ dir, logger }) => {
         const pagefind = await import('pagefind');
-        const { index, errors: createErrors } = await pagefind.createIndex({});
-        if (!index) {
-          throw new Error(`docs search index could not start: ${createErrors.join('; ')}`);
-        }
+        try {
+          const { index, errors: createErrors } = await pagefind.createIndex({});
+          if (!index) {
+            throw new Error(`docs search index could not start: ${createErrors.join('; ')}`);
+          }
 
-        const siteDir = fileURLToPath(dir);
-        const { page_count: pageCount, errors } = await index.addDirectory({
-          path: siteDir,
-          glob: 'docs/**/*.html',
-        });
-        if (errors.length > 0 || pageCount === 0) {
-          throw new Error(`docs search index failed (${pageCount} pages): ${errors.join('; ')}`);
-        }
+          const siteDir = fileURLToPath(dir);
+          const { page_count: pageCount, errors } = await index.addDirectory({
+            path: siteDir,
+            glob: 'docs/**/*.html',
+          });
+          if (errors.length > 0 || pageCount === 0) {
+            throw new Error(`docs search index failed (${pageCount} pages): ${errors.join('; ')}`);
+          }
 
-        const written = await index.writeFiles({
-          outputPath: fileURLToPath(new URL('pagefind/', dir)),
-        });
-        if (written.errors.length > 0) {
-          throw new Error(`docs search index could not be written: ${written.errors.join('; ')}`);
-        }
+          const written = await index.writeFiles({
+            outputPath: fileURLToPath(new URL('pagefind/', dir)),
+          });
+          if (written.errors.length > 0) {
+            throw new Error(`docs search index could not be written: ${written.errors.join('; ')}`);
+          }
 
-        await pagefind.close();
-        logger.info(`indexed ${pageCount} docs pages`);
+          logger.info(`indexed ${pageCount} docs pages`);
+        } finally {
+          await pagefind.close();
+        }
       },
     },
   };

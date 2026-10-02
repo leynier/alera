@@ -8,6 +8,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 
 part 'codex_transcript_watch.dart';
+part 'codex_transcript_watch_parsing.dart';
 
 class CodexTranscriptStatusWatcher(
   final AgentStatusSink _statusSink, [

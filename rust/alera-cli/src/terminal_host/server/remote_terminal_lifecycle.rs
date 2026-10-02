@@ -223,13 +223,15 @@ impl ServerActor {
                 .await
             }
             .map_err(state_error);
-            let _ = inbox.send(ServerCommand::RemoteTerminalLifecycleFinished {
-                client_id,
-                request_id,
-                verb,
-                payload,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteTerminalLifecycleFinished {
+                    client_id,
+                    request_id,
+                    verb,
+                    payload,
+                    result,
+                })
+                .await;
         });
         Ok(true)
     }

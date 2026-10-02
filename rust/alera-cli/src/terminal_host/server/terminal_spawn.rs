@@ -132,7 +132,7 @@ impl ServerActor {
         let max_bytes = self.config.scrollback_bytes as usize;
         let (initial_scrollback, initial_output_stream_bytes) = self
             .take_terminal_restart_state(&session_id, &workspace.id, &tab.id, max_bytes)
-            .await;
+            .await?;
         let default_launch =
             default_terminal_launch(&workspace.path, self.config.login_shell).await;
         let forced_hook = pending_agent_type(tab).or_else(|| {
@@ -383,15 +383,24 @@ impl ServerActor {
         workspace_id: &str,
         tab_id: &str,
         max_bytes: usize,
-    ) -> (Vec<u8>, u64) {
+    ) -> HostResult<(Vec<u8>, u64)> {
         self.disarm_terminal_pulse(session_id);
         self.abandon_home_inject(session_id);
+        self.hold_history_barrier(session_id);
+        self.flush_all_output(session_id).await;
+        if !self.await_output_writes(session_id).await {
+            return Err(HostError::state(
+                "Terminal history could not be persisted; the session remains open for retry.",
+            ));
+        }
         if let Some(mut dead) = self.sessions.remove(session_id) {
+            self.inbox.resume_pty_session(session_id);
+            self.history_writers.remove(session_id);
             let scrollback = dead.buffer.to_bytes();
             let output_stream_bytes = dead.output_stream_range().1;
             dead.terminate(false, &self.store).await;
             self.agent_presence.remove(session_id);
-            return (scrollback, output_stream_bytes);
+            return Ok((scrollback, output_stream_bytes));
         }
         if let Some(restored) = Session::restore_exited(
             session_id.to_string(),
@@ -402,9 +411,9 @@ impl ServerActor {
         )
         .await
         {
-            return (restored.buffer.to_bytes(), restored.output_stream_range().1);
+            return Ok((restored.buffer.to_bytes(), restored.output_stream_range().1));
         }
-        (Vec::new(), 0)
+        Ok((Vec::new(), 0))
     }
 }
 

@@ -99,6 +99,33 @@ fn serves_http_hook_routes() {
     stop_agent_hook_receiver();
 }
 
+#[test]
+fn rejects_a_full_event_queue_with_backpressure() {
+    let (tx, _rx) = mpsc::channel(1);
+    let state = AppState {
+        token: "test-token".to_string(),
+        enabled_agents: Arc::new(RwLock::new(HashSet::from(["codex".to_string()]))),
+        tx,
+    };
+    let request = || {
+        Request::builder()
+            .method("POST")
+            .uri("/hook/codex")
+            .header(AGENT_HOOK_TOKEN_HEADER, "test-token")
+            .header("Content-Type", "application/json")
+            .body(Body::from(
+                r#"{"terminalSessionId":"s","workspaceId":"w","tabId":"t","payload":{}}"#,
+            ))
+            .expect("hook request")
+    };
+
+    let accepted = runtime().block_on(handle_hook_request(state.clone(), request(), "codex"));
+    let rejected = runtime().block_on(handle_hook_request(state, request(), "codex"));
+
+    assert_eq!(accepted, StatusCode::NO_CONTENT);
+    assert_eq!(rejected, StatusCode::TOO_MANY_REQUESTS);
+}
+
 fn event(session: &str, agent: &str, name: &str) -> AgentHookEventDto {
     AgentHookEventDto {
         terminal_session_id: session.to_string(),

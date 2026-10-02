@@ -110,6 +110,29 @@ async fn a_tool_that_outlives_its_budget_is_reported_as_timed_out() {
     assert!(error.to_string().contains("timed out"), "{error}");
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn a_tool_that_exceeds_the_output_budget_is_rejected_while_it_runs() {
+    let checkout = tempfile::tempdir().unwrap();
+    let (_dir, store) = store_with_workspace(checkout.path().to_str().unwrap()).await;
+
+    let error = handle_host_process_run(
+        &store,
+        &json!({
+            "workspaceId": "ws-1",
+            "executable": "sh",
+            "arguments": ["-c", "head -c 16777217 /dev/zero"],
+        }),
+    )
+    .await
+    .unwrap_err();
+
+    assert!(
+        error.to_string().contains("combined process output limit"),
+        "{error}"
+    );
+}
+
 #[tokio::test]
 async fn arguments_must_be_strings() {
     let checkout = tempfile::tempdir().unwrap();

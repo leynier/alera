@@ -83,12 +83,14 @@ impl ServerActor {
             let result = super::requests::json_result(
                 crate::remote_relocation_setup::execute(&store, request, &executor).await,
             );
-            let _ = inbox.send(ServerCommand::RemoteSetupFinished {
-                client_id,
-                request_id,
-                operation,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteSetupFinished {
+                    client_id,
+                    request_id,
+                    operation,
+                    result,
+                })
+                .await;
         });
     }
 

@@ -152,26 +152,22 @@ try {
     'cargo',
     [
       'test',
-      '--manifest-path',
-      'rust/Cargo.toml',
+      '--workspace',
       '--locked',
-      '-p',
-      'alera-cli',
+      '--lib',
       '--bin',
       'alera',
       '--no-run',
     ],
-    root,
+    path.join(root, 'rust'),
   ).finished;
   const rust = launch(
     'cargo',
     [
       'test',
-      '--manifest-path',
-      'rust/Cargo.toml',
+      '--workspace',
       '--locked',
-      '-p',
-      'alera-cli',
+      '--lib',
       '--bin',
       'alera',
       'relay_cross_language_fixture',
@@ -179,7 +175,7 @@ try {
       '--ignored',
       '--nocapture',
     ],
-    root,
+    path.join(root, 'rust'),
   );
   await Promise.race([
     new Promise((resolve) =>

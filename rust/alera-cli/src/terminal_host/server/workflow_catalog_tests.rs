@@ -112,7 +112,7 @@ async fn workflow_catalog_rpc_save_emits_local_event_and_rejects_stale_overwrite
         HashMap::new(),
     )
     .await;
-    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_rx) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let payload = json!({"document":builtin_workflow_recipes()[0].portable_document().unwrap()});
     actor
@@ -146,7 +146,7 @@ async fn workflow_catalog_timed_out_save_does_not_emit_a_success_event() {
         HashMap::new(),
     )
     .await;
-    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_rx) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     // Exhaust this test's pool so no save can reach SQLite before the real RPC deadline.
     let mut connections = Vec::new();
@@ -203,7 +203,7 @@ async fn pending_save_notifies_current_clients(disconnect_initiator: bool) {
         HashMap::new(),
     )
     .await;
-    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut inbox_rx) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let transaction = actor
         .runtime_store
@@ -258,7 +258,7 @@ async fn pending_save_notifies_current_clients(disconnect_initiator: bool) {
 
 async fn complete_save(
     actor: &mut super::ServerActor,
-    inbox: &mut tokio::sync::mpsc::UnboundedReceiver<super::ServerCommand>,
+    inbox: &mut crate::terminal_host::server::ServerInboxReceiver,
 ) {
     let command = tokio::time::timeout(Duration::from_secs(10), inbox.recv())
         .await

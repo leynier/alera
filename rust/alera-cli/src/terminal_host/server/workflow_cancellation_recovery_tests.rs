@@ -10,7 +10,7 @@ use crate::terminal_host::server::actor_test_harness::test_actor;
 
 async fn drain(
     actor: &mut ServerActor,
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<ServerCommand>,
+    commands: &mut crate::terminal_host::server::ServerInboxReceiver,
 ) {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     while actor.workflow_execution.cancelling {
@@ -27,7 +27,7 @@ async fn cancellation_job_failure_retries_with_backoff_and_preserves_dirty_wakes
     for dirty in [false, true] {
         let dir = tempfile::tempdir().unwrap();
         let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         actor.workflow_execution.cancelling = true;
         actor.workflow_execution.cancellation_dirty = dirty;
@@ -131,7 +131,7 @@ async fn cancellation_settlement_failure_becomes_attention_and_continues_the_pag
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor.wake_workflow_cancellation();
     drain(&mut actor, &mut commands).await;

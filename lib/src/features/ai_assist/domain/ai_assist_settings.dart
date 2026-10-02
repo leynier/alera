@@ -81,6 +81,14 @@ enum AiAssistAgent(this.key) {
   };
 }
 
+const String aiAssistChatGptDefaultServiceTier = 'default';
+const String aiAssistChatGptFastServiceTier = 'fast';
+
+const Set<String> aiAssistChatGptServiceTiers = <String>{
+  aiAssistChatGptDefaultServiceTier,
+  aiAssistChatGptFastServiceTier,
+};
+
 @MappableClass()
 class const AiAssistDiscoveredThinkingLevel({
   required this.id,
@@ -131,6 +139,7 @@ class const AiAssistSettings({
   this.promptSettingsByOperation =
       const <AiAssistOperation, AiAssistPromptSettings>{},
   this.timeoutSeconds = 120,
+  this.chatGptServiceTier = aiAssistChatGptDefaultServiceTier,
 }) with AiAssistSettingsMappable {
   final bool enabled;
   final bool autoGenerateAgentTitles;
@@ -146,6 +155,14 @@ class const AiAssistSettings({
   final Map<AiAssistOperation, AiAssistPromptSettings>
   promptSettingsByOperation;
   final int timeoutSeconds;
+  final String chatGptServiceTier;
+
+  String get effectiveChatGptServiceTier {
+    final normalized = chatGptServiceTier.trim().toLowerCase();
+    return aiAssistChatGptServiceTiers.contains(normalized)
+        ? normalized
+        : aiAssistChatGptDefaultServiceTier;
+  }
 
   String? modelFor(AiAssistAgent agent) {
     final value = selectedModelByAgent[agent]?.trim();

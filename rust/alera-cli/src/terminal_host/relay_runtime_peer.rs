@@ -32,22 +32,18 @@ pub(super) struct PeerContext {
     pub account_id: String,
     pub verifier: GrantVerifier,
     pub output: Sender<socket_writer::Envelope>,
-    pub inbox: UnboundedSender<ServerCommand>,
+    pub inbox: crate::terminal_host::ServerInbox,
     pub budget: ClientBudget,
 }
 
 struct ConnectedGuard {
-    id: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    _disconnect: crate::terminal_host::server::ServerClientDisconnect,
     writer: JoinHandle<()>,
 }
 
 impl Drop for ConnectedGuard {
     fn drop(&mut self) {
         self.writer.abort();
-        let _ = self
-            .inbox
-            .send(ServerCommand::ClientDisconnected { id: self.id });
     }
 }
 
@@ -168,15 +164,19 @@ impl PeerContext {
             lifetime: lifetime.clone(),
         };
         let mut connected = ConnectedGuard {
-            id: self.numeric_id,
-            inbox: self.inbox.clone(),
+            _disconnect: self
+                .inbox
+                .reserve_client_disconnect(self.numeric_id)
+                .await?,
             writer: tokio::spawn(writer.run(control_rx, terminal_rx)),
         };
-        self.inbox.send(ServerCommand::RelayClientConnected {
-            id: self.numeric_id,
-            handle: handle.clone(),
-            client_id: self.client_id.clone(),
-        })?;
+        self.inbox
+            .send_wait(ServerCommand::RelayClientConnected {
+                id: self.numeric_id,
+                handle: handle.clone(),
+                client_id: self.client_id.clone(),
+            })
+            .await?;
         let mut fragments = relay_wire::FragmentReassembler::default();
         let mut partial_since: Option<tokio::time::Instant> = None;
         let mut assembly_reservation = None;
@@ -231,12 +231,14 @@ impl PeerContext {
                 handle.send_control(ClientFrame::Json(serde_json::json!({ "id": request["id"], "ok": true, "payload": { "expiresAt": claims.exp } })))?;
             } else {
                 let (accepted, processed) = oneshot::channel();
-                self.inbox.send(ServerCommand::RelayClientLine {
-                    id: self.numeric_id,
-                    line,
-                    accepted,
-                    expires_at: claims.exp,
-                })?;
+                self.inbox
+                    .send_wait(ServerCommand::RelayClientLine {
+                        id: self.numeric_id,
+                        line,
+                        accepted,
+                        expires_at: claims.exp,
+                    })
+                    .await?;
                 processed.await?;
             }
             drop(assembly);
@@ -271,12 +273,11 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn cancellation_releases_the_actor_client_and_aborts_its_writer() {
-        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        let (inbox, mut receiver) = crate::terminal_host::ServerInbox::channel();
         let writer = tokio::spawn(std::future::pending::<()>());
         let abort = writer.abort_handle();
         let guard = ConnectedGuard {
-            id: 42,
-            inbox,
+            _disconnect: inbox.reserve_client_disconnect(42).await.unwrap(),
             writer,
         };
         drop(guard);

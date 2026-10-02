@@ -1,11 +1,31 @@
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/workbench/application/mobile_agent_activity_sort.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('Indexes agent attention once per workspace', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final attention = mobileWorkspaceAttentionByWorkspace(
+      statuses: <AgentPresenceSummary>[
+        _presence('one', 'working', now.subtract(const Duration(minutes: 2))),
+        _presence('one', 'waiting', now.subtract(const Duration(minutes: 1))),
+        _presence('two', 'blocked', now.subtract(const Duration(hours: 1))),
+      ],
+      now: now,
+    );
+
+    expect(
+      attention['one']?.attentionClass,
+      MobileAgentAttentionClass.needsYou,
+    );
+    expect(attention['one']?.at, now.subtract(const Duration(minutes: 1)));
+    expect(attention, isNot(contains('two')));
+  });
+
   test('Activity sort ranks terminals first and inactive names last', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(

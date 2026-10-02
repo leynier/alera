@@ -72,6 +72,25 @@ void main() {
       expect(record['error'], contains(kRedactedPlaceholder));
       expect(record['stack'], contains(kRedactedPlaceholder));
     });
+
+    test('omits oversized fields before redaction and JSON serialization', () {
+      registerLogSecret('huge-formatter-secret-token');
+      final huge = '${'x' * (8 * 1024 + 1)} huge-formatter-secret-token';
+
+      final line = formatLogRecordLine(
+        timestamp: .utc(2026, 7, 28),
+        level: 'SEVERE',
+        source: 'app',
+        logger: huge,
+        message: huge,
+        error: huge,
+        stackTrace: .fromString(huge),
+      );
+
+      expect(line.length, lessThan(1024));
+      expect(line, contains('[oversized log field omitted]'));
+      expect(line, isNot(contains('huge-formatter-secret-token')));
+    });
   });
 
   group('AppLogger', () {
@@ -208,6 +227,44 @@ void main() {
       final contents = AppLogger.sink!.fileFor(0).readAsStringSync();
       expect(contents, isNot(contains('runtime-host-token-abc123')));
       expect(contents, contains(kRedactedPlaceholder));
+    });
+
+    test(
+      'bounds and redacts an oversized logger context on the console',
+      () async {
+        final consoleLines = <String>[];
+        await AppLogger.configure(
+          directory: root,
+          consoleWriter: consoleLines.add,
+        );
+        registerLogSecret('oversized-console-secret');
+        final context = '${'x' * (8 * 1024 + 1)} oversized-console-secret';
+
+        Logger(context).info('small diagnostic');
+
+        expect(consoleLines, hasLength(1));
+        expect(consoleLines.single.length, lessThan(1024));
+        expect(consoleLines.single, contains('[oversized log field omitted]'));
+        expect(
+          consoleLines.single,
+          isNot(contains('oversized-console-secret')),
+        );
+      },
+    );
+
+    test('a file sink failure never escapes the logger', () async {
+      final blocker = File('${root.path}/not-a-directory')
+        ..writeAsStringSync('blocker');
+      await AppLogger.configure(
+        directory: Directory(blocker.path),
+        consoleWriter: (_) {},
+      );
+
+      expect(
+        () => Logger('BrokenSink').severe('kept in memory only'),
+        returnsNormally,
+      );
+      await expectLater(AppLogger.flush(), completes);
     });
   });
 }

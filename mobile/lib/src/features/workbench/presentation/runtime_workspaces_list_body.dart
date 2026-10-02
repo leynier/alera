@@ -14,6 +14,7 @@ import 'package:alera_mobile/src/features/workbench/application/workspace_list_c
 import 'package:alera_mobile/src/features/workbench/application/workspace_pull_request_summaries_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/mobile_section_header.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/section_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_actions_sheet.dart';
@@ -60,6 +61,12 @@ class const RuntimeWorkspacesListBody({
       terminalTabCountByWorkspaceId: data.terminalTabCountByWorkspaceId,
       searchQuery: ref.watch(workspaceSearchControllerProvider(hostId)),
     );
+    final agentPresenceByWorkspaceId = <String, List<AgentPresenceSummary>>{};
+    for (final status in data.agentPresence) {
+      agentPresenceByWorkspaceId
+          .putIfAbsent(status.workspaceId, () => <AgentPresenceSummary>[])
+          .add(status);
+    }
     final prefsController = ref.read(
       mobileViewPrefsControllerProvider(hostId).notifier,
     );
@@ -154,12 +161,9 @@ class const RuntimeWorkspacesListBody({
                             .workspace
                             .id] ??
                         0,
-                    agentPresence: data.agentPresence
-                        .where(
-                          (status) =>
-                              status.workspaceId == row.entry.workspace.id,
-                        )
-                        .toList(),
+                    agentPresence:
+                        agentPresenceByWorkspaceId[row.entry.workspace.id] ??
+                        const <AgentPresenceSummary>[],
                     mainTabIds: {
                       ...?data.workspaceMainTabIds[row.entry.workspace.id],
                     },

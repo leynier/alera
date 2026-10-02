@@ -161,13 +161,15 @@ impl ServerActor {
                     .await
                 }
             };
-            let _ = inbox.send(ServerCommand::AutomationPrecheckFinished {
-                definition: Box::new(definition),
-                run: Box::new(run),
-                host_id,
-                path,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AutomationPrecheckFinished {
+                    definition: Box::new(definition),
+                    run: Box::new(run),
+                    host_id,
+                    path,
+                    result,
+                })
+                .await;
         });
     }
 

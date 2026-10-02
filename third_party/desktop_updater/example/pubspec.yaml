@@ -1,0 +1,24 @@
+name: desktop_updater_example
+description: Demonstrates the desktop_updater 2.x zip-first update flow.
+publish_to: "none"
+version: "2.0.1+201"
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  cupertino_icons: ^1.0.8
+  desktop_updater:
+    path: ../
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

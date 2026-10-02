@@ -26,10 +26,16 @@ impl ServerActor {
         )
         .await;
         if !self.remove_terminal_session_tab(&session_id).await? {
-            self.flush_all_output(&session_id);
-            self.await_output_writes(&session_id).await;
+            self.hold_history_barrier(&session_id);
+            self.flush_all_output(&session_id).await;
+            if !self.await_output_writes(&session_id).await {
+                return Err(crate::terminal_host::host_error::HostError::state(
+                    "Terminal history could not be persisted; the session remains open for retry.",
+                ));
+            }
             let store = self.store.clone();
             if let Some(mut session) = self.sessions.remove(&session_id) {
+                self.inbox.resume_pty_session(&session_id);
                 session.terminate(true, &store).await;
             }
         }
@@ -63,8 +69,42 @@ impl ServerActor {
         request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
         cancel_owned_operations: bool,
     ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+        self.prepare_workspace_session_shutdown_with_capture(request, cancel_owned_operations, None)
+            .await
+    }
+
+    pub(super) async fn prepare_workspace_session_shutdown_with_capture(
+        &mut self,
+        request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
+        cancel_owned_operations: bool,
+        captured_shutdown: Option<WorkspaceShutdown>,
+    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
         use crate::terminal_host::host_error::HostError;
         let mut completions = Vec::new();
+        if request.close_sessions
+            && self
+                .mutation_queue
+                .pending_workspace_shutdowns
+                .contains_key(&request.id)
+            && self.sessions.values().any(|session| {
+                session.workspace_id == request.id && session.termination_requested()
+            })
+        {
+            self.terminate_terminal_sessions_for_workspace(&request.id)
+                .await;
+            if self
+                .sessions
+                .values()
+                .any(|session| session.workspace_id == request.id)
+            {
+                return Err(history_pending_error(&request.id));
+            }
+            return Ok(self
+                .mutation_queue
+                .pending_workspace_shutdowns
+                .remove(&request.id)
+                .expect("pending shutdown remains owned"));
+        }
         if let Some(workspace) = self
             .runtime_store
             .find_workspace(&request.id)
@@ -79,12 +119,25 @@ impl ServerActor {
             }
         }
         if request.close_sessions {
-            let mut shutdown = WorkspaceShutdown::capture(
-                self.sessions
-                    .values()
-                    .filter(|session| session.workspace_id == request.id),
-            )
-            .await?;
+            let mut shutdown = match captured_shutdown {
+                Some(mut shutdown) => {
+                    shutdown.closed_tab_ids = self
+                        .sessions
+                        .values()
+                        .filter(|session| session.workspace_id == request.id)
+                        .map(|session| session.tab_id.clone())
+                        .collect();
+                    shutdown
+                }
+                None => {
+                    WorkspaceShutdown::capture(
+                        self.sessions
+                            .values()
+                            .filter(|session| session.workspace_id == request.id),
+                    )
+                    .await?
+                }
+            };
             shutdown.wait_for_operations(completions);
             if let Some(pending) = self
                 .mutation_queue
@@ -95,6 +148,16 @@ impl ServerActor {
             }
             self.terminate_terminal_sessions_for_workspace(&request.id)
                 .await;
+            if self
+                .sessions
+                .values()
+                .any(|session| session.workspace_id == request.id)
+            {
+                self.mutation_queue
+                    .pending_workspace_shutdowns
+                    .insert(request.id.clone(), shutdown);
+                return Err(history_pending_error(&request.id));
+            }
             return Ok(shutdown);
         } else if self
             .mutation_queue
@@ -123,9 +186,11 @@ impl ServerActor {
             request_id,
             outcome,
         } = finished;
-        self.finish_checkout_buffer_guard(client_id, request_id, outcome.result.is_ok());
+        let mutation_committed = outcome.result.is_ok() || outcome.completion_on_error.is_some();
+        self.finish_checkout_buffer_guard(client_id, request_id, mutation_committed);
         let RuntimeMutationOutcome {
             result,
+            completion_on_error,
             ended_pointer_tab_ids,
             mut closed_session_tab_ids,
             committed_tab_ids,
@@ -161,25 +226,16 @@ impl ServerActor {
         closed_session_tab_ids.sort_unstable();
         closed_session_tab_ids.dedup();
         let _ = closed_session_tab_ids;
+        if let Some(completion) = completion_on_error {
+            let _ = self.apply_runtime_mutation_completion(completion).await;
+        }
         match result {
             Ok(completion) => {
-                let _ = completion.closed_tab_ids;
-                if let Some(relocate) = completion.hand_on_relocate {
-                    self.relocate_sessions_after_hand_on(
-                        &relocate.source_workspace_id,
-                        &relocate.destination_workspace_id,
-                        &relocate.source_path,
-                        &relocate.dest_path,
-                    );
-                    self.checkpoint_transferred_workspace(&relocate.destination_workspace_id)
-                        .await;
-                    self.broadcast_workspace_tabs_changed(Some(&relocate.destination_workspace_id));
-                }
-                self.apply_runtime_mutation_effect(completion.effect).await;
+                let response = self.apply_runtime_mutation_completion(completion).await;
                 if let Some(error) = stopped_tab_cleanup_error {
                     self.client_write(client_id, error_response(request_id, &error));
                 } else {
-                    self.client_write(client_id, ok_response(request_id, completion.response));
+                    self.client_write(client_id, ok_response(request_id, response));
                 }
             }
             Err(error) => {
@@ -198,7 +254,7 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
-    async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {
+    pub(super) async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {
         match effect {
             RuntimeMutationEffect::SetupFinished => {}
             RuntimeMutationEffect::ProjectRemoved {
@@ -352,25 +408,46 @@ impl ServerActor {
         self.terminate_sessions(session_ids).await;
     }
 
-    async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
+    pub(super) async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
         if session_ids.is_empty() {
             return;
         }
         let store = self.store.clone();
         for session_id in session_ids {
-            self.disarm_terminal_pulse(&session_id);
-            self.queue_terminal_exit_push(&session_id, None).await;
-            self.abandon_home_inject(&session_id);
-            self.cleanup_orchestration_for_closed_session(
-                &session_id,
-                "terminal was explicitly terminated",
-            )
-            .await;
-            self.flush_all_output(&session_id);
-            self.await_output_writes(&session_id).await;
+            let already_requested = self
+                .sessions
+                .get(&session_id)
+                .is_some_and(crate::terminal_host::session::Session::termination_requested);
+            if !already_requested {
+                self.disarm_terminal_pulse(&session_id);
+                self.queue_terminal_exit_push(&session_id, None).await;
+                self.abandon_home_inject(&session_id);
+                self.cleanup_orchestration_for_closed_session(
+                    &session_id,
+                    "terminal was explicitly terminated",
+                )
+                .await;
+            }
+            self.hold_history_barrier(&session_id);
+            self.flush_all_output(&session_id).await;
+            if !self.await_output_writes(&session_id).await {
+                if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.request_termination();
+                }
+                self.spawn_durable_output_batch_timer(
+                    session_id.clone(),
+                    self.sessions[&session_id].durable_output_batch_generation(),
+                );
+                tracing::error!(
+                    session_id,
+                    "skipping terminal removal because history persistence failed"
+                );
+                continue;
+            }
             let retained_workflow_history =
                 self.retains_workflow_terminal_history(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
+                self.inbox.resume_pty_session(&session_id);
                 let clients: Vec<_> = session.clients.iter().copied().collect();
                 session.terminate(!retained_workflow_history, &store).await;
                 for client in clients {
@@ -388,4 +465,12 @@ impl ServerActor {
         }
         self.schedule_shutdown_if_idle();
     }
+}
+
+fn history_pending_error(workspace_id: &str) -> crate::terminal_host::host_error::HostError {
+    crate::terminal_host::host_error::HostError::conflict(
+        "terminalHistoryPending",
+        "Terminal history is still being persisted before workspace cleanup.",
+        json!({"workspaceId": workspace_id}),
+    )
 }

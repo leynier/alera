@@ -4,7 +4,6 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_tungstenite::tungstenite::Message;
 
-use super::server_command::ServerCommand;
 use super::voice_realtime::{
     gemini_setup_message, openai_session_update, parse_gemini_message, parse_openai_message,
     RealtimeClientMessage, RealtimeParsed, VoiceRealtimeConfig, VoiceRealtimeEvent,
@@ -39,17 +38,19 @@ impl VoiceRealtimeHandle {
 pub(super) fn spawn_voice_realtime(
     config: VoiceRealtimeConfig,
     generation: u64,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
 ) -> VoiceRealtimeHandle {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let task = tokio::spawn(async move {
         let result = run_voice_realtime(config, generation, rx, inbox.clone()).await;
-        let _ = inbox.send(ServerCommand::VoiceRealtime {
+        super::voice_realtime_socket::report(
+            &inbox,
             generation,
-            event: VoiceRealtimeEvent::Closed {
+            VoiceRealtimeEvent::Closed {
                 error: result.err().map(|error| error.to_string()),
             },
-        });
+        )
+        .await;
     });
     VoiceRealtimeHandle {
         generation,
@@ -62,7 +63,7 @@ async fn run_voice_realtime(
     config: VoiceRealtimeConfig,
     generation: u64,
     mut rx: UnboundedReceiver<RealtimeClientMessage>,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
 ) -> HostResult<()> {
     let (mut write, mut read) = connect_provider(&config).await?.split();
     let setup = match config.kind {
@@ -126,7 +127,7 @@ async fn run_voice_realtime(
                                 RealtimeParsed::SetupComplete => {
                                     if !ready {
                                         ready = true;
-                                        report(&inbox, generation, VoiceRealtimeEvent::Ready);
+                                        report(&inbox, generation, VoiceRealtimeEvent::Ready).await;
                                         for queued in pending.drain(..) {
                                             apply_client_message(
                                                 &mut write,
@@ -154,7 +155,8 @@ async fn run_voice_realtime(
                                         &inbox,
                                         generation,
                                         VoiceRealtimeEvent::UserTranscript { text, is_final, item_id },
-                                    );
+                                    )
+                                    .await;
                                 }
                                 RealtimeParsed::Audio { pcm, sample_rate, response_id } => {
                                     if is_cancelled_response(&cancelled_response_ids, response_id.as_deref()) {
@@ -182,7 +184,8 @@ async fn run_voice_realtime(
                                                 active_utterance_id,
                                             ),
                                         },
-                                    );
+                                    )
+                                    .await;
                                 }
                                 RealtimeParsed::ResponseCreated { id } => {
                                     if let Some(id) = id.clone() {
@@ -231,7 +234,8 @@ async fn run_voice_realtime(
                                                 active_utterance_id,
                                             ),
                                         },
-                                    );
+                                    )
+                                    .await;
                                 }
                                 RealtimeParsed::ResponseFinished { response_id } => {
                                     if gemini_drain && config.kind == VoiceRealtimeKind::Gemini {
@@ -356,7 +360,8 @@ async fn run_voice_realtime(
                                         VoiceRealtimeEvent::Interrupted {
                                             utterance_id: interrupted_utterance,
                                         },
-                                    );
+                                    )
+                                    .await;
                                     if config.kind == VoiceRealtimeKind::Gemini {
                                         gemini_drain = true;
                                         gemini_drain_input = interrupted_utterance.is_none();
@@ -393,14 +398,16 @@ async fn run_voice_realtime(
                                         &inbox,
                                         generation,
                                         VoiceRealtimeEvent::InputCommitted { item_id },
-                                    );
+                                    )
+                                    .await;
                                 }
                                 RealtimeParsed::InputTranscriptionFailed { item_id, message } => {
                                     report(
                                         &inbox,
                                         generation,
                                         VoiceRealtimeEvent::Error { message },
-                                    );
+                                    )
+                                    .await;
                                     report(
                                         &inbox,
                                         generation,
@@ -409,7 +416,8 @@ async fn run_voice_realtime(
                                             is_final: true,
                                             item_id,
                                         },
-                                    );
+                                    )
+                                    .await;
                                 }
                                 RealtimeParsed::Error { message } => {
                                     if is_recoverable_realtime_error(&message) {
@@ -417,7 +425,8 @@ async fn run_voice_realtime(
                                             &inbox,
                                             generation,
                                             VoiceRealtimeEvent::Error { message },
-                                        );
+                                        )
+                                        .await;
                                         continue;
                                     }
                                     return Err(HostError::state(message));

@@ -7,6 +7,15 @@ library;
 
 const String kRedactedPlaceholder = '[redacted]';
 
+/// Caps a single dynamic value before regex redaction and JSON serialization.
+///
+/// A record can contain a user-provided exception or stack trace. Keeping the
+/// cap in this shared redaction boundary also bounds the console path, which
+/// formats records independently of the file sink. Oversized fields are
+/// omitted as a whole so a secret is never exposed by truncating around it.
+const int _kMaxLogTextLength = 8 * 1024;
+const String _kOversizedLogTextPlaceholder = '[oversized log field omitted]';
+
 /// Values shorter than this are not distinctive enough to register: they would
 /// collide with ordinary words and mask unrelated text.
 const int kMinRegisteredSecretLength = 8;
@@ -41,6 +50,9 @@ void resetRegisteredLogSecrets() => _registeredSecrets.clear();
 
 /// Replaces every known secret in [input] with [kRedactedPlaceholder].
 String redactLogText(String input) {
+  if (input.length > _kMaxLogTextLength) {
+    return _kOversizedLogTextPlaceholder;
+  }
   var output = input;
   for (final secret in _registeredSecrets) {
     if (output.contains(secret)) {

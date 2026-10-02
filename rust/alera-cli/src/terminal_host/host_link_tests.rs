@@ -160,12 +160,10 @@ fn host_link_state_serializes_with_a_state_tag() {
 mod live {
     use std::sync::Arc;
 
-    use alera_core::runtime::RuntimeStore;
-    use tokio::sync::mpsc;
-
     use super::*;
     use crate::terminal_host::host_link_registry::HostLinkRegistry;
     use crate::terminal_host::server::ServerCommand;
+    use alera_core::runtime::RuntimeStore;
 
     /// A shell stand-in for `runtime-attach`: announces, pushes one event,
     /// then echoes every request id back as an ok response.
@@ -197,7 +195,7 @@ done
 
     #[tokio::test]
     async fn link_round_trips_requests_forwards_events_and_reports_close() {
-        let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+        let (inbox, mut rx) = crate::terminal_host::ServerInbox::channel();
         let target = target("linux", Some("~/.alera/sidecar"));
         let link = HostLink::connect_with(&target, inbox, fake_launcher(FAKE_SATELLITE).as_ref())
             .await
@@ -252,7 +250,7 @@ done
         let dir = tempfile::tempdir().unwrap();
         let store = RuntimeStore::open(dir.path()).await.unwrap();
         let target = stored_target(&store).await;
-        let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+        let (inbox, mut rx) = crate::terminal_host::ServerInbox::channel();
         let registry = HostLinkRegistry::with_launcher(store, inbox, fake_launcher(FAKE_SATELLITE));
         assert_eq!(registry.state(&target.id), HostLinkState::Disconnected);
 
@@ -285,7 +283,7 @@ done
         let dir = tempfile::tempdir().unwrap();
         let store = RuntimeStore::open(dir.path()).await.unwrap();
         let target = stored_target(&store).await;
-        let (inbox, _rx) = mpsc::unbounded_channel::<ServerCommand>();
+        let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
         let registry = HostLinkRegistry::with_launcher(
             store,
             inbox,
@@ -309,7 +307,7 @@ done
         let mut target = target("linux", Some("~/.alera/sidecar"));
         target.bootstrap_status = SshBootstrapStatus::NotInstalled;
         store.upsert_ssh_target(target.clone()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel::<ServerCommand>();
+        let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
         let registry = HostLinkRegistry::with_launcher(store, inbox, fake_launcher(FAKE_SATELLITE));
         let error = registry.link(&target.id).await.unwrap_err();
         assert!(error.wire_message().contains("not bootstrapped"), "{error}");

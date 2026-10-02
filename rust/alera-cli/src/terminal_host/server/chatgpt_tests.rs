@@ -1,5 +1,6 @@
 use super::{chatgpt_inference as inference, chatgpt_oauth as oauth};
 use serde_json::json;
+use std::collections::HashMap;
 
 #[test]
 fn callback_binds_state_and_registration() {
@@ -179,6 +180,132 @@ fn catalog_filters_visibility_and_preserves_account_order() {
 }
 
 #[test]
+fn catalog_preserves_reasoning_metadata_without_hardcoding_models() {
+    let value = inference::catalog(&json!({"models":[
+        {
+            "slug":"gpt-6.1-sol",
+            "display_name":"GPT-6.1 Sol",
+            "visibility":"list",
+            "supported_reasoning_levels":[
+                {"effort":"low","description":"Quick"},
+                {"effort":"LOW","description":"Duplicate"},
+                {"effort":"xhigh","description":"Deep"},
+                {"effort":"codex_ultra","description":"Unsupported"}
+            ],
+            "default_reasoning_level":"xhigh"
+        },
+        {
+            "slug":"legacy",
+            "display_name":"Legacy",
+            "visibility":"list"
+        }
+    ]}))
+    .unwrap();
+    assert_eq!(value["models"][0]["id"], "gpt-6.1-sol");
+    assert_eq!(value["models"][0]["label"], "GPT-6.1 Sol");
+    assert_eq!(
+        value["models"][0]["thinkingLevels"],
+        json!([
+            {"id":"low","label":"Low"},
+            {"id":"xhigh","label":"Extra High"}
+        ])
+    );
+    assert_eq!(value["models"][0]["defaultThinkingLevel"], "xhigh");
+    assert!(value["models"][1].get("thinkingLevels").is_none());
+}
+
+#[test]
+fn request_body_includes_service_tier_and_optional_reasoning() {
+    assert_eq!(
+        inference::request_body("context", "gpt-6.1-sol"),
+        json!({
+            "model":"gpt-6.1-sol",
+            "input":[{"role":"user", "content":"context"}],
+            "store":false,
+            "stream":true,
+            "service_tier":"default"
+        })
+    );
+    assert_eq!(
+        inference::request_body_with_options("context", "gpt-6.1-sol", Some("high"), "fast"),
+        json!({
+            "model":"gpt-6.1-sol",
+            "input":[{"role":"user", "content":"context"}],
+            "store":false,
+            "stream":true,
+            "service_tier":"fast",
+            "reasoning":{"effort":"high"}
+        })
+    );
+}
+
+#[test]
+fn request_options_reject_unknown_values_and_unsupported_model_effort() {
+    assert!(inference::normalize_thinking_level(Some("codex_ultra")).is_err());
+    assert!(inference::normalize_service_tier(Some("turbo")).is_err());
+    let model = json!({
+        "id":"gpt-6.1-sol",
+        "thinkingLevels":[{"id":"low","label":"Quick"}]
+    });
+    assert!(inference::validate_effort_for_model(&model, Some("high")).is_err());
+    assert!(inference::validate_effort_for_model(&model, Some("low")).is_ok());
+    assert!(inference::validate_effort_for_model(&json!({"id":"legacy"}), Some("high")).is_ok());
+}
+
+#[test]
+fn configured_thinking_uses_actual_default_model_and_operation_override() {
+    let global = HashMap::from([("gpt-6.1-sol".to_string(), "high".to_string())]);
+    let operation = HashMap::from([(
+        "commitMessage".to_string(),
+        HashMap::from([("gpt-6.1-sol".to_string(), "xhigh".to_string())]),
+    )]);
+    let configured = inference::ConfiguredThinking {
+        operation: Some("commitMessage".to_string()),
+        selected_by_model: global,
+        selected_by_operation: operation,
+    };
+    assert_eq!(configured.effort_for("gpt-6.1-sol"), Some("xhigh"));
+}
+
+#[test]
+fn explicit_thinking_level_overrides_configured_context() {
+    let configured = inference::ConfiguredThinking {
+        operation: Some("commitMessage".to_string()),
+        selected_by_model: HashMap::from([("gpt-6.1-sol".to_string(), "high".to_string())]),
+        selected_by_operation: HashMap::new(),
+    };
+    assert_eq!(
+        inference::resolve_thinking_level(Some("minimal"), Some(&configured), "gpt-6.1-sol"),
+        Some("minimal")
+    );
+}
+
+#[test]
+fn thinking_context_is_limited_to_operation_and_selected_efforts() {
+    let context = super::chatgpt_request_options::parse_thinking_context(Some(&json!({
+        "operation": " commitMessage ",
+        "selectedThinkingByModel": {"gpt-6.1-sol": " high "},
+        "selectedThinkingByOperation": {"gpt-6.1-sol": "low"}
+    })))
+    .unwrap()
+    .unwrap();
+    assert_eq!(context.operation.as_deref(), Some("commitMessage"));
+    assert_eq!(context.effort_for("gpt-6.1-sol"), Some("low"));
+}
+
+#[test]
+fn thinking_context_allows_global_effort_without_operation() {
+    let context = super::chatgpt_request_options::parse_thinking_context(Some(&json!({
+        "selectedThinkingByModel": {"gpt-6.1-sol": "high"},
+        "selectedThinkingByOperation": {}
+    })))
+    .unwrap()
+    .unwrap();
+    assert_eq!(context.operation, None);
+    assert_eq!(context.effort_for("gpt-6.1-sol"), Some("high"));
+}
+
+#[test]
 fn responses_require_a_completed_event_after_text() {
     let delta = "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello\"}\n\n";
     let completed =
@@ -196,13 +323,18 @@ fn responses_require_a_completed_event_after_text() {
         .unwrap(),
         "hello"
     );
-    for suffix in ["", "data: [DONE]\n\n", "data: {\"type\":\"response.incomplete\"}\n\n", "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"subscription_sharing_usage_limit_exceeded\"}}}\n\n"] {
+    for suffix in [
+        "",
+        "data: [DONE]\n\n",
+        "data: {\"type\":\"response.incomplete\"}\n\n",
+        "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"subscription_sharing_usage_limit_exceeded\"}}}\n\n",
+    ] {
         assert!(inference::parse_stream(format!("{delta}{suffix}").as_bytes()).is_err());
     }
     assert!(inference::parse_stream(completed.as_bytes()).is_err());
     let body = inference::request_body("context", "account-model");
     assert_eq!(
         body,
-        json!({"model":"account-model", "input":[{"role":"user", "content":"context"}], "store":false, "stream":true})
+        json!({"model":"account-model", "input":[{"role":"user", "content":"context"}], "store":false, "stream":true, "service_tier":"default"})
     );
 }

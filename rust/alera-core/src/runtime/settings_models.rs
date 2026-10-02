@@ -201,6 +201,8 @@ pub struct RuntimeAiAssistSettings {
     pub instructions_by_operation: HashMap<String, String>,
     #[serde(default)]
     pub prompt_settings_by_operation: HashMap<String, RuntimeAiAssistPromptSettings>,
+    #[serde(default = "default_chat_gpt_service_tier")]
+    pub chat_gpt_service_tier: String,
     #[serde(default = "default_ai_assist_timeout")]
     pub timeout_seconds: u64,
 }
@@ -278,6 +280,7 @@ impl Default for RuntimeAiAssistSettings {
             custom_command: String::new(),
             instructions_by_operation: HashMap::new(),
             prompt_settings_by_operation: HashMap::new(),
+            chat_gpt_service_tier: default_chat_gpt_service_tier(),
             timeout_seconds: default_ai_assist_timeout(),
         }
     }
@@ -287,6 +290,13 @@ impl RuntimeAiAssistSettings {
     pub fn normalized(mut self) -> Self {
         self.agent = self.agent.trim().to_ascii_lowercase();
         self.custom_command = self.custom_command.trim().to_string();
+        self.chat_gpt_service_tier = self.chat_gpt_service_tier.trim().to_ascii_lowercase();
+        if !matches!(
+            self.chat_gpt_service_tier.as_str(),
+            CHAT_GPT_SERVICE_TIER_DEFAULT | CHAT_GPT_SERVICE_TIER_FAST
+        ) {
+            self.chat_gpt_service_tier = default_chat_gpt_service_tier();
+        }
         self.selected_model_by_agent = normalized_string_map(self.selected_model_by_agent);
         self.selected_thinking_by_model = normalized_string_map(self.selected_thinking_by_model);
         self.selected_thinking_by_operation = self
@@ -338,6 +348,13 @@ fn default_ai_assist_agent() -> String {
 
 fn default_ai_assist_timeout() -> u64 {
     120
+}
+
+pub const CHAT_GPT_SERVICE_TIER_DEFAULT: &str = "default";
+pub const CHAT_GPT_SERVICE_TIER_FAST: &str = "fast";
+
+fn default_chat_gpt_service_tier() -> String {
+    CHAT_GPT_SERVICE_TIER_DEFAULT.to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

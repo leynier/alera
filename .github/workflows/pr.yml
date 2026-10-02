@@ -195,6 +195,19 @@ jobs:
             )
           done
 
+      - name: Validate vendored desktop updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd third_party/desktop_updater
+            # The vendored package has no committed lockfile; resolve its own
+            # dependency graph before running its package-local checks.
+            flutter pub get
+            flutter analyze --no-pub --no-fatal-infos
+            flutter test --no-pub
+          )
+
       - name: Validate native plugin manifests
         shell: bash
         run: |

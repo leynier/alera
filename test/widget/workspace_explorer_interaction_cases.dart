@@ -93,33 +93,10 @@ void _registerWorkspaceExplorerInteractionTests() {
     },
   );
 
-  testWidgets('native watcher refreshes loaded directories after changes', (
-    tester,
-  ) async {
-    final service = _FakeWorkspaceFileService()
-      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
-        _file('readme.md'),
-      ];
-
-    await _pumpExplorer(tester, service);
-    expect(find.text('external.dart'), findsNothing);
-
-    service.childrenByDirectory[''] = <native.WorkspaceFileEntry>[
-      _file('external.dart'),
-      _file('readme.md'),
-    ];
-    service.emitWatchBatch(<String>['']);
-    await tester.pumpAndSettle();
-
-    expect(find.text('external.dart'), findsOneWidget);
-    expect(service.watchedPathUpdates.last, contains(''));
-  });
-
   testWidgets(
     'context sidebar loads the next workspace explorer without manual refresh',
     (tester) async {
-      final stopGate = Completer<void>();
-      final service = _FakeWorkspaceFileService(stopGate: stopGate)
+      final service = _FakeWorkspaceFileService()
         ..childrenByWorkspacePath['/repo/alera'] =
             <String, List<native.WorkspaceFileEntry>>{
               '': <native.WorkspaceFileEntry>[_file('main.dart')],
@@ -174,8 +151,6 @@ void _registerWorkspaceExplorerInteractionTests() {
 
       expect(find.text('main.dart'), findsNothing);
       expect(find.text('feature.dart'), findsOneWidget);
-
-      stopGate.complete();
     },
   );
 

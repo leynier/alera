@@ -8,6 +8,7 @@ use crate::terminal_host::session::{PtyWriteCompletion, Session};
 
 use super::{terminal_pulse_state, ServerActor, ServerCommand, TerminalPulseConfiguration};
 use crate::terminal_host::server::TERMINAL_INPUT_BACKPRESSURE_CODE;
+use crate::terminal_host::ServerInbox;
 
 const RETRY_DELAY: Duration = Duration::from_millis(50);
 
@@ -25,15 +26,7 @@ impl ServerActor {
             return;
         }
         for schedule in self.terminal_pulses.schedule(workspace_id, event_sequence) {
-            let inbox = self.inbox.clone();
-            tokio::spawn(async move {
-                tokio::time::sleep(schedule.delay).await;
-                let _ = inbox.send(ServerCommand::TerminalPulseDue {
-                    session_id: schedule.session_id,
-                    session_instance_id: schedule.session_instance_id,
-                    generation: schedule.generation,
-                });
-            });
+            spawn_terminal_pulse_due(self.inbox.clone(), schedule);
         }
     }
 
@@ -117,15 +110,15 @@ impl ServerActor {
                         self.terminal_pulses
                             .retry_due(&session_id, session_instance_id, generation)
                     {
-                        let inbox = self.inbox.clone();
-                        tokio::spawn(async move {
-                            tokio::time::sleep(RETRY_DELAY).await;
-                            let _ = inbox.send(ServerCommand::TerminalPulseDue {
+                        spawn_terminal_pulse_due(
+                            self.inbox.clone(),
+                            super::TerminalPulseSchedule {
                                 session_id,
                                 session_instance_id,
                                 generation,
-                            });
-                        });
+                                delay: RETRY_DELAY,
+                            },
+                        );
                     }
                 }
                 Err(error) => {
@@ -152,6 +145,23 @@ impl ServerActor {
         self.broadcast_authenticated_local(event("terminalPulseChanged", payload));
     }
 }
+
+fn spawn_terminal_pulse_due(inbox: ServerInbox, schedule: super::TerminalPulseSchedule) {
+    tokio::spawn(async move {
+        tokio::time::sleep(schedule.delay).await;
+        let _ = inbox
+            .send_wait(ServerCommand::TerminalPulseDue {
+                session_id: schedule.session_id,
+                session_instance_id: schedule.session_instance_id,
+                generation: schedule.generation,
+            })
+            .await;
+    });
+}
+
+#[cfg(test)]
+#[path = "terminal_pulse_delivery_tests.rs"]
+mod delivery_tests;
 
 #[cfg(test)]
 mod tests {

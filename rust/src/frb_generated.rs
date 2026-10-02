@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1744366158;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 999454541;
 
 // Section: executor
 
@@ -2355,6 +2355,52 @@ fn wire__crate__api__process__process_run_impl(
                         api_arguments,
                         api_working_directory,
                         api_environment,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__process__process_run_with_output_limit_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "process_run_with_output_limit",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_executable = <String>::sse_decode(&mut deserializer);
+            let api_arguments = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_working_directory = <Option<String>>::sse_decode(&mut deserializer);
+            let api_environment =
+                <Option<std::collections::HashMap<String, String>>>::sse_decode(&mut deserializer);
+            let api_max_output_bytes = <i32>::sse_decode(&mut deserializer);
+            let api_timeout_millis = <Option<i32>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::process::process_run_with_output_limit(
+                        api_executable,
+                        api_arguments,
+                        api_working_directory,
+                        api_environment,
+                        api_max_output_bytes,
+                        api_timeout_millis,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -5171,6 +5217,17 @@ impl SseDecode for Option<crate::api::git::GitSubmoduleStatus> {
     }
 }
 
+impl SseDecode for Option<i32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<i32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6091,181 +6148,187 @@ fn pde_ffi_dispatcher_primary_impl(
         }
         62 => wire__crate__api__process__process_kill_impl(port, ptr, rust_vec_len, data_len),
         63 => wire__crate__api__process__process_run_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__process__process_start_impl(port, ptr, rust_vec_len, data_len),
-        65 => {
+        64 => wire__crate__api__process__process_run_with_output_limit_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        65 => wire__crate__api__process__process_start_impl(port, ptr, rust_vec_len, data_len),
+        66 => {
             wire__crate__api__process__process_write_stdin_impl(port, ptr, rust_vec_len, data_len)
         }
-        66 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+        67 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+        68 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+        69 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__git__git_branch__refresh_source_branch_impl(
+        70 => wire__crate__api__git__git_branch__refresh_source_branch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        71 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        73 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        74 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__git__git_branch__reset_branch_to_ref_impl(
+        75 => wire__crate__api__git__git_branch__reset_branch_to_ref_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
+        76 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__workspace_search__search_workspace_impl(
+        77 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => wire__crate__api__workspace_search__search_workspace_cancelable_impl(
+        78 => wire__crate__api__workspace_search__search_workspace_cancelable_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__workspace_files__search_workspace_quick_open_session_impl(
+        79 => wire__crate__api__workspace_files__search_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        80 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__keep_alive__set_keep_alive_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__workflow_approval__sign_workflow_decision_impl(
+        81 => wire__crate__api__keep_alive__set_keep_alive_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__workflow_approval__sign_workflow_decision_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        83 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        84 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        85 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__workspace_files__start_workspace_quick_open_session_impl(
+        86 => wire__crate__api__workspace_files__start_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        87 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        87 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        88 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        89 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
+        90 => wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__ai_dictation__transcribe_whisper_impl(
+        91 => wire__crate__api__ai_dictation__transcribe_whisper_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        92 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        93 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        94 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        95 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        96 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        97 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -9258,6 +9321,16 @@ impl SseEncode for Option<crate::api::git::GitSubmoduleStatus> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::git::GitSubmoduleStatus>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<i32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <i32>::sse_encode(value, serializer);
         }
     }
 }

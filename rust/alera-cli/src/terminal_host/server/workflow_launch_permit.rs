@@ -1,6 +1,10 @@
 use alera_core::runtime::{WorkflowCoordinatorReceipt, WorkflowLaunchRecord, WorkflowLaunchStatus};
 
-use super::WorkflowLaunchPermit;
+/// Constructed only after the durable one-shot claim. No payload grants this.
+pub(crate) struct WorkflowLaunchPermit {
+    pub(super) record: Option<WorkflowLaunchRecord>,
+    pub(super) coordinator: Option<WorkflowCoordinatorReceipt>,
+}
 
 impl WorkflowLaunchPermit {
     pub(in crate::terminal_host::server) fn coordinator(

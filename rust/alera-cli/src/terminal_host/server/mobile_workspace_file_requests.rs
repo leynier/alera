@@ -16,6 +16,8 @@ use super::mobile_workspace_file_paths::prompt_attachment_root;
 use super::requests::{optional_string_key, require_string_key};
 use super::{ServerActor, ServerCommand};
 
+pub(super) use super::workspace_blocking::spawn_blocking_workspace;
+
 impl ServerActor {
     pub(super) fn start_mobile_workspace_file_request(
         &mut self,
@@ -57,12 +59,14 @@ impl ServerActor {
                 }
                 Err(error) => Err(error),
             };
-            let _ = inbox.send(ServerCommand::MobileWorkspaceFileFinished {
-                client_id,
-                request_id,
-                request_type: operation,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::MobileWorkspaceFileFinished {
+                    client_id,
+                    request_id,
+                    request_type: operation,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }
@@ -403,15 +407,6 @@ async fn known_workspace_paths(runtime_store: &RuntimeStore) -> HostResult<Vec<S
         .into_iter()
         .map(|workspace| workspace.path)
         .collect())
-}
-
-pub(super) async fn spawn_blocking_workspace<T: Send + 'static>(
-    operation: &'static str,
-    task: impl FnOnce() -> HostResult<T> + Send + 'static,
-) -> HostResult<T> {
-    tokio::task::spawn_blocking(task)
-        .await
-        .map_err(|error| HostError::state(format!("{operation} failed: {error}")))?
 }
 
 fn absolute_workspace_file_target(

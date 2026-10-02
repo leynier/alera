@@ -59,17 +59,17 @@ test('gives every page one h1 and a canonical link to itself', async ({ page }) 
   }
 });
 
-test('has no serious accessibility violations on the key pages', async ({ page }) => {
-  // Entrance animations fade text in, and axe would measure contrast mid-fade.
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  // Commands and tables only overflow on a phone, so both widths are checked.
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 });
-    for (const path of ['/', '/download', '/blog', '/docs', '/docs/install', '/docs/keyboard-shortcuts', '/docs/pull-requests', '/404']) {
+// Commands and tables only overflow on a phone, so every key page is checked at both widths.
+for (const width of [1440, 390]) {
+  for (const path of ['/', '/download', '/blog', '/docs', '/docs/install', '/docs/keyboard-shortcuts', '/docs/pull-requests', '/404']) {
+    test(`has no serious accessibility violations on ${path} at ${width}px`, async ({ page }) => {
+      // Entrance animations fade text in, and axe would measure contrast mid-fade.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.setViewportSize({ width, height: 900 });
       await page.goto(path);
       const results = await new AxeBuilder({ page }).analyze();
       const serious = results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''));
       expect(serious.map((violation) => `${violation.id}: ${violation.help}`), `${path} at ${width}px`).toEqual([]);
-    }
+    });
   }
-});
+}

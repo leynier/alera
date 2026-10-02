@@ -358,17 +358,25 @@ class MobileRuntimeClient._(
 
   void _handleMessage(Object? raw) {
     if (!isConnectionUsable) return;
-    lastActivityAt = DateTime.now().toUtc();
-    if (_handleRelayControl(raw)) return;
-    if (_relayHandshake != null) {
-      unawaited(_handleRelayHandshakeMessage(raw));
-      return;
+    try {
+      lastActivityAt = DateTime.now().toUtc();
+      if (_handleRelayControl(raw)) return;
+      if (_relayHandshake != null) {
+        unawaited(_handleRelayHandshakeMessage(raw));
+        return;
+      }
+      if (_relaySession != null) {
+        unawaited(_handleRelayMessage(raw));
+        return;
+      }
+      _handleDecodedMessage(raw);
+    } on Object catch (error, stackTrace) {
+      // Exceptions from an onData callback do not reach the WebSocket's
+      // onError handler. Treat malformed peer data as a transport failure so
+      // pending requests fail promptly and the host controller can recover,
+      // rather than leaving the client half-open until every request times out.
+      _handleSocketError(error, stackTrace);
     }
-    if (_relaySession != null) {
-      unawaited(_handleRelayMessage(raw));
-      return;
-    }
-    _handleDecodedMessage(raw);
   }
 
   Future<void> _sendTransport(String encoded) async {

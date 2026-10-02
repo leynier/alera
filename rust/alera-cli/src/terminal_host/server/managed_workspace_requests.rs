@@ -45,12 +45,14 @@ impl ServerActor {
             )
             .await;
             let result = json_result(created);
-            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
-                client_id,
-                request_id,
-                result,
-                handoff_source_workspace_id: None,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::ManagedWorkspaceCreated {
+                    client_id,
+                    request_id,
+                    result,
+                    handoff_source_workspace_id: None,
+                })
+                .await;
             if let Some(record) = linked_issue {
                 super::linked_issue_requests::refresh_created_workspace_issue(
                     &store, &inbox, record,
@@ -92,11 +94,13 @@ impl ServerActor {
             }
             let result =
                 json_result(measure_workspace_storage(&store, &workspace_id, blockers).await);
-            let _ = inbox.send(ServerCommand::WorkspaceStorageMeasured {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::WorkspaceStorageMeasured {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 
@@ -137,11 +141,13 @@ impl ServerActor {
         // large directory, so they stay off the actor loop.
         tokio::spawn(async move {
             let result = json_result(run_workspace_setup(&store, &workspace_id, copies_only).await);
-            let _ = inbox.send(ServerCommand::WorkspaceSetupFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::WorkspaceSetupFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 
@@ -171,12 +177,14 @@ impl ServerActor {
             )
             .await;
             let result = json_result(created);
-            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
-                client_id,
-                request_id,
-                result,
-                handoff_source_workspace_id: None,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::ManagedWorkspaceCreated {
+                    client_id,
+                    request_id,
+                    result,
+                    handoff_source_workspace_id: None,
+                })
+                .await;
             if let Some(record) = linked_issue {
                 super::linked_issue_requests::refresh_created_workspace_issue(
                     &store, &inbox, record,

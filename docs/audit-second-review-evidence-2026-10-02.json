@@ -1,0 +1,263 @@
+{
+  "date": "2026-10-02",
+  "reviewedHead": "1457a1072",
+  "lastAuditImplementationCommit": "3958cef7d",
+  "base": "b32c1492d6f2d82b127e1444979444cd1b58e03a",
+  "sourceEdits": false,
+  "applicationProviderInferenceCalls": 0,
+  "productionWrites": false,
+  "deployed": false,
+  "branchReviewer": {
+    "reviewer": "codex",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "high",
+    "exitCode": 0,
+    "sessionArchived": true,
+    "findings": 5
+  },
+  "nativeHookProbe": {
+    "cancellationBeforeNativeStopCompleted": false,
+    "cancellationAfterNativeStopCompleted": true,
+    "source": "independent branch reviewer native FRB probe"
+  },
+  "ptyProbe": {
+    "producerIntervalMs": 20,
+    "outputArrivalMs": [
+      40,
+      141,
+      242,
+      260,
+      337
+    ],
+    "source": "independent branch reviewer disposable native runtime"
+  },
+  "explorer": {
+    "modeToggleWatcher": {
+      "createdFileAfterToggleVisible": false,
+      "source": "two isolated widget probes"
+    },
+    "bulkProjection": {
+      "changedDirectories": 5,
+      "projectionCalls": 5,
+      "snapshotsPerProjection": 6,
+      "totalSnapshotPayloadEntries": 30,
+      "source": "isolated widget probe"
+    }
+  },
+  "aiProcessLifecycle": {
+    "generatedAt": "2026-10-02T13:34:53.316614Z",
+    "stdinWithoutPayload": {
+      "noClose": {
+        "errorType": "AiAssistException",
+        "error": "Generation timed out after 1s.",
+        "elapsedMs": 1007,
+        "stdinCloseCalls": 0,
+        "killCalledAfterTimeout": true,
+        "exitCompletedAfterTimeoutKill": true,
+        "interpretation": "The public runner timed out because the custom command received no EOF; stdinClose was never called by the current implementation."
+      },
+      "withHarnessClose": {
+        "text": "ok",
+        "stdinCloseCalls": 1,
+        "exitCode": 0,
+        "interpretation": "The same fake process completes once stdinClose is supplied, proving the missing EOF is the gating condition."
+      }
+    },
+    "malformedUtf8WhileChildRuns": {
+      "errorType": "FormatException",
+      "error": "FormatException: Invalid UTF-8 byte (at offset 0)",
+      "elapsedMs": 6001,
+      "killCalled": false,
+      "exitCompleted": false,
+      "interpretation": "Malformed output raises before the configured generation timeout; the current finally block waits for exit but does not kill the still-running child."
+    }
+  },
+  "nativeOutputQueue": {
+    "expectedBytes": 2097152,
+    "exitCode": 0,
+    "capturedAfterLateListener": 2097152,
+    "streamBufferedWithoutConsumer": true,
+    "interpretation": "The native bridge drained the pipe, but the Dart stream retained all output until a consumer attached after exit."
+  },
+  "voiceOutputQueue": {
+    "queuedBytesAfterVoicePlayback": 2097152,
+    "expectedBytes": 2097152,
+    "voicePlaybackCompleted": true,
+    "stderrWasUnconsumedByVoicePath": true,
+    "interpretation": "VoiceAudioIo awaited exitCode but did not drain stdout/stderr; the ProcessRunner stream retained the complete diagnostic output until a late listener attached."
+  },
+  "updater": {
+    "generatedAt": "2026-10-02T13:33:45.979246Z",
+    "directoryModeYield": {
+      "directoryCount": 512,
+      "modeCallCount": 512,
+      "timerCallbackCount": 512,
+      "timerCallbacksObservedBeforeAllModeCalls": 0,
+      "eventLoopYieldObserved": false,
+      "interpretation": "Timer.run did not execute between directory mode calls."
+    },
+    "fileTransportCancellation": {
+      "sourceBytes": 16777216,
+      "bytesAtCancellation": 65536,
+      "destinationBytes": 16777216,
+      "progressCallbacks": 256,
+      "progressCallbacksAfterCancellation": 255,
+      "cancelRequested": true,
+      "copyCompletedAfterCancel": true,
+      "interpretation": "CompositeUpdateTransport.cancel did not stop the file copy."
+    }
+  },
+  "diagnostics": {
+    "inputBytes": 52428800,
+    "outputBytes": 43583206,
+    "baselineRssBytes": 11624448,
+    "peakSampledRssBytes": 179040256,
+    "deltaRssBytes": 167415808,
+    "elapsedMs": 1104,
+    "samplingMs": 2,
+    "fixture": "synthetic high-entropy printable log bytes",
+    "runtime": "standalone Dart AOT, not Flutter application RSS"
+  },
+  "edgeLimiter": {
+    "sameIp": "192.0.2.10",
+    "rotatingBogusAuthorization": {
+      "label": "rotating bogus authorization",
+      "keys": [
+        "authorization:c738aacb5ec90461379f680af59ef8a878549675e83ecb33009bec12ef8e8090",
+        "authorization:daecc888bcedc07c43dbeb06f6b9804694d443a26040802b8afd215b0655305b",
+        "authorization:63d8048d125f63dde5a2c9e8d147506a448b0e135c86fa399735ec48f261c1d0",
+        "authorization:b576ea6b2dc3890ff78b8560e96cc8bc0957a3385e64138381b20557c43fc8e1",
+        "authorization:c2998956b00042d70af8b07f76b4840f23056ae9f143ca2c9e54ef7c161bd51e",
+        "authorization:3f2479358a45fe34f97f70019d7da13d52675c0405b13ccd7a9d29fa6282950c",
+        "authorization:94813bffa5f0aa491e45bdda776d481315128fd08a83c4bfa40e020ce5a2303f",
+        "authorization:2d1a8464874c2a9816e326c0a657220dc9b439ebbc94c2f3e8cfc8dd159d87d5",
+        "authorization:3c56eabcb38711ee84c166c4d8e239f6bab01c7f4ac99cbd73cbaead0bd99901",
+        "authorization:4cdae7c8e65c829fb1a059e5fcce50633e83a47f76c95ae7629e501c7eed3869",
+        "authorization:f1f8da7e907be170dbe47bd2621704f985d34a3fd29fcfdc8abdfb94a71719d3"
+      ],
+      "counts": {
+        "authorization:c738aacb5ec90461379f680af59ef8a878549675e83ecb33009bec12ef8e8090": 1,
+        "authorization:daecc888bcedc07c43dbeb06f6b9804694d443a26040802b8afd215b0655305b": 1,
+        "authorization:63d8048d125f63dde5a2c9e8d147506a448b0e135c86fa399735ec48f261c1d0": 1,
+        "authorization:b576ea6b2dc3890ff78b8560e96cc8bc0957a3385e64138381b20557c43fc8e1": 1,
+        "authorization:c2998956b00042d70af8b07f76b4840f23056ae9f143ca2c9e54ef7c161bd51e": 1,
+        "authorization:3f2479358a45fe34f97f70019d7da13d52675c0405b13ccd7a9d29fa6282950c": 1,
+        "authorization:94813bffa5f0aa491e45bdda776d481315128fd08a83c4bfa40e020ce5a2303f": 1,
+        "authorization:2d1a8464874c2a9816e326c0a657220dc9b439ebbc94c2f3e8cfc8dd159d87d5": 1,
+        "authorization:3c56eabcb38711ee84c166c4d8e239f6bab01c7f4ac99cbd73cbaead0bd99901": 1,
+        "authorization:4cdae7c8e65c829fb1a059e5fcce50633e83a47f76c95ae7629e501c7eed3869": 1,
+        "authorization:f1f8da7e907be170dbe47bd2621704f985d34a3fd29fcfdc8abdfb94a71719d3": 1
+      },
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "originCalls": 11
+    },
+    "sameBogusAuthorization": {
+      "label": "same bogus authorization",
+      "keys": [
+        "authorization:78797dd223e2ba89df06bfd5910c4f2098fe1d9cf870dabee312aa05d564bd25"
+      ],
+      "counts": {
+        "authorization:78797dd223e2ba89df06bfd5910c4f2098fe1d9cf870dabee312aa05d564bd25": 11
+      },
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        429
+      ],
+      "originCalls": 10
+    }
+  },
+  "fcmPayload": {
+    "source_checks": {
+      "max_data_fields_20": true,
+      "max_data_value_1024": true,
+      "trusted_fields_added": true,
+      "data_forwarded_to_fcm_wire": true,
+      "reserved_key_guard_present": false,
+      "serialized_size_guard_present": false
+    },
+    "fixture": {
+      "event_data_fields": 20,
+      "message_data_fields_after_trusted_inserts": 25,
+      "serialized_wire_bytes": 21863,
+      "documented_fcm_http_v1_data_limit_bytes": 4096,
+      "reserved_key": "from",
+      "reserved_key_survives_message_data": true
+    },
+    "network_calls": 0
+  },
+  "limits": [
+    "No production verification",
+    "No new Windows/macOS GUI validation",
+    "Diagnostics RSS belongs to standalone Dart AOT synthetic benchmark",
+    "Native process buffering probe demonstrates retained bytes, not a shipped app RSS measurement",
+    "BFCache proof is an isolated lifecycle simulation, not a browser Back navigation capture",
+    "FCM payload proof is source-constrained contract arithmetic, not a live send"
+  ],
+  "scope": "Second review only, before separately authorized ChatGPT options implementation",
+  "subsystemReviews": {
+    "completed": 6,
+    "scopes": [
+      "runtime/history",
+      "process/native",
+      "desktop/async",
+      "updater",
+      "cloud/edge",
+      "mobile/landing"
+    ]
+  },
+  "mobileRpc": {
+    "localWebSocketTestsPassed": 3,
+    "timeoutKeepsTransportUsable": true,
+    "malformedValidJsonEnvelopeIgnored": true,
+    "unknownEventsAndLateNumericRepliesAccepted": true,
+    "source": ".dart_tool/audit-review2/mobile-rpc-proof.log"
+  },
+  "bfcache": {
+    "persistedPagehideDestroyedPlayer": true,
+    "persistedPageshowRemountedPlayer": false,
+    "source": "isolated current lifecycle simulation, not browser Back navigation"
+  },
+  "transferMarkerTrace": {
+    "transfer_marker_mutations_in_runtimes_rs": [
+      {
+        "line": 102,
+        "text": "\"UPDATE runtimes SET account_id = $2, transferred_at = $3, last_seen_at = $3 WHERE id = $1\","
+      }
+    ],
+    "target_runtime_reauth": {
+      "ensure_client_upsert_found": true,
+      "upsert_set_clause": "INSERT INTO runtimes (id, account_id, name, created_at, last_seen_at) VALUES ($1, $2, $3, $4, $4) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, last_seen_at = EXCLUDED.last_seen_at",
+      "clears_transferred_at": false
+    },
+    "relay_reactivation_requirements": {
+      "discovery_requires_null_marker": true,
+      "grant_requires_null_marker": true,
+      "identity_registration_updates_last_seen_only": true
+    },
+    "push_ownership_contrast": {
+      "transfer_deletes_subscriptions": true,
+      "target_event_query_is_account_scoped": true
+    }
+  }
+}

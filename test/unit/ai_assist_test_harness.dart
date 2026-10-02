@@ -3,6 +3,8 @@ part of 'ai_assist_service_test.dart';
 class _FakeProcessRunner({
   required final String stdout,
   final String stderr = '',
+  final Stream<List<int>>? stdoutStream,
+  final Stream<List<int>>? stderrStream,
   final int exitCode = 0,
   final Completer<int>? exitCodeCompleter,
   final bool completeExitOnKill = true,
@@ -85,8 +87,8 @@ class _FakeProcessRunner({
     final process = StartedProcess(
       stdinWrite: (data) => _stdin.write(utf8.decode(data)),
       stdinClose: () => stdinClosed = true,
-      stdout: Stream<List<int>>.value(utf8.encode(stdout)),
-      stderr: Stream<List<int>>.value(utf8.encode(stderr)),
+      stdout: stdoutStream ?? Stream<List<int>>.value(utf8.encode(stdout)),
+      stderr: stderrStream ?? Stream<List<int>>.value(utf8.encode(stderr)),
       pid: 1,
       exitCode: exitCodeCompleter?.future ?? Future<int>.value(exitCode),
       kill: ([dynamic signal]) {

@@ -11,26 +11,29 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
 use tokio::runtime::{Builder, Runtime};
 use tokio::sync::{mpsc, Notify};
 
-use super::{ProcessEvent, ProcessEventKind, ProcessRunResult};
+#[cfg(test)]
+use super::ProcessRunResult;
+use super::{ProcessEvent, ProcessEventKind};
 use crate::frb_generated::StreamSink;
 
-const READ_CHUNK_BYTES: usize = 64 * 1024;
+#[path = "process_stdin.rs"]
+mod process_stdin;
+use process_stdin::{StdinBudget, StdinChunk, PROCESS_STDIN_QUEUE_CAPACITY};
 
-/// How long output already in flight may take to drain once the child exited.
-const DRAIN_GRACE: std::time::Duration = std::time::Duration::from_millis(250);
-
-#[cfg(windows)]
-const PROCESS_TREE_KILL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+#[path = "process_session_output.rs"]
+mod process_session_output;
+use process_session_output::{forward, DRAIN_GRACE};
 
 /// A running command the Dart side still holds a handle to.
 struct Session {
     /// Dropped by `close_stdin`, which is what closes the child's stdin.
-    stdin: Option<mpsc::UnboundedSender<Vec<u8>>>,
+    stdin: Option<mpsc::Sender<StdinChunk>>,
+    stdin_budget: Arc<StdinBudget>,
     kill: Arc<Notify>,
 }
 
@@ -38,15 +41,7 @@ static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 static SESSIONS: OnceLock<Mutex<HashMap<i64, Session>>> = OnceLock::new();
 static NEXT_SESSION_ID: AtomicI64 = AtomicI64::new(1);
 
-pub(super) fn run(
-    executable: String,
-    arguments: Vec<String>,
-    working_directory: Option<String>,
-    environment: Option<HashMap<String, String>>,
-) -> Result<ProcessRunResult, String> {
-    run_with_environment_mode(executable, arguments, working_directory, environment, true)
-}
-
+#[cfg(test)]
 fn run_with_environment_mode(
     executable: String,
     arguments: Vec<String>,
@@ -105,6 +100,7 @@ pub(super) fn start(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    alera_core::captured_process::ProcessTreeGuard::prepare_command(&mut command);
     // `tokio::process` registers the child with the runtime's IO driver, so the
     // spawn itself has to happen inside the runtime context.
     let guard = runtime().enter();
@@ -117,13 +113,22 @@ pub(super) fn start(
             return;
         }
     };
+    let tree = match alera_core::captured_process::ProcessTreeGuard::attach(&child) {
+        Ok(tree) => tree,
+        Err(error) => {
+            abort_unowned_child(child, None);
+            emit_failure(&events, format!("failed to start {executable}: {error}"));
+            return;
+        }
+    };
 
     let pid = child.id().unwrap_or_default() as i32;
     let stdin = child.stdin.take();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
-    let (writes, incoming) = mpsc::unbounded_channel();
+    let (writes, incoming) = mpsc::channel(PROCESS_STDIN_QUEUE_CAPACITY);
+    let stdin_budget = StdinBudget::new();
     let kill = Arc::new(Notify::new());
     match sessions().lock() {
         Ok(mut sessions) => {
@@ -131,12 +136,14 @@ pub(super) fn start(
                 id,
                 Session {
                     stdin: Some(writes),
+                    stdin_budget,
                     kill: kill.clone(),
                 },
             );
         }
         Err(_) => {
             emit_failure(&events, "process registry lock poisoned".to_string());
+            abort_unowned_child(child, Some(tree));
             return;
         }
     }
@@ -157,6 +164,7 @@ pub(super) fn start(
         .is_err()
     {
         forget_session(id);
+        abort_unowned_child(child, Some(tree));
         return;
     }
 
@@ -165,27 +173,70 @@ pub(super) fn start(
             let mut incoming = incoming;
             tokio::spawn(async move {
                 while let Some(chunk) = incoming.recv().await {
-                    if stdin.write_all(&chunk).await.is_err() {
+                    if stdin.write_all(&chunk.data).await.is_err() {
                         break;
                     }
                     let _ = stdin.flush().await;
                 }
             });
         }
-        let stdout = forward(stdout, sink.clone(), ProcessEventKind::Stdout);
-        let stderr = forward(stderr, sink.clone(), ProcessEventKind::Stderr);
-        let status = wait_for_exit(&mut child, kill).await;
+        let mut stdout = forward(stdout, sink.clone(), ProcessEventKind::Stdout);
+        let mut stderr = forward(stderr, sink.clone(), ProcessEventKind::Stderr);
+        let status = wait_for_exit(&mut child, &tree, kill).await;
         // Both readers are drained before the exit is announced, so a listener
         // that stops on `exitCode` cannot miss output the child already wrote.
         // Bounded, because a grandchild that outlived the shell still holds the
         // pipes open and must not strand the exit event.
         let drained = tokio::time::timeout(DRAIN_GRACE, async {
-            let _ = tokio::join!(stdout, stderr);
+            let stdout_result = (&mut stdout).await;
+            let stderr_result = (&mut stderr).await;
+            (stdout_result, stderr_result)
         })
         .await;
-        let _ = drained;
-        emit_exit(&sink, id, pid, status);
+        match drained {
+            Ok((stdout_result, stderr_result)) => {
+                tree.terminate();
+                let stream_error = stdout_result.err().or_else(|| stderr_result.err());
+                if let Some(stream_error) = stream_error {
+                    emit_failure(
+                        &sink,
+                        format!("process {executable} output failed: {stream_error}"),
+                    );
+                } else {
+                    emit_exit(&sink, id, pid, status);
+                }
+            }
+            Err(_) => {
+                tree.terminate();
+                stdout.abort();
+                stderr.abort();
+                let _ = stdout.await;
+                let _ = stderr.await;
+                emit_failure(
+                    &sink,
+                    format!(
+                        "process {executable} output did not drain before the cleanup grace period"
+                    ),
+                );
+            }
+        }
         forget_session(id);
+    });
+}
+
+/// A process started before its session became observable has no caller that
+/// can issue `kill`. Reap it immediately instead of letting a dropped Tokio
+/// child continue as an untracked orphan.
+fn abort_unowned_child(
+    mut child: Child,
+    tree: Option<alera_core::captured_process::ProcessTreeGuard>,
+) {
+    runtime().spawn(async move {
+        if let Some(tree) = tree {
+            tree.terminate();
+        }
+        let _ = child.start_kill();
+        let _ = child.wait().await;
     });
 }
 
@@ -199,7 +250,12 @@ pub(super) fn write_stdin(id: i64, data: Vec<u8>) -> bool {
     let Some(stdin) = session.stdin.as_ref() else {
         return false;
     };
-    stdin.send(data).is_ok()
+    if !session.stdin_budget.try_reserve(data.len()) {
+        return false;
+    }
+    stdin
+        .try_send(StdinChunk::new(data, Arc::clone(&session.stdin_budget)))
+        .is_ok()
 }
 
 pub(super) fn close_stdin(id: i64) {
@@ -239,44 +295,29 @@ fn build_command(
 
 /// Waits for the child, killing it if the Dart side asks in the meantime.
 /// `Child::wait` is cancel safe, so losing the race in `select!` costs nothing.
-async fn wait_for_exit(child: &mut Child, kill: Arc<Notify>) -> Result<i32, String> {
+async fn wait_for_exit(
+    child: &mut Child,
+    tree: &alera_core::captured_process::ProcessTreeGuard,
+    kill: Arc<Notify>,
+) -> Result<i32, String> {
     loop {
         tokio::select! {
             status = child.wait() => {
-                return status
-                    .map(|status| status.code().unwrap_or(-1))
-                    .map_err(|error| error.to_string());
+                return match status {
+                    Ok(status) => Ok(status.code().unwrap_or(-1)),
+                    Err(error) => {
+                        tree.terminate();
+                        let _ = child.start_kill();
+                        let _ = child.wait().await;
+                        Err(error.to_string())
+                    }
+                };
             }
             _ = kill.notified() => {
-                terminate_invocation(child).await;
+                tree.terminate();
                 let _ = child.start_kill();
             }
         }
-    }
-}
-
-/// Signals everything the invocation started, not just the shell that fronts
-/// it. `start_kill` remains the final fallback for a child that exits while the
-/// platform tree termination is being requested.
-#[allow(unused_variables)]
-async fn terminate_invocation(child: &Child) {
-    #[cfg(unix)]
-    if let Some(pid) = child.id() {
-        // Safe: `kill` only reads the group id, and a group that already exited
-        // yields ESRCH.
-        unsafe {
-            libc::kill(-(pid as i32), libc::SIGKILL);
-        }
-    }
-    #[cfg(windows)]
-    if let Some(pid) = child.id() {
-        let mut command = alera_core::child_process::windowless_async_command("taskkill.exe");
-        command
-            .args(windows_process_tree_kill_arguments(pid))
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        let _ = tokio::time::timeout(PROCESS_TREE_KILL_TIMEOUT, command.status()).await;
     }
 }
 
@@ -288,42 +329,6 @@ pub(super) fn windows_process_tree_kill_arguments(pid: u32) -> Vec<String> {
         "/T".to_string(),
         "/F".to_string(),
     ]
-}
-
-fn forward<R>(
-    reader: Option<R>,
-    sink: Arc<StreamSink<ProcessEvent>>,
-    kind: ProcessEventKind,
-) -> tokio::task::JoinHandle<()>
-where
-    R: AsyncRead + Unpin + Send + 'static,
-{
-    tokio::spawn(async move {
-        let Some(mut reader) = reader else {
-            return;
-        };
-        let mut buffer = vec![0_u8; READ_CHUNK_BYTES];
-        loop {
-            match reader.read(&mut buffer).await {
-                Ok(0) | Err(_) => return,
-                Ok(read) => {
-                    let event = ProcessEvent {
-                        kind,
-                        session_id: 0,
-                        pid: 0,
-                        data: buffer[..read].to_vec(),
-                        exit_code: 0,
-                        message: String::new(),
-                    };
-                    // A closed sink means the Dart listener is gone; the child
-                    // keeps running and is still reaped below.
-                    if sink.add(event).is_err() {
-                        return;
-                    }
-                }
-            }
-        }
-    })
 }
 
 fn emit_exit(sink: &StreamSink<ProcessEvent>, id: i64, pid: i32, status: Result<i32, String>) {
@@ -392,8 +397,10 @@ pub(super) fn wait_for_exit_in_tests(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    alera_core::captured_process::ProcessTreeGuard::prepare_command(&mut command);
     runtime().block_on(async move {
         let mut child = command.spawn().map_err(|error| error.to_string())?;
+        let tree = alera_core::captured_process::ProcessTreeGuard::attach(&child)?;
         // Held open the way `start` does, so the child keeps waiting on stdin
         // instead of seeing the EOF `Child::wait` would cause by dropping it.
         let _stdin = child.stdin.take();
@@ -402,6 +409,60 @@ pub(super) fn wait_for_exit_in_tests(
             tokio::time::sleep(delay).await;
             signal.notify_one();
         });
-        wait_for_exit(&mut child, kill).await
+        wait_for_exit(&mut child, &tree, kill).await
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::process_stdin::PROCESS_STDIN_MAX_QUEUED_BYTES;
+    use super::*;
+
+    #[test]
+    fn stdin_queue_rejects_writes_after_its_bounded_capacity() {
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        let (sender, receiver) = mpsc::channel(PROCESS_STDIN_QUEUE_CAPACITY);
+        sessions().lock().expect("process registry lock").insert(
+            id,
+            Session {
+                stdin: Some(sender),
+                stdin_budget: StdinBudget::new(),
+                kill: Arc::new(Notify::new()),
+            },
+        );
+
+        for _ in 0..PROCESS_STDIN_QUEUE_CAPACITY {
+            assert!(write_stdin(id, vec![b'x']));
+        }
+        assert!(!write_stdin(id, vec![b'x']));
+
+        drop(receiver);
+        sessions()
+            .lock()
+            .expect("process registry lock")
+            .remove(&id);
+    }
+
+    #[test]
+    fn stdin_queue_rejects_a_chunk_that_exceeds_its_byte_budget() {
+        let id = NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed);
+        let (sender, receiver) = mpsc::channel(PROCESS_STDIN_QUEUE_CAPACITY);
+        sessions().lock().expect("process registry lock").insert(
+            id,
+            Session {
+                stdin: Some(sender),
+                stdin_budget: StdinBudget::new(),
+                kill: Arc::new(Notify::new()),
+            },
+        );
+
+        assert!(write_stdin(id, vec![b'x'; PROCESS_STDIN_MAX_QUEUED_BYTES]));
+        assert!(!write_stdin(id, vec![b'x']));
+
+        drop(receiver);
+        sessions()
+            .lock()
+            .expect("process registry lock")
+            .remove(&id);
+    }
 }

@@ -7,7 +7,7 @@ async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
     let dir = tempfile::tempdir().unwrap();
     let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
     let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     let (handle, mut out_rx) = ClientHandle::test_channels();
     let mut actor = ServerActor {
         runtime_dir: dir.path().to_path_buf(),
@@ -49,7 +49,8 @@ async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
         account_push: account_push_for_test(&dir, &runtime_store).await,
         clients: HashMap::from([(1, ClientState::local(handle, true))]),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        history_writers: HashMap::new(),
+        pending_history_requests: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
@@ -94,7 +95,7 @@ async fn mobile_gateway_rebinds_same_port_after_releasing_old_listener() {
     let dir = tempfile::tempdir().unwrap();
     let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
     let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     let current = MobileAccessSettings {
         enabled: true,
         bind_host: "127.0.0.1".to_string(),
@@ -139,7 +140,8 @@ async fn mobile_gateway_rebinds_same_port_after_releasing_old_listener() {
         account_push: account_push_for_test(&dir, &runtime_store).await,
         clients: HashMap::new(),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        history_writers: HashMap::new(),
+        pending_history_requests: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
@@ -214,7 +216,7 @@ async fn run_stop_clears_persisted_run_without_in_memory_ticker() {
         .create_orchestration_coordinator_run("coordinate", Some("coord"), 1000)
         .await
         .unwrap();
-    let (inbox, _rx) = mpsc::unbounded_channel();
+    let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
     let mut actor = ServerActor {
         runtime_dir: dir.path().to_path_buf(),
         control_file_path: dir.path().join("runtime-host.json"),
@@ -247,7 +249,8 @@ async fn run_stop_clears_persisted_run_without_in_memory_ticker() {
         account_push: account_push_for_test(&dir, &runtime_store).await,
         clients: HashMap::new(),
         mobile_prompt_file_uploads: HashMap::new(),
-        pending_output_writes: HashMap::new(),
+        history_writers: HashMap::new(),
+        pending_history_requests: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),

@@ -126,7 +126,7 @@ async fn cancellation_keeps_dependency_reserved_while_precheck_command_is_runnin
         .create_automation_run(&definition, &occurrence, AutomationRunTrigger::Scheduled)
         .await
         .unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = inbox;
     fixture
         .actor
@@ -317,7 +317,7 @@ async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_c
             )
             .await
             .unwrap();
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         fixture.actor.inbox = inbox;
         fixture
             .actor

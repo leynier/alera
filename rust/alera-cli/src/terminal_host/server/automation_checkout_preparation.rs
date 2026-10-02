@@ -58,12 +58,14 @@ impl ServerActor {
                         "SSH automation checkout preparation timed out",
                     ))
                 });
-            let _ = inbox.send(ServerCommand::AutomationCheckoutPrepared {
-                definition: Box::new(definition),
-                run: Box::new(run),
-                project: Box::new(project),
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AutomationCheckoutPrepared {
+                    definition: Box::new(definition),
+                    run: Box::new(run),
+                    project: Box::new(project),
+                    result,
+                })
+                .await;
         });
     }
 

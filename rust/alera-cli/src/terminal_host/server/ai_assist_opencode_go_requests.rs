@@ -8,6 +8,7 @@ use super::ai_assist_opencode_go::{
     complete_opencode_go, list_opencode_go_models, OPENCODE_GO_DEFAULT_MODEL, OPENCODE_GO_LABEL,
 };
 use super::ai_assist_operation_registry::active_generations;
+use super::chatgpt_request_options::parse_thinking_context;
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
@@ -35,6 +36,13 @@ impl ServerActor {
                 OPENCODE_GO_DEFAULT_MODEL.to_string()
             }
         });
+        let thinking_level = optional_non_blank(payload, "thinkingLevel");
+        let service_tier = optional_non_blank(payload, "serviceTier");
+        let thinking_context = if agent == "chatgpt" {
+            parse_thinking_context(payload.get("thinkingContext"))?
+        } else {
+            None
+        };
         let timeout_seconds = payload
             .get("timeoutSeconds")
             .and_then(Value::as_u64)
@@ -53,9 +61,15 @@ impl ServerActor {
                     return Err(HostError::state("AI Assist is disabled."));
                 }
                 let text = if agent == "chatgpt" {
-                    super::chatgpt_inference::complete(
+                    let service_tier = service_tier
+                        .as_deref()
+                        .or(Some(settings.chat_gpt_service_tier.as_str()));
+                    super::chatgpt_inference::complete_with_options(
                         &prompt,
                         &model,
+                        thinking_level.as_deref(),
+                        service_tier,
+                        thinking_context,
                         Duration::from_secs(timeout_seconds),
                         cancel_rx,
                     )
@@ -77,11 +91,13 @@ impl ServerActor {
             }
             .await;
             drop(registration);
-            let _ = inbox.send(ServerCommand::AiAssistFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiAssistFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }
@@ -110,11 +126,13 @@ impl ServerActor {
                     "defaultModelId": default_model_id,
                 })
             });
-            let _ = inbox.send(ServerCommand::AiAssistFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiAssistFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

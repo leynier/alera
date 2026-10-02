@@ -14,7 +14,9 @@ use std::time::Duration;
 use alera_core::runtime::{RuntimeAiAssistSettings, RuntimeStore, Workspace};
 use serde_json::{json, Value};
 
+use super::chatgpt_request_options::chatgpt_options_required;
 use super::{ClientKind, ServerActor, ServerCommand};
+use crate::terminal_host::ai_assist_capabilities::RUNTIME_HOST_AI_ASSIST_CHATGPT_OPTIONS_CAPABILITY;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::host_link_registry::HostLinkRegistry;
 
@@ -34,6 +36,15 @@ fn is_workspace_generation_verb(request_type: &str) -> bool {
 
 fn remote_operation_key(operation_id: &str) -> String {
     format!("aiAssist:{operation_id}")
+}
+
+fn operation_for_request(request_type: &str) -> Option<&'static str> {
+    match request_type {
+        "aiText.commitMessage.generate" => Some("commitMessage"),
+        "aiText.pullRequestDetails.generate" => Some("pullRequestDetails"),
+        "aiText.speechMessage.generate" => Some("speechMessage"),
+        _ => None,
+    }
 }
 
 /// The settings a generation should run with: the hub's when it sent them,
@@ -138,11 +149,13 @@ impl ServerActor {
         tokio::spawn(async move {
             let result =
                 forward_generation(&store, &links, &request_type, &workspace, payload).await;
-            let _ = inbox.send(ServerCommand::AiAssistFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiAssistFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 
@@ -187,12 +200,25 @@ async fn forward_generation(
         return Err(HostError::state("AI Assist is disabled."));
     }
     let timeout = Duration::from_secs(settings.timeout_seconds) + FORWARDING_MARGIN;
+    let requires_chatgpt_options = operation_for_request(request_type)
+        .is_some_and(|operation| chatgpt_options_required(&settings, operation));
     let forwarded = forwarded_payload(&workspace.id, &settings, payload)?;
     let operation_key = forwarded
         .get("operationId")
         .and_then(Value::as_str)
         .map(remote_operation_key);
     let (link, _) = super::host_link_routing::mirror_workspace(store, links, &workspace.id).await?;
+    if requires_chatgpt_options
+        && !link
+            .attachment()
+            .runtime_capabilities
+            .iter()
+            .any(|capability| capability == RUNTIME_HOST_AI_ASSIST_CHATGPT_OPTIONS_CAPABILITY)
+    {
+        return Err(HostError::state(
+            "The remote runtime must be updated and restarted to use ChatGPT thinking or Fast mode.",
+        ));
+    }
     if let Some(key) = &operation_key {
         links.note_remote_session(key, &workspace.host_id);
     }

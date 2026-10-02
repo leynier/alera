@@ -7,10 +7,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 #[cfg(any(unix, test))]
-use serde_json::{json, Value};
-use tokio::sync::mpsc::UnboundedSender;
-
 use crate::terminal_host::server::ServerCommand;
+use crate::terminal_host::server::ServerInbox;
+#[cfg(any(unix, test))]
+use serde_json::{json, Value};
 
 #[cfg(any(unix, test))]
 use super::AgentHookEvent;
@@ -31,10 +31,7 @@ pub fn fx_herdr_socket_path(runtime_dir: &Path) -> PathBuf {
 }
 
 #[cfg(unix)]
-pub async fn start_fx_herdr_receiver(
-    runtime_dir: &Path,
-    inbox: UnboundedSender<ServerCommand>,
-) -> anyhow::Result<()> {
+pub async fn start_fx_herdr_receiver(runtime_dir: &Path, inbox: ServerInbox) -> anyhow::Result<()> {
     use std::os::unix::fs::{FileTypeExt, PermissionsExt};
     use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
     use tokio::net::UnixListener;
@@ -81,13 +78,13 @@ pub async fn start_fx_herdr_receiver(
 #[cfg(not(unix))]
 pub async fn start_fx_herdr_receiver(
     _runtime_dir: &Path,
-    _inbox: UnboundedSender<ServerCommand>,
+    _inbox: ServerInbox,
 ) -> anyhow::Result<()> {
     Ok(())
 }
 
 #[cfg(any(unix, test))]
-fn fx_herdr_response(line: &str, inbox: &UnboundedSender<ServerCommand>) -> Value {
+fn fx_herdr_response(line: &str, inbox: &ServerInbox) -> Value {
     let Ok(request) = serde_json::from_str::<Value>(line) else {
         return json!({"id": Value::Null, "error": "invalid request"});
     };
@@ -173,13 +170,12 @@ fn non_blank(value: Option<&Value>) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::mpsc;
 
     use super::*;
 
     #[test]
     fn report_agent_maps_fx_states_to_hook_events() {
-        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        let (inbox, mut receiver) = ServerInbox::channel();
         let response = fx_herdr_response(
             r#"{"id":"7","method":"pane.report_agent","params":{"pane_id":"session-1","source":"custom:fx","agent":"fx","state":"blocked","custom_status":"permission"}}"#,
             &inbox,
@@ -198,7 +194,7 @@ mod tests {
     /// The exact line fx 0.0.11 sends at startup, captured from a real run.
     #[test]
     fn a_session_report_carries_the_resumable_fx_session_id() {
-        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        let (inbox, mut receiver) = ServerInbox::channel();
         fx_herdr_response(
             r#"{"id":"1","method":"pane.report_agent_session","params":{"pane_id":"pane-1","source":"custom:fx","agent":"fx","agent_session_id":"3zfNDCfnTsuI"}}"#,
             &inbox,
@@ -219,7 +215,7 @@ mod tests {
 
     #[test]
     fn clear_authority_closes_the_fx_session() {
-        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        let (inbox, mut receiver) = ServerInbox::channel();
         fx_herdr_response(
             r#"{"id":"8","method":"pane.clear_agent_authority","params":{"pane_id":"session-1","source":"custom:fx"}}"#,
             &inbox,
@@ -233,7 +229,7 @@ mod tests {
 
     #[test]
     fn foreign_herdr_reports_are_ignored() {
-        let (inbox, mut receiver) = mpsc::unbounded_channel();
+        let (inbox, mut receiver) = ServerInbox::channel();
         fx_herdr_response(
             r#"{"id":"9","method":"pane.report_agent","params":{"pane_id":"session-1","source":"custom:other","agent":"fx","state":"working"}}"#,
             &inbox,

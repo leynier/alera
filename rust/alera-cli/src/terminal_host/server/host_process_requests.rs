@@ -13,12 +13,10 @@
 //! it: the workspace is the scope the caller was granted, not the whole host.
 
 use std::collections::{BTreeMap, HashMap};
-use std::process::Stdio;
 use std::time::Duration;
 
 use alera_core::runtime::RuntimeStore;
 use serde_json::{json, Value};
-use tokio::io::AsyncWriteExt;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -35,7 +33,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 pub(super) const MAX_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 /// Output is captured whole because the caller reads it whole; a tool that
 /// prints more than this is not something a `ProcessRunner.run` call wanted.
-const MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
+const MAX_OUTPUT_BYTES: usize = alera_core::captured_process::DEFAULT_MAX_OUTPUT_BYTES;
 
 pub(super) async fn handle_host_process_run(
     runtime_store: &RuntimeStore,
@@ -81,43 +79,19 @@ pub(super) async fn handle_host_process_run(
             .collect::<BTreeMap<_, _>>(),
     )
     .await;
-    command
-        .stdin(if stdin.is_some() {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|error| HostError::state(format!("failed to run {executable}: {error}")))?;
-    if let Some(stdin) = stdin {
-        if let Some(mut pipe) = child.stdin.take() {
-            // A tool that exits without reading stdin closes the pipe; that is
-            // its answer, not an error of ours.
-            let _ = pipe.write_all(stdin.as_bytes()).await;
-            let _ = pipe.shutdown().await;
-        }
-    }
-    let output = match tokio::time::timeout(timeout, child.wait_with_output()).await {
-        Ok(Ok(output)) => output,
-        Ok(Err(error)) => {
-            return Err(HostError::state(format!(
-                "failed to run {executable}: {error}"
-            )))
-        }
-        Err(_) => {
-            return Err(HostError::state(format!(
-                "{executable} timed out after {}s on the workspace host.",
-                timeout.as_secs()
-            )))
-        }
-    };
+    let output = alera_core::captured_process::run_command(
+        command,
+        &executable,
+        stdin.map(|value| value.into_bytes()),
+        MAX_OUTPUT_BYTES,
+        Some(timeout),
+    )
+    .await
+    .map_err(HostError::state)?;
     Ok(json!({
-        "exitCode": output.status.code().unwrap_or(-1),
-        "stdout": bounded_lossy(&output.stdout),
-        "stderr": bounded_lossy(&output.stderr),
+        "exitCode": output.exit_code,
+        "stdout": output.stdout,
+        "stderr": output.stderr,
     }))
 }
 
@@ -156,11 +130,6 @@ fn environment_map(payload: &Value) -> HostResult<HashMap<String, String>> {
             "environment must be an object of strings".to_string(),
         )),
     }
-}
-
-fn bounded_lossy(bytes: &[u8]) -> String {
-    let end = bytes.len().min(MAX_OUTPUT_BYTES);
-    String::from_utf8_lossy(&bytes[..end]).into_owned()
 }
 
 #[cfg(test)]

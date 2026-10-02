@@ -21,7 +21,7 @@ export default defineConfig({
   site: 'https://alera.build',
   output: 'static',
   build: {
-    inlineStylesheets: 'always',
+    inlineStylesheets: 'auto',
   },
   markdown: {
     shikiConfig: {

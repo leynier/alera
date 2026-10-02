@@ -40,7 +40,11 @@ class DesktopAleraUpdateService({
       _platform = platform ?? Platform.operatingSystem,
       _loadLinuxInstallerKind =
           loadLinuxInstallerKind ?? loadDesktopLinuxInstallerKind,
-      _backend = backend ?? DesktopUpdaterBackend() {
+      _backend =
+          backend ??
+          DesktopUpdaterBackend(
+            processRunner: processRunner ?? const RustProcessRunner(),
+          ) {
     final runner = processRunner ?? const RustProcessRunner();
     final executable = resolvedExecutable ?? Platform.resolvedExecutable;
     _probeInstallDirectory =
@@ -96,12 +100,14 @@ class DesktopAleraUpdateService({
   DesktopUpdaterReleaseCandidate? _activeCandidate;
   AleraUpdateInfo? _activeUpdate;
   String? _stagingPath;
+  bool _disposed = false;
 
   @override
   PackageManagerInstall get packageInstall => _packageInstall;
 
   @override
   Future<AleraUpdateCheckResult> checkForUpdates() async {
+    _ensureActive();
     if (!_supportedPlatforms.contains(_platform)) {
       return AleraUpdateCheckResult(
         message: 'Desktop updates are not available on $_platform.',
@@ -128,6 +134,7 @@ class DesktopAleraUpdateService({
         publicKeyId: config.manifestPublicKeyId,
         publicKeyBase64: config.manifestPublicKey,
       );
+      _ensureActive();
     } on DesktopUpdateIndexNotFound {
       _clearSelection();
       return AleraUpdateCheckResult(
@@ -146,6 +153,7 @@ class DesktopAleraUpdateService({
     }
 
     final update = await _toAleraUpdate(candidate);
+    _ensureActive();
     _activeCandidate = candidate;
     _activeUpdate = update;
     _stagingPath = null;
@@ -187,6 +195,7 @@ class DesktopAleraUpdateService({
     AleraUpdateInfo update, {
     void Function(double progress)? onProgress,
   }) async {
+    _ensureActive();
     if (!config.canAutoInstall) {
       throw StateError('Automatic update installation is disabled.');
     }
@@ -221,19 +230,23 @@ class DesktopAleraUpdateService({
       );
     }
 
-    _stagingPath = await _backend.downloadAndStage(
+    final stagingPath = await _backend.downloadAndStage(
       candidate,
       onProgress: onProgress,
     );
+    _ensureActive();
+    _stagingPath = stagingPath;
   }
 
   @override
   Future<void> upgradeThroughPackageManager() {
+    _ensureActive();
     return _packageManagerLauncher.upgradeAndRestart(_packageInstall);
   }
 
   @override
   Future<void> openDownloadPage(AleraUpdateInfo? update) async {
+    _ensureActive();
     final destination = _packageInstall.isPackageManaged || _platform == 'linux'
         ? AleraUpdateConfig.installGuideUrl
         : config.downloadPageUrlFor(update);
@@ -245,6 +258,7 @@ class DesktopAleraUpdateService({
 
   @override
   Future<void> restartApp() async {
+    _ensureActive();
     final stagingPath = _stagingPath;
     if (stagingPath == null || stagingPath.isEmpty) {
       await _appRestarter.restart();
@@ -261,8 +275,18 @@ class DesktopAleraUpdateService({
 
   @override
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
     _clearSelection();
     _backend.dispose();
+  }
+
+  void _ensureActive() {
+    if (_disposed) {
+      throw StateError('The desktop update service has been disposed.');
+    }
   }
 
   Future<AleraUpdateInfo> _toAleraUpdate(

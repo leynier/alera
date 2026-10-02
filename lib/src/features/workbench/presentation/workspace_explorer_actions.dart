@@ -197,7 +197,14 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     }
   }
 
-  Future<void> _revealPendingPath({String? relativePath}) async {
+  Future<void> _revealPendingPath({
+    String? relativePath,
+    int? generation,
+  }) async {
+    final operationGeneration = generation ?? _explorerGeneration;
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
+      return;
+    }
     final request = ref.read(workspaceExplorerRevealControllerProvider);
     final targetPath = normalizeWorkspaceRelativePath(
       relativePath ??
@@ -208,8 +215,8 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     if (targetPath == null) {
       return;
     }
-    await _ensureAncestorsLoaded(targetPath);
-    if (!mounted) {
+    await _ensureAncestorsLoaded(targetPath, generation: operationGeneration);
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
       return;
     }
     _rebuildTree();
@@ -224,15 +231,22 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     }
   }
 
-  Future<void> _ensureAncestorsLoaded(String relativePath) async {
+  Future<void> _ensureAncestorsLoaded(
+    String relativePath, {
+    int? generation,
+  }) async {
+    final operationGeneration = generation ?? _explorerGeneration;
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
+      return;
+    }
     var ancestor = '';
     for (final part in relativePath.split('/')) {
       if (part.isEmpty) {
         continue;
       }
       if (!_childrenByDirectory.containsKey(ancestor)) {
-        await _loadDirectory(ancestor);
-        if (!mounted) {
+        await _loadDirectory(ancestor, generation: operationGeneration);
+        if (!_isCurrentExplorerGeneration(operationGeneration)) {
           return;
         }
       }
@@ -343,18 +357,25 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   Future<void> _refreshDirectory(
     String relativePath, {
     bool refreshGitStatus = true,
+    int? generation,
   }) async {
+    final operationGeneration = generation ?? _explorerGeneration;
+    if (!_isCurrentExplorerGeneration(operationGeneration)) {
+      return;
+    }
     try {
       if (refreshGitStatus) {
-        await _refreshGitStatusSnapshot();
+        await _refreshGitStatusSnapshot(generation: operationGeneration);
       }
-      await _loadDirectory(relativePath);
-      if (!mounted) {
+      await _loadDirectory(relativePath, generation: operationGeneration);
+      if (!_isCurrentExplorerGeneration(operationGeneration)) {
         return;
       }
       _rebuildTree();
     } catch (error) {
-      _showError(error);
+      if (_isCurrentExplorerGeneration(operationGeneration)) {
+        _showError(error);
+      }
     }
   }
 

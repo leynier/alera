@@ -282,6 +282,7 @@ class ReadingDiffService({
         runId: runId,
         workingDirectory: preparation.request.workspacePath,
         agent: preparation.agent,
+        operation: AiAssistOperation.readingDiff,
         model: preparation.model,
         reasoning: preparation.effort,
         accessPolicy: preparation.accessPolicy,

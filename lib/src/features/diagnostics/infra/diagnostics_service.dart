@@ -63,7 +63,7 @@ class DiagnosticsService({
     final info = await _packageInfo();
     final runtimeLogDirectory = runtime?.logDirectory;
 
-    return builder.build(
+    return builder.buildAsync(
       metadata: DiagnosticsBundleMetadata(
         appVersion: '${info.version}+${info.buildNumber}',
         flavor: kAleraFlavor,

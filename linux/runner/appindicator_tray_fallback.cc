@@ -185,6 +185,10 @@ void appindicator_tray_fallback_free(AppIndicatorTrayFallback* tray) {
     app_indicator_set_status(tray->indicator, APP_INDICATOR_STATUS_PASSIVE);
     g_clear_object(&tray->indicator);
   }
+  if (tray->menu != nullptr) {
+    gtk_widget_destroy(tray->menu);
+    g_clear_object(&tray->menu);
+  }
   g_clear_object(&tray->bus);
   g_free(tray);
 }

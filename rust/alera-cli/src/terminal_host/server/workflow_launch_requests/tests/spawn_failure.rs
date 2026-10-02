@@ -46,7 +46,7 @@ async fn workflow_launch_spawn_failure_broadcasts_the_retained_tab() {
         .await
         .unwrap();
     let (_dir, mut actor, mut responses) = actor_with_client(&fixture).await;
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     actor.start_runtime_mutation(
         1,
@@ -132,7 +132,7 @@ async fn workflow_launch_failure_before_tab_insert_does_not_broadcast_tabs() {
         .unwrap();
     frozen.profile.agent_type = "unsupported-workflow-agent".into();
     let (_dir, mut actor, mut responses) = actor_with_client(&fixture).await;
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
 
     actor

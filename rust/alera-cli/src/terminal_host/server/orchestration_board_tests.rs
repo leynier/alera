@@ -105,7 +105,7 @@ async fn board_change_events_are_coalesced_by_revision_and_never_sent_to_mobile(
     let dir = tempfile::tempdir().unwrap();
     let (local, mut local_rx) = ClientHandle::test_channels();
     let (mobile, mut mobile_rx) = ClientHandle::test_channels();
-    let actor = test_actor(
+    let mut actor = test_actor(
         &dir,
         HashMap::from([
             (1, local_client(local)),

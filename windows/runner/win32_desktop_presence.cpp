@@ -99,6 +99,9 @@ void Win32DesktopPresence::Attach(
     flutter::MethodChannel<flutter::EncodableValue>* channel) {
   hwnd_ = hwnd;
   channel_ = channel;
+  if (badge_count_ > 0) {
+    UpdateOverlay();
+  }
 }
 
 void Win32DesktopPresence::HandleMethodCall(
@@ -216,6 +219,14 @@ void Win32DesktopPresence::Destroy() {
   }
 }
 
+void Win32DesktopPresence::Detach() {
+  // Method channels own the Flutter messenger. Clear these borrowed pointers
+  // after native teardown so late window messages cannot call into a destroyed
+  // engine or channel.
+  hwnd_ = nullptr;
+  channel_ = nullptr;
+}
+
 bool Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
   tray_desired_ = visible;
   tooltip_ = tooltip;
@@ -271,7 +282,11 @@ bool Win32DesktopPresence::ShowTrayNotice(const std::wstring& title,
 }
 
 void Win32DesktopPresence::SetBadgeCount(int count) {
-  badge_count_ = count < 0 ? 0 : count;
+  const int clamped = count < 0 ? 0 : count;
+  if (badge_count_ == clamped) {
+    return;
+  }
+  badge_count_ = clamped;
   UpdateOverlay();
 }
 

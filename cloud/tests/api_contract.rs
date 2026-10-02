@@ -12,10 +12,17 @@ use std::{
 #[path = "contracts/configuration_contract.rs"]
 mod configuration_contract;
 
+#[path = "contracts/push_delivery_contract.rs"]
+mod push_delivery_contract;
+
+#[path = "contracts/push_claim_contract.rs"]
+mod push_claim_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
     config::{FcmConfig, LimitsConfig, OAuthProviderConfig, SigningConfig},
     fcm::{FcmMessage, FcmReceipt, FcmSender},
+    migrations,
     oauth::{
         AuthorizationInput, ExchangeInput, OAuthProvider, OAuthProviderRegistry, ProviderIdentity,
     },
@@ -84,241 +91,13 @@ struct TestRequest<'a> {
 
 #[tokio::test]
 #[ignore = "requires TEST_DATABASE_URL pointing to an isolated PostgreSQL database"]
-async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
-    let database_url = std::env::var("TEST_DATABASE_URL")?;
-    let pool = PgPoolOptions::new()
-        .max_connections(6)
-        .connect(&database_url)
-        .await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
-    let shared_email = format!("{}@example.test", Uuid::now_v7());
-    let sent = Arc::new(AtomicUsize::new(0));
-    let app = test_app(pool.clone(), database_url, shared_email, true, sent.clone())?;
-    let runtime_one = format!("runtime-{}", Uuid::now_v7());
-    let runtime_two = format!("runtime-{}", Uuid::now_v7());
-    let first = sign_in(&app, "google", &runtime_one).await?;
-    let second = sign_in(&app, "github", &runtime_two).await?;
-    assert_eq!(
-        first["account"]["id"].as_str(),
-        second["account"]["id"].as_str()
-    );
-    let account_id = Uuid::parse_str(
-        first["account"]["id"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("missing account id"))?,
-    )?;
-    let runtime_token = first["accessToken"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("missing runtime access token"))?;
-
-    let account = call(
-        &app,
-        TestRequest {
-            method: Method::GET,
-            uri: "/v1/account",
-            bearer: Some(runtime_token),
-            body: Value::Null,
-        },
-    )
-    .await?;
-    assert_eq!(account["identities"].as_array().map(Vec::len), Some(2));
-
-    let device_id = format!("mobile-{}", Uuid::now_v7());
-    let enrollment = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/mobile/enrollments",
-            bearer: Some(runtime_token),
-            body: json!({
-                "runtimeId": runtime_one,
-                "deviceId": device_id,
-                "deviceName": "Test Phone"
-            }),
-        },
-    )
-    .await?;
-    let mobile = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/mobile/enrollments/redeem",
-            bearer: None,
-            body: json!({
-                "code": enrollment["code"],
-                "deviceId": device_id,
-                "deviceName": "Test Phone"
-            }),
-        },
-    )
-    .await?;
-    assert_eq!(mobile["runtimeId"].as_str(), Some(runtime_one.as_str()));
-    let mobile_token = mobile["accessToken"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("missing mobile access token"))?;
-    let runtime_identity = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/relay/identity",
-            bearer: Some(runtime_token),
-            body: json!({
-                "publicKey": URL_SAFE_NO_PAD.encode([2_u8; 32]),
-                "keyVersion": 1
-            }),
-        },
-    )
-    .await?;
-    assert_eq!(
-        runtime_identity["clientId"].as_str(),
-        Some(runtime_one.as_str())
-    );
-    let mobile_identity = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/relay/identity",
-            bearer: Some(mobile_token),
-            body: json!({
-                "publicKey": URL_SAFE_NO_PAD.encode([1_u8; 32]),
-                "keyVersion": 1
-            }),
-        },
-    )
-    .await?;
-    assert_eq!(
-        mobile_identity["clientId"].as_str(),
-        Some(device_id.as_str())
-    );
-    let runtimes = call(
-        &app,
-        TestRequest {
-            method: Method::GET,
-            uri: "/v1/mobile/runtimes",
-            bearer: Some(mobile_token),
-            body: Value::Null,
-        },
-    )
-    .await?;
-    assert_eq!(
-        runtimes["runtimes"][0]["relayPublicKey"].as_str(),
-        Some(URL_SAFE_NO_PAD.encode([2_u8; 32]).as_str())
-    );
-    let runtime_grant = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/relay/grants",
-            bearer: Some(runtime_token),
-            body: json!({"runtimeId": runtime_one}),
-        },
-    )
-    .await?;
-    assert_eq!(runtime_grant["clientKind"].as_str(), Some("runtime"));
-    let mobile_grant = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/relay/grants",
-            bearer: Some(mobile_token),
-            body: json!({"runtimeId": runtime_one}),
-        },
-    )
-    .await?;
-    assert_eq!(mobile_grant["clientKind"].as_str(), Some("mobile"));
-    relay_authorization_cases::assert_grant_scope(&mobile_grant, &runtime_one)?;
-    call(
-        &app,
-        TestRequest {
-            method: Method::PUT,
-            uri: "/v1/mobile/push-token",
-            bearer: Some(mobile_token),
-            body: json!({"token": "fcm-registration-token-with-valid-length", "platform": "android"}),
-        },
-    )
-    .await?;
-    call(
-        &app,
-        TestRequest {
-            method: Method::PUT,
-            uri: &format!("/v1/mobile/subscriptions/{runtime_one}"),
-            bearer: Some(mobile_token),
-            body: json!({"categories": {"attention": true, "done": false, "terminalExit": false}}),
-        },
-    )
-    .await?;
-    let subscriptions = call(
-        &app,
-        TestRequest {
-            method: Method::GET,
-            uri: "/v1/runtime/subscriptions",
-            bearer: Some(runtime_token),
-            body: Value::Null,
-        },
-    )
-    .await?;
-    assert_eq!(subscriptions["activeSubscriptions"].as_u64(), Some(1));
-    let event_body = json!({
-        "runtimeId": runtime_one,
-        "eventId": format!("event-{}", Uuid::now_v7()),
-        "category": "attention",
-        "eventType": "agentWaiting",
-        "title": "Agent Waiting",
-        "body": "Workspace Alpha",
-        "data": {"workspaceId": "workspace-1"},
-        "occurredAt": chrono::Utc::now()
-    });
-    let event = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/runtime/events",
-            bearer: Some(runtime_token),
-            body: event_body.clone(),
-        },
-    )
-    .await?;
-    assert_eq!(event["deliveriesQueued"].as_u64(), Some(1));
-    assert_eq!(event["activeSubscriptions"].as_u64(), Some(1));
-    let duplicate = call(
-        &app,
-        TestRequest {
-            method: Method::POST,
-            uri: "/v1/runtime/events",
-            bearer: Some(runtime_token),
-            body: event_body,
-        },
-    )
-    .await?;
-    assert_eq!(duplicate["duplicate"].as_bool(), Some(true));
-    assert_eq!(sent.load(Ordering::SeqCst), 1);
-    relay_authorization_cases::rejects_rotation_conflicts_and_revoked_renewals(
-        &app,
-        &pool,
-        account_id,
-        &device_id,
-        mobile_token,
-        &runtime_one,
-    )
-    .await?;
-
-    sqlx::query("DELETE FROM accounts WHERE id = $1")
-        .bind(account_id)
-        .execute(&pool)
-        .await?;
-    pool.close().await;
-    Ok(())
-}
-
-#[tokio::test]
-#[ignore = "requires TEST_DATABASE_URL pointing to an isolated PostgreSQL database"]
 async fn unverified_email_does_not_auto_link() -> anyhow::Result<()> {
     let database_url = std::env::var("TEST_DATABASE_URL")?;
     let pool = PgPoolOptions::new()
         .max_connections(6)
         .connect(&database_url)
         .await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    migrations::run(&pool).await?;
     let email = format!("{}@example.test", Uuid::now_v7());
     let app = test_app(
         pool.clone(),

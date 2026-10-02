@@ -1,0 +1,245 @@
+{
+  "date": "2026-10-02",
+  "runtimeCommit": "b35966c88",
+  "fixtureCommit": "92b807243",
+  "rustToolchain": "1.98.0",
+  "inheritedAleraEnvironmentRemoved": true,
+  "rust": {
+    "command": "bash tool/ci/run_rust_workspace_tests.sh",
+    "suites": 25,
+    "passed": 2860,
+    "ignored": 5,
+    "failed": 0,
+    "results": [
+      {
+        "passed": 1777,
+        "failed": 0,
+        "ignored": 4,
+        "seconds": 311.42
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.74
+      },
+      {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 2.28
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 1,
+        "seconds": 1.05
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.83
+      },
+      {
+        "passed": 32,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 3.77
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 1.84
+      },
+      {
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 3.2
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 1.44
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.57
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 1.02
+      },
+      {
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 1.12
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.87
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 1.12
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.0
+      },
+      {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 1.35
+      },
+      {
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 3.95
+      },
+      {
+        "passed": 23,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 14.01
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.93
+      },
+      {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.0
+      },
+      {
+        "passed": 689,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 219.43
+      },
+      {
+        "passed": 35,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.16
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.0
+      },
+      {
+        "passed": 179,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 0.85
+      },
+      {
+        "passed": 56,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 93.75
+      }
+    ],
+    "counting": "Unfiltered suite results; excludes two filtered child-process test runs."
+  },
+  "clippy": {
+    "command": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+    "exitCode": 0
+  },
+  "stackOverflowRegression": {
+    "passed": 1,
+    "failed": 0
+  },
+  "relay": {
+    "normal": {
+      "rustPassed": 1,
+      "dartPassed": 1,
+      "clients": 8,
+      "responses": 528,
+      "runtimeGrants": 2,
+      "mobileGrants": 16,
+      "evictions": 2,
+      "connectionP50Us": 87138,
+      "connectionP95Us": 125128,
+      "roundTripP50Us": 56749,
+      "roundTripP95Us": 73402,
+      "mobilePeakRssBytes": 291168256
+    },
+    "adversarial": {
+      "rustPassed": 1,
+      "dartPassed": 2,
+      "runtimeGrants": 2,
+      "mobileGrants": 29,
+      "evictions": 0,
+      "responsivePeers": 6,
+      "rounds": 57,
+      "blockedHandshakeClosed": true,
+      "mobilePeakRssBytes": 297820160
+    },
+    "sourceCommit": "3958cef7d"
+  },
+  "recovery": {
+    "buildVersion": "isolated-test",
+    "desktopPassed": 1,
+    "mobilePassed": 1,
+    "failed": 0,
+    "sourceCommit": "3958cef7d",
+    "binarySha256": "30e21c7cc988b2090d261dc916be68cb38c648c4c9979c0f08da1ce9b3846eb0",
+    "freshBuild": true,
+    "runtimeHostAvailableAtVersionCheck": false
+  },
+  "ingressCommit": "fbb360f5e",
+  "checkpointFixtureCommit": "cf8045175",
+  "ingressRegressions": {
+    "passed": 4,
+    "failed": 0,
+    "cases": [
+      "maximum dictation audio uses work capacity and preserves control admission",
+      "saturated TCP admission waits and preserves ordering",
+      "saturated mobile binary/text admission preserves ordering and disconnect cleanup",
+      "reserved relay disconnect survives full control admission"
+    ]
+  },
+  "coordinatorCheckpointRegression": {
+    "consecutivePasses": 3,
+    "failed": 0,
+    "repair": "The actor fixture processes events until its asynchronous exit checkpoint is durable; all previous assertions remain."
+  },
+  "remoteOwnershipCommit": "ab7ed92cb",
+  "remoteOwnershipRegressions": {
+    "capturedGuardHistoryRetryPassed": 1,
+    "retirementConsecutivePasses": 3,
+    "failed": 0,
+    "forcedRace": {
+      "beforeFailed": 1,
+      "afterPassed": 1,
+      "exitNotificationDelayMs": 100,
+      "temporaryInstrumentationRemoved": true
+    },
+    "closureReporting": "Preparation reports no closed tabs; completion reports tab ids after persistence."
+  },
+  "closureReportingCommit": "3958cef7d",
+  "sourceCommit": "3958cef7d"
+}

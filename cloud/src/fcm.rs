@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::time::{sleep, timeout_at, Instant};
 
 use crate::google_credentials::GoogleAccessTokenProvider;
 
@@ -38,6 +39,8 @@ pub enum FcmError {
     Transient(String),
     #[error("FCM delivery is disabled")]
     Disabled,
+    #[error("FCM delivery exceeded the request deadline")]
+    DeadlineExceeded,
 }
 
 impl FcmError {
@@ -49,6 +52,7 @@ impl FcmError {
             Self::Unauthorized => "unauthorized",
             Self::Transient(_) => "transient",
             Self::Disabled => "disabled",
+            Self::DeadlineExceeded => "deadline_exceeded",
         }
     }
 
@@ -78,7 +82,38 @@ pub async fn send_with_retry(
             .get((attempt - 1) as usize)
             .copied()
             .unwrap_or(Duration::ZERO);
-        tokio::time::sleep(delay).await;
+        sleep(delay).await;
+        attempt += 1;
+    }
+}
+
+pub async fn send_with_retry_until(
+    sender: &dyn FcmSender,
+    message: FcmMessage,
+    deadline: Instant,
+) -> (i32, Result<FcmReceipt, FcmError>) {
+    let mut attempt = 1_i32;
+    loop {
+        let result = if Instant::now() >= deadline {
+            Err(FcmError::DeadlineExceeded)
+        } else {
+            match timeout_at(deadline, sender.send(message.clone())).await {
+                Ok(result) => result,
+                Err(_) => Err(FcmError::DeadlineExceeded),
+            }
+        };
+        let should_retry =
+            result.as_ref().err().is_some_and(FcmError::retryable) && attempt < MAX_SEND_ATTEMPTS;
+        if !should_retry {
+            return (attempt, result);
+        }
+        let delay = RETRY_DELAYS
+            .get((attempt - 1) as usize)
+            .copied()
+            .unwrap_or(Duration::ZERO);
+        if timeout_at(deadline, sleep(delay)).await.is_err() {
+            return (attempt, Err(FcmError::DeadlineExceeded));
+        }
         attempt += 1;
     }
 }
@@ -257,12 +292,19 @@ fn safe_provider_message(body: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::{
+        sync::atomic::{AtomicUsize, Ordering},
+        time::Duration,
+    };
 
     use async_trait::async_trait;
     use reqwest::StatusCode;
+    use tokio::time::Instant;
 
-    use super::{map_fcm_error, send_with_retry, FcmError, FcmMessage, FcmReceipt, FcmSender};
+    use super::{
+        map_fcm_error, send_with_retry, send_with_retry_until, FcmError, FcmMessage, FcmReceipt,
+        FcmSender,
+    };
 
     struct TestSender {
         calls: AtomicUsize,
@@ -280,6 +322,18 @@ mod tests {
             if call < self.transient_failures {
                 return Err(FcmError::Transient("temporary".to_owned()));
             }
+            Ok(FcmReceipt {
+                message_id: "message-1".to_owned(),
+            })
+        }
+    }
+
+    struct SlowSender;
+
+    #[async_trait]
+    impl FcmSender for SlowSender {
+        async fn send(&self, _message: FcmMessage) -> Result<FcmReceipt, FcmError> {
+            tokio::time::sleep(Duration::from_secs(1)).await;
             Ok(FcmReceipt {
                 message_id: "message-1".to_owned(),
             })
@@ -331,6 +385,18 @@ mod tests {
         assert_eq!(attempts, 1);
         assert!(matches!(result, Err(FcmError::InvalidArgument(_))));
         assert_eq!(sender.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn stops_a_slow_delivery_at_the_request_deadline() {
+        let (attempts, result) = send_with_retry_until(
+            &SlowSender,
+            message(),
+            Instant::now() + Duration::from_millis(20),
+        )
+        .await;
+        assert_eq!(attempts, 1);
+        assert!(matches!(result, Err(FcmError::DeadlineExceeded)));
     }
 
     fn message() -> FcmMessage {

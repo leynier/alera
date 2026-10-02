@@ -20,7 +20,7 @@ const AGENT_HOOK_TOKEN_HEADER: &str = "X-Alera-Agent-Hook-Token";
 const REQUEST_MAX_BYTES: usize = 1_000_000;
 const BATCH_MAX_EVENTS: usize = 64;
 const BATCH_FLUSH_MILLIS: u64 = 16;
-const COALESCE_THRESHOLD: usize = 1024;
+const AGENT_HOOK_QUEUE_CAPACITY: usize = 256;
 
 pub struct AgentHookEndpointDto {
     pub port: u16,
@@ -45,6 +45,7 @@ pub struct AgentHookEventBatchDto {
 struct ServerHandle {
     port: u16,
     shutdown: oneshot::Sender<()>,
+    batch_shutdown: oneshot::Sender<()>,
     enabled_agents: Arc<RwLock<HashSet<String>>>,
 }
 
@@ -52,7 +53,7 @@ struct ServerHandle {
 struct AppState {
     token: String,
     enabled_agents: Arc<RwLock<HashSet<String>>>,
-    tx: mpsc::UnboundedSender<AgentHookEventDto>,
+    tx: mpsc::Sender<AgentHookEventDto>,
 }
 
 struct Globals {
@@ -86,8 +87,9 @@ pub fn start_agent_hook_receiver(
         .local_addr()
         .map_err(|error| error.to_string())?
         .port();
-    let (tx, rx) = mpsc::unbounded_channel();
+    let (tx, rx) = mpsc::channel(AGENT_HOOK_QUEUE_CAPACITY);
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let (batch_shutdown_tx, batch_shutdown_rx) = oneshot::channel();
     let enabled_agents = Arc::new(RwLock::new(enabled));
     let state = AppState {
         token,
@@ -95,7 +97,7 @@ pub fn start_agent_hook_receiver(
         tx,
     };
 
-    runtime().spawn(batch_loop(rx));
+    runtime().spawn(batch_loop(rx, batch_shutdown_rx));
     runtime().spawn(async move {
         let Ok(listener) = TcpListener::from_std(std_listener) else {
             return;
@@ -125,6 +127,7 @@ pub fn start_agent_hook_receiver(
     globals.server = Some(ServerHandle {
         port,
         shutdown: shutdown_tx,
+        batch_shutdown: batch_shutdown_tx,
         enabled_agents,
     });
     Ok(AgentHookEndpointDto { port })
@@ -134,8 +137,12 @@ pub fn stop_agent_hook_receiver() {
     let Ok(mut globals) = globals().lock() else {
         return;
     };
+    // A subsequent receiver must never deliver into the closed stream from a
+    // previous Flutter lifecycle while its batch task is winding down.
+    globals.sink = None;
     if let Some(server) = globals.server.take() {
         let _ = server.shutdown.send(());
+        let _ = server.batch_shutdown.send(());
     }
 }
 
@@ -232,8 +239,11 @@ async fn handle_hook_request(
     let Some(event) = parse_hook_event(agent_type, &content_type, &body) else {
         return StatusCode::NO_CONTENT;
     };
-    let _ = state.tx.send(event);
-    StatusCode::NO_CONTENT
+    match state.tx.try_send(event) {
+        Ok(()) => StatusCode::NO_CONTENT,
+        Err(mpsc::error::TrySendError::Full(_)) => StatusCode::TOO_MANY_REQUESTS,
+        Err(mpsc::error::TrySendError::Closed(_)) => StatusCode::SERVICE_UNAVAILABLE,
+    }
 }
 
 fn valid_token(headers: &HeaderMap, expected: &str) -> bool {
@@ -316,22 +326,27 @@ fn payload_value(value: Option<&Value>) -> Option<Value> {
     }
 }
 
-async fn batch_loop(mut rx: mpsc::UnboundedReceiver<AgentHookEventDto>) {
+async fn batch_loop(
+    mut rx: mpsc::Receiver<AgentHookEventDto>,
+    mut shutdown: oneshot::Receiver<()>,
+) {
     let mut interval = tokio::time::interval(Duration::from_millis(BATCH_FLUSH_MILLIS));
     let mut pending = Vec::new();
     loop {
         tokio::select! {
+            _ = &mut shutdown => {
+                pending.clear();
+                break;
+            }
             maybe_event = rx.recv() => {
                 let Some(event) = maybe_event else {
                     flush_events(&mut pending, 0);
                     break;
                 };
                 pending.push(event);
-                if pending.len() > COALESCE_THRESHOLD {
+                if pending.len() >= BATCH_MAX_EVENTS {
                     let coalesced = coalesce_pending(&mut pending);
                     flush_events(&mut pending, coalesced);
-                } else if pending.len() >= BATCH_MAX_EVENTS {
-                    flush_events(&mut pending, 0);
                 }
             }
             _ = interval.tick() => {
@@ -346,9 +361,13 @@ fn flush_events(pending: &mut Vec<AgentHookEventDto>, coalesced_intermediate_cou
         return;
     }
     let Ok(mut globals) = globals().lock() else {
+        pending.clear();
         return;
     };
     let Some(sink) = &globals.sink else {
+        // Hooks may arrive before Flutter subscribes or after its stream is
+        // disposed. There is no consumer to catch up, so retain no events.
+        pending.clear();
         return;
     };
     let events = std::mem::take(pending);

@@ -83,10 +83,15 @@ impl ServerActor {
                 // Section assignment is best-effort: a sections lookup failure
                 // must not break identity generation.
                 let sections = if auto_assign_section {
-                    project.list_workspace_sections().await.unwrap_or_else(|error| {
-                        tracing::warn!("could not list workspace sections for identity generation: {error}");
-                        Vec::new()
-                    })
+                    project
+                        .list_workspace_sections()
+                        .await
+                        .unwrap_or_else(|error| {
+                            tracing::warn!(
+                                "could not list workspace sections for identity generation: {error}"
+                            );
+                            Vec::new()
+                        })
                 } else {
                     Vec::new()
                 };
@@ -122,11 +127,13 @@ impl ServerActor {
             }
             .await;
             drop(registration);
-            let _ = inbox.send(ServerCommand::AiAssistFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::AiAssistFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

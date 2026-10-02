@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-02",
+  "branch": "perf/performance-stability-audit-release",
+  "implementationCommit": "2e61577f6",
+  "parentCommit": "4528687cb",
+  "scope": "ChatGPT catalog refresh, thinking effort, Normal/Fast and runtime compatibility",
+  "flutter": {
+    "passed": 248,
+    "groups": {
+      "settingsAndRuntimeRoutingUnits": 61,
+      "aiAssistServiceUnits": 69,
+      "runtimeRepositoryAndMigrationUnits": 31,
+      "readingDiffUnits": 10,
+      "existingSettingsAndAccountWidgets": 71,
+      "chatGptModelDiscoveryAndOptionsWidgets": 6
+    },
+    "analysisIssues": 0,
+    "analysisSeconds": 15.0,
+    "formattedFiles": 24,
+    "formatChangesOnFinalCheck": 0
+  },
+  "rust": {
+    "passed": 41,
+    "filters": {
+      "alera-cli chatgpt_tests": 13,
+      "alera-cli remote_ai_assist_requests::tests": 6,
+      "alera-cli ai_assist_requests::tests": 19,
+      "alera-core --features runtime ai_assist_validation": 3
+    },
+    "isolatedInheritedRuntimeEnvironment": "ALERA_* variables removed before Cargo validation",
+    "format": "cargo fmt --all -- --check",
+    "clippy": [
+      "cargo clippy -p alera-cli --tests -- -D warnings",
+      "cargo clippy -p alera-core --features runtime --tests -- -D warnings"
+    ],
+    "formatPassed": true,
+    "clippyPassed": true
+  },
+  "generation": {
+    "command": "dart run build_runner build",
+    "oneShotRuns": 1,
+    "elapsedSeconds": 51,
+    "exitCode": 0,
+    "normalization": "dart tool/ci/normalize_generated_eof.dart",
+    "changedMapper": "lib/src/features/ai_assist/domain/ai_assist_settings.mapper.dart",
+    "frbApiChanged": false
+  },
+  "checks": {
+    "sourceLineRatchetPassed": true,
+    "whitespacePassed": true,
+    "independentReviewClosed": true,
+    "reviewRepairs": [
+      "Saved Fast can return to Normal on an older runtime",
+      "Unsupported inherited global effort stays visible",
+      "Initial migration preserves operation-specific settings",
+      "Direct cold-cache inference resolves saved effort against the fresh account default",
+      "Remote speech text generation requires the options capability",
+      "Explicit Normal cannot inherit a stale stored Fast tier"
+    ]
+  },
+  "liveAcceptance": {
+    "oauthPerformed": false,
+    "accountTokenModelQueryPerformed": false,
+    "applicationProviderInferenceCalls": 0,
+    "chatGptQuotaConsumed": false,
+    "accountModelVisibilityVerified": false,
+    "reasoningAcceptanceVerified": false,
+    "fastEligibilityVerified": false
+  },
+  "delivery": {
+    "pushed": false,
+    "merged": false,
+    "deployed": false,
+    "published": false,
+    "newCrossPlatformPackagedBuild": false,
+    "previousWindowsBuildSource": "3958cef7d"
+  },
+  "limits": [
+    "Focused checks do not replace the earlier full-platform suites",
+    "The earlier Windows build does not cover this later feature addition",
+    "Five priority findings from the second audit remain pending implementation"
+  ]
+}

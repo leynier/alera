@@ -25,6 +25,12 @@ mod cleanup_owners;
 pub(super) mod execution;
 #[path = "workflow_launch_permit.rs"]
 mod permit;
+pub(super) use permit::WorkflowLaunchPermit;
+#[path = "workflow_launch_command_budget.rs"]
+pub(super) mod budget;
+#[cfg(test)]
+#[path = "workflow_launch_test_support.rs"]
+mod test_support;
 
 pub(crate) enum WorkflowLaunchReply {
     Client(u64, i64),
@@ -33,7 +39,6 @@ pub(crate) enum WorkflowLaunchReply {
 
 #[cfg(test)]
 mod tests;
-
 pub(crate) enum WorkflowLaunchCommand {
     InspectCleanupOwners {
         cleanup_id: String,
@@ -82,12 +87,6 @@ pub(crate) enum WorkflowLaunchCommand {
     AcceptanceTimeout(String),
 }
 
-/// Constructed only after the durable one-shot claim. No payload grants this.
-pub(super) struct WorkflowLaunchPermit {
-    record: Option<WorkflowLaunchRecord>,
-    coordinator: Option<alera_core::runtime::WorkflowCoordinatorReceipt>,
-}
-
 pub(crate) struct ValidatedWorkflowLaunch {
     reply: WorkflowLaunchReply,
     record: WorkflowLaunchRecord,
@@ -96,7 +95,6 @@ pub(crate) struct ValidatedWorkflowLaunch {
     frozen: WorkflowLaunchInputs,
     result: HostResult<()>,
 }
-
 impl ServerActor {
     pub(super) async fn handle_workflow_launch_command(&mut self, command: WorkflowLaunchCommand) {
         match command {
@@ -184,7 +182,6 @@ impl ServerActor {
         self.launch_prepared_for(WorkflowLaunchReply::Client(client_id, request_id), result)
             .await;
     }
-
     async fn launch_prepared_for(
         &mut self,
         reply: WorkflowLaunchReply,
@@ -230,15 +227,17 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))
             .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
-            let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
-                WorkflowLaunchCommand::Claimed {
-                    reply,
-                    record: Box::new(record),
-                    token,
-                    locks,
-                    result: Box::new(result),
-                },
-            ));
+            let _ = inbox
+                .send_wait(super::ServerCommand::WorkflowLaunch(
+                    WorkflowLaunchCommand::Claimed {
+                        reply,
+                        record: Box::new(record),
+                        token,
+                        locks,
+                        result: Box::new(result),
+                    },
+                ))
+                .await;
         });
     }
 
@@ -285,16 +284,18 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))
             .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
-            let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
-                WorkflowLaunchCommand::SpawnValidated(Box::new(ValidatedWorkflowLaunch {
-                    reply,
-                    record,
-                    token,
-                    locks,
-                    frozen,
-                    result,
-                })),
-            ));
+            let _ = inbox
+                .send_wait(super::ServerCommand::WorkflowLaunch(
+                    WorkflowLaunchCommand::SpawnValidated(Box::new(ValidatedWorkflowLaunch {
+                        reply,
+                        record,
+                        token,
+                        locks,
+                        frozen,
+                        result,
+                    })),
+                ))
+                .await;
         });
     }
 
@@ -485,7 +486,9 @@ impl ServerActor {
             if record.terminal_handle != session
                 || !permit.is_some_and(|permit| permit.allows(record, workspace, tab))
             {
-                return Err(HostError::state("workflow workers require a fresh approved attempt; automatic restart is disabled"));
+                return Err(HostError::state(
+                    "workflow workers require a fresh approved attempt; automatic restart is disabled",
+                ));
             }
             self.runtime_store
                 .require_workflow_launch_spawnable(&record.id)

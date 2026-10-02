@@ -90,6 +90,16 @@ impl ApiError {
         }
     }
 
+    pub fn is_push_quota_rejection(&self) -> bool {
+        matches!(
+            self,
+            Self::Request {
+                code: "daily_push_quota" | "hourly_push_quota" | "burst_push_quota",
+                ..
+            }
+        )
+    }
+
     pub fn upstream(error: impl Into<anyhow::Error>) -> Self {
         Self::Upstream(error.into())
     }

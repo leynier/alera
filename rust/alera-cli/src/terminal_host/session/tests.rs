@@ -2,6 +2,7 @@ use std::io::Write;
 use std::sync::mpsc::TrySendError;
 
 use super::*;
+use crate::terminal_host::history_store::TerminalHostCheckpoint;
 
 /// A sealed shell that never existed, for the cases that only care that the
 /// field is cleared.
@@ -84,15 +85,23 @@ fn test_session() -> Session {
         #[cfg(windows)]
         process_job: None,
         terminated: false,
+        termination_requested: false,
+        history_barrier_held: false,
         checkpoint_gen: 0,
         checkpoint_armed: false,
+        checkpoint_retry_timer: None,
         output_batch: Vec::new(),
         output_batch_gen: 0,
         output_batch_armed: false,
         durable_output_batch: Vec::new(),
         durable_output_batch_gen: 0,
         durable_output_batch_armed: false,
+        durable_retry_timer: None,
         durable_output_batch_sequence: 0,
+        durable_output_failures: VecDeque::new(),
+        pending_pty_ack: None,
+        checkpoint_job: None,
+        checkpoint_output_blocked: false,
         output_stream_bytes: 0,
         last_output_at: std::time::Instant::now(),
         title_tracker: TerminalTitleTracker::default(),

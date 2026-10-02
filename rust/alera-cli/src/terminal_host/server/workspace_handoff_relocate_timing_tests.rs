@@ -20,7 +20,7 @@ use crate::terminal_host::server::runtime_mutations::RuntimeMutationRequest;
 use crate::terminal_host::session::{Session, TestQueuedWrite};
 
 use super::super::actor_test_harness::{local_client, test_actor};
-use super::super::{ServerActor, ServerCommand};
+use super::super::ServerActor;
 
 #[path = "workspace_relocation_request_retry_tests.rs"]
 mod request_retry_tests;
@@ -42,7 +42,7 @@ struct Fixture {
     _root: tempfile::TempDir,
     actor: ServerActor,
     responses: UnboundedReceiver<ClientFrame>,
-    commands: UnboundedReceiver<ServerCommand>,
+    commands: crate::terminal_host::server::ServerInboxReceiver,
     child: Workspace,
     main_path: String,
 }
@@ -61,7 +61,7 @@ impl Fixture {
             HashMap::new(),
         )
         .await;
-        let (inbox, commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
 
         let workspaces = root.path().join("workspaces");

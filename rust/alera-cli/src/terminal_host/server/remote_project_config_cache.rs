@@ -130,10 +130,12 @@ impl ServerActor {
                     serde_json::to_value(payload)
                         .map_err(|error| HostError::state(error.to_string()))
                 });
-            let _ = inbox.send(ServerCommand::RemoteProjectConfigRead {
-                project_id: project.id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::RemoteProjectConfigRead {
+                    project_id: project.id,
+                    result,
+                })
+                .await;
         });
     }
 
@@ -209,7 +211,7 @@ mod actor_tests {
             .register_project_checkout("remote-only", "ssh", "/srv/remote/repo")
             .await
             .unwrap();
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
 
         // Nothing cached yet: defaults, and one read starts in the background.

@@ -65,11 +65,13 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let result = task.await;
-            let _ = inbox.send(super::ServerCommand::HostLinkRequestFinished {
-                client_id,
-                request_id,
-                result,
-            });
+            let _ = inbox
+                .send_wait(super::ServerCommand::HostLinkRequestFinished {
+                    client_id,
+                    request_id,
+                    result,
+                })
+                .await;
         });
     }
 }

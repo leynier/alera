@@ -1,7 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use alera_core::runtime::{RuntimeStore, WorkflowExecutionState, WorkflowExecutionStep};
-use tokio::sync::mpsc::UnboundedSender;
 
 use super::{ServerActor, WorkflowLaunchCommand};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -33,10 +32,31 @@ impl ExecutionPump {
 }
 
 pub(crate) struct ExecutionPass {
-    cursor: Option<String>,
-    again: bool,
-    changed: bool,
-    error: Option<String>,
+    pub(super) cursor: Option<String>,
+    pub(super) again: bool,
+    pub(super) changed: bool,
+    pub(super) error: Option<String>,
+}
+
+#[cfg(test)]
+impl ExecutionPass {
+    pub(crate) fn from_test(
+        cursor: Option<String>,
+        again: bool,
+        changed: bool,
+        error: Option<String>,
+    ) -> Self {
+        Self {
+            cursor,
+            again,
+            changed,
+            error,
+        }
+    }
+
+    pub(crate) fn into_test_parts(self) -> (Option<String>, bool, bool, Option<String>) {
+        (self.cursor, self.again, self.changed, self.error)
+    }
 }
 
 impl ServerActor {
@@ -78,9 +98,11 @@ impl ServerActor {
                     error: Some(error.to_string()),
                 },
             };
-            let _ = inbox.send(ServerCommand::WorkflowLaunch(
-                WorkflowLaunchCommand::ExecutionFinished(pass),
-            ));
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowLaunch(
+                    WorkflowLaunchCommand::ExecutionFinished(pass),
+                ))
+                .await;
         });
     }
 
@@ -107,7 +129,7 @@ impl ServerActor {
 async fn pass(
     store: RuntimeStore,
     directory: PathBuf,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     cursor: Option<String>,
 ) -> anyhow::Result<ExecutionPass> {
     let runs = store.workflow_execution_page(cursor.as_deref()).await?;
@@ -159,7 +181,7 @@ async fn pass(
 async fn execute(
     store: &RuntimeStore,
     directory: &std::path::Path,
-    inbox: &UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     run: &WorkflowExecutionState,
     step: WorkflowExecutionStep,
 ) -> anyhow::Result<()> {
@@ -187,9 +209,10 @@ async fn execute(
                     .map_err(|error| HostError::state(error.to_string()));
             let (reply, done) = tokio::sync::oneshot::channel::<HostResult<serde_json::Value>>();
             inbox
-                .send(ServerCommand::WorkflowLaunch(
+                .send_wait(ServerCommand::WorkflowLaunch(
                     WorkflowLaunchCommand::ExecutionPrepared { reply, result },
                 ))
+                .await
                 .map_err(|_| anyhow::anyhow!("runtime closed before workflow launch"))?;
             done.await
                 .map_err(|_| anyhow::anyhow!("runtime closed during workflow launch"))?

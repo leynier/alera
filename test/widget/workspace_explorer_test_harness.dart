@@ -74,6 +74,37 @@ class _ExplorerVisibilityHarnessState
   }
 }
 
+class const _ExplorerWorkspaceSwitchHarness({
+  super.key,
+  required final Workspace workspace,
+}) extends StatefulWidget {
+  @override
+  State<_ExplorerWorkspaceSwitchHarness> createState() =>
+      _ExplorerWorkspaceSwitchHarnessState();
+}
+
+class _ExplorerWorkspaceSwitchHarnessState
+    extends State<_ExplorerWorkspaceSwitchHarness> {
+  late Workspace _workspace = widget.workspace;
+
+  String get workspacePath => _workspace.path;
+
+  void switchWorkspace(Workspace workspace) {
+    setState(() => _workspace = workspace);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceExplorer(
+      workspace: _workspace,
+      mode: .hideIgnored,
+      onModeChanged: (_) {},
+      onOpenFile: (_) {},
+      onPathMoved: (_, _) async {},
+    );
+  }
+}
+
 class const _WorkspaceExplorerModeHarness() extends StatefulWidget {
   @override
   State<_WorkspaceExplorerModeHarness> createState() =>

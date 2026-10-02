@@ -1,14 +1,12 @@
 use std::path::Path;
 use std::time::Duration;
 
-use tokio::sync::mpsc::UnboundedReceiver;
-
 use crate::terminal_host::server::{ServerActor, ServerCommand};
 use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion};
 
 pub(super) async fn assert_startup_command_executes(
     actor: &mut ServerActor,
-    events: &mut UnboundedReceiver<ServerCommand>,
+    events: &mut crate::terminal_host::server::ServerInboxReceiver,
     session_id: &str,
     marker: &Path,
 ) {

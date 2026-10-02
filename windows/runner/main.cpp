@@ -32,7 +32,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
-  ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  const HRESULT com_result =
+      ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  const bool com_initialized = SUCCEEDED(com_result);
 
   flutter::DartProject project(L"data");
 
@@ -45,6 +47,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
   if (!window.Create(ALERA_APP_NAME, origin, size)) {
+    // Create() can initialize the Flutter controller before reporting a
+    // failure. Tear it down while COM is still available, then balance the
+    // successful apartment initialization before returning.
+    window.Destroy();
+    if (com_initialized) {
+      ::CoUninitialize();
+    }
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
@@ -56,6 +65,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // initialized; destroying it as a member later dispatches messages to a
   // controller that is being freed.
   window.Destroy();
-  ::CoUninitialize();
+  if (com_initialized) {
+    ::CoUninitialize();
+  }
   return exit_code;
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/agent_status/application/agent_status_host_forwarder.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _RecordingRuntimeHostClient implements RuntimeHostClient {
@@ -181,6 +182,31 @@ void main() {
     final entries = sentEntries();
     expect(entries.single['terminalSessionId'], 's1');
     expect(entries.single['state'], 'waiting');
+  });
+
+  test('backs off repeated transport errors', () {
+    fakeAsync((async) {
+      client.error = StateError('host gone');
+      forwarder.onStatusChanged(const <String, AgentStatusEntry>{}, {
+        's1': _entry('s1', state: .waiting),
+      });
+
+      async.elapse(Duration.zero);
+      async.flushMicrotasks();
+      expect(client.attempts, 1);
+
+      async.elapse(const Duration(milliseconds: 1));
+      async.flushMicrotasks();
+      expect(client.attempts, 2);
+
+      // The second retry is delayed by 2 ms instead of immediately spinning.
+      async.elapse(const Duration(milliseconds: 1));
+      async.flushMicrotasks();
+      expect(client.attempts, 2);
+      async.elapse(const Duration(milliseconds: 1));
+      async.flushMicrotasks();
+      expect(client.attempts, 3);
+    });
   });
 
   test('does not retry permanent orchestration capability errors', () async {

@@ -88,6 +88,7 @@ void main() {
       expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
       final aiAssist = payload['aiTextGeneration']! as Map<String, Object?>;
       expect(aiAssist['agent'], 'codex');
+      expect(aiAssist['chatGptServiceTier'], aiAssistChatGptDefaultServiceTier);
       expect(
         aiAssist['promptSettingsByOperation'],
         isA<Map<String, Object?>>(),
@@ -215,6 +216,7 @@ void main() {
             },
           },
           'timeoutSeconds': 180,
+          'chatGptServiceTier': aiAssistChatGptFastServiceTier,
         },
       };
       final repository = RuntimeSettingsRepository(
@@ -234,6 +236,10 @@ void main() {
         AiAssistAgent.claude,
       );
       expect(loaded.aiAssist.modelForOperation(.workspaceIdentity), 'opus');
+      expect(
+        loaded.aiAssist.chatGptServiceTier,
+        aiAssistChatGptFastServiceTier,
+      );
       expect(
         loaded.aiAssist.thinkingForOperation(.workspaceIdentity, 'opus'),
         'high',

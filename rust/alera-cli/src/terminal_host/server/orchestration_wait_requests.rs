@@ -190,7 +190,9 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(STATE_WAIT_POLL_MS)).await;
-            let _ = inbox.send(ServerCommand::OrchestrationStateWaitPoll(waiter_id));
+            let _ = inbox
+                .send_wait(ServerCommand::OrchestrationStateWaitPoll(waiter_id))
+                .await;
         });
     }
 }

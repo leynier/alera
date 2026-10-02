@@ -1,0 +1,199 @@
+import "package:desktop_updater/desktop_updater_platform_interface.dart";
+import "package:desktop_updater/src/core/release_descriptor.dart";
+import "package:desktop_updater/src/core/safe_zip_extractor.dart";
+import "package:desktop_updater/src/core/update_cancellation.dart";
+import "package:desktop_updater/src/core/update_client.dart";
+import "package:desktop_updater/src/current_version.dart";
+import "package:desktop_updater/src/io/http_update_transport.dart"
+    show UpdateRequestHeadersProvider;
+import "package:desktop_updater/src/macos_install_location.dart";
+import "package:desktop_updater/src/macos_update.dart";
+import "package:desktop_updater/src/version_info.dart";
+
+export "package:desktop_updater/src/core/release_descriptor.dart";
+export "package:desktop_updater/src/core/release_index.dart";
+export "package:desktop_updater/src/core/release_notes.dart";
+export "package:desktop_updater/src/core/safe_zip_extractor.dart"
+    show FileModeApplier, SafeZipExtractor, defaultFileModeApplier;
+export "package:desktop_updater/src/core/update_cancellation.dart";
+export "package:desktop_updater/src/core/update_client.dart"
+    show UpdateCheckResult, UpdateStageResult;
+export "package:desktop_updater/src/core/update_diagnostics.dart";
+export "package:desktop_updater/src/core/update_diagnostics_recorder.dart";
+export "package:desktop_updater/src/core/update_recovery.dart";
+export "package:desktop_updater/src/core/update_state.dart";
+export "package:desktop_updater/src/io/http_update_transport.dart"
+    show UpdateRequestHeadersProvider;
+export "package:desktop_updater/src/localization.dart";
+export "package:desktop_updater/src/macos_install_location.dart";
+export "package:desktop_updater/src/macos_update.dart"
+    show ProcessRunner, defaultProcessRunner;
+export "package:desktop_updater/src/manual_update_check_result.dart";
+export "package:desktop_updater/src/version_info.dart" show DesktopVersionInfo;
+export "package:desktop_updater/widget/macos_move_to_applications_prompt.dart";
+export "package:desktop_updater/widget/release_notes_bottom_sheet.dart";
+export "package:desktop_updater/widget/update_card.dart";
+export "package:desktop_updater/widget/update_dialog.dart";
+export "package:desktop_updater/widget/update_direct_card.dart";
+export "package:desktop_updater/widget/update_problem_report_dialog.dart";
+export "package:desktop_updater/widget/update_sliver.dart";
+export "package:desktop_updater/widget/update_widget.dart";
+
+export "desktop_updater_inherited_widget.dart";
+export "updater_controller.dart";
+
+/// Entry point for platform update helpers and zip-first update operations.
+class DesktopUpdater {
+  /// Creates a desktop updater facade.
+  DesktopUpdater();
+
+  /// Returns the current desktop platform version string.
+  Future<String?> getPlatformVersion() {
+    return DesktopUpdaterPlatform.instance.getPlatformVersion();
+  }
+
+  /// Restarts or installs a staged update.
+  Future<void> restartApp({
+    /// Optional staged update path to install before restarting.
+    String? stagingPath,
+
+    /// Allows unsigned macOS update artifacts for explicitly trusted lanes.
+    bool allowUnsignedMacOSUpdates = false,
+
+    /// Optional app-owned native helper diagnostics log path.
+    String? diagnosticsLogPath,
+  }) {
+    if (stagingPath != null) {
+      return installUpdate(
+        stagingPath: stagingPath,
+        allowUnsignedMacOSUpdates: allowUnsignedMacOSUpdates,
+        diagnosticsLogPath: diagnosticsLogPath,
+      );
+    }
+
+    return DesktopUpdaterPlatform.instance.restartApp();
+  }
+
+  /// Installs an already staged update artifact.
+  Future<void> installUpdate({
+    /// Platform-specific staged artifact path.
+    required String stagingPath,
+
+    /// Legacy-compatible list of files removed during install.
+    List<String> removedFiles = const [],
+
+    /// Allows unsigned macOS update artifacts for explicitly trusted lanes.
+    bool allowUnsignedMacOSUpdates = false,
+
+    /// Optional app-owned native helper diagnostics log path.
+    String? diagnosticsLogPath,
+  }) {
+    return DesktopUpdaterPlatform.instance.installUpdate(
+      stagingPath: stagingPath,
+      removedFiles: removedFiles,
+      allowUnsignedMacOSUpdates: allowUnsignedMacOSUpdates,
+      diagnosticsLogPath: diagnosticsLogPath,
+    );
+  }
+
+  /// Returns the current executable path when the platform supports it.
+  Future<String?> getExecutablePath() {
+    return DesktopUpdaterPlatform.instance.getExecutablePath();
+  }
+
+  /// Returns the raw current app version string.
+  Future<String?> getCurrentVersion() {
+    return DesktopUpdaterPlatform.instance.getCurrentVersion();
+  }
+
+  /// Returns macOS install-location status for optional move prompts.
+  Future<MacOSInstallLocationStatus> checkMacOSInstallLocation() {
+    return DesktopUpdaterPlatform.instance.checkMacOSInstallLocation();
+  }
+
+  /// Moves the running macOS app to `/Applications`.
+  Future<void> moveMacOSAppToApplications({
+    bool replaceExisting = false,
+  }) {
+    return DesktopUpdaterPlatform.instance.moveMacOSAppToApplications(
+      replaceExisting: replaceExisting,
+    );
+  }
+
+  /// Returns the structured current app version.
+  Future<DesktopVersionInfo?> getCurrentVersionInfo() {
+    return currentVersionInfo();
+  }
+
+  /// Checks the zip-first update index for a matching newer release.
+  Future<UpdateCheckResult?> checkZipFirstUpdate({
+    /// Hosted app archive URL.
+    required Uri appArchiveUrl,
+
+    /// Version currently installed on this machine.
+    required DesktopVersionInfo currentVersion,
+
+    /// Stable app-owned identity used for deterministic staged rollouts.
+    String? installationIdentity,
+
+    /// Optional app-owned HTTP headers for update metadata requests.
+    UpdateRequestHeadersProvider? requestHeadersProvider,
+  }) {
+    return UpdateClient(
+      appArchiveUrl: appArchiveUrl,
+      currentVersion: currentVersion,
+      installationIdentity: installationIdentity,
+      requestHeadersProvider: requestHeadersProvider,
+    ).checkForUpdate();
+  }
+
+  /// Downloads, verifies, and stages a zip-first update artifact.
+  Future<UpdateStageResult> downloadZipFirstUpdate({
+    /// Hosted app archive URL.
+    required Uri appArchiveUrl,
+
+    /// Version currently installed on this machine.
+    required DesktopVersionInfo currentVersion,
+
+    /// Release descriptor selected by [checkZipFirstUpdate].
+    required ReleaseDescriptor descriptor,
+
+    /// Optional download progress callback.
+    void Function(int receivedBytes, int? totalBytes)? onProgress,
+
+    /// Optional app-owned HTTP headers for artifact requests.
+    UpdateRequestHeadersProvider? requestHeadersProvider,
+
+    /// App-owned runner for macOS extraction and distribution commands.
+    ///
+    /// The default runner is a compatibility fallback and does not receive
+    /// the cancellation token, so it cannot cancel an already-running process.
+    /// Applications should inject a token-aware runner for cancellable updates.
+    ProcessRunner runProcess = defaultProcessRunner,
+
+    /// App-owned runner for cleanup commands such as macOS DMG detach.
+    ///
+    /// This runner is invoked after cancellation when a mounted volume still
+    /// needs to be detached, so it must not be coupled to the operation token.
+    ProcessRunner? runCleanupProcess,
+
+    /// App-owned POSIX mode applier used after safe ZIP extraction.
+    FileModeApplier applyFileMode = defaultFileModeApplier,
+
+    /// Optional cancellation signal for download and staging.
+    UpdateCancellationToken? cancellationToken,
+  }) {
+    return UpdateClient(
+      appArchiveUrl: appArchiveUrl,
+      currentVersion: currentVersion,
+      requestHeadersProvider: requestHeadersProvider,
+      runProcess: runProcess,
+      cleanupProcess: runCleanupProcess ?? runProcess,
+      applyFileMode: applyFileMode,
+    ).downloadVerifyAndStage(
+      descriptor: descriptor,
+      onProgress: onProgress,
+      cancellationToken: cancellationToken,
+    );
+  }
+}

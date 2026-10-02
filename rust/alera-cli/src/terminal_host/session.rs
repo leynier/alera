@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
@@ -6,9 +6,10 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use portable_pty::{ChildKiller, MasterPty, PtySize};
 use serde_json::{json, Value};
+use tokio::task::JoinHandle;
 
 use crate::terminal_host::buffer::ScrollbackBuffer;
-use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHistoryStore};
+use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 use crate::terminal_host::resources::ShellProcess;
@@ -17,6 +18,7 @@ use crate::terminal_host::resources::ShellProcess;
 use crate::terminal_host::resources::seal_shell_process;
 
 mod agent_liveness;
+mod checkpoint;
 mod checkpoint_restore;
 #[cfg(any(windows, test))]
 mod conpty_startup;
@@ -24,6 +26,8 @@ mod conpty_startup;
 mod driver_test_stub;
 #[cfg(test)]
 pub use driver_test_stub::TestQueuedWrite;
+#[cfg(test)]
+mod durable_output_tests;
 mod input_queue;
 mod instance_state;
 mod io_threads;
@@ -52,6 +56,7 @@ use title_tracker::TerminalTitleTracker;
 use windows_process_job::WindowsProcessJob;
 
 const INPUT_QUEUE_CAPACITY: usize = 64;
+pub(crate) const DURABLE_OUTPUT_BATCH_MAX_BYTES: usize = 64 * 1024;
 
 fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
     previous.max(scrollback_len as u64)
@@ -123,6 +128,7 @@ mod driver;
 
 pub use driver::SessionDriver;
 
+#[derive(Debug)]
 pub struct DurableOutputBatch {
     pub data: Vec<u8>,
     pub sequence: i64,
@@ -174,15 +180,31 @@ pub struct Session {
     #[cfg(windows)]
     process_job: Option<WindowsProcessJob>,
     terminated: bool,
+    termination_requested: bool,
+    history_barrier_held: bool,
     checkpoint_gen: u64,
     checkpoint_armed: bool,
+    checkpoint_retry_timer: Option<u64>,
     output_batch: Vec<u8>,
     output_batch_gen: u64,
     output_batch_armed: bool,
     durable_output_batch: Vec<u8>,
     durable_output_batch_gen: u64,
     durable_output_batch_armed: bool,
+    durable_retry_timer: Option<u64>,
     durable_output_batch_sequence: i64,
+    /// Batches that were accepted by the history writer but could not be
+    /// persisted. Keeping them separate from the live coalescing buffer
+    /// preserves sequence order when more than one completion fails.
+    durable_output_failures: VecDeque<DurableOutputBatch>,
+    /// The PTY reader waits on this acknowledgement when history backpressure
+    /// reaches the per-session bound. Keeping the sender in the actor lets
+    /// control and recovery commands continue while the reader is paused.
+    pending_pty_ack: Option<SyncSender<()>>,
+    /// At most one metadata checkpoint/trim is allowed outside the actor.
+    /// The actor polls this handle and never waits on its storage future.
+    checkpoint_job: Option<JoinHandle<Result<(), String>>>,
+    checkpoint_output_blocked: bool,
     output_stream_bytes: u64,
     /// When the PTY last wrote anything. Agent TUIs animate while they work.
     last_output_at: std::time::Instant,
@@ -263,15 +285,23 @@ impl Session {
             #[cfg(windows)]
             process_job: Some(process_job),
             terminated: false,
+            termination_requested: false,
+            history_barrier_held: false,
             checkpoint_gen: 0,
             checkpoint_armed: false,
+            checkpoint_retry_timer: None,
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
             durable_output_batch: Vec::new(),
             durable_output_batch_gen: 0,
             durable_output_batch_armed: false,
+            durable_retry_timer: None,
             durable_output_batch_sequence,
+            durable_output_failures: VecDeque::new(),
+            pending_pty_ack: None,
+            checkpoint_job: None,
+            checkpoint_output_blocked: false,
             output_stream_bytes: resumed_output_stream_bytes(
                 initial_output_stream_bytes,
                 initial_scrollback.len(),
@@ -449,59 +479,5 @@ impl Session {
             "sessionId": self.id,
             "snapshotBase64": encode_bytes(&self.buffer.to_bytes()),
         })
-    }
-
-    /// Arm a debounced checkpoint timer if one is not already pending. Returns
-    /// the generation to fire the timer with, or `None` if already armed.
-    pub fn arm_checkpoint(&mut self) -> Option<u64> {
-        if self.checkpoint_armed {
-            return None;
-        }
-        self.checkpoint_armed = true;
-        Some(self.checkpoint_gen)
-    }
-
-    /// Whether a fired debounce timer is still current (not superseded by an
-    /// immediate checkpoint). Consumes the armed state when true.
-    pub fn checkpoint_due(&mut self, generation: u64) -> bool {
-        if self.checkpoint_armed && self.checkpoint_gen == generation {
-            self.checkpoint_armed = false;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Invalidate any pending debounce timer (used before an immediate write).
-    pub fn invalidate_checkpoint(&mut self) {
-        self.checkpoint_gen = self.checkpoint_gen.wrapping_add(1);
-        self.checkpoint_armed = false;
-    }
-
-    /// Persist the current session state.
-    pub async fn write_checkpoint(
-        &mut self,
-        store: &TerminalHostHistoryStore,
-        ended_at_override: Option<DateTime<Utc>>,
-    ) -> HostResult<()> {
-        if let Some(ended_at) = ended_at_override {
-            self.ended_at = Some(ended_at);
-        }
-        let checkpoint = TerminalHostCheckpoint {
-            session_id: self.id.clone(),
-            workspace_id: self.workspace_id.clone(),
-            tab_id: self.tab_id.clone(),
-            working_directory: self.working_directory.clone(),
-            running: self.running,
-            exit_code: self.exit_code,
-            ended_at: self.ended_at,
-            output_stream_bytes: self.output_stream_bytes,
-            updated_at: Utc::now(),
-            buffer: Vec::new(),
-        };
-        store
-            .upsert(checkpoint)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))
     }
 }

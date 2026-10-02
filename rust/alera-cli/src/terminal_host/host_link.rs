@@ -190,7 +190,7 @@ impl HostLink {
     /// waits for the attachment announcement.
     pub(crate) async fn connect_with(
         target: &SshTarget,
-        inbox: mpsc::UnboundedSender<ServerCommand>,
+        inbox: crate::terminal_host::ServerInbox,
         launcher: &HostLinkLauncher,
     ) -> HostResult<Arc<HostLink>> {
         let host_id = target.id.clone();
@@ -375,7 +375,7 @@ async fn read_inbound(
     host_id: String,
     mut lines: tokio::io::Lines<BufReader<tokio::process::ChildStdout>>,
     pending: PendingRequests,
-    inbox: mpsc::UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     closed: CloseSignal,
     stderr_tail: Arc<Mutex<String>>,
 ) {

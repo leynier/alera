@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-02",
+  "sourceCommit": "3958cef7d",
+  "flutter": "3.47.2",
+  "dart": "3.13.2",
+  "configuration": "windows x64 debug",
+  "verifiedSourceFiles": 526,
+  "sourceManifestSha256": "9f04758cd8a5297abe2655eae59c8871671855a0e46750eff8a6c36e81f5ec1e",
+  "build": {
+    "ExitCode": 0,
+    "StartedUtc": "2026-10-02T12:26:21.3469647Z",
+    "FinishedUtc": "2026-10-02T12:46:24.1822051Z",
+    "SourceFiles": 526,
+    "ArtifactBytes": 1124352,
+    "ArtifactUtc": "2026-10-02T12:42:39.6978821Z"
+  },
+  "artifacts": [
+    {
+      "Path": "build\\windows\\x64\\runner\\Debug\\alera-dev.exe",
+      "Bytes": 1124352,
+      "ModifiedUtc": "2026-10-02T12:42:39.6978821Z",
+      "Sha256": "cfecb2a74d0d7284aa65e47be617140736dbca50d194c97d9079d941f12d6946"
+    },
+    {
+      "Path": "build\\windows\\x64\\sidecar\\Debug\\alera.exe",
+      "Bytes": 139412480,
+      "ModifiedUtc": "2026-10-02T12:34:40.9456673Z",
+      "Sha256": "b1cf31f5e46f72dd78703eb4973701d1c9126552e34fcd405fbb0039263f3979"
+    }
+  ],
+  "verifiedUtc": "2026-10-02T12:47:02.9428391Z",
+  "guiRuntimeValidated": false,
+  "installed": false,
+  "deployed": false
+}

@@ -82,15 +82,17 @@ impl ServerActor {
                 }
                 result = &mut transcription => result,
             };
-            let _ = inbox.send(ServerCommand::VoiceTurnFinished {
-                client_id,
-                request_id,
-                job_id,
-                session_generation,
-                from_realtime,
-                cancel_home,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::VoiceTurnFinished {
+                    client_id,
+                    request_id,
+                    job_id,
+                    session_generation,
+                    from_realtime,
+                    cancel_home,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }
@@ -122,13 +124,15 @@ impl ServerActor {
                 _ = cancel_rx => Err(HostError::state("Voice synthesis was cancelled.")),
                 result = synthesize_job(text, provider, voice, runtime_store, credentials_store) => result,
             };
-            let _ = inbox.send(ServerCommand::VoiceSynthesizeFinished {
-                client_id,
-                request_id,
-                job_id,
-                session_generation,
-                result,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::VoiceSynthesizeFinished {
+                    client_id,
+                    request_id,
+                    job_id,
+                    session_generation,
+                    result,
+                })
+                .await;
         });
         Ok(())
     }

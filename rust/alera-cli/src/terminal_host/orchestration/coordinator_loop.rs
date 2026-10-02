@@ -1,7 +1,29 @@
-use std::time::Duration;
+use std::{future::Future, pin::Pin, time::Duration};
 
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
+
+use crate::terminal_host::server::{ServerCommand, ServerInbox};
+
+type CoordinatorInboxFuture = Pin<Box<dyn Future<Output = Result<(), ()>> + Send>>;
+
+pub trait CoordinatorInbox<C>: Clone + Send + 'static {
+    fn send_wait(&self, command: C) -> CoordinatorInboxFuture;
+}
+
+impl<C: Send + 'static> CoordinatorInbox<C> for UnboundedSender<C> {
+    fn send_wait(&self, command: C) -> CoordinatorInboxFuture {
+        let inbox = self.clone();
+        Box::pin(async move { inbox.send(command).map_err(|_| ()) })
+    }
+}
+
+impl CoordinatorInbox<ServerCommand> for ServerInbox {
+    fn send_wait(&self, command: ServerCommand) -> CoordinatorInboxFuture {
+        let inbox = self.clone();
+        Box::pin(async move { inbox.send_wait(command).await.map_err(|_| ()) })
+    }
+}
 
 /// Default coordinator cadence, mirroring Orca.
 pub const COORDINATOR_DEFAULT_POLL_MS: u64 = 2_000;
@@ -37,9 +59,9 @@ pub struct CoordinatorHandle {
 }
 
 impl CoordinatorHandle {
-    pub fn start<C: Send + 'static>(
+    pub fn start<C: Send + 'static, I: CoordinatorInbox<C>>(
         config: CoordinatorConfig,
-        inbox: UnboundedSender<C>,
+        inbox: I,
         make_tick: impl Fn(String) -> C + Send + 'static,
     ) -> Self {
         let run_id = config.run_id.clone();
@@ -47,8 +69,11 @@ impl CoordinatorHandle {
         let ticker = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(poll).await;
-                if inbox.send(make_tick(run_id.clone())).is_err() {
-                    break;
+                // A saturated runtime inbox is transient. `send_wait` keeps
+                // this run alive until admission returns and stops cleanly
+                // when the actor closes, with one pending tick at a time.
+                if inbox.send_wait(make_tick(run_id.clone())).await.is_err() {
+                    return;
                 }
             }
         });

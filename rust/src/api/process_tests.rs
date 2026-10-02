@@ -1,4 +1,7 @@
-use super::{process_close_stdin, process_kill, process_run, process_write_stdin};
+use super::{
+    process_close_stdin, process_kill, process_run, process_run_with_output_limit,
+    process_write_stdin,
+};
 
 fn args(values: &[&str]) -> Vec<String> {
     values.iter().map(|value| value.to_string()).collect()
@@ -135,6 +138,49 @@ fn run_adds_the_requested_environment() {
         "stdout: {}",
         result.stdout
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn bounded_run_facade_accepts_a_documented_larger_response() {
+    let result = process_run_with_output_limit(
+        "sh".to_string(),
+        args(&["-c", "head -c 65536 /dev/zero"]),
+        None,
+        None,
+        65537,
+        None,
+    )
+    .expect("the explicit output contract should be honored");
+
+    assert_eq!(result.stdout.len(), 65536);
+}
+
+#[cfg(unix)]
+#[test]
+fn bounded_run_facade_times_out_and_reaps_the_process_tree() {
+    let error = process_run_with_output_limit(
+        "sh".to_string(),
+        args(&["-c", "sleep 10"]),
+        None,
+        None,
+        1024,
+        Some(25),
+    )
+    .err()
+    .expect("the configured timeout must fail the run");
+
+    assert!(error.contains("timed out"), "{error}");
+}
+
+#[test]
+fn bounded_run_facade_rejects_invalid_limits_before_spawning() {
+    let error =
+        process_run_with_output_limit("git".to_string(), args(&["--version"]), None, None, 0, None)
+            .err()
+            .expect("zero output budget must fail");
+
+    assert!(error.contains("process output limit"), "{error}");
 }
 
 #[cfg(unix)]

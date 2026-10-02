@@ -7,7 +7,7 @@ publish = false
 [features]
 default = []
 # The async spawn helper, for crates that only need `child_process`.
-async-process = ["dep:tokio"]
+async-process = ["dep:tokio", "dep:windows"]
 workflow-approval = ["dep:hmac", "dep:tempfile", "dep:zeroize", "dep:windows"]
 runtime = ["async-process", "workflow-approval", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:jsonschema", "dep:sqlx", "dep:thiserror", "dep:url", "dep:yaml-rust2"]
 
@@ -39,7 +39,7 @@ sqlx = { version = "0.9.0", default-features = false, features = [
 ], optional = true }
 thiserror = { version = "2.0.20", optional = true }
 tempfile = { version = "3", optional = true }
-tokio = { version = "1.53.1", features = ["process"], optional = true }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "process", "rt-multi-thread", "time"], optional = true }
 url = { version = "2.5.8", optional = true }
 uuid = { version = "1.26.0", features = ["v4", "serde"] }
 yaml-rust2 = { version = "0.11", default-features = false, optional = true }
@@ -49,7 +49,14 @@ zeroize = { version = "1", optional = true }
 libc = "0.2.189"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62.2", optional = true, features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
+windows = { version = "0.62.2", optional = true, features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
 
 [dev-dependencies]
 url = "2.5.8"

@@ -28,7 +28,7 @@ async fn recovery_wait_does_not_block_requests_and_disconnected_clients_get_no_r
         let (terminal_tx, _) = mpsc::channel(1);
         actor.clients.get_mut(&1).unwrap().handle =
             crate::terminal_host::client::ClientHandle::new(control_tx, terminal_tx);
-        let (inbox, mut commands) = mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         let mut workspace = actor
             .runtime_store

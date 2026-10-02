@@ -1,4 +1,4 @@
-use alera_cloud::{maintenance, router, AppConfig, AppState};
+use alera_cloud::{maintenance, migrations, router, AppConfig, AppState};
 use anyhow::Context;
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
@@ -16,25 +16,22 @@ async fn main() -> anyhow::Result<()> {
         .connect(&config.database_url)
         .await
         .context("connect to PostgreSQL")?;
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .context("apply PostgreSQL migrations")?;
-    maintenance::run_once(&pool)
-        .await
-        .context("run startup cleanup")?;
-    let maintenance_task = maintenance::spawn(pool.clone());
+    migrations::run_required(&pool).await?;
     let state = AppState::from_config(pool.clone(), config)?;
     let listener = tokio::net::TcpListener::bind(bind)
         .await
         .with_context(|| format!("bind {bind}"))?;
+    let online_migrations_task = migrations::spawn_online(pool.clone());
+    let maintenance_task = maintenance::spawn(pool.clone());
     tracing::info!(address = %bind, "Alera cloud backend listening");
-    axum::serve(listener, router(state))
+    let serve_result = axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .context("serve HTTP")?;
+        .context("serve HTTP");
+    online_migrations_task.abort();
     maintenance_task.abort();
     pool.close().await;
+    serve_result?;
     Ok(())
 }
 

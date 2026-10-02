@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/process/host_routed_process_runner.dart';
+import 'package:alera/src/shared/infra/process/process_output.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/process/remote_process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,6 +118,48 @@ void main() {
       );
       expect(client.types, isEmpty);
     });
+
+    test('rejects an output budget the remote host cannot honor', () async {
+      final client = _FakeRuntimeHostClient();
+      final runner = RemoteProcessRunner(client, workspaceId: 'workspace-1');
+
+      await expectLater(
+        runner.runWithOutputBudget('gh', const <String>[
+          'pr',
+          'list',
+        ], maxOutputBytes: processRunDefaultMaxOutputBytes + 1),
+        throwsA(
+          isA<ProcessException>().having(
+            (error) => error.message,
+            'message',
+            contains('fixed process output budget'),
+          ),
+        ),
+      );
+      expect(client.types, isEmpty);
+    });
+
+    test('rejects a timeout the remote host cannot honor', () async {
+      final client = _FakeRuntimeHostClient();
+      final runner = RemoteProcessRunner(client, workspaceId: 'workspace-1');
+
+      await expectLater(
+        runner.runWithOutputBudget(
+          'gh',
+          const <String>['pr', 'list'],
+          maxOutputBytes: processRunDefaultMaxOutputBytes,
+          timeout: const Duration(seconds: 3),
+        ),
+        throwsA(
+          isA<ProcessException>().having(
+            (error) => error.message,
+            'message',
+            contains('fixed process timeout'),
+          ),
+        ),
+      );
+      expect(client.types, isEmpty);
+    });
   });
 
   group('HostRoutedProcessRunner', () {
@@ -143,6 +186,31 @@ void main() {
         expect(local.runs, <String?>['/home/me/repo', null, '  ']);
       },
     );
+
+    test('forwards the output capability to a selected remote host', () async {
+      final client = _FakeRuntimeHostClient()
+        ..response = <String, Object?>{
+          'exitCode': 0,
+          'stdout': 'ok',
+          'stderr': '',
+        };
+      final remote = RemoteProcessRunner(client, workspaceId: 'workspace-1');
+      final runner = HostRoutedProcessRunner(
+        local: _RecordingRunner('local'),
+        remoteFor: (path) => path.startsWith('/srv/') ? remote : null,
+      );
+
+      await expectLater(
+        runner.runWithOutputBudget(
+          'gh',
+          const <String>['pr', 'list'],
+          workingDirectory: '/srv/repo',
+          maxOutputBytes: processRunDefaultMaxOutputBytes + 1,
+        ),
+        throwsA(isA<ProcessException>()),
+      );
+      expect(client.types, isEmpty);
+    });
   });
 }
 

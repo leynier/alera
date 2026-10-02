@@ -106,11 +106,13 @@ impl ServerActor {
                     match GitConfigEnvironment::from_variables(&environment) {
                         Ok(environment) => environment,
                         Err(error) => {
-                            let _ = inbox.send(ServerCommand::TerminalPulseWatcherStarted {
-                                workspace_id,
-                                generation,
-                                result: Err(error),
-                            });
+                            let _ = inbox
+                                .send_wait(ServerCommand::TerminalPulseWatcherStarted {
+                                    workspace_id,
+                                    generation,
+                                    result: Err(error),
+                                })
+                                .await;
                             return;
                         }
                     };
@@ -132,11 +134,13 @@ impl ServerActor {
                 });
                 let result =
                     await_watcher_start(watcher_task, setup_cancelled, WATCHER_START_TIMEOUT).await;
-                let _ = inbox.send(ServerCommand::TerminalPulseWatcherStarted {
-                    workspace_id,
-                    generation,
-                    result,
-                });
+                let _ = inbox
+                    .send_wait(ServerCommand::TerminalPulseWatcherStarted {
+                        workspace_id,
+                        generation,
+                        result,
+                    })
+                    .await;
             });
         }
         Ok(())

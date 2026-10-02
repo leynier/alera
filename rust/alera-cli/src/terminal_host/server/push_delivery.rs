@@ -246,9 +246,11 @@ impl ServerActor {
                         }
                     }
                 }
-                let _ = inbox.send(ServerCommand::Push(PushCommand::DeliveryFinished {
-                    result: result.map_err(|error| error.to_string()),
-                }));
+                let _ = inbox
+                    .send_wait(ServerCommand::Push(PushCommand::DeliveryFinished {
+                        result: result.map_err(|error| error.to_string()),
+                    }))
+                    .await;
             });
         }
     }

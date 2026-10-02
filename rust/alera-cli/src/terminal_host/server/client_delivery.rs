@@ -204,7 +204,7 @@ impl ServerActor {
         self.cancel_mobile_prompt_file_uploads(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
-            self.flush_all_output(&session_id);
+            self.flush_all_output(&session_id).await;
             if let Some(session) = self.sessions.get_mut(&session_id) {
                 session.detach(client_id);
             }
@@ -257,6 +257,8 @@ fn requested_local_role(payload: &Value) -> LocalClientRole {
 
 #[cfg(test)]
 mod tests {
+    use tokio::sync::mpsc;
+
     use super::*;
 
     #[test]
@@ -287,7 +289,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let (inbox, mut inbox_rx) = mpsc::unbounded_channel();
+        let (inbox, mut inbox_rx) = crate::terminal_host::ServerInbox::channel();
         let (control_out, mut control_out_rx) = mpsc::unbounded_channel();
         let (terminal_out, _terminal_out_rx) =
             mpsc::channel::<ClientFrame>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
@@ -343,7 +345,8 @@ mod tests {
                 },
             )]),
             mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
+            history_writers: HashMap::new(),
+            pending_history_requests: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),

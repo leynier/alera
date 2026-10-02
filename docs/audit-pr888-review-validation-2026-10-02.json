@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-02",
+  "pullRequest": "https://github.com/leynier/alera/pull/888",
+  "branch": "perf/performance-stability-audit-release",
+  "reviewBaseline": "ba192b1b07f1830387def4d56c8736d799323e4e",
+  "implementationHead": "9107fb40034974cb46625985b975a52a8350796e",
+  "fixtureCommit": "31fc8358c03dc354aeb83bbeffb53053f5cc1bd6",
+  "selectedThreads": [
+    {
+      "id": "PRRT_kwDORUczx86oYj95",
+      "area": "hook shutdown",
+      "fixCommit": "2606d31d51816ffd1a9585e445332c6292ba1cab"
+    },
+    {
+      "id": "PRRT_kwDORUczx86oYj-U",
+      "area": "AI process cleanup",
+      "fixCommit": "bf22bd66232e085e0f3ce195cc2e47d74bf28c08"
+    },
+    {
+      "id": "PRRT_kwDORUczx86oYj-c",
+      "area": "runtime completion delivery",
+      "fixCommit": "9107fb40034974cb46625985b975a52a8350796e"
+    },
+    {
+      "id": "PRRT_kwDORUczx86oYj-i",
+      "area": "voice payload accounting",
+      "fixCommit": "9107fb40034974cb46625985b975a52a8350796e"
+    },
+    {
+      "id": "PRRT_kwDORUczx86oYj-n",
+      "area": "push retry claims",
+      "fixCommit": "7911aa6bc9da7bcf961a0ab9f11078f3e9ab2f2d"
+    },
+    {
+      "id": "PRRT_kwDORUczx86oYj-s",
+      "area": "idempotent quota reservation",
+      "fixCommit": "7911aa6bc9da7bcf961a0ab9f11078f3e9ab2f2d"
+    },
+    {
+      "id": "PRRT_kwDORUczx86oYj-w",
+      "area": "local artifact cancellation",
+      "fixCommit": "d07b14ffe9e9f04db9e09f1fb4247b0ea474b4fa"
+    }
+  ],
+  "flutter": {
+    "hookTestsPassed": 11,
+    "originalHookOrderingFailsRegression": true,
+    "aiAssistTestsPassed": 72,
+    "fullAnalysisIssues": 0,
+    "processSpawnConformanceTestsPassed": 2
+  },
+  "updater": {
+    "testsPassed": 450,
+    "testsSkipped": 10,
+    "analysisErrors": 0,
+    "existingAnalysisInfos": 376,
+    "httpCancellationPreserved": true,
+    "fileCancellationCommitBoundary": "Post-rename cancellation check"
+  },
+  "cloud": {
+    "unitTestsPassed": 22,
+    "postgresContractsPassed": 5,
+    "clippyPassed": true,
+    "formatPassed": true,
+    "requiredMigrationAdded": 21,
+    "productionSchemaChanged": false,
+    "liveFcmSends": 0
+  },
+  "rust": {
+    "toolchain": "1.98.0",
+    "isolatedEnvironment": "All inherited ALERA_* variables excluded",
+    "focusedTestsPassed": 42,
+    "focusedFilters": [
+      "server_command_inbox",
+      "runtime_mutation_completion_budget_tests",
+      "orchestration_deferred_enter_admission_tests",
+      "delayed_pulse_waits_for_inbox_capacity_instead_of_being_lost",
+      "resource_requests::ticker_tests",
+      "verified_action_retries_preserve_a_replacement_session_and_neighbor",
+      "workflow_launch_claim_restore_and_restart_never_duplicate_a_worker"
+    ],
+    "clippyCommand": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+    "clippyPassed": true,
+    "workspaceCommand": "bash tool/ci/run_rust_workspace_tests.sh",
+    "workspaceStatus": "passed",
+    "formatCommand": "cargo fmt --all -- --check",
+    "formatPassed": true,
+    "workspacePassed": 2894,
+    "workspaceFailed": 0,
+    "workspaceIgnored": 5,
+    "workspaceSuites": 27,
+    "workspaceElapsedSeconds": 979.0
+  },
+  "checks": {
+    "maxLinesRatchetPassed": true,
+    "whitespacePassed": true,
+    "independentReviewClosed": true,
+    "generationRequired": false,
+    "frbApiChanged": false
+  },
+  "limits": [
+    "Completion admission has an ordinary 128-command / 16 MiB queued-payload budget; irreducible cleanup metadata may exceed it as the sole queued completion until dequeue.",
+    "Payload counters measure logical bytes, not allocator capacity or total process RSS.",
+    "Realtime PCM uses the 64 MiB Work lane and retains frame dropping under saturation.",
+    "The final post-rename cancellation check is the local artifact commit boundary.",
+    "Historical push attempts are conservatively treated as quota-reserved by migration 0021.",
+    "PTY ACK and edge rate-limiter audit findings remain outside the seven selected threads.",
+    "No new cross-platform packaged app build or live ChatGPT acceptance is claimed."
+  ],
+  "delivery": {
+    "capturedBeforePush": true,
+    "threadResolutionPolicy": "Resolve each selected thread only after its fix is pushed.",
+    "manualMerge": false,
+    "manualDeployment": false,
+    "publication": false
+  },
+  "followUpAdmissionWake": {
+    "selectedThread": "PRRT_kwDORUczx86obHKC",
+    "reviewBaseline": "f87fb05346737257e5d2a97ff74169e51758490a",
+    "fix": "Notify all blocking and async capacity waiters after release; retain existing per-class predicates, budgets and accepted queue order",
+    "toolchain": "1.98.0",
+    "isolatedEnvironment": "All inherited ALERA_* variables excluded",
+    "focusedCommand": "cargo test --workspace --locked --lib --bins server_command_inbox -- --nocapture",
+    "focusedTestsPassed": 37,
+    "focusedTestsFailed": 0,
+    "newRegressions": 2,
+    "originalReleaseRegressionsFailed": 2,
+    "originalReleaseCommand": "cargo test --workspace --locked --lib --bins completion_release_wakes_ -- --nocapture",
+    "asyncRegistrationOrderDeterministic": true,
+    "originalBlockingWakeSelectionPlatformDependent": true,
+    "clippyCommand": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+    "clippyPassed": true,
+    "formatPassed": true,
+    "maxLinesRatchetPassed": true,
+    "whitespacePassed": true,
+    "independentReviewClosed": true,
+    "fullWorkspaceSuiteRerun": false,
+    "generationRequired": false,
+    "resolveOnlyAfterPush": true,
+    "manualMerge": false,
+    "deployment": false,
+    "publication": false,
+    "capturedBeforePush": true
+  }
+}

@@ -65,12 +65,13 @@ impl ServerActor {
                 for target in proposals {
                     let (reply, done) = tokio::sync::oneshot::channel();
                     inbox
-                        .send(ServerCommand::WorkflowLaunch(
+                        .send_wait(ServerCommand::WorkflowLaunch(
                             WorkflowLaunchCommand::CancelProposalTerminal {
                                 target: target.clone(),
                                 reply,
                             },
                         ))
+                        .await
                         .map_err(|_| {
                             anyhow::anyhow!("runtime closed before proposal cancellation")
                         })?;
@@ -97,12 +98,13 @@ impl ServerActor {
                 for target in targets {
                     let (reply, done) = tokio::sync::oneshot::channel();
                     inbox
-                        .send(ServerCommand::WorkflowLaunch(
+                        .send_wait(ServerCommand::WorkflowLaunch(
                             WorkflowLaunchCommand::CancelTerminal {
                                 target: target.clone(),
                                 reply,
                             },
                         ))
+                        .await
                         .map_err(|_| {
                             anyhow::anyhow!("runtime closed before workflow cancellation")
                         })?;
@@ -146,9 +148,11 @@ impl ServerActor {
             }
             .await
             .map_err(|error| HostError::state(error.to_string()));
-            let _ = inbox.send(ServerCommand::WorkflowLaunch(
-                WorkflowLaunchCommand::CancellationFinished(result),
-            ));
+            let _ = inbox
+                .send_wait(ServerCommand::WorkflowLaunch(
+                    WorkflowLaunchCommand::CancellationFinished(result),
+                ))
+                .await;
         });
     }
 
@@ -194,7 +198,9 @@ impl ServerActor {
                     || session.tab_id != target.terminal_handle
                     || session.workspace_id != target.workspace_id)
         }) {
-            return Err(HostError::state("The live terminal identity changed. Inspect the retained attempt before retrying cancellation."));
+            return Err(HostError::state(
+                "The live terminal identity changed. Inspect the retained attempt before retrying cancellation.",
+            ));
         }
         let shutdown = self
             .prepare_workflow_cancellation_shutdown(&target.terminal_handle, &target.workspace_id)
@@ -301,7 +307,7 @@ async fn settle_proposal(
 
 async fn finish_shutdown(
     store: &alera_core::runtime::RuntimeStore,
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+    inbox: &crate::terminal_host::ServerInbox,
     tab: &str,
     workspace: &str,
     shutdown: CancellationShutdown,
@@ -320,13 +326,14 @@ async fn finish_shutdown(
     if result.is_err() {
         let (reply, done) = tokio::sync::oneshot::channel();
         inbox
-            .send(ServerCommand::WorkflowLaunch(
+            .send_wait(ServerCommand::WorkflowLaunch(
                 WorkflowLaunchCommand::RetainCancellationShutdown {
                     tab: tab.to_owned(),
                     shutdown: guard,
                     reply,
                 },
             ))
+            .await
             .map_err(|_| HostError::state("runtime closed before process shutdown was retained"))?;
         done.await
             .map_err(|_| HostError::state("runtime closed before process shutdown was retained"))?;
@@ -359,7 +366,7 @@ mod tests {
             .begin_workflow_terminal_shutdown("tab", "owner")
             .await
             .unwrap();
-        let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox.clone();
         let mut guard = WorkspaceShutdown::default();
         guard.fail_next_waits(1);

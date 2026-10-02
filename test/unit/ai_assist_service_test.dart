@@ -10,6 +10,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -26,6 +27,7 @@ part 'ai_assist_reading_diff_lifecycle_test_cases.dart';
 part 'ai_assist_prompt_override_test_cases.dart';
 part 'ai_assist_opencode_go_test_cases.dart';
 part 'ai_assist_chatgpt_test_cases.dart';
+part 'ai_assist_chatgpt_thinking_context_test_cases.dart';
 part 'ai_assist_test_harness.dart';
 
 void main() {
@@ -38,6 +40,7 @@ void main() {
     _registerAiAssistPromptOverrideTests();
     _registerOpenCodeGoAiAssistTests();
     _registerChatGptAiAssistTests();
+    _registerChatGptThinkingContextTests();
 
     test('builds commit prompts with staged context and instructions', () {
       final prompt = buildCommitMessagePrompt(
@@ -101,6 +104,69 @@ Body line.
 
       expect(message.split('\n').first.length, 72);
       expect(message, contains('Body line.'));
+    });
+
+    test('kills an agent that exceeds the output budget', () async {
+      final chunk = List<int>.filled(64 * 1024, 120);
+      final runner = _FakeProcessRunner(
+        stdout: '',
+        stdoutStream: Stream<List<int>>.fromIterable(
+          Iterable<List<int>>.generate(
+            (aiAssistAgentMaxOutputBytes ~/ chunk.length) + 1,
+            (_) => chunk,
+          ),
+        ),
+      );
+      final agentRunner = CliAiAssistAgentRunner(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+      );
+
+      await expectLater(
+        agentRunner.run(
+          const AiAssistAgentRunRequest(
+            settings: AiAssistSettings(agent: .agy),
+            prompt: 'Summarize the staged changes.',
+            runId: 'output-budget',
+            workingDirectory: '/repo',
+          ),
+        ),
+        throwsA(
+          isA<AiAssistException>().having(
+            (error) => error.message,
+            'message',
+            contains('returned too much output'),
+          ),
+        ),
+      );
+      expect(runner.killed, isTrue);
+    });
+
+    test('preserves UTF-8 when agent output splits a code point', () async {
+      final bytes = utf8.encode('café\n');
+      final split = bytes.indexOf(0xC3) + 1;
+      final runner = _FakeProcessRunner(
+        stdout: '',
+        stdoutStream: Stream<List<int>>.fromIterable(<List<int>>[
+          bytes.sublist(0, split),
+          bytes.sublist(split),
+        ]),
+      );
+      final agentRunner = CliAiAssistAgentRunner(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+      );
+
+      final result = await agentRunner.run(
+        const AiAssistAgentRunRequest(
+          settings: AiAssistSettings(agent: .agy),
+          prompt: 'Summarize the staged changes.',
+          runId: 'utf8-output',
+          workingDirectory: '/repo',
+        ),
+      );
+
+      expect(result.text, 'café');
     });
 
     test('generates pull request details from base range context', () async {

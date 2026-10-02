@@ -215,23 +215,27 @@ impl ServerActor {
             let (listener, redirect_uri, pkce, transaction) = match preparation {
                 Ok(value) => value,
                 Err(error) => {
-                    let _ = inbox.send(ServerCommand::Account(AccountCommand::SignInPrepared {
-                        client_id,
-                        request_id,
-                        result: Err(account_error(error)),
-                    }));
+                    let _ = inbox
+                        .send_wait(ServerCommand::Account(AccountCommand::SignInPrepared {
+                            client_id,
+                            request_id,
+                            result: Err(account_error(error)),
+                        }))
+                        .await;
                     return;
                 }
             };
-            let _ = inbox.send(ServerCommand::Account(AccountCommand::SignInPrepared {
-                client_id,
-                request_id,
-                result: Ok(json!({
-                    "authorizationUrl": transaction.authorization_url,
-                    "expiresAt": transaction.expires_at,
-                    "provider": provider,
-                })),
-            }));
+            let _ = inbox
+                .send_wait(ServerCommand::Account(AccountCommand::SignInPrepared {
+                    client_id,
+                    request_id,
+                    result: Ok(json!({
+                        "authorizationUrl": transaction.authorization_url,
+                        "expiresAt": transaction.expires_at,
+                        "provider": provider,
+                    })),
+                }))
+                .await;
             let result = async {
                 let code = wait_for_callback(listener, &transaction.state, cancel_rx).await?;
                 service
@@ -247,9 +251,11 @@ impl ServerActor {
             .map(|account| json!(account))
             .map_err(account_error);
             let _ = redirect_uri;
-            let _ = inbox.send(ServerCommand::Account(AccountCommand::SignInCompleted {
-                result,
-            }));
+            let _ = inbox
+                .send_wait(ServerCommand::Account(AccountCommand::SignInCompleted {
+                    result,
+                }))
+                .await;
         });
     }
 
@@ -267,12 +273,14 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let result = future.await;
-            let _ = inbox.send(ServerCommand::Account(AccountCommand::OperationFinished {
-                client_id,
-                request_id,
-                operation,
-                result,
-            }));
+            let _ = inbox
+                .send_wait(ServerCommand::Account(AccountCommand::OperationFinished {
+                    client_id,
+                    request_id,
+                    operation,
+                    result,
+                }))
+                .await;
         });
     }
 
@@ -332,9 +340,11 @@ impl ServerActor {
                 .refresh_push_subscriptions()
                 .await
                 .map_err(account_error);
-            let _ = inbox.send(ServerCommand::Account(
-                AccountCommand::SubscriptionSyncFinished { result },
-            ));
+            let _ = inbox
+                .send_wait(ServerCommand::Account(
+                    AccountCommand::SubscriptionSyncFinished { result },
+                ))
+                .await;
         });
     }
 

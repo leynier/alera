@@ -12,7 +12,6 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
-use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -111,6 +110,7 @@ mod automation_target_location;
 mod chatgpt_credentials;
 mod chatgpt_inference;
 mod chatgpt_oauth;
+mod chatgpt_request_options;
 mod chatgpt_requests;
 mod chatgpt_session;
 #[cfg(test)]
@@ -148,6 +148,9 @@ mod declared_catalog_requests;
 mod deferred_requests;
 mod deferred_workspace_lifecycle;
 mod deferred_workspace_setup;
+mod history_persistence;
+mod history_request_retry;
+mod history_writer;
 mod host_link_requests;
 mod host_link_routing;
 mod host_process_requests;
@@ -230,10 +233,15 @@ mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
+#[path = "server/runtime_mutation_completion.rs"]
+mod runtime_mutation_completion;
 mod runtime_mutation_queue;
 mod runtime_mutations;
 mod satellite_mirror_requests;
 mod server_command;
+mod server_command_inbox;
+#[path = "server/server_command_payload_size.rs"]
+mod server_command_payload_size;
 #[path = "server_runner.rs"]
 mod server_runner;
 mod server_shutdown;
@@ -288,6 +296,7 @@ mod workflow_plan_tests;
 mod workflow_worker_context;
 mod workflow_workspace_requests;
 mod workspace_archive_requests;
+mod workspace_blocking;
 mod workspace_file_mutation_requests;
 mod workspace_git_requests;
 mod workspace_handoff_relocate;
@@ -303,6 +312,9 @@ mod workspace_sidebar_requests_tests;
 mod workspace_sleep_requests;
 
 pub use server_command::ServerCommand;
+#[cfg(test)]
+pub(crate) use server_command_inbox::ServerInboxReceiver;
+pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox};
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
@@ -310,7 +322,6 @@ const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 const OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(8);
 const OUTPUT_RESYNC_RETRY_DELAY: Duration = Duration::from_millis(16);
 const DURABLE_OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(100);
-const OUTPUT_PERSISTENCE_BARRIER_TIMEOUT: Duration = Duration::from_secs(2);
 const TERMINAL_INPUT_BACKPRESSURE_CODE: &str = "terminal_input_backpressure";
 /// Cap coalesced PTY→client batches so a verbose agent/build cannot grow an
 /// unbounded `output_batch` between timer flushes (early flush when exceeded).
@@ -381,7 +392,9 @@ struct ServerActor {
     account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
     mobile_prompt_file_uploads: HashMap<u64, HashSet<String>>,
-    pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
+    pending_history_requests: HashMap<(u64, i64), String>,
+    history_writers:
+        HashMap<String, history_writer::OrderedHistoryWriter<TerminalHostHistoryStore>>,
     agent_presence: AgentPresenceRegistry,
     orchestration_waiters: MessageWaiterRegistry,
     orchestration_delivery_in_flight: HashSet<String>,
@@ -395,7 +408,7 @@ struct ServerActor {
     voice: voice_session::VoiceSessionState,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
-    inbox: UnboundedSender<ServerCommand>,
+    inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
     shutdown_gen: u64,
@@ -630,6 +643,14 @@ impl ServerActor {
                 );
             }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
+            ServerCommand::HistoryRequestRetry {
+                client_id,
+                request_id,
+                line,
+            } => {
+                self.handle_history_request_retry(client_id, request_id, line)
+                    .await
+            }
             ServerCommand::ClientDisconnected { id } => {
                 self.account_push.relay_presence.remove(&id);
                 self.dispose_client(id).await;
@@ -653,8 +674,13 @@ impl ServerActor {
                 event,
                 handled,
             } => {
-                self.handle_pty_event(session_id, event).await;
-                let _ = handled.send(());
+                if self.handle_pty_event(session_id.clone(), event).await {
+                    let _ = handled.send(());
+                } else if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.hold_pty_ack(handled);
+                } else {
+                    let _ = handled.send(());
+                }
             }
             ServerCommand::OutputBatchTick {
                 session_id,
@@ -667,7 +693,13 @@ impl ServerActor {
             ServerCommand::DurableOutputBatchTick {
                 session_id,
                 generation,
-            } => self.handle_durable_output_batch_tick(session_id, generation),
+            } => {
+                self.handle_durable_output_batch_tick(session_id, generation)
+                    .await
+            }
+            ServerCommand::HistoryWriterReady { session_id } => {
+                self.handle_history_writer_ready(&session_id)
+            }
             ServerCommand::CheckpointTick {
                 session_id,
                 generation,
@@ -857,9 +889,15 @@ impl ServerActor {
             }
             ServerCommand::PrepareRuntimeMutation {
                 request,
+                captured_shutdown,
                 completion,
             } => {
-                let result = self.prepare_runtime_mutation(&request).await;
+                let result = self
+                    .prepare_runtime_mutation_with_shutdown(
+                        &request,
+                        captured_shutdown.map(|shutdown| *shutdown),
+                    )
+                    .await;
                 let _ = completion.send(result);
             }
             ServerCommand::OrchestrationWaitTimeout {
@@ -1184,12 +1222,14 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(DEFERRED_ENTER_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
-                session_id,
-                session_instance_id,
-                message_ids,
-                force_submit,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::OrchestrationDeferredEnter {
+                    session_id,
+                    session_instance_id,
+                    message_ids,
+                    force_submit,
+                })
+                .await;
         });
     }
 
@@ -1254,11 +1294,13 @@ impl ServerActor {
             } else {
                 SshBootstrapStatus::Failed
             };
-            let _ = inbox.send(ServerCommand::SshBootstrapFinished {
-                target_id: task_target_id,
-                job_id: task_job_id,
-                status,
-            });
+            let _ = inbox
+                .send_wait(ServerCommand::SshBootstrapFinished {
+                    target_id: task_target_id,
+                    job_id: task_job_id,
+                    status,
+                })
+                .await;
         });
         let job = SshBootstrapJobState {
             job_id: job_id.clone(),
@@ -1348,17 +1390,6 @@ impl ServerActor {
         self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
         Ok(target)
     }
-
-    fn spawn_checkpoint_timer(&self, session_id: String, generation: u64) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(CHECKPOINT_DELAY).await;
-            let _ = inbox.send(ServerCommand::CheckpointTick {
-                session_id,
-                generation,
-            });
-        });
-    }
 }
 
 #[cfg(test)]
@@ -1372,4 +1403,10 @@ mod server_actor_orchestration_tests;
 mod server_actor_test_support;
 
 #[cfg(test)]
+#[path = "server/orchestration_deferred_enter_admission_tests.rs"]
+mod orchestration_deferred_enter_admission_tests;
+#[cfg(test)]
 mod remote_automation_cleanup_runtime_tests;
+#[cfg(test)]
+#[path = "server/runtime_mutation_completion_budget_tests.rs"]
+mod runtime_mutation_completion_budget_tests;

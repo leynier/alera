@@ -10,6 +10,7 @@ part 'codex_runtime_home_service_test_harness.dart';
 
 part 'codex_runtime_home_service_core_test_cases.dart';
 part 'codex_runtime_home_service_advanced_test_cases.dart';
+part 'codex_runtime_home_service_retry_test_cases.dart';
 
 late Directory root;
 late Directory home;
@@ -39,5 +40,6 @@ void main() {
 
     _registerCodexRuntimeHomeServiceCoreTests();
     _registerCodexRuntimeHomeServiceAdvancedTests();
+    _registerCodexRuntimeHomeServiceRetryTests();
   });
 }

@@ -344,7 +344,7 @@ async fn ssh_precheck_actor_recovers_receipt_without_dispatching_a_changed_defin
                 .unwrap();
         }
         let current = store.find_automation_run(&run.id).await.unwrap().unwrap();
-        let (sender, mut inbox) = tokio::sync::mpsc::unbounded_channel();
+        let (sender, mut inbox) = crate::terminal_host::ServerInbox::channel();
         fixture.actor.inbox = sender;
         assert!(
             fixture

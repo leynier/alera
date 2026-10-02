@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/process/process_output.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 /// How long the workspace host lets one tool run. The host caps the value it
@@ -23,7 +24,8 @@ const Duration _requestMargin = Duration(seconds: 40);
 ///
 /// `start` is not available: nothing streams over the link, and the features
 /// that stream (AI Assist) are forwarded as whole runtime verbs instead.
-class RemoteProcessRunner implements ProcessRunner {
+class RemoteProcessRunner
+    implements ProcessRunner, ProcessRunnerWithOutputBudget {
   RemoteProcessRunner(
     this._client, {
     required this.workspaceId,
@@ -35,6 +37,43 @@ class RemoteProcessRunner implements ProcessRunner {
   final String workspaceId;
   final Future<void> Function()? beforeAccess;
   final Duration timeout;
+
+  @override
+  Future<ProcessRunOutput> runWithOutputBudget(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    required int maxOutputBytes,
+    Duration? timeout,
+  }) {
+    if (maxOutputBytes != processRunDefaultMaxOutputBytes) {
+      return Future<ProcessRunOutput>.error(
+        ProcessException(
+          executable,
+          arguments,
+          'The workspace host supports a fixed process output budget of '
+          '$processRunDefaultMaxOutputBytes bytes.',
+        ),
+      );
+    }
+    if (timeout != null && timeout != this.timeout) {
+      return Future<ProcessRunOutput>.error(
+        ProcessException(
+          executable,
+          arguments,
+          'The workspace host supports a fixed process timeout of '
+          '${this.timeout.inMilliseconds}ms.',
+        ),
+      );
+    }
+    return run(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
+  }
 
   @override
   Future<ProcessRunOutput> run(

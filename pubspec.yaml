@@ -24,7 +24,8 @@ dependencies:
   ffi: ^2.2.0
   portable_pty: ^0.0.5
   xterm2: ^5.3.0
-  desktop_updater: ^2.7.0
+  desktop_updater:
+    path: third_party/desktop_updater
   http: ^1.6.0
   record: ^7.1.1
   speech_to_text: ^7.4.0

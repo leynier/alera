@@ -61,7 +61,7 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
             "neighbor".into(),
             Session::driver_test_stub("neighbor", 80, 24),
         );
-        let (inbox, mut commands) = mpsc::unbounded_channel();
+        let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
         actor.inbox = inbox;
         let id = uuid::Uuid::new_v4().to_string();
         let payload = json!({"operationId":id,"workspace":workspace,"tabId":"tab","sessionId":"session","action":action});
@@ -78,6 +78,36 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
             .await
             .unwrap()
             .is_none());
+        let (release, wait) = tokio::sync::oneshot::channel();
+        actor
+            .sessions
+            .get_mut("session")
+            .unwrap()
+            .begin_checkpoint_job(tokio::spawn(async move {
+                wait.await.map_err(|error| error.to_string())
+            }));
+        assert!(actor
+            .start_owner_terminal_lifecycle(1, 2, &payload)
+            .await
+            .is_err());
+        assert!(
+            actor
+                .runtime_store
+                .terminal_lifecycle_operation(&id)
+                .await
+                .unwrap()
+                .is_none(),
+            "history admission must finish before persisting a lifecycle operation"
+        );
+        assert!(actor.sessions.contains_key("session"));
+        release.send(()).unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !actor.await_output_writes("session").await {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
         actor
             .start_owner_terminal_lifecycle(1, 2, &payload)
             .await
@@ -101,6 +131,16 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
                 actor.handle(command).await;
                 continue;
             }
+            if matches!(
+                &command,
+                ServerCommand::HistoryWriterReady { session_id } if session_id == "session"
+            ) {
+                // A writer completion can race the lifecycle result after the
+                // history barrier has drained. Keep the actor's normal
+                // completion path while waiting for the lifecycle result.
+                actor.handle(command).await;
+                continue;
+            }
             break command;
         };
         match &command {
@@ -108,7 +148,10 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
             ServerCommand::OwnerTerminalLifecycleFinished {
                 result: Err(error), ..
             } => panic!("terminal lifecycle failed: {}", error.wire_message()),
-            _ => panic!("unexpected terminal lifecycle command"),
+            _ => panic!(
+                "unexpected terminal lifecycle command ({:?})",
+                std::mem::discriminant(&command)
+            ),
         }
         actor.handle(command).await;
         assert_eq!(actor.managed_workspace_jobs, 0);
@@ -205,7 +248,7 @@ async fn failed_shutdown_retries_original_capture_and_keeps_unknown_closure_pend
         .begin_terminal_lifecycle_operation(&operation)
         .await
         .unwrap();
-    let (inbox, mut commands) = mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     actor.inbox = inbox;
     let mut shutdown = WorkspaceShutdown::default();
     shutdown.fail_next_waits(1);

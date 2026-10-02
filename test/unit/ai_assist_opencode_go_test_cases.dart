@@ -21,6 +21,9 @@ class _FakeOpenCodeGoCompleter implements AiAssistHostCompleter {
   String? lastModel;
   String? lastSessionId;
   String? lastOperationId;
+  String? lastThinkingLevel;
+  String? lastServiceTier;
+  AiAssistThinkingContext? lastThinkingContext;
 
   @override
   Future<AiAssistAgentRunResult> complete({
@@ -29,12 +32,18 @@ class _FakeOpenCodeGoCompleter implements AiAssistHostCompleter {
     required String sessionId,
     required String operationId,
     required int timeoutSeconds,
+    String? thinkingLevel,
+    String? serviceTier,
+    AiAssistThinkingContext? thinkingContext,
   }) async {
     completeCount += 1;
     lastPrompt = prompt;
     lastModel = model;
     lastSessionId = sessionId;
     lastOperationId = operationId;
+    lastThinkingLevel = thinkingLevel;
+    lastServiceTier = serviceTier;
+    lastThinkingContext = thinkingContext;
     final thrown = error;
     if (thrown != null) {
       throw thrown;
@@ -85,6 +94,9 @@ void _registerOpenCodeGoAiAssistTests() {
       expect(host.lastModel, 'glm-5.3-flash');
       expect(host.lastSessionId, 'go-run');
       expect(host.lastOperationId, 'go-run');
+      expect(host.lastThinkingLevel, isNull);
+      expect(host.lastServiceTier, isNull);
+      expect(host.lastThinkingContext, isNull);
       expect(result.text, 'feat: add go assist');
       expect(result.agentLabel, 'OpenCode Go');
     },

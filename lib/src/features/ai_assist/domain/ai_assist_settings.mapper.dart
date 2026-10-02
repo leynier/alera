@@ -822,6 +822,14 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
     opt: true,
     def: 120,
   );
+  static String _$chatGptServiceTier(AiAssistSettings v) =>
+      v.chatGptServiceTier;
+  static const Field<AiAssistSettings, String> _f$chatGptServiceTier = Field(
+    'chatGptServiceTier',
+    _$chatGptServiceTier,
+    opt: true,
+    def: aiAssistChatGptDefaultServiceTier,
+  );
 
   @override
   final MappableFields<AiAssistSettings> fields = const {
@@ -837,6 +845,7 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
     #instructionsByOperation: _f$instructionsByOperation,
     #promptSettingsByOperation: _f$promptSettingsByOperation,
     #timeoutSeconds: _f$timeoutSeconds,
+    #chatGptServiceTier: _f$chatGptServiceTier,
   };
 
   static AiAssistSettings _instantiate(DecodingData data) {
@@ -853,6 +862,7 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
       instructionsByOperation: data.dec(_f$instructionsByOperation),
       promptSettingsByOperation: data.dec(_f$promptSettingsByOperation),
       timeoutSeconds: data.dec(_f$timeoutSeconds),
+      chatGptServiceTier: data.dec(_f$chatGptServiceTier),
     );
   }
 
@@ -968,6 +978,7 @@ abstract class AiAssistSettingsCopyWith<$R, $In extends AiAssistSettings, $Out>
     Map<AiAssistOperation, String>? instructionsByOperation,
     Map<AiAssistOperation, AiAssistPromptSettings>? promptSettingsByOperation,
     int? timeoutSeconds,
+    String? chatGptServiceTier,
   });
   AiAssistSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1068,6 +1079,7 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
     Map<AiAssistOperation, String>? instructionsByOperation,
     Map<AiAssistOperation, AiAssistPromptSettings>? promptSettingsByOperation,
     int? timeoutSeconds,
+    String? chatGptServiceTier,
   }) => $apply(
     FieldCopyWithData({
       if (enabled != null) #enabled: enabled,
@@ -1090,6 +1102,7 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
       if (promptSettingsByOperation != null)
         #promptSettingsByOperation: promptSettingsByOperation,
       if (timeoutSeconds != null) #timeoutSeconds: timeoutSeconds,
+      if (chatGptServiceTier != null) #chatGptServiceTier: chatGptServiceTier,
     }),
   );
   @override
@@ -1130,6 +1143,10 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
       or: $value.promptSettingsByOperation,
     ),
     timeoutSeconds: data.get(#timeoutSeconds, or: $value.timeoutSeconds),
+    chatGptServiceTier: data.get(
+      #chatGptServiceTier,
+      or: $value.chatGptServiceTier,
+    ),
   );
 
   @override

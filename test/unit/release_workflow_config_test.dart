@@ -1,9 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yaml/yaml.dart';
+
+import 'release_workflow_publication_cases.dart';
 
 void main() {
   group('release workflow configuration', () {
+    registerReleaseWorkflowPublicationCases();
+
     test('packages GTK and system libraries without a browser engine', () {
       final setup = File('.github/actions/setup-flutter-workspace/action.yml')
           .readAsStringSync();
@@ -101,12 +106,20 @@ void main() {
       final workflow = File('.github/workflows/release-cut.yml')
           .readAsStringSync();
       final config = File('desktop_updater.yaml').readAsStringSync();
-      final pubspec = File('pubspec.yaml').readAsStringSync();
+      final pubspec =
+          loadYaml(File('pubspec.yaml').readAsStringSync()) as YamlMap;
+      final dependencies = pubspec['dependencies'] as YamlMap;
+      final updaterDependency = dependencies['desktop_updater'] as YamlMap;
+      final vendorPubspec = loadYaml(
+        File('third_party/desktop_updater/pubspec.yaml').readAsStringSync(),
+      ) as YamlMap;
       final updaterSources = Directory('lib/src/features/updater')
           .listSync(recursive: true)
           .whereType<File>();
 
-      expect(pubspec, contains('desktop_updater: ^2.7.0'));
+      expect(updaterDependency['path'], 'third_party/desktop_updater');
+      expect(vendorPubspec['name'], 'desktop_updater');
+      expect(vendorPubspec['version'], '2.7.0');
       expect(
         updaterSources.map((file) => file.readAsStringSync()).join('\n'),
         isNot(contains('package:desktop_updater/src/')),
@@ -297,72 +310,6 @@ void main() {
       );
       expect(chocolateyJob, contains('choco push \$package'));
     });
-
-    test('publishes desktop packages when the mobile build is skipped', () {
-      final workflow = File('.github/workflows/release-cut.yml')
-          .readAsStringSync();
-      final packageJob = workflow.substring(
-        workflow.indexOf('  publish_packages:'),
-        workflow.indexOf('  publish_chocolatey:'),
-      );
-      final chocolateyJob = workflow.substring(
-        workflow.indexOf('  publish_chocolatey:'),
-      );
-
-      expect(packageJob, contains('!cancelled()'));
-      expect(packageJob, contains("needs.publish.result == 'success'"));
-      expect(chocolateyJob, contains('!cancelled()'));
-      expect(
-        chocolateyJob,
-        contains("needs.publish_packages.result == 'success'"),
-      );
-    });
-
-    test('publishes only after the prepared version pull request merges', () {
-      final workflow = File('.github/workflows/release-cut.yml')
-          .readAsStringSync();
-      final publish = workflow.substring(workflow.indexOf('  publish:'));
-
-      expect(workflow, contains('pull_request:'));
-      expect(workflow, contains('- closed'));
-      expect(workflow, contains('prepare_version_pr:'));
-      expect(workflow, contains('prepared_release.dart write'));
-      expect(workflow, contains('prepared_release.dart inspect'));
-      expect(workflow, contains('--state open'));
-      expect(workflow, contains('--force-with-lease='));
-      expect(
-        workflow,
-        isNot(contains('closed, merged, or has an unexpected head')),
-      );
-      expect(workflow, contains("ready_to_publish == 'true'"));
-      expect(workflow, contains('gh workflow run pr.yml'));
-      expect(workflow, contains('gh workflow run landing.yml'));
-      expect(workflow, isNot(contains('HEAD:refs/heads/main')));
-      expect(
-        workflow,
-        isNot(contains('--force-with-lease origin HEAD~1:refs/heads/main')),
-      );
-      expect(publish, contains('ref: \${{ needs.plan.outputs.target_sha }}'));
-      expect(publish, contains('--verify-tag'));
-    });
-
-    test(
-      'dispatches exact-head checks for automation-created pull requests',
-      () {
-        final pr = File('.github/workflows/pr.yml').readAsStringSync();
-        final release = File('.github/workflows/release-cut.yml')
-            .readAsStringSync();
-
-        expect(pr, contains('workflow_dispatch:'));
-        expect(pr, contains('base_sha:'));
-        expect(pr, contains('head_sha:'));
-        expect(pr, contains(r'git diff --check "$BASE_SHA...$HEAD_SHA"'));
-        expect(File('.mergify.yml').existsSync(), isFalse);
-        expect(File('.github/workflows/merge-queue.yml').existsSync(), isFalse);
-        expect(release, isNot(contains('Mergify')));
-        expect(release, contains('Squash-merge this pull request after'));
-      },
-    );
 
     test('desktop builds opt disposable native tests into clipboard access', () {
       final workflow = File('.github/workflows/desktop-build.yml')

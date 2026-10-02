@@ -93,6 +93,47 @@ void main() {
     );
   });
 
+  test(
+    'round-trips the ChatGPT service tier and normalizes unknown values',
+    () {
+      const settings = AiAssistSettings(
+        agent: .chatgpt,
+        chatGptServiceTier: aiAssistChatGptFastServiceTier,
+      );
+
+      final restored = AiAssistSettings.fromJson(settings.toMap());
+      expect(restored.chatGptServiceTier, aiAssistChatGptFastServiceTier);
+      expect(
+        restored.effectiveChatGptServiceTier,
+        aiAssistChatGptFastServiceTier,
+      );
+
+      const legacy = AiAssistSettings();
+      expect(
+        legacy.effectiveChatGptServiceTier,
+        aiAssistChatGptDefaultServiceTier,
+      );
+
+      const mixedCase = AiAssistSettings(
+        agent: .chatgpt,
+        chatGptServiceTier: ' FAST ',
+      );
+      expect(
+        mixedCase.effectiveChatGptServiceTier,
+        aiAssistChatGptFastServiceTier,
+      );
+
+      const invalid = AiAssistSettings(
+        agent: .chatgpt,
+        chatGptServiceTier: 'future-tier',
+      );
+      expect(
+        invalid.effectiveChatGptServiceTier,
+        aiAssistChatGptDefaultServiceTier,
+      );
+    },
+  );
+
   test('resolves prompt agent and model overrides independently', () {
     const settings = AiAssistSettings(
       agent: .codex,

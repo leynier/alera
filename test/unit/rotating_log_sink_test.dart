@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/shared/infra/logging/rotating_log_sink.dart';
@@ -137,5 +138,114 @@ void main() {
     await sink.writeLine('after');
 
     expect(sink.fileFor(0).readAsStringSync(), 'before\n');
+  });
+
+  test('an unwritable log path completes writes without throwing', () async {
+    final blocker = File('${root.path}/not-a-directory')
+      ..writeAsStringSync('blocker');
+    final sink = RotatingLogSink(
+      directory: Directory(blocker.path),
+      baseName: 'alera',
+    );
+
+    await expectLater(sink.writeLine('line'), completes);
+    await expectLater(sink.flush(), completes);
+    await expectLater(sink.close(), completes);
+  });
+
+  test(
+    'handles an asynchronous file sink failure without an uncaught error',
+    () async {
+      if (!Platform.isLinux || !File('/dev/full').existsSync()) {
+        return;
+      }
+      await Link('${root.path}/alera.log').create('/dev/full');
+      final sink = RotatingLogSink(
+        directory: root,
+        baseName: 'alera',
+        flushBytes: 1,
+      );
+      final uncaught = <Object>[];
+
+      await runZonedGuarded(
+        () async {
+          await sink.writeLine('line');
+          await sink.flush();
+          await sink.close();
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        },
+        (error, _) {
+          uncaught.add(error);
+        },
+      );
+
+      expect(uncaught, isEmpty);
+    },
+  );
+
+  test(
+    'pending writes stay bounded when the producer outpaces the sink',
+    () async {
+      final blocker = File('${root.path}/not-a-directory')
+        ..writeAsStringSync('blocker');
+      final sink = RotatingLogSink(
+        directory: Directory(blocker.path),
+        baseName: 'alera',
+        maxPendingBytes: 32,
+      );
+
+      final writes = <Future<void>>[
+        for (var index = 0; index < 1000; index++)
+          sink.writeLine('line-$index'),
+      ];
+
+      await Future.wait(writes);
+      await sink.close();
+    },
+  );
+
+  test('drops a single record larger than the pending budget', () async {
+    final sink = RotatingLogSink(
+      directory: root,
+      baseName: 'alera',
+      maxPendingBytes: 32,
+    );
+
+    await sink.writeLine('x' * 100);
+    await sink.close();
+
+    expect(sink.fileFor(0).existsSync(), isFalse);
+  });
+
+  test('bounds pending records using their UTF-8 byte length', () async {
+    final sink = RotatingLogSink(
+      directory: root,
+      baseName: 'alera',
+      maxPendingBytes: 5,
+    );
+
+    await sink.writeLine('éé');
+    await sink.close();
+
+    expect(sink.fileFor(0).readAsBytesSync(), <int>[
+      0xc3,
+      0xa9,
+      0xc3,
+      0xa9,
+      0x0a,
+    ]);
+  });
+
+  test('drops an oversized multibyte record before encoding it', () async {
+    final sink = RotatingLogSink(
+      directory: root,
+      baseName: 'alera',
+      maxPendingBytes: 4,
+    );
+
+    await sink.writeLine('éé');
+    await sink.close();
+
+    expect(sink.fileFor(0).existsSync(), isFalse);
   });
 }

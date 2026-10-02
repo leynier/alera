@@ -104,6 +104,21 @@ void main() {
     expect(jobs.rust, isFalse);
   });
 
+  test('desktop updater fork and app boundary run package validation', () {
+    for (final (path, generation) in const [
+      ('third_party/desktop_updater/lib/src/core/update_client.dart', false),
+      ('lib/src/features/updater/infra/desktop_update_service.dart', true),
+    ]) {
+      final jobs = selectCiJobs(<String>[path]);
+      expect(jobs.packages, isTrue, reason: path);
+      expect(jobs.test, isTrue, reason: path);
+      expect(jobs.staticDart, isTrue, reason: path);
+      expect(jobs.generation, generation, reason: path);
+      expect(jobs.mobile, isFalse, reason: path);
+      expect(jobs.rust, isFalse, reason: path);
+    }
+  });
+
   test('workflow and selector changes fail open', () {
     expect(
       selectCiJobs(const <String>['.github/workflows/pr.yml']),

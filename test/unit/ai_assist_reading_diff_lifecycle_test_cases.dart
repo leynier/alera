@@ -1,6 +1,99 @@
 part of 'ai_assist_service_test.dart';
 
 void _registerAiAssistReadingDiffLifecycleTests() {
+  test('kills and reaps a live process before invalid UTF-8 escapes', () async {
+    var stdoutCanceled = false;
+    var stderrCanceled = false;
+    final stdout = StreamController<List<int>>(
+      sync: true,
+      onCancel: () => stdoutCanceled = true,
+    );
+    final stderr = StreamController<List<int>>(
+      sync: true,
+      onCancel: () => stderrCanceled = true,
+    );
+    addTearDown(() async {
+      await stdout.close();
+      await stderr.close();
+    });
+    final exit = Completer<int>();
+    final process = _FakeProcessRunner(
+      stdout: '',
+      stdoutStream: stdout.stream,
+      stderrStream: stderr.stream,
+      exitCodeCompleter: exit,
+    );
+    final runner = CliAiAssistAgentRunner(
+      processRunner: process,
+      commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+    );
+
+    final run = runner.run(
+      const AiAssistAgentRunRequest(
+        settings: AiAssistSettings(),
+        prompt: 'Plan this diff.',
+        runId: 'invalid-utf8-cleanup',
+        workingDirectory: '/repo',
+        agent: .codex,
+      ),
+    );
+    stdout.add(<int>[0xff]);
+
+    await expectLater(run, throwsA(isA<FormatException>()));
+    expect(process.killed, isTrue);
+    expect(exit.isCompleted, isTrue);
+    expect(stdoutCanceled, isTrue);
+    expect(stderrCanceled, isTrue);
+  });
+
+  test(
+    'kills and reaps a live process before a stream error escapes',
+    () async {
+      var stdoutCanceled = false;
+      var stderrCanceled = false;
+      final stdout = StreamController<List<int>>(
+        sync: true,
+        onCancel: () => stdoutCanceled = true,
+      );
+      final stderr = StreamController<List<int>>(
+        sync: true,
+        onCancel: () => stderrCanceled = true,
+      );
+      addTearDown(() async {
+        await stdout.close();
+        await stderr.close();
+      });
+      final exit = Completer<int>();
+      final process = _FakeProcessRunner(
+        stdout: '',
+        stdoutStream: stdout.stream,
+        stderrStream: stderr.stream,
+        exitCodeCompleter: exit,
+      );
+      final runner = CliAiAssistAgentRunner(
+        processRunner: process,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+      );
+
+      final run = runner.run(
+        const AiAssistAgentRunRequest(
+          settings: AiAssistSettings(),
+          prompt: 'Plan this diff.',
+          runId: 'stream-error-cleanup',
+          workingDirectory: '/repo',
+          agent: .codex,
+        ),
+      );
+      stdout.addError(StateError('broken agent output'));
+
+      await expectLater(run, throwsA(isA<StateError>()));
+      expect(process.killed, isTrue);
+      expect(exit.isCompleted, isTrue);
+      expect(stdoutCanceled, isTrue);
+      expect(stderrCanceled, isTrue);
+    },
+  );
+
   test('waits for a timed-out process before deleting task files', () async {
     final exit = Completer<int>();
     final process = _FakeProcessRunner(

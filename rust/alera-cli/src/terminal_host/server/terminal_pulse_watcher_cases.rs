@@ -6,6 +6,9 @@ use super::watcher::event_is_relevant;
 use super::watcher::event_scope::{event_invalidates_workspace_root, retain_workspace_paths};
 use super::{TerminalPulseManager, WorkspacePulseWatcher};
 
+#[path = "terminal_pulse_watcher_cases/lifecycle.rs"]
+mod lifecycle;
+
 #[cfg(unix)]
 #[test]
 fn canonical_workspace_root_keeps_symlinked_events_git_relative() {
@@ -241,7 +244,7 @@ fn initial_watch_set_keeps_tracked_and_negated_paths_below_ignore_rules() {
 fn newly_created_directories_are_added_to_the_watch_set() {
     let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         dir.path().to_path_buf(),
@@ -262,7 +265,7 @@ fn newly_created_directories_are_added_to_the_watch_set() {
 fn files_written_before_directory_reconciliation_are_reported() {
     let dir = super::tests::tempdir().unwrap();
     Repository::init(dir.path()).unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         dir.path().to_path_buf(),
@@ -287,7 +290,7 @@ fn git_index_changes_add_force_tracked_directories_to_the_watch_set() {
     std::fs::create_dir(&ignored).unwrap();
     let tracked = ignored.join("tracked.txt");
     std::fs::write(&tracked, "initial").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         dir.path().to_path_buf(),
@@ -314,7 +317,7 @@ fn repository_exclude_changes_add_newly_unignored_directories_to_the_watch_set()
     std::fs::write(repository.commondir().join("info/exclude"), "ignored/\n").unwrap();
     let ignored = dir.path().join("ignored");
     std::fs::create_dir(&ignored).unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher = WorkspacePulseWatcher::start_blocking(
         "workspace-1".to_string(),
         dir.path().to_path_buf(),
@@ -338,7 +341,7 @@ fn ancestor_ignore_changes_reconcile_subdirectory_workspaces() {
     let workspace = dir.path().join("workspace");
     let ignored = workspace.join("ignored");
     std::fs::create_dir_all(&ignored).unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher =
         WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
             .unwrap();
@@ -359,7 +362,7 @@ fn ancestor_ignore_unignores_an_existing_subdirectory_workspace_file() {
     let workspace = dir.path().join("workspace");
     std::fs::create_dir(&workspace).unwrap();
     std::fs::write(workspace.join("visible.txt"), "existing").unwrap();
-    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = crate::terminal_host::ServerInbox::channel();
     let _watcher =
         WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
             .unwrap();
@@ -443,33 +446,7 @@ fn ambiguous_untracked_directory_removal_and_move_out_are_relevant() {
     .unwrap());
 }
 
-#[test]
-fn failed_watcher_generation_rejects_a_late_start_result() {
-    let dir = super::tests::tempdir().unwrap();
-    Repository::init(dir.path()).unwrap();
-    let (inbox, _commands) = tokio::sync::mpsc::unbounded_channel();
-    let mut manager = TerminalPulseManager::default();
-    let generation = manager.reserve_watcher_start("workspace-1").unwrap();
-
-    assert!(manager
-        .fail_watcher_start("workspace-1", generation)
-        .is_some());
-    let watcher = WorkspacePulseWatcher::start_blocking(
-        "workspace-1".to_string(),
-        dir.path().to_path_buf(),
-        generation,
-        inbox,
-    )
-    .unwrap();
-
-    assert!(manager
-        .finish_watcher_start("workspace-1", generation, watcher)
-        .is_none());
-}
-
-fn assert_file_changed(
-    commands: &mut tokio::sync::mpsc::UnboundedReceiver<super::super::ServerCommand>,
-) {
+fn assert_file_changed(commands: &mut crate::terminal_host::server::ServerInboxReceiver) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     loop {
         if let Ok(command) = commands.try_recv() {
