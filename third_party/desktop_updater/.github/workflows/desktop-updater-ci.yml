@@ -1,0 +1,231 @@
+name: Desktop Updater CI
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  dart:
+    name: Dart Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+      - name: Test Dart surface
+        run: flutter test --no-pub
+      - name: Check CLI entrypoints
+        run: |
+          dart run desktop_updater:package --help
+          dart run desktop_updater:verify --help
+          dart run desktop_updater:release publish --help
+      - name: Pub publish dry-run
+        run: dart pub publish --dry-run
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build example
+        working-directory: example
+        run: flutter build windows --debug
+      - name: Build native tests
+        working-directory: example
+        run: cmake --build build/windows/x64 --config Debug --target desktop_updater_test
+      - name: Run native tests
+        working-directory: example
+        run: ctest --test-dir build/windows/x64 -C Debug --output-on-failure
+      - name: Run integration tests
+        working-directory: example
+        run: flutter test integration_test -d windows
+      - name: Rebuild example for smoke
+        working-directory: example
+        run: flutter build windows --debug
+      - name: Run update smoke
+        working-directory: example
+        run: dart run tool/updater_smoke.dart --diagnostics-log ../reports/windows-update-smoke-debug-diagnostics.jsonl
+      - name: Windows Inno update smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/windows_inno_smoke.ps1
+      - name: Upload update smoke diagnostics
+        if: ${{ failure() || vars.DESKTOP_UPDATER_UPLOAD_SMOKE_DIAGNOSTICS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-update-smoke-debug-diagnostics
+          path: reports/windows-update-smoke-debug-diagnostics.jsonl
+          if-no-files-found: ignore
+      - name: Upload Windows Inno update smoke diagnostics
+        if: ${{ failure() || vars.DESKTOP_UPDATER_UPLOAD_SMOKE_DIAGNOSTICS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-inno-update-smoke-diagnostics
+          path: reports/windows-inno-update-smoke-diagnostics.jsonl
+          if-no-files-found: ignore
+      - name: Build example release
+        working-directory: example
+        run: flutter build windows --release
+      - name: Build native tests release
+        working-directory: example
+        run: cmake --build build/windows/x64 --config Release --target desktop_updater_test
+      - name: Run native tests release
+        working-directory: example
+        run: ctest --test-dir build/windows/x64 -C Release --output-on-failure
+      - name: Run integration tests release
+        working-directory: example
+        run: flutter test integration_test -d windows
+      - name: Run release publish smoke
+        working-directory: example
+        run: dart run tool/release_publish_smoke.dart --platform windows
+      - name: Run update smoke release
+        working-directory: example
+        run: dart run tool/updater_smoke.dart --config Release --diagnostics-log ../reports/windows-update-smoke-release-diagnostics.jsonl
+      - name: Upload update smoke release diagnostics
+        if: ${{ failure() || vars.DESKTOP_UPDATER_UPLOAD_SMOKE_DIAGNOSTICS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-update-smoke-release-diagnostics
+          path: reports/windows-update-smoke-release-diagnostics.jsonl
+          if-no-files-found: ignore
+
+  macos-notarized:
+    name: macOS Notarized Publish
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch' && vars.DESKTOP_UPDATER_RUN_NOTARIZED_PUBLISH_E2E == '1'
+    # The full DMG/PKG production smoke is local/manual unless a future
+    # workflow_dispatch lane explicitly configures Developer ID Application,
+    # Developer ID Installer, and notary credentials:
+    # dart run tool/macos_production_smoke.dart all --cleanup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Configure Developer ID certificate
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          test -n "$MACOS_CERTIFICATE_P12_BASE64"
+          test -n "$MACOS_CERTIFICATE_PASSWORD"
+          test -n "$MACOS_KEYCHAIN_PASSWORD"
+          KEYCHAIN_PATH="$RUNNER_TEMP/desktop-updater-notary.keychain-db"
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -A -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "DESKTOP_UPDATER_MACOS_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+      - name: Configure notary profile
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          DESKTOP_UPDATER_MACOS_NOTARY_PROFILE: desktop-updater-notary
+        run: |
+          test -n "$APPLE_ID"
+          test -n "$APPLE_TEAM_ID"
+          test -n "$APPLE_APP_SPECIFIC_PASSWORD"
+          xcrun notarytool store-credentials "$DESKTOP_UPDATER_MACOS_NOTARY_PROFILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --keychain "$DESKTOP_UPDATER_MACOS_KEYCHAIN"
+          echo "DESKTOP_UPDATER_MACOS_NOTARY_PROFILE=$DESKTOP_UPDATER_MACOS_NOTARY_PROFILE" >> "$GITHUB_ENV"
+      - name: Run notarized release publish smoke
+        working-directory: example
+        env:
+          DESKTOP_UPDATER_RUN_NOTARIZED_PUBLISH_E2E: "1"
+          DESKTOP_UPDATER_MACOS_DEVELOPER_ID_APPLICATION: ${{ secrets.MACOS_DEVELOPER_ID_APPLICATION }}
+        run: dart run tool/release_publish_smoke.dart --platform macos --notarize
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake libgtk-3-dev ninja-build pkg-config xvfb
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build example
+        working-directory: example
+        run: flutter build linux --debug
+      - name: Build native tests
+        working-directory: example
+        run: cmake --build build/linux/x64/debug --target desktop_updater_test
+      - name: Run native tests
+        working-directory: example
+        run: ctest --test-dir build/linux/x64/debug --output-on-failure
+      - name: Run integration tests
+        working-directory: example
+        run: xvfb-run -a flutter test integration_test -d linux
+      - name: Rebuild example for smoke
+        working-directory: example
+        run: flutter build linux --debug
+      - name: Run update smoke
+        working-directory: example
+        run: xvfb-run -a dart run tool/updater_smoke.dart --diagnostics-log ../reports/linux-update-smoke-debug-diagnostics.jsonl
+      - name: Upload update smoke diagnostics
+        if: ${{ failure() || vars.DESKTOP_UPDATER_UPLOAD_SMOKE_DIAGNOSTICS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-update-smoke-debug-diagnostics
+          path: reports/linux-update-smoke-debug-diagnostics.jsonl
+          if-no-files-found: ignore
+      - name: Build example release
+        working-directory: example
+        run: flutter build linux --release
+      - name: Build native tests release
+        working-directory: example
+        run: cmake --build build/linux/x64/release --target desktop_updater_test
+      - name: Run native tests release
+        working-directory: example
+        run: ctest --test-dir build/linux/x64/release --output-on-failure
+      - name: Run integration tests release
+        working-directory: example
+        run: xvfb-run -a flutter test integration_test -d linux
+      - name: Run release publish smoke
+        working-directory: example
+        run: dart run tool/release_publish_smoke.dart --platform linux
+      - name: Run update smoke release
+        working-directory: example
+        run: xvfb-run -a dart run tool/updater_smoke.dart --config Release --diagnostics-log ../reports/linux-update-smoke-release-diagnostics.jsonl
+      - name: Upload update smoke release diagnostics
+        if: ${{ failure() || vars.DESKTOP_UPDATER_UPLOAD_SMOKE_DIAGNOSTICS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-update-smoke-release-diagnostics
+          path: reports/linux-update-smoke-release-diagnostics.jsonl
+          if-no-files-found: ignore

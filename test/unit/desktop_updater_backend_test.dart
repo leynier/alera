@@ -4,13 +4,17 @@ import 'dart:io';
 
 import 'package:alera/src/features/updater/infra/bounded_update_transport.dart';
 import 'package:alera/src/features/updater/infra/desktop_updater_backend.dart';
+import 'package:alera/src/shared/infra/process/process_runner.dart'
+    as alera_process;
 import 'package:cryptography/cryptography.dart';
 import 'package:desktop_updater/desktop_updater.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
 
 part 'desktop_updater_backend_artifact_cases.dart';
+part 'desktop_updater_backend_cancellation_cases.dart';
 
 void main() {
   group('DesktopUpdaterBackend', () {
@@ -237,6 +241,7 @@ void main() {
       },
     );
     registerDesktopUpdaterBackendArtifactTests();
+    registerDesktopUpdaterBackendCancellationTests();
   });
 }
 

@@ -1,0 +1,55 @@
+import "dart:io";
+
+import "package:desktop_updater/src/io/file_update_transport.dart";
+import "package:desktop_updater/src/io/http_update_transport.dart";
+import "package:desktop_updater/src/io/update_transport.dart";
+
+class CompositeUpdateTransport
+    implements UpdateTransport, CancellableUpdateTransport {
+  CompositeUpdateTransport({
+    HttpUpdateTransport? httpTransport,
+    UpdateRequestHeadersProvider? requestHeadersProvider,
+    FileUpdateTransport fileTransport = const FileUpdateTransport(),
+  })  : _httpTransport = httpTransport ??
+            HttpUpdateTransport(requestHeadersProvider: requestHeadersProvider),
+        _fileTransport = fileTransport;
+
+  final HttpUpdateTransport _httpTransport;
+  final FileUpdateTransport _fileTransport;
+
+  @override
+  Future<void> download(
+    Uri source,
+    File destination, {
+    void Function(int receivedBytes, int? totalBytes)? onProgress,
+    Duration? timeout,
+  }) {
+    if (source.scheme == "http" || source.scheme == "https") {
+      return _httpTransport.download(
+        source,
+        destination,
+        onProgress: onProgress,
+        timeout: timeout,
+      );
+    }
+    if (source.scheme == "file") {
+      return _fileTransport.download(
+        source,
+        destination,
+        onProgress: onProgress,
+        timeout: timeout,
+      );
+    }
+    throw UnsupportedError("Unsupported update URL scheme: ${source.scheme}");
+  }
+
+  void close() {
+    _httpTransport.close();
+  }
+
+  /// Aborts an active HTTP request while preserving local-file behavior.
+  @override
+  Future<void> cancel() async {
+    await _httpTransport.cancel();
+  }
+}

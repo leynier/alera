@@ -184,6 +184,10 @@ class _DelayedUpdater extends DesktopUpdater {
     required ReleaseDescriptor descriptor,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
     UpdateRequestHeadersProvider? requestHeadersProvider,
+    ProcessRunner runProcess = defaultProcessRunner,
+    ProcessRunner? runCleanupProcess,
+    FileModeApplier applyFileMode = defaultFileModeApplier,
+    UpdateCancellationToken? cancellationToken,
   }) {
     return result;
   }

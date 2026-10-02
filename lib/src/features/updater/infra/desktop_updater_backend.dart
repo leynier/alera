@@ -4,12 +4,16 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:desktop_updater/desktop_updater.dart';
+import 'package:desktop_updater/desktop_updater.dart' hide ProcessRunner;
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
-import 'package:path/path.dart' as p;
 
 import 'bounded_update_transport.dart';
+import '../../../shared/infra/process/process_runner.dart';
+import '../../../shared/infra/process/rust_process_runner.dart';
+import 'updater_process_adapter.dart';
+import 'staged_update_cleanup.dart';
 
 class const DesktopUpdateIndexNotFound() implements Exception;
 
@@ -51,14 +55,24 @@ abstract interface class AleraDesktopUpdaterBackend {
 }
 
 class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
+  static final Logger _log = Logger('DesktopUpdaterBackend');
+
   DesktopUpdaterBackend({
     DesktopUpdater? updater,
+    ProcessRunner? processRunner,
     http.Client? client,
     this.requestTimeout = const Duration(seconds: 20),
     this.artifactTimeout = const Duration(seconds: 30),
     @visibleForTesting
     FutureOr<void> Function()? afterTransportCancelForTesting,
   }) : _updater = updater ?? DesktopUpdater(),
+       _processAdapter = UpdaterProcessAdapter(
+         processRunner: processRunner ?? const RustProcessRunner(),
+       ),
+       _cleanupProcessAdapter = UpdaterProcessAdapter(
+         processRunner: processRunner ?? const RustProcessRunner(),
+         timeout: const Duration(minutes: 2),
+       ),
        _providedClient = client,
        _client = client ?? http.Client(),
        // Keep this testing seam separate from the runtime state.
@@ -81,6 +95,8 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
   }
 
   final DesktopUpdater _updater;
+  final UpdaterProcessAdapter _processAdapter;
+  final UpdaterProcessAdapter _cleanupProcessAdapter;
   final http.Client? _providedClient;
   http.Client _client;
   final Duration requestTimeout;
@@ -90,6 +106,7 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
   final Duration artifactTimeout;
   final FutureOr<void> Function()? _afterTransportCancel;
   BoundedUpdateTransport? _activeTransport;
+  UpdateCancellationToken? _activeStagingCancellation;
   bool _disposed = false;
   Uri? _archiveUrl;
   DesktopVersionInfo? _currentVersion;
@@ -199,6 +216,8 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
       timeout: artifactTimeout,
     );
     _activeTransport = transport;
+    final cancellation = UpdateCancellationToken();
+    _activeStagingCancellation = cancellation;
     late final String stagingPath;
     try {
       final result = await http.runWithClient(
@@ -206,6 +225,14 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
           appArchiveUrl: archiveUrl,
           currentVersion: currentVersion,
           descriptor: descriptor,
+          runProcess: (executable, arguments) => _processAdapter.run(
+            executable,
+            arguments,
+            cancellationToken: cancellation,
+          ),
+          runCleanupProcess: _runCleanupProcess,
+          applyFileMode: applyUpdaterFileModes,
+          cancellationToken: cancellation,
           onProgress: (receivedBytes, totalBytes) {
             final expected = totalBytes ?? descriptor.artifact.length;
             if (expected <= 0) {
@@ -222,6 +249,10 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
         await transport.cancel();
         await _afterTransportCancel?.call();
       } finally {
+        cancellation.cancel();
+        if (identical(_activeStagingCancellation, cancellation)) {
+          _activeStagingCancellation = null;
+        }
         transport.close();
         if (identical(_activeTransport, transport)) {
           _activeTransport = null;
@@ -229,7 +260,11 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
       }
     }
     if (_disposed) {
-      await _deleteStagedResult(stagingPath, descriptor);
+      await deleteOwnedStagedUpdate(
+        stagingPath: stagingPath,
+        platform: descriptor.platform,
+        artifactKind: descriptor.artifact.kind,
+      );
       throw StateError('The desktop updater backend has been disposed.');
     }
     return stagingPath;
@@ -255,39 +290,41 @@ class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
     }
   }
 
+  Future<ProcessResult> _runCleanupProcess(
+    String executable,
+    List<String> arguments,
+  ) async {
+    try {
+      final result = await _cleanupProcessAdapter.run(executable, arguments);
+      if (result.exitCode != 0) {
+        _log.warning(
+          'Update cleanup command failed.',
+          ProcessException(
+            executable,
+            arguments,
+            result.stderr.toString(),
+            result.exitCode,
+          ),
+        );
+      }
+      return result;
+    } on Object catch (error, stackTrace) {
+      _log.warning('Update cleanup command failed.', error, stackTrace);
+      rethrow;
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
     _clearSelection();
+    _activeStagingCancellation?.cancel();
     final transport = _activeTransport;
     if (transport != null) {
       unawaited(transport.cancel());
     }
     if (_providedClient == null) {
       _client.close();
-    }
-  }
-
-  Future<void> _deleteStagedResult(
-    String stagingPath,
-    ReleaseDescriptor descriptor,
-  ) async {
-    final staged = Directory(stagingPath);
-    final isMacOSApp =
-        descriptor.platform == 'macos' &&
-        (descriptor.artifact.kind == 'zip' ||
-            descriptor.artifact.kind == 'dmg');
-    final root = isMacOSApp ? staged.parent : staged;
-    if (!p.basename(root.path).startsWith('desktop_updater_stage_')) {
-      return;
-    }
-    try {
-      if (await root.exists()) {
-        await root.delete(recursive: true);
-      }
-    } on Object {
-      // The updater package already performs the same best-effort cleanup on
-      // errors.
     }
   }
 

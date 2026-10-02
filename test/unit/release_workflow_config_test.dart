@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yaml/yaml.dart';
 
 import 'release_workflow_publication_cases.dart';
 
@@ -105,12 +106,20 @@ void main() {
       final workflow = File('.github/workflows/release-cut.yml')
           .readAsStringSync();
       final config = File('desktop_updater.yaml').readAsStringSync();
-      final pubspec = File('pubspec.yaml').readAsStringSync();
+      final pubspec =
+          loadYaml(File('pubspec.yaml').readAsStringSync()) as YamlMap;
+      final dependencies = pubspec['dependencies'] as YamlMap;
+      final updaterDependency = dependencies['desktop_updater'] as YamlMap;
+      final vendorPubspec = loadYaml(
+        File('third_party/desktop_updater/pubspec.yaml').readAsStringSync(),
+      ) as YamlMap;
       final updaterSources = Directory('lib/src/features/updater')
           .listSync(recursive: true)
           .whereType<File>();
 
-      expect(pubspec, contains('desktop_updater: ^2.7.0'));
+      expect(updaterDependency['path'], 'third_party/desktop_updater');
+      expect(vendorPubspec['name'], 'desktop_updater');
+      expect(vendorPubspec['version'], '2.7.0');
       expect(
         updaterSources.map((file) => file.readAsStringSync()).join('\n'),
         isNot(contains('package:desktop_updater/src/')),

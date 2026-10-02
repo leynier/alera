@@ -1,0 +1,90 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  enable-experiment:
+    - macros
+
+linter:
+  rules:
+    always_declare_return_types: true                       # To ensure that functions do not implicitly return dynamic.
+    always_use_package_imports: true                        # To ensure consistency and prevent issues when combining with relative imports.
+    avoid_catches_without_on_clauses: true                  # To encourage thoughtfulness when introducing catch clauses and to avoid catching Errors unless specifically required.
+    avoid_classes_with_only_static_members: true            # To embrace Dart idioms and prefer top-level functions.
+    avoid_dynamic_calls: true                               # To prevent unintentional dynamic dispatch which can lead to preventable runtime errors.
+    avoid_equals_and_hash_code_on_mutable_classes: true     # To prevent issues with hash sets and maps.
+    avoid_field_initializers_in_const_classes: true         # To prefer using getters over fields.
+    avoid_js_rounded_ints: true                             # To prevent runtime issues when compiling to JS.
+    avoid_multiple_declarations_per_line: true              # To improve code readability.
+    avoid_positional_boolean_parameters: true               # To avoid function calls lacking context.
+    avoid_print: true                                       # To avoid printing debug information in release mode.
+    avoid_type_to_string: true                              # To avoid issues when compiling to Web and improve performance.
+    avoid_unused_constructor_parameters: true               # To keep code concise and purposeful.
+    avoid_void_async: true                                  # To provide context via the type system and allow the ability to await when necessary.
+    cancel_subscriptions: true                              # To avoid memory leaks and to prevent code from firing after a subscription is no longer being used.
+    cascade_invocations: true                               # To improve code readability.
+    close_sinks: true                                       # To avoid memory leaks.
+    comment_references: true                                # To ensure generated dartdoc integrity.
+    conditional_uri_does_not_exist: true                    # To prevent accidentally referencing a nonexistent file.
+    depend_on_referenced_packages: true                     # To prevent issues publishing.
+    deprecated_consistency: true                            # To encourage correct usage of deprecation and provide a better DX.
+    directives_ordering: true                               # To maintain visual separation of a file's imports.
+    eol_at_end_of_file: true                                # To provide consistency across our repos/languages.
+    flutter_style_todos: true                               # To ensure traceability of TODOs.
+    invalid_case_patterns: true                             # To prevent invalid case statements.
+    join_return_with_assignment: true                       # To improve code readability.
+    # - lines_longer_than_80_chars: true                      # Too restrictive as a lint, but generally a good rule to follow nonetheless.
+    missing_whitespace_between_adjacent_strings: true       # To prevent sentences which are smashedtogether.
+    no_runtimeType_toString: true                           # To avoid issues when compiling to Web and improve performance.
+    noop_primitive_operations: true                         # To prevent redundancy.
+    omit_local_variable_types: true                         # To encourage conciseness and improve code readability.
+    only_throw_errors: true                                 # To ensure downstream exception handling always works.
+    package_api_docs: true                                  # To ensure public APIs have proper context and explanation.
+    prefer_asserts_in_initializer_lists: true               # To improve code readability.
+    prefer_asserts_with_message: true                       # To provide context to developers and users.
+    prefer_const_constructors: true                         # To allow for compile-time optimizations.
+    prefer_const_constructors_in_immutables: true           # To allow for compile-time optimizations.
+    prefer_const_declarations: true                         # To utilize compile-time optimizations.
+    prefer_const_literals_to_create_immutables: true        # To utilize compile-time optimizations.
+    prefer_final_in_for_each: true                          # To improve code intent and avoid accidental reassignment.
+    prefer_final_locals: true                               # To improve code intent and avoid accidental reassignment.
+    prefer_if_elements_to_conditional_expressions: true     # To make large lists easier to read and navigate.
+    prefer_int_literals: true                               # To improve code readability.
+    prefer_null_aware_method_calls: true                    # To improve code readability.
+    prefer_double_quotes: true                              # To encourage consistent styling.
+    # Example widgets are demo code rather than package API; keep public API
+    # documentation enforced by the root package analysis options.
+    public_member_api_docs: false
+    require_trailing_commas: true                           # To improve code readability.
+    sort_constructors_first: true                           # To provide a consistent style for classes.
+    sort_unnamed_constructors_first: true                   # To provide organization and quick exploration.
+    sort_pub_dependencies: true                             # To simplify searching a large list.
+    slash_for_doc_comments: true                            # To provide consistency across our repos/languages.
+    tighten_type_of_initializing_formals: true              # To catch errors at compile-time vs. runtime.
+    type_annotate_public_apis: true                         # To ensure public APIs provide type safety.
+    type_literal_in_constant_pattern: true                  # To prevent invalid case statements.
+    unawaited_futures: true                                 # To prevent accidental fire-and-forget.
+    unnecessary_await_in_return: true                       # To make code more concise and to encourage mindfulness about where Futures are awaited.
+    unnecessary_breaks: true                                # To simplify switch statements.
+    unnecessary_lambdas: true                               # To make code more concise.
+    unnecessary_null_checks: true                           # To improve code readability.
+    use_enums: true                                         # To encourage use of the enhanced-enums language feature.
+    use_if_null_to_convert_nulls_to_bools: true             # To improve code readability.
+    use_late_for_private_fields_and_variables: true         # To improve code readability.
+    use_named_constants: true                               # To improve code readability and consistency.
+    use_raw_strings: true                                   # To improve code readability.
+    use_setters_to_change_properties: true                  # To improve code readability and consistency.
+    use_string_buffers: true                                # To improve performance.
+    use_super_parameters: true                              # To improve code readability and prevent redundancy.
+    use_test_throws_matchers: true                          # To improve code readability.
+    use_to_and_as_if_applicable: true                       # To improve code readability.
+
+    # Flutter-specific linter rules
+    avoid_unnecessary_containers: true                      # To improve code readability.
+    # Example widgets intentionally skip debug property exhaustiveness because
+    # they are runnable sample UI, not package API.
+    diagnostic_describe_all_properties: false
+    sized_box_for_whitespace: true                          # To improve code readability.
+    sort_child_properties_last: true                        # To improve code readability.
+    use_build_context_synchronously: false                  # To prevent asynchronous usage of an invalid BuildContext.
+    use_full_hex_values_for_flutter_colors: true            # To specify full ARGB value.
+    use_key_in_widget_constructors: true                    # To improve locatability of widgets in the widget key.

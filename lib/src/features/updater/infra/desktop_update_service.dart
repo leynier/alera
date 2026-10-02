@@ -40,7 +40,11 @@ class DesktopAleraUpdateService({
       _platform = platform ?? Platform.operatingSystem,
       _loadLinuxInstallerKind =
           loadLinuxInstallerKind ?? loadDesktopLinuxInstallerKind,
-      _backend = backend ?? DesktopUpdaterBackend() {
+      _backend =
+          backend ??
+          DesktopUpdaterBackend(
+            processRunner: processRunner ?? const RustProcessRunner(),
+          ) {
     final runner = processRunner ?? const RustProcessRunner();
     final executable = resolvedExecutable ?? Platform.resolvedExecutable;
     _probeInstallDirectory =
