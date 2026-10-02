@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, future::Future, time::Duration};
 
-use sha2::{Digest, Sha256};
 use sqlx::FromRow;
 use tokio::{
     task::JoinSet,
@@ -11,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     error::ApiError,
     fcm::{send_with_retry_until, FcmError, FcmMessage},
+    push_delivery_token_cleanup::remove_unregistered_token,
     quota::reserve_push_delivery,
     state::AppState,
 };
@@ -28,6 +28,12 @@ pub(crate) struct DeliveryTarget {
 struct DeliveryClaim {
     id: Uuid,
     attempt: i32,
+}
+
+enum DeliveryClaimOutcome {
+    Claimed(DeliveryClaim),
+    Complete,
+    InProgress,
 }
 
 #[derive(Clone)]
@@ -54,11 +60,18 @@ pub(crate) async fn deliver_target(
     context: DeliveryContext,
     target: DeliveryTarget,
 ) -> Result<bool, ApiError> {
-    let Some(claim) = claim_delivery_attempt(state, &context, &target).await? else {
-        return Ok(false);
+    let claim = match claim_delivery_attempt(state, &context, &target).await? {
+        DeliveryClaimOutcome::Claimed(claim) => claim,
+        DeliveryClaimOutcome::Complete => return Ok(false),
+        DeliveryClaimOutcome::InProgress => {
+            return Err(ApiError::unavailable(
+                "push_delivery_in_progress",
+                "Push delivery is already in progress; retry shortly.",
+            ));
+        }
     };
     if Instant::now() >= context.send_deadline {
-        return finalize_attempt(
+        return finalize_or_release(
             state,
             claim.id,
             claim.attempt,
@@ -71,13 +84,18 @@ pub(crate) async fn deliver_target(
     }
     let quota = timeout_at(
         context.send_deadline,
-        reserve_push_delivery(&state.pool, context.account_id, &state.config.limits),
+        reserve_push_delivery(
+            &state.pool,
+            claim.id,
+            context.account_id,
+            &state.config.limits,
+        ),
     )
     .await;
     let quota = match quota {
         Ok(result) => result,
         Err(_) => {
-            return finalize_attempt(
+            return finalize_or_release(
                 state,
                 claim.id,
                 claim.attempt,
@@ -89,37 +107,52 @@ pub(crate) async fn deliver_target(
             .await;
         }
     };
-    if let Err(error) = quota {
-        let finalized = finalize_attempt(
-            state,
-            claim.id,
-            claim.attempt,
-            "quotaRejected",
-            None,
-            Some("quota_exceeded"),
-            context.deadline,
-        )
-        .await?;
-        if finalized {
-            tracing::info!(
+    match quota {
+        Ok(false) => return Ok(false),
+        Ok(true) => {}
+        Err(error) if error.is_push_quota_rejection() => {
+            let finalized = finalize_or_release(
+                state,
+                claim.id,
+                claim.attempt,
+                "quotaRejected",
+                None,
+                Some("quota_exceeded"),
+                context.deadline,
+            )
+            .await?;
+            if finalized {
+                tracing::info!(
+                    account_id = %context.account_id,
+                    event_id = %context.event_id,
+                    error = %error,
+                    "push delivery skipped by quota"
+                );
+            }
+            return Ok(false);
+        }
+        Err(error) => {
+            release_claim_after_failure(state, claim.id).await;
+            return Err(error);
+        }
+    }
+    match claim_is_current(state, claim.id, context.deadline).await {
+        Ok(true) => {}
+        Ok(false) => {
+            tracing::debug!(
                 account_id = %context.account_id,
                 event_id = %context.event_id,
-                error = %error,
-                "push delivery skipped by quota"
+                "push delivery lease changed before FCM send"
             );
+            return Ok(false);
         }
-        return Ok(false);
-    }
-    if !claim_is_current(state, claim.id, context.deadline).await? {
-        tracing::debug!(
-            account_id = %context.account_id,
-            event_id = %context.event_id,
-            "push delivery lease changed before FCM send"
-        );
-        return Ok(false);
+        Err(error) => {
+            release_claim_after_failure(state, claim.id).await;
+            return Err(error);
+        }
     }
     if Instant::now() >= context.send_deadline {
-        return finalize_attempt(
+        return finalize_or_release(
             state,
             claim.id,
             claim.attempt,
@@ -142,7 +175,7 @@ pub(crate) async fn deliver_target(
         send_with_retry_until(state.fcm.as_ref(), message, context.send_deadline).await;
     match result {
         Ok(receipt) => {
-            let finalized = finalize_attempt(
+            let finalized = finalize_or_release(
                 state,
                 claim.id,
                 attempt,
@@ -165,7 +198,7 @@ pub(crate) async fn deliver_target(
         Err(error) => {
             let error_code = error.code();
             let unregistered = matches!(&error, FcmError::Unregistered);
-            let finalized = finalize_attempt(
+            let finalized = finalize_or_release(
                 state,
                 claim.id,
                 attempt,
@@ -229,7 +262,7 @@ async fn claim_delivery_attempt(
     state: &AppState,
     context: &DeliveryContext,
     target: &DeliveryTarget,
-) -> Result<Option<DeliveryClaim>, ApiError> {
+) -> Result<DeliveryClaimOutcome, ApiError> {
     let now = chrono::Utc::now();
     let stale_before = now - chrono::TimeDelta::seconds(30);
     let claim = timeout_at(
@@ -252,10 +285,11 @@ async fn claim_delivery_attempt(
             WHERE id = (
                 SELECT id
                 FROM latest
-                WHERE status = 'pending' AND created_at < $4
+                WHERE status = 'retryable'
+                   OR (status = 'pending' AND created_at < $4)
             )
-              AND status = 'pending'
-              AND created_at < $4
+              AND status IN ('pending', 'retryable')
+              AND (status = 'retryable' OR created_at < $4)
             RETURNING id, attempt
         ), inserted AS (
             INSERT INTO delivery_attempts (
@@ -264,9 +298,9 @@ async fn claim_delivery_attempt(
             )
             SELECT $5, $1, $6, $2, 1, 'pending', NULL, NULL, $3
             WHERE NOT EXISTS (
-                SELECT 1 FROM latest WHERE status <> 'pending'
+                SELECT 1 FROM latest WHERE status NOT IN ('pending', 'retryable')
             )
-              AND NOT EXISTS (
+            AND NOT EXISTS (
                   SELECT 1 FROM latest WHERE status = 'pending' AND created_at >= $4
               )
               AND NOT EXISTS (SELECT 1 FROM reclaimed)
@@ -289,7 +323,26 @@ async fn claim_delivery_attempt(
     )
     .await
     .map_err(|_| delivery_deadline_error())??;
-    Ok(claim)
+    if let Some(claim) = claim {
+        return Ok(DeliveryClaimOutcome::Claimed(claim));
+    }
+    let in_progress = timeout_at(
+        context.deadline,
+        sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM delivery_attempts WHERE event_id = $1 AND mobile_device_id = $2 AND status = 'pending' AND created_at >= $3)",
+        )
+        .bind(context.event_id)
+        .bind(&target.mobile_device_id)
+        .bind(stale_before)
+        .fetch_one(&state.pool),
+    )
+    .await
+    .map_err(|_| delivery_deadline_error())??;
+    Ok(if in_progress {
+        DeliveryClaimOutcome::InProgress
+    } else {
+        DeliveryClaimOutcome::Complete
+    })
 }
 
 async fn claim_is_current(
@@ -379,71 +432,62 @@ async fn finalize_attempt(
     Ok(true)
 }
 
-async fn remove_unregistered_token(
+async fn finalize_or_release(
     state: &AppState,
-    account_id: Uuid,
-    device_id: &str,
-    token: &str,
-) -> Result<(), ApiError> {
-    let now = chrono::Utc::now();
-    let mut transaction = state.pool.begin().await?;
-    sqlx::query(
-        "DELETE FROM fcm_tokens WHERE account_id = $1 AND mobile_device_id = $2 AND token = $3",
+    claim_id: Uuid,
+    attempt: i32,
+    status: &str,
+    provider_message_id: Option<&str>,
+    error_code: Option<&str>,
+    deadline: Instant,
+) -> Result<bool, ApiError> {
+    match finalize_attempt(
+        state,
+        claim_id,
+        attempt,
+        status,
+        provider_message_id,
+        error_code,
+        deadline,
     )
-    .bind(account_id)
-    .bind(device_id)
-    .bind(token)
-    .execute(&mut *transaction)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO abuse_tombstones (
-            id, subject_kind, subject_hash, reason, created_at, expires_at
-        ) VALUES ($1, 'fcm_token', $2, 'unregistered', $3, $4)
-        "#,
+    .await
+    {
+        Ok(finalized) => Ok(finalized),
+        Err(error) => {
+            release_claim_after_failure(state, claim_id).await;
+            Err(error)
+        }
+    }
+}
+
+async fn release_claim_after_failure(state: &AppState, claim_id: Uuid) {
+    let result = timeout_at(
+        Instant::now() + DELIVERY_DB_RESERVE,
+        sqlx::query(
+            "UPDATE delivery_attempts SET status = 'retryable' WHERE id = $1 AND status = 'pending'",
+        )
+        .bind(claim_id)
+        .execute(&state.pool),
     )
-    .bind(Uuid::now_v7())
-    .bind(Sha256::digest(token.as_bytes()).to_vec())
-    .bind(now)
-    .bind(now + chrono::TimeDelta::days(30))
-    .execute(&mut *transaction)
-    .await?;
-    transaction.commit().await?;
-    Ok(())
+    .await;
+    match result {
+        Ok(Ok(result)) if result.rows_affected() == 1 => {}
+        Ok(Ok(_)) => tracing::debug!(
+            claim_id = %claim_id,
+            "push delivery claim was already released or reclaimed"
+        ),
+        Ok(Err(error)) => tracing::warn!(
+            claim_id = %claim_id,
+            error = %error,
+            "failed to release push delivery claim after an error"
+        ),
+        Err(_) => tracing::warn!(
+            claim_id = %claim_id,
+            "timed out releasing push delivery claim after an error"
+        ),
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    };
-    use std::time::Duration;
-
-    use tokio::time::sleep;
-
-    use super::{run_bounded_deliveries, MAX_PARALLEL_DELIVERIES};
-
-    #[tokio::test]
-    async fn bounds_parallel_push_delivery_tasks() {
-        let active = Arc::new(AtomicUsize::new(0));
-        let maximum = Arc::new(AtomicUsize::new(0));
-        let tasks = (0..(MAX_PARALLEL_DELIVERIES * 2))
-            .map(|_| {
-                let active = active.clone();
-                let maximum = maximum.clone();
-                async move {
-                    let now = active.fetch_add(1, Ordering::SeqCst) + 1;
-                    maximum.fetch_max(now, Ordering::SeqCst);
-                    sleep(Duration::from_millis(10)).await;
-                    active.fetch_sub(1, Ordering::SeqCst);
-                    Ok(true)
-                }
-            })
-            .collect();
-        let results = run_bounded_deliveries(tasks).await;
-        assert_eq!(results.len(), MAX_PARALLEL_DELIVERIES * 2);
-        assert!(results.iter().all(Result::is_ok));
-        assert!(maximum.load(Ordering::SeqCst) <= MAX_PARALLEL_DELIVERIES);
-    }
-}
+#[path = "push_delivery_tests.rs"]
+mod tests;

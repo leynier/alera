@@ -10,6 +10,7 @@ const MIGRATION_LOCK_KEY: i64 = 0x41_6c_65_72_61_53_78;
 const REQUIRED_MIGRATION_DEADLINE: Duration = Duration::from_secs(30);
 const MIGRATION_LOCK_DEADLINE: Duration = Duration::from_secs(30);
 const ONLINE_MIGRATION_STEP_DEADLINE: Duration = Duration::from_secs(15 * 60);
+const REQUIRED_SCHEMA_MIGRATION_VERSIONS: &[i64] = &[1, 2, 3, 4, 21];
 const ONLINE_MIGRATION_VERSIONS: &[i64] =
     &[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const ONLINE_INDEXES: &[(&str, &str)] = &[
@@ -78,8 +79,7 @@ pub async fn run_required(pool: &PgPool) -> anyhow::Result<()> {
         .await
         .context("acquire required migration connection")?;
     connection.close_on_drop();
-    let mut migrator = sqlx::migrate!("./migrations");
-    migrator.set_locking(false);
+    let migrator = sqlx::migrate!("./migrations");
     validate_migration_plan(&migrator)?;
     if required_migrations_ready(&mut connection).await? {
         verify_required_migrations(&mut connection, &migrator).await?;
@@ -87,9 +87,18 @@ pub async fn run_required(pool: &PgPool) -> anyhow::Result<()> {
     }
 
     acquire_lock(&mut connection, Instant::now() + MIGRATION_LOCK_DEADLINE).await?;
+    let mut required_migrator = sqlx::migrate::Migrator::with_migrations(
+        migrator
+            .iter()
+            .filter(|migration| REQUIRED_SCHEMA_MIGRATION_VERSIONS.contains(&migration.version))
+            .cloned()
+            .collect(),
+    );
+    required_migrator.set_locking(false);
+    required_migrator.set_ignore_missing(true);
     let mut migration_result = match timeout_at(
         Instant::now() + REQUIRED_MIGRATION_DEADLINE,
-        migrator.run_direct(Some(4), &mut *connection, false),
+        required_migrator.run_direct(Some(21), &mut *connection, false),
     )
     .await
     {
@@ -157,12 +166,13 @@ async fn required_migrations_ready(
         return Ok(false);
     }
     let applied_required = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM _sqlx_migrations WHERE version BETWEEN 1 AND 4 AND success",
+        "SELECT COUNT(*) FROM _sqlx_migrations WHERE version = ANY($1) AND success",
     )
+    .bind(REQUIRED_SCHEMA_MIGRATION_VERSIONS)
     .fetch_one(&mut **connection)
     .await
     .context("check required migration state")?;
-    Ok(applied_required == 4)
+    Ok(applied_required == REQUIRED_SCHEMA_MIGRATION_VERSIONS.len() as i64)
 }
 
 async fn verify_required_migrations(
@@ -180,7 +190,7 @@ async fn ensure_no_unclassified_database_migrations(
     connection: &mut PoolConnection<Postgres>,
 ) -> anyhow::Result<()> {
     let version = sqlx::query_scalar::<_, i64>(
-        "SELECT version FROM _sqlx_migrations WHERE version < 1 OR version > 20 ORDER BY version LIMIT 1",
+        "SELECT version FROM _sqlx_migrations WHERE version < 1 OR version > 21 ORDER BY version LIMIT 1",
     )
     .fetch_optional(&mut **connection)
     .await
@@ -197,7 +207,7 @@ fn validate_migration_plan(migrator: &sqlx::migrate::Migrator) -> anyhow::Result
     if ONLINE_MIGRATION_VERSIONS.len() != ONLINE_INDEXES.len() {
         anyhow::bail!("online PostgreSQL migration and index allowlists are out of sync");
     }
-    for version in 1..=4 {
+    for &version in REQUIRED_SCHEMA_MIGRATION_VERSIONS {
         if !migrator.version_exists(version) {
             anyhow::bail!("required PostgreSQL migration {version} is missing from source");
         }
@@ -210,7 +220,10 @@ fn validate_migration_plan(migrator: &sqlx::migrate::Migrator) -> anyhow::Result
     if let Some(version) = migrator
         .iter()
         .map(|migration| migration.version)
-        .find(|version| *version > 4 && !ONLINE_MIGRATION_VERSIONS.contains(version))
+        .find(|version| {
+            !REQUIRED_SCHEMA_MIGRATION_VERSIONS.contains(version)
+                && !ONLINE_MIGRATION_VERSIONS.contains(version)
+        })
     {
         anyhow::bail!(
             "PostgreSQL migration {version} is not classified for startup or the online index phase"
@@ -224,12 +237,13 @@ async fn validate_required_migrations(
     migrator: &sqlx::migrate::Migrator,
 ) -> anyhow::Result<()> {
     let rows = sqlx::query_as::<_, (i64, Vec<u8>, bool)>(
-        "SELECT version, checksum, success FROM _sqlx_migrations WHERE version BETWEEN 1 AND 4 ORDER BY version",
+        "SELECT version, checksum, success FROM _sqlx_migrations WHERE version = ANY($1) ORDER BY version",
     )
+    .bind(REQUIRED_SCHEMA_MIGRATION_VERSIONS)
     .fetch_all(&mut **connection)
     .await
     .context("read required migration checksums")?;
-    if rows.len() != 4 {
+    if rows.len() != REQUIRED_SCHEMA_MIGRATION_VERSIONS.len() {
         anyhow::bail!("required PostgreSQL migrations are incomplete");
     }
     for (version, checksum, success) in rows {
@@ -287,8 +301,9 @@ async fn ensure_no_failed_online_migrations(
     let dirty_version = timeout_at(
         Instant::now() + ONLINE_MIGRATION_STEP_DEADLINE,
         sqlx::query_scalar::<_, i64>(
-            "SELECT version FROM _sqlx_migrations WHERE version >= 5 AND success = false ORDER BY version",
+            "SELECT version FROM _sqlx_migrations WHERE version = ANY($1) AND success = false ORDER BY version",
         )
+        .bind(ONLINE_MIGRATION_VERSIONS)
         .fetch_optional(&mut **connection),
     )
     .await

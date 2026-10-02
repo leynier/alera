@@ -15,6 +15,9 @@ mod configuration_contract;
 #[path = "contracts/push_delivery_contract.rs"]
 mod push_delivery_contract;
 
+#[path = "contracts/push_claim_contract.rs"]
+mod push_claim_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
     config::{FcmConfig, LimitsConfig, OAuthProviderConfig, SigningConfig},

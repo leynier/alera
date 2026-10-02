@@ -6,13 +6,29 @@ use crate::{config::LimitsConfig, error::ApiError};
 
 pub async fn reserve_push_delivery(
     pool: &PgPool,
+    claim_id: Uuid,
     account_id: Uuid,
     limits: &LimitsConfig,
-) -> Result<(), ApiError> {
+) -> Result<bool, ApiError> {
     let now = Utc::now();
     let hour = truncated(now, 60 * 60)?;
     let burst = truncated(now, 60)?;
     let mut transaction = pool.begin().await?;
+    let Some((status, quota_reserved)) = sqlx::query_as::<_, (String, bool)>(
+        "SELECT status, quota_reserved FROM delivery_attempts WHERE id = $1 FOR UPDATE",
+    )
+    .bind(claim_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    else {
+        return Ok(false);
+    };
+    if status != "pending" {
+        return Ok(false);
+    }
+    if quota_reserved {
+        return Ok(true);
+    }
     let daily = sqlx::query_scalar::<_, i32>(
         r#"
         INSERT INTO push_quota_daily (account_id, day, count)
@@ -67,8 +83,17 @@ pub async fn reserve_push_delivery(
     if burst_count.is_none() {
         return Err(quota_error("burst_push_quota"));
     }
+    let marked = sqlx::query(
+        "UPDATE delivery_attempts SET quota_reserved = TRUE WHERE id = $1 AND status = 'pending' AND NOT quota_reserved",
+    )
+    .bind(claim_id)
+    .execute(&mut *transaction)
+    .await?;
+    if marked.rows_affected() != 1 {
+        return Ok(false);
+    }
     transaction.commit().await?;
-    Ok(())
+    Ok(true)
 }
 
 fn truncated(value: DateTime<Utc>, seconds: i64) -> Result<DateTime<Utc>, ApiError> {

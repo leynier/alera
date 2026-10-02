@@ -219,7 +219,7 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
     .execute(&pool)
     .await?;
     let (duplicate_a, duplicate_b) = tokio::join!(
-        call(
+        call_status(
             &app,
             TestRequest {
                 method: Method::POST,
@@ -228,7 +228,7 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
                 body: event_body.clone(),
             }
         ),
-        call(
+        call_status(
             &app,
             TestRequest {
                 method: Method::POST,
@@ -238,13 +238,27 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
             }
         )
     );
-    let duplicate_a = duplicate_a?;
-    let duplicate_b = duplicate_b?;
-    assert_eq!(duplicate_a["duplicate"].as_bool(), Some(true));
-    assert_eq!(duplicate_b["duplicate"].as_bool(), Some(true));
-    let resumed = duplicate_a["deliveriesQueued"].as_u64().unwrap_or_default()
-        + duplicate_b["deliveriesQueued"].as_u64().unwrap_or_default();
+    let (status_a, duplicate_a) = duplicate_a?;
+    let (status_b, duplicate_b) = duplicate_b?;
+    assert!(matches!(
+        status_a,
+        StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+    ));
+    assert!(matches!(
+        status_b,
+        StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+    ));
+    let resumed = [(status_a, &duplicate_a), (status_b, &duplicate_b)]
+        .into_iter()
+        .filter(|(status, _)| *status == StatusCode::OK)
+        .map(|(_, response)| response["deliveriesQueued"].as_u64().unwrap_or_default())
+        .sum::<u64>();
     assert_eq!(resumed, 1);
+    for (status, response) in [(status_a, &duplicate_a), (status_b, &duplicate_b)] {
+        if status == StatusCode::OK {
+            assert_eq!(response["duplicate"].as_bool(), Some(true));
+        }
+    }
     assert_eq!(sent.load(Ordering::SeqCst), 2);
     let duplicate_again = call(
         &app,
@@ -440,4 +454,24 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
         .await?;
     pool.close().await;
     Ok(())
+}
+
+async fn call_status(
+    app: &Router,
+    request: TestRequest<'_>,
+) -> anyhow::Result<(StatusCode, Value)> {
+    let mut builder = Request::builder()
+        .method(request.method)
+        .uri(request.uri)
+        .header("content-type", "application/json");
+    if let Some(bearer) = request.bearer {
+        builder = builder.header("authorization", format!("Bearer {bearer}"));
+    }
+    let response = app
+        .clone()
+        .oneshot(builder.body(Body::from(serde_json::to_vec(&request.body)?))?)
+        .await?;
+    let status = response.status();
+    let value = serde_json::from_slice(&to_bytes(response.into_body(), 1024 * 1024).await?)?;
+    Ok((status, value))
 }
