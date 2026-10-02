@@ -23,8 +23,18 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let prompt = required_non_blank(payload, "prompt")?;
         let session_id = required_non_blank(payload, "sessionId")?;
-        let model = optional_non_blank(payload, "model")
-            .unwrap_or_else(|| OPENCODE_GO_DEFAULT_MODEL.to_string());
+        let agent =
+            optional_non_blank(payload, "agent").unwrap_or_else(|| "opencode-go".to_string());
+        if !matches!(agent.as_str(), "opencode-go" | "chatgpt") {
+            return Err(HostError::format("Unsupported direct AI Assist provider."));
+        }
+        let model = optional_non_blank(payload, "model").unwrap_or_else(|| {
+            if agent == "chatgpt" {
+                String::new()
+            } else {
+                OPENCODE_GO_DEFAULT_MODEL.to_string()
+            }
+        });
         let timeout_seconds = payload
             .get("timeoutSeconds")
             .and_then(Value::as_u64)
@@ -42,17 +52,27 @@ impl ServerActor {
                 if !settings.enabled {
                     return Err(HostError::state("AI Assist is disabled."));
                 }
-                let text = complete_opencode_go(
-                    &prompt,
-                    &model,
-                    &session_id,
-                    Duration::from_secs(timeout_seconds),
-                    cancel_rx,
-                )
-                .await?;
+                let text = if agent == "chatgpt" {
+                    super::chatgpt_inference::complete(
+                        &prompt,
+                        &model,
+                        Duration::from_secs(timeout_seconds),
+                        cancel_rx,
+                    )
+                    .await?
+                } else {
+                    complete_opencode_go(
+                        &prompt,
+                        &model,
+                        &session_id,
+                        Duration::from_secs(timeout_seconds),
+                        cancel_rx,
+                    )
+                    .await?
+                };
                 Ok(json!({
                     "text": text,
-                    "agentLabel": OPENCODE_GO_LABEL,
+                    "agentLabel": if agent == "chatgpt" { "ChatGPT" } else { OPENCODE_GO_LABEL },
                 }))
             }
             .await;

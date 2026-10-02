@@ -52,6 +52,7 @@ class CliAiAssistAgentRunner({
   required final ProcessRunner processRunner,
   CommandEnvironmentResolver? commandEnvironmentResolver,
   this.hostCompleter,
+  this.chatGptCompleter,
 }) implements AiAssistAgentRunner {
   this
     : commandEnvironmentResolver =
@@ -59,23 +60,27 @@ class CliAiAssistAgentRunner({
 
   final CommandEnvironmentResolver commandEnvironmentResolver;
   final AiAssistHostCompleter? hostCompleter;
+  final AiAssistHostCompleter? chatGptCompleter;
   final Map<String, StartedProcess> _running = <String, StartedProcess>{};
   final Set<String> _pending = <String>{};
   final Set<String> _canceled = <String>{};
-  final Set<String> _hostRuns = <String>{};
+  final Map<String, AiAssistHostCompleter> _hostRuns =
+      <String, AiAssistHostCompleter>{};
 
   @override
   Future<AiAssistAgentRunResult> run(AiAssistAgentRunRequest request) async {
     if (_pending.contains(request.runId) ||
-        _running.containsKey(request.runId)) {
+        _running.containsKey(request.runId) ||
+        _hostRuns.containsKey(request.runId)) {
       throw const AiAssistException('Generation is already running.');
     }
     _canceled.remove(request.runId);
     _pending.add(request.runId);
 
     final requestedAgent = request.agent ?? request.settings.agent;
-    if (requestedAgent == AiAssistAgent.opencodeGo) {
-      return _runOpenCodeGo(request);
+    if (requestedAgent == AiAssistAgent.opencodeGo ||
+        requestedAgent == AiAssistAgent.chatgpt) {
+      return _runDirectProvider(request, requestedAgent);
     }
 
     _AiAssistAgentCommandPlan? plan;
@@ -176,28 +181,33 @@ class CliAiAssistAgentRunner({
     }
   }
 
-  Future<AiAssistAgentRunResult> _runOpenCodeGo(
+  Future<AiAssistAgentRunResult> _runDirectProvider(
     AiAssistAgentRunRequest request,
+    AiAssistAgent agent,
   ) async {
     try {
       if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
-        requireDiffOnlyAiAssistAgent(AiAssistAgent.opencodeGo);
+        requireDiffOnlyAiAssistAgent(agent);
       }
-      final completer = hostCompleter;
+      final completer = agent == AiAssistAgent.chatgpt
+          ? chatGptCompleter
+          : hostCompleter;
       if (completer == null) {
-        throw const AiAssistException(openCodeGoHostTooOldMessage);
+        throw AiAssistException(
+          'The running terminal host does not support ${agent.label} AI Assist.',
+        );
       }
       if (_canceled.contains(request.runId)) {
         throw const AiAssistCanceledException();
       }
       _pending.remove(request.runId);
-      _hostRuns.add(request.runId);
+      _hostRuns[request.runId] = completer;
       final model = modelForAgent(
-        AiAssistAgent.opencodeGo,
+        agent,
         request.model ??
-            request.settings.modelFor(.opencodeGo) ??
-            defaultModelIdForAgent(.opencodeGo, request.settings),
-        extraModels: discoveredModelsForAgent(request.settings, .opencodeGo),
+            request.settings.modelFor(agent) ??
+            defaultModelIdForAgent(agent, request.settings),
+        extraModels: discoveredModelsForAgent(request.settings, agent),
       );
       final result = await completer.complete(
         prompt: request.prompt,
@@ -213,7 +223,7 @@ class CliAiAssistAgentRunner({
           ? request.cleanOutput(result.text)
           : _cleanStructuredOutput(request.cleanOutput(result.text));
       if (text.trim().isEmpty) {
-        throw const AiAssistException('OpenCode Go returned no text.');
+        throw AiAssistException('${agent.label} returned no text.');
       }
       return AiAssistAgentRunResult(text: text, agentLabel: result.agentLabel);
     } finally {
@@ -227,13 +237,13 @@ class CliAiAssistAgentRunner({
   void cancel(String runId) {
     if (!_pending.contains(runId) &&
         !_running.containsKey(runId) &&
-        !_hostRuns.contains(runId)) {
+        !_hostRuns.containsKey(runId)) {
       return;
     }
     _canceled.add(runId);
     _running[runId]?.kill();
-    if (_hostRuns.contains(runId)) {
-      final completer = hostCompleter;
+    if (_hostRuns.containsKey(runId)) {
+      final completer = _hostRuns[runId];
       if (completer != null) {
         unawaited(completer.cancel(runId));
       }

@@ -30,7 +30,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      'e8346719b9cc7b9971c3bf13b2c6e80cb94128608ce31e78bab1dfdf9a296784',
+      '9eb83ab467e552f5af67d76b51775691049306306275af72dab63ead5eeeb345',
     );
   });
 
@@ -42,6 +42,15 @@ void main() {
     expect(entry.matches('source control'), isTrue);
     expect(entry.matches('pull request'), isTrue);
     expect(entry.matches('order'), isTrue);
+  });
+
+  test('ChatGPT accounts are searchable under AI Assist', () {
+    final entry = aiAssistSearchEntries.singleWhere(
+      (entry) => entry.title == 'ChatGPT Account',
+    );
+    expect(entry.groupId, 'chatgpt');
+    expect(entry.matches('openai'), isTrue);
+    expect(entry.matches('sign out'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {

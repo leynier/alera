@@ -55,7 +55,7 @@ final class AiAssistAgentRunnerProvider
 }
 
 String _$aiAssistAgentRunnerHash() =>
-    r'79fc1dca2801e4bd312cdc683b0fad6986971e72';
+    r'3172b768f80dc662cfc8951f6cad4ee9e890961a';
 
 @ProviderFor(aiAssistService)
 final aiAssistServiceProvider = AiAssistServiceProvider._();
@@ -148,4 +148,4 @@ final class AiAssistModelDiscoveryServiceProvider
 }
 
 String _$aiAssistModelDiscoveryServiceHash() =>
-    r'e019a938bba18d829b610e44b31c58c3aa5c8ea9';
+    r'4d6f9da2d47cac48dd07e966c1245fbc76bec547';

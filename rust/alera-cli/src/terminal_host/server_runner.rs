@@ -25,6 +25,7 @@ pub async fn run_terminal_host_server(
         runtime_owner::RuntimeOwnerGuard::acquire(&runtime_dir)?
     };
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
+    chatgpt_session::initialize(runtime_dir.clone());
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     runtime_store.retire_removed_features().await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
@@ -178,6 +179,9 @@ pub async fn run_terminal_host_server(
     let _ = automation_ticker.await;
     if let Some(shutdown_signal) = shutdown_signal {
         shutdown_signal.abort();
+    }
+    if let Ok(session) = chatgpt_session::session() {
+        let _ = session.cancel().await;
     }
     Ok(exit)
 }

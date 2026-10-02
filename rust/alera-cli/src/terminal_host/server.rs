@@ -108,6 +108,13 @@ mod automation_scheduler;
 mod automation_shared_cleanup_jobs;
 mod automation_shared_cleanup_requests;
 mod automation_target_location;
+mod chatgpt_credentials;
+mod chatgpt_inference;
+mod chatgpt_oauth;
+mod chatgpt_requests;
+mod chatgpt_session;
+#[cfg(test)]
+mod chatgpt_tests;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;

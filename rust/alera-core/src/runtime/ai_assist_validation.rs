@@ -40,12 +40,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn accepts_opencode_go() {
-        assert!(AI_ASSIST_AGENTS.contains(&"opencode-go"));
-        let settings = RuntimeAiAssistSettings {
-            agent: "opencode-go".to_string(),
-            ..RuntimeAiAssistSettings::default()
-        };
-        assert!(validate_ai_assist_settings(&settings).is_ok());
+    fn accepts_direct_providers() {
+        for agent in ["opencode-go", "chatgpt"] {
+            assert!(AI_ASSIST_AGENTS.contains(&agent));
+            let settings = RuntimeAiAssistSettings {
+                agent: agent.to_string(),
+                ..RuntimeAiAssistSettings::default()
+            };
+            assert!(validate_ai_assist_settings(&settings).is_ok());
+        }
     }
 }

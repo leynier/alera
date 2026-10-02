@@ -1,5 +1,6 @@
 import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_host_completer.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
 import 'package:alera/src/features/ai_assist/application/host_routed_ai_assist_service.dart';
@@ -14,6 +15,10 @@ part 'ai_assist_providers.g.dart';
 @Riverpod(keepAlive: true)
 AiAssistAgentRunner aiAssistAgentRunner(Ref ref) {
   return CliAiAssistAgentRunner(
+    chatGptCompleter: RuntimeHostAiAssistCompleter(
+      client: ref.read(runtimeHostClientProvider),
+      agent: AiAssistAgent.chatgpt,
+    ),
     processRunner: ref.read(processRunnerProvider),
     hostCompleter: RuntimeHostAiAssistCompleter(
       client: ref.read(runtimeHostClientProvider),
@@ -38,6 +43,10 @@ AiAssistService aiAssistService(Ref ref) {
 @Riverpod(keepAlive: true)
 AiAssistModelDiscoveryService aiAssistModelDiscoveryService(Ref ref) {
   return CliAiAssistModelDiscoveryService(
+    chatGptCompleter: RuntimeHostAiAssistCompleter(
+      client: ref.read(runtimeHostClientProvider),
+      agent: AiAssistAgent.chatgpt,
+    ),
     processRunner: ref.read(processRunnerProvider),
     hostCompleter: RuntimeHostAiAssistCompleter(
       client: ref.read(runtimeHostClientProvider),

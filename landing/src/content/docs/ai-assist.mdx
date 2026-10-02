@@ -1,10 +1,10 @@
 ---
 title: AI Assist And Dictation
-description: Let an agent CLI you already use draft commit messages, pull request details, and workspace names, and dictate prompts with local or remote speech-to-text.
-updatedDate: 2026-09-28
+description: Use an agent CLI or your ChatGPT plan to draft commit messages, pull request details, and workspace names, and dictate prompts with local or remote speech-to-text.
+updatedDate: 2026-10-01
 ---
 
-AI Assist hands short writing jobs to an agent CLI you already use. Dictation turns speech into text in the fields where you write prompts. Neither needs an Alera account.
+AI Assist hands short writing jobs to your selected provider, including connected ChatGPT accounts and agent CLIs. Dictation turns speech into text in the fields where you write prompts. Neither needs an Alera account.
 
 ## What AI Assist Writes
 
@@ -19,16 +19,24 @@ Commit messages and pull request details land in the form for you to edit, and a
 
 ## Choosing The Agent
 
-Configure it in **Settings → AI Assist**. **Enable AI Assist** is on by default, and the **Agent** is **Codex**, which runs `codex exec` in a read-only sandbox. You can pick Claude Code, GitHub Copilot, Cursor, Antigravity, OpenCode, OpenCode 2, OpenCode Go, Pi, Amp, Grok Build, fx, or **Custom Command**, then a **Model** and, where the model supports it, a **Reasoning** level. **Refresh models** fetches the current list.
+Configure it in **Settings → AI Assist**. **Enable AI Assist** is on by default, and the **Agent** is **Codex**, which runs `codex exec` in a read-only sandbox. You can pick ChatGPT, Claude Code, GitHub Copilot, Cursor, Antigravity, OpenCode, OpenCode 2, OpenCode Go, Pi, Amp, Grok Build, fx, or **Custom Command**, then a **Model** and, where the model supports it, a **Reasoning** level. **Refresh Models** fetches the current list.
 
 Each job type (**Commit Messages**, **Pull Request Details**, **Reading Diffs**, **Workspace Identity**, **Agent Titles**, **Speech Messages**) has its own group where you can keep the **Global** agent and model or override them, and add **Instructions** such as your commit convention.
 
 A **Custom Command** receives the prompt on stdin, or as an argument wherever you write `{prompt}`, for example `llm --system commit-message`. It cannot process speech.
 
-The CLI must be on your `PATH` and signed in. If it is missing, the job names the command it looked for, and any job stops after two minutes.
+CLI providers must be on your `PATH` and signed in. If one is missing, the job names the command it looked for. Jobs use the configured timeout, two minutes by default.
+
+## Using Your ChatGPT Plan
+
+Under **Settings → AI Assist → ChatGPT Account**, choose **Continue with ChatGPT** and authorize Alera in your browser. Then choose **ChatGPT** as the global agent or for specific job types. No API key or Codex installation is required. Available models come from the selected ChatGPT account. **Saved Accounts** keeps account and workspace registrations separate; **Use Account** switches between connected registrations, and **Sign Out** clears the selected account's tokens.
+
+Eligible requests use your ChatGPT plan or credits you authorize in ChatGPT. **Manage Usage** opens ChatGPT's app limits and access settings. Reaching a limit stops the request; Alera does not silently switch to API billing. Credentials stay in the runtime's protected storage and never enter synced settings or the phone. Each remote runtime requires its own connection.
+
+This integration generates text, including cleanup of an existing transcript. OpenAI's Sign in with ChatGPT preview does not support audio input or transcription, so choose a separate transcription engine for dictation.
 
 <Callout type="note" title="What Leaves Your Machine">
-The prompt, which holds a diff and commit list, your From Prompt text, a tab's first prompt or recent terminal output, or a transcript, goes to the CLI you chose, and that CLI talks to its own provider under your account. Alera adds no service of its own in between. OpenCode Go is the exception: the runtime calls the OpenCode Go API directly, with the key OpenCode saved on this machine. For a workspace on a [remote host](/docs/remote-hosts), the job runs on that host, with its CLI and credentials.
+The prompt, which holds a diff and commit list, your From Prompt text, a tab's first prompt or recent terminal output, or a transcript, goes to your selected provider. ChatGPT sends this context directly to OpenAI's Responses API using the connected account; it does not give Alera access to your ChatGPT conversations. OpenCode Go calls its API directly with the key OpenCode saved on this machine. Other providers run their CLI under your account. Alera adds no inference service of its own in between. For a workspace on a [remote host](/docs/remote-hosts), the job runs on that host, with its CLI and credentials.
 </Callout>
 
 **Settings → Text Actions** uses the same agents: save an instruction with **New Action**, then apply it to selected text from the **Text Actions** entry of the right-click menu.

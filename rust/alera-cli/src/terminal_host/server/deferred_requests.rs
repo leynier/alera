@@ -246,6 +246,16 @@ impl ServerActor {
                 self.start_ai_assist_complete(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "aiAssist.chatgpt.status"
+            | "aiAssist.chatgpt.signIn"
+            | "aiAssist.chatgpt.cancel"
+            | "aiAssist.chatgpt.select"
+            | "aiAssist.chatgpt.signOut"
+            | "aiAssist.chatgpt.models"
+            | "aiAssist.chatgpt.acknowledgePlan" => {
+                self.start_chatgpt_request(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
             "aiAssist.opencodeGo.models" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

@@ -1,5 +1,6 @@
 pub(super) fn default_model(agent: &str) -> &'static str {
     match agent {
+        "chatgpt" => "",
         "claude" => "sonnet",
         "codex" => "gpt-5.5",
         "copilot" => "gpt-5.4",

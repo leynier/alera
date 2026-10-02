@@ -1,15 +1,13 @@
 //! What the mobile gateway advertises to a phone and what it admits from one.
 //!
-//! Separate from the terminal requests themselves: this is the surface a phone
-//! is allowed to see, and it grows with every mobile feature, while the
-//! terminal verbs below it do not.
+//! Kept separate from terminal requests as the mobile surface grows.
 
 use crate::terminal_host::agent_profile_capabilities::{
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_SESSION_RESUME_CAPABILITY,
 };
 use crate::terminal_host::ai_assist_capabilities::{
-    RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY, RUNTIME_HOST_AI_ASSIST_CHATGPT_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY,
@@ -93,6 +91,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_CHATGPT_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_SESSION_RESUME_CAPABILITY,

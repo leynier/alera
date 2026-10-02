@@ -14,3 +14,4 @@ pub const RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY: &str =
 /// Direct OpenCode Go HTTP completion and model discovery for AI Assist.
 /// Additive: do not bump `aleraTerminalHostProtocolVersion`.
 pub const RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY: &str = "aiAssistOpenCodeGoV1";
+pub const RUNTIME_HOST_AI_ASSIST_CHATGPT_CAPABILITY: &str = "aiAssistChatGptV1";

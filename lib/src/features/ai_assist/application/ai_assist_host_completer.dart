@@ -1,6 +1,7 @@
 import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 const String openCodeGoHostTooOldMessage =
@@ -17,11 +18,13 @@ abstract interface class AiAssistHostCompleter {
 
   Future<void> cancel(String operationId);
 
-  Future<List<AiAssistModel>> discoverOpenCodeGoModels();
+  Future<List<AiAssistModel>> discoverModels();
 }
 
-class RuntimeHostAiAssistCompleter({required final RuntimeHostClient client})
-    implements AiAssistHostCompleter {
+class RuntimeHostAiAssistCompleter({
+  required final RuntimeHostClient client,
+  final AiAssistAgent agent = AiAssistAgent.opencodeGo,
+}) implements AiAssistHostCompleter {
   @override
   Future<AiAssistAgentRunResult> complete({
     required String prompt,
@@ -35,6 +38,7 @@ class RuntimeHostAiAssistCompleter({required final RuntimeHostClient client})
       final value = await client.runtimeRequest(
         'aiAssist.complete',
         <String, Object?>{
+          'agent': agent.key,
           'prompt': prompt,
           'model': model,
           'sessionId': sessionId,
@@ -44,15 +48,15 @@ class RuntimeHostAiAssistCompleter({required final RuntimeHostClient client})
         Duration(seconds: timeoutSeconds + 10),
       );
       if (value is! Map) {
-        throw const AiAssistException('OpenCode Go returned no text.');
+        throw AiAssistException('${agent.label} returned no text.');
       }
       final text = value['text']?.toString().trim() ?? '';
       if (text.isEmpty) {
-        throw const AiAssistException('OpenCode Go returned no text.');
+        throw AiAssistException('${agent.label} returned no text.');
       }
       return AiAssistAgentRunResult(
         text: text,
-        agentLabel: value['agentLabel']?.toString() ?? 'OpenCode Go',
+        agentLabel: value['agentLabel']?.toString() ?? agent.label,
       );
     } on AiAssistException {
       rethrow;
@@ -71,24 +75,22 @@ class RuntimeHostAiAssistCompleter({required final RuntimeHostClient client})
   }
 
   @override
-  Future<List<AiAssistModel>> discoverOpenCodeGoModels() async {
+  Future<List<AiAssistModel>> discoverModels() async {
     await _requireCapability();
     try {
       final value = await client.runtimeRequest(
-        'aiAssist.opencodeGo.models',
+        agent == AiAssistAgent.chatgpt
+            ? 'aiAssist.chatgpt.models'
+            : 'aiAssist.opencodeGo.models',
         const <String, Object?>{},
         const Duration(seconds: aiAssistHostModelsTimeoutSeconds),
       );
       if (value is! Map) {
-        throw const AiAssistException(
-          'OpenCode Go returned no available models.',
-        );
+        throw AiAssistException('${agent.label} returned no available models.');
       }
       final rawModels = value['models'];
       if (rawModels is! List) {
-        throw const AiAssistException(
-          'OpenCode Go returned no available models.',
-        );
+        throw AiAssistException('${agent.label} returned no available models.');
       }
       final models = <AiAssistModel>[
         for (final item in rawModels)
@@ -102,9 +104,7 @@ class RuntimeHostAiAssistCompleter({required final RuntimeHostClient client})
             ),
       ].where((model) => model.id.isNotEmpty).toList(growable: false);
       if (models.isEmpty) {
-        throw const AiAssistException(
-          'OpenCode Go returned no available models.',
-        );
+        throw AiAssistException('${agent.label} returned no available models.');
       }
       return models;
     } on AiAssistException {
@@ -115,15 +115,20 @@ class RuntimeHostAiAssistCompleter({required final RuntimeHostClient client})
   }
 
   Future<void> _requireCapability() async {
+    final message = agent == AiAssistAgent.chatgpt
+        ? 'The running terminal host does not support ChatGPT AI Assist.'
+        : openCodeGoHostTooOldMessage;
     if (client is! RuntimeHostCapabilityClient) {
-      throw const AiAssistException(openCodeGoHostTooOldMessage);
+      throw AiAssistException(message);
     }
     final supported = await (client as RuntimeHostCapabilityClient)
         .supportsRuntimeCapability(
-          aleraRuntimeHostAiAssistOpenCodeGoCapability,
+          agent == AiAssistAgent.chatgpt
+              ? aleraRuntimeHostAiAssistChatGptCapability
+              : aleraRuntimeHostAiAssistOpenCodeGoCapability,
         );
     if (!supported) {
-      throw const AiAssistException(openCodeGoHostTooOldMessage);
+      throw AiAssistException(message);
     }
   }
 }
