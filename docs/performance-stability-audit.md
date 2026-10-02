@@ -32,6 +32,8 @@ Prefer eliminating unnecessary work, bounding queues, cancelling obsolete work a
 | Windows native CTest | Completed; environment limited | The Release target compiles. Seven non-GUI assertions pass and five window-activation assertions fail under SSH session 0; isolated diagnostics confirm no input desktop and windows remain invisible. Interactive validation remains unverified. |
 | Merge and deploy | Cancelled by user | No push or main merge; either can activate automatic Vercel or cloud deployment. |
 | Publish and verify | Cancelled by user | No new release, publication or production configuration change. |
+| Second performance and stability review | Completed; fixes pending | Six subsystem reviews, independent branch review and isolated probes found five P1 issues plus P2 improvements. See performance-stability-second-review.md. The review request did not authorize implementation of these new audit findings. |
+| ChatGPT models, thinking effort and speed | In progress | User explicitly authorized investigation and implementation in this PR. Preserve account-specific catalog, forward reasoning effort, add normal/fast selection and additive host capability; validate offline without deployment. |
 | Implementation report | Completed | Spanish report, raw runtime and Windows validation, reproducible checks, remaining platform limits and activation dependencies are committed locally. |
 
 ## Validation

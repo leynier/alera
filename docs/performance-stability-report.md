@@ -2,6 +2,8 @@
 
 ## Resultado
 
+La [segunda revisión](performance-stability-second-review.md), realizada sobre `1457a1072`, encontró cinco problemas prioritarios pendientes y mejoras adicionales. Los resultados de validación de este informe corresponden al alcance implementado inicialmente; no significan que esos nuevos hallazgos estén corregidos.
+
 Se auditó el cliente Flutter de escritorio, el runtime Rust, el cliente móvil, el backend cloud, el relay edge y el landing site.
 
 Se implementaron correcciones locales para eliminar trabajo duplicado, acotar colas y streams, cancelar trabajo obsoleto, serializar transiciones de ciclo de vida y evitar fugas de recursos.
