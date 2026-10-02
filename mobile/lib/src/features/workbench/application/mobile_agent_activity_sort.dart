@@ -43,6 +43,38 @@ MobileWorkspaceAttention mobileWorkspaceAttention({
   return best;
 }
 
+/// Computes attention once per workspace instead of scanning every presence
+/// record for every workspace row. The workspace list can contain many more
+/// workspaces than active agents, so the indexed pass keeps each refresh
+/// linear in the number of records it received.
+Map<String, MobileWorkspaceAttention> mobileWorkspaceAttentionByWorkspace({
+  required Iterable<AgentPresenceSummary> statuses,
+  required DateTime now,
+}) {
+  final result = <String, MobileWorkspaceAttention>{};
+  for (final status in statuses) {
+    final startedAt = status.stateStartedAt;
+    if (startedAt == null ||
+        now.difference(startedAt) > mobileAgentActivityStaleness) {
+      continue;
+    }
+    final candidate = MobileWorkspaceAttention(
+      attentionClass: switch (status.state) {
+        'waiting' || 'blocked' => MobileAgentAttentionClass.needsYou,
+        'done' => MobileAgentAttentionClass.done,
+        'working' => MobileAgentAttentionClass.working,
+        _ => MobileAgentAttentionClass.idle,
+      },
+      at: startedAt,
+    );
+    final current = result[status.workspaceId] ?? MobileWorkspaceAttention.idle;
+    if (_moreUrgent(candidate, current)) {
+      result[status.workspaceId] = candidate;
+    }
+  }
+  return result;
+}
+
 MobileAgentActivityRank mobileAgentActivityRank({
   required MobileWorkspaceAttention attention,
   required DateTime fallback,

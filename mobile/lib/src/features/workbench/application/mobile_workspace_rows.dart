@@ -128,6 +128,10 @@ _PreparedWorkspaceListing _prepareWorkspaceListing({
   final workspacesWithAgentPresence = <String>{
     for (final status in agentPresence) status.workspaceId,
   };
+  final attentionByWorkspace = mobileWorkspaceAttentionByWorkspace(
+    statuses: agentPresence,
+    now: clock,
+  );
   bool hasActivity(WorkspaceSummary workspace) {
     return (terminalTabCountByWorkspaceId[workspace.id] ?? 0) > 0 ||
         workspacesWithAgentPresence.contains(workspace.id);
@@ -158,11 +162,9 @@ _PreparedWorkspaceListing _prepareWorkspaceListing({
     for (final workspace in visibleWorkspaces)
       workspace.id: hasActivity(workspace)
           ? mobileAgentActivityRank(
-              attention: mobileWorkspaceAttention(
-                workspaceId: workspace.id,
-                statuses: agentPresence,
-                now: clock,
-              ),
+              attention:
+                  attentionByWorkspace[workspace.id] ??
+                  MobileWorkspaceAttention.idle,
               fallback:
                   activity[workspace.id] ?? workspace.updatedAt ?? DateTime(0),
             )

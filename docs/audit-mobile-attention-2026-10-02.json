@@ -1,0 +1,153 @@
+{
+  "warmupRunsPerSample": 2,
+  "measuredRunsPerSample": 5,
+  "timingUnit": "microseconds",
+  "timingOrder": "alternates original and indexed per run",
+  "samples": [
+    {
+      "sample": 1,
+      "workspaces": 8,
+      "statuses": 24,
+      "originalStatusInspections": 192,
+      "indexedStatusInspections": 24,
+      "indexedWorkspaceLookups": 8,
+      "indexedTotalTheoreticalOperations": 32,
+      "outputsEqual": true,
+      "checksumsEqual": true,
+      "originalMicroseconds": [
+        88,
+        42,
+        34,
+        32,
+        34
+      ],
+      "indexedMicroseconds": [
+        34,
+        45,
+        33,
+        32,
+        32
+      ],
+      "originalMedianMicroseconds": 34,
+      "indexedMedianMicroseconds": 33,
+      "originalMadMicroseconds": 2,
+      "indexedMadMicroseconds": 1
+    },
+    {
+      "sample": 2,
+      "workspaces": 32,
+      "statuses": 96,
+      "originalStatusInspections": 3072,
+      "indexedStatusInspections": 96,
+      "indexedWorkspaceLookups": 32,
+      "indexedTotalTheoreticalOperations": 128,
+      "outputsEqual": true,
+      "checksumsEqual": true,
+      "originalMicroseconds": [
+        287,
+        168,
+        137,
+        140,
+        133
+      ],
+      "indexedMicroseconds": [
+        170,
+        149,
+        99,
+        99,
+        102
+      ],
+      "originalMedianMicroseconds": 140,
+      "indexedMedianMicroseconds": 102,
+      "originalMadMicroseconds": 7,
+      "indexedMadMicroseconds": 3
+    },
+    {
+      "sample": 3,
+      "workspaces": 128,
+      "statuses": 384,
+      "originalStatusInspections": 49152,
+      "indexedStatusInspections": 384,
+      "indexedWorkspaceLookups": 128,
+      "indexedTotalTheoreticalOperations": 512,
+      "outputsEqual": true,
+      "checksumsEqual": true,
+      "originalMicroseconds": [
+        376,
+        526,
+        388,
+        396,
+        310
+      ],
+      "indexedMicroseconds": [
+        310,
+        318,
+        305,
+        257,
+        331
+      ],
+      "originalMedianMicroseconds": 388,
+      "indexedMedianMicroseconds": 310,
+      "originalMadMicroseconds": 12,
+      "indexedMadMicroseconds": 8
+    },
+    {
+      "sample": 4,
+      "workspaces": 512,
+      "statuses": 1536,
+      "originalStatusInspections": 786432,
+      "indexedStatusInspections": 1536,
+      "indexedWorkspaceLookups": 512,
+      "indexedTotalTheoreticalOperations": 2048,
+      "outputsEqual": true,
+      "checksumsEqual": true,
+      "originalMicroseconds": [
+        2912,
+        3369,
+        3161,
+        2664,
+        2633
+      ],
+      "indexedMicroseconds": [
+        430,
+        397,
+        228,
+        120,
+        153
+      ],
+      "originalMedianMicroseconds": 2912,
+      "indexedMedianMicroseconds": 228,
+      "originalMadMicroseconds": 249,
+      "indexedMadMicroseconds": 108
+    },
+    {
+      "sample": 5,
+      "workspaces": 1024,
+      "statuses": 4096,
+      "originalStatusInspections": 4194304,
+      "indexedStatusInspections": 4096,
+      "indexedWorkspaceLookups": 1024,
+      "indexedTotalTheoreticalOperations": 5120,
+      "outputsEqual": true,
+      "checksumsEqual": true,
+      "originalMicroseconds": [
+        14527,
+        14334,
+        24965,
+        29143,
+        29238
+      ],
+      "indexedMicroseconds": [
+        447,
+        422,
+        553,
+        2239,
+        497
+      ],
+      "originalMedianMicroseconds": 24965,
+      "indexedMedianMicroseconds": 497,
+      "originalMadMicroseconds": 4273,
+      "indexedMadMicroseconds": 56
+    }
+  ]
+}
