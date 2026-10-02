@@ -182,11 +182,24 @@ final class RuntimeStateMigration({
           entry.key.key: entry.value,
       },
       'selectedThinkingByModel': settings.selectedThinkingByModel,
+      'selectedThinkingByOperation': <String, Map<String, String>>{
+        for (final entry in settings.selectedThinkingByOperation.entries)
+          entry.key.key: entry.value,
+      },
       'customCommand': settings.customCommand,
       'instructionsByOperation': <String, String>{
         for (final entry in settings.instructionsByOperation.entries)
           entry.key.key: entry.value,
       },
+      'promptSettingsByOperation': <String, Map<String, Object?>>{
+        for (final entry in settings.promptSettingsByOperation.entries)
+          entry.key.key: <String, Object?>{
+            if (entry.value.agent != null) 'agent': entry.value.agent!.key,
+            if (entry.value.model?.trim().isNotEmpty == true)
+              'model': entry.value.model!.trim(),
+          },
+      },
+      'chatGptServiceTier': settings.effectiveChatGptServiceTier,
       'timeoutSeconds': settings.timeoutSeconds,
     };
   }

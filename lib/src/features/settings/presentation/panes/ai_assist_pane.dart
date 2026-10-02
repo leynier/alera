@@ -11,8 +11,13 @@ import 'package:alera/src/features/settings/presentation/panes/ai_assist_setting
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_custom_command_dialog.dart';
 import 'package:alera/src/features/settings/presentation/panes/chatgpt_account_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+part 'ai_assist_pane_discovery.dart';
+part 'ai_assist_pane_options.dart';
 
 class const AiAssistSettingsPane({
   super.key,
@@ -41,12 +46,28 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
       <AiAssistAgent, AiAssistModelDiscoveryState>{};
   final Map<AiAssistAgent, int> _discoveryGeneration = {};
   final Set<AiAssistAgent> _autoDiscovered = <AiAssistAgent>{};
+  bool _chatGptOptionsSupported = true;
+  bool _chatGptOptionsChecked = false;
+
+  void _updateChatGptOptionsSupported(bool supported) {
+    if (!mounted) return;
+    setState(() => _chatGptOptionsSupported = supported);
+  }
+
+  void _updateDiscoveryState(
+    AiAssistAgent agent,
+    AiAssistModelDiscoveryState state,
+  ) {
+    if (!mounted) return;
+    setState(() => _discovery[agent] = state);
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoDiscoverConfiguredAgents();
+      _loadChatGptOptionsSupport();
     });
   }
 
@@ -59,6 +80,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
             widget.settings.promptSettingsByOperation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _autoDiscoverConfiguredAgents();
+        _loadChatGptOptionsSupport();
       });
     }
   }
@@ -142,20 +164,31 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                     );
                   }),
                 ),
-              if (thinkingLevels.isNotEmpty)
+              if (thinkingLevels.isNotEmpty ||
+                  agent == AiAssistAgent.chatgpt &&
+                      settings.thinkingForModel(model.id) != null)
                 AiAssistThinkingRow(
                   levels: thinkingLevels,
-                  value:
-                      settings.thinkingForModel(model.id) ??
-                      model.defaultThinkingLevel ??
-                      thinkingLevels.first.id,
+                  value: agent == AiAssistAgent.chatgpt
+                      ? settings.thinkingForModel(model.id)
+                      : settings.thinkingForModel(model.id) ??
+                            model.defaultThinkingLevel ??
+                            thinkingLevels.first.id,
+                  allowProviderDefault: agent == AiAssistAgent.chatgpt,
                   onChanged: (value) => widget.onChanged(
-                    (settings) => settings.copyWith(
-                      selectedThinkingByModel: <String, String>{
-                        ...settings.selectedThinkingByModel,
-                        model.id: value,
-                      },
-                    ),
+                    (settings) =>
+                        _updateGlobalThinking(settings, model.id, value),
+                  ),
+                ),
+              if (_usesChatGpt(settings))
+                ChatGptModelSpeedRow(
+                  value: settings.effectiveChatGptServiceTier,
+                  enabled: _chatGptOptionsSupported,
+                  availabilityMessage: _chatGptOptionsSupported
+                      ? null
+                      : 'Update Alera to use ChatGPT speed controls.',
+                  onChanged: (value) => widget.onChanged(
+                    (settings) => settings.copyWith(chatGptServiceTier: value),
                   ),
                 ),
               if (agent != AiAssistAgent.custom &&
@@ -180,6 +213,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           key: widget.groupKeys['chatgpt'],
           child: ChatGptAccountSettings(
             onAccountChanged: _chatGptAccountChanged,
+            onAccountReady: _chatGptAccountReady,
           ),
         ),
         const SizedBox(height: AleraTokens.space16),
@@ -221,6 +255,12 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
         },
       ),
     );
+    _loadChatGptOptionsSupport();
+    unawaited(_discoverModels(AiAssistAgent.chatgpt, force: true));
+  }
+
+  void _chatGptAccountReady() {
+    _loadChatGptOptionsSupport();
     unawaited(_discoverModels(AiAssistAgent.chatgpt));
   }
 
@@ -242,29 +282,42 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           defaultModelIdForAgent(agent, settings),
       extraModels: discoveredModelsForAgent(settings, agent),
     );
-    if (model.thinkingLevels.isEmpty) {
+    if (model.thinkingLevels.isEmpty &&
+        !(agent == AiAssistAgent.chatgpt &&
+            settings.thinkingForOperation(operation, model.id) != null)) {
       return const <Widget>[];
+    }
+    final operationThinking =
+        settings.selectedThinkingByOperation[operation]?[model.id];
+    final isChatGpt = agent == AiAssistAgent.chatgpt;
+    final inheritedThinking = settings.thinkingForModel(model.id);
+    var inheritedLabel = 'Inherit Global';
+    String? inheritedUnavailableValue;
+    if (inheritedThinking != null) {
+      inheritedUnavailableValue = inheritedThinking;
+      for (final level in model.thinkingLevels) {
+        if (level.id == inheritedThinking) {
+          inheritedUnavailableValue = null;
+          inheritedLabel = 'Inherit Global (${level.label})';
+          break;
+        }
+      }
     }
     return <Widget>[
       AiAssistThinkingRow(
         controlKey: '${operation.key}-reasoning',
         levels: model.thinkingLevels,
-        value:
-            settings.thinkingForOperation(operation, model.id) ??
-            model.defaultThinkingLevel ??
-            model.thinkingLevels.first.id,
+        value: isChatGpt
+            ? operationThinking
+            : settings.thinkingForOperation(operation, model.id) ??
+                  model.defaultThinkingLevel ??
+                  model.thinkingLevels.first.id,
+        allowInherited: isChatGpt,
+        inheritedLabel: inheritedLabel,
+        inheritedUnavailableValue: isChatGpt ? inheritedUnavailableValue : null,
         onChanged: (value) => widget.onChanged(
-          (settings) => settings.copyWith(
-            selectedThinkingByOperation:
-                <AiAssistOperation, Map<String, String>>{
-                  ...settings.selectedThinkingByOperation,
-                  operation: <String, String>{
-                    ...settings.selectedThinkingByOperation[operation] ??
-                        const <String, String>{},
-                    model.id: value,
-                  },
-                },
-          ),
+          (settings) =>
+              _updateOperationThinking(settings, operation, model.id, value),
         ),
       ),
     ];
@@ -410,89 +463,5 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
         if (entry.value.agent != null) entry.key: entry.value,
     };
     return settings.copyWith(agent: agent, promptSettingsByOperation: updated);
-  }
-
-  void _autoDiscoverConfiguredAgents() {
-    if (!mounted || !widget.settings.enabled) {
-      return;
-    }
-    final agents = aiAssistAgentsForModelDiscovery(
-      widget.settings,
-      _configuredOperations,
-    );
-    for (final agent in agents) {
-      _autoDiscoverAgent(agent);
-    }
-  }
-
-  void _autoDiscoverAgent(AiAssistAgent agent) {
-    final spec = aiAssistAgentSpecs[agent];
-    if (spec == null ||
-        !spec.canDiscoverModels ||
-        _autoDiscovered.contains(agent) ||
-        (_discovery[agent]?.loading ?? false)) {
-      return;
-    }
-    _autoDiscovered.add(agent);
-    unawaited(_discoverModels(agent));
-  }
-
-  Future<void> _discoverModels(AiAssistAgent agent) async {
-    final spec = aiAssistAgentSpecs[agent];
-    if (spec == null || !spec.canDiscoverModels) {
-      return;
-    }
-    final generation = (_discoveryGeneration[agent] ?? 0) + 1;
-    _discoveryGeneration[agent] = generation;
-    setState(() {
-      _discovery[agent] = const AiAssistModelDiscoveryState(loading: true);
-    });
-    final AiAssistModelDiscoveryResult result;
-    try {
-      result = await ref
-          .read(aiAssistModelDiscoveryServiceProvider)
-          .discover(agent);
-    } catch (error) {
-      if (!mounted || _discoveryGeneration[agent] != generation) {
-        return;
-      }
-      setState(() {
-        _discovery[agent] = AiAssistModelDiscoveryState(
-          error: error.toString(),
-        );
-      });
-      return;
-    }
-    if (!mounted || _discoveryGeneration[agent] != generation) {
-      return;
-    }
-    if (!result.success) {
-      setState(() {
-        _discovery[agent] = AiAssistModelDiscoveryState(error: result.error);
-      });
-      return;
-    }
-    widget.onChanged((latest) {
-      final discoveredDefaults = <AiAssistAgent, String>{
-        ...latest.discoveredDefaultModelByAgent,
-      };
-      if (result.defaultModelId == null) {
-        discoveredDefaults.remove(agent);
-      } else {
-        discoveredDefaults[agent] = result.defaultModelId!;
-      }
-      return latest.copyWith(
-        discoveredModelsByAgent: <AiAssistAgent, List<AiAssistDiscoveredModel>>{
-          ...latest.discoveredModelsByAgent,
-          agent: <AiAssistDiscoveredModel>[
-            for (final model in result.models) model.toDiscovered(),
-          ],
-        },
-        discoveredDefaultModelByAgent: discoveredDefaults,
-      );
-    });
-    setState(() {
-      _discovery[agent] = const AiAssistModelDiscoveryState();
-    });
   }
 }

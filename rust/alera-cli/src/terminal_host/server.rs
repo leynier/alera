@@ -110,6 +110,7 @@ mod automation_target_location;
 mod chatgpt_credentials;
 mod chatgpt_inference;
 mod chatgpt_oauth;
+mod chatgpt_request_options;
 mod chatgpt_requests;
 mod chatgpt_session;
 #[cfg(test)]

@@ -87,6 +87,7 @@ class CliAiAssistService({
           runId: key,
           workingDirectory: request.workspacePath,
           agent: agent,
+          operation: request.operation,
           model: model.id,
           reasoning: request.settings.thinkingForOperation(
             request.operation,

@@ -10,6 +10,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -26,6 +27,7 @@ part 'ai_assist_reading_diff_lifecycle_test_cases.dart';
 part 'ai_assist_prompt_override_test_cases.dart';
 part 'ai_assist_opencode_go_test_cases.dart';
 part 'ai_assist_chatgpt_test_cases.dart';
+part 'ai_assist_chatgpt_thinking_context_test_cases.dart';
 part 'ai_assist_test_harness.dart';
 
 void main() {
@@ -38,6 +40,7 @@ void main() {
     _registerAiAssistPromptOverrideTests();
     _registerOpenCodeGoAiAssistTests();
     _registerChatGptAiAssistTests();
+    _registerChatGptThinkingContextTests();
 
     test('builds commit prompts with staged context and instructions', () {
       final prompt = buildCommitMessagePrompt(

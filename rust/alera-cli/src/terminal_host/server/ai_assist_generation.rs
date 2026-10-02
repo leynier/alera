@@ -36,9 +36,12 @@ pub(super) async fn generate_ai_assist_output(
     cancel_rx: oneshot::Receiver<()>,
 ) -> HostResult<(String, String)> {
     if super::ai_assist_requests::resolved_agent(settings, operation) == "chatgpt" {
-        let text = super::chatgpt_inference::complete(
+        let model = resolved_model(settings, operation);
+        let text = super::chatgpt_inference::complete_configured(
             prompt,
-            &resolved_model(settings, operation),
+            &model,
+            operation,
+            settings,
             Duration::from_secs(settings.timeout_seconds.max(1)),
             cancel_rx,
         )

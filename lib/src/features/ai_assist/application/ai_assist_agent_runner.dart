@@ -29,6 +29,7 @@ class const AiAssistAgentRunRequest({
   required final String runId,
   required final String? workingDirectory,
   final AiAssistAgent? agent,
+  final AiAssistOperation? operation,
   final String? model,
   final String? reasoning,
   final String Function(String) cleanOutput = cleanGeneratedText,
@@ -217,12 +218,38 @@ class CliAiAssistAgentRunner({
             defaultModelIdForAgent(agent, request.settings),
         extraModels: discoveredModelsForAgent(request.settings, agent),
       );
+      final operation = request.operation;
+      final selectedThinkingByModel = request.settings.selectedThinkingByModel;
+      final selectedThinkingByOperation = operation == null
+          ? const <String, String>{}
+          : request.settings.selectedThinkingByOperation[operation] ??
+                const <String, String>{};
+      final hasSavedThinking =
+          selectedThinkingByModel.isNotEmpty ||
+          selectedThinkingByOperation.isNotEmpty;
+      final thinkingContext =
+          agent == AiAssistAgent.chatgpt &&
+              model.id.trim().isEmpty &&
+              hasSavedThinking
+          ? AiAssistThinkingContext(
+              operation: operation,
+              selectedThinkingByModel: selectedThinkingByModel,
+              selectedThinkingByOperation: selectedThinkingByOperation,
+            )
+          : null;
       final result = await completer.complete(
         prompt: request.prompt,
         model: model.id,
         sessionId: request.runId,
         operationId: request.runId,
         timeoutSeconds: request.settings.timeoutSeconds,
+        thinkingLevel: agent == AiAssistAgent.chatgpt
+            ? request.reasoning ?? request.settings.thinkingForModel(model.id)
+            : null,
+        serviceTier: agent == AiAssistAgent.chatgpt
+            ? request.settings.effectiveChatGptServiceTier
+            : null,
+        thinkingContext: thinkingContext,
       );
       if (_canceled.contains(request.runId)) {
         throw const AiAssistCanceledException();

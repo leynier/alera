@@ -91,4 +91,46 @@ fn only_checkout_generations_are_routed_by_workspace_id() {
         "aiText.workspaceIdentity.generate"
     ));
     assert!(!is_workspace_generation_verb("aiText.cancel"));
+    assert_eq!(
+        operation_for_request("aiText.speechMessage.generate"),
+        Some("speechMessage")
+    );
+    assert_eq!(operation_for_request("aiText.cancel"), None);
+}
+
+#[test]
+fn chatgpt_options_are_required_for_remote_configured_generation() {
+    let mut settings = settings();
+    settings.agent = "chatgpt".into();
+    assert!(!chatgpt_options_required(&settings, "commitMessage"));
+
+    settings.chat_gpt_service_tier = "fast".into();
+    assert!(chatgpt_options_required(&settings, "commitMessage"));
+
+    settings.chat_gpt_service_tier = "default".into();
+    settings
+        .selected_model_by_agent
+        .insert("chatgpt".into(), "gpt-6.1-sol".into());
+    settings
+        .selected_thinking_by_model
+        .insert("gpt-6.1-sol".into(), "high".into());
+    assert!(chatgpt_options_required(&settings, "commitMessage"));
+
+    settings.selected_thinking_by_model.clear();
+    settings
+        .selected_thinking_by_operation
+        .entry("commitMessage".into())
+        .or_default()
+        .insert("gpt-6.1-sol".into(), "low".into());
+    assert!(chatgpt_options_required(&settings, "commitMessage"));
+
+    settings.selected_thinking_by_operation.clear();
+    settings.selected_model_by_agent.clear();
+    settings
+        .selected_thinking_by_model
+        .insert("".into(), "high".into());
+    assert!(chatgpt_options_required(&settings, "commitMessage"));
+
+    settings.agent = "claude".into();
+    assert!(!chatgpt_options_required(&settings, "commitMessage"));
 }

@@ -49,8 +49,11 @@ class const AiAssistModelRow({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final known = models.any((model) => model.id == value);
-    if (!known) {
+    final selected = value.trim();
+    final known = models.any((model) => model.id == selected);
+    final keepUnknownSelection =
+        agent == AiAssistAgent.chatgpt && canDiscoverModels;
+    if (!known && !keepUnknownSelection) {
       return SettingsTextRow(
         title: 'Model',
         description: 'Model passed to ${agent.label}.',
@@ -58,6 +61,10 @@ class const AiAssistModelRow({
         onChanged: onChanged,
       );
     }
+    final entries = <AiAssistModel>[
+      if (!known && selected.isNotEmpty) modelForAgent(agent, selected),
+      ...models,
+    ];
     return AleraSettingRow(
       title: 'Model',
       description: discoveryError == null
@@ -69,13 +76,16 @@ class const AiAssistModelRow({
         children: <Widget>[
           Expanded(
             child: AleraDropdownField<String>(
-              key: ValueKey<String>('ai-assist-model-${agent.key}-$value'),
-              value: value,
+              key: ValueKey<String>('ai-assist-model-${agent.key}-$selected'),
+              value: selected,
               entries: <AleraDropdownFieldEntry<String>>[
-                for (final model in models)
+                for (final model in entries)
                   AleraDropdownFieldEntry<String>(
                     value: model.id,
-                    label: model.label,
+                    label: model.id == selected && !known
+                        ? 'Unavailable (${model.label})'
+                        : model.label,
+                    enabled: model.id != selected || known,
                   ),
               ],
               onChanged: onChanged,
@@ -99,26 +109,125 @@ class const AiAssistThinkingRow({
   super.key,
   final String controlKey = 'thinking',
   required final List<AiThinkingLevel> levels,
-  required final String value,
-  required final ValueChanged<String> onChanged,
+  required final String? value,
+  required final ValueChanged<String?> onChanged,
+  final bool allowProviderDefault = false,
+  final bool allowInherited = false,
+  final String inheritedLabel = 'Inherit Global',
+  final String? inheritedUnavailableValue,
 }) extends StatelessWidget {
+  static const String _inheritedSelection = '\u0000inherit-global';
+  static const String _unavailableInheritedSelection =
+      '\u0000unavailable-inherited';
+
   @override
   Widget build(BuildContext context) {
-    final selected = levels.any((level) => level.id == value)
+    final hasSelectedLevel =
+        value != null && levels.any((level) => level.id == value);
+    final unsupportedValue =
+        (allowProviderDefault || allowInherited) &&
+            value != null &&
+            !hasSelectedLevel
         ? value
-        : levels.first.id;
+        : null;
+    final unsupportedInheritedValue =
+        allowInherited && value == null && inheritedUnavailableValue != null
+        ? inheritedUnavailableValue
+        : null;
+    final selected = hasSelectedLevel
+        ? value
+        : unsupportedValue ??
+              (unsupportedInheritedValue != null
+                  ? _unavailableInheritedSelection
+                  : allowInherited
+                  ? _inheritedSelection
+                  : allowProviderDefault
+                  ? null
+                  : levels.first.id);
+    final recoveryLabel = allowProviderDefault
+        ? 'Provider Default'
+        : allowInherited
+        ? 'Inherit Global'
+        : 'a supported level';
+    final description = unsupportedValue != null
+        ? 'The saved reasoning level is unavailable for this model. Choose $recoveryLabel or a supported level.'
+        : unsupportedInheritedValue != null
+        ? 'The global reasoning level "$unsupportedInheritedValue" is unavailable for this model. Choose Provider Default in the global AI Assist settings or a supported level here.'
+        : allowInherited
+        ? 'Reasoning effort inherited from global AI Assist settings.'
+        : 'Reasoning effort for models that support it.';
     return AleraSettingRow(
       title: 'Reasoning',
-      description: 'Reasoning effort for models that support it.',
-      child: AleraDropdownField<String>(
-        key: ValueKey<String>('ai-assist-$controlKey-$value'),
+      description: description,
+      child: AleraDropdownField<String?>(
+        key: ValueKey<String>(
+          'ai-assist-$controlKey-${value ?? (allowInherited ? 'inherit' : 'default')}',
+        ),
         value: selected,
-        entries: <AleraDropdownFieldEntry<String>>[
+        entries: <AleraDropdownFieldEntry<String?>>[
+          if (allowInherited)
+            AleraDropdownFieldEntry<String?>(
+              value: _inheritedSelection,
+              label: inheritedLabel,
+            ),
+          if (unsupportedInheritedValue != null)
+            AleraDropdownFieldEntry<String?>(
+              value: _unavailableInheritedSelection,
+              label: 'Unavailable (Global: $unsupportedInheritedValue)',
+              enabled: false,
+            ),
+          if (allowProviderDefault)
+            const AleraDropdownFieldEntry<String?>(
+              value: null,
+              label: 'Provider Default',
+            ),
+          if (unsupportedValue != null)
+            AleraDropdownFieldEntry<String?>(
+              value: unsupportedValue,
+              label: 'Unavailable ($unsupportedValue)',
+              enabled: false,
+            ),
           for (final level in levels)
-            AleraDropdownFieldEntry<String>(
+            AleraDropdownFieldEntry<String?>(
               value: level.id,
               label: level.label,
             ),
+        ],
+        onChanged: (value) =>
+            onChanged(value == _inheritedSelection ? null : value),
+      ),
+    );
+  }
+}
+
+class const ChatGptModelSpeedRow({
+  super.key,
+  required final String value,
+  required final ValueChanged<String> onChanged,
+  final bool enabled = true,
+  final String? availabilityMessage,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == aiAssistChatGptFastServiceTier
+        ? aiAssistChatGptFastServiceTier
+        : aiAssistChatGptDefaultServiceTier;
+    return AleraSettingRow(
+      title: 'ChatGPT Speed',
+      description: availabilityMessage ?? 'Applies to ChatGPT jobs. Request faster processing when available. Uses your ChatGPT plan faster.',
+      child: AleraDropdownField<String>(
+        key: ValueKey<String>('ai-assist-chatgpt-speed-$selected'),
+        value: selected,
+        entries: <AleraDropdownFieldEntry<String>>[
+          AleraDropdownFieldEntry<String>(
+            value: aiAssistChatGptDefaultServiceTier,
+            label: 'Normal',
+          ),
+          AleraDropdownFieldEntry<String>(
+            value: aiAssistChatGptFastServiceTier,
+            label: 'Fast',
+            enabled: enabled,
+          ),
         ],
         onChanged: onChanged,
       ),
@@ -180,11 +289,11 @@ class const AiAssistPromptModelRow({
   @override
   Widget build(BuildContext context) {
     final selected = value?.trim();
+    final known =
+        selected == null || models.any((model) => model.id == selected);
     final entries = <AiAssistModel>[
       ...models,
-      if (selected != null &&
-          selected.isNotEmpty &&
-          !models.any((model) => model.id == selected))
+      if (selected != null && selected.isNotEmpty && !known)
         modelForAgent(agent, selected),
     ];
     return AleraSettingRow(
@@ -207,7 +316,16 @@ class const AiAssistPromptModelRow({
                 for (final model in entries)
                   AleraDropdownFieldEntry<String?>(
                     value: model.id,
-                    label: model.label,
+                    label:
+                        agent == AiAssistAgent.chatgpt &&
+                            model.id == selected &&
+                            !known
+                        ? 'Unavailable (${model.label})'
+                        : model.label,
+                    enabled:
+                        agent != AiAssistAgent.chatgpt ||
+                        model.id != selected ||
+                        known,
                   ),
               ],
               onChanged: onChanged,

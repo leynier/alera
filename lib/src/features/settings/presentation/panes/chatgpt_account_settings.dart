@@ -22,6 +22,7 @@ enum _Availability { loading, unsupported, failed, ready }
 class const ChatGptAccountSettings({
   super.key,
   required final VoidCallback onAccountChanged,
+  final VoidCallback? onAccountReady,
   final RuntimeHostClient? client,
   final ExternalUriLauncher? launcher,
   final Duration pollInterval = const Duration(seconds: 1),
@@ -114,19 +115,27 @@ class _ChatGptAccountSettingsState
     final wasPending = _pending;
     final previousActive = _activeClientId;
     final pending = status['pending'] == true;
+    final activeClientId = status['activeClientId'] as String?;
     setState(() {
       _availability = .ready;
       _accounts = <ChatGptAccount>[
         for (final value in status['accounts'] as List? ?? const <Object?>[])
           ?ChatGptAccount.fromJson(value),
       ];
-      _activeClientId = status['activeClientId'] as String?;
+      _activeClientId = activeClientId;
       _pending = pending;
       _runtimeError = status['error'] as String?;
     });
-    if (wasReady &&
-        (previousActive != _activeClientId || wasPending && !pending)) {
+    if (wasReady && previousActive != _activeClientId) {
       widget.onAccountChanged();
+    }
+    final accountBecameReady =
+        activeClientId != null &&
+        !pending &&
+        ((!wasReady && !wasPending) ||
+            wasPending && previousActive == activeClientId);
+    if (accountBecameReady) {
+      widget.onAccountReady?.call();
     }
     if (pending) {
       _poll = Timer(widget.pollInterval, () => unawaited(_refresh()));

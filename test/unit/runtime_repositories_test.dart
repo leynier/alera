@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/projects/application/project_config_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -25,12 +26,14 @@ import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'runtime_managed_workspace_client_test_cases.dart';
+part 'runtime_state_migration_test_cases.dart';
 part 'runtime_tab_title_test_cases.dart';
 part 'runtime_workflow_workspace_test_cases.dart';
 
 void main() {
   _registerRuntimeTabTitleTests();
   _registerRuntimeManagedWorkspaceClientTests();
+  _registerRuntimeStateMigrationTests();
   _registerRuntimeWorkflowWorkspaceTests();
 
   test(
@@ -230,57 +233,6 @@ void main() {
         'archiveUrl': 'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
         'version': '1.2.4-rc.0',
       },
-    );
-  });
-
-  test('RuntimeStateMigration seeds legacy state once', () async {
-    final client = _FakeRuntimeHostClient();
-    final legacyProjects = _MemoryProjectRepository()
-      ..projects.add(_project(id: 'project-1', name: 'Legacy'));
-    final legacyWorkbench = _MemoryWorkbenchRepository();
-    final workspace = _workspace(id: 'workspace-1', projectId: 'project-1');
-    legacyWorkbench.workspaces[workspace.id] = workspace;
-    legacyWorkbench.tabs['tab-1'] = WorkspaceTabRecord(
-      id: 'tab-1',
-      workspaceId: workspace.id,
-      title: 'Terminal',
-      createdAt: _timestamp,
-      updatedAt: _timestamp,
-    );
-    legacyWorkbench.layouts[workspace.id] = WorkbenchLayout.single(
-      workspaceId: workspace.id,
-      tabIds: const <String>['tab-1'],
-    );
-    final runtimeProjects = _MemoryProjectRepository();
-    final runtimeWorkbench = _MemoryWorkbenchRepository();
-    var legacyFactoryCalls = 0;
-    final migration = RuntimeStateMigration(
-      runtimeClient: client,
-      legacyRepositories: () async {
-        legacyFactoryCalls += 1;
-        return RuntimeStateLegacyRepositories(
-          projectRepository: legacyProjects,
-          projectConfigRepository: _MemoryProjectConfigRepository(),
-          settingsRepository: _MemorySettingsRepository(),
-          workbenchRepository: legacyWorkbench,
-        );
-      },
-      runtimeProjects: runtimeProjects,
-      runtimeWorkbench: runtimeWorkbench,
-    );
-
-    await migration.ensureMigrated();
-    await migration.ensureMigrated();
-
-    expect(legacyFactoryCalls, 1);
-    expect(runtimeProjects.projects.single.name, 'Legacy');
-    expect(runtimeWorkbench.workspaces[workspace.id], workspace);
-    expect(runtimeWorkbench.tabs['tab-1']?.workspaceId, workspace.id);
-    expect(runtimeWorkbench.layouts[workspace.id], isNotNull);
-    expect(client.requests, hasLength(18));
-    expect(
-      client.requests.where((request) => request == 'runtimeSettings.update'),
-      hasLength(4),
     );
   });
 }

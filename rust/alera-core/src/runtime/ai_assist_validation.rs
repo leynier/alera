@@ -1,4 +1,7 @@
-use super::{RuntimeAiAssistSettings, AI_ASSIST_AGENTS};
+use super::{
+    RuntimeAiAssistSettings, AI_ASSIST_AGENTS, CHAT_GPT_SERVICE_TIER_DEFAULT,
+    CHAT_GPT_SERVICE_TIER_FAST,
+};
 
 pub fn validate_ai_assist_settings(settings: &RuntimeAiAssistSettings) -> anyhow::Result<()> {
     if !AI_ASSIST_AGENTS.contains(&settings.agent.trim()) {
@@ -32,6 +35,18 @@ pub fn validate_ai_assist_settings(settings: &RuntimeAiAssistSettings) -> anyhow
             "AI Assist timeout must be between 10 and 600 seconds.",
         ));
     }
+    if !matches!(
+        settings
+            .chat_gpt_service_tier
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
+        CHAT_GPT_SERVICE_TIER_DEFAULT | CHAT_GPT_SERVICE_TIER_FAST
+    ) {
+        return Err(anyhow::anyhow!(
+            "ChatGPT service tier must be default or fast.",
+        ));
+    }
     Ok(())
 }
 
@@ -49,5 +64,28 @@ mod tests {
             };
             assert!(validate_ai_assist_settings(&settings).is_ok());
         }
+    }
+
+    #[test]
+    fn normalizes_chatgpt_service_tier_and_defaults_legacy_settings() {
+        let parsed: RuntimeAiAssistSettings =
+            serde_json::from_value(serde_json::json!({"chatGptServiceTier":" FAST "})).unwrap();
+        assert_eq!(parsed.normalized().chat_gpt_service_tier, "fast");
+        assert_eq!(
+            RuntimeAiAssistSettings::default().chat_gpt_service_tier,
+            "default"
+        );
+        let legacy: RuntimeAiAssistSettings =
+            serde_json::from_value(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.chat_gpt_service_tier, "default");
+    }
+
+    #[test]
+    fn rejects_unknown_chatgpt_service_tier_before_persistence() {
+        let settings = RuntimeAiAssistSettings {
+            chat_gpt_service_tier: "turbo".to_string(),
+            ..RuntimeAiAssistSettings::default()
+        };
+        assert!(validate_ai_assist_settings(&settings).is_err());
     }
 }

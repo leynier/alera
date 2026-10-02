@@ -162,6 +162,7 @@ Map<String, Object?> _runtimeAiAssistSettings(AiAssistSettings settings) {
             'model': entry.value.model!.trim(),
         },
     },
+    'chatGptServiceTier': settings.effectiveChatGptServiceTier,
     'timeoutSeconds': settings.timeoutSeconds,
   };
 }

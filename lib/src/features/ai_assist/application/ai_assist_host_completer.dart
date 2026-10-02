@@ -6,6 +6,20 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 const String openCodeGoHostTooOldMessage =
     'The running terminal host does not support OpenCode Go AI Assist.';
+const String chatGptOptionsHostTooOldMessage =
+    'The running terminal host does not support ChatGPT thinking or fast mode.';
+
+final class AiAssistThinkingContext {
+  const AiAssistThinkingContext({
+    this.operation,
+    required this.selectedThinkingByModel,
+    required this.selectedThinkingByOperation,
+  });
+
+  final AiAssistOperation? operation;
+  final Map<String, String> selectedThinkingByModel;
+  final Map<String, String> selectedThinkingByOperation;
+}
 
 abstract interface class AiAssistHostCompleter {
   Future<AiAssistAgentRunResult> complete({
@@ -14,6 +28,9 @@ abstract interface class AiAssistHostCompleter {
     required String sessionId,
     required String operationId,
     required int timeoutSeconds,
+    String? thinkingLevel,
+    String? serviceTier,
+    AiAssistThinkingContext? thinkingContext,
   });
 
   Future<void> cancel(String operationId);
@@ -32,21 +49,47 @@ class RuntimeHostAiAssistCompleter({
     required String sessionId,
     required String operationId,
     required int timeoutSeconds,
+    String? thinkingLevel,
+    String? serviceTier,
+    AiAssistThinkingContext? thinkingContext,
   }) async {
     await _requireCapability();
+    await _requireChatGptOptionsCapability(
+      thinkingLevel: thinkingLevel,
+      serviceTier: serviceTier,
+      thinkingContext: thinkingContext,
+    );
     try {
-      final value = await client.runtimeRequest(
-        'aiAssist.complete',
-        <String, Object?>{
-          'agent': agent.key,
-          'prompt': prompt,
-          'model': model,
-          'sessionId': sessionId,
-          'operationId': operationId,
-          'timeoutSeconds': timeoutSeconds,
-        },
-        Duration(seconds: timeoutSeconds + 10),
-      );
+      final normalizedThinkingLevel = thinkingLevel?.trim();
+      final normalizedServiceTier = serviceTier?.trim();
+      final effectiveServiceTier =
+          normalizedServiceTier == null || normalizedServiceTier.isEmpty
+          ? aiAssistChatGptDefaultServiceTier
+          : normalizedServiceTier;
+      final value = await client.runtimeRequest('aiAssist.complete', <
+        String,
+        Object?
+      >{
+        'agent': agent.key,
+        'prompt': prompt,
+        'model': model,
+        'sessionId': sessionId,
+        'operationId': operationId,
+        'timeoutSeconds': timeoutSeconds,
+        if (agent == AiAssistAgent.chatgpt &&
+            normalizedThinkingLevel != null &&
+            normalizedThinkingLevel.isNotEmpty)
+          'thinkingLevel': normalizedThinkingLevel,
+        if (agent == AiAssistAgent.chatgpt) 'serviceTier': effectiveServiceTier,
+        if (agent == AiAssistAgent.chatgpt && thinkingContext != null)
+          'thinkingContext': <String, Object?>{
+            if (thinkingContext.operation != null)
+              'operation': thinkingContext.operation!.key,
+            'selectedThinkingByModel': thinkingContext.selectedThinkingByModel,
+            'selectedThinkingByOperation':
+                thinkingContext.selectedThinkingByOperation,
+          },
+      }, Duration(seconds: timeoutSeconds + 10));
       if (value is! Map) {
         throw AiAssistException('${agent.label} returned no text.');
       }
@@ -94,19 +137,16 @@ class RuntimeHostAiAssistCompleter({
       }
       final models = <AiAssistModel>[
         for (final item in rawModels)
-          if (item is Map)
-            AiAssistModel(
-              id: item['id']?.toString().trim() ?? '',
-              label:
-                  item['label']?.toString().trim() ??
-                  item['id']?.toString().trim() ??
-                  '',
-            ),
+          if (item is Map) _parseModel(item),
       ].where((model) => model.id.isNotEmpty).toList(growable: false);
-      if (models.isEmpty) {
+      final seenModelIds = <String>{};
+      final uniqueModels = models
+          .where((model) => seenModelIds.add(model.id))
+          .toList(growable: false);
+      if (uniqueModels.isEmpty) {
         throw AiAssistException('${agent.label} returned no available models.');
       }
-      return models;
+      return uniqueModels;
     } on AiAssistException {
       rethrow;
     } catch (error) {
@@ -131,6 +171,73 @@ class RuntimeHostAiAssistCompleter({
       throw AiAssistException(message);
     }
   }
+
+  Future<void> _requireChatGptOptionsCapability({
+    required String? thinkingLevel,
+    required String? serviceTier,
+    required AiAssistThinkingContext? thinkingContext,
+  }) async {
+    if (agent != AiAssistAgent.chatgpt ||
+        ((thinkingLevel?.trim().isNotEmpty ?? false) == false &&
+            serviceTier?.trim() != aiAssistChatGptFastServiceTier &&
+            thinkingContext == null)) {
+      return;
+    }
+    if (client is! RuntimeHostCapabilityClient) {
+      throw const AiAssistException(chatGptOptionsHostTooOldMessage);
+    }
+    final supported = await (client as RuntimeHostCapabilityClient)
+        .supportsRuntimeCapability(
+          aleraRuntimeHostAiAssistChatGptOptionsCapability,
+        );
+    if (!supported) {
+      throw const AiAssistException(chatGptOptionsHostTooOldMessage);
+    }
+  }
+}
+
+AiAssistModel _parseModel(Map item) {
+  final id = _trimmedString(item['id']) ?? '';
+  final label = _trimmedString(item['label']) ?? id;
+  final levels = <AiThinkingLevel>[];
+  final seenLevels = <String>{};
+  final rawLevels = item['thinkingLevels'];
+  if (rawLevels is List) {
+    for (final rawLevel in rawLevels) {
+      if (rawLevel is! Map) {
+        continue;
+      }
+      final levelId = _trimmedString(rawLevel['id']);
+      if (levelId == null || levelId.isEmpty || !seenLevels.add(levelId)) {
+        continue;
+      }
+      final levelLabel = _trimmedString(rawLevel['label']) ?? levelId;
+      levels.add(AiThinkingLevel(id: levelId, label: levelLabel));
+    }
+  }
+  final candidateDefaultThinkingLevel = _trimmedString(
+    item['defaultThinkingLevel'],
+  );
+  final defaultThinkingLevel =
+      candidateDefaultThinkingLevel == null ||
+          levels.isEmpty ||
+          levels.any((level) => level.id == candidateDefaultThinkingLevel)
+      ? candidateDefaultThinkingLevel
+      : null;
+  return AiAssistModel(
+    id: id,
+    label: label,
+    thinkingLevels: levels,
+    defaultThinkingLevel: defaultThinkingLevel,
+  );
+}
+
+String? _trimmedString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 const int aiAssistHostModelsTimeoutSeconds = 60;

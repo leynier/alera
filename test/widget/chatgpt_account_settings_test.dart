@@ -97,6 +97,49 @@ void main() {
     expect(find.text('Add Account'), findsOneWidget);
   });
 
+  testWidgets('notifies when the initial status has an active account', (
+    tester,
+  ) async {
+    var ready = 0;
+    final client = _FakeChatGptClient()
+      ..status = <String, Object?>{
+        'activeClientId': 'a',
+        'accounts': <Object?>[_account('a', 'A (1)')],
+      };
+    await _pump(tester, client, onAccountReady: () => ready++);
+
+    expect(ready, 1);
+  });
+
+  testWidgets(
+    'does not invalidate the account when pending completes in place',
+    (tester) async {
+      var changes = 0;
+      final client = _FakeChatGptClient()
+        ..status = <String, Object?>{
+          'activeClientId': 'a',
+          'pending': true,
+          'accounts': <Object?>[_account('a', 'A (1)')],
+        };
+      client.onRequest['cancel'] = (_) {
+        client.status = <String, Object?>{...client.status, 'pending': false};
+        return <String, Object?>{};
+      };
+      await _pump(
+        tester,
+        client,
+        onAccountChanged: () => changes++,
+        settle: false,
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Cancel Sign-In'));
+      await tester.pumpAndSettle();
+
+      expect(changes, 0);
+    },
+  );
+
   testWidgets('switching accounts selects it and notifies the parent', (
     tester,
   ) async {
@@ -299,6 +342,7 @@ Future<void> _pump(
   _FakeChatGptClient client, {
   _FakeLauncher? launcher,
   VoidCallback? onAccountChanged,
+  VoidCallback? onAccountReady,
   bool settle = true,
 }) async {
   await tester.binding.setSurfaceSize(const Size(900, 900));
@@ -313,6 +357,7 @@ Future<void> _pump(
               client: client,
               launcher: launcher ?? _FakeLauncher(),
               onAccountChanged: onAccountChanged ?? () {},
+              onAccountReady: onAccountReady,
             ),
           ),
         ),
