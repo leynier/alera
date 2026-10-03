@@ -170,6 +170,7 @@ class TerminalSessionController extends _$TerminalSessionController {
       return TerminalTabSession(
         sessionId: sessionId,
         snapshot: session.attachment.snapshot,
+        snapshotBase64: session.attachment.snapshotBase64,
         running: session.attachment.running,
         snapshotCols: session.attachment.snapshotCols,
         snapshotRows: session.attachment.snapshotRows,
@@ -232,6 +233,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     return TerminalTabSession(
       sessionId: sessionId,
       snapshot: session.attachment.snapshot,
+      snapshotBase64: session.attachment.snapshotBase64,
       running: session.attachment.running,
       snapshotCols: session.attachment.snapshotCols,
       snapshotRows: session.attachment.snapshotRows,

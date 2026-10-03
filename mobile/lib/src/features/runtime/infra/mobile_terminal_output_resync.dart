@@ -63,7 +63,10 @@ mixin MobileRuntimeTerminalOutputResync {
       emitTerminalOutput(
         MobileTerminalOutputEvent(
           sessionId,
-          base64Decode(encoded),
+          Uint8List(0),
+          // Decoded by the terminal as it restores, off the UI isolate when
+          // large; emitting now keeps it ahead of the output that follows.
+          snapshotBase64: encoded,
           replacesScrollback: true,
           snapshotCols: payload.optionalPositiveInt('snapshotCols'),
           snapshotRows: payload.optionalPositiveInt('snapshotRows'),

@@ -78,6 +78,7 @@ class const MobileTerminalOutputEvent(
   this.replacesScrollback = false,
   this.snapshotCols,
   final int? snapshotRows,
+  final String? snapshotBase64,
 }) {
   /// A `delta: false` resume answer: the host could no longer place this client
   /// in the output stream, so these bytes replace the emulator contents instead

@@ -176,7 +176,14 @@ void main() {
     expect(find.byType(TerminalView), findsNothing);
     final first = _restoreFraction(tester);
 
-    await tester.pump(const Duration(milliseconds: 50));
+    // Covered while it decodes off the UI isolate, too.
+    for (var attempt = 0; attempt < 50; attempt++) {
+      await _letSnapshotDecode(tester);
+      await tester.pump(const Duration(milliseconds: 50));
+      if (_restoreFraction(tester) > first) {
+        break;
+      }
+    }
 
     expect(find.text('Restoring terminal'), findsOneWidget);
     expect(_restoreFraction(tester), greaterThan(first));
@@ -185,6 +192,27 @@ void main() {
 
     expect(find.byType(TerminalView), findsOneWidget);
     expect(_terminalOf(tester).buffer.lines.length, greaterThan(0));
+  });
+
+  testWidgets('Live output behind a decoding snapshot lands after it', (
+    tester,
+  ) async {
+    // Large enough to decode on a worker, so live output arrives first.
+    final history = <String>[for (var line = 0; line < 20000; line++) 'h$line'];
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = utf8.encode('${history.join('\r\n')}\r\n');
+    await _pumpTab(tester, client, settle: false);
+
+    client.emitOutput('session-tab-1', .fromList(utf8.encode('LIVE')));
+    await _drainRestore(tester);
+
+    final lines = <String>[
+      for (final line in _terminalOf(tester).buffer.lines.toList())
+        if (line.getText().trim().isNotEmpty) line.getText().trim(),
+    ];
+    expect(lines.last, 'LIVE');
+    expect(lines[lines.length - 2], 'h19999');
   });
 
   testWidgets('Restored history is replayed at the size that produced it', (

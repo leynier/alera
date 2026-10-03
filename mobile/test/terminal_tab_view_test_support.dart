@@ -22,8 +22,17 @@ List<String> _pulsedResizeCalls(String sessionId, int cols, int rows) {
 /// The batcher paces itself with a timer between frames, and while the view is
 /// held back nothing else schedules one, so `pumpAndSettle` returns before the
 /// timer is due. A real frame loop keeps running regardless.
+/// A large snapshot decodes on a real worker isolate, whose reply a test
+/// binding only delivers outside its fake clock.
+Future<void> _letSnapshotDecode(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 20)),
+  );
+}
+
 Future<void> _drainRestore(WidgetTester tester) async {
   for (var frame = 0; frame < 100; frame++) {
+    await _letSnapshotDecode(tester);
     await tester.pump(const Duration(milliseconds: 50));
     if (find.text('Restoring terminal').evaluate().isEmpty) {
       await tester.pumpAndSettle();

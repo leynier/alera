@@ -74,6 +74,7 @@ class const MobileTerminalAttachment({
   required final List<int> snapshot,
   this.snapshotCols,
   final int? snapshotRows,
+  final String? snapshotBase64,
 }) {
   /// The size [snapshot] was written at, absent on a host that predates the
   /// field. Replaying the bytes at any other width lands every absolute cursor
@@ -86,7 +87,12 @@ class const MobileTerminalAttachment({
       sessionId: json.requiredString('sessionId'),
       created: json['created'] == true,
       running: json['running'] == true,
-      snapshot: json.base64Bytes('snapshotBase64'),
+      // Kept encoded: the terminal decodes it, off the UI isolate when it
+      // is large, as it restores it.
+      snapshot: const <int>[],
+      snapshotBase64: json['snapshotBase64'] is String
+          ? json['snapshotBase64'] as String
+          : null,
       snapshotCols: json.optionalPositiveInt('snapshotCols'),
       snapshotRows: json.optionalPositiveInt('snapshotRows'),
     );

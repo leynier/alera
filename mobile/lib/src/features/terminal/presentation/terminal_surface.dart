@@ -25,6 +25,15 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   TerminalOutputBatcher? _batcher;
   StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
   final TerminalUtf8Stream _liveText = TerminalUtf8Stream();
+  late final TerminalSnapshotGate _snapshots = TerminalSnapshotGate(
+    restore: _restoreDecodedSnapshot,
+    live: (text) => _batcher!.add(text),
+    // Keeps the view covered, as a restore in progress does, while a large
+    // snapshot decodes off the UI isolate.
+    pending: (size) => _handleRestoreProgress(
+      TerminalRestoreProgress(writtenChars: 0, totalChars: size),
+    ),
+  );
   bool _outputEnded = false;
   int _viewGeneration = 0;
   // Replaced together with the generation, which remounts the view.
@@ -55,6 +64,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
 
   @override
   void dispose() {
+    _snapshots.cancel();
     unawaited(_outputSub?.cancel());
     _batcher?.dispose();
     _terminal.removeListener(_updateAwayFromLatest);
@@ -114,14 +124,11 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     _outputEnded = false;
     _liveText.reset();
     _replaceEmulator(notify: notify);
-    final snapshot = session.takeSnapshot();
-    if (snapshot.isNotEmpty) {
-      _restoreSnapshot(
-        utf8.decode(snapshot, allowMalformed: true),
-        cols: session.snapshotCols,
-        rows: session.snapshotRows,
-      );
-    }
+    _snapshots.begin(
+      session.takeSnapshot(),
+      cols: session.snapshotCols,
+      rows: session.snapshotRows,
+    );
     _outputSub = session.output.listen(
       _handleOutput,
       // A closed or errored source is otherwise indistinguishable from a
@@ -265,8 +272,11 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       // nothing left to complete it.
       _liveText.reset();
       _replaceEmulator(notify: true);
-      _restoreSnapshot(
-        utf8.decode(event.data, allowMalformed: true),
+      final encoded = event.snapshotBase64;
+      _snapshots.begin(
+        encoded != null && encoded.isNotEmpty
+            ? TerminalSnapshotPayload.base64(encoded)
+            : TerminalSnapshotPayload.bytes(event.data),
         cols: event.snapshotCols,
         rows: event.snapshotRows,
       );
@@ -274,8 +284,20 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     }
     final text = _liveText.decode(event.data);
     if (text.isNotEmpty) {
-      _batcher!.add(text);
+      _snapshots.addLive(text);
     }
+  }
+
+  void _restoreDecodedSnapshot(String text, int? cols, int? rows) {
+    if (!mounted) {
+      return;
+    }
+    if (text.isEmpty) {
+      // Nothing to replay; uncover the view a pending decode had covered.
+      _handleRestoreProgress(null);
+      return;
+    }
+    _restoreSnapshot(text, cols: cols, rows: rows);
   }
 
   /// Replays restored history at the size it was written at.
