@@ -140,7 +140,13 @@ final class const TerminalHostAttachment({
   required final Uint8List snapshot,
   final int? exitCode,
   final String? initialCommandOverride,
+  final String? snapshotText,
 }) {
+  /// Whether the reply carried scrollback, as bytes or as text the socket
+  /// isolate already decoded.
+  bool get hasSnapshot =>
+      snapshot.isNotEmpty || (snapshotText?.isNotEmpty ?? false);
+
   factory fromJson(Map<String, Object?> json) {
     final override = json['initialCommandOverride'];
     return TerminalHostAttachment(
@@ -154,8 +160,14 @@ final class const TerminalHostAttachment({
       initialCommandOverride: override is String && override.isNotEmpty
           ? override
           : null,
+      snapshotText: _snapshotText(json),
     );
   }
+}
+
+String? _snapshotText(Map<String, Object?> json) {
+  final text = json[terminalHostSnapshotTextKey];
+  return text is String ? text : null;
 }
 
 /// How the host answered a resume.
@@ -168,6 +180,7 @@ final class const TerminalHostResume({
   required final bool isDelta,
   required final Uint8List snapshot,
   final bool resetInteractionModes = false,
+  final String? snapshotText,
 }) {
   factory fromJson(Map<String, Object?> json) {
     return TerminalHostResume(
@@ -176,6 +189,7 @@ final class const TerminalHostResume({
       isDelta: json['delta'] == true,
       snapshot: decodeTerminalHostBytes(json[terminalHostSnapshotKey]),
       resetInteractionModes: json['resetInteractionModes'] == true,
+      snapshotText: _snapshotText(json),
     );
   }
 }

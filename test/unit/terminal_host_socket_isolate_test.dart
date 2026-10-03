@@ -64,7 +64,7 @@ void main() {
     expect((await line)[1], <String, Object?>{'id': 1, 'ok': true});
   });
 
-  test('decodes an attach snapshot off the main isolate', () async {
+  test('decodes an attach snapshot to text off the main isolate', () async {
     final harness = await _startIsolate();
     final socket = await harness.ready;
     final line = harness.messages.stream
@@ -81,12 +81,12 @@ void main() {
 
     final message = (await line)[1]! as Map<String, Object?>;
     final result = message['result']! as Map<String, Object?>;
-    // Bytes, not a 4/3-size string the UI isolate would copy and decode.
-    expect(result[terminalHostSnapshotKey], isA<TransferableTypedData>());
+    // Text ready for the emulator, not base64 the UI isolate has to decode.
+    expect(result.containsKey(terminalHostSnapshotKey), isFalse);
 
-    adoptTransferredSnapshots(message);
     final attachment = TerminalHostAttachment.fromJson(result);
-    expect(attachment.snapshot, scrollback);
+    expect(attachment.snapshotText, utf8.decode(scrollback));
+    expect(attachment.hasSnapshot, isTrue);
     expect(attachment.sessionId, 'session-1');
   });
 

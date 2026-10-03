@@ -173,11 +173,12 @@ final class TerminalHostPtySession._(
   Future<void> _applyAttachment(TerminalHostAttachment attachment) async {
     _startedNewProcess = attachment.created;
     _initialCommandOverride = attachment.initialCommandOverride;
-    if (attachment.snapshot.isNotEmpty || attachment.created) {
+    if (attachment.hasSnapshot || attachment.created) {
       _events.add(
         TerminalPtySnapshotEvent(
           attachment.snapshot,
           resetInteractionModes: attachment.created || !attachment.running,
+          text: attachment.snapshotText,
         ),
       );
     }
@@ -355,6 +356,7 @@ final class TerminalHostPtySession._(
       TerminalPtySnapshotEvent(
         resume.snapshot,
         resetInteractionModes: resume.resetInteractionModes,
+        text: resume.snapshotText,
       ),
     );
   }

@@ -143,10 +143,12 @@ void main() {
     expect(attachment.sessionId, 'session-1');
     expect(attachment.created, isTrue);
     expect(attachment.running, isTrue);
-    expect(attachment.snapshot, <int>[65, 66]);
+    // The socket isolate hands snapshots over as decoded text; the main
+    // isolate fallback reader keeps the bytes.
+    expect(attachment.snapshotText ?? utf8.decode(attachment.snapshot), 'AB');
     expect(restarted.created, isTrue);
     expect(resume.isDelta, isFalse);
-    expect(resume.snapshot, <int>[83, 78, 65, 80]);
+    expect(resume.snapshotText ?? utf8.decode(resume.snapshot), 'SNAP');
     expect(server.requestTypes, <String>[
       'hello',
       'createOrAttach',

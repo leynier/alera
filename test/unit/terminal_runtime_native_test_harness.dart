@@ -227,7 +227,11 @@ class _FakeTerminalPtySession({
     _events.add(TerminalPtyOutputEvent(.fromList(data)));
   }
 
-  void emitSnapshot(List<int> data, {bool resetInteractionModes = false}) {
+  void emitSnapshot(
+    List<int> data, {
+    bool resetInteractionModes = false,
+    String? text,
+  }) {
     if (_events.isClosed) {
       return;
     }
@@ -235,6 +239,7 @@ class _FakeTerminalPtySession({
       TerminalPtySnapshotEvent(
         .fromList(data),
         resetInteractionModes: resetInteractionModes,
+        text: text,
       ),
     );
   }

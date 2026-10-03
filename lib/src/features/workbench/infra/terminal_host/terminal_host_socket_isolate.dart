@@ -145,30 +145,32 @@ Object? decodeHostLine(String line) {
   } catch (_) {
     return line;
   }
-  _detachSnapshots(decoded);
+  _decodeSnapshots(decoded);
   return decoded;
 }
 
-/// Decodes a reply's base64 scrollback here and hands it over as transferable
-/// bytes.
+/// Decodes a reply's scrollback to text here, so the UI isolate receives it
+/// ready for the emulator.
 ///
-/// Left as a string, a 10 MB snapshot crossed the isolate boundary as a 14 MB
-/// copy and was then base64-decoded on the UI isolate, together tens of
-/// milliseconds of dropped frames when a tab attached or resynced. Snapshots
-/// sit at the top of a message or one map below it (`result`, `payload`).
-void _detachSnapshots(Object? message) {
+/// A snapshot is base64 inside the reply, up to the restore budget (2.5 MB by
+/// default, 10 MB at most). Decoding the base64 and then the UTF-8 on the UI
+/// isolate cost tens of milliseconds every time a tab attached or a client
+/// resynced. A string is shared with the main isolate rather than copied, so
+/// sending the text costs nothing. Snapshots sit at the top of a message or one
+/// map below it (`result`, `payload`).
+void _decodeSnapshots(Object? message) {
   if (message is! Map<String, Object?>) {
     return;
   }
-  _detachSnapshot(message);
+  _decodeSnapshot(message);
   for (final value in message.values) {
     if (value is Map<String, Object?>) {
-      _detachSnapshot(value);
+      _decodeSnapshot(value);
     }
   }
 }
 
-void _detachSnapshot(Map<String, Object?> map) {
+void _decodeSnapshot(Map<String, Object?> map) {
   final encoded = map[terminalHostSnapshotKey];
   if (encoded is! String || encoded.isEmpty) {
     return;
@@ -180,31 +182,13 @@ void _detachSnapshot(Map<String, Object?> map) {
     // Leave it for the owner, which reports malformed replies itself.
     return;
   }
-  map[terminalHostSnapshotKey] = TransferableTypedData.fromList(<Uint8List>[
-    bytes,
-  ]);
-}
-
-/// Main-isolate side of [decodeHostLine]: takes ownership of transferred
-/// snapshots, without copying, before anything reads the message.
-Object? adoptTransferredSnapshots(Object? message) {
-  if (message is! Map<String, Object?>) {
-    return message;
-  }
-  _adoptSnapshot(message);
-  for (final value in message.values) {
-    if (value is Map<String, Object?>) {
-      _adoptSnapshot(value);
-    }
-  }
-  return message;
-}
-
-void _adoptSnapshot(Map<String, Object?> map) {
-  final transferred = map[terminalHostSnapshotKey];
-  if (transferred is TransferableTypedData) {
-    map[terminalHostSnapshotKey] = transferred.materialize().asUint8List();
-  }
+  // A snapshot is decoded on its own, as it was on the UI isolate: it is the
+  // tail of the stream and may start inside a code point, which the
+  // per-session live decoder must not inherit.
+  map
+    ..remove(terminalHostSnapshotKey)
+    ..[terminalHostSnapshotTextKey] = const Utf8Decoder(allowMalformed: true)
+        .convert(bytes);
 }
 
 /// Spawns the reader and returns its command port, or null if spawning failed.

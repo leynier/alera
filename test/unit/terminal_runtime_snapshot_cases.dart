@@ -79,6 +79,36 @@ void _registerTerminalRuntimeSnapshotTests() {
     },
   );
 
+  test('restores a snapshot the socket isolate already decoded', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+    try {
+      await session.ensureStarted();
+
+      // No bytes at all: the text is the whole snapshot, so nothing is
+      // decoded on the UI isolate.
+      fakeSession.emitSnapshot(const <int>[], text: 'restored \u2192 \u00f1');
+      await Future.pause(.zero);
+      flushTerminalOutputForTesting(session);
+
+      expect(terminalBufferTextForTesting(session), contains('restored → ñ'));
+    } finally {
+      visibility.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   test('replaying a snapshot never answers its queries again', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     final fakeSession = _FakeTerminalPtySession();
