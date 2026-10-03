@@ -221,6 +221,7 @@ mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
+mod pty_exit_deferral;
 mod pull_request_watch_evaluation;
 mod pull_request_watch_requests;
 #[cfg(test)]
