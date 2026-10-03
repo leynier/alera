@@ -63,6 +63,7 @@ impl Session {
             durable_output_batch_sequence: 0,
             durable_output_failures: VecDeque::new(),
             pending_pty_ack: None,
+            deferred_exit: None,
             checkpoint_job: None,
             checkpoint_output_blocked: false,
             output_stream_bytes: checkpoint

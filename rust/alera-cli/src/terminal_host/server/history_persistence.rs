@@ -36,6 +36,7 @@ impl ServerActor {
         if session_due || writer_due {
             self.flush_durable_output_batch(&session_id).await;
         }
+        self.run_deferred_exit_if_settled(&session_id).await;
         if self
             .sessions
             .get(&session_id)
@@ -142,12 +143,13 @@ impl ServerActor {
         self.release_pty_ack_if_unblocked(session_id);
     }
 
-    pub(super) fn handle_history_writer_ready(&mut self, session_id: &str) {
+    pub(super) async fn handle_history_writer_ready(&mut self, session_id: &str) {
         self.collect_history_writer_completions(session_id);
         self.release_pty_ack_if_unblocked(session_id);
+        self.run_deferred_exit_if_settled(session_id).await;
     }
 
-    fn collect_history_writer_completions(&mut self, session_id: &str) {
+    pub(super) fn collect_history_writer_completions(&mut self, session_id: &str) {
         if !self.sessions.contains_key(session_id) {
             tracing::error!(
                 session_id,
@@ -181,7 +183,7 @@ impl ServerActor {
         }
     }
 
-    fn schedule_history_retry(&mut self, session_id: &str) {
+    pub(super) fn schedule_history_retry(&mut self, session_id: &str) {
         if let Some(generation) = self
             .sessions
             .get(session_id)
@@ -203,6 +205,7 @@ impl ServerActor {
         if let Some(result) = result {
             self.finish_checkpoint_completion(session_id, result);
         }
+        self.run_deferred_exit_if_settled(session_id).await;
     }
 
     async fn collect_checkpoint_completion(&mut self, session_id: &str) {

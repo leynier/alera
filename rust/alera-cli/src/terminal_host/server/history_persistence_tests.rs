@@ -337,3 +337,50 @@ async fn late_checkpoint_wake_does_not_join_a_newer_worker() {
     assert!(session.checkpoint_job_active());
     assert!(session.checkpoint_output_blocked());
 }
+
+#[tokio::test]
+async fn exit_waits_for_in_flight_history_before_closing_the_session() {
+    use std::time::Duration;
+
+    use super::super::ServerCommand;
+    use crate::terminal_host::session::PtyEvent;
+
+    let dir = tempfile::tempdir().unwrap();
+    let session = Session::driver_test_stub("exiting", 80, 24);
+    let mut actor = test_actor(
+        &dir,
+        HashMap::new(),
+        HashMap::from([("exiting".to_string(), session)]),
+    )
+    .await;
+    let (inbox, mut inbox_rx) = super::super::ServerInbox::channel();
+    actor.inbox = inbox;
+    // A snapshot still being stored when the child exits.
+    actor.immediate_checkpoint("exiting").await;
+    assert!(actor.sessions["exiting"].checkpoint_output_blocked());
+
+    actor
+        .handle_pty_event("exiting".to_string(), PtyEvent::Exit(7))
+        .await;
+    assert!(actor.sessions["exiting"].has_deferred_exit());
+    assert!(actor.sessions["exiting"].running());
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while actor
+            .sessions
+            .get("exiting")
+            .is_some_and(Session::has_deferred_exit)
+        {
+            let command = inbox_rx.recv().await.unwrap();
+            if matches!(command, ServerCommand::CheckpointJobFinished { .. }) {
+                actor.handle(command).await;
+            }
+        }
+    })
+    .await
+    .expect("the deferred exit runs once the checkpoint completes");
+    assert!(actor
+        .sessions
+        .get("exiting")
+        .is_none_or(|session| !session.running()));
+}
