@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
@@ -41,6 +42,7 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool _pulseAfterLayout = true;
   (int, int)? _lastPulsedSize;
   Timer? _viewportPulseTimer;
+  _PendingTerminalInput? _pendingInput;
 
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
 

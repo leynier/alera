@@ -84,6 +84,51 @@ void main() {
     );
   });
 
+  test('Input written in one turn goes out as one request', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final notifier = await _notifier(client);
+
+    // One touch drag over a TUI: several wheel reports from a single update.
+    final report = utf8.encode('\x1b[<65;10;5M');
+    await Future.wait(<Future<void>>[
+      notifier.write(report),
+      notifier.write(report),
+      notifier.write(report),
+    ]);
+
+    expect(client.writes, <List<int>>[
+      <int>[...report, ...report, ...report],
+    ]);
+  });
+
+  test('Keys written in separate turns are not held back', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final notifier = await _notifier(client);
+
+    final first = notifier.write(utf8.encode('a'));
+    await pumpEventQueue();
+    // Sent before the first write is known to have completed: a slow link
+    // must not serialise typing behind round trips.
+    final second = notifier.write(utf8.encode('b'));
+    await Future.wait(<Future<void>>[first, second]);
+
+    expect(client.writes, <List<int>>[utf8.encode('a'), utf8.encode('b')]);
+  });
+
+  test('A paste right after typed keys keeps their order', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final notifier = await _notifier(client);
+
+    final typed = notifier.write(utf8.encode('x'));
+    final pasted = notifier.pasteText('y');
+    await Future.wait(<Future<void>>[typed, pasted]);
+
+    expect(client.writes, <List<int>>[utf8.encode('x'), utf8.encode('y')]);
+  });
+
   test('Clipboard text is pasted without pressing Enter', () async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
