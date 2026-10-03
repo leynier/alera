@@ -1,4 +1,6 @@
 use alera_core::child_process::windowless_command;
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::path::Path;
@@ -12,6 +14,15 @@ use base64::Engine as _;
 use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: i64 = 4;
+
+thread_local! {
+    /// Output events that arrived while a request waited for its response.
+    /// The host flushes the first output after a quiet stream at once, so it
+    /// can land before a reply rather than after it; dropping it there made
+    /// later `collect_output` calls miss bytes the session really wrote.
+    /// Each test runs on its own thread, so the buffer is per test.
+    static UNREAD_OUTPUT: RefCell<VecDeque<Value>> = const { RefCell::new(VecDeque::new()) };
+}
 
 #[path = "orchestration_review_regressions/deferred_delivery_cases.rs"]
 #[cfg(unix)]
@@ -132,6 +143,9 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
         let message = read_message(reader);
         if message.get("id") == Some(&json!(id)) {
             return message;
+        }
+        if message.get("event") == Some(&json!("output")) {
+            UNREAD_OUTPUT.with(|unread| unread.borrow_mut().push_back(message));
         }
     }
 }
@@ -271,6 +285,20 @@ fn collect_output(
 ) -> String {
     let deadline = Instant::now() + duration;
     let mut output = String::new();
+    // Output read while a request waited comes first, in arrival order; other
+    // sessions' output stays queued for their own collection.
+    UNREAD_OUTPUT.with(|unread| {
+        unread.borrow_mut().retain(|message| {
+            if message["payload"]["sessionId"] != json!(session_id) {
+                return true;
+            }
+            let bytes = STANDARD
+                .decode(message["payload"]["dataBase64"].as_str().unwrap())
+                .unwrap();
+            output.push_str(&String::from_utf8_lossy(&bytes));
+            false
+        });
+    });
     reader
         .get_mut()
         .set_read_timeout(Some(Duration::from_millis(300)))
