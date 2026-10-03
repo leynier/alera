@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -9,6 +11,7 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 part 'terminal_host_pty_session_pulse.dart';
 part 'terminal_host_pty_session_lease.dart';
 part 'terminal_host_pty_session_errors.dart';
+part 'terminal_host_pty_session_input.dart';
 
 final class TerminalHostPtySessionFactory._(final TerminalHostClient _client)
     implements TerminalPtySessionFactory {
@@ -40,7 +43,7 @@ final class TerminalHostPtySession._(
   final String _workspaceId,
   final String _tabId,
   final _TerminalHostPtySessionLease? _lease,
-) with _TerminalPulsePtySessionSupport
+) with _TerminalPulsePtySessionSupport, _TerminalHostInputQueue
     implements
         RecoverableTerminalPtySession,
         DeferredEnterTerminalPtySession,
@@ -76,6 +79,7 @@ final class TerminalHostPtySession._(
   String? _workingDirectory;
   int? _cols;
   int? _rows;
+  @override
   bool _disposed = false;
   bool _started = false;
   bool _startedNewProcess = false;
@@ -193,7 +197,7 @@ final class TerminalHostPtySession._(
     if (_disposed || !_started || bytes.isEmpty) {
       return false;
     }
-    unawaited(_writeBytes(bytes).catchError(_emitHostError));
+    _queueInputBytes(bytes);
     return true;
   }
 
@@ -202,12 +206,15 @@ final class TerminalHostPtySession._(
     if (_disposed || !_started) {
       return false;
     }
-    unawaited(
-      _writeBytes(bytes, deferredEnter: true).catchError(_emitHostError),
-    );
+    _queueInputOperation(() => _writeBytes(bytes, deferredEnter: true));
     return true;
   }
 
+  @override
+  void _reportInputError(Object error) => _emitHostError(error);
+
+  /// Bypasses the input queue on purpose: startup replay calls this from
+  /// inside the reattach that a queued write is waiting on.
   @override
   Future<bool> writeBytesAndWait(List<int> bytes) async {
     if (_disposed || !_started || bytes.isEmpty) {
@@ -281,6 +288,7 @@ final class TerminalHostPtySession._(
     });
   }
 
+  @override
   Future<void> _writeBytes(
     List<int> bytes, {
     bool deferredEnter = false,
