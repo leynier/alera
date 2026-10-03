@@ -15,6 +15,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 /// Messages the isolate sends to the main isolate.
 const String terminalHostIsolateReady = 'ready';
@@ -138,10 +139,71 @@ Future<void> terminalHostSocketIsolateMain(
 /// opening a terminal. A line that will not parse is passed through as-is so
 /// the owner still reports it the way it always did.
 Object? decodeHostLine(String line) {
+  final Object? decoded;
   try {
-    return jsonDecode(line);
+    decoded = jsonDecode(line);
   } catch (_) {
     return line;
+  }
+  _detachSnapshots(decoded);
+  return decoded;
+}
+
+/// Decodes a reply's base64 scrollback here and hands it over as transferable
+/// bytes.
+///
+/// Left as a string, a 10 MB snapshot crossed the isolate boundary as a 14 MB
+/// copy and was then base64-decoded on the UI isolate, together tens of
+/// milliseconds of dropped frames when a tab attached or resynced. Snapshots
+/// sit at the top of a message or one map below it (`result`, `payload`).
+void _detachSnapshots(Object? message) {
+  if (message is! Map<String, Object?>) {
+    return;
+  }
+  _detachSnapshot(message);
+  for (final value in message.values) {
+    if (value is Map<String, Object?>) {
+      _detachSnapshot(value);
+    }
+  }
+}
+
+void _detachSnapshot(Map<String, Object?> map) {
+  final encoded = map[terminalHostSnapshotKey];
+  if (encoded is! String || encoded.isEmpty) {
+    return;
+  }
+  final Uint8List bytes;
+  try {
+    bytes = base64Decode(encoded);
+  } on FormatException {
+    // Leave it for the owner, which reports malformed replies itself.
+    return;
+  }
+  map[terminalHostSnapshotKey] = TransferableTypedData.fromList(<Uint8List>[
+    bytes,
+  ]);
+}
+
+/// Main-isolate side of [decodeHostLine]: takes ownership of transferred
+/// snapshots, without copying, before anything reads the message.
+Object? adoptTransferredSnapshots(Object? message) {
+  if (message is! Map<String, Object?>) {
+    return message;
+  }
+  _adoptSnapshot(message);
+  for (final value in message.values) {
+    if (value is Map<String, Object?>) {
+      _adoptSnapshot(value);
+    }
+  }
+  return message;
+}
+
+void _adoptSnapshot(Map<String, Object?> map) {
+  final transferred = map[terminalHostSnapshotKey];
+  if (transferred is TransferableTypedData) {
+    map[terminalHostSnapshotKey] = transferred.materialize().asUint8List();
   }
 }
 

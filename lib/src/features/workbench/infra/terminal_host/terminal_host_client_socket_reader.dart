@@ -69,7 +69,7 @@ final class _TerminalHostSocketReader._(
           }
         case terminalHostIsolateLine:
           if (!_lines.isClosed) {
-            _lines.add(message[1]);
+            _lines.add(adoptTransferredSnapshots(message[1]));
           }
         case terminalHostIsolateOutput:
           if (!_output.isClosed) {

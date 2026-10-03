@@ -147,7 +147,7 @@ final class const TerminalHostAttachment({
       sessionId: json['sessionId'] as String,
       created: json['created'] == true,
       running: json['running'] == true,
-      snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
+      snapshot: decodeTerminalHostBytes(json[terminalHostSnapshotKey]),
       exitCode: json['exitCode'] is int ? json['exitCode'] as int : null,
       // Set when the agent in a plain tab reported a resumable conversation:
       // the resume form of the tab's command, typed in place of the original.
@@ -174,7 +174,7 @@ final class const TerminalHostResume({
       // A host that predates delta resumes answers with the whole scrollback
       // and no `delta` field, so an absent flag has to mean "replace".
       isDelta: json['delta'] == true,
-      snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
+      snapshot: decodeTerminalHostBytes(json[terminalHostSnapshotKey]),
       resetInteractionModes: json['resetInteractionModes'] == true,
     );
   }

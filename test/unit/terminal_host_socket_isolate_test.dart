@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_socket_isolate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -60,6 +62,32 @@ void main() {
     // Parsed here, not on the UI isolate: an attach reply carries the whole
     // scrollback base64'd inside it.
     expect((await line)[1], <String, Object?>{'id': 1, 'ok': true});
+  });
+
+  test('decodes an attach snapshot off the main isolate', () async {
+    final harness = await _startIsolate();
+    final socket = await harness.ready;
+    final line = harness.messages.stream
+        .where((message) => message.first == terminalHostIsolateLine)
+        .first;
+    final scrollback = utf8.encode('prompt \u2192 \u00f1\r\n' * 512);
+
+    socket.write(
+      '${jsonEncode(<String, Object?>{
+        'id': 3,
+        'result': <String, Object?>{'sessionId': 'session-1', 'created': false, 'running': true, terminalHostSnapshotKey: base64Encode(scrollback)},
+      })}\n',
+    );
+
+    final message = (await line)[1]! as Map<String, Object?>;
+    final result = message['result']! as Map<String, Object?>;
+    // Bytes, not a 4/3-size string the UI isolate would copy and decode.
+    expect(result[terminalHostSnapshotKey], isA<TransferableTypedData>());
+
+    adoptTransferredSnapshots(message);
+    final attachment = TerminalHostAttachment.fromJson(result);
+    expect(attachment.snapshot, scrollback);
+    expect(attachment.sessionId, 'session-1');
   });
 
   test('passes a line it cannot parse through untouched', () async {
