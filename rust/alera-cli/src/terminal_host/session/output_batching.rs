@@ -63,6 +63,14 @@ impl Session {
         )
     }
 
+    /// Whether the stream has been quiet for `quiet` with nothing waiting to
+    /// be delivered. The first chunk after a pause, typically a keystroke
+    /// echo, can then go out at once; only a stream that keeps writing pays
+    /// the coalescing delay.
+    pub fn output_quiet_for(&self, quiet: std::time::Duration) -> bool {
+        !self.output_batch_armed && self.last_output_at.elapsed() >= quiet
+    }
+
     pub fn output_batch_due(&self, generation: u64) -> bool {
         self.output_batch_armed && self.output_batch_gen == generation
     }

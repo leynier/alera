@@ -1,5 +1,8 @@
 use super::terminal_startup_commands::auto_closes_on_success;
 #[cfg(test)]
+#[path = "output_leading_edge_tests.rs"]
+mod output_leading_edge_tests;
+#[cfg(test)]
 #[path = "remote_terminal_exit_tests.rs"]
 mod remote_terminal_exit_tests;
 use super::*;
@@ -51,8 +54,10 @@ impl ServerActor {
 
     async fn handle_pty_output(&mut self, session_id: String, data: Vec<u8>) -> bool {
         let state = self.sessions.get_mut(&session_id).map(|session| {
+            let leading_edge = session.output_quiet_for(OUTPUT_BATCH_DELAY);
             let (output_generation, durable_generation, title_change) =
                 session.append_output(&data);
+            let output_generation = output_generation.filter(|_| !leading_edge);
             let title_event = title_change.map(|title| {
                 event(
                     "terminalTitleChanged",
@@ -65,6 +70,7 @@ impl ServerActor {
                 )
             });
             (
+                leading_edge,
                 output_generation,
                 session.output_batch_len(),
                 durable_generation,
@@ -74,6 +80,7 @@ impl ServerActor {
             )
         });
         let Some((
+            leading_edge,
             output_generation,
             output_len,
             durable_generation,
@@ -98,7 +105,7 @@ impl ServerActor {
         if let Some(generation) = durable_generation {
             self.spawn_durable_output_batch_timer(session_id.clone(), generation);
         }
-        if output_len >= OUTPUT_BATCH_MAX_BYTES {
+        if leading_edge || output_len >= OUTPUT_BATCH_MAX_BYTES {
             self.flush_output_batch(&session_id);
         }
         if durable_len >= OUTPUT_BATCH_MAX_BYTES && !checkpoint_blocked {
