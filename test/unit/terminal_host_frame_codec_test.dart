@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
@@ -88,6 +89,78 @@ void main() {
       final output = frames.single as TerminalHostOutputFrame;
       expect(output.sessionId, isEmpty);
       expect(output.data, isEmpty);
+    });
+
+    test('any chunking of a mixed stream yields the same frames', () {
+      final stream = <int>[
+        ...utf8.encode('{"hello":true}\n'),
+        ...utf8.encode('binaryFramesEnabled\n'),
+      ];
+      final expected = <String>['{"hello":true}', 'binaryFramesEnabled'];
+      for (var index = 0; index < 400; index += 1) {
+        final data = List<int>.generate(
+          index % 37,
+          (byte) => (byte + index) & 0xff,
+        );
+        if (index.isEven) {
+          stream.addAll(encodeTerminalHostOutputFrame('s$index', data));
+          expected.add('s$index:${data.join(',')}');
+        } else {
+          stream.addAll(encodeTerminalHostJsonFrame('{"i":$index}'));
+          expected.add('{"i":$index}');
+        }
+      }
+      final random = Random(7);
+      for (var round = 0; round < 20; round += 1) {
+        final reader = TerminalHostFrameReader();
+        final frames = <String>[];
+        var offset = 0;
+        while (offset < stream.length) {
+          final size = 1 + random.nextInt(round.isEven ? 7 : 4096);
+          final end = min(offset + size, stream.length);
+          for (final frame in reader.add(stream.sublist(offset, end))) {
+            frames.add(switch (frame) {
+              TerminalHostJsonFrame(:final json) => json,
+              TerminalHostOutputFrame(:final sessionId, :final data) =>
+                '$sessionId:${data.join(',')}',
+            });
+          }
+          offset = end;
+        }
+        expect(frames, expected, reason: 'round $round');
+      }
+    });
+
+    test('output data stays intact after the buffer is reused', () {
+      final reader = TerminalHostFrameReader()..upgradeToBinary();
+      final first = reader.add(
+        encodeTerminalHostOutputFrame('a', List<int>.filled(1024, 1)),
+      );
+      reader.add(
+        encodeTerminalHostOutputFrame('b', List<int>.filled(1024 * 1024, 2)),
+      );
+      reader.add(encodeTerminalHostOutputFrame('c', List<int>.filled(8, 3)));
+
+      expect(
+        (first.single as TerminalHostOutputFrame).data.every(
+          (byte) => byte == 1,
+        ),
+        isTrue,
+      );
+    });
+
+    test('a frame larger than the initial buffer is reassembled', () {
+      final reader = TerminalHostFrameReader()..upgradeToBinary();
+      final data = List<int>.generate(3 * 1024 * 1024, (index) => index & 0xff);
+      final bytes = encodeTerminalHostOutputFrame('big', data);
+      final frames = <TerminalHostFrame>[];
+      for (var offset = 0; offset < bytes.length; offset += 65536) {
+        frames.addAll(
+          reader.add(bytes.sublist(offset, min(offset + 65536, bytes.length))),
+        );
+      }
+
+      expect((frames.single as TerminalHostOutputFrame).data, data);
     });
 
     test('a multi-byte session id survives the byte-counted prefix', () {

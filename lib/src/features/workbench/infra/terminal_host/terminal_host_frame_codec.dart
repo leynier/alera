@@ -45,7 +45,16 @@ final class const TerminalHostOutputFrame(
 /// switch is driven from here, by the code that owns the bytes, so there is no
 /// window where the mode is ambiguous.
 class TerminalHostFrameReader {
-  final List<int> _buffer = <int>[];
+  /// Unread bytes live in `_buffer[_start, _end)`. Frames are consumed by
+  /// advancing `_start`, so taking one never shifts what follows it; the bytes
+  /// are compacted only when an append needs the room.
+  Uint8List _buffer = Uint8List(0);
+  int _start = 0;
+  int _end = 0;
+
+  /// Where the newline search resumes, so a long line arriving in many chunks
+  /// is scanned once rather than from its start on every chunk.
+  int _lineScanFrom = 0;
   bool _binary = false;
 
   bool get isBinary => _binary;
@@ -56,7 +65,7 @@ class TerminalHostFrameReader {
 
   /// Appends [chunk] and returns whatever frames are now complete.
   List<TerminalHostFrame> add(List<int> chunk) {
-    _buffer.addAll(chunk);
+    _append(chunk);
     final frames = <TerminalHostFrame>[];
     while (true) {
       final frame = _binary ? _takeBinaryFrame() : _takeLine();
@@ -67,16 +76,74 @@ class TerminalHostFrameReader {
       // The upgrade lands between frames, so re-check the mode every pass
       // rather than deciding once per chunk.
     }
+    _releaseIfDrained();
     return frames;
   }
 
+  void _append(List<int> chunk) {
+    if (chunk.isEmpty) {
+      return;
+    }
+    if (_buffer.length - _end < chunk.length) {
+      final unread = _end - _start;
+      final needed = unread + chunk.length;
+      final target = needed <= _buffer.length
+          ? _buffer
+          : Uint8List(_grownCapacity(needed));
+      target.setRange(0, unread, _buffer, _start);
+      _lineScanFrom -= _start;
+      _buffer = target;
+      _start = 0;
+      _end = unread;
+    }
+    _buffer.setRange(_end, _end + chunk.length, chunk);
+    _end += chunk.length;
+  }
+
+  int _grownCapacity(int needed) {
+    var capacity = _buffer.isEmpty ? _initialCapacity : _buffer.length;
+    while (capacity < needed) {
+      capacity *= 2;
+    }
+    return capacity;
+  }
+
+  /// A snapshot can grow the buffer to megabytes. Once it has been consumed,
+  /// a large buffer is dropped rather than held for the life of the socket.
+  void _releaseIfDrained() {
+    if (_start != _end) {
+      return;
+    }
+    _start = 0;
+    _end = 0;
+    _lineScanFrom = 0;
+    if (_buffer.length > _retainedCapacity) {
+      _buffer = Uint8List(0);
+    }
+  }
+
   TerminalHostFrame? _takeLine() {
-    final newline = _buffer.indexOf(0x0a);
+    var newline = -1;
+    for (
+      var index = _lineScanFrom < _start ? _start : _lineScanFrom;
+      index < _end;
+      index += 1
+    ) {
+      if (_buffer[index] == 0x0a) {
+        newline = index;
+        break;
+      }
+    }
     if (newline < 0) {
+      _lineScanFrom = _end;
       return null;
     }
-    final line = utf8.decode(_buffer.sublist(0, newline), allowMalformed: true);
-    _buffer.removeRange(0, newline + 1);
+    final line = utf8.decode(
+      Uint8List.sublistView(_buffer, _start, newline),
+      allowMalformed: true,
+    );
+    _start = newline + 1;
+    _lineScanFrom = _start;
     if (line.contains(terminalHostBinaryFramesEnabledLine)) {
       _binary = true;
     }
@@ -84,30 +151,32 @@ class TerminalHostFrameReader {
   }
 
   TerminalHostFrame? _takeBinaryFrame() {
-    if (_buffer.length < terminalHostFrameHeaderLength) {
+    if (_end - _start < terminalHostFrameHeaderLength) {
       return null;
     }
-    final kind = _buffer[0];
+    final kind = _buffer[_start];
     final length =
-        (_buffer[1] << 24) |
-        (_buffer[2] << 16) |
-        (_buffer[3] << 8) |
-        _buffer[4];
-    final end = terminalHostFrameHeaderLength + length;
-    if (_buffer.length < end) {
+        (_buffer[_start + 1] << 24) |
+        (_buffer[_start + 2] << 16) |
+        (_buffer[_start + 3] << 8) |
+        _buffer[_start + 4];
+    final payloadStart = _start + terminalHostFrameHeaderLength;
+    final end = payloadStart + length;
+    if (_end < end) {
       return null;
     }
-    final payload = Uint8List.fromList(
-      _buffer.sublist(terminalHostFrameHeaderLength, end),
-    );
-    _buffer.removeRange(0, end);
+    _start = end;
+    _lineScanFrom = end;
     switch (kind) {
       case terminalHostFrameKindJson:
         return TerminalHostJsonFrame(
-          utf8.decode(payload, allowMalformed: true),
+          utf8.decode(
+            Uint8List.sublistView(_buffer, payloadStart, end),
+            allowMalformed: true,
+          ),
         );
       case terminalHostFrameKindOutput:
-        return _decodeOutputFrame(payload);
+        return _decodeOutputFrame(payloadStart, end);
       default:
         // Unknown kinds are skipped rather than fatal: the length prefix keeps
         // the stream parseable, so a newer host adding a frame type must not
@@ -116,22 +185,28 @@ class TerminalHostFrameReader {
     }
   }
 
-  TerminalHostFrame? _decodeOutputFrame(Uint8List payload) {
-    if (payload.length < 2) {
+  TerminalHostFrame? _decodeOutputFrame(int payloadStart, int end) {
+    if (end - payloadStart < 2) {
       return null;
     }
-    final idLength = (payload[0] << 8) | payload[1];
-    final idEnd = 2 + idLength;
-    if (payload.length < idEnd) {
+    final idLength = (_buffer[payloadStart] << 8) | _buffer[payloadStart + 1];
+    final idEnd = payloadStart + 2 + idLength;
+    if (end < idEnd) {
       return null;
     }
     final sessionId = utf8.decode(
-      payload.sublist(2, idEnd),
+      Uint8List.sublistView(_buffer, payloadStart + 2, idEnd),
       allowMalformed: true,
     );
-    return TerminalHostOutputFrame(sessionId, payload.sublist(idEnd));
+    // The one copy: the frame outlives this buffer, which is reused.
+    return TerminalHostOutputFrame(sessionId, _buffer.sublist(idEnd, end));
   }
 }
+
+const int _initialCapacity = 64 * 1024;
+
+/// Largest buffer kept once drained; a typical PTY read fits several times.
+const int _retainedCapacity = 256 * 1024;
 
 /// Encodes a JSON frame, used by tests and by any writer that speaks frames.
 Uint8List encodeTerminalHostJsonFrame(String json) {
