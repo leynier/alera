@@ -247,3 +247,93 @@ async fn failed_checkpoint_releases_barrier_before_retrying_admitted_output() {
     );
     assert!(actor.history_writers.contains_key("pending"));
 }
+
+#[tokio::test]
+async fn pty_output_acks_the_reader_immediately_while_history_is_unblocked() {
+    use super::super::ServerCommand;
+    use crate::terminal_host::session::PtyEvent;
+
+    let dir = tempfile::tempdir().unwrap();
+    let session = Session::driver_test_stub("live", 80, 24);
+    let mut actor = test_actor(
+        &dir,
+        HashMap::new(),
+        HashMap::from([("live".to_string(), session)]),
+    )
+    .await;
+    let (handled, handled_rx) = std::sync::mpsc::sync_channel(1);
+    actor
+        .handle(ServerCommand::Pty {
+            session_id: "live".to_string(),
+            event: PtyEvent::Output(b"frame".to_vec()),
+            handled,
+        })
+        .await;
+    // Holding the ack until the 100 ms durable tick caps the reader at ten
+    // chunks per second, which makes interactive redraws visibly lag.
+    handled_rx
+        .try_recv()
+        .expect("an unblocked session must release the PTY reader at once");
+}
+
+#[tokio::test]
+async fn checkpoint_worker_resumes_the_pty_without_waiting_for_the_next_tick() {
+    use std::time::Duration;
+
+    use super::super::{ServerCommand, ServerInbox};
+
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::driver_test_stub("snapshot", 80, 24);
+    session.append_output(b"output");
+    let mut actor = test_actor(
+        &dir,
+        HashMap::new(),
+        HashMap::from([("snapshot".to_string(), session)]),
+    )
+    .await;
+    let (inbox, mut inbox_rx) = ServerInbox::channel();
+    actor.inbox = inbox;
+    actor.immediate_checkpoint("snapshot").await;
+    let mut drained = actor.await_output_writes("snapshot").await;
+    for _ in 0..8 {
+        if drained {
+            break;
+        }
+        let command = tokio::time::timeout(Duration::from_secs(2), inbox_rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        actor.handle(command).await;
+        drained = actor.await_output_writes("snapshot").await;
+    }
+    assert!(drained);
+    actor.immediate_checkpoint("snapshot").await;
+    assert!(actor.sessions["snapshot"].checkpoint_output_blocked());
+    let wake = tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            match inbox_rx.recv().await.unwrap() {
+                command @ ServerCommand::CheckpointJobFinished { .. } => break command,
+                other => actor.handle(other).await,
+            }
+        }
+    })
+    .await
+    .expect("the worker must wake the actor well before the 5 s checkpoint tick");
+    actor.handle(wake).await;
+    assert!(!actor.sessions["snapshot"].checkpoint_output_blocked());
+    assert!(!actor.sessions["snapshot"].checkpoint_job_active());
+}
+
+#[tokio::test]
+async fn late_checkpoint_wake_does_not_join_a_newer_worker() {
+    let mut session = Session::driver_test_stub("late", 80, 24);
+    let finished = tokio::spawn(async {});
+    let stale = finished.id();
+    finished.await.unwrap();
+    let (_release, wait) = tokio::sync::oneshot::channel::<()>();
+    let current = tokio::spawn(async move { wait.await.map_err(|error| error.to_string()) });
+    assert!(session.begin_checkpoint_job(current));
+    assert!(session.join_checkpoint_job(stale).await.is_none());
+    assert!(session.checkpoint_job_active());
+    assert!(session.checkpoint_output_blocked());
+}

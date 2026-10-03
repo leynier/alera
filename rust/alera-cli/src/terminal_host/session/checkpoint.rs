@@ -101,6 +101,20 @@ impl Session {
         })
     }
 
+    /// Await the worker that reported completion. Its only work left is
+    /// returning the result, so this does not stall the actor. A late report
+    /// from an already collected worker never joins a newer one.
+    pub async fn join_checkpoint_job(&mut self, id: tokio::task::Id) -> Option<Result<(), String>> {
+        if self.checkpoint_job.as_ref().map(JoinHandle::id) != Some(id) {
+            return None;
+        }
+        let job = self.checkpoint_job.take()?;
+        Some(match job.await {
+            Ok(result) => result,
+            Err(error) => Err(format!("checkpoint worker failed: {error}")),
+        })
+    }
+
     pub fn checkpoint_snapshot(&self) -> TerminalHostCheckpoint {
         TerminalHostCheckpoint {
             session_id: self.id.clone(),

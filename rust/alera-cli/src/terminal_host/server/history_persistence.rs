@@ -191,15 +191,32 @@ impl ServerActor {
         }
     }
 
+    pub(super) async fn handle_checkpoint_job_finished(
+        &mut self,
+        session_id: &str,
+        job: tokio::task::Id,
+    ) {
+        let result = match self.sessions.get_mut(session_id) {
+            Some(session) => session.join_checkpoint_job(job).await,
+            None => None,
+        };
+        if let Some(result) = result {
+            self.finish_checkpoint_completion(session_id, result);
+        }
+    }
+
     async fn collect_checkpoint_completion(&mut self, session_id: &str) {
         let result = if let Some(session) = self.sessions.get_mut(session_id) {
             session.poll_checkpoint_job().await
         } else {
             None
         };
-        let Some(result) = result else {
-            return;
-        };
+        if let Some(result) = result {
+            self.finish_checkpoint_completion(session_id, result);
+        }
+    }
+
+    fn finish_checkpoint_completion(&mut self, session_id: &str, result: Result<(), String>) {
         let success = result.is_ok();
         if let Err(error) = result {
             tracing::error!(session_id, error, "terminal checkpoint worker failed");
@@ -373,17 +390,29 @@ impl ServerActor {
             return;
         };
         let store = self.store.clone();
+        let inbox = self.inbox.clone();
         let session_id_owned = session_id.to_string();
         let job = tokio::spawn(async move {
-            store
-                .upsert(checkpoint)
-                .await
-                .map_err(|error| format!("checkpoint write failed: {error}"))?;
-            store
-                .trim_session(&session_id_owned, max_bytes)
-                .await
-                .map_err(|error| format!("checkpoint trim failed: {error}"))?;
-            Ok(())
+            let result = async {
+                store
+                    .upsert(checkpoint)
+                    .await
+                    .map_err(|error| format!("checkpoint write failed: {error}"))?;
+                store
+                    .trim_session(&session_id_owned, max_bytes)
+                    .await
+                    .map_err(|error| format!("checkpoint trim failed: {error}"))
+            }
+            .await;
+            // PTY admission stays paused until the actor collects this job.
+            // The checkpoint timer remains the fallback if this wake is lost.
+            let _ = inbox
+                .send_wait(ServerCommand::CheckpointJobFinished {
+                    session_id: session_id_owned,
+                    job: tokio::task::id(),
+                })
+                .await;
+            result
         });
         let accepted = self
             .sessions

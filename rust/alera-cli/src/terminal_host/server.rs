@@ -700,6 +700,9 @@ impl ServerActor {
             ServerCommand::HistoryWriterReady { session_id } => {
                 self.handle_history_writer_ready(&session_id)
             }
+            ServerCommand::CheckpointJobFinished { session_id, job } => {
+                self.handle_checkpoint_job_finished(&session_id, job).await
+            }
             ServerCommand::CheckpointTick {
                 session_id,
                 generation,

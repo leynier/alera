@@ -128,6 +128,9 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         | ServerCommand::CodexMalformed { reason: id } => string_bytes(id),
         ServerCommand::AgentTitleReady { tab_id, id } => string_bytes(tab_id) + string_bytes(id),
         ServerCommand::HistoryWriterReady { session_id } => string_bytes(session_id),
+        ServerCommand::CheckpointJobFinished { session_id, job } => {
+            string_bytes(session_id) + std::mem::size_of_val(job)
+        }
         ServerCommand::OrchestrationStateWaitPoll(waiter_id) => {
             std::mem::size_of_val(waiter_id)
         }
@@ -471,6 +474,7 @@ fn is_completion_command(command: &ServerCommand) -> bool {
             | ServerCommand::TerminalPulseWatcherFailed { .. }
             | ServerCommand::AgentTitleReady { .. }
             | ServerCommand::HistoryWriterReady { .. }
+            | ServerCommand::CheckpointJobFinished { .. }
             | ServerCommand::BufferGuardExpired { .. }
             | ServerCommand::TerminalPulseDue { .. }
             | ServerCommand::VoiceRealtimeReconnect { .. }

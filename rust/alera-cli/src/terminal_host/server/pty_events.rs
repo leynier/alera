@@ -6,6 +6,8 @@ use super::*;
 use crate::terminal_host::session::PtyEvent;
 
 impl ServerActor {
+    /// Returns whether the PTY reader may continue now. A `false` result means
+    /// the actor holds the reader's ack until bounded history storage drains.
     pub(super) async fn handle_pty_event(
         &mut self,
         session_id: String,
@@ -114,7 +116,7 @@ impl ServerActor {
         if should_pause {
             self.inbox.pause_pty_session(&session_id);
         }
-        should_pause
+        !should_pause
     }
 
     async fn record_orchestration_output_activity(&mut self, session_id: &str) {
