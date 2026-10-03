@@ -291,6 +291,7 @@ class _XtermTerminalSessionHandle(
     if (_replayingRestore) {
       return;
     }
+    _output.noteUserInput();
     _ptySession?.writeBytes(utf8.encode(data));
   }
 

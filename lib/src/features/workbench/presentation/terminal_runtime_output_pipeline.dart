@@ -48,6 +48,10 @@ class _TerminalOutputPipeline {
   /// one, so the first chunk after an idle terminal is never delayed.
   final Stopwatch sinceFlushRequest = Stopwatch();
 
+  /// Time since the user last typed or scrolled into this terminal. Not
+  /// started until then, so a terminal nobody touched keeps the base cadence.
+  final Stopwatch sinceUserInput = Stopwatch();
+
   /// Flushes performed, so a benchmark can read back the cadence the terminal
   /// actually drove rather than infer it from frame counts a test binding
   /// produces on its own.
@@ -109,6 +113,19 @@ class _TerminalOutputPipeline {
   void restartFlushClock() => sinceFlushRequest
     ..reset()
     ..start();
+
+  void noteUserInput() => sinceUserInput
+    ..reset()
+    ..start();
+
+  /// The cadence floor that applies right now. Output that answers the user,
+  /// such as a TUI redrawing under the mouse wheel, is paced faster for a
+  /// short window; output nobody is interacting with keeps the cheaper floor.
+  Duration get minFlushInterval =>
+      sinceUserInput.isRunning &&
+          sinceUserInput.elapsed < _terminalOutputInteractiveWindow
+      ? _terminalOutputInteractiveFlushInterval
+      : _terminalOutputMinFlushInterval;
 
   void cancelDeferredFlush() {
     final timer = flushTimer;

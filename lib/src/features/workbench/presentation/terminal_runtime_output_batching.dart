@@ -88,28 +88,24 @@ void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
     return;
   }
   final clock = handle._output.sinceFlushRequest;
+  final interval = handle._output.minFlushInterval;
   // An unstarted clock means nothing has been flushed yet, so the first chunk
   // goes out on the next frame rather than waiting for a cadence it has not
   // used up.
-  final sinceLastFlush = clock.isRunning
-      ? clock.elapsed
-      : _terminalOutputMinFlushInterval;
-  if (sinceLastFlush >= _terminalOutputMinFlushInterval) {
+  final sinceLastFlush = clock.isRunning ? clock.elapsed : interval;
+  if (sinceLastFlush >= interval) {
     _requestSessionTerminalOutputFrame(handle);
     return;
   }
   handle._output.flushScheduled = true;
-  handle._output.flushTimer = Timer(
-    _terminalOutputMinFlushInterval - sinceLastFlush,
-    () {
-      handle._output.flushTimer = null;
-      handle._output.flushScheduled = false;
-      if (handle._disposed || !handle._outputVisible) {
-        return;
-      }
-      _requestSessionTerminalOutputFrame(handle);
-    },
-  );
+  handle._output.flushTimer = Timer(interval - sinceLastFlush, () {
+    handle._output.flushTimer = null;
+    handle._output.flushScheduled = false;
+    if (handle._disposed || !handle._outputVisible) {
+      return;
+    }
+    _requestSessionTerminalOutputFrame(handle);
+  });
 }
 
 void _requestSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
@@ -254,3 +250,18 @@ const int _terminalOutputMaxPendingChars = 1024 * 1024;
 /// quiet flushes on the very next frame, so echo latency while typing is
 /// unchanged.
 const Duration _terminalOutputMinFlushInterval = Duration(milliseconds: 50);
+
+/// Cadence floor while the user is interacting, the measured 30 fps point.
+///
+/// Scrolling a TUI is sustained output too, and at 20 fps each wheel tick
+/// visibly steps. 30 fps cost 48% of a core against 31% at 20 fps in the same
+/// measurement, so the faster floor only applies for
+/// [_terminalOutputInteractiveWindow] after input and the terminal settles
+/// back to 20 fps once the user stops.
+const Duration _terminalOutputInteractiveFlushInterval = Duration(
+  milliseconds: 33,
+);
+
+/// How long after the last keystroke or wheel report output still counts as
+/// a response to the user.
+const Duration _terminalOutputInteractiveWindow = Duration(milliseconds: 300);

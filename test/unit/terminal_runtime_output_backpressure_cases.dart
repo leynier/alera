@@ -113,6 +113,30 @@ void _registerTerminalRuntimeOutputBackpressureTests() {
     },
   );
 
+  test('user input paces output faster for a short window', () async {
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final base = terminalOutputMinFlushIntervalForTesting;
+
+    expect(terminalOutputFlushIntervalForTesting(session), base);
+
+    // A wheel report over a TUI: the redraw that answers it is paced faster.
+    feedTerminalInputForTesting(session, '\x1b[<65;10;5M');
+    final interactive = terminalOutputFlushIntervalForTesting(session);
+    expect(interactive, lessThan(base));
+
+    await Future.pause(terminalOutputInteractiveWindowForTesting + base);
+
+    // Once the user stops, sustained output returns to the cheaper floor.
+    expect(terminalOutputFlushIntervalForTesting(session), base);
+  });
+
   test('a deferred flush is dropped when the terminal goes hidden', () async {
     final runtime = XtermTerminalRuntime(
       ptySessionFactory: _FakeTerminalPtySessionFactory(),
