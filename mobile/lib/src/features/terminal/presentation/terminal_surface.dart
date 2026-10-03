@@ -24,6 +24,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   final ValueNotifier<bool> _awayFromLatest = ValueNotifier<bool>(false);
   TerminalOutputBatcher? _batcher;
   StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
+  final TerminalUtf8Stream _liveText = TerminalUtf8Stream();
   bool _outputEnded = false;
   int _viewGeneration = 0;
   // Replaced together with the generation, which remounts the view.
@@ -111,6 +112,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     unawaited(_outputSub?.cancel());
     _outputSub = null;
     _outputEnded = false;
+    _liveText.reset();
     _replaceEmulator(notify: notify);
     final snapshot = session.takeSnapshot();
     if (snapshot.isNotEmpty) {
@@ -258,17 +260,22 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   }
 
   void _handleOutput(MobileTerminalOutputEvent event) {
-    final text = utf8.decode(event.data, allowMalformed: true);
     if (event.replacesScrollback) {
+      // The snapshot restarts the stream, so a held partial character has
+      // nothing left to complete it.
+      _liveText.reset();
       _replaceEmulator(notify: true);
       _restoreSnapshot(
-        text,
+        utf8.decode(event.data, allowMalformed: true),
         cols: event.snapshotCols,
         rows: event.snapshotRows,
       );
       return;
     }
-    _batcher!.add(text);
+    final text = _liveText.decode(event.data);
+    if (text.isNotEmpty) {
+      _batcher!.add(text);
+    }
   }
 
   /// Replays restored history at the size it was written at.

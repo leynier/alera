@@ -124,6 +124,24 @@ void main() {
     expect(_terminalOf(tester), same(before));
   });
 
+  testWidgets('A character split across output messages renders whole', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    await _pumpTab(tester, client);
+    final box = utf8.encode('╭─╮');
+
+    client
+      ..emitOutput('session-tab-1', .fromList(box.sublist(0, 2)))
+      ..emitOutput('session-tab-1', .fromList(box.sublist(2)));
+    await tester.pumpAndSettle();
+
+    final line = _terminalOf(tester).buffer.lines[0].getText();
+    expect(line, startsWith('╭─╮'));
+    expect(line, isNot(contains('\uFFFD')));
+  });
+
   testWidgets('Raw restore bytes are released after reaching the emulator', (
     tester,
   ) async {
