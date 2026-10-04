@@ -37,8 +37,13 @@ async fn harness() -> Harness {
     let now = Utc::now();
     sqlx::query(
         "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
-         VALUES ('profile-1', 'Profile 1', 'codex', 'codex', datetime('now'), datetime('now'))",
+         VALUES ('profile-1', 'Profile 1', 'codex', ?, datetime('now'), datetime('now'))",
     )
+    .bind(if cfg!(windows) {
+        "cmd.exe /c exit 0"
+    } else {
+        "/bin/sh -c 'exit 0'"
+    })
     .execute(actor.runtime_store.pool())
     .await
     .unwrap();
@@ -132,6 +137,10 @@ fn draft_definition() -> AutomationDefinition {
         circuit_opened_at: None,
         state: AutomationState::Draft,
         revision: 0,
+        origin_workspace_id: None,
+        schedule_cursor_at: None,
+        creation_request_key: None,
+        state_before_trash: None,
         approved_revision: None,
         created_by: actor.clone(),
         modified_by: actor,
@@ -186,7 +195,7 @@ async fn draft_create_edit_trash_and_restore_work_without_alera_toml_declaration
         .handle_automation_request(1, "automation.restore", &json!({ "id": created.id }))
         .await
         .unwrap();
-    assert_eq!(restored["state"], "draft");
+    assert_eq!(restored["state"], "paused");
 }
 
 #[tokio::test]
@@ -215,41 +224,16 @@ async fn approve_and_pause_work_without_alera_toml_declaration() {
 }
 
 #[tokio::test]
-async fn manual_execution_without_declaration_is_blocked() {
+async fn execution_without_declaration_or_profile_permission_is_allowed() {
     let mut harness = harness().await;
     let created = upsert_draft(&mut harness.actor).await;
+    let actor = harness.actor.automation_actor(1, &json!({}));
     harness
         .actor
-        .runtime_store
-        .set_automation_agent_policy(AutomationAgentPolicy {
-            profile_id: "profile-1".into(),
-            may_activate_or_edit_active: true,
-            may_execute: true,
-            updated_at: Utc::now(),
-        })
+        .ensure_agent_policy(&created, &actor, true)
         .await
         .unwrap();
-
-    let error = harness
-        .actor
-        .handle_automation_request(
-            1,
-            "automation.runNow",
-            &json!({
-                "id": created.id,
-                "draftTest": true,
-                "precheck": false,
-                "overlap": "skip",
-            }),
-        )
-        .await
-        .unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("has no automation declaration in alera.toml"),
-        "{error}"
-    );
+    assert!(harness.actor.automation_readiness(&created, false).await["ready"] == true);
 }
 
 #[tokio::test]
@@ -275,3 +259,6 @@ async fn execution_policy_accepts_a_declared_repository() {
         .await
         .unwrap();
 }
+
+#[path = "automation_experience_tests.rs"]
+mod experience;

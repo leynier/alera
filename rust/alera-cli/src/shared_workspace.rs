@@ -73,7 +73,7 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
     store: &RuntimeStore,
     request: SharedWorkspaceCreateRequest,
     executor: &E,
-    require_remote_automation_declaration: bool,
+    _require_remote_automation_declaration: bool,
 ) -> Result<PreparedSharedWorkspace> {
     let project = store
         .find_project(&request.project_id)
@@ -104,18 +104,6 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
         .await?;
         if !crate::windows_path_form::same_path(&inspection.path, &checkout.path) {
             bail!("The registered SSH checkout now resolves to a different directory; no task was created");
-        }
-        if require_remote_automation_declaration {
-            match inspection.automation_declared {
-                Some(true) => {}
-                Some(false) => bail!(
-                    "repository {} has no automation declaration in alera.toml",
-                    project.id
-                ),
-                None => bail!(
-                    "Update the SSH runtime to verify project checkout automation authorization"
-                ),
-            }
         }
         inspection
     };

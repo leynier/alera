@@ -10,7 +10,7 @@ async fn allocated(
     Workspace,
     AutomationActor,
 ) {
-    let (directory, store, run) = prepared().await;
+    let (directory, store, mut run) = prepared().await;
     let mut definition = store
         .find_automation(&run.automation_id)
         .await
@@ -18,10 +18,13 @@ async fn allocated(
         .unwrap();
     definition.cleanup_policy = policy;
     let actor = definition.modified_by.clone();
-    store
+    let definition = store
         .upsert_automation(definition, actor.clone())
         .await
         .unwrap();
+    run.definition_revision = Some(definition.revision);
+    run.definition_snapshot = Some(definition);
+    let run = store.save_automation_run(&run).await.unwrap();
     let (run, workspace) = store
         .allocate_automation_shared_workspace(
             &run,

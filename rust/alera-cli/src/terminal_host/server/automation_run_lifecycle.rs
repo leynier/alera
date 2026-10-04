@@ -152,7 +152,11 @@ impl ServerActor {
         Ok(())
     }
 
-    pub(super) async fn block_run(&mut self, run: &AutomationRun, reason: &str) {
+    pub(in crate::terminal_host::server) async fn block_run(
+        &mut self,
+        run: &AutomationRun,
+        reason: &str,
+    ) {
         let _ = self
             .runtime_store
             .update_automation_run_status(
@@ -182,12 +186,46 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn fail_run(&mut self, run: &AutomationRun, reason: String) {
-        if run.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled {
-            if let Ok(Some(definition)) =
-                self.runtime_store.find_automation(&run.automation_id).await
+    pub(in crate::terminal_host::server) async fn fail_run(
+        &mut self,
+        run: &AutomationRun,
+        reason: String,
+    ) {
+        let mut recovering = self
+            .runtime_store
+            .find_automation_run(&run.id)
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| run.clone());
+        if recovering.status.is_final() || recovering.taken_over {
+            return;
+        }
+        if !recovering.taken_over && recovering.attempt_count > 0 && recovering.recovery.is_none() {
+            recovering.recovery = Some(alera_core::runtime::AutomationRecovery {
+                status: "retryingWithContext".into(),
+                attempt: recovering.attempt_count,
+                max_attempts: recovering
+                    .definition_snapshot
+                    .as_ref()
+                    .map_or(3, |d| d.retry_max_attempts),
+                interrupted_at: Some(Utc::now()),
+                code: Some("launchInterrupted".into()),
+            });
+            let _ = self.runtime_store.save_automation_run(&recovering).await;
+        }
+        let run = &recovering;
+        if !run.taken_over && !run.status.is_final() {
+            if let Some(definition) = run.definition_snapshot.clone().or(self
+                .runtime_store
+                .find_automation(&run.automation_id)
+                .await
+                .ok()
+                .flatten())
             {
-                if run.attempt_count < definition.retry_max_attempts {
+                if run.attempt_count < definition.retry_max_attempts
+                    && run.absolute_deadline_at.is_none_or(|at| at > Utc::now())
+                {
                     let multiplier = 1_i64 << run.attempt_count.saturating_sub(1).min(5);
                     let retry_after = Utc::now()
                         + Duration::seconds(
@@ -213,6 +251,11 @@ impl ServerActor {
                 }
             }
         }
+        let mut exhausted = run.clone();
+        if let Some(recovery) = exhausted.recovery.as_mut() {
+            recovery.status = "exhausted".into();
+        }
+        let _ = self.runtime_store.save_automation_run(&exhausted).await;
         let _ = self
             .runtime_store
             .update_automation_run_status(
@@ -221,6 +264,7 @@ impl ServerActor {
                 Some(reason.clone()),
             )
             .await;
+        self.automation_run_event(&exhausted);
         if run.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled {
             if let Ok(Some(definition)) =
                 self.runtime_store.find_automation(&run.automation_id).await
@@ -256,7 +300,7 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn expire_inactive_automation_runs(&mut self) {
+    pub(in crate::terminal_host::server) async fn expire_inactive_automation_runs(&mut self) {
         let now = Utc::now();
         let runs = match self.runtime_store.list_active_automation_runs().await {
             Ok(runs) => runs,
@@ -291,7 +335,12 @@ impl ServerActor {
             let Some(started) = run.started_at else {
                 continue;
             };
-            let Ok(Some(definition)) = self.runtime_store.find_automation(&run.automation_id).await
+            let Some(definition) = run.definition_snapshot.clone().or(self
+                .runtime_store
+                .find_automation(&run.automation_id)
+                .await
+                .ok()
+                .flatten())
             else {
                 continue;
             };
@@ -300,7 +349,9 @@ impl ServerActor {
                 .absolute_deadline_at
                 .or_else(|| Some(started + Duration::hours(24)));
             let absolute_expired = absolute_deadline.is_some_and(|deadline| now >= deadline);
-            let inactivity_expired = run.status != AutomationRunStatus::WaitingForUser
+            let inactivity_expired = !run.owner_reserved
+                && run.status != AutomationRunStatus::Pending
+                && run.status != AutomationRunStatus::WaitingForUser
                 && now.signed_duration_since(reference).num_seconds()
                     > definition.inactivity_timeout_seconds;
             let cancellation_expired = run
@@ -312,7 +363,9 @@ impl ServerActor {
                 } else {
                     AutomationRunStatus::Timeout
                 };
-                self.terminate_owned_automation_sessions(&run).await;
+                if !run.owner_reserved {
+                    self.terminate_owned_automation_sessions(&run).await;
+                }
                 let _ = self
                     .runtime_store
                     .update_automation_run_status(
@@ -439,19 +492,5 @@ mod expire_tests;
 mod circuit_tests;
 
 #[cfg(test)]
-mod tests {
-    use super::is_non_retryable_reason;
-
-    #[test]
-    fn continuity_and_authentication_failures_are_not_retryable() {
-        for reason in [
-            "automation existing tab is missing",
-            "automation conversation continuity cannot be proven",
-            "remote interactive authentication required",
-            "SSH target is missing: remote",
-        ] {
-            assert!(is_non_retryable_reason(reason), "{reason}");
-        }
-        assert!(!is_non_retryable_reason("agent process exited with code 1"));
-    }
-}
+#[path = "automation_dispatch_error_tests.rs"]
+mod tests;

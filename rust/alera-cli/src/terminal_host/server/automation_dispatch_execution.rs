@@ -3,14 +3,14 @@ use alera_core::runtime::{
     AutomationOverlapPolicy, AutomationRun, AutomationRunStatus, AutomationSetupPolicy,
     AutomationTarget, WorkspaceTabRecord,
 };
-use chrono::{Duration, Utc};
-use serde_json::{json, Value};
+use chrono::Utc;
+use serde_json::json;
 use uuid::Uuid;
 
 use super::automation_run_lifecycle::is_non_retryable_dispatch_error;
 use super::{automation_prompt, render_workspace_name, ServerActor};
 use crate::managed_workspace::ManagedWorkspaceCreateRequest;
-use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::host_error::HostError;
 
 impl ServerActor {
     pub(in crate::terminal_host::server) async fn start_automation_run(
@@ -22,6 +22,24 @@ impl ServerActor {
         if self.automation_precheck_jobs.contains(&run.id) {
             return;
         }
+        if self
+            .automation_target_is_reserved(definition, &run.id)
+            .await
+        {
+            run.recovery = Some(alera_core::runtime::AutomationRecovery {
+                status: "reconnecting".into(),
+                attempt: run.attempt_count,
+                max_attempts: definition.retry_max_attempts,
+                interrupted_at: None,
+                code: Some("waitingForPreviousOwner".into()),
+            });
+            run.retry_after = Some(Utc::now() + chrono::Duration::seconds(5));
+            let _ = self.runtime_store.save_automation_run(&run).await;
+            self.automation_run_event(&run);
+            return;
+        }
+        run.recovery = None;
+        let _ = self.runtime_store.save_automation_run(&run).await;
         self.automations_active = true;
         self.cancel_shutdown_timer();
         let active_runs = self
@@ -132,6 +150,10 @@ impl ServerActor {
         if run.actor_id.is_none() {
             run.actor_id = target_identity.profile_id.clone();
         }
+        if let Err(error) = self.runtime_store.save_automation_run(&run).await {
+            self.fail_run(&run, error.to_string()).await;
+            return;
+        }
         if run_precheck && definition.precheck.is_some() {
             // Reserve concurrency while the command runs outside the actor.
             // A skipped precheck still consumes no dispatch attempt.
@@ -152,8 +174,7 @@ impl ServerActor {
             );
             return;
         }
-        self.dispatch_prechecked_automation(definition, run, location)
-            .await;
+        Box::pin(self.dispatch_prechecked_automation(definition, run, location)).await;
     }
 
     pub(in crate::terminal_host::server) async fn dispatch_prechecked_automation(
@@ -162,21 +183,35 @@ impl ServerActor {
         mut run: AutomationRun,
         location: super::super::automation_target_location::AutomationTargetLocation,
     ) {
-        let project = &location.project;
-        run.status = AutomationRunStatus::Dispatching;
-        run.retry_after = None;
-        run.started_at = Some(Utc::now());
-        run.last_heartbeat_at = run.started_at;
-        run.absolute_deadline_at = run.started_at.map(|started| started + Duration::hours(24));
-        run.attempt_count += 1;
-        if let Err(error) = self.runtime_store.save_automation_run(&run).await {
-            tracing::error!(run_id = %run.id, "could not mark automation dispatching: {error}");
-            return;
+        if let AutomationTarget::ExistingTab { tab_id, .. } = &definition.target {
+            let session = self
+                .runtime_store
+                .find_workspace_tab(tab_id)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|tab| super::super::requests::terminal_session_id_from_tab(&tab));
+            if session.as_deref().is_some_and(|id| {
+                self.sessions.get(id).is_some_and(|s| s.running())
+                    && !self.agent_presence.is_injection_ready(id)
+            }) {
+                run.retry_after = Some(Utc::now() + chrono::Duration::seconds(5));
+                let _ = self.runtime_store.save_automation_run(&run).await;
+                return;
+            }
         }
-        let _ = self
+        let project = &location.project;
+        run = match self
             .runtime_store
-            .insert_automation_attempt(&run.id, AutomationRunStatus::Dispatching, None)
-            .await;
+            .begin_automation_attempt(&run.id, definition.retry_max_attempts)
+            .await
+        {
+            Ok(run) => run,
+            Err(error) => {
+                self.fail_run(&run, error.to_string()).await;
+                return;
+            }
+        };
         if definition.target.project_checkout().is_some()
             && location.host_id != alera_core::runtime::LOCAL_HOST_ID
         {
@@ -235,7 +270,10 @@ impl ServerActor {
                 return;
             }
         };
-        let prompt = automation_prompt(&rendered, &run.id, definition.heartbeat_interval_seconds);
+        let prompt = super::super::automation_run_recovery::automation_attempt_prompt(
+            automation_prompt(&rendered, &run.id, definition.heartbeat_interval_seconds),
+            &run,
+        );
         run.rendered_prompt = Some(rendered);
         if let Err(error) = self.runtime_store.save_automation_run(&run).await {
             self.fail_run(&run, error.to_string()).await;
@@ -360,14 +398,15 @@ impl ServerActor {
                                     created_at: now,
                                     updated_at: now,
                                     payload: json!({
-                                        "terminalSessionId": setup_id,
-                                        "initialCommand": command,
-                                        "initialCommandOnce": true,
-                                        "spawnOnCreate": true,
-                                        "autoCloseOnSuccess": true,
-                                        "automationRunId": run.id,
-                                        "automationOwned": true,
-                                    }),
+                                                        "terminalSessionId": setup_id,
+                                                        "initialCommand": command,
+                                                        "initialCommandOnce": true,
+                                                        "spawnOnCreate": true,
+                                                        "autoCloseOnSuccess": true,
+                                                        "automationRunId": run.id,
+                                    "automationAttemptId": run.attempt_id,
+                                                        "automationOwned": true,
+                                                    }),
                                 };
                                 if let Err(error) =
                                     self.upsert_workspace_tab_and_spawn(setup_tab).await
@@ -414,6 +453,7 @@ impl ServerActor {
                     run.status = AutomationRunStatus::Dispatched;
                     run.updated_at = Utc::now();
                     let _ = self.runtime_store.save_automation_run(&run).await;
+                    self.record_automation_process(&run).await;
                 }
                 self.broadcast_authenticated(crate::terminal_host::protocol::event(
                     "automationRunChanged",
@@ -426,51 +466,7 @@ impl ServerActor {
             Err(error) => self.fail_run(&run, error.wire_message()).await,
         }
     }
-
-    async fn dispatch_fresh_tab(
-        &mut self,
-        run: &mut AutomationRun,
-        workspace_id: &str,
-        profile_id: &str,
-        prompt: &str,
-        owned_workspace: bool,
-    ) -> HostResult<()> {
-        let response = self
-            .launch_agent_profile(
-                None,
-                &json!({
-                    "workspaceId": workspace_id,
-                    "profileId": profile_id,
-                    "prompt": prompt,
-                    "automationRunId": run.id,
-                    "automationOwned": true,
-                }),
-            )
-            .await?;
-        let tab = response
-            .get("tab")
-            .ok_or_else(|| HostError::state("agent profile launch returned no tab"))?;
-        let tab_id = tab
-            .get("id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| HostError::state("agent profile launch returned no tab id"))?;
-        let session_id = tab
-            .get("payload")
-            .and_then(|value| value.get("terminalSessionId"))
-            .and_then(Value::as_str)
-            .unwrap_or(tab_id)
-            .to_string();
-        if let Ok(Some(mut record)) = self.runtime_store.find_workspace_tab(tab_id).await {
-            record.payload["automationRunId"] = Value::String(run.id.clone());
-            record.payload["automationOwned"] = Value::Bool(true);
-            record.updated_at = Utc::now();
-            let _ = self.runtime_store.upsert_workspace_tab(record).await;
-        }
-        run.workspace_id = Some(workspace_id.to_string());
-        run.tab_id = Some(tab_id.to_string());
-        run.session_id = Some(session_id);
-        run.owned_tab = true;
-        run.owned_workspace = owned_workspace;
-        Ok(())
-    }
 }
+
+#[path = "automation_fresh_tab_dispatch.rs"]
+mod automation_fresh_tab_dispatch;

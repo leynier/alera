@@ -8,8 +8,8 @@ pub(crate) async fn inspect(
     let Some(scope) = request.workspace.clone() else {
         let inspection =
             crate::project_checkout_inspection::inspect(request.path.clone(), kind).await?;
-        if inspection.path != request.path || inspection.automation_declared != Some(true) {
-            bail!("Owner precheck requires the canonical registered checkout and its automation declaration");
+        if inspection.path != request.path {
+            bail!("Owner precheck requires the canonical registered checkout");
         }
         return Ok(());
     };
@@ -39,9 +39,6 @@ pub(crate) async fn inspect(
                 })
         {
             bail!("The linked precheck checkout is not owned by its retained repository");
-        }
-        if !crate::automation_declaration::repository_declares_automation(&path, &path) {
-            bail!("Owner precheck requires the linked checkout's automation declaration");
         }
         Ok(())
     })
@@ -98,7 +95,7 @@ mod tests {
                 timeout_seconds: 10,
             },
         };
-        assert!(inspect(&request, ProjectKind::GitRepository).await.is_err());
+        inspect(&request, ProjectKind::GitRepository).await.unwrap();
         std::fs::write(path.join("alera.toml"), "[automation]\ndeclared = true\n").unwrap();
         inspect(&request, ProjectKind::GitRepository).await.unwrap();
         assert!(inspect(&request, ProjectKind::Folder).await.is_err());

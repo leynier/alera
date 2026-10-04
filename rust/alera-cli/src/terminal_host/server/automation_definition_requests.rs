@@ -27,7 +27,6 @@ impl ServerActor {
             .and_then(Value::as_str)
             .map(|value| value.trim().to_ascii_lowercase());
         let mut items = Vec::new();
-        let mut effective_policies = Vec::new();
         for mut definition in candidates {
             if state.is_some_and(|value| value != definition.state.as_str()) {
                 continue;
@@ -57,31 +56,40 @@ impl ServerActor {
             if definition.project_id.is_none() {
                 definition.project_id = definition_project_id.clone();
             }
-            if let Some(project_id) = definition_project_id.as_deref() {
-                let project = self.effective_project_policy(project_id).await?;
-                let target_profile_policy = match target_profile.as_deref() {
-                    Some(profile_id) => serde_json::to_value(
-                        self.runtime_store
-                            .automation_agent_policy(profile_id)
-                            .await
-                            .map_err(|error| HostError::state(error.to_string()))?,
-                    )
-                    .map_err(|error| HostError::state(error.to_string()))?,
-                    None => json!({}),
-                };
-                effective_policies.push(json!({
-                    "automationId": definition.id,
-                    "targetProfileId": target_profile,
-                    "targetProfile": target_profile_policy,
-                    "project": project,
-                }));
+            let item = self.automation_catalog_item(&definition).await?;
+            if payload["workspaceId"]
+                .as_str()
+                .is_some_and(|id| item["association"]["workspaceId"].as_str() != Some(id))
+                || payload["sectionId"]
+                    .as_str()
+                    .is_some_and(|id| item["association"]["sectionId"].as_str() != Some(id))
+                || payload["hostId"]
+                    .as_str()
+                    .is_some_and(|id| item["targetHostId"].as_str() != Some(id))
+            {
+                continue;
             }
-            items.push(definition);
+            if let Some(bucket) = payload["bucket"].as_str() {
+                let matches = match bucket {
+                    "all" => true,
+                    "completed" => definition.state == AutomationState::Archived,
+                    "needsAttention" => {
+                        definition.state == AutomationState::Blocked
+                            || item["readiness"]["ready"] == false
+                            || !item["attention"].is_null()
+                    }
+                    _ => definition.state.as_str() == bucket,
+                };
+                if !matches {
+                    continue;
+                }
+            }
+            items.push(item);
         }
         Ok(json!({
             "kind": "automations",
             "items": items,
-            "effectivePolicies": effective_policies,
+            "effectivePolicies": [],
             "filters": {
                 "state": payload.get("state"),
                 "projectId": payload.get("projectId"),
@@ -113,35 +121,12 @@ impl ServerActor {
         let preview =
             alera_core::runtime::preview_occurrences(&id, &automation.schedule, Utc::now(), 6)
                 .unwrap_or_default();
-        let target_profile_id = self.target_profile_id(&automation).await?;
-        let project_id = self.automation_definition_project(&automation).await?;
-        let target_profile_policy = match target_profile_id.as_deref() {
-            Some(profile_id) => serde_json::to_value(
-                self.runtime_store
-                    .automation_agent_policy(profile_id)
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?,
-            )
-            .map_err(|error| HostError::state(error.to_string()))?,
-            None => json!({}),
-        };
-        let effective_policies = match project_id.as_deref() {
-            Some(project_id) => json!({
-                "targetProfileId": target_profile_id,
-                "targetProfile": target_profile_policy,
-                "project": self.effective_project_policy(project_id).await?,
-            }),
-            None => json!({
-                "targetProfileId": target_profile_id,
-                "targetProfile": target_profile_policy,
-            }),
-        };
         Ok(json!({
-            "automation": automation,
+            "automation": self.automation_catalog_item(&automation).await?,
             "runs": runs,
             "audit": audit,
             "occurrences": preview,
-            "effectivePolicies": effective_policies,
+            "effectivePolicies": [],
         }))
     }
 
@@ -162,7 +147,14 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?
             .is_some_and(|existing| existing.state == AutomationState::Active);
         if definition.state == AutomationState::Active || editing_active {
-            self.ensure_agent_policy(&definition, &actor, false).await?;
+            let readiness = self.automation_readiness(&definition, true).await;
+            if readiness["ready"] != true {
+                return Err(HostError::conflict(
+                    "automationNotReady",
+                    "Fix the highlighted fields before activating",
+                    readiness,
+                ));
+            }
         }
         let saved = self
             .runtime_store
@@ -198,10 +190,15 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("automation not found: {id}")))?;
-        // Trash and restore are recoverable draft lifecycle, not execution.
-        // Keep the repository declaration and agent policy on Active/Paused.
-        if matches!(state, AutomationState::Active | AutomationState::Paused) {
-            self.ensure_agent_policy(&definition, &actor, false).await?;
+        if state == AutomationState::Active {
+            let readiness = self.automation_readiness(&definition, true).await;
+            if readiness["ready"] != true {
+                return Err(HostError::conflict(
+                    "automationNotReady",
+                    "Fix the highlighted fields before activating",
+                    readiness,
+                ));
+            }
         }
         if state == AutomationState::Paused {
             let active_runs = self
@@ -273,37 +270,12 @@ impl ServerActor {
         payload: &Value,
         actor: AutomationActor,
     ) -> HostResult<Value> {
-        let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
-        super::automation_policy_requests::require_human_automation_actor(&actor)?;
-        let id = require_string_key(payload, "id")?;
-        let revision = payload
-            .get("revision")
-            .and_then(Value::as_i64)
-            .ok_or_else(|| HostError::format("automation revision is required"))?;
-        let definition = self
-            .runtime_store
-            .find_automation(&id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("automation not found: {id}")))?;
-        self.ensure_agent_policy(&definition, &actor, false).await?;
-        let saved = self
-            .runtime_store
-            .approve_automation(&id, revision, actor)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.automations_active = self
-            .runtime_store
-            .has_pending_automation_work()
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.automation_wake.notify_one();
-        self.schedule_shutdown_if_idle();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({}),
-        ));
-        serde_json::to_value(saved).map_err(|error| HostError::state(error.to_string()))
+        let mut response = self
+            .automation_state_request(client_id, payload, actor, AutomationState::Active)
+            .await?;
+        response["deprecation"] =
+            json!("approve is deprecated; use resume. No approval is required.");
+        Ok(response)
     }
 
     pub(super) async fn automation_runs_request(&self, payload: &Value) -> HostResult<Value> {
@@ -330,6 +302,11 @@ impl ServerActor {
             .find_automation(&run.automation_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        Ok(json!({ "run": run, "automation": automation }))
+        let attempts = self
+            .runtime_store
+            .automation_attempts(&id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        Ok(json!({ "run": run, "automation": automation, "attempts": attempts }))
     }
 }

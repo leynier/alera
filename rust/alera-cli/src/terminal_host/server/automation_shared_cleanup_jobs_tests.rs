@@ -25,7 +25,7 @@ async fn finish(actor: &mut ServerActor, command: ServerCommand) {
 
 #[tokio::test]
 async fn default_preserve_policy_never_starts_a_cleanup_job() {
-    let (_root, mut actor, run) = successful().await;
+    let (_root, mut actor, mut run) = successful().await;
     let mut definition = actor
         .runtime_store
         .find_automation(&run.automation_id)
@@ -33,6 +33,7 @@ async fn default_preserve_policy_never_starts_a_cleanup_job() {
         .unwrap()
         .unwrap();
     definition.cleanup_policy = None;
+    run.definition_snapshot = Some(definition.clone());
     actor
         .runtime_store
         .upsert_automation(definition.clone(), definition.modified_by)

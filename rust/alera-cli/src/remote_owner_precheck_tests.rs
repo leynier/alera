@@ -133,7 +133,7 @@ async fn owner_precheck_completed_receipt_is_readable_after_runtime_idle_shutdow
 }
 
 #[tokio::test]
-async fn owner_precheck_invalid_scope_and_missing_declaration_do_not_create_state() {
+async fn owner_precheck_invalid_scope_is_rejected_without_declaration_requirement() {
     let (directory, envelope) = fixture();
     let state = directory.path().join("missing-owner");
     let mut wrong = envelope.clone();
@@ -141,11 +141,16 @@ async fn owner_precheck_invalid_scope_and_missing_declaration_do_not_create_stat
     assert!(run(args(&state, &wrong, OwnerPrecheckAction::Start))
         .await
         .is_err());
-    let error = run(args(&state, &envelope, OwnerPrecheckAction::Start))
-        .await
-        .unwrap_err();
-    assert!(error.to_string().contains("automation declaration"));
     assert!(!state.exists());
+    crate::owner_precheck_checkout::inspect(&envelope.request, envelope.project.kind)
+        .await
+        .unwrap();
+    let store = RuntimeStore::open(&state).await.unwrap();
+    register_for_action(&store, &envelope, OwnerPrecheckAction::Start)
+        .await
+        .unwrap();
+    assert!(store.find_project("project").await.unwrap().is_some());
+    assert!(state.exists());
 }
 
 #[tokio::test]

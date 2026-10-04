@@ -172,6 +172,19 @@ impl ServerActor {
                     "activePushSubscriptions": self.account_push.active_subscriptions,
                 }))
             }
+            "automation.ownerStatus" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, "automation.ownerStatus")?;
+                self.automation_owner_status(payload).await
+            }
+            "terminal.observe" => {
+                self.require_auth(client_id)?;
+                let session = require_string_key(payload, "sessionId")?;
+                let workspace = require_string_key(payload, "workspaceId")?;
+                let tab = require_string_key(payload, "tabId")?;
+                self.observe_automation_terminal(client_id, &session, &workspace, &tab)
+                    .await
+            }
             "createOrAttach" => {
                 self.require_auth(client_id)?;
                 self.create_or_attach(client_id, payload).await
@@ -217,6 +230,7 @@ impl ServerActor {
             "resize" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
+                self.require_terminal_writer(client_id, &session_id)?;
                 let cols = int_or(payload, "cols", 80) as u16;
                 let rows = int_or(payload, "rows", 24) as u16;
                 if self.is_mobile_client(client_id) {
@@ -242,6 +256,7 @@ impl ServerActor {
                     ));
                 }
                 let session_id = self.require_session_id(payload)?;
+                self.require_terminal_writer(client_id, &session_id)?;
                 let restored = self.reclaim_terminal_for_desktop(&session_id);
                 Ok(json!({ "restored": restored }))
             }
@@ -278,6 +293,7 @@ impl ServerActor {
             "terminate" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
+                self.require_terminal_writer(client_id, &session_id)?;
                 self.terminate_session_request(session_id).await?;
                 Ok(json!({}))
             }
@@ -292,6 +308,9 @@ impl ServerActor {
             "terminal.restart" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, "terminal.restart")?;
+                if let Some(id) = payload["sessionId"].as_str() {
+                    self.require_terminal_writer(client_id, id)?;
+                }
                 if self.is_mobile_client(client_id) {
                     self.restart_mobile_terminal(client_id, payload).await
                 } else {

@@ -32,13 +32,16 @@ impl ServerActor {
             .upsert_workspace_tab(tab)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.bind_automation_terminal_before_spawn(&saved).await?;
         let saved = match self
             .ensure_spawn_on_create_terminal_with_permit(&saved, permit)
             .await
         {
             Ok(rewritten) => rewritten.unwrap_or(saved),
             Err(error) => {
-                let _ = self.runtime_store.remove_workspace_tab(&saved.id).await;
+                if saved.payload["automationOwned"] != true {
+                    let _ = self.runtime_store.remove_workspace_tab(&saved.id).await;
+                }
                 self.terminate_sessions_for_tab(&saved.id).await;
                 return Err(error);
             }

@@ -113,6 +113,8 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     crate::terminal_host::protocol::RUNTIME_HOST_MOBILE_PULL_REQUEST_SHIP_CAPABILITY,
     RUNTIME_HOST_MOBILE_PULL_REQUEST_SUMMARIES_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY,
@@ -301,6 +303,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspaceCascade.preview"
             | "terminal.create"
             | "terminal.attach"
+            | "terminal.observe"
             | "terminal.restart"
             | "terminal.driver.list"
             | "write"
@@ -308,6 +311,11 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "setOutputPaused"
             | "detach"
             | "terminate"
+            | "automation.create"
+            | "automation.patch"
+            | "automation.previewSchedule"
+            | "automation.readiness"
+            | "automation.takeOver"
             | "automation.list"
             | "automation.show"
             | "automation.upsert"

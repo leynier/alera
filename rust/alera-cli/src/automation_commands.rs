@@ -9,9 +9,9 @@ use serde_json::{json, Value};
 use crate::cli::{
     AutomationAction, AutomationCatalogFileArgs, AutomationCommand, AutomationCompleteArgs,
     AutomationDefinitionFileArgs, AutomationExportArgs, AutomationExtendArgs, AutomationImportArgs,
-    AutomationListArgs, AutomationPolicyArgs, AutomationRevisionArgs, AutomationRunIdArgs,
-    AutomationRunNowArgs, AutomationRunsArgs, AutomationStateArgs, AutomationTargetArgs,
-    AutomationWaitArgs, RuntimeDirArgs,
+    AutomationListArgs, AutomationRevisionArgs, AutomationRunIdArgs, AutomationRunNowArgs,
+    AutomationRunsArgs, AutomationStateArgs, AutomationTargetArgs, AutomationWaitArgs,
+    RuntimeDirArgs,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATIONS_CAPABILITY;
@@ -28,8 +28,12 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
         AutomationAction::Show(args) => {
             request(&runtime, "automation.show", json!({"id": args.id})).await
         }
-        AutomationAction::Create(args) => upsert(&runtime, args).await,
-        AutomationAction::Edit(args) => upsert(&runtime, args).await,
+        AutomationAction::Create(args) => author(&runtime, args, "automation.create").await,
+        AutomationAction::Readiness(args) => author(&runtime, args, "automation.readiness").await,
+        AutomationAction::PreviewSchedule(args) => {
+            author(&runtime, args, "automation.previewSchedule").await
+        }
+        AutomationAction::Edit(args) => author(&runtime, args, "automation.patch").await,
         AutomationAction::Approve(args) => approve(&runtime, args).await,
         AutomationAction::Pause(args) => state(&runtime, "automation.pause", args).await,
         AutomationAction::Resume(args) => state(&runtime, "automation.resume", args).await,
@@ -53,7 +57,9 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
         AutomationAction::Tags(args) => catalog(&runtime, "tag", args).await,
         AutomationAction::Import(args) => import_catalog(&runtime, args).await,
         AutomationAction::Export(args) => export_catalog(&runtime, args, json_output).await,
-        AutomationAction::Policy(args) => policy(&runtime, args).await,
+        AutomationAction::Policy(_) => Err(anyhow::anyhow!(
+            "Automation policies were removed. Use readiness to check technical requirements."
+        )),
     };
     match result {
         Ok(value) => {
@@ -64,10 +70,30 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
     }
 }
 
-async fn request(runtime: &RuntimeDirArgs, request_type: &str, payload: Value) -> Result<Value> {
+async fn request(
+    runtime: &RuntimeDirArgs,
+    request_type: &str,
+    mut payload: Value,
+) -> Result<Value> {
+    if let Ok(handle) = std::env::var("ALERA_TERMINAL_HANDLE") {
+        payload["terminalHandle"] = json!(handle);
+    }
+    if let Ok(attempt) = std::env::var("ALERA_AUTOMATION_ATTEMPT_ID") {
+        payload["attemptId"] = json!(attempt);
+    }
     let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
         &crate::runtime_dir(runtime),
-        RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+        if matches!(
+            request_type,
+            "automation.create"
+                | "automation.patch"
+                | "automation.readiness"
+                | "automation.previewSchedule"
+        ) {
+            "automationsAuthoringV1"
+        } else {
+            RUNTIME_HOST_AUTOMATIONS_CAPABILITY
+        },
     )
     .await?;
     client.request_value(request_type, &payload).await
@@ -84,22 +110,17 @@ async fn list(runtime: &RuntimeDirArgs, args: AutomationListArgs) -> Result<Valu
             "profileId": args.profile_id,
             "tag": args.tag,
             "search": args.search,
+            "workspaceId":args.workspace_id, "sectionId":args.section_id, "hostId":args.host_id, "bucket":args.bucket,
         }),
     )
     .await
 }
 
-async fn upsert(runtime: &RuntimeDirArgs, args: AutomationDefinitionFileArgs) -> Result<Value> {
-    let definition = read_json(&args.file)?;
-    let mut payload = json!({"automation": definition});
-    add_automation_context(&mut payload);
-    request(runtime, "automation.upsert", payload).await
-}
-
 async fn approve(runtime: &RuntimeDirArgs, args: AutomationRevisionArgs) -> Result<Value> {
-    let mut payload = json!({"id": args.id, "revision": args.revision});
+    eprintln!("approve is deprecated; activating with resume. No approval is required.");
+    let mut payload = json!({"id": args.id});
     add_automation_context(&mut payload);
-    request(runtime, "automation.approve", payload).await
+    request(runtime, "automation.resume", payload).await
 }
 
 async fn state(
@@ -120,16 +141,15 @@ async fn run_now(runtime: &RuntimeDirArgs, args: AutomationRunNowArgs) -> Result
     let precheck = match (args.precheck, args.skip_precheck) {
         (true, false) => true,
         (false, true) => false,
-        _ => anyhow::bail!("Run Now requires exactly one of --precheck or --skip-precheck"),
+        _ => false,
     };
-    let overlap = args
-        .overlap
-        .ok_or_else(|| anyhow::anyhow!("Run Now requires --overlap"))?;
+    let overlap = args.overlap;
     let mut payload = json!({
         "id": args.id,
-        "precheck": precheck,
+        "precheck": if args.precheck || args.skip_precheck { Some(precheck) } else { None },
         "overlap": overlap,
         "draftTest": args.draft_test,
+        "continueFromRunId": args.continue_from_run,
         "revision": args.revision,
         "targetIdentity": target_identity(&args.target),
     });
@@ -253,25 +273,6 @@ async fn export_catalog(
     Ok(value)
 }
 
-async fn policy(runtime: &RuntimeDirArgs, args: AutomationPolicyArgs) -> Result<Value> {
-    let mut payload = json!({
-        "kind": args.kind,
-        "profileId": args.profile_id,
-        "projectId": args.project_id,
-    });
-    if let Some(file) = args.file {
-        payload["policy"] = read_json(&file)?;
-    }
-    if let Some(run_id) = std::env::var("ALERA_AUTOMATION_RUN_ID")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-    {
-        payload["run"] = Value::String(run_id);
-        payload["targetIdentity"] = target_identity(&AutomationTargetArgs::default());
-    }
-    request(runtime, "automation.policy", payload).await
-}
-
 fn read_json(path: &str) -> Result<Value> {
     let mut contents = String::new();
     if path == "-" {
@@ -301,6 +302,7 @@ fn target_identity_with(
     let session_id =
         field(&args.session_id, "ALERA_TERMINAL_SESSION_ID").or_else(|| terminal_handle.clone());
     json!({
+        "attemptId": field(&args.attempt_id, "ALERA_AUTOMATION_ATTEMPT_ID"),
         "workspaceId": field(&args.workspace_id, "ALERA_WORKSPACE_ID"),
         "tabId": field(&args.tab_id, "ALERA_TAB_ID"),
         "sessionId": session_id.clone(),
@@ -379,3 +381,7 @@ mod tests {
         assert_eq!(value["tabId"], "environment-value");
     }
 }
+
+#[path = "automation_authoring_commands.rs"]
+mod automation_authoring_commands;
+use automation_authoring_commands::author;

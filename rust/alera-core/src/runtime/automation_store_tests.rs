@@ -55,6 +55,10 @@ fn definition() -> AutomationDefinition {
         circuit_opened_at: None,
         state: AutomationState::Draft,
         revision: 0,
+        origin_workspace_id: None,
+        schedule_cursor_at: None,
+        creation_request_key: None,
+        state_before_trash: None,
         approved_revision: None,
         created_by: AutomationActor {
             kind: AutomationActorKind::LocalCli,
@@ -100,7 +104,7 @@ async fn list_automations_sorts_names_stored_in_definition_json() {
 }
 
 #[tokio::test]
-async fn revisioned_upsert_invalidates_material_approval() {
+async fn revisioned_upsert_preserves_active_state_for_material_edits() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
     seed_profile(&store).await;
@@ -118,8 +122,8 @@ async fn revisioned_upsert_invalidates_material_approval() {
     changed.prompt_template = "Run {{workspace.path}}".into();
     let edited = store.upsert_automation(changed, actor).await.unwrap();
     assert_eq!(edited.revision, 2);
-    assert_eq!(edited.approved_revision, None);
-    assert_eq!(edited.state, AutomationState::Draft);
+    assert_eq!(edited.approved_revision, Some(edited.revision));
+    assert_eq!(edited.state, AutomationState::Active);
 }
 
 #[tokio::test]

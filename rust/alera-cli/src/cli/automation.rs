@@ -1,5 +1,5 @@
 use super::{IdArgs, OutputArgs, RuntimeDirArgs};
-use clap::{ArgGroup, Args, Subcommand};
+use clap::{Args, Subcommand};
 
 #[derive(Debug, Args)]
 pub struct AutomationCommand {
@@ -17,11 +17,15 @@ pub enum AutomationAction {
     List(AutomationListArgs),
     /// Show one automation with its recent runs and audit history.
     Show(IdArgs),
-    /// Create an automation from a JSON definition file or stdin.
+    /// Create an automation with flags or a JSON definition file.
     Create(AutomationDefinitionFileArgs),
-    /// Edit an automation from a JSON definition file or stdin.
+    /// Validate a partial draft without saving it.
+    Readiness(AutomationDefinitionFileArgs),
+    /// Preview the next occurrences from cron or a one-time date.
+    PreviewSchedule(AutomationDefinitionFileArgs),
+    /// Patch an automation with flags or a JSON definition file.
     Edit(AutomationDefinitionFileArgs),
-    /// Approve an exact automation revision for activation.
+    /// Deprecated alias for resume. No approval is required.
     Approve(AutomationRevisionArgs),
     /// Pause an active automation.
     Pause(AutomationStateArgs),
@@ -29,7 +33,7 @@ pub enum AutomationAction {
     Resume(AutomationStateArgs),
     /// Move an automation to recoverable trash.
     Trash(AutomationStateArgs),
-    /// Restore a trashed automation as a draft.
+    /// Restore a trashed automation paused, or completed if previously completed.
     Restore(AutomationStateArgs),
     /// Permanently purge automations trashed for at least 30 days.
     Purge,
@@ -59,7 +63,8 @@ pub enum AutomationAction {
     Import(AutomationImportArgs),
     /// Export a runtime-local automation catalog.
     Export(AutomationExportArgs),
-    /// List, show, or update agent and project automation policies.
+    /// Deprecated. Automation permission policies have been removed.
+    #[command(hide = true)]
     Policy(AutomationPolicyArgs),
 }
 
@@ -78,13 +83,62 @@ pub struct AutomationListArgs {
     pub tag: Option<String>,
     #[arg(long)]
     pub search: Option<String>,
+    #[arg(long)]
+    pub workspace_id: Option<String>,
+    #[arg(long)]
+    pub section_id: Option<String>,
+    #[arg(long)]
+    pub host_id: Option<String>,
+    #[arg(long)]
+    pub bucket: Option<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct AutomationDefinitionFileArgs {
     /// JSON file path, or - to read the definition from stdin.
     #[arg(long = "file", alias = "definition-file")]
-    pub file: String,
+    pub file: Option<String>,
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long, conflicts_with = "prompt_file")]
+    pub prompt: Option<String>,
+    #[arg(long)]
+    pub prompt_file: Option<String>,
+    #[arg(long, conflicts_with = "at")]
+    pub cron: Option<String>,
+    #[arg(long)]
+    pub at: Option<String>,
+    #[arg(long)]
+    pub timezone: Option<String>,
+    /// Required for flag-based creation; never inferred from context.
+    #[arg(long, value_parser = ["fresh-tab", "existing-tab", "managed-workspace", "project-checkout"])]
+    pub target: Option<String>,
+    #[arg(long)]
+    pub workspace_id: Option<String>,
+    #[arg(long)]
+    pub project_id: Option<String>,
+    #[arg(long)]
+    pub host_id: Option<String>,
+    #[arg(long)]
+    pub profile_id: Option<String>,
+    #[arg(long)]
+    pub tab_id: Option<String>,
+    #[arg(long)]
+    pub conversation_id: Option<String>,
+    #[arg(long)]
+    pub source_branch: Option<String>,
+    #[arg(long)]
+    pub origin_workspace_id: Option<String>,
+    #[arg(long)]
+    pub draft: bool,
+    #[arg(long)]
+    pub dry_run: bool,
+    #[arg(long)]
+    pub request_key: Option<String>,
+    #[arg(long)]
+    pub expected_revision: Option<i64>,
 }
 
 #[derive(Debug, Args)]
@@ -92,7 +146,7 @@ pub struct AutomationRevisionArgs {
     #[arg(long)]
     pub id: String,
     #[arg(long)]
-    pub revision: i64,
+    pub revision: Option<i64>,
 }
 
 #[derive(Debug, Args)]
@@ -107,11 +161,6 @@ pub struct AutomationStateArgs {
 }
 
 #[derive(Debug, Args)]
-#[command(group(
-    ArgGroup::new("precheck-choice")
-        .required(true)
-        .args(["precheck", "skip_precheck"])
-))]
 pub struct AutomationRunNowArgs {
     #[arg(long)]
     pub id: String,
@@ -124,16 +173,17 @@ pub struct AutomationRunNowArgs {
     /// Explicit overlap behavior: skip, queue, runLatestOnce, or forceParallel.
     #[arg(
         long,
-        required = true,
         value_parser = ["skip", "queue", "runLatestOnce", "forceParallel"]
     )]
     pub overlap: Option<String>,
-    /// Run a draft as an audited human test.
+    /// Deprecated compatibility option; all technically valid states can run.
     #[arg(long = "draft-test")]
     pub draft_test: bool,
-    /// Exact approved revision to use for a human Run Now exception.
+    /// Optional expected revision to reject a stale Run Now request.
     #[arg(long)]
     pub revision: Option<i64>,
+    #[arg(long)]
+    pub continue_from_run: Option<String>,
     #[command(flatten)]
     pub target: AutomationTargetArgs,
 }
@@ -156,6 +206,8 @@ pub struct AutomationRunIdArgs {
 
 #[derive(Debug, Args, Clone, Default)]
 pub struct AutomationTargetArgs {
+    #[arg(long)]
+    pub attempt_id: Option<String>,
     #[arg(long = "workspace-id")]
     pub workspace_id: Option<String>,
     #[arg(long = "tab-id")]
@@ -271,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn run_now_requires_explicit_precheck_and_overlap() {
+    fn run_now_defaults_to_definition_choices() {
         let valid = Cli::try_parse_from([
             "alera",
             "automation",
@@ -299,7 +351,7 @@ mod tests {
             "--overlap",
             "queue",
         ])
-        .is_err());
+        .is_ok());
         assert!(Cli::try_parse_from([
             "alera",
             "automation",

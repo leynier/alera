@@ -56,6 +56,24 @@ impl ServerActor {
                 }
             };
             for tab in tabs.into_iter().filter(spawns_on_create) {
+                // The automation runner alone reconciles owner liveness and retry budgets.
+                if tab.payload["automationOwned"] == true
+                    && tab.payload["automationTakenOver"] != true
+                {
+                    let taken_over = match tab.payload["automationRunId"].as_str() {
+                        Some(id) => self
+                            .runtime_store
+                            .find_automation_run(id)
+                            .await
+                            .ok()
+                            .flatten()
+                            .is_some_and(|run| run.taken_over),
+                        None => false,
+                    };
+                    if !taken_over {
+                        continue;
+                    }
+                }
                 if let Err(error) = self.ensure_spawn_on_create_terminal(&tab).await {
                     tracing::error!(
                         "failed to restore spawn-on-create terminal {}: {}",
@@ -336,6 +354,11 @@ impl ServerActor {
                     launch
                         .environment
                         .insert("ALERA_AUTOMATION_RUN_ID".to_string(), run_id.to_string());
+                    if let Some(attempt) = tab.payload["automationAttemptId"].as_str() {
+                        launch
+                            .environment
+                            .insert("ALERA_AUTOMATION_ATTEMPT_ID".into(), attempt.into());
+                    }
                     launch
                         .environment
                         .insert("ALERA_WORKSPACE_ID".to_string(), workspace_id.clone());
@@ -354,6 +377,19 @@ impl ServerActor {
             .record_workspace_tab_terminal_launch(&workspace_id, &tab_id, &session_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        let tracked_owner = self
+            .runtime_store
+            .find_workspace_tab(&tab_id)
+            .await
+            .ok()
+            .flatten()
+            .is_some_and(|tab| {
+                tab.payload["automationOwned"] == true || tab.payload["sshOwnerTerminal"] == true
+            });
+        if tracked_owner {
+            self.record_terminal_owner_intent(&session_id, &workspace_id, &tab_id)
+                .await?;
+        }
         let woken_workspace_id = workspace_id.clone();
         let woken_tab_id = tab_id.clone();
         let session = Box::pin(Session::start(
@@ -371,7 +407,10 @@ impl ServerActor {
             move |event| forward_pty_event(&inbox, &reader_session_id, event),
         ))
         .await?;
-        self.sessions.insert(session_id, session);
+        self.sessions.insert(session_id.clone(), session);
+        if tracked_owner {
+            self.record_terminal_owner_process(&session_id).await;
+        }
         self.wake_workspace_for_tab(&woken_workspace_id, &woken_tab_id)
             .await;
         Ok(())

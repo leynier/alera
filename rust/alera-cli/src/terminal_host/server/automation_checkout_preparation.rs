@@ -108,7 +108,13 @@ impl ServerActor {
                 .await;
             return;
         }
-        let Ok(Some(latest)) = self.runtime_store.find_automation(&definition.id).await else {
+        let Some(latest) = current.definition_snapshot.clone().or(self
+            .runtime_store
+            .find_automation(&definition.id)
+            .await
+            .ok()
+            .flatten())
+        else {
             self.block_run(
                 &current,
                 "Automation definition disappeared during checkout preparation",

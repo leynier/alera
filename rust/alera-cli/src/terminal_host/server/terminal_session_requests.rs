@@ -18,6 +18,11 @@ impl ServerActor {
         let session_id = require_string(payload, "sessionId")?;
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
+        if payload["attachmentMode"].as_str() == Some("observe") {
+            return self
+                .observe_automation_terminal(client_id, &session_id, &workspace_id, &tab_id)
+                .await;
+        }
         let working_directory = require_string(payload, "workingDirectory")?;
         if self
             .runtime_store
@@ -116,6 +121,7 @@ impl ServerActor {
                             .runtime_store
                             .mark_automation_run_taken_over(run_id, actor)
                             .await;
+                        self.broadcast_workspace_tabs_changed(Some(&workspace_id));
                     }
                 }
             }
@@ -131,6 +137,7 @@ impl ServerActor {
             if running {
                 self.flush_all_output(&session_id).await;
                 let session = self.sessions.get_mut(&session_id).expect("just checked");
+                session.observer_clients.remove(&client_id);
                 session.attach(client_id);
                 return Ok(session.attachment_payload(false, restore_bytes));
             }
@@ -164,6 +171,7 @@ impl ServerActor {
             .initial_command_override(&tab_id, &interactive_shell)
             .await;
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
+        session.observer_clients.remove(&client_id);
         session.attach(client_id);
         let mut attachment = session.attachment_payload(true, restore_bytes);
         if let Some(command) = initial_command_override {
@@ -247,6 +255,7 @@ impl ServerActor {
             })
             .collect::<Vec<_>>();
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
+        session.observer_clients.remove(&client_id);
         session.attach(client_id);
         for attached_client_id in &resync_clients {
             session.attach_for_resync(*attached_client_id);

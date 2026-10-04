@@ -71,7 +71,7 @@ async fn drain(
 }
 
 #[tokio::test]
-async fn owner_precheck_rpc_requires_declaration_and_retries_without_duplicating_execution() {
+async fn owner_precheck_rpc_requires_no_declaration_and_runs_once() {
     let (mut fixture, _) = empty_project().await;
     let marker = fixture.repo_path.join("rpc-count");
     let request = request(
@@ -84,24 +84,6 @@ async fn owner_precheck_rpc_requires_declaration_and_retries_without_duplicating
     let payload = serde_json::to_value(&request).unwrap();
     let (sender, mut inbox) = crate::terminal_host::ServerInbox::channel();
     fixture.actor.inbox = sender;
-    fixture
-        .actor
-        .handle_request(1, "automation.ownerPrecheck.start", &payload)
-        .await
-        .unwrap();
-    drain(&mut fixture, &mut inbox).await;
-    let rejected = fixture
-        .actor
-        .handle_request(1, "automation.ownerPrecheck.status", &payload)
-        .await
-        .unwrap();
-    assert!(rejected["job"]["attention"]
-        .as_str()
-        .unwrap()
-        .contains("declaration"));
-    assert!(rejected["job"]["processId"].is_null());
-    assert!(!marker.exists());
-    declare(&fixture.repo_path);
     fixture
         .actor
         .handle_request(1, "automation.ownerPrecheck.start", &payload)

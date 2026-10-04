@@ -127,7 +127,10 @@ pub(super) async fn enqueue_completed_run(
     let Some(definition_json) = definition_json else {
         return Ok(());
     };
-    let definition: AutomationDefinition = serde_json::from_str(&definition_json)?;
+    let definition: AutomationDefinition = run
+        .definition_snapshot
+        .clone()
+        .unwrap_or(serde_json::from_str(&definition_json)?);
     if definition.cleanup_policy != Some(AutomationCleanupPolicy::OnSuccess)
         || definition.target.project_checkout().is_none()
     {

@@ -206,13 +206,6 @@ async fn authorize(
     crate::owner_precheck_checkout::inspect(request, project.kind)
         .await
         .map_err(|error| error.to_string())?;
-    let policy = store
-        .automation_project_policy(&project.id)
-        .await
-        .map_err(|error| error.to_string())?;
-    if policy.restrictive && !policy.local_approved {
-        return Err("Owner precheck project requires local approval".into());
-    }
     Ok(())
 }
 

@@ -240,7 +240,7 @@ impl crate::ssh_remote::RemoteHostExecutor for Declaration {
 }
 
 #[tokio::test]
-async fn remote_precheck_command_is_not_polled_without_repository_authorization() {
+async fn remote_precheck_checks_checkout_without_retired_permission_gates() {
     let (fixture, mut definition) = empty_project().await;
     let store = &fixture.actor.runtime_store;
     store.upsert_ssh_target(serde_json::from_value(json!({
@@ -282,8 +282,8 @@ async fn remote_precheck_command_is_not_polled_without_repository_authorization(
                 Ok(true)
             },
         ).await;
-        assert_eq!(result.is_ok(), declaration == Some(true));
-        assert_eq!(polled.get(), declaration == Some(true));
+        assert!(result.is_ok(), "{result:?}");
+        assert!(polled.get());
     }
     assert!(store.list_workspaces("project-1").await.unwrap().is_empty());
 }
@@ -406,13 +406,18 @@ async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_c
             match scenario {
                 "skip" | "failure" => AutomationRunStatus::PrecheckSkipped,
                 "cancel" => AutomationRunStatus::Cancelled,
+                "edit" | "policy" => AutomationRunStatus::Dispatched,
                 _ => AutomationRunStatus::Blocked,
             },
             "{scenario}"
         );
-        assert_eq!(current.attempt_count, 0, "{scenario}");
-        assert!(current.workspace_id.is_none());
-        assert!(store.list_workspaces("project-1").await.unwrap().is_empty());
+        let dispatched = matches!(scenario, "edit" | "policy");
+        assert_eq!(current.attempt_count, i64::from(dispatched), "{scenario}");
+        assert_eq!(current.workspace_id.is_some(), dispatched);
+        assert_eq!(
+            store.list_workspaces("project-1").await.unwrap().is_empty(),
+            !dispatched
+        );
         assert!(fixture.actor.automation_precheck_jobs.is_empty());
     }
 }

@@ -58,8 +58,10 @@ impl RuntimeStore {
                 .fetch_optional(&mut *tx)
                 .await?
                 .ok_or_else(|| anyhow!("Automation definition no longer exists"))?;
-        let definition: crate::runtime::AutomationDefinition =
-            serde_json::from_str(&definition_json)?;
+        let definition: crate::runtime::AutomationDefinition = run
+            .definition_snapshot
+            .clone()
+            .unwrap_or(serde_json::from_str(&definition_json)?);
         if definition.target.project_checkout()
             != Some((workspace.project_id.as_str(), workspace.host_id.as_str()))
         {

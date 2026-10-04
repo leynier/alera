@@ -1,85 +1,62 @@
 ---
 title: Automations
-description: Run an agent profile on a cron schedule, approve each revision, and follow every run from the desktop, the phone, or the alera CLI.
-updatedDate: 2026-09-28
+description: Schedule agent work, create tasks from desktop, mobile, or CLI, and follow execution and recovery in your runtime.
+updatedDate: 2026-10-04
 ---
 
-An automation runs one of your [Agent Profiles](/docs/agent-profiles) with a prompt, on a schedule or on demand, and records every run. The runtime host keeps the catalog and schedule, so the desktop, phone, and CLI share them.
-
-## Three Switches Before Anything Runs
-
-Every run needs all three, each off by default, except that an **Audited Draft Test** skips the approval:
-
-1. **The repository opts in.** Add this to the project's [`alera.toml`](/docs/alera-toml):
-
-   ```toml
-   [automation]
-   declared = true
-   ```
-
-2. **The agent profile opts in.** In **Settings → Agent Profiles**, select the profile and turn on **May Execute Automations** under **Automation Permissions**.
-3. **You approve the revision.** A new automation is a draft until you choose **Approve**.
-
-Drafts, edits, and approval work without the first two. Stricter projects can also turn on **Require Local Approval** under **Settings → Projects → Automation Policy**.
+An automation runs an [Agent Profile](/docs/agent-profiles) with a prompt, on a schedule or on demand. Definitions, individual runs, and activity are shared by the desktop, phone, and CLI through the selected runtime. Automations and orchestration tasks have separate lifecycles.
 
 ## Create An Automation
 
-Open **Automations** with `Mod+Shift+A` or from the application menu, then choose **New Automation**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. **Templates** starts from a prompt kept with **Save Template**.
+Open **Automations** from the application menu or with `Mod+Shift+A`, then choose **New Automation**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. Creation guides you through the task, target, schedule, and review. Choose the target explicitly; the current workspace can supply its context after that choice.
 
-- **Prompt Template** can use variables such as `{{automation.name}}`, `{{run.number}}`, `{{run.scheduledAt}}`, `{{workspace.path}}`, and `{{project.name}}`; unknown ones are rejected.
-- **Schedule**: **Recurring** takes a **Five-field Cron** expression in an **IANA Timezone**, optionally bounded by a start time, an end time, and a maximum number of runs. **One-time** runs once at **Run At (UTC)**.
-- **Target** decides where the agent works:
-  - **Fresh Tab** opens a new tab with the chosen **Agent Profile** in a **Workspace**.
-  - **Managed Workspace** creates a worktree for every run from the **Source Branch** of the **Source Workspace**'s project. Git projects on the local host only.
-  - **Project Folder** creates a workspace on an existing project folder, local or on an SSH host, with its current branch and files.
+- **Prompt Template** supports variables including `{{automation.name}}`, `{{run.number}}`, `{{run.scheduledAt}}`, `{{workspace.path}}`, and `{{project.name}}`. Unknown variables and malformed delimiters produce validation errors.
+- **Target** selects **Fresh Tab**, **Existing Tab**, **Managed Workspace**, or **Project Folder**. Fresh Tab opens an agent in a workspace; Existing Tab uses a captured conversation; Managed Workspace creates a Git worktree; Project Folder uses a registered local or SSH checkout.
+- **Schedule** supports one-time execution and recurring schedules in an IANA timezone, with upcoming occurrences shown before saving. Optional limits, overlap behavior, prechecks, and cleanup stay available in advanced settings.
 
-**Save Automation** stores a draft. Editing the prompt, schedule, target, or any policy returns it to draft; the name, description, and tags do not.
+Saving activates the automation. **Save As Draft** keeps it inactive. No repository declaration, profile permission, project approval, or revision approval is required. Technical validation checks the prompt, schedule, target, and profile. Editing an Active automation keeps it Active and affects its next occurrence; runs already admitted retain their original definition. Changing the schedule recalculates from now without backfill.
 
 ### Cron Syntax
 
-Five fields: minute, hour, day of month, month, day of week. Each takes `*`, lists (`1,15`), ranges (`1-5`), and steps (`*/15`); months and weekdays also accept names such as `JAN` and `MON`, and 0 or 7 is Sunday. The default, `0 9 * * 1-5`, runs at 09:00 on weekdays. There are no seconds or `@daily` shortcuts. Times skipped by daylight saving do not run; repeated ones run once.
+Five fields: minute, hour, day of month, month, day of week. Fields accept `*`, lists (`1,15`), ranges (`1-5`), and steps (`*/15`); months and weekdays accept names such as `JAN` and `MON`. Both 0 and 7 mean Sunday. `0 9 * * 1-5` runs at 09:00 on weekdays. There are no seconds or `@daily` shortcuts. Times skipped by daylight saving do not run; repeated ones run once.
 
-## Where Automations Run
+## Find Your Tasks
 
-The runtime host runs the schedule, not the desktop window. Quitting the desktop app stops the host it started unless one of these keeps it up:
+The global view covers the chosen runtime and its managed local and SSH destinations. Use the workspace, section, or project entry points to see associated definitions and their runs. The originating workspace controls contextual association independently of where a run executes; its section follows workspace moves. Buckets separate Active, Draft, Paused, Needs Attention, Completed, and Trash. Completed definitions remain in All and Completed and offer cloning, running again, and trashing.
 
-- **Keep Runtime Open When App Quits** under **Settings → Application → Runtime**.
-- **Start Automations At Login** under **Settings → Application → Automation History And Autostart**, which adds a login item that starts a persistent host.
-- A host started with `alera runtime start`.
+## Runtime And Recovery
 
-**Misfire** decides what happens to occurrences missed by more than the grace window (900 seconds by default): skip them (the default), run only the newest, or queue them all.
+The runtime host owns execution. Keep it running by opening Alera or starting it with `alera runtime start`. Creating an automation does not change **Keep Runtime Open When App Quits** or **Start Automations At Login**. Those remain explicit application settings.
 
-## What A Run Does
+Missed schedule occurrences default to **Skip**, including occurrences missed while the runtime was offline. Advanced misfire options can run the latest missed occurrence or queue them. Recovery of a run already admitted is separate from missed scheduling.
 
-An optional precheck command runs first in the target folder; a non-zero exit skips the run. The agent then gets your prompt plus instructions to report progress with `alera automation heartbeat` and to finish once with `alera automation complete`, marking the run success, failure, or blocked. A run times out after its inactivity timeout (7200 seconds by default) passes without a heartbeat, or after 24 hours in total.
+When a run is interrupted, the runtime first reconciles its owner. It resumes the native agent conversation when possible, then can continue with context in the preserved workspace. The run keeps its original revision and absolute 24-hour deadline, with at most three total launches and backoff of 60 and 120 seconds. Restarting the runtime or machine does not reset that budget. An unreachable SSH owner remains reserved until its closure can be verified; a new run waits instead of launching a duplicate. A timed-out run can retain this reservation while reconciliation continues.
 
-**Overlap** handles a new run while one is still active: skip it (the default), run only the latest, queue it (at most 10 waiting), or run in parallel. Failed scheduled runs get up to three attempts, and repeated failures pause scheduling for a while. A blocked run marks the whole automation blocked until you fix the cause.
+## Watch And Control Runs
 
-After a successful run, the tabs it opened close, and when **Cleanup** is set to clean up on success, a **Managed Workspace** run also deletes its worktree and branch. Opening a run's terminal from the desktop or phone counts as taking it over, so Alera keeps it.
+**Watch Terminal** shows live output or retained output read-only. It does not send input, resize the agent's terminal, or restart an exited process. **Take Over · Stops Automatic Recovery** lets you operate the agent and preserves its workspace. Older runtimes expose **Open And Take Over** instead of read-only observation.
 
-## History And Control
+**Run Now** runs once without changing the schedule and is available for technically valid Draft, Paused, Active, Blocked, and Completed definitions. It uses the configured precheck and overlap behavior unless overridden. **Run Again** creates a new linked run; choose previous context in its preserved workspace or start fresh. Final runs remain unchanged.
 
-An automation's detail has **Overview** (settings, **Effective Policy**, upcoming occurrences), **Runs**, and **Audit**. Each run shows its status and the agent's summary; waiting runs offer **Resume** and **Extend**, unfinished ones **Cancel**.
+**Pause** stops future scheduling while admitted runs can continue. **Resume** restarts scheduling from now. **Trash** is recoverable; **Restore** returns other definitions Paused and previously Completed definitions to Completed. Export and import move the catalog as JSON; imported definitions remain drafts.
 
-- **Run Now** asks whether to **Run Precheck** and how to handle **Overlap**; **Audited Draft Test** runs a draft once.
-- **Pause** asks whether to **Continue Active** or **Cancel Active** runs; **Resume** restarts the schedule.
-- **Trash** is recoverable with **Restore**, which returns the automation as a draft.
-- **Export** and **Import** move the catalog as JSON; imports arrive as drafts.
+An optional precheck runs in the target folder; a non-zero result skips execution. The agent reports progress through `alera automation heartbeat` and finishes with `alera automation complete`, including a summary and success, failure, or blocked status. Inactivity defaults to two hours and the absolute deadline to 24 hours. Repeated scheduled failures temporarily open the circuit breaker. History and audit retention remain in application settings.
 
-**Run History Retention** (30 days), **Audit Retention** (90 days), and **Trash Retention** (30 days) live under **Settings → Application → Automation History And Autostart**.
+## Agents And CLI
+
+Install the **Alera Automations** skill to teach agents the authoring and execution contract. The base Alera CLI skill refers to it. One command can create a definition using a partial JSON object or ordinary flags:
+
+```bash
+alera automation --json create --name 'Daily Review' --prompt 'Review changed files and summarize findings' --cron '0 9 * * 1-5' --timezone America/Mexico_City --target fresh-tab --workspace-id <workspace-id> --profile-id <profile-id> --request-key daily-review
+alera automation create --file automation.json --dry-run
+alera automation edit --id <automation-id> --prompt-file prompt.txt
+alera automation run-now --id <automation-id>
+alera automation --json list --workspace-id <workspace-id>
+alera automation --json run-show --id <run-id>
+```
+
+`--dry-run` validates without saving. A stable `--request-key` makes creation safe to retry after an ambiguous response. `edit --file` accepts changed fields and supports `--expected-revision`. `preview-schedule` displays upcoming occurrences. Target type is always explicit; workspace and profile selectors can use the current terminal context. `approve` is a deprecated alias of `resume`, and automation `policy` has been retired.
 
 ## On The Phone
 
-From a host's workspace list, choose **Host Details**, then **Open Automations** to create, edit, approve, run, and pause them. With [push notifications](/docs/mobile#push-notifications), failed, blocked, and timed-out runs push under **Attention Required**; successful ones only with **Notify On Success** on the automation and **Agent Finished** enabled. Tapping one opens the automation.
-
-## From The CLI
-
-```bash
-alera automation --json list
-alera automation approve --id <automation-id> --revision <revision>
-alera automation run-now --id <automation-id> --skip-precheck --overlap skip
-alera automation pause --id <automation-id> --active-runs continue-active
-alera automation --json runs --automation-id <automation-id>
-```
-
-`run-now` requires `--precheck` or `--skip-precheck`, plus `--overlap`. `create` and `edit` take a JSON definition with `--file`, shaped like the `automation` object that `show` returns. `resume` also reactivates an approved automation that was blocked.
+The phone uses the same authoring, catalog, and lifecycle rules as desktop. Read-only automation terminals hide the composer until Take Over. [Push notifications](/docs/mobile#push-notifications) continue to report failed, blocked, and timed-out runs under **Attention Required**; successful runs notify only when configured. Selecting a notification opens the related automation.

@@ -89,6 +89,8 @@ mod ai_dictation_openai;
 mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod automation_actor;
+mod automation_authoring_requests;
+mod automation_catalog_projection;
 mod automation_catalog_requests;
 #[cfg(test)]
 mod automation_catalog_requests_tests;
@@ -96,17 +98,22 @@ mod automation_definition_requests;
 #[cfg(test)]
 mod automation_definition_requests_tests;
 mod automation_dispatch;
+mod automation_owner_identity;
+mod automation_owner_reconciliation;
 mod automation_policy_requests;
 #[cfg(test)]
 mod automation_policy_requests_tests;
+mod automation_profile_readiness;
 mod automation_request_authorization;
 mod automation_request_routes;
 mod automation_requests;
+mod automation_run_recovery;
 mod automation_run_target_requests;
 mod automation_scheduler;
 mod automation_shared_cleanup_jobs;
 mod automation_shared_cleanup_requests;
 mod automation_target_location;
+mod automation_terminal_observation;
 mod chatgpt_credentials;
 mod chatgpt_inference;
 mod chatgpt_oauth;

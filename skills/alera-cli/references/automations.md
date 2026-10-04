@@ -1,19 +1,19 @@
 # Automations
 
-## Automations
-
-`alera automation` operates the same catalog as desktop and mobile. List, show, create, edit, approve, pause, resume, trash, restore, purge, run-now, runs, lifecycle, templates, tags, import, export, and policy all go through the authenticated runtime host.
-
-Scheduled and manual execution still require `[automation] declared = true` in the workspace or project `alera.toml`. Draft create, edit, trash, restore, and approve do not. Agent profile `mayExecute` is a separate policy.
+Use the `alera-automations` skill for scheduled agent work. `alera automation` operates the shared desktop, mobile, and CLI catalog through the authenticated runtime host. A valid prompt, schedule, target, and launchable profile are sufficient. There are no approval, repository declaration, project approval, or profile permission gates.
 
 ```bash
-alera automation list
-alera automation --json show --id <automation-id>
-alera automation create --file definition.json
-alera automation approve --id <automation-id> --revision <revision>
-alera automation run-now --id <automation-id> --skip-precheck --overlap skip
-alera automation templates
-alera automation policy --kind show --profile-id <profile-id>
+alera automation --json list --workspace-id <workspace-id>
+alera automation --json create --name 'Daily Review' --prompt 'Review changed files' --cron '0 9 * * 1-5' --timezone UTC --target fresh-tab --workspace-id <workspace-id> --profile-id <profile-id> --request-key daily-review
+alera automation create --file definition.json --dry-run
+alera automation edit --id <automation-id> --prompt-file prompt.txt
+alera automation run-now --id <automation-id>
+alera automation pause --id <automation-id> --active-runs continue-active
+alera automation resume --id <automation-id>
 ```
 
-Existing-tab JSON targets need `workspaceId` and `tabId`. `conversationId` is optional when saving. Existing-tab execution still requires a conversation ID whose continuity can be verified.
+Creation is Active unless `--draft` is supplied. Edits preserve the current state and apply to future runs. The target type is always explicit; chosen target fields can use the current terminal context. `create --file` accepts partial JSON without IDs, revisions, actors, or timestamps. `edit --file` accepts a partial patch. `--request-key` makes repeated creation idempotent. `readiness` validates without saving, and `preview-schedule` lists upcoming dates.
+
+`run-now` needs no repeated precheck or overlap options and does not activate scheduling. `approve` is a deprecated alias of `resume`; `policy` has been retired. Existing Tab requires a captured live conversation. Watching a terminal is read-only; explicit Take Over stops recovery and preserves resources.
+
+The runtime must be running. Creating an automation does not enable autostart. Missed occurrences default to Skip; interrupted admitted runs reconcile ownership and recover in their preserved workspace with a bounded retry budget. The CLI automatically supplies the current attempt ID on lifecycle calls from an automation terminal.

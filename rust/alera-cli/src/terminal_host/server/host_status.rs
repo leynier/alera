@@ -133,6 +133,8 @@ impl ServerActor {
                         RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
                         RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY,
                         RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+        crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
+        crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
                         crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
                     ],
                     // Absent when the host has not initialized file logging, so

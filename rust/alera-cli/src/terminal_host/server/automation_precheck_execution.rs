@@ -32,7 +32,12 @@ impl ServerActor {
         if intent.host_id == alera_core::runtime::LOCAL_HOST_ID {
             return false;
         }
-        let Ok(Some(definition)) = self.runtime_store.find_automation(&run.automation_id).await
+        let Some(definition) = run.definition_snapshot.clone().or(self
+            .runtime_store
+            .find_automation(&run.automation_id)
+            .await
+            .ok()
+            .flatten())
         else {
             return false;
         };
@@ -219,7 +224,13 @@ impl ServerActor {
                 .await;
             return;
         }
-        let Ok(Some(latest)) = self.runtime_store.find_automation(&definition.id).await else {
+        let Some(latest) = current.definition_snapshot.clone().or(self
+            .runtime_store
+            .find_automation(&definition.id)
+            .await
+            .ok()
+            .flatten())
+        else {
             self.block_run(
                 &current,
                 "Automation definition disappeared during precheck",
@@ -266,8 +277,7 @@ impl ServerActor {
         }
         let error = match result {
             Ok(true) => {
-                self.dispatch_prechecked_automation(&latest, current, location)
-                    .await;
+                Box::pin(self.dispatch_prechecked_automation(&latest, current, location)).await;
                 return;
             }
             Ok(false) => "automation precheck did not pass".to_string(),

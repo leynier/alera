@@ -215,3 +215,6 @@ pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnviron
 pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
 pub const RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY: &str =
     crate::terminal_host::voice_capabilities::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY;
+
+pub const RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY: &str = "automationsAuthoringV1";
+pub const RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY: &str = "automationTerminalObserveV1";

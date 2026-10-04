@@ -298,6 +298,7 @@ impl ServerActor {
         let keep_terminal = keep_failed_setup
             || keep_failed_spawn
             || self.retains_workflow_terminal_history(&session_id).await
+            || self.retains_automation_terminal_history(&session_id).await
             || self.is_remote_terminal(&session_id).await
             || self.is_ssh_owner_terminal(&session_id).await;
         self.settle_closed_workflow_terminal(&session_id, &reason)
@@ -385,6 +386,8 @@ impl ServerActor {
             return Ok(false);
         }
         let workflow_owned = self.retains_workflow_terminal_history(session_id).await;
+        let retain_history =
+            workflow_owned || self.retains_automation_terminal_history(session_id).await;
         self.hold_history_barrier(session_id);
         self.flush_all_output(session_id).await;
         if !self.await_output_writes(session_id).await {
@@ -392,7 +395,7 @@ impl ServerActor {
                 "Terminal history could not be persisted; the session remains open for retry.",
             ));
         }
-        if !workflow_owned {
+        if !retain_history {
             self.runtime_store
                 .remove_workspace_tab(&tab_id)
                 .await
@@ -407,7 +410,7 @@ impl ServerActor {
         }
         if let Some(mut session) = self.sessions.remove(session_id) {
             self.inbox.resume_pty_session(session_id);
-            session.terminate(!workflow_owned, &self.store).await;
+            session.terminate(!retain_history, &self.store).await;
         }
         if workflow_owned {
             self.settle_closed_workflow_terminal(

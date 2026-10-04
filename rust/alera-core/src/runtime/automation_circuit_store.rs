@@ -174,8 +174,7 @@ impl RuntimeStore {
         actor: AutomationActor,
         reason: &str,
     ) -> Result<AutomationDefinition> {
-        let restore_active =
-            definition.state == AutomationState::Blocked && definition.is_approved();
+        let restore_active = definition.state == AutomationState::Blocked;
         definition.circuit_opened = false;
         definition.circuit_opened_at = None;
         if restore_active {

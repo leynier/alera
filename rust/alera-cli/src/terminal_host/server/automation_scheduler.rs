@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use alera_core::runtime::{next_occurrence, AutomationSchedule, AutomationState, RuntimeStore};
-use chrono::{DateTime, Utc};
+use alera_core::runtime::{next_occurrence, AutomationState, RuntimeStore};
+use chrono::Utc;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -42,7 +42,11 @@ async fn next_wait(store: &RuntimeStore) -> Result<Duration, String> {
         .next_automation_shared_cleanup_at()
         .await
         .map_err(|error| error.to_string())?;
-    let mut nearest = cleanup_at.filter(|deadline| *deadline > now);
+    let run_at = store
+        .next_automation_run_wakeup()
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut nearest = cleanup_at.into_iter().chain(run_at).min();
     let mut overdue_circuit = cleanup_at.is_some_and(|deadline| deadline <= now);
     for definition in definitions {
         if let Some(deadline) = definition.circuit_reset_at() {
@@ -55,15 +59,13 @@ async fn next_wait(store: &RuntimeStore) -> Result<Duration, String> {
         if definition.state != AutomationState::Active {
             continue;
         }
-        let cursor = match &definition.schedule {
-            AutomationSchedule::OneTime { .. } => DateTime::<Utc>::UNIX_EPOCH,
-            AutomationSchedule::Recurring { start_at, .. } => store
+        let cursor = alera_core::runtime::automation_cursor(
+            &definition,
+            store
                 .latest_automation_occurrence(&definition.id)
                 .await
-                .map_err(|error| error.to_string())?
-                .or(*start_at)
-                .unwrap_or(definition.created_at),
-        };
+                .map_err(|e| e.to_string())?,
+        );
         if let Some(occurrence) = next_occurrence(&definition.id, &definition.schedule, cursor)
             .map_err(|error| error.to_string())?
         {
@@ -154,6 +156,10 @@ mod tests {
             circuit_opened_at: None,
             state: AutomationState::Draft,
             revision: 0,
+            origin_workspace_id: None,
+            schedule_cursor_at: None,
+            creation_request_key: None,
+            state_before_trash: None,
             approved_revision: None,
             created_by: actor(),
             modified_by: actor(),

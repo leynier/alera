@@ -76,6 +76,8 @@ impl RuntimeStore {
         }
         let now = Utc::now();
         run.last_heartbeat_at = Some(now);
+        run.last_activity_at = Some(now);
+        run.recovery = None;
         run.updated_at = now;
         let saved = self.save_automation_run(&run).await?;
         self.insert_automation_audit_event(
@@ -193,10 +195,16 @@ impl RuntimeStore {
             .find_automation_run(id)
             .await?
             .ok_or_else(|| anyhow!("automation run not found: {id}"))?;
+        sqlx::query("UPDATE workspaceTabs SET payloadJson = json_set(payloadJson, '$.automationTakenOver', json('true')) WHERE json_extract(payloadJson, '$.automationRunId') = ?")
+            .bind(id).execute(self.pool()).await?;
         if run.status.is_final() || run.taken_over {
             return Ok(run);
         }
         run.taken_over = true;
+        if let Some(recovery) = run.recovery.as_mut() {
+            recovery.status = "stoppedByTakeover".into();
+        }
+        run.retry_after = None;
         run.updated_at = Utc::now();
         let saved = self.save_automation_run(&run).await?;
         self.insert_automation_audit_event(
@@ -260,6 +268,9 @@ impl RuntimeStore {
             bail!("automation run is already final: {id}");
         }
         run.status = AutomationRunStatus::Pending;
+        if let Some(recovery) = run.recovery.as_mut() {
+            recovery.status = "waitingBackoff".into();
+        }
         run.error = Some(error.clone());
         run.retry_after = Some(retry_after);
         run.finished_at = None;
@@ -300,6 +311,11 @@ impl RuntimeStore {
             id: Uuid::new_v4().to_string(),
             run_id: run_id.to_string(),
             number,
+            launch_kind: None,
+            session_id: None,
+            tab_id: None,
+            interruption_code: None,
+            last_activity_at: None,
             status,
             error,
             started_at: Utc::now(),

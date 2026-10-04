@@ -247,6 +247,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         trashedAt TEXT
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS automationsSlugIdx ON automations(slug COLLATE NOCASE);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS automationsRequestKeyIdx ON automations(json_extract(dataJson, '$.creationRequestKey')) WHERE json_extract(dataJson, '$.creationRequestKey') IS NOT NULL;",
     "CREATE INDEX IF NOT EXISTS automationsStateIdx ON automations(state, updatedAt);",
     "CREATE TABLE IF NOT EXISTS automationOccurrences (
         automationId TEXT NOT NULL,
