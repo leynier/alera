@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_floating_pill_button.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_terminal_banner.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_clipboard_settings_controller.dart';
@@ -44,6 +45,8 @@ class const TerminalTabView({
   required final String hostId,
   required final String workspaceId,
   required final String tabId,
+  final bool observe = false,
+  final String? automationRunId,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<TerminalTabView> createState() => _TerminalTabViewState();
@@ -57,11 +60,16 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
   // that a first start has not earned yet.
   bool _hadSession = false;
 
+  TerminalSessionControllerProvider get _sessionProvider =>
+      terminalSessionControllerProvider(
+        widget.hostId,
+        widget.tabId,
+        observe: widget.observe,
+      );
+
   @override
   Widget build(BuildContext context) {
-    final session = ref.watch(
-      terminalSessionControllerProvider(widget.hostId, widget.tabId),
-    );
+    final session = ref.watch(_sessionProvider);
     final inputMode = ref.watch(
       terminalInputModeControllerProvider(widget.tabId),
     );
@@ -73,9 +81,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
             .value
             ?.visibleKeys() ??
         const <TerminalAccessoryKey>[];
-    final notifier = ref.read(
-      terminalSessionControllerProvider(widget.hostId, widget.tabId).notifier,
-    );
+    final notifier = ref.read(_sessionProvider.notifier);
     if (session is AsyncData<TerminalTabSession>) {
       _hadSession = true;
     }
@@ -87,7 +93,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       AsyncData(value: final tabSession) => _TerminalSurface(
         key: _surfaceKey,
         session: tabSession,
-        inputMode: inputMode,
+        inputMode: widget.observe ? TerminalInputMode.compose : inputMode,
         allowOsc52Clipboard: allowOsc52Clipboard,
         onInput: (data) => notifier.write(utf8.encode(data)),
         onViewportResize: notifier.resize,
@@ -113,7 +119,13 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         Expanded(child: surface),
         // A first start has nothing to compose against yet; only a tab that
         // has already attached keeps its bars through the loading state.
-        if (_hadSession) ...<Widget>[
+        if (widget.observe)
+          MobileAutomationTerminalBanner(
+            hostId: widget.hostId,
+            tabId: widget.tabId,
+            runId: widget.automationRunId,
+          )
+        else if (_hadSession) ...<Widget>[
           if (inputMode == TerminalInputMode.direct) const _DirectModeBanner(),
           TerminalAccessoryBar(
             keys: accessoryKeys,
@@ -159,25 +171,27 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
                 borderColor: AleraTokens.borderSubtle,
                 onPressed: _refreshing ? null : _refreshTerminal,
               ),
-              const SizedBox(height: AleraTokens.spaceXs),
-              AleraIconButton(
-                tooltip: inputMode == TerminalInputMode.compose
-                    ? 'Switch To Direct Input'
-                    : 'Switch To Compose Input',
-                icon: inputMode == TerminalInputMode.compose
-                    ? Icons.keyboard_alt_outlined
-                    : Icons.bolt,
-                backgroundColor: inputMode == TerminalInputMode.direct
-                    ? AleraTokens.accentSubtle
-                    : AleraTokens.surfaceElevated,
-                borderColor: AleraTokens.borderSubtle,
-                onPressed: ref
-                    .read(
-                      terminalInputModeControllerProvider(widget.tabId)
-                          .notifier,
-                    )
-                    .toggle,
-              ),
+              if (!widget.observe) ...<Widget>[
+                const SizedBox(height: AleraTokens.spaceXs),
+                AleraIconButton(
+                  tooltip: inputMode == TerminalInputMode.compose
+                      ? 'Switch To Direct Input'
+                      : 'Switch To Compose Input',
+                  icon: inputMode == TerminalInputMode.compose
+                      ? Icons.keyboard_alt_outlined
+                      : Icons.bolt,
+                  backgroundColor: inputMode == TerminalInputMode.direct
+                      ? AleraTokens.accentSubtle
+                      : AleraTokens.surfaceElevated,
+                  borderColor: AleraTokens.borderSubtle,
+                  onPressed: ref
+                      .read(
+                        terminalInputModeControllerProvider(widget.tabId)
+                            .notifier,
+                      )
+                      .toggle,
+                ),
+              ],
             ],
           ),
         ),
@@ -215,14 +229,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
     }
     setState(() => _refreshing = true);
     try {
-      await ref
-          .read(
-            terminalSessionControllerProvider(
-              widget.hostId,
-              widget.tabId,
-            ).notifier,
-          )
-          .refreshViewport();
+      await ref.read(_sessionProvider.notifier).refreshViewport();
       await _surfaceKey.currentState?.refreshRendering();
     } finally {
       if (mounted) {

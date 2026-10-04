@@ -239,8 +239,9 @@ class FakeTerminalClient
     String tabId, {
     int? cols,
     int? rows,
+    bool observe = false,
   }) async {
-    calls.add('attach $tabId');
+    calls.add(observe ? 'observe $tabId' : 'attach $tabId');
     attachments.add((tabId: tabId, cols: cols, rows: rows));
     await attachCompletion;
     final tab = tabs.firstWhere((tab) => tab.id == tabId);

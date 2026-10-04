@@ -38,6 +38,9 @@ mod startup_command_cases;
 #[path = "terminal_host_headless_runtime/startup_reconciliation_case.rs"]
 mod startup_reconciliation_case;
 
+#[path = "terminal_host_headless_runtime/automation_recovery_case.rs"]
+mod automation_recovery_case;
+
 const PROTOCOL_VERSION: i64 = 4;
 
 struct HostGuard(Child);

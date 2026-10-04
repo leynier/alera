@@ -55,6 +55,11 @@ pub(super) fn definition() -> AutomationDefinition {
         circuit_opened_at: None,
         state: super::super::AutomationState::Draft,
         revision: 1,
+        origin_workspace_id: None,
+        schedule_cursor_at: None,
+        creation_request_key: None,
+        creation_request_fingerprint: None,
+        state_before_trash: None,
         approved_revision: None,
         created_by: AutomationActor {
             kind: AutomationActorKind::LocalCli,

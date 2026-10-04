@@ -63,7 +63,7 @@ async fn empty_project() -> (Harness, AutomationDefinition) {
 }
 
 #[tokio::test]
-async fn project_checkout_target_resolves_without_any_workspace_and_requires_declaration() {
+async fn project_checkout_target_resolves_without_workspace_or_declaration() {
     let (fixture, definition) = empty_project().await;
     let location = fixture
         .actor
@@ -82,13 +82,11 @@ async fn project_checkout_target_resolves_without_any_workspace_and_requires_dec
             .as_deref(),
         Some("project-1")
     );
-    assert!(fixture
+    fixture
         .actor
         .ensure_agent_policy(&definition, &definition.created_by, true)
         .await
-        .unwrap_err()
-        .to_string()
-        .contains("no automation declaration"));
+        .unwrap();
     declare(&fixture.repo_path);
     fixture
         .actor
@@ -272,7 +270,7 @@ async fn deferred_checkout_preparation_keeps_actor_responsive_and_honors_cancell
 }
 
 #[tokio::test]
-async fn deferred_checkout_preparation_rejects_a_changed_definition() {
+async fn deferred_checkout_preparation_uses_the_admitted_definition() {
     deferred_preparation_rejection("edit").await;
 }
 
@@ -397,6 +395,16 @@ async fn deferred_preparation_rejection(scenario: &'static str) {
         .await
         .unwrap()
         .unwrap();
+    if scenario == "edit" {
+        assert_eq!(current.status, AutomationRunStatus::Dispatched);
+        assert!(current.workspace_id.is_some());
+        assert_eq!(
+            current.definition_snapshot.as_ref().unwrap().name,
+            definition.name
+        );
+        assert!(fixture.actor.automation_checkout_jobs.is_empty());
+        return;
+    }
     let (status, reason) = match scenario {
         "cancel" => (
             AutomationRunStatus::Cancelled,

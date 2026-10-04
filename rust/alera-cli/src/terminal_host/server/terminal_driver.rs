@@ -37,6 +37,9 @@ impl ServerActor {
         let Some(session) = self.sessions.get_mut(session_id) else {
             return;
         };
+        if session.observer_clients.contains(&client_id) {
+            return;
+        }
         let next = SessionDriver::Mobile {
             client_id,
             device_id,

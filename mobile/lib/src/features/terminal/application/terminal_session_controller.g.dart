@@ -17,7 +17,7 @@ final class TerminalSessionControllerProvider
         $AsyncNotifierProvider<TerminalSessionController, TerminalTabSession> {
   TerminalSessionControllerProvider._({
     required TerminalSessionControllerFamily super.from,
-    required (String, String) super.argument,
+    required (String, String, {bool observe}) super.argument,
   }) : super(
          retry: null,
          name: r'terminalSessionControllerProvider',
@@ -53,7 +53,7 @@ final class TerminalSessionControllerProvider
 }
 
 String _$terminalSessionControllerHash() =>
-    r'706e65d9844692ff239ac3d445a460ccf668adc2';
+    r'ec95281d06c3e325c810eeca3d138645bf4063bb';
 
 final class TerminalSessionControllerFamily extends $Family
     with
@@ -62,7 +62,7 @@ final class TerminalSessionControllerFamily extends $Family
           AsyncValue<TerminalTabSession>,
           TerminalTabSession,
           FutureOr<TerminalTabSession>,
-          (String, String)
+          (String, String, {bool observe})
         > {
   TerminalSessionControllerFamily._()
     : super(
@@ -73,11 +73,14 @@ final class TerminalSessionControllerFamily extends $Family
         isAutoDispose: true,
       );
 
-  TerminalSessionControllerProvider call(String hostId, String tabId) =>
-      TerminalSessionControllerProvider._(
-        argument: (hostId, tabId),
-        from: this,
-      );
+  TerminalSessionControllerProvider call(
+    String hostId,
+    String tabId, {
+    bool observe = false,
+  }) => TerminalSessionControllerProvider._(
+    argument: (hostId, tabId, observe: observe),
+    from: this,
+  );
 
   @override
   String toString() => r'terminalSessionControllerProvider';
@@ -85,11 +88,16 @@ final class TerminalSessionControllerFamily extends $Family
 
 abstract class _$TerminalSessionController
     extends $AsyncNotifier<TerminalTabSession> {
-  late final _$args = ref.$arg as (String, String);
+  late final _$args = ref.$arg as (String, String, {bool observe});
   String get hostId => _$args.$1;
   String get tabId => _$args.$2;
+  bool get observe => _$args.observe;
 
-  FutureOr<TerminalTabSession> build(String hostId, String tabId);
+  FutureOr<TerminalTabSession> build(
+    String hostId,
+    String tabId, {
+    bool observe = false,
+  });
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
@@ -103,6 +111,9 @@ abstract class _$TerminalSessionController
               Object?,
               Object?
             >;
-    return element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
+    return element.handleCreate(
+      ref,
+      () => build(_$args.$1, _$args.$2, observe: _$args.observe),
+    );
   }
 }

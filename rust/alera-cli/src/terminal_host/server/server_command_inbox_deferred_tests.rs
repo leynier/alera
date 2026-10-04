@@ -335,101 +335,10 @@ async fn watcher_buffer_guard_and_voice_lifecycle_controls_survive_shutdown() {
     ));
 }
 
-fn automation_definition() -> AutomationDefinition {
-    let now = Utc::now();
-    AutomationDefinition {
-        id: "automation-1".to_string(),
-        slug: "automation-1".to_string(),
-        name: "Automation".to_string(),
-        description: String::new(),
-        project_id: Some("project".to_string()),
-        tag_ids: Vec::new(),
-        prompt_template: "Do it".to_string(),
-        schedule: AutomationSchedule::OneTime {
-            at: now,
-            timezone: "UTC".to_string(),
-        },
-        target: AutomationTarget::ExistingTab {
-            workspace_id: "workspace-1".to_string(),
-            tab_id: "tab-1".to_string(),
-            conversation_id: None,
-        },
-        setup_policy: AutomationSetupPolicy::Wait,
-        cleanup_policy: None,
-        overlap_policy: AutomationOverlapPolicy::Skip,
-        queue_cap: 10,
-        inactivity_timeout_seconds: 120,
-        heartbeat_interval_seconds: 10,
-        misfire_grace_seconds: 60,
-        misfire_policy: AutomationMisfirePolicy::Skip,
-        retry_max_attempts: 3,
-        retry_backoff_seconds: 1,
-        circuit_failure_threshold: 3,
-        circuit_open_seconds: 60,
-        precheck: None,
-        notify_on_success: false,
-        circuit_opened: false,
-        circuit_opened_at: None,
-        state: AutomationState::Active,
-        revision: 1,
-        approved_revision: Some(1),
-        created_by: AutomationActor {
-            kind: AutomationActorKind::LocalCli,
-            id: None,
-            label: None,
-        },
-        modified_by: AutomationActor {
-            kind: AutomationActorKind::LocalCli,
-            id: None,
-            label: None,
-        },
-        created_at: now,
-        updated_at: now,
-    }
-}
-
-fn automation_run() -> AutomationRun {
-    let now = Utc::now();
-    AutomationRun {
-        id: "run-1".to_string(),
-        automation_id: "automation-1".to_string(),
-        number: 1,
-        occurrence_key: "occurrence-1".to_string(),
-        scheduled_at: now,
-        trigger: AutomationRunTrigger::Manual,
-        actor_kind: Some(AutomationActorKind::LocalCli),
-        actor_id: None,
-        target_identity: None,
-        overlap_policy: None,
-        precheck: None,
-        status: AutomationRunStatus::Dispatching,
-        summary: None,
-        error: None,
-        rendered_prompt: None,
-        workspace_id: Some("workspace-1".to_string()),
-        tab_id: Some("tab-1".to_string()),
-        setup_tab_id: None,
-        workspace_branch: None,
-        session_id: None,
-        owned_workspace: false,
-        owned_tab: false,
-        taken_over: false,
-        attempt_count: 1,
-        started_at: Some(now),
-        last_heartbeat_at: Some(now),
-        absolute_deadline_at: None,
-        waiting_extension_until: None,
-        cancel_requested_at: None,
-        retry_after: None,
-        finished_at: None,
-        created_at: now,
-        updated_at: now,
-    }
-}
-
-pub(super) fn oversized_message() -> String {
-    "x".repeat(SERVER_COMMAND_COMPLETION_BYTES + 1)
-}
+#[path = "automation_deferred_test_fixture.rs"]
+mod automation_fixture;
+pub(super) use automation_fixture::oversized_message;
+use automation_fixture::{automation_definition, automation_run};
 
 #[tokio::test]
 async fn oversized_automation_and_orchestration_completions_keep_identity() {

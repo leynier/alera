@@ -245,6 +245,8 @@ impl ServerActor {
         result: HostResult<TerminalLifecycleOperation>,
     ) {
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        // Nested requests include the full router; box them so their futures
+        // do not inflate the actor's completion stack.
         let response = match result {
             Err(error) => Err(error),
             Ok(operation) => {
@@ -268,7 +270,7 @@ impl ServerActor {
                         } else {
                             "createOrAttach"
                         };
-                        self.handle_request(client_id, verb, &payload).await
+                        Box::pin(self.handle_request(client_id, verb, &payload)).await
                     } else {
                         Err(HostError::state(
                             "The Home terminal changed after owner closure; replacement preserved",
@@ -276,14 +278,14 @@ impl ServerActor {
                     }
                 } else {
                     if verb == "tab.remove" {
-                        self.handle_request(
+                        Box::pin(self.handle_request(
                             client_id,
                             "terminate",
                             &json!({"sessionId":operation.session_id}),
-                        )
+                        ))
                         .await
                     } else {
-                        self.handle_request(client_id, &verb, &payload).await
+                        Box::pin(self.handle_request(client_id, &verb, &payload)).await
                     }
                 }
             }

@@ -120,6 +120,7 @@ pub(crate) async fn install_cli_registration(runtime_dir: &Path) -> Result<CliRe
 pub(crate) enum SkillKind {
     Cli,
     Orchestration,
+    Automations,
 }
 
 impl SkillKind {
@@ -127,6 +128,7 @@ impl SkillKind {
         match value {
             "cli" => Some(Self::Cli),
             "orchestration" => Some(Self::Orchestration),
+            "automations" => Some(Self::Automations),
             _ => None,
         }
     }
@@ -135,6 +137,7 @@ impl SkillKind {
         match self {
             Self::Cli => "alera-cli",
             Self::Orchestration => "alera-orchestration",
+            Self::Automations => "alera-automations",
         }
     }
 }

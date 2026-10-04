@@ -53,7 +53,12 @@ impl ServerActor {
         if status != AutomationRunStatus::Success {
             return;
         }
-        let Ok(Some(automation)) = self.runtime_store.find_automation(&run.automation_id).await
+        let Some(automation) = run.definition_snapshot.clone().or(self
+            .runtime_store
+            .find_automation(&run.automation_id)
+            .await
+            .ok()
+            .flatten())
         else {
             return;
         };
@@ -63,6 +68,12 @@ impl ServerActor {
             {
                 self.start_automation_shared_cleanup(run).await;
             }
+            return;
+        }
+        if automation.cleanup_policy
+            != Some(alera_core::runtime::AutomationCleanupPolicy::OnSuccess)
+        {
+            // Default preservation includes attempt tabs and their terminal output.
             return;
         }
         let mut taken_over = run.taken_over;

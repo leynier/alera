@@ -16,7 +16,6 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/automations/presentation/automation_policy_sections.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -210,10 +209,6 @@ class _AgentProfilesSettingsPaneState
                   },
                   onTestCommand: () => unawaited(_testCommand()),
                 ),
-                if (selectedProfile != null) ...<Widget>[
-                  const SizedBox(height: AleraTokens.space16),
-                  AutomationProfilePolicySection(profileId: selectedProfile.id),
-                ],
               ],
             ),
           ),

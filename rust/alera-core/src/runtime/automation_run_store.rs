@@ -101,51 +101,41 @@ impl RuntimeStore {
         occurrence: &AutomationOccurrence,
         trigger: AutomationRunTrigger,
     ) -> Result<AutomationRun> {
-        let now = Utc::now();
-        let number: i64 = sqlx::query(
-            "SELECT COALESCE(MAX(runNumber), 0) + 1 AS nextNumber FROM automationRuns WHERE automationId = ?",
-        )
-        .bind(&definition.id)
-        .fetch_one(self.pool())
-        .await?
-        .try_get("nextNumber")?;
-        let run = AutomationRun {
-            id: Uuid::new_v4().to_string(),
-            automation_id: definition.id.clone(),
-            number,
-            occurrence_key: occurrence.key.clone(),
-            scheduled_at: occurrence.scheduled_at,
-            trigger,
-            actor_kind: None,
-            actor_id: None,
-            target_identity: None,
-            overlap_policy: None,
-            precheck: None,
-            status: AutomationRunStatus::Pending,
-            summary: None,
-            error: None,
-            rendered_prompt: None,
-            workspace_id: definition.target.workspace_id().map(str::to_string),
-            tab_id: None,
-            setup_tab_id: None,
-            workspace_branch: None,
-            session_id: None,
-            owned_workspace: false,
-            owned_tab: false,
-            taken_over: false,
-            attempt_count: 0,
-            started_at: None,
-            last_heartbeat_at: None,
-            absolute_deadline_at: None,
-            waiting_extension_until: None,
-            cancel_requested_at: None,
-            retry_after: None,
-            finished_at: None,
-            created_at: now,
-            updated_at: now,
-        };
-        self.insert_automation_run(&run).await?;
-        Ok(run)
+        self.admit_automation_run(definition, occurrence, trigger, false)
+            .await?
+            .ok_or_else(|| anyhow!("automation occurrence already admitted"))
+    }
+
+    pub async fn admit_automation_run(
+        &self,
+        definition: &AutomationDefinition,
+        occurrence: &AutomationOccurrence,
+        trigger: AutomationRunTrigger,
+        claim: bool,
+    ) -> Result<Option<AutomationRun>> {
+        let mut tx = self.pool().begin().await?;
+        if claim {
+            let claimed = sqlx::query("INSERT INTO automationOccurrences (automationId, occurrenceKey, scheduledAt, claimedAt) VALUES (?, ?, ?, ?) ON CONFLICT(automationId, occurrenceKey) DO NOTHING")
+                .bind(&definition.id).bind(&occurrence.key).bind(format_timestamp(occurrence.scheduled_at)).bind(format_timestamp(Utc::now())).execute(&mut *tx).await?;
+            if claimed.rows_affected() == 0 {
+                tx.rollback().await?;
+                return Ok(None);
+            }
+        } else {
+            sqlx::query("UPDATE automations SET id = id WHERE id = ?")
+                .bind(&definition.id)
+                .execute(&mut *tx)
+                .await?;
+        }
+        let number: i64 = sqlx::query("SELECT COALESCE(MAX(runNumber), 0) + 1 AS n FROM automationRuns WHERE automationId = ?")
+            .bind(&definition.id).fetch_one(&mut *tx).await?.try_get("n")?;
+        let run = new_run(definition, occurrence, trigger, number);
+        sqlx::query("INSERT INTO automationRuns (id,automationId,runNumber,occurrenceKey,scheduledAt,trigger,status,dataJson,createdAt,updatedAt,finishedAt) VALUES (?,?,?,?,?,?,?,?,?,?,NULL)")
+            .bind(&run.id).bind(&run.automation_id).bind(run.number).bind(&run.occurrence_key).bind(format_timestamp(run.scheduled_at))
+            .bind(run.trigger.as_str()).bind(run.status.as_str()).bind(serde_json::to_string(&run)?)
+            .bind(format_timestamp(run.created_at)).bind(format_timestamp(run.updated_at)).execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(Some(run))
     }
 
     pub async fn bind_automation_run(
@@ -270,11 +260,14 @@ impl RuntimeStore {
         let limit = limit.clamp(1, 1000);
         let query = if automation_id.is_some() {
             format!(
-                "{} WHERE automationId = ? ORDER BY createdAt DESC LIMIT ?",
+                "{} WHERE automationId = ? ORDER BY createdAt DESC, runNumber DESC LIMIT ?",
                 run_query()
             )
         } else {
-            format!("{} ORDER BY createdAt DESC LIMIT ?", run_query())
+            format!(
+                "{} ORDER BY createdAt DESC, rowid DESC LIMIT ?",
+                run_query()
+            )
         };
         let mut request = sqlx::query(sqlx::AssertSqlSafe(query));
         if let Some(automation_id) = automation_id {
@@ -327,11 +320,13 @@ impl RuntimeStore {
     }
 
     pub async fn list_active_automation_runs(&self) -> Result<Vec<AutomationRun>> {
-        let runs = self.list_automation_runs(None, 1000).await?;
-        Ok(runs
+        let query = format!("{} WHERE status NOT IN ('precheckSkipped','misfireSkipped','overlapSkipped','queueLimitSkipped','success','failure','blocked','timeout','cancelled') ORDER BY createdAt", run_query());
+        sqlx::query(sqlx::AssertSqlSafe(query))
+            .fetch_all(self.pool())
+            .await?
             .into_iter()
-            .filter(|run| !run.status.is_final())
-            .collect())
+            .map(decode_run)
+            .collect()
     }
 }
 
@@ -342,3 +337,57 @@ mod tests;
 #[cfg(test)]
 #[path = "project_automation_dependencies_tests.rs"]
 mod project_dependency_tests;
+
+fn new_run(
+    definition: &AutomationDefinition,
+    occurrence: &AutomationOccurrence,
+    trigger: AutomationRunTrigger,
+    number: i64,
+) -> AutomationRun {
+    let now = Utc::now();
+    AutomationRun {
+        id: Uuid::new_v4().to_string(),
+        automation_id: definition.id.clone(),
+        number,
+        definition_revision: Some(definition.revision),
+        definition_snapshot: Some(definition.clone()),
+        attempt_id: None,
+        native_conversation_id: None,
+        recovery: None,
+        last_activity_at: None,
+        continue_from_run_id: None,
+        owner_process: None,
+        owner_boot_id: None,
+        owner_reserved: false,
+        occurrence_key: occurrence.key.clone(),
+        scheduled_at: occurrence.scheduled_at,
+        trigger,
+        actor_kind: None,
+        actor_id: None,
+        target_identity: None,
+        overlap_policy: None,
+        precheck: None,
+        status: AutomationRunStatus::Pending,
+        summary: None,
+        error: None,
+        rendered_prompt: None,
+        workspace_id: definition.target.workspace_id().map(str::to_string),
+        tab_id: None,
+        setup_tab_id: None,
+        workspace_branch: None,
+        session_id: None,
+        owned_workspace: false,
+        owned_tab: false,
+        taken_over: false,
+        attempt_count: 0,
+        started_at: None,
+        last_heartbeat_at: None,
+        absolute_deadline_at: None,
+        waiting_extension_until: None,
+        cancel_requested_at: None,
+        retry_after: None,
+        finished_at: None,
+        created_at: now,
+        updated_at: now,
+    }
+}

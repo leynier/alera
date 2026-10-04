@@ -115,6 +115,16 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
         assert_eq!(actor.managed_workspace_jobs, 1);
         assert!(actor.sessions.contains_key("neighbor"));
         assert!(!actor.sessions.contains_key("session"));
+        // Persistence wakes can remain queued after closure. Force that race
+        // so this test does not depend on which completion reaches the inbox first.
+        actor
+            .inbox
+            .send_wait(ServerCommand::DurableOutputBatchTick {
+                session_id: "session".into(),
+                generation: 0,
+            })
+            .await
+            .unwrap();
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
         let command = loop {
             let command = tokio::time::timeout_at(deadline, commands.recv())
@@ -133,7 +143,9 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
             }
             if matches!(
                 &command,
-                ServerCommand::HistoryWriterReady { session_id } if session_id == "session"
+                ServerCommand::HistoryWriterReady { session_id }
+                    | ServerCommand::DurableOutputBatchTick { session_id, .. }
+                    if session_id == "session"
             ) {
                 // A writer completion can race the lifecycle result after the
                 // history barrier has drained. Keep the actor's normal

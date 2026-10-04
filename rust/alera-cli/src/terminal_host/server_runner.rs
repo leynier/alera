@@ -134,6 +134,24 @@ pub async fn run_terminal_host_server(
     actor.runtime_store.recover_workflow_coordinators().await?;
     actor.start_workflow_workspace_recovery();
     actor.reconcile_workflow_launches().await;
+    actor
+        .runtime_store
+        .record_automation_runtime_started()
+        .await?;
+    if let Some(boot) =
+        tokio::task::spawn_blocking(crate::relocation_setup_process::current_boot_id)
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .flatten()
+    {
+        actor
+            .runtime_store
+            .set_metadata("automations.runtimeBootId", &boot)
+            .await?;
+    }
+    actor.migrate_retired_automation_gates().await;
+    actor.reconcile_automation_runs().await;
     actor.reconcile_spawn_on_create_tabs().await;
     if actor.account_push.push_enabled
         && actor.account_push.service.local_account().await?.is_some()

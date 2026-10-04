@@ -47,6 +47,7 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
 
   bool get _canPulseViewport =>
+      !observe &&
       !_disposed &&
       _client != null &&
       _sessionId != null &&
@@ -55,7 +56,13 @@ class TerminalSessionController extends _$TerminalSessionController {
       state is AsyncData<TerminalTabSession>;
 
   @override
-  Future<TerminalTabSession> build(String hostId, String tabId) async {
+  /// [observe] attaches read-only to an automation-owned tab: nothing is
+  /// written, no viewport is claimed and the run is never taken over.
+  Future<TerminalTabSession> build(
+    String hostId,
+    String tabId, {
+    bool observe = false,
+  }) async {
     _registerCleanup();
     // Keep the auto-disposed connection provider alive without rebuilding this
     // controller on every reconnect. Recovery owns the loading phase so the UI
@@ -86,6 +93,7 @@ class TerminalSessionController extends _$TerminalSessionController {
       tabId,
       cols: _cols,
       rows: _rows,
+      observe: observe,
     );
     return _bindSession(client, session);
   }
@@ -271,6 +279,7 @@ class TerminalSessionController extends _$TerminalSessionController {
             tabId,
             cols: _cols,
             rows: _rows,
+            observe: observe,
           );
           if (_disposed) {
             _logger.warning(
@@ -343,6 +352,10 @@ class TerminalSessionController extends _$TerminalSessionController {
   }
 
   Future<void> restartTerminal() async {
+    if (observe) {
+      _logger.info('ignoring restart of a read-only automation terminal');
+      return;
+    }
     if (_disposed) {
       _logger.warning('ignoring terminal restart after controller disposal');
       return;
@@ -401,6 +414,8 @@ class TerminalSessionController extends _$TerminalSessionController {
     Future<void> Function(MobileTerminalClient client, String sessionId)
     operation,
   ) async {
+    // A read-only automation terminal never writes or resizes the PTY.
+    if (observe) return;
     final session = await future;
     if (_disposed) {
       return;

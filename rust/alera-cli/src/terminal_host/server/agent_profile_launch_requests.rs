@@ -202,6 +202,7 @@ impl ServerActor {
             ),
             "spawnOnCreate": true,
             "automationRunId": automation_run_id,
+            "automationAttemptId": payload["automationAttemptId"],
             "automationOwned": automation_owned,
         });
         if let Some(id) = resume_session_id.as_deref() {

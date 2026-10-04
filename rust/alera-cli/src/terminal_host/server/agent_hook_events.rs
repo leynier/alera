@@ -82,6 +82,12 @@ impl ServerActor {
         if hook_event_closes_session(&event) && !closes_current_conversation(previous, &event) {
             return;
         }
+        self.observe_automation_agent(
+            &event.terminal_session_id,
+            native_session_id(&event.payload).map(str::to_string),
+            false,
+        )
+        .await;
         self.observe_hook_native_session(&event).await;
         self.observe_hook_title(&event).await;
         if hook_event_resets_session(&event) {
@@ -212,6 +218,19 @@ impl ServerActor {
         }
         if !relayed && !child {
             self.record_local_hook_liveness(&event, normalized.state);
+        }
+        self.observe_automation_agent(
+            &event.terminal_session_id,
+            None,
+            normalized.state == AgentPresenceState::Working,
+        )
+        .await;
+        if matches!(
+            normalized.state,
+            AgentPresenceState::Waiting | AgentPresenceState::Blocked
+        ) {
+            self.mark_automation_agent_waiting(&event.terminal_session_id)
+                .await;
         }
         self.deliver_pending_agent_prompt(&event.terminal_session_id)
             .await;

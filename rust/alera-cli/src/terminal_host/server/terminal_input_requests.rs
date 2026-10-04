@@ -40,6 +40,7 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<bool> {
         let session_id = self.require_session(payload)?;
+        self.require_terminal_writer(client_id, &session_id)?;
         let mut bytes = decode_bytes(payload.get("dataBase64"))?;
         let deferred_enter = payload
             .get("deferredEnter")

@@ -68,6 +68,7 @@ fn test_session() -> Session {
         tab_id: "tab-1".to_string(),
         working_directory: "/repo".to_string(),
         clients: HashSet::new(),
+        observer_clients: HashSet::new(),
         driver: SessionDriver::Idle,
         desktop_dims: None,
         current_dims: (80, 24),
@@ -483,18 +484,5 @@ fn failed_writer_completes_every_queued_request_with_the_same_error() {
     }
 }
 
-#[test]
-fn exited_session_rejects_input_instead_of_leaving_request_pending() {
-    let mut session = test_session();
-    session.running = false;
-    let error = session
-        .queue_write(
-            PtyWriteCompletion::ClientRequest {
-                client_id: 1,
-                request_id: 10,
-            },
-            b"input",
-        )
-        .expect_err("exited session should reject input");
-    assert!(error.wire_message().contains("not running"));
-}
+#[path = "input_error_tests.rs"]
+mod input_errors;

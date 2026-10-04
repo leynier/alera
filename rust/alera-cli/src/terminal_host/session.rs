@@ -148,6 +148,7 @@ pub struct Session {
     pub tab_id: String,
     pub working_directory: String,
     pub clients: HashSet<u64>,
+    pub observer_clients: HashSet<u64>,
     pub driver: SessionDriver,
     /// Last dims a desktop client applied or requested; restored on reclaim
     /// and when the mobile driver releases the session.
@@ -272,6 +273,7 @@ impl Session {
             tab_id,
             working_directory,
             clients: HashSet::new(),
+            observer_clients: HashSet::new(),
             driver: SessionDriver::Idle,
             desktop_dims: None,
             current_dims: (cols, rows),
@@ -366,6 +368,7 @@ impl Session {
     }
 
     pub fn detach(&mut self, client_id: u64) {
+        self.observer_clients.remove(&client_id);
         self.clients.remove(&client_id);
         self.output_paused_clients.remove(&client_id);
         self.output_resync_pending_clients.remove(&client_id);

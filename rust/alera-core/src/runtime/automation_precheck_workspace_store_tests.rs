@@ -21,6 +21,10 @@ async fn workspace_precheck_captures_exclusive_identity_and_retains_it_after_res
         .upsert_automation(definition.clone(), definition.created_by.clone())
         .await
         .unwrap();
+    let mut run = run;
+    run.definition_snapshot = Some(definition.clone());
+    run.definition_revision = Some(definition.revision);
+    let run = store.save_automation_run(&run).await.unwrap();
     let intent = store
         .begin_automation_precheck_process(
             &run,

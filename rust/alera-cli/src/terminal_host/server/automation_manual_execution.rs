@@ -1,6 +1,6 @@
 use alera_core::runtime::{
-    AutomationActor, AutomationActorKind, AutomationOccurrence, AutomationRunStatus,
-    AutomationRunTrigger, AutomationState,
+    AutomationActor, AutomationOccurrence, AutomationRunStatus, AutomationRunTrigger,
+    AutomationState,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -21,56 +21,90 @@ impl ServerActor {
         let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
         let id = optional_string_key(payload, "id")
             .ok_or_else(|| HostError::format("automation id is required"))?;
-        let definition = self
+        let mut definition = self
             .runtime_store
             .find_automation(&id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("automation not found: {id}")))?;
-        let draft_test = payload
-            .get("draftTest")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        let exact_revision = payload.get("revision").and_then(Value::as_i64);
-        if let Some(revision) = exact_revision {
-            if revision != definition.revision {
-                return Err(HostError::state(
-                    "automation exact revision is stale; refresh before running",
-                ));
-            }
+        if definition.state == AutomationState::Trashed {
+            return Err(HostError::state(
+                "Restore this automation before running it",
+            ));
         }
-        let human_actor = matches!(
-            actor.kind,
-            AutomationActorKind::HumanDesktop
-                | AutomationActorKind::AuthenticatedMobile
-                | AutomationActorKind::LocalCli
-        );
-        let exact_revision_approval =
-            exact_revision.is_some_and(|revision| revision == definition.revision && human_actor);
-        if !(exact_revision_approval
-            || (definition.state == AutomationState::Active && definition.is_approved())
-            || (draft_test && human_actor))
+        if payload
+            .get("revision")
+            .and_then(Value::as_i64)
+            .is_some_and(|revision| revision != definition.revision)
         {
             return Err(HostError::state(
-                "automation must be active and approved, or run as an audited human draft test",
+                "automation revision is stale; refresh before running",
+            ));
+        }
+        let previous = if let Some(id) = payload["continueFromRunId"].as_str() {
+            let previous = self
+                .runtime_store
+                .find_automation_run(id)
+                .await
+                .map_err(|e| HostError::state(e.to_string()))?
+                .ok_or_else(|| HostError::state("Previous run not found"))?;
+            if previous.automation_id != definition.id || !previous.status.is_final() {
+                return Err(HostError::state(
+                    "Run Again requires a finished run of this automation",
+                ));
+            }
+            let workspace = previous.workspace_id.as_deref().ok_or_else(|| {
+                HostError::state("Previous workspace is missing; choose Start Fresh")
+            })?;
+            let profile = previous
+                .target_identity
+                .as_ref()
+                .and_then(|i| i.profile_id.clone())
+                .or_else(|| definition.target.agent_profile_id().map(str::to_string))
+                .ok_or_else(|| {
+                    HostError::state("Previous profile is missing; choose Start Fresh")
+                })?;
+            definition.target = alera_core::runtime::AutomationTarget::FreshTab {
+                workspace_id: workspace.into(),
+                agent_profile_id: profile,
+            };
+            let summary = previous
+                .summary
+                .as_deref()
+                .unwrap_or("No summary recorded")
+                .replace("{{", "{ {")
+                .replace("}}", "} }");
+            let error = previous
+                .error
+                .as_deref()
+                .unwrap_or("None")
+                .replace("{{", "{ {")
+                .replace("}}", "} }");
+            definition.prompt_template = format!("{}\n\nPrevious run {} summary: {summary}. Previous error: {error}. Inspect the preserved changes in this workspace before repeating actions.",definition.prompt_template,previous.id);
+            Some(previous)
+        } else {
+            None
+        };
+        let readiness = self.automation_readiness(&definition, false).await;
+        if readiness["ready"] != true {
+            return Err(HostError::conflict(
+                "automationNotReady",
+                "Fix the highlighted fields before running",
+                readiness,
             ));
         }
         self.ensure_dispatch_policy(&definition, &actor).await?;
         let precheck = payload
             .get("precheck")
             .and_then(Value::as_bool)
-            .ok_or_else(|| HostError::format("run now requires an explicit precheck decision"))?;
+            .unwrap_or(definition.precheck.is_some());
         let chosen_overlap = payload
             .get("overlap")
             .or_else(|| payload.get("overlapPolicy"))
             .and_then(Value::as_str)
             .map(parse_manual_overlap)
             .transpose()?;
-        let Some(chosen_overlap) = chosen_overlap else {
-            return Err(HostError::format(
-                "run now requires an explicit overlap decision",
-            ));
-        };
+        let chosen_overlap = chosen_overlap.unwrap_or(definition.overlap_policy);
         let occurrence = AutomationOccurrence {
             automation_id: definition.id.clone(),
             key: format!("manual|{}", Uuid::new_v4()),
@@ -82,6 +116,7 @@ impl ServerActor {
             .create_automation_run(&definition, &occurrence, AutomationRunTrigger::Manual)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        run.continue_from_run_id = previous.as_ref().map(|r| r.id.clone());
         match self.target_identity(&definition.target).await {
             Ok(identity) => run.target_identity = Some(identity),
             Err(reason) => {
@@ -213,8 +248,8 @@ impl ServerActor {
                 json!({
                     "precheck": precheck,
                     "overlap": chosen_overlap.as_str(),
-                    "draftTest": draft_test,
-                    "exactRevisionApproval": exact_revision_approval,
+                    "draftTest": definition.state == AutomationState::Draft,
+                    "definitionRevision": definition.revision,
                 }),
             )
             .await

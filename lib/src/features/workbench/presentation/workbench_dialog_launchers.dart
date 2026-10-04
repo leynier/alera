@@ -6,7 +6,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
-import 'package:alera/src/features/automations/presentation/automations_dialog.dart';
+import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
@@ -62,9 +62,9 @@ Future<void> openSettingsDialog(
   );
 }
 
-Future<void> openAutomationsDialog(BuildContext context) {
-  return showAutomationsDialog(context);
-}
+/// Opens the Automations page of the shell, like the Run Board.
+void openAutomationsPage(WidgetRef ref) =>
+    ref.read(automationsNavigationProvider.notifier).open();
 
 /// Opens Quick Open for the active workspace and restores the prior focus when
 /// the modal route closes.

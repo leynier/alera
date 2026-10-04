@@ -245,6 +245,7 @@ async fn mobile_terminal_attachment_payload(
     login_shell: bool,
 ) -> Value {
     json!({
+        "attachmentMode": payload["attachmentMode"],
         "sessionId": session_id,
         "workspaceId": workspace.id.clone(),
         "tabId": tab_id,

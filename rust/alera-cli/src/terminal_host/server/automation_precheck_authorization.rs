@@ -63,16 +63,6 @@ pub(super) async fn authorize_remote_precheck<E: RemoteHostExecutor>(
     if inspection.path != path {
         return Err("Automation precheck checkout changed".into());
     }
-    match inspection.automation_declared {
-        Some(true) => {}
-        Some(false) => {
-            return Err("SSH repository has no automation declaration in alera.toml".into());
-        }
-        None => return Err(
-            "Update the SSH runtime to verify automation authorization before precheck execution"
-                .into(),
-        ),
-    }
     // Inspection is networked. Decisions may have changed while it was pending.
     let current = store
         .find_automation_run(&run.id)
@@ -85,35 +75,9 @@ pub(super) async fn authorize_remote_precheck<E: RemoteHostExecutor>(
     {
         return Err("Automation precheck was cancelled or superseded before execution".into());
     }
-    let latest = store
-        .find_automation(&definition.id)
-        .await
-        .map_err(|error| error.to_string())?
-        .ok_or("Automation definition disappeared during precheck authorization")?;
-    if latest.revision != definition.revision
-        || latest.state != definition.state
-        || latest.target != definition.target
-    {
-        return Err("Automation definition changed during precheck authorization".into());
-    }
-    if let alera_core::runtime::AutomationTarget::ProjectCheckout {
-        agent_profile_id, ..
-    } = &latest.target
-    {
-        let policy = store
-            .automation_agent_policy(agent_profile_id)
-            .await
-            .map_err(|error| error.to_string())?;
-        if !policy.may_execute {
-            return Err("Automation agent policy no longer permits precheck execution".into());
-        }
-    }
-    let policy = store
-        .automation_project_policy(project_id)
-        .await
-        .map_err(|error| error.to_string())?;
-    if policy.restrictive && !policy.local_approved {
-        return Err("Automation project policy requires local approval".into());
+    let snapshot = current.definition_snapshot.as_ref().unwrap_or(definition);
+    if snapshot.revision != definition.revision || snapshot.target != definition.target {
+        return Err("Automation run definition changed during precheck".into());
     }
     let checkout = store
         .find_project_checkout(project_id, host_id)

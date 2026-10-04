@@ -180,7 +180,7 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
       case _AppMenuAction.openSettings:
         await openAppMenuSettings(context);
       case _AppMenuAction.openAutomations:
-        await openAutomationsDialog(context);
+        openAutomationsPage(ref);
       case _AppMenuAction.reviewExecutionPlans:
         await showRunPolicyReviewDialog(context);
       case _AppMenuAction.checkForUpdates:
@@ -255,9 +255,7 @@ class const _MacOsPlatformMenuBar({required final Widget child})
                 ),
                 PlatformMenuItem(
                   label: 'Automations',
-                  onSelected: () {
-                    unawaited(openAutomationsDialog(context));
-                  },
+                  onSelected: () => openAutomationsPage(ref),
                 ),
                 PlatformMenuItem(
                   label: 'Run Board',

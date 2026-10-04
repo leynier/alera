@@ -51,6 +51,26 @@ pub struct AutomationRun {
     pub automation_id: String,
     pub number: i64,
     pub occurrence_key: String,
+    #[serde(default)]
+    pub definition_revision: Option<i64>,
+    #[serde(default)]
+    pub definition_snapshot: Option<AutomationDefinition>,
+    #[serde(default)]
+    pub attempt_id: Option<String>,
+    #[serde(default)]
+    pub native_conversation_id: Option<String>,
+    #[serde(default)]
+    pub recovery: Option<AutomationRecovery>,
+    #[serde(default)]
+    pub last_activity_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub continue_from_run_id: Option<String>,
+    #[serde(default)]
+    pub owner_reserved: bool,
+    #[serde(default)]
+    pub owner_process: Option<AutomationProcessIdentity>,
+    #[serde(default)]
+    pub owner_boot_id: Option<String>,
     pub scheduled_at: DateTime<Utc>,
     pub trigger: AutomationRunTrigger,
     #[serde(default)]
@@ -114,12 +134,40 @@ pub struct AutomationAttempt {
     pub id: String,
     pub run_id: String,
     pub number: i64,
+    #[serde(default)]
+    pub launch_kind: Option<String>,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub tab_id: Option<String>,
+    #[serde(default)]
+    pub interruption_code: Option<String>,
+    #[serde(default)]
+    pub last_activity_at: Option<DateTime<Utc>>,
     pub status: AutomationRunStatus,
     #[serde(default)]
     pub error: Option<String>,
     pub started_at: DateTime<Utc>,
     #[serde(default)]
     pub finished_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationRecovery {
+    pub status: String,
+    pub attempt: i64,
+    pub max_attempts: i64,
+    pub interrupted_at: Option<DateTime<Utc>>,
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationProcessIdentity {
+    pub pid: u32,
+    pub start_marker: u64,
+    pub boot_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

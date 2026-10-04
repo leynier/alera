@@ -26,6 +26,8 @@ const String _removeAction = 'remove';
 const String _handOffAction = 'hand-off';
 const String _handOnAction = 'hand-on';
 const String _recoveryAction = 'workspace-recovery';
+const String _automationsAction = 'automations';
+const String _newAutomationAction = 'new-automation';
 
 /// Inline section lists stay in the context menu below this count.
 const int workspaceSectionSubmenuLimit = 10;
@@ -98,6 +100,17 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       value: _manageTagsAction,
       leading: Icon(AleraIcons.tag, size: 16),
       label: 'Manage Tags',
+    ),
+    _workspaceMenuDivider,
+    const AleraDropdownEntry<String>(
+      value: _automationsAction,
+      leading: Icon(AleraIcons.checks, size: 16),
+      label: 'Automations',
+    ),
+    const AleraDropdownEntry<String>(
+      value: _newAutomationAction,
+      leading: Icon(AleraIcons.add, size: 16),
+      label: 'New Automation Here',
     ),
     _workspaceMenuDivider,
     ...linkedIssueEntries,

@@ -13,13 +13,57 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         self.require_request_allowed(client_id, request_type)?;
+        if matches!(
+            request_type,
+            "automation.heartbeat"
+                | "automation.wait"
+                | "automation.complete"
+                | "automation.context"
+        ) {
+            if let Some(id) = payload["run"].as_str() {
+                let run = self
+                    .runtime_store
+                    .find_automation_run(id)
+                    .await
+                    .map_err(|e| HostError::state(e.to_string()))?
+                    .ok_or_else(|| HostError::state("Automation run not found"))?;
+                let is_cli = self.clients.get(&client_id).is_some_and(|c| {
+                    c.kind == super::ClientKind::Local
+                        && c.local_role == super::client_delivery::LocalClientRole::Cli
+                });
+                if is_cli
+                    && (run.attempt_count > 1
+                        || payload
+                            .get("attemptId")
+                            .or_else(|| payload["targetIdentity"].get("attemptId"))
+                            .is_some_and(Value::is_string))
+                    && payload
+                        .get("attemptId")
+                        .and_then(Value::as_str)
+                        .or_else(|| payload["targetIdentity"]["attemptId"].as_str())
+                        != run.attempt_id.as_deref()
+                {
+                    return Err(HostError::state(
+                        "This automation attempt was superseded; reconnect to the current attempt",
+                    ));
+                }
+            }
+        }
         match request_type {
+            "automation.create"
+            | "automation.patch"
+            | "automation.previewSchedule"
+            | "automation.readiness" => {
+                self.automation_authoring_request(client_id, request_type, payload)
+                    .await
+            }
             "automation.ownerPrecheck.start"
             | "automation.ownerPrecheck.status"
             | "automation.ownerPrecheck.cancel" => {
                 self.owner_precheck_request(client_id, request_type, payload)
                     .await
             }
+            "automation.takeOver" => self.automation_take_over_request(client_id, payload).await,
             "automation.list" => self.automation_list_request(payload).await,
             "automation.show" => self.automation_show_request(payload).await,
             "automation.upsert" => {

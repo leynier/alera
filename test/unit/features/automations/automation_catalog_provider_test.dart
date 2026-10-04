@@ -1,150 +1,175 @@
-import 'dart:async';
-
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
+import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
+import 'package:alera/src/features/automations/presentation/automation_actions.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/automation_test_harness.dart';
+
 void main() {
-  late _FakeRuntimeHostClient client;
+  late FakeAutomationRuntime runtime;
   late ProviderContainer container;
 
   setUp(() {
-    client = _FakeRuntimeHostClient();
-    container = ProviderContainer(
-      overrides: [
-        automationRepositoryProvider.overrideWithValue(
-          RuntimeAutomationRepository(client),
-        ),
-      ],
-    );
+    runtime = FakeAutomationRuntime()
+      ..automations = <Map<String, Object?>>[automationJson()];
+    container = automationContainer(runtime);
   });
 
-  tearDown(() {
+  tearDown(() async {
     container.dispose();
-    client.dispose();
+    await runtime.dispose();
   });
 
-  test(
-    'trash catalog keeps trashed items after automationsChanged events',
-    () async {
-      final ids = <List<String>>[];
-      container.listen(automationCatalogProvider(true), (_, next) {
-        next.whenData(
-          (items) => ids.add(items.map((item) => item.id).toList()),
-        );
-      });
+  Future<void> settle() => Future.pause(const Duration(milliseconds: 20));
 
-      await Future.pause(const Duration(milliseconds: 20));
-      expect(ids, isNotEmpty);
-      expect(ids.first, <String>['active-1', 'trashed-1']);
-
-      client.addEvent(
-        const RuntimeHostEvent('automationsChanged', <String, Object?>{}),
-      );
-      await Future.pause(const Duration(milliseconds: 20));
-      client.addEvent(
-        const RuntimeHostEvent('automationRunChanged', <String, Object?>{}),
-      );
-      await Future.pause(const Duration(milliseconds: 20));
-
-      expect(ids, hasLength(3));
-      expect(
-        ids.every((emission) => emission.contains('trashed-1')),
-        isTrue,
-        reason: 'watch() must keep includeTrashed on every catalog emission',
-      );
-      expect(client.listIncludeTrashed, <bool>[true, true, true]);
-    },
-  );
-
-  test('default catalog omits trashed automations', () async {
-    container.listen(automationCatalogProvider(false), (_, _) {});
-    await Future.pause(const Duration(milliseconds: 20));
-
+  test('the catalog reloads on lifecycle events and on reconnection', () async {
+    final subscription = container.listen(automationCatalogProvider, (_, _) {});
+    addTearDown(subscription.close);
+    await container.read(automationCatalogProvider.future);
+    expect(runtime.requestsOf('automation.list'), hasLength(1));
     expect(
-      container
-          .read(automationCatalogProvider(false))
-          .requireValue
-          .map((item) => item.id),
-      <String>['active-1'],
+      runtime.requestsOf('automation.list').single.payload['includeTrashed'],
+      isTrue,
     );
-    expect(client.listIncludeTrashed, <bool>[false]);
+    for (final event in <String>[
+      'automationsChanged',
+      'automationRunChanged',
+      'automationAttentionRequired',
+      aleraRuntimeHostConnectedEvent,
+    ]) {
+      runtime.emit(event);
+      await settle();
+      await container.read(automationCatalogProvider.future);
+    }
+    expect(runtime.requestsOf('automation.list'), hasLength(5));
+  });
+
+  test('a detail reloads only for its own automation', () async {
+    final provider = automationDetailControllerProvider('nightly');
+    final subscription = container.listen(provider, (_, _) {});
+    addTearDown(subscription.close);
+    await container.read(provider.future);
+    runtime.emit('automationRunChanged', {'automationId': 'other'});
+    await settle();
+    expect(runtime.requestsOf('automation.show'), hasLength(1));
+    runtime.emit('automationRunChanged', {'automationId': 'nightly'});
+    await settle();
+    await container.read(provider.future);
+    expect(runtime.requestsOf('automation.show'), hasLength(2));
+  });
+
+  test('Run Now sends no overrides so the definition decides', () async {
+    final repository = container.read(automationRepositoryProvider);
+    await repository.runNow('nightly');
+    final payload = runtime.requestsOf('automation.runNow').single.payload;
+    expect(payload, <String, Object?>{'id': 'nightly'});
+    await repository.runNow('nightly', continueFromRunId: 'run-1');
+    expect(
+      runtime.requestsOf('automation.runNow').last.payload['continueFromRunId'],
+      'run-1',
+    );
+  });
+
+  test('Run Now feedback follows the status the runtime returned', () {
+    String message(String status) => automationRunNowFeedback(
+      AutomationRunRecord.fromJson(<String, Object?>{
+        'number': 4,
+        'status': status,
+      }),
+    ).$1;
+    expect(message('dispatching'), 'Run #4 started.');
+    expect(message('overlapSkipped'), contains('previous run is still active'));
+    expect(message('precheckSkipped'), contains('precheck skipped'));
+    expect(
+      automationRunNowFeedback(
+        AutomationRunRecord.fromJson(<String, Object?>{'status': 'blocked'}),
+      ).$2,
+      AleraToastTone.error,
+    );
   });
 
   test(
-    'retrying invalidates the catalog, not the unused list provider',
+    'authoring uses the additive create RPC; older runtimes the upsert',
     () async {
-      client.failNextList = 1;
-      container.listen(automationCatalogProvider(true), (_, _) {});
-      await Future.pause(const Duration(milliseconds: 20));
-
-      expect(container.read(automationCatalogProvider(true)).hasError, isTrue);
-
-      container.invalidate(automationListProvider);
-      await Future.pause(const Duration(milliseconds: 20));
-      expect(
-        container.read(automationCatalogProvider(true)).hasError,
-        isTrue,
-        reason: 'Retry used to invalidate automationListProvider, which the dialog does not watch',
+      final repository = container.read(automationRepositoryProvider);
+      final created = await repository.create(
+        <String, Object?>{'name': 'Nightly', 'promptTemplate': 'Review'},
+        authoring: true,
+        requestKey: 'key-1',
       );
-
-      container.invalidate(automationCatalogProvider(true));
-      await Future.pause(const Duration(milliseconds: 20));
-
-      final retry = container.read(automationCatalogProvider(true));
-      expect(retry.hasValue, isTrue);
-      expect(retry.requireValue.map((item) => item.id), contains('trashed-1'));
+      expect(created.state, 'active');
+      expect(
+        runtime.requestsOf('automation.create').single.payload['requestKey'],
+        'key-1',
+      );
+      await repository.create(<String, Object?>{
+        'name': 'Nightly Review',
+        'promptTemplate': 'Review',
+      }, authoring: false);
+      final legacy =
+          runtime.requestsOf('automation.upsert').single.payload['automation']!
+              as Map<String, Object?>;
+      expect(legacy['slug'], 'nightly-review');
+      expect(legacy['id'], isNotEmpty);
+      expect(legacy['state'], 'active');
     },
   );
+
+  test('a rejected create surfaces the runtime readiness', () async {
+    final rejecting = _RejectingRuntime();
+    addTearDown(rejecting.dispose);
+    final repository = RuntimeAutomationRepository(rejecting);
+    await expectLater(
+      repository.create(const <String, Object?>{}, authoring: true),
+      throwsA(
+        isA<AutomationReadinessException>().having(
+          (error) => error.readiness.errors.single.field,
+          'field',
+          'target',
+        ),
+      ),
+    );
+  });
+
+  test('capabilities come from the runtime', () async {
+    runtime.capabilities = <String>{automationsAuthoringCapability};
+    final capabilities = await container.read(
+      automationRuntimeCapabilitiesProvider.future,
+    );
+    expect(capabilities.authoring, isTrue);
+    expect(capabilities.observe, isFalse);
+  });
+
+  test('takeOver sends only the run id', () async {
+    await container.read(automationRepositoryProvider).takeOver('run-9');
+    expect(
+      runtime.requestsOf('automation.takeOver').single.payload,
+      <String, Object?>{'runId': 'run-9'},
+    );
+  });
 }
 
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
-  int failNextList = 0;
-  final List<bool> listIncludeTrashed = <bool>[];
-  final StreamController<RuntimeHostEvent> _events =
-      StreamController<RuntimeHostEvent>.broadcast();
-
-  @override
-  Stream<RuntimeHostEvent> get runtimeEvents => _events.stream;
-
-  void addEvent(RuntimeHostEvent event) => _events.add(event);
-
-  void dispose() => unawaited(_events.close());
-
+class _RejectingRuntime extends FakeAutomationRuntime {
   @override
   Future<Object?> runtimeRequest(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
     Duration? timeout,
-  ]) async {
-    if (type != 'automation.list') {
-      fail('unexpected runtime request: $type');
-    }
-    if (failNextList > 0) {
-      failNextList -= 1;
-      throw StateError('host unavailable');
-    }
-    final includeTrashed = payload['includeTrashed'] == true;
-    listIncludeTrashed.add(includeTrashed);
-    return <String, Object?>{
-      'items': <Object?>[
-        _record('active-1', 'Nightly Review', 'active'),
-        if (includeTrashed) _record('trashed-1', 'Trashed Draft', 'trashed'),
+  ]) async => <String, Object?>{
+    'readiness': <String, Object?>{
+      'ready': false,
+      'issues': <Object?>[
+        <String, Object?>{
+          'code': 'targetMissing',
+          'message': 'Choose a target.',
+          'field': 'target',
+          'severity': 'error',
+        },
       ],
-    };
-  }
-}
-
-Map<String, Object?> _record(String id, String name, String state) {
-  return <String, Object?>{
-    'id': id,
-    'slug': id,
-    'name': name,
-    'state': state,
-    'revision': 1,
-    'schedule': const <String, Object?>{'oneTime': '2026-09-08T12:00:00Z'},
-    'target': const <String, Object?>{'freshTab': true},
+    },
   };
 }

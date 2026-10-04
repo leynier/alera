@@ -73,7 +73,7 @@ class const HostDashboardScreen({
               _AutomationsCard(
                 onOpen: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
-                    builder: (_) => AutomationsScreen(host: currentHost),
+                    builder: (_) => AutomationsScreen(hostId: currentHost.id),
                   ),
                 ),
               ),

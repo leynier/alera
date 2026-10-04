@@ -80,7 +80,10 @@ impl RuntimeStore {
             .bind(&definition.id)
             .fetch_one(&mut *tx)
             .await?;
-        let latest: AutomationDefinition = serde_json::from_str(&json)?;
+        let latest: AutomationDefinition = current
+            .definition_snapshot
+            .clone()
+            .unwrap_or(serde_json::from_str(&json)?);
         if latest.revision != definition.revision
             || latest.state != definition.state
             || latest.target != definition.target

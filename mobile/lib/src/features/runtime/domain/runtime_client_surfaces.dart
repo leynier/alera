@@ -93,6 +93,34 @@ class const MobileTerminalOutputEvent(
 const int defaultTerminalCols = 80;
 const int defaultTerminalRows = 24;
 
+/// What the Automations screens need from a paired runtime.
+abstract interface class MobileAutomationClient {
+  Stream<MobileRuntimeEvent> get events;
+  Set<String> get runtimeCapabilities;
+  bool get supportsAutomations;
+  bool get supportsWorkspaceSections;
+
+  Future<Object?> request(
+    String type, [
+    Map<String, Object?> payload,
+    Duration? timeout,
+  ]);
+  Future<Map<String, Object?>> requestMap(
+    String type, [
+    Map<String, Object?> payload,
+    Duration? timeout,
+  ]);
+  Future<List<Object?>> requestList(
+    String type, [
+    Map<String, Object?> payload,
+  ]);
+  Future<List<ProjectSummary>> listProjects();
+  Future<List<WorkspaceSummary>> listWorkspaces();
+  Future<List<AgentProfileSummary>> listAgentProfiles();
+  Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
+  Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
+}
+
 abstract interface class MobileTerminalClient {
   Stream<MobileRuntimeEvent> get events;
   Stream<MobileTerminalOutputEvent> get terminalOutput;
@@ -123,10 +151,15 @@ abstract interface class MobileTerminalClient {
   /// viewport a phone claims, so sending a placeholder resizes the session
   /// twice per tab open and makes a full-screen agent redraw itself at a
   /// geometry nobody is looking at.
+  ///
+  /// [observe] attaches read-only to an automation-owned tab: no input, no
+  /// viewport claim, no takeover and never a respawned process. It is sent
+  /// only when the runtime advertises `automationTerminalObserveV1`.
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
     int? cols,
     int? rows,
+    bool observe = false,
   });
   Future<MobileTerminalSession> restartTerminal(
     String tabId, {

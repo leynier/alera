@@ -11,7 +11,10 @@ final class FakeTerminalHostClient({
   List<TerminalHostAttachment>? attachments,
   final Completer<void>? attachCompleter,
   final bool pulseEnabled = false,
-}) implements TerminalHostClient, TerminalPulseHostClient {
+}) implements
+    TerminalHostClient,
+    TerminalPulseHostClient,
+    RuntimeHostCapabilityClient {
   this : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
 
   final List<TerminalHostAttachment> _attachments;
@@ -39,6 +42,14 @@ final class FakeTerminalHostClient({
           int rows,
         })
       >[];
+  final List<bool> observeFlags = <bool>[];
+
+  /// Runtime capabilities this host advertises; none by default.
+  Set<String> runtimeCapabilities = <String>{};
+
+  @override
+  Future<bool> supportsRuntimeCapability(String capability) async =>
+      runtimeCapabilities.contains(capability);
   final List<List<int>> writes = <List<int>>[];
   final List<bool> deferredEnterFlags = <bool>[];
   final List<(String, int, int)> resizes = <(String, int, int)>[];
@@ -108,7 +119,9 @@ final class FakeTerminalHostClient({
     required GhosttyTerminalShellLaunch launch,
     required int cols,
     required int rows,
+    bool observe = false,
   }) async {
+    observeFlags.add(observe);
     attachCalls.add((
       sessionId: sessionId,
       workspaceId: workspaceId,

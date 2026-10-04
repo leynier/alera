@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_profiles_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_automations_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
@@ -39,7 +40,7 @@ class const AgentsSettingsPane({
               ),
               AleraSettingRow(
                 title: 'All Alera Skills',
-                description: 'Install or update CLI and orchestration skills. Reapplies selected status hooks.',
+                description: 'Install or update CLI, orchestration and automations skills. Reapplies selected status hooks.',
                 controlWidth: 360,
                 child: AleraAllSkillsControl(),
               ),
@@ -54,6 +55,12 @@ class const AgentsSettingsPane({
                 description: 'Install or update orchestration and reapply selected status hooks.',
                 controlWidth: 360,
                 child: AleraOrchestrationSkillControl(),
+              ),
+              AleraSettingRow(
+                title: 'Alera Automations Skill',
+                description: 'Install the skill that teaches agents to create and manage scheduled automations.',
+                controlWidth: 360,
+                child: AleraAutomationsSkillControl(),
               ),
             ],
           ),

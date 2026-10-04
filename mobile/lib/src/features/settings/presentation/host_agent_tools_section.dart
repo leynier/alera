@@ -66,6 +66,12 @@ class const HostAgentToolsSection({super.key, required final String hostId})
                   skill: 'orchestration',
                   title: 'Alera Orchestration Skill',
                 ),
+                const Divider(height: AleraTokens.spaceXl),
+                _SkillInstaller(
+                  hostId: hostId,
+                  skill: 'automations',
+                  title: 'Alera Automations Skill',
+                ),
               ],
             ),
           ),

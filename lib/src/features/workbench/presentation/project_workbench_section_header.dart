@@ -15,10 +15,37 @@ class _WorkspaceSectionHeader extends StatelessWidget {
         Offset.zero & overlay.size,
       ),
       items: const [
+        AleraDropdownEntry(value: 'automations', label: 'Automations'),
+        AleraDropdownEntry(
+          value: 'new-automation',
+          label: 'New Automation Here',
+        ),
+        PopupMenuDivider(height: AleraTokens.space8),
         AleraDropdownEntry(value: 'delete', label: 'Delete Section'),
       ],
     );
-    if (action != 'delete' || !context.mounted) return;
+    if (!context.mounted) return;
+    final sectionScope = AutomationScope(
+      kind: AutomationScopeKind.section,
+      id: row.section!.id,
+    );
+    if (action == 'automations') {
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(automationsNavigationProvider.notifier).open(scope: sectionScope);
+      return;
+    }
+    if (action == 'new-automation') {
+      ProviderScope.containerOf(context, listen: false)
+          .read(automationsNavigationProvider.notifier)
+          .startAuthoring(
+            const AutomationAuthoringRequest(),
+            scope: sectionScope,
+          );
+      return;
+    }
+    if (action != 'delete') return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(

@@ -71,6 +71,7 @@ mixin MobileRuntimeTerminalRequests {
     String tabId, {
     int? cols,
     int? rows,
+    bool observe = false,
   }) async {
     // Omitted rather than defaulted: the host reads a stated viewport as a
     // resize of the live PTY, and a placeholder there is a resize to a size
@@ -78,8 +79,9 @@ mixin MobileRuntimeTerminalRequests {
     // absent viewport, so it keeps behaving as it does today.
     final payload = await requestMap('terminal.attach', <String, Object?>{
       'tabId': tabId,
-      'cols': ?cols,
-      'rows': ?rows,
+      if (!observe) 'cols': ?cols,
+      if (!observe) 'rows': ?rows,
+      if (observe) 'attachmentMode': 'observe',
     });
     return MobileTerminalSession.fromJson(payload);
   }

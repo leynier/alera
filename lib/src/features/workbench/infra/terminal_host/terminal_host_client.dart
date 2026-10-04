@@ -187,8 +187,10 @@ final class SocketTerminalHostClient._(
     required GhosttyTerminalShellLaunch launch,
     required int cols,
     required int rows,
+    bool observe = false,
   }) => _createOrAttachTerminal(
     this,
+    observe: observe,
     sessionId: sessionId,
     workspaceId: workspaceId,
     tabId: tabId,

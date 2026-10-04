@@ -365,6 +365,16 @@ pub struct AutomationDefinition {
     pub revision: i64,
     #[serde(default)]
     pub approved_revision: Option<i64>,
+    #[serde(default)]
+    pub origin_workspace_id: Option<String>,
+    #[serde(default)]
+    pub schedule_cursor_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub creation_request_key: Option<String>,
+    #[serde(default)]
+    pub creation_request_fingerprint: Option<String>,
+    #[serde(default)]
+    pub state_before_trash: Option<AutomationState>,
     pub created_by: AutomationActor,
     pub modified_by: AutomationActor,
     pub created_at: DateTime<Utc>,

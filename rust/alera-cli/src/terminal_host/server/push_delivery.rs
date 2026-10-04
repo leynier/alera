@@ -133,6 +133,7 @@ impl ServerActor {
             AutomationRunStatus::Failure
                 | AutomationRunStatus::Blocked
                 | AutomationRunStatus::Timeout
+                | AutomationRunStatus::WaitingForUser
         );
         let enabled = if attention {
             settings.attention

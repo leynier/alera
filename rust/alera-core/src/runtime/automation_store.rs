@@ -15,7 +15,7 @@ fn decode_definition(row: SqliteRow) -> Result<AutomationDefinition> {
     Ok(definition)
 }
 
-fn validate_definition(definition: &AutomationDefinition) -> Result<()> {
+pub(super) fn validate_definition(definition: &AutomationDefinition) -> Result<()> {
     if let super::AutomationTarget::ProjectCheckout {
         project_id,
         host_id,
@@ -116,6 +116,10 @@ fn validate_definition(definition: &AutomationDefinition) -> Result<()> {
 }
 
 impl RuntimeStore {
+    pub fn validate_automation_definition(definition: &AutomationDefinition) -> Result<()> {
+        validate_definition(definition)
+    }
+
     pub async fn has_active_automations(&self) -> Result<bool> {
         let count: i64 =
             sqlx::query("SELECT COUNT(*) AS count FROM automations WHERE state = 'active'")
@@ -132,7 +136,9 @@ impl RuntimeStore {
         if self.has_active_automations().await? {
             return Ok(true);
         }
-        if !self.list_active_automation_runs().await?.is_empty() {
+        if !self.reserved_automation_runs().await?.is_empty()
+            || !self.list_active_automation_runs().await?.is_empty()
+        {
             return Ok(true);
         }
         Ok(self
@@ -224,19 +230,22 @@ impl RuntimeStore {
             Some(previous) => {
                 definition.created_by = previous.created_by.clone();
                 let revision = previous.revision + 1;
-                (
-                    revision,
-                    previous.created_at,
-                    (!material_changed && previous.is_approved()).then_some(revision),
-                )
+                (revision, previous.created_at, Some(revision))
             }
             None => {
                 definition.created_by = actor.clone();
-                (1, definition.created_at, None)
+                (1, now, Some(1))
             }
         };
-        if material_changed {
-            definition.state = AutomationState::Draft;
+        if let Some(previous) = &existing {
+            definition.state = previous.state;
+            definition.creation_request_key = previous.creation_request_key.clone();
+            definition.creation_request_fingerprint = previous.creation_request_fingerprint.clone();
+            if previous.schedule != definition.schedule {
+                definition.schedule_cursor_at = Some(now);
+            } else {
+                definition.schedule_cursor_at = previous.schedule_cursor_at;
+            }
         }
         definition.revision = revision;
         definition.created_at = created_at;
@@ -270,7 +279,10 @@ impl RuntimeStore {
             Some(definition.revision),
             serde_json::json!({
                 "material": material_changed,
-                "approvalPreserved": definition.is_approved() && !material_changed,
+                "fromState": existing.as_ref().map(|previous| previous.state),
+                "toState": definition.state,
+                "previousRevision": existing.as_ref().map(|previous| previous.revision),
+                "changedFields": existing.as_ref().map(|previous| material_fields(previous, &definition)),
             }),
         )
         .await?;
@@ -291,12 +303,25 @@ impl RuntimeStore {
             .await?
             .ok_or_else(|| anyhow!("automation not found: {id}"))?;
         if !(definition.state.is_editable()
+            || definition.state == AutomationState::Archived && state == AutomationState::Trashed
             || definition.state == AutomationState::Trashed && state == AutomationState::Draft)
         {
             bail!("automation is archived or trashed");
         }
-        if state == AutomationState::Active && !definition.is_approved() {
-            bail!("automation revision must be approved before activation");
+        let state = if state == AutomationState::Trashed {
+            definition.state_before_trash = Some(definition.state);
+            state
+        } else if definition.state == AutomationState::Trashed {
+            match definition.state_before_trash.take() {
+                Some(AutomationState::Archived) => AutomationState::Archived,
+                _ => AutomationState::Paused,
+            }
+        } else {
+            state
+        };
+        if state == AutomationState::Active {
+            definition.approved_revision = Some(definition.revision);
+            definition.schedule_cursor_at = Some(Utc::now());
         }
         definition.state = state;
         definition.updated_at = Utc::now();
@@ -434,3 +459,32 @@ fn _timestamp_round_trip(value: &str) -> String {
 #[cfg(test)]
 #[path = "automation_store_tests.rs"]
 mod tests;
+
+fn material_fields(
+    previous: &AutomationDefinition,
+    current: &AutomationDefinition,
+) -> Vec<&'static str> {
+    let mut fields = Vec::new();
+    if previous.prompt_template != current.prompt_template {
+        fields.push("promptTemplate");
+    }
+    if previous.schedule != current.schedule {
+        fields.push("schedule");
+    }
+    if previous.target != current.target {
+        fields.push("target");
+    }
+    if previous.precheck != current.precheck {
+        fields.push("precheck");
+    }
+    if previous.overlap_policy != current.overlap_policy {
+        fields.push("overlapPolicy");
+    }
+    if previous.misfire_policy != current.misfire_policy {
+        fields.push("misfirePolicy");
+    }
+    if previous.cleanup_policy != current.cleanup_policy {
+        fields.push("cleanupPolicy");
+    }
+    fields
+}

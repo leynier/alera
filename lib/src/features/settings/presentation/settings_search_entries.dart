@@ -159,11 +159,29 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
   'cliSkill': {
     'All Alera Skills': SettingsSearchEntryDetails(
       description: 'Install or update every core Alera agent skill.',
-      keywords: <String>['all', 'install', 'update', 'skills', 'orchestration'],
+      keywords: <String>[
+        'all',
+        'install',
+        'update',
+        'skills',
+        'orchestration',
+        'automations',
+      ],
     ),
     'Alera CLI Skill': SettingsSearchEntryDetails(
       description: 'Install agent instructions for the Alera CLI.',
       keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
+    ),
+    'Alera Automations Skill': SettingsSearchEntryDetails(
+      description: 'Install agent instructions for Alera automations.',
+      keywords: <String>[
+        'automation',
+        'schedule',
+        'cron',
+        'skill',
+        'agent',
+        'recurring',
+      ],
     ),
     'Alera Orchestration Skill': SettingsSearchEntryDetails(
       description: 'Install agent instructions for Alera orchestration.',

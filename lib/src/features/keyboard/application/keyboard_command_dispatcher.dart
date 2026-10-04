@@ -47,7 +47,7 @@ class const KeyboardCommandDispatcher({
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
       case KeyboardActionId.openAutomations:
-        unawaited(openAutomationsDialog(context));
+        openAutomationsPage(ref);
       case KeyboardActionId.openQuickOpen:
         unawaited(showQuickOpenFlow(context, ref));
       case KeyboardActionId.openCommandPalette:

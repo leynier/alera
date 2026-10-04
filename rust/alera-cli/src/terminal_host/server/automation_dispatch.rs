@@ -1,8 +1,7 @@
 use super::ServerActor;
 use alera_core::runtime::{
     next_occurrence, AutomationActor, AutomationActorKind, AutomationDefinition,
-    AutomationOccurrence, AutomationRunStatus, AutomationRunTrigger, AutomationSchedule,
-    AutomationState,
+    AutomationOccurrence, AutomationRunStatus, AutomationRunTrigger, AutomationState,
 };
 use chrono::Utc;
 use std::time::{Duration as StdDuration, Instant};
@@ -79,6 +78,7 @@ impl ServerActor {
             }
             Err(error) => tracing::warn!("automation circuit reset failed: {error}"),
         }
+        self.reconcile_automation_runs().await;
         let previous_active = self.automations_active;
         let active_definitions = match self.runtime_store.has_active_automations().await {
             Ok(active) => active,
@@ -103,13 +103,26 @@ impl ServerActor {
         if active_definitions {
             match self.runtime_store.list_automations(false).await {
                 Ok(definitions) => {
-                    for definition in definitions.into_iter().filter(|definition| {
-                        definition.state == AutomationState::Active && definition.is_approved()
-                    }) {
+                    for definition in definitions
+                        .into_iter()
+                        .filter(|definition| definition.state == AutomationState::Active)
+                    {
                         self.evaluate_automation(definition).await;
                     }
                 }
                 Err(error) => tracing::error!("could not list automations: {error}"),
+            }
+        }
+        for definition in self
+            .runtime_store
+            .list_automations(false)
+            .await
+            .unwrap_or_default()
+        {
+            if definition.state != AutomationState::Active
+                && definition.state != AutomationState::Trashed
+            {
+                self.resume_pending_runs(&definition).await;
             }
         }
         if self.automations_active {
@@ -125,17 +138,14 @@ impl ServerActor {
 
     async fn evaluate_automation(&mut self, definition: AutomationDefinition) {
         let now = Utc::now();
-        let mut cursor = match &definition.schedule {
-            AutomationSchedule::OneTime { .. } => chrono::DateTime::<Utc>::UNIX_EPOCH,
-            AutomationSchedule::Recurring { start_at, .. } => self
-                .runtime_store
+        let mut cursor = alera_core::runtime::automation_cursor(
+            &definition,
+            self.runtime_store
                 .latest_automation_occurrence(&definition.id)
                 .await
                 .ok()
-                .flatten()
-                .or(*start_at)
-                .unwrap_or(definition.created_at),
-        };
+                .flatten(),
+        );
         let started = Instant::now();
         loop {
             if started.elapsed() >= AUTOMATION_CATCH_UP_BUDGET {
@@ -200,31 +210,54 @@ impl ServerActor {
                 return false;
             }
         }
-        let claimed = match self
+        let mut run = match self
             .runtime_store
-            .claim_automation_occurrence(&occurrence)
+            .admit_automation_run(
+                definition,
+                &occurrence,
+                AutomationRunTrigger::Scheduled,
+                true,
+            )
             .await
         {
-            Ok(claimed) => claimed,
+            Ok(Some(run)) => run,
+            Ok(None) => return false,
             Err(error) => {
-                tracing::error!(automation_id = %definition.id, "could not claim automation occurrence: {error}");
+                tracing::error!(automation_id = %definition.id, "could not admit automation run: {error}");
                 return false;
             }
         };
-        if !claimed {
-            return false;
-        }
-        let mut run = match self
+        let before_restart = self
             .runtime_store
-            .create_automation_run(definition, &occurrence, AutomationRunTrigger::Scheduled)
+            .get_metadata("automations.runtimeStartedAt")
             .await
-        {
-            Ok(run) => run,
-            Err(error) => {
-                tracing::error!(automation_id = %definition.id, "could not create automation run: {error}");
-                return true;
+            .ok()
+            .flatten()
+            .and_then(|at| chrono::DateTime::parse_from_rfc3339(&at).ok())
+            .is_some_and(|at| occurrence.scheduled_at < at);
+        let is_misfire = before_restart
+            || now
+                .signed_duration_since(occurrence.scheduled_at)
+                .num_seconds()
+                > definition.misfire_grace_seconds;
+        let skip_misfire = match definition.misfire_policy {
+            alera_core::runtime::AutomationMisfirePolicy::Skip => is_misfire,
+            alera_core::runtime::AutomationMisfirePolicy::RunLatestOnce => {
+                is_misfire && next_due_occurrence(definition, occurrence.scheduled_at, now)
             }
+            alera_core::runtime::AutomationMisfirePolicy::Queue => false,
         };
+        if skip_misfire {
+            let _ = self
+                .runtime_store
+                .update_automation_run_status(
+                    &run.id,
+                    AutomationRunStatus::MisfireSkipped,
+                    Some("scheduled occurrence exceeded its misfire grace window".to_string()),
+                )
+                .await;
+            return true;
+        }
         match self.target_identity(&definition.target).await {
             Ok(identity) => {
                 run.target_identity = Some(identity);
@@ -298,52 +331,40 @@ impl ServerActor {
             }
             _ => {}
         }
-        let is_misfire = now
-            .signed_duration_since(occurrence.scheduled_at)
-            .num_seconds()
-            > definition.misfire_grace_seconds;
-        let skip_misfire = match definition.misfire_policy {
-            alera_core::runtime::AutomationMisfirePolicy::Skip => is_misfire,
-            alera_core::runtime::AutomationMisfirePolicy::RunLatestOnce => {
-                is_misfire && next_due_occurrence(definition, occurrence.scheduled_at, now)
-            }
-            alera_core::runtime::AutomationMisfirePolicy::Queue => false,
-        };
-        if skip_misfire {
-            let _ = self
-                .runtime_store
-                .update_automation_run_status(
-                    &run.id,
-                    AutomationRunStatus::MisfireSkipped,
-                    Some("scheduled occurrence exceeded its misfire grace window".to_string()),
-                )
-                .await;
-            return true;
-        }
-        self.start_automation_run(definition, run, true).await;
+        Box::pin(self.start_automation_run(definition, run, true)).await;
         true
     }
 
     async fn resume_pending_runs(&mut self, definition: &AutomationDefinition) {
-        let runs = match self
-            .runtime_store
-            .list_automation_runs(Some(&definition.id), 100)
-            .await
-        {
+        let runs = match self.runtime_store.list_active_automation_runs().await {
             Ok(runs) => runs,
             Err(_) => return,
         };
         for run in runs.into_iter().filter(|run| {
-            run.status == AutomationRunStatus::Pending
+            run.automation_id == definition.id
+                && run.status == AutomationRunStatus::Pending
                 && run
                     .retry_after
                     .is_none_or(|retry_after| retry_after <= Utc::now())
         }) {
-            self.start_automation_run(
-                definition,
-                run.clone(),
-                run.precheck
-                    .unwrap_or(run.trigger == AutomationRunTrigger::Scheduled),
+            let frozen = run
+                .definition_snapshot
+                .clone()
+                .unwrap_or_else(|| definition.clone());
+            if run.recovery.is_some()
+                && run.attempt_count > 0
+                && (run.tab_id.is_some() || run.session_id.is_some())
+            {
+                Box::pin(self.resume_interrupted_automation_run(&frozen, run)).await;
+                continue;
+            }
+            Box::pin(
+                self.start_automation_run(
+                    &frozen,
+                    run.clone(),
+                    run.precheck
+                        .unwrap_or(run.trigger == AutomationRunTrigger::Scheduled),
+                ),
             )
             .await;
         }

@@ -16,7 +16,7 @@ impl crate::ssh_remote::RemoteHostExecutor for Declaration {
 }
 
 #[tokio::test]
-async fn automation_preparation_requires_remote_declaration_before_allocating() {
+async fn automation_preparation_ignores_retired_declaration_gate() {
     let state = tempfile::tempdir().unwrap();
     let folder = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(state.path()).await.unwrap();
@@ -39,7 +39,7 @@ async fn automation_preparation_requires_remote_declaration_before_allocating() 
         candidate.host_id = Some("ssh".into());
         let prepared =
             prepare_shared_workspace_with(&store, candidate, &Declaration(declaration), true).await;
-        assert_eq!(prepared.is_ok(), declaration == Some(true));
+        assert!(prepared.is_ok());
         assert!(store.find_workspace("candidate").await.unwrap().is_none());
     }
     let mut manual = request(&project.id, "manual");
