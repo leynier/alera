@@ -48,6 +48,14 @@ async fn home_retry_preserves_pending_identity_and_detach_never_dispatches() {
             HashMap::new(),
         )
         .await;
+        let request = json!({"sessionId":"session"});
+        let request_future = actor.handle_request(1, "terminate", &request);
+        // Nested completion requests must leave room on the default test stack.
+        assert!(
+            std::mem::size_of_val(&request_future) <= 4096,
+            "The request router must not embed its full authenticated dispatch future"
+        );
+        drop(request_future);
         let folder = root.path().join("project");
         std::fs::create_dir(&folder).unwrap();
         let project = crate::project_management::register_project(

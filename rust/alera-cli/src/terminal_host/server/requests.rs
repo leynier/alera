@@ -65,8 +65,8 @@ impl ServerActor {
             _ => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.handle_authenticated_request(client_id, request_type, payload)
-                    .await
+                // Keep the full request router out of nested lifecycle futures.
+                Box::pin(self.handle_authenticated_request(client_id, request_type, payload)).await
             }
         }
     }
