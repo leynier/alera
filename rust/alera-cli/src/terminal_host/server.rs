@@ -581,7 +581,7 @@ impl ServerActor {
                 path,
                 result,
             } => {
-                self.finish_automation_precheck(*definition, *run, host_id, path, result)
+                Box::pin(self.finish_automation_precheck(*definition, *run, host_id, path, result))
                     .await;
             }
             ServerCommand::AutomationCheckoutPrepared {
@@ -1019,7 +1019,7 @@ impl ServerActor {
                 self.finish_pull_request_watch_merge(*watch, generation, result)
                     .await
             }
-            ServerCommand::AutomationTick => self.handle_automation_tick().await,
+            ServerCommand::AutomationTick => Box::pin(self.handle_automation_tick()).await,
             ServerCommand::AutomationSharedCleanupFinished { attempt, result } => {
                 self.finish_automation_shared_cleanup(&attempt, result)
                     .await;

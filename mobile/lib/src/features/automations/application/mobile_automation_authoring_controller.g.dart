@@ -76,7 +76,7 @@ final class MobileAutomationAuthoringControllerProvider
 }
 
 String _$mobileAutomationAuthoringControllerHash() =>
-    r'5aeda56ae4d645078b17c0d3bd80098b7440b907';
+    r'9f161660e8354841a4493fc649b6ae1e0071d9d9';
 
 /// One authoring session per dialog. Validation that only the runtime can do
 /// (targets, profiles, hosts, CLIs) comes back through `automation.readiness`

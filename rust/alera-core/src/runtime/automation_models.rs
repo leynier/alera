@@ -372,6 +372,8 @@ pub struct AutomationDefinition {
     #[serde(default)]
     pub creation_request_key: Option<String>,
     #[serde(default)]
+    pub creation_request_fingerprint: Option<String>,
+    #[serde(default)]
     pub state_before_trash: Option<AutomationState>,
     pub created_by: AutomationActor,
     pub modified_by: AutomationActor,

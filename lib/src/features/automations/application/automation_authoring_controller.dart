@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
@@ -25,6 +27,7 @@ class const AutomationAuthoringState({
   final bool showErrors = false,
   final String? error,
   final String requestKey = '',
+  final String? requestPayload,
   final bool initialized = false,
 }) {
   AutomationAuthoringState copyWith({
@@ -36,6 +39,8 @@ class const AutomationAuthoringState({
     bool? submitting,
     bool? showErrors,
     String? Function()? error,
+    String? requestKey,
+    String? requestPayload,
   }) => AutomationAuthoringState(
     draft: draft ?? this.draft,
     step: step ?? this.step,
@@ -46,7 +51,8 @@ class const AutomationAuthoringState({
     submitting: submitting ?? this.submitting,
     showErrors: showErrors ?? this.showErrors,
     error: error == null ? this.error : error(),
-    requestKey: requestKey,
+    requestKey: requestKey ?? this.requestKey,
+    requestPayload: requestPayload ?? this.requestPayload,
     initialized: initialized,
   );
 
@@ -185,6 +191,20 @@ class AutomationAuthoringController extends _$AutomationAuthoringController {
     }
   }
 
+  /// The create request key makes a retry of an ambiguous response
+  /// idempotent. It is kept while the payload is the same and replaced once
+  /// the draft changes, so a corrected draft is saved instead of being matched
+  /// to the earlier attempt.
+  String _requestKeyFor(JsonMap definition) {
+    final payload = jsonEncode(definition);
+    final previous = state.requestPayload;
+    final key = previous == null || previous == payload
+        ? state.requestKey
+        : const Uuid().v4();
+    state = state.copyWith(requestKey: key, requestPayload: payload);
+    return key;
+  }
+
   /// Creates (Active unless [asDraft]) or saves an edit. Editing an Active
   /// definition keeps it Active.
   Future<AutomationRecord?> submit({bool asDraft = false}) async {
@@ -213,7 +233,7 @@ class AutomationAuthoringController extends _$AutomationAuthoringController {
           ? await repository.create(
               definition,
               authoring: capabilities.authoring,
-              requestKey: state.requestKey,
+              requestKey: _requestKeyFor(definition),
             )
           : await repository.patch(
               editing,

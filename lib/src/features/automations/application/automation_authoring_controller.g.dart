@@ -74,7 +74,7 @@ final class AutomationAuthoringControllerProvider
 }
 
 String _$automationAuthoringControllerHash() =>
-    r'791e12e2c168f0ea33678b6fa43c3ab63d768285';
+    r'9ec5016246af285ecddf7e0c2dc1cddfbf67ca30';
 
 /// One authoring session per dialog. Validation that only the runtime can do
 /// (targets, profiles, hosts, CLIs) comes back through `automation.readiness`

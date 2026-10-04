@@ -8,6 +8,9 @@ use serde_json::{json, Value};
 use super::ServerActor;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+#[path = "automation_creation_fingerprint.rs"]
+mod creation_fingerprint;
+
 impl ServerActor {
     pub(super) async fn automation_authoring_request(
         &mut self,
@@ -70,6 +73,7 @@ impl ServerActor {
                             | "createdBy"
                             | "createdAt"
                             | "creationRequestKey"
+                            | "creationRequestFingerprint"
                             | "scheduleCursorAt"
                             | "stateBeforeTrash"
                     ) {
@@ -83,20 +87,38 @@ impl ServerActor {
                 if key.trim().is_empty() || key.len() > 128 {
                     return Err(HostError::format("requestKey must contain 1 to 128 bytes"));
                 }
-                if let Some(saved) = self
-                    .runtime_store
-                    .automation_by_request_key(key)
-                    .await
-                    .map_err(state_error)?
-                {
-                    return self.automation_catalog_item(&saved).await;
-                }
             }
             match automation_from_input(payload.get("automation").unwrap_or(payload), actor.clone())
             {
                 Ok(mut definition) => {
                     definition.creation_request_key =
                         payload["requestKey"].as_str().map(str::to_string);
+                    if let Some(key) = definition.creation_request_key.as_deref() {
+                        let input = payload.get("automation").unwrap_or(payload);
+                        let fingerprint = creation_fingerprint::fingerprint(&definition, input);
+                        if let Some(saved) = self
+                            .runtime_store
+                            .automation_by_request_key(key)
+                            .await
+                            .map_err(state_error)?
+                        {
+                            let original = saved
+                                .creation_request_fingerprint
+                                .clone()
+                                .unwrap_or_else(|| {
+                                    creation_fingerprint::fingerprint(&saved, input)
+                                });
+                            if original != fingerprint {
+                                return Err(HostError::conflict(
+                                    "automationRequestKeyConflict",
+                                    "This request key was used for a different automation; use a new key",
+                                    json!({"automationId":saved.id}),
+                                ));
+                            }
+                            return self.automation_catalog_item(&saved).await;
+                        }
+                        definition.creation_request_fingerprint = Some(fingerprint);
+                    }
                     definition
                 }
                 Err(error) if kind == "automation.readiness" => {

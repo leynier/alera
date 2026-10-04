@@ -3,6 +3,7 @@ import 'package:alera/src/features/automations/application/automations_navigatio
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/automation_test_harness.dart';
@@ -117,5 +118,17 @@ void main() {
     );
     expect(draft.field(.workspaceId), isNull);
     expect(draft.field(.sourceBranch), isNull);
+  });
+
+  test('each step explains what it still needs', () {
+    expect(const AutomationDraft().whatError, isNotNull);
+    expect(const AutomationDraft(promptTemplate: 'Review').whatError, isNull);
+    expect(const AutomationDraft().whenError, isNull);
+    expect(
+      const AutomationDraft(
+        schedule: AutomationSchedulePreset(kind: .weekly, weekdays: {}),
+      ).whenError,
+      'Choose at least one day.',
+    );
   });
 }

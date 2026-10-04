@@ -160,7 +160,6 @@ impl ServerActor {
             run.status = AutomationRunStatus::Dispatching;
             run.started_at = None;
             run.last_heartbeat_at = None;
-            run.absolute_deadline_at = None;
             run.retry_after = None;
             if let Err(error) = self.runtime_store.save_automation_run(&run).await {
                 tracing::error!(run_id = %run.id, "could not reserve automation precheck: {error}");
@@ -240,7 +239,9 @@ impl ServerActor {
             };
             workspace
         };
-        self.continue_automation_dispatch(definition, run, source_workspace, project)
+        // Dispatch includes workspace setup and profile launch. Keep that large
+        // future off the actor's stack, including deferred precheck completions.
+        Box::pin(self.continue_automation_dispatch(definition, run, source_workspace, project))
             .await;
     }
 

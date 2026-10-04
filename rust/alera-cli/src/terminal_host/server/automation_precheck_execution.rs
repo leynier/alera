@@ -187,7 +187,7 @@ impl ServerActor {
         result: Result<bool, String>,
     ) {
         self.automation_precheck_jobs.remove(&started.id);
-        self.complete_precheck_if_current(definition, started, host_id, path, result)
+        Box::pin(self.complete_precheck_if_current(definition, started, host_id, path, result))
             .await;
         self.schedule_shutdown_if_idle();
     }

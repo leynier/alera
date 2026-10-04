@@ -240,6 +240,7 @@ impl RuntimeStore {
         if let Some(previous) = &existing {
             definition.state = previous.state;
             definition.creation_request_key = previous.creation_request_key.clone();
+            definition.creation_request_fingerprint = previous.creation_request_fingerprint.clone();
             if previous.schedule != definition.schedule {
                 definition.schedule_cursor_at = Some(now);
             } else {

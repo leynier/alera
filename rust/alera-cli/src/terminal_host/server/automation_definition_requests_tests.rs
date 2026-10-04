@@ -140,6 +140,7 @@ fn draft_definition() -> AutomationDefinition {
         origin_workspace_id: None,
         schedule_cursor_at: None,
         creation_request_key: None,
+        creation_request_fingerprint: None,
         state_before_trash: None,
         approved_revision: None,
         created_by: actor.clone(),

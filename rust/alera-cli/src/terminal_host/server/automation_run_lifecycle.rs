@@ -201,7 +201,10 @@ impl ServerActor {
         if recovering.status.is_final() || recovering.taken_over {
             return;
         }
-        if !recovering.taken_over && recovering.attempt_count > 0 && recovering.recovery.is_none() {
+        if recovering.attempt_count > 0
+            && (recovering.tab_id.is_some() || recovering.session_id.is_some())
+            && recovering.recovery.is_none()
+        {
             recovering.recovery = Some(alera_core::runtime::AutomationRecovery {
                 status: "retryingWithContext".into(),
                 attempt: recovering.attempt_count,

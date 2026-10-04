@@ -173,6 +173,7 @@ fn definition(inactivity_timeout_seconds: i64) -> AutomationDefinition {
         origin_workspace_id: None,
         schedule_cursor_at: None,
         creation_request_key: None,
+        creation_request_fingerprint: None,
         state_before_trash: None,
         approved_revision: Some(1),
         created_by: actor.clone(),

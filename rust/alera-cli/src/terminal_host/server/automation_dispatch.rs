@@ -331,7 +331,7 @@ impl ServerActor {
             }
             _ => {}
         }
-        self.start_automation_run(definition, run, true).await;
+        Box::pin(self.start_automation_run(definition, run, true)).await;
         true
     }
 
@@ -351,15 +351,20 @@ impl ServerActor {
                 .definition_snapshot
                 .clone()
                 .unwrap_or_else(|| definition.clone());
-            if run.recovery.is_some() && run.attempt_count > 0 {
-                self.resume_interrupted_automation_run(&frozen, run).await;
+            if run.recovery.is_some()
+                && run.attempt_count > 0
+                && (run.tab_id.is_some() || run.session_id.is_some())
+            {
+                Box::pin(self.resume_interrupted_automation_run(&frozen, run)).await;
                 continue;
             }
-            self.start_automation_run(
-                &frozen,
-                run.clone(),
-                run.precheck
-                    .unwrap_or(run.trigger == AutomationRunTrigger::Scheduled),
+            Box::pin(
+                self.start_automation_run(
+                    &frozen,
+                    run.clone(),
+                    run.precheck
+                        .unwrap_or(run.trigger == AutomationRunTrigger::Scheduled),
+                ),
             )
             .await;
         }

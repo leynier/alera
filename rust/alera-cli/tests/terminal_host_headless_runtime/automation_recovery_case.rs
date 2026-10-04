@@ -58,12 +58,32 @@ fn automation_recovers_after_host_restart_without_replaying_completed_terminals(
         "agentProfile.upsert",
         json!({"name":"Fake Agent","agentType":"codex","command":command}),
     );
-    let definition = rpc(
-        &mut writer,
-        &mut reader,
-        "automation.create",
-        json!({"requestKey":"restart-fixture","automation":{"name":"Restart Fixture","promptTemplate":"Inspect preserved files","schedule":{"recurring":{"cron":"0 9 * * *","timezone":"UTC"}},"target":{"freshTab":{"workspaceId":"automation-workspace","agentProfileId":profile["id"]}},"retryBackoffSeconds":1}}),
+    let control: Value =
+        serde_json::from_slice(&std::fs::read(directory.path().join("runtime-host.json")).unwrap())
+            .unwrap();
+    let capabilities = control["runtimeCapabilities"].as_array().unwrap();
+    assert!(capabilities.contains(&json!("automationsAuthoringV1")));
+    assert!(capabilities.contains(&json!("automationTerminalObserveV1")));
+    let input = directory.path().join("automation.json");
+    std::fs::write(&input, json!({"name":"Restart Fixture","promptTemplate":"Inspect preserved files","schedule":{"recurring":{"cron":"0 9 * * *","timezone":"UTC"}},"target":{"freshTab":{"workspaceId":"automation-workspace","agentProfileId":profile["id"]}},"retryBackoffSeconds":1}).to_string()).unwrap();
+    let result = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
+        .args(["automation", "--json", "--runtime-dir"])
+        .arg(directory.path())
+        .args(["create", "--file"])
+        .arg(&input)
+        .args(["--request-key", "restart-fixture"])
+        .env_remove("ALERA_TERMINAL_HANDLE")
+        .env_remove("ALERA_WORKSPACE_ID")
+        .env_remove("ALERA_AUTOMATION_RUN_ID")
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "CLI create: {}",
+        String::from_utf8_lossy(&result.stderr)
     );
+    let definition: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(definition["state"], "active");
     rpc(
         &mut writer,
         &mut reader,

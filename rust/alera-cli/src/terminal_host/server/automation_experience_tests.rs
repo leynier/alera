@@ -484,3 +484,6 @@ async fn terminal_exit_preserves_automation_tab_output_and_schedules_recovery() 
 
 #[path = "automation_catalog_experience_tests.rs"]
 mod catalog;
+
+#[path = "automation_authoring_retry_tests.rs"]
+mod authoring_retry;
