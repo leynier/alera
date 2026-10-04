@@ -25,6 +25,9 @@ abstract interface class TerminalHostClient {
 
   Future<void> configure(TerminalHostConfig config);
 
+  /// [observe] attaches read-only to an automation-owned tab: no input, no
+  /// resize, no takeover and never a respawned process. Callers send it only
+  /// when the runtime advertises `automationTerminalObserveV1`.
   Future<TerminalHostAttachment> createOrAttach({
     required String sessionId,
     required String workspaceId,
@@ -33,6 +36,7 @@ abstract interface class TerminalHostClient {
     required GhosttyTerminalShellLaunch launch,
     required int cols,
     required int rows,
+    bool observe = false,
   });
 
   Future<TerminalHostAttachment> restart({

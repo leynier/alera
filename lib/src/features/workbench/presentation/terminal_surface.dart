@@ -17,6 +17,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_surface_toolb
 import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:alera/src/features/automations/presentation/automation_terminal_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -256,8 +257,14 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     required TerminalToolbarCorner toolbarCorner,
     required bool canPersistToolbarCorner,
   }) {
+    final observing = widget.session.isObservingAutomation;
     return Column(
       children: <Widget>[
+        if (observing)
+          AutomationTerminalBanner(
+            tabId: widget.session.tabId,
+            runId: widget.session.automationRunId,
+          ),
         Expanded(
           child: _buildTerminalViewport(
             context,
@@ -268,7 +275,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
             canPersistToolbarCorner: canPersistToolbarCorner,
           ),
         ),
-        if (widget.session.composerController.visible)
+        if (widget.session.composerController.visible && !observing)
           buildTerminalComposerForWorkspace(ref, widget.session),
       ],
     );

@@ -8,7 +8,6 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
-import 'package:alera/src/features/automations/presentation/automation_policy_sections.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor_loader.dart';
@@ -104,8 +103,6 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
                           : null,
                       onGitHostingProviderChanged: _setGitHostingProvider,
                     ),
-                    const SizedBox(height: AleraTokens.space16),
-                    AutomationProjectPolicySection(projectId: selected.id),
                   ],
                 ),
               ),

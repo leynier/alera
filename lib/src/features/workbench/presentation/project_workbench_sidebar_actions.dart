@@ -30,7 +30,7 @@ mixin _ProjectWorkbenchSidebarActions
 
   Future<void> _openSettings() => openSettingsDialog(context);
 
-  Future<void> _openAutomations() => openAutomationsDialog(context);
+  Future<void> _openAutomations() async => openAutomationsPage(ref);
 
   Future<void> _openProjectSettings(Project project) => openSettingsDialog(
     context,

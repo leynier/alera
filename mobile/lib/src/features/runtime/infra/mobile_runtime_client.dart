@@ -86,6 +86,7 @@ class MobileRuntimeClient._(
         MobileRuntimePullRequestWatchRequests,
         MobileRuntimePullRequestRequests
     implements
+        MobileAutomationClient,
         MobileTerminalClient,
         MobileWorkspaceClient,
         WorkspaceRelocationClient,
@@ -220,6 +221,7 @@ class MobileRuntimeClient._(
   bool get supportsPromptImageUpload =>
       _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
 
+  @override
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
   Future<Map<String, Object?>> authenticate({

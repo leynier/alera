@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
@@ -12,39 +13,18 @@ part 'terminal_host_pty_session_pulse.dart';
 part 'terminal_host_pty_session_lease.dart';
 part 'terminal_host_pty_session_errors.dart';
 part 'terminal_host_pty_session_input.dart';
-
-final class TerminalHostPtySessionFactory._(final TerminalHostClient _client)
-    implements TerminalPtySessionFactory {
-  factory({required TerminalHostClient client}) {
-    return TerminalHostPtySessionFactory._(client);
-  }
-
-  final _TerminalHostPtySessionLeases _leases = _TerminalHostPtySessionLeases();
-
-  @override
-  TerminalPtySession create({
-    required String sessionId,
-    required String workspaceId,
-    required String tabId,
-  }) {
-    return TerminalHostPtySession._(
-      _client,
-      sessionId,
-      workspaceId,
-      tabId,
-      _leases.acquire(sessionId),
-    );
-  }
-}
+part 'terminal_host_pty_session_factory.dart';
 
 final class TerminalHostPtySession._(
   this._client,
   this._sessionId,
   final String _workspaceId,
   final String _tabId,
-  final _TerminalHostPtySessionLease? _lease,
-) with _TerminalPulsePtySessionSupport, _TerminalHostInputQueue
+  final _TerminalHostPtySessionLease? _lease, [
+  final TerminalObservedTabResolver? _observeTab,
+]) with _TerminalPulsePtySessionSupport, _TerminalHostInputQueue
     implements
+        ObservableTerminalPtySession,
         RecoverableTerminalPtySession,
         DeferredEnterTerminalPtySession,
         StartupCommandTerminalPtySession,
@@ -85,6 +65,9 @@ final class TerminalHostPtySession._(
   bool _startedNewProcess = false;
   String? _initialCommandOverride;
   bool _outputPaused = false;
+  // Observing never writes, resizes, restarts or respawns: the runtime owns
+  // the automation agent and only recovery may launch it again.
+  bool _observing = false;
   Future<void>? _startFuture;
   // Resize and output resync can both observe a lost attachment. Keep their
   // retries in one lane so no request races the createOrAttach response.
@@ -101,7 +84,10 @@ final class TerminalHostPtySession._(
   String? get initialCommandOverride => _initialCommandOverride;
 
   @override
-  bool get supportsRestart => _client.supportsTerminalRestart;
+  bool get supportsRestart => !_observing && _client.supportsTerminalRestart;
+
+  @override
+  bool get isObserving => _observing;
 
   @override
   bool get supportsDeferredEnter => _client.supportsDeferredInput;
@@ -148,7 +134,23 @@ final class TerminalHostPtySession._(
     return startFuture;
   }
 
-  Future<TerminalHostAttachment> _createOrAttach() {
+  Future<bool> _shouldObserve() async {
+    final resolver = _observeTab;
+    if (resolver == null || !resolver(_workspaceId, _tabId)) return false;
+    if (_client case final RuntimeHostCapabilityClient capable) {
+      try {
+        return await capable.supportsRuntimeCapability(
+          aleraRuntimeHostAutomationTerminalObserveCapability,
+        );
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  Future<TerminalHostAttachment> _createOrAttach() async {
+    _observing = await _shouldObserve();
     final launch = _launch;
     final workingDirectory = _workingDirectory;
     final cols = _cols;
@@ -167,6 +169,7 @@ final class TerminalHostPtySession._(
       launch: launch,
       cols: cols,
       rows: rows,
+      observe: _observing,
     );
   }
 
@@ -195,7 +198,7 @@ final class TerminalHostPtySession._(
 
   @override
   bool writeBytes(List<int> bytes) {
-    if (_disposed || !_started || bytes.isEmpty) {
+    if (_disposed || !_started || _observing || bytes.isEmpty) {
       return false;
     }
     _queueInputBytes(bytes);
@@ -204,7 +207,7 @@ final class TerminalHostPtySession._(
 
   @override
   bool writeBytesWithDeferredEnter(List<int> bytes) {
-    if (_disposed || !_started) {
+    if (_disposed || !_started || _observing) {
       return false;
     }
     _queueInputOperation(() => _writeBytes(bytes, deferredEnter: true));
@@ -218,7 +221,7 @@ final class TerminalHostPtySession._(
   /// inside the reattach that a queued write is waiting on.
   @override
   Future<bool> writeBytesAndWait(List<int> bytes) async {
-    if (_disposed || !_started || bytes.isEmpty) {
+    if (_disposed || !_started || _observing || bytes.isEmpty) {
       return false;
     }
     try {
@@ -243,7 +246,7 @@ final class TerminalHostPtySession._(
     }
     _cols = cols;
     _rows = rows;
-    if (!_started) {
+    if (!_started || _observing) {
       return;
     }
     unawaited(
@@ -259,7 +262,7 @@ final class TerminalHostPtySession._(
     int cellWidthPx,
     int cellHeightPx,
   ) {
-    if (_disposed || !_started) {
+    if (_disposed || !_started || _observing) {
       return Future<void>.value();
     }
     _cols = cols;
@@ -369,6 +372,11 @@ final class TerminalHostPtySession._(
   Future<void> restartProcess() async {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
+    }
+    if (_observing) {
+      throw StateError(
+        'This automation terminal is read-only. Take over the run to restart it.',
+      );
     }
     final launch = _launch;
     final workingDirectory = _workingDirectory;

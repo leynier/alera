@@ -31,6 +31,19 @@ TerminalRuntime terminalRuntime(Ref ref) {
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
       client: terminalHostClient,
+      observeTab: (workspaceId, tabId) {
+        final tab = ref
+            .read(workbenchControllerProvider)
+            .tabsFor(workspaceId)
+            .where((item) => item.id == tabId)
+            .firstOrNull;
+        return tab != null &&
+            automationTabIsObserved(
+              tab.payload,
+              tabId,
+              ref.read(automationTakenOverTabsProvider),
+            );
+      },
     ),
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),

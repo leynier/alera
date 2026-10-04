@@ -38,7 +38,22 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       ),
     );
 
-    if (selected == _recoveryAction && context.mounted) {
+    final workspaceScope = AutomationScope(
+      kind: AutomationScopeKind.workspace,
+      id: widget.workspace.id,
+    );
+    if (selected == _automationsAction) {
+      container
+          .read(automationsNavigationProvider.notifier)
+          .open(scope: workspaceScope);
+    } else if (selected == _newAutomationAction) {
+      container
+          .read(automationsNavigationProvider.notifier)
+          .startAuthoring(
+            AutomationAuthoringRequest(originWorkspaceId: widget.workspace.id),
+            scope: workspaceScope,
+          );
+    } else if (selected == _recoveryAction && context.mounted) {
       await showWorkspaceRecoveryFlow(context, widget.workspace);
     } else if (isLinkedIssueMenuAction(selected) && context.mounted) {
       launchLinkedIssueMenuAction(

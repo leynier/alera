@@ -7,6 +7,8 @@ import 'dart:async';
 import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';

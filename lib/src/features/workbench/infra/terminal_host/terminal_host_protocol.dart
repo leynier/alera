@@ -19,6 +19,11 @@ const String aleraRuntimeHostLinkedIssuesCapability = 'linkedIssuesV1';
 /// [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostPullRequestWatchCapability = 'pullRequestWatchV1';
 
+/// Feature-detect read-only `createOrAttach` for automation-owned tabs
+/// (`attachmentMode: observe`). Without it, attaching takes the run over.
+const String aleraRuntimeHostAutomationTerminalObserveCapability =
+    'automationTerminalObserveV1';
+
 /// Feature-detect `workspace.archive` / `workspace.unarchive`. Additive: do
 /// not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';

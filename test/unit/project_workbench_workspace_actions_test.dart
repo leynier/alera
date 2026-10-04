@@ -47,11 +47,13 @@ void main() {
       sections: <WorkspaceSection>[_section('Work'), _section('Review')],
       currentSectionId: 'Work',
     );
-    expect(_labels(entries).sublist(1, 6), <String>[
+    expect(_labels(entries).sublist(1, 8), <String>[
       'Pin',
       'Parent',
       'Section',
       'Manage Tags',
+      'Automations',
+      'New Automation Here',
       'Open',
     ]);
     expect(_labels(_submenu(entries, 'Pin')!.items), <String>[
@@ -190,6 +192,8 @@ void main() {
       'Pin Workspace',
       'Set Parent Workspace',
       'Manage Tags',
+      'Automations',
+      'New Automation Here',
       'Open',
       'Copy Path',
       'Sleep',

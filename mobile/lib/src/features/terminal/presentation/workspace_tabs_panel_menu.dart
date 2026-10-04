@@ -54,5 +54,69 @@ sealed class _TabsMenuAction {
 
 class const _QuickKeysMenuAction() extends _TabsMenuAction {}
 
+class const _AutomationsMenuAction({final bool create = false})
+    extends _TabsMenuAction {}
+
+const List<PopupMenuEntry<_TabsMenuAction>> _automationMenuEntries =
+    <PopupMenuEntry<_TabsMenuAction>>[
+      PopupMenuItem<_TabsMenuAction>(
+        value: _AutomationsMenuAction(),
+        height: AleraTokens.minTapTarget,
+        child: Text('Automations'),
+      ),
+      PopupMenuItem<_TabsMenuAction>(
+        value: _AutomationsMenuAction(create: true),
+        height: AleraTokens.minTapTarget,
+        child: Text('New Automation Here'),
+      ),
+      PopupMenuDivider(),
+    ];
+
+/// Opens this workspace's automations; [create] starts the authoring flow with
+/// the workspace as origin, never as the execution target.
+void _openWorkspaceAutomations(
+  BuildContext context,
+  WorkspaceTabsScreen screen, {
+  required bool create,
+}) => unawaited(
+  Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => AutomationsScreen(
+        hostId: screen.hostId,
+        initialScope: AutomationScope(
+          kind: AutomationScopeKind.workspace,
+          id: screen.workspace.id,
+        ),
+        startAuthoring: create,
+      ),
+    ),
+  ),
+);
+
 class const _SelectPanelAction(final WorkspacePanelDestination destination)
     extends _TabsMenuAction {}
+
+String? _automationRunId(WorkspaceTabSummary tab) =>
+    switch (tab.payload['automationRunId']) {
+      final String id when id.isNotEmpty => id,
+      _ => null,
+    };
+
+extension on _WorkspaceTabsScreenState {
+  /// An automation-owned tab attaches read-only, unless it was taken over or
+  /// the runtime cannot observe; then the attach keeps its old semantics.
+  bool _observes(WorkspaceTabSummary tab) {
+    final client = ref.watch(hostConnectionControllerProvider(widget.hostId));
+    final supported =
+        client.value?.runtimeCapabilities.contains(
+          automationTerminalObserveCapability,
+        ) ??
+        false;
+    return supported &&
+        mobileAutomationTabIsObserved(
+          tab.payload,
+          tab.id,
+          ref.watch(mobileAutomationTakenOverTabsProvider(widget.hostId)),
+        );
+  }
+}

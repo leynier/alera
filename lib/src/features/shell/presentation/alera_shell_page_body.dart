@@ -33,6 +33,20 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         });
       },
     );
+    ref.listen(
+      automationsNavigationProvider.select((location) => location.visible),
+      (wasVisible, visible) {
+        if (wasVisible != true || visible) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (ref.read(automationsNavigationProvider).visible) return;
+          KeyboardCommandDispatcher(
+            ref: ref,
+            context: context,
+          ).focusActivePane();
+        });
+      },
+    );
     ref.watch(terminalHostWarmupCoordinatorProvider);
     ref.watch(runtimeAgentStatusSyncProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
@@ -100,6 +114,9 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     final showRunBoard = ref.watch(
       runBoardNavigationProvider.select((location) => location.visible),
     );
+    final showAutomations = ref.watch(
+      automationsNavigationProvider.select((location) => location.visible),
+    );
 
     final content = AleraAppMenuScope(
       child: Scaffold(
@@ -113,7 +130,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       fit: StackFit.expand,
                       children: <Widget>[
                         Visibility(
-                          visible: !showRunBoard,
+                          visible: !showRunBoard && !showAutomations,
                           maintainState: true,
                           child: Row(
                             crossAxisAlignment: .stretch,
@@ -405,8 +422,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                           ),
                         ),
                         if (showRunBoard)
-                          RunBoardPage(
-                            onReturnToWorkspace: _returnFromRunBoard,
+                          RunBoardPage(onReturnToWorkspace: _returnFromRunBoard)
+                        else if (showAutomations)
+                          AutomationsPage(
+                            onReturnToWorkspace: () => ref
+                                .read(automationsNavigationProvider.notifier)
+                                .close(),
                           ),
                       ],
                     ),
@@ -416,6 +437,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       mainAxisSize: .min,
                       children: <Widget>[
                         RunBoardAttentionControl(),
+                        AutomationAttentionControl(),
                         VoiceStatusBarControl(),
                         ResourceStatusBarControl(),
                         KeepAliveStatusBarControl(),

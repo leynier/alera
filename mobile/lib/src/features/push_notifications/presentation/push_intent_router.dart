@@ -37,7 +37,7 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
       navigator.push<void>(
         MaterialPageRoute<void>(
           builder: (_) => AutomationsScreen(
-            host: host,
+            hostId: host.id,
             initialAutomationId: intent.automationId,
             initialRunId: intent.runId,
           ),

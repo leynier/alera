@@ -12,16 +12,19 @@ const String _aleraCliSkillAgentName = 'codex';
 const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
 const String aleraAgentProfilesSkillName = 'alera-agent-profiles';
+const String aleraAutomationsSkillName = 'alera-automations';
 
 enum AleraAgentSkill(final String name) {
   cli(aleraCliSkillName),
   orchestration(aleraOrchestrationSkillName),
   agentProfiles(aleraAgentProfilesSkillName),
+  automations(aleraAutomationsSkillName),
 }
 
 const List<AleraAgentSkill> coreAleraAgentSkills = <AleraAgentSkill>[
   AleraAgentSkill.cli,
   AleraAgentSkill.orchestration,
+  AleraAgentSkill.automations,
 ];
 
 const List<AleraAgentSkill> extraAleraAgentSkills = <AleraAgentSkill>[

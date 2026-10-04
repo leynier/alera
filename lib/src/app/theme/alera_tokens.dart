@@ -46,9 +46,8 @@ abstract final class AleraTokens {
   static const double contextMenuWidth = 220.0;
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
-  static const double automationDialogWidth = 1180.0;
-  static const double automationDialogMaxHeight = 760.0;
-  static const double automationDialogHeight = 680.0;
+  static const double automationAuthoringWidth = 720.0;
+  static const double automationAuthoringMaxHeight = 760.0;
   static const double automationInfoLabelWidth = 100.0;
   static const double collapsedSidebarFooterHeight = 72.0;
   static const double dividerExtent = 1.0;

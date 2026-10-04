@@ -111,6 +111,13 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 
   bool get canRestart => false;
 
+  /// True while this tab is attached read-only to an automation run nobody
+  /// took over. Nothing typed reaches the PTY until the run is taken over.
+  bool get isObservingAutomation => false;
+
+  /// The automation run that owns this tab, when it is one.
+  String? get automationRunId => null;
+
   bool get supportsTerminalPulse => false;
 
   ValueListenable<TerminalPulseState> get terminalPulseState =>
@@ -327,6 +334,12 @@ abstract interface class TerminalPtySession {
   void dispose();
 
   void terminate();
+}
+
+/// A session that may be attached read-only to an automation-owned tab.
+abstract interface class ObservableTerminalPtySession
+    implements TerminalPtySession {
+  bool get isObserving;
 }
 
 abstract interface class RecoverableTerminalPtySession

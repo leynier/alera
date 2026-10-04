@@ -4,6 +4,11 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
+import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
+import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
+import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -326,18 +331,22 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     if (selectedTab case final WorkspaceTabSummary tab when tab.isTerminal) {
       // The desktop taking the viewport back sends this phone to the
       // workspace list; re-entering the tab simply claims again.
-      ref.listen(terminalSessionControllerProvider(widget.hostId, tab.id), (
-        previous,
-        next,
-      ) {
-        if (next case AsyncError(:final error)
-            when error is DesktopReclaimedTerminal) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Desktop took back the terminal')),
-          );
-          Navigator.of(context).pop();
-        }
-      });
+      ref.listen(
+        terminalSessionControllerProvider(
+          widget.hostId,
+          tab.id,
+          observe: _observes(tab),
+        ),
+        (previous, next) {
+          if (next case AsyncError(:final error)
+              when error is DesktopReclaimedTerminal) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Desktop took back the terminal')),
+            );
+            Navigator.of(context).pop();
+          }
+        },
+      );
     }
     return Scaffold(
       appBar: AppBar(
@@ -364,6 +373,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                       builder: (_) => const TerminalKeysSettingsScreen(),
                     ),
                   );
+                case _AutomationsMenuAction(:final create):
+                  _openWorkspaceAutomations(context, widget, create: create);
                 case _SelectPanelAction(:final destination):
                   ref
                       .read(
@@ -390,6 +401,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   ),
                 const PopupMenuDivider(),
               ],
+              ..._automationMenuEntries,
               const PopupMenuItem<_TabsMenuAction>(
                 value: _QuickKeysMenuAction(),
                 height: AleraTokens.minTapTarget,
@@ -461,6 +473,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           hostId: widget.hostId,
           workspaceId: tab.workspaceId,
           tabId: tab.id,
+          observe: _observes(tab),
+          automationRunId: _automationRunId(tab),
         ),
         null => _EmptyTabs(
           creating: _creating,

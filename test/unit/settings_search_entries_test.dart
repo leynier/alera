@@ -30,7 +30,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '9eb83ab467e552f5af67d76b51775691049306306275af72dab63ead5eeeb345',
+      '94d85ec5f585e577c8c221c9fd0d5f678c8935260280377285f511be6d888c0d',
     );
   });
 

@@ -161,6 +161,16 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
             leading: Icon(AleraIcons.host, size: 16),
             label: 'Hosts',
           ),
+        const AleraDropdownEntry<String>(
+          value: 'automations',
+          leading: Icon(AleraIcons.checks, size: 16),
+          label: 'Automations',
+        ),
+        const AleraDropdownEntry<String>(
+          value: 'new-automation',
+          leading: Icon(AleraIcons.add, size: 16),
+          label: 'New Automation Here',
+        ),
         AleraDropdownEntry<String>(
           value: 'new-workspace',
           leading: Icon(
@@ -181,7 +191,23 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         ),
       ],
     );
-    if (selected == _openProjectSettingsAction) {
+    final projectScope = AutomationScope(
+      kind: AutomationScopeKind.project,
+      id: widget.project.id,
+    );
+    if (selected == 'automations' && context.mounted) {
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(automationsNavigationProvider.notifier).open(scope: projectScope);
+    } else if (selected == 'new-automation' && context.mounted) {
+      ProviderScope.containerOf(context, listen: false)
+          .read(automationsNavigationProvider.notifier)
+          .startAuthoring(
+            AutomationAuthoringRequest(projectId: widget.project.id),
+            scope: projectScope,
+          );
+    } else if (selected == _openProjectSettingsAction) {
       widget.onOpenProjectSettings();
     } else if (selected == 'rename') {
       widget.onRenameProject();

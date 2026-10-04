@@ -104,6 +104,7 @@ final class _FakeTerminalHostClient({TerminalHostAttachment? attachment})
     required GhosttyTerminalShellLaunch launch,
     required int cols,
     required int rows,
+    bool observe = false,
   }) async {
     launches.add(launch);
     return TerminalHostAttachment(

@@ -2,134 +2,120 @@ import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test(
-    'decodes policy fields and identifies recurring existing-tab records',
-    () {
-      final record = AutomationRecord.fromJson(<String, Object?>{
-        'id': 'automation-1',
-        'slug': 'nightly',
-        'name': 'Nightly',
-        'description': 'Run the nightly task',
-        'promptTemplate': 'Review {{project.name}}',
-        'schedule': <String, Object?>{
-          'recurring': <String, Object?>{
-            'cron': '0 0 * * *',
-            'timezone': 'UTC',
-          },
-        },
-        'target': <String, Object?>{
-          'existingTab': <String, Object?>{
-            'workspaceId': 'workspace-1',
-            'tabId': 'tab-1',
-            'conversationId': 'conversation-1',
-          },
-        },
-        'state': 'active',
-        'revision': 4,
-        'approvedRevision': 4,
-        'updatedAt': '2026-08-03T12:00:00Z',
-        'tagIds': <Object?>['tag-a', '', 7],
-        'setupPolicy': 'parallel',
-        'cleanupPolicy': 'onSuccess',
-        'overlapPolicy': 'queue',
-        'queueCap': 10,
-        'inactivityTimeoutSeconds': 300,
-        'heartbeatIntervalSeconds': 30,
-        'misfirePolicy': 'runLatestOnce',
-        'retryMaxAttempts': 3,
-        'retryBackoffSeconds': 20,
-        'circuitFailureThreshold': 2,
-        'circuitOpenSeconds': 600,
-        'precheck': <String, Object?>{'command': 'test -f alera.toml'},
-        'notifyOnSuccess': true,
-      });
-
-      expect(record.id, 'automation-1');
-      expect(record.isApproved, isTrue);
-      expect(record.scheduleKind, 'Recurring');
-      expect(record.targetKind, 'Existing tab');
-      expect(
-        (record.target['existingTab'] as Map)['conversationId'],
-        'conversation-1',
-      );
-      expect(
-        AutomationRecord.fromJson(<String, Object?>{
-          'id': 'automation-optional',
-          'target': <String, Object?>{
-            'existingTab': <String, Object?>{
-              'workspaceId': 'workspace-1',
-              'tabId': 'tab-1',
-            },
-          },
-        }).targetKind,
-        'Existing tab',
-      );
-      expect(record.tagIds, <String>['tag-a']);
-      expect(record.overlapPolicy, 'queue');
-      expect(record.misfirePolicy, 'runLatestOnce');
-      expect(record.notifyOnSuccess, isTrue);
-      expect(record.updatedAt, DateTime.parse('2026-08-03T12:00:00Z'));
-    },
-  );
-
-  test('applies safe defaults for incomplete persisted records', () {
-    final record = AutomationRecord.fromJson(const <String, Object?>{});
-
-    expect(record.state, 'draft');
-    expect(record.setupPolicy, 'wait');
-    expect(record.overlapPolicy, 'skip');
-    expect(record.misfirePolicy, 'skip');
-    expect(record.queueCap, 10);
-    expect(record.inactivityTimeoutSeconds, 7200);
-    expect(record.heartbeatIntervalSeconds, 60);
-    expect(record.retryMaxAttempts, 3);
-    expect(record.isApproved, isFalse);
-    expect(record.scheduleKind, 'One-time');
-    expect(record.targetKind, 'Managed workspace');
-  });
-
-  test('decodes run and detail history without requiring optional fields', () {
-    final detail = AutomationDetail.fromJson(<String, Object?>{
-      'automation': <String, Object?>{
-        'id': 'automation-2',
-        'schedule': <String, Object?>{
-          'oneTime': <String, Object?>{
-            'at': '2026-08-03T12:00:00Z',
-            'timezone': 'UTC',
-          },
-        },
-        'target': <String, Object?>{
-          'freshTab': <String, Object?>{
-            'workspaceId': 'workspace-1',
-            'agentProfileId': 'profile-1',
-          },
+  test('decodes derived catalog fields without approval state', () {
+    final record = AutomationRecord.fromJson(<String, Object?>{
+      'id': 'nightly',
+      'slug': 'nightly',
+      'name': 'Nightly',
+      'promptTemplate': 'Review',
+      'schedule': <String, Object?>{
+        'recurring': <String, Object?>{
+          'cron': '0 9 * * 1-5',
+          'timezone': 'UTC',
         },
       },
-      'runs': <Object?>[
-        <String, Object?>{
-          'id': 'run-1',
-          'automationId': 'automation-2',
-          'number': 1,
-          'status': 'blocked',
-          'trigger': 'manual',
-          'summary': 'Waiting for approval',
-          'targetIdentity': <String, Object?>{'tabId': 'tab-1'},
+      'target': <String, Object?>{
+        'projectCheckout': <String, Object?>{
+          'projectId': 'project-1',
+          'hostId': 'local',
+          'agentProfileId': 'codex',
         },
-      ],
-      'audit': <Object?>[
-        <String, Object?>{'action': 'created'},
-      ],
-      'occurrences': <Object?>[
-        <String, Object?>{'meaning': 'next'},
-      ],
-      'effectivePolicies': <String, Object?>{'mayExecute': false},
+      },
+      'state': 'active',
+      'revision': 4,
+      'originWorkspaceId': 'ws-1',
+      'association': <String, Object?>{
+        'workspaceId': 'ws-1',
+        'sectionId': 'section-1',
+        'projectId': 'project-1',
+        'source': 'origin',
+      },
+      'targetHostId': 'local',
+      'nextRunAt': '2026-10-05T13:00:00Z',
+      'lastRun': <String, Object?>{'id': 'run-1', 'status': 'failure'},
+      'activeRunCount': 1,
+      'readiness': <String, Object?>{
+        'ready': false,
+        'issues': <Object?>[
+          <String, Object?>{
+            'code': 'profileCommandMissing',
+            'message': 'Agent CLI codex not found.',
+            'field': 'target.agentProfileId',
+            'severity': 'error',
+          },
+          <String, Object?>{
+            'code': 'hostUnreachable',
+            'message': 'The host is offline.',
+            'severity': 'warning',
+          },
+        ],
+      },
+      'attention': <String, Object?>{
+        'code': 'targetRemoved',
+        'message': 'Target workspace removed.',
+      },
     });
 
-    expect(detail.automation.targetKind, 'Fresh tab');
-    expect(detail.runs.single.status, 'blocked');
-    expect(detail.runs.single.finishedAt, isNull);
-    expect(detail.audit.single['action'], 'created');
-    expect(detail.occurrences.single['meaning'], 'next');
-    expect(detail.effectivePolicies['mayExecute'], isFalse);
+    expect(record.targetType, AutomationTargetType.projectCheckout);
+    expect(record.agentProfileId, 'codex');
+    expect(record.association?.source, AutomationAssociationSource.origin);
+    expect(record.association?.sectionId, 'section-1');
+    expect(record.associatedWorkspaceId, 'ws-1');
+    expect(record.effectiveProjectId, 'project-1');
+    expect(record.nextRunAt, DateTime.parse('2026-10-05T13:00:00Z'));
+    expect(record.lastRun?.status, 'failure');
+    expect(record.readiness?.errors.single.code, 'profileCommandMissing');
+    expect(record.readiness?.warnings.single.code, 'hostUnreachable');
+    expect(record.attention?.message, 'Target workspace removed.');
+  });
+
+  test('archived definitions are completed and read-only', () {
+    final record = AutomationRecord.fromJson(const <String, Object?>{
+      'id': 'once',
+      'state': 'archived',
+    });
+    expect(record.isCompleted, isTrue);
+    expect(record.isEditable, isFalse);
+  });
+
+  test('runs keep old status values and expose recovery separately', () {
+    final run = AutomationRunRecord.fromJson(<String, Object?>{
+      'id': 'run-2',
+      'automationId': 'nightly',
+      'number': 2,
+      'status': 'dispatched',
+      'trigger': 'manual',
+      'targetIdentity': <String, Object?>{
+        'workspaceId': 'ws-1',
+        'tabId': 'tab-1',
+      },
+      'recovery': <String, Object?>{
+        'status': 'retryingWithContext',
+        'attempt': 2,
+        'maxAttempts': 3,
+      },
+      'continueFromRunId': 'run-1',
+      'lastHeartbeatAt': '2026-10-04T10:00:00Z',
+    });
+    expect(run.status, 'dispatched');
+    expect(run.isActive, isTrue);
+    expect(run.recovery.status, AutomationRecoveryStatus.retryingWithContext);
+    expect(run.recovery.isActive, isTrue);
+    expect(run.workspaceId, 'ws-1');
+    expect(run.tabId, 'tab-1');
+    expect(run.continueFromRunId, 'run-1');
+    expect(run.lastActivityAt, DateTime.parse('2026-10-04T10:00:00Z'));
+  });
+
+  test('detail groups attempts per run in launch order', () {
+    final detail = AutomationDetail.fromJson(<String, Object?>{
+      'automation': <String, Object?>{'id': 'nightly'},
+      'attempts': <Object?>[
+        <String, Object?>{'id': 'b', 'runId': 'run-1', 'number': 2},
+        <String, Object?>{'id': 'a', 'runId': 'run-1', 'number': 1},
+        <String, Object?>{'id': 'c', 'runId': 'run-2', 'number': 1},
+      ],
+    });
+    expect(detail.attemptsFor('run-1').map((item) => item.id), ['a', 'b']);
   });
 }

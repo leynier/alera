@@ -13,6 +13,18 @@ mixin _TerminalSessionCapabilitiesSupport on TerminalSessionHandle {
       );
 
   @override
+  bool get isObservingAutomation {
+    final session = _ptySession;
+    return session is ObservableTerminalPtySession && session.isObserving;
+  }
+
+  @override
+  String? get automationRunId => switch (_tab.payload['automationRunId']) {
+    final String id when id.isNotEmpty => id,
+    _ => null,
+  };
+
+  @override
   bool get canRestart {
     final session = _ptySession;
     return session is RecoverableTerminalPtySession && session.supportsRestart;

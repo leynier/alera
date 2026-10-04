@@ -9,18 +9,22 @@ Future<TerminalHostAttachment> _createOrAttachTerminal(
   required GhosttyTerminalShellLaunch launch,
   required int cols,
   required int rows,
+  bool observe = false,
 }) async {
   final payload = await client._terminalRequestMap(
     'createOrAttach',
-    _terminalAttachmentRequest(
-      sessionId: sessionId,
-      workspaceId: workspaceId,
-      tabId: tabId,
-      workingDirectory: workingDirectory,
-      launch: launch,
-      cols: cols,
-      rows: rows,
-    ),
+    <String, Object?>{
+      ..._terminalAttachmentRequest(
+        sessionId: sessionId,
+        workspaceId: workspaceId,
+        tabId: tabId,
+        workingDirectory: workingDirectory,
+        launch: launch,
+        cols: cols,
+        rows: rows,
+      ),
+      if (observe) 'attachmentMode': 'observe',
+    },
   );
   return TerminalHostAttachment.fromJson(payload);
 }
