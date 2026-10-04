@@ -201,6 +201,10 @@ pub struct Session {
     /// reaches the per-session bound. Keeping the sender in the actor lets
     /// control and recovery commands continue while the reader is paused.
     pending_pty_ack: Option<SyncSender<()>>,
+    /// Exit code of a child that exited while accepted output was still
+    /// being persisted. The exit is handled once history drains, so the tab
+    /// is removed in the same step that records the exit.
+    deferred_exit: Option<i32>,
     /// At most one metadata checkpoint/trim is allowed outside the actor.
     /// The actor polls this handle and never waits on its storage future.
     checkpoint_job: Option<JoinHandle<Result<(), String>>>,
@@ -300,6 +304,7 @@ impl Session {
             durable_output_batch_sequence,
             durable_output_failures: VecDeque::new(),
             pending_pty_ack: None,
+            deferred_exit: None,
             checkpoint_job: None,
             checkpoint_output_blocked: false,
             output_stream_bytes: resumed_output_stream_bytes(

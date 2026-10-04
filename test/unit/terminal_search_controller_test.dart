@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/domain/terminal_search.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm2/xterm.dart' as xterm;
 
@@ -86,6 +87,61 @@ void main() {
     expect(controller.matchCount, 1);
     expect(controller.selectedMatch?.lineIndex, 1);
     expect(controller.needsFullRefreshForTesting, isFalse);
+  });
+
+  test('folds output inside the refresh window into one refresh', () {
+    fakeAsync((async) {
+      final terminal = _terminal()..write('ready\r\n');
+      final controller = TerminalSearchController(
+        terminal: terminal,
+        scrollToLine: (_) {},
+      );
+      var notifications = 0;
+      controller
+        ..open()
+        ..setQuery('hit')
+        ..addListener(() => notifications += 1);
+
+      terminal.write('hit 1\r\n');
+      expect(controller.matchCount, 1, reason: 'the first change is live');
+      for (var index = 2; index <= 20; index += 1) {
+        terminal.write('hit $index\r\n');
+      }
+      expect(controller.matchCount, 1);
+
+      async.elapse(terminalSearchOutputRefreshInterval);
+
+      expect(controller.matchCount, 20);
+      expect(notifications, 2);
+      controller.dispose();
+    });
+  });
+
+  test('finds every new line once the scrollback stops growing', () {
+    fakeAsync((async) {
+      final terminal = xterm.Terminal(maxLines: 30)..resize(40, 5);
+      for (var index = 0; index < 40; index += 1) {
+        terminal.write('filler $index\r\n');
+      }
+      final controller = TerminalSearchController(
+        terminal: terminal,
+        scrollToLine: (_) {},
+      );
+      controller
+        ..open()
+        ..setQuery('needle');
+      terminal.write('warm up\r\n');
+
+      // More than a screen of matches lands inside one refresh window while
+      // the line count is pinned at the scrollback cap.
+      for (var index = 0; index < 12; index += 1) {
+        terminal.write('needle $index\r\n');
+      }
+      async.elapse(terminalSearchOutputRefreshInterval);
+
+      expect(controller.matchCount, 12);
+      controller.dispose();
+    });
   });
 
   test('releases the match index when the overlay closes', () {

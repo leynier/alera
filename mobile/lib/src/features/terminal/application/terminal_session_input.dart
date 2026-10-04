@@ -1,13 +1,53 @@
 part of 'terminal_session_controller.dart';
 
+/// Raw input written in one turn of the event loop, sent as one request.
+class _PendingTerminalInput {
+  final BytesBuilder bytes = BytesBuilder();
+  final Completer<void> sent = Completer<void>();
+}
+
 extension TerminalSessionInput on TerminalSessionController {
   /// Raw accessory/direct keys are never pasted or deferred.
-  Future<void> write(List<int> bytes) => _runAttachedOperation(
-    (client, sessionId) => client.writeTerminal(sessionId, bytes),
-  );
+  ///
+  /// A touch drag over a TUI emits several wheel reports from one pointer
+  /// update, and each was its own request over a link where every request
+  /// pays a round trip. Bytes written in the same turn are merged into one
+  /// request; nothing waits for an earlier request, so typing keeps the
+  /// pipelining a high-latency link needs.
+  Future<void> write(List<int> bytes) {
+    final pending = _pendingInput;
+    if (pending != null) {
+      pending.bytes.add(bytes);
+      return pending.sent.future;
+    }
+    final next = _PendingTerminalInput()..bytes.add(bytes);
+    _pendingInput = next;
+    scheduleMicrotask(_flushPendingInput);
+    return next.sent.future;
+  }
+
+  void _flushPendingInput() {
+    final pending = _pendingInput;
+    if (pending == null) {
+      return;
+    }
+    _pendingInput = null;
+    final bytes = pending.bytes.takeBytes();
+    pending.sent.complete(
+      _runAttachedOperation(
+        (client, sessionId) => client.writeTerminal(sessionId, bytes),
+      ),
+    );
+  }
 
   /// Explicit paste never submits and brackets only when the text needs it.
-  Future<void> pasteText(String text) => _runAttachedOperation((client, id) {
+  Future<void> pasteText(String text) {
+    // Keys typed just before must reach the host first.
+    _flushPendingInput();
+    return _pasteText(text);
+  }
+
+  Future<void> _pasteText(String text) => _runAttachedOperation((client, id) {
     final delivery = TerminalComposeDelivery.forText(
       text,
       withEnter: false,
@@ -21,7 +61,12 @@ extension TerminalSessionInput on TerminalSessionController {
   });
 
   /// Compose send separates prompt bytes from Enter when the host supports it.
-  Future<void> sendComposedText(String text, {required bool withEnter}) =>
+  Future<void> sendComposedText(String text, {required bool withEnter}) {
+    _flushPendingInput();
+    return _sendComposedText(text, withEnter: withEnter);
+  }
+
+  Future<void> _sendComposedText(String text, {required bool withEnter}) =>
       _runAttachedOperation((client, id) {
         final delivery = TerminalComposeDelivery.forText(
           text,

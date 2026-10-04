@@ -62,6 +62,7 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
 
   void _rebuildTerminalFromSnapshot(
     List<int> data, {
+    String? text,
     required bool resetInteractionModes,
   }) {
     if (_disposed) {
@@ -82,7 +83,10 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
     // Scrollback can reach the host's 10 MB cap, and parsing all of it in one
     // synchronous write blocked the frame that showed the terminal. Go through
     // the same per-frame batcher as live output instead.
-    final restored = const Utf8Decoder(allowMalformed: true).convert(data);
+    // The socket isolate usually decoded it already; other PTY adapters and
+    // the main-isolate fallback reader still hand over bytes.
+    final restored =
+        text ?? const Utf8Decoder(allowMalformed: true).convert(data);
     _beginRestore(restored.length);
     _queueTerminalOutput(restored, source: .restore);
     if (resetInteractionModes) {

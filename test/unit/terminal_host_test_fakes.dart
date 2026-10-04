@@ -51,6 +51,9 @@ final class FakeTerminalHostClient({
   Map<String, TerminalSessionDriver> drivers =
       <String, TerminalSessionDriver>{};
   final List<Object> writeErrors = <Object>[];
+
+  /// Holds every recorded write in flight until completed.
+  Completer<void>? writeGate;
   final List<Object> resizeErrors = <Object>[];
   final List<Object> outputPausedErrors = <Object>[];
   final List<Object> pulseStatusErrors = <Object>[];
@@ -153,6 +156,9 @@ final class FakeTerminalHostClient({
     }
     writes.add(List<int>.from(bytes));
     deferredEnterFlags.add(deferredEnter);
+    if (writeGate case final gate?) {
+      await gate.future;
+    }
   }
 
   @override

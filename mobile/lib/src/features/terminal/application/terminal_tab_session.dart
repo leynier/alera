@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_snapshot_payload.dart';
 
 /// Raised when a desktop driver takes the terminal viewport back.
 class const DesktopReclaimedTerminal() implements Exception {
@@ -14,10 +15,16 @@ class TerminalTabSession({
   required this.output,
   this.snapshotCols,
   final int? snapshotRows,
+  String? snapshotBase64,
 }) {
-  this : _snapshot = _TerminalSnapshotPayload(snapshot);
+  this
+    : _snapshot = _RetainedSnapshot(
+        snapshotBase64 != null && snapshotBase64.isNotEmpty
+            ? TerminalSnapshotPayload.base64(snapshotBase64)
+            : TerminalSnapshotPayload.bytes(snapshot),
+      );
 
-  final _TerminalSnapshotPayload _snapshot;
+  final _RetainedSnapshot _snapshot;
 
   /// The size the snapshot was written at, absent on a host that predates the
   /// field. The emulator replays there before taking the phone's own size.
@@ -26,18 +33,18 @@ class TerminalTabSession({
   /// Carries full events so resync replacement stays ordered with live output.
   final Stream<MobileTerminalOutputEvent> output;
 
-  /// Transfers restore bytes without retaining rendered scrollback twice.
-  List<int> takeSnapshot() => _snapshot.take();
+  /// Transfers the restore payload without retaining scrollback twice.
+  TerminalSnapshotPayload takeSnapshot() => _snapshot.take();
 
   int get retainedSnapshotBytes => _snapshot.retainedBytes;
 }
 
-class _TerminalSnapshotPayload(var List<int>? _bytes) {
-  int get retainedBytes => _bytes?.length ?? 0;
+class _RetainedSnapshot(var TerminalSnapshotPayload? _payload) {
+  int get retainedBytes => _payload?.size ?? 0;
 
-  List<int> take() {
-    final value = _bytes;
-    _bytes = null;
-    return value ?? const <int>[];
+  TerminalSnapshotPayload take() {
+    final value = _payload;
+    _payload = null;
+    return value ?? TerminalSnapshotPayload.empty;
   }
 }

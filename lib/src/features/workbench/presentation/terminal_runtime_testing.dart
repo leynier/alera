@@ -128,6 +128,15 @@ Duration get terminalOutputMinFlushIntervalForTesting =>
     _terminalOutputMinFlushInterval;
 
 @visibleForTesting
+Duration get terminalOutputInteractiveWindowForTesting =>
+    _terminalOutputInteractiveWindow;
+
+@visibleForTesting
+Duration terminalOutputFlushIntervalForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._output.minFlushInterval;
+}
+
+@visibleForTesting
 int terminalOutputFrameCutoffForTesting(String value) {
   return _terminalOutputChunkCutoff(value, _terminalOutputMaxCharsPerFrame);
 }

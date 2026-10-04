@@ -15,6 +15,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 /// Messages the isolate sends to the main isolate.
 const String terminalHostIsolateReady = 'ready';
@@ -138,11 +139,56 @@ Future<void> terminalHostSocketIsolateMain(
 /// opening a terminal. A line that will not parse is passed through as-is so
 /// the owner still reports it the way it always did.
 Object? decodeHostLine(String line) {
+  final Object? decoded;
   try {
-    return jsonDecode(line);
+    decoded = jsonDecode(line);
   } catch (_) {
     return line;
   }
+  _decodeSnapshots(decoded);
+  return decoded;
+}
+
+/// Decodes a reply's scrollback to text here, so the UI isolate receives it
+/// ready for the emulator.
+///
+/// A snapshot is base64 inside the reply, up to the restore budget (2.5 MB by
+/// default, 10 MB at most). Decoding the base64 and then the UTF-8 on the UI
+/// isolate cost tens of milliseconds every time a tab attached or a client
+/// resynced. A string is shared with the main isolate rather than copied, so
+/// sending the text costs nothing. Snapshots sit at the top of a message or one
+/// map below it (`result`, `payload`).
+void _decodeSnapshots(Object? message) {
+  if (message is! Map<String, Object?>) {
+    return;
+  }
+  _decodeSnapshot(message);
+  for (final value in message.values) {
+    if (value is Map<String, Object?>) {
+      _decodeSnapshot(value);
+    }
+  }
+}
+
+void _decodeSnapshot(Map<String, Object?> map) {
+  final encoded = map[terminalHostSnapshotKey];
+  if (encoded is! String || encoded.isEmpty) {
+    return;
+  }
+  final Uint8List bytes;
+  try {
+    bytes = base64Decode(encoded);
+  } on FormatException {
+    // Leave it for the owner, which reports malformed replies itself.
+    return;
+  }
+  // A snapshot is decoded on its own, as it was on the UI isolate: it is the
+  // tail of the stream and may start inside a code point, which the
+  // per-session live decoder must not inherit.
+  map
+    ..remove(terminalHostSnapshotKey)
+    ..[terminalHostSnapshotTextKey] = const Utf8Decoder(allowMalformed: true)
+        .convert(bytes);
 }
 
 /// Spawns the reader and returns its command port, or null if spawning failed.

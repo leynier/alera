@@ -28,6 +28,18 @@ impl Session {
             || self.durable_output_batch.len() >= max_durable_bytes
     }
 
+    pub fn defer_exit(&mut self, exit_code: i32) {
+        self.deferred_exit = Some(exit_code);
+    }
+
+    pub fn has_deferred_exit(&self) -> bool {
+        self.deferred_exit.is_some()
+    }
+
+    pub fn take_deferred_exit(&mut self) -> Option<i32> {
+        self.deferred_exit.take()
+    }
+
     pub fn hold_pty_ack(&mut self, ack: std::sync::mpsc::SyncSender<()>) {
         if let Some(previous) = self.pending_pty_ack.replace(ack) {
             let _ = previous.send(());
@@ -61,6 +73,14 @@ impl Session {
                 .saturating_sub(self.buffer.len() as u64),
             self.output_stream_bytes,
         )
+    }
+
+    /// Whether the stream has been quiet for `quiet` with nothing waiting to
+    /// be delivered. The first chunk after a pause, typically a keystroke
+    /// echo, can then go out at once; only a stream that keeps writing pays
+    /// the coalescing delay.
+    pub fn output_quiet_for(&self, quiet: std::time::Duration) -> bool {
+        !self.output_batch_armed && self.last_output_at.elapsed() >= quiet
     }
 
     pub fn output_batch_due(&self, generation: u64) -> bool {

@@ -17,6 +17,8 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.da
 import 'package:alera_mobile/src/features/terminal/domain/terminal_osc52_clipboard.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_touch_scroll.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_snapshot_payload.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_utf8_stream.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_attachment_providers.dart';

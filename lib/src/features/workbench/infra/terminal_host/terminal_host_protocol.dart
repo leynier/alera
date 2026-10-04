@@ -243,6 +243,13 @@ String encodeTerminalHostBytes(List<int> bytes) {
   return base64Encode(bytes);
 }
 
+/// Reply field carrying a session's scrollback, base64 on the wire.
+const String terminalHostSnapshotKey = 'snapshotBase64';
+
+/// Snapshot text the socket isolate decoded in place of
+/// [terminalHostSnapshotKey]. Client side only; it never goes on the wire.
+const String terminalHostSnapshotTextKey = 'snapshotText';
+
 Uint8List decodeTerminalHostBytes(Object? value) {
   if (value is! String || value.isEmpty) {
     return Uint8List(0);

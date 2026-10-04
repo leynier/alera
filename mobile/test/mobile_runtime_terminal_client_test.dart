@@ -277,7 +277,11 @@ void main() {
       expect(received, hasLength(1));
       expect(received.single.sessionId, 'session-1');
       expect(received.single.replacesScrollback, isTrue);
-      expect(utf8.decode(received.single.data), 'restored');
+      // Left encoded for the terminal to decode, off the UI isolate.
+      expect(
+        utf8.decode(base64Decode(received.single.snapshotBase64!)),
+        'restored',
+      );
     });
 
     test('A later ask for the same session is answered again', () async {

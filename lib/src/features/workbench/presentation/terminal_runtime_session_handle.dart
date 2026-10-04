@@ -291,6 +291,7 @@ class _XtermTerminalSessionHandle(
     if (_replayingRestore) {
       return;
     }
+    _output.noteUserInput();
     _ptySession?.writeBytes(utf8.encode(data));
   }
 
@@ -467,13 +468,18 @@ class _XtermTerminalSessionHandle(
         // Already decoded by the reader isolate, so it skips the local
         // decoder entirely.
         _handleTerminalOutput(text);
-      case TerminalPtySnapshotEvent(:final data, :final resetInteractionModes):
+      case TerminalPtySnapshotEvent(
+        :final data,
+        :final resetInteractionModes,
+        :final text,
+      ):
         _pendingInteractionModeReset |= resetInteractionModes;
         if (_outputVisible) {
           final shouldResetInteractionModes = _pendingInteractionModeReset;
           _preparePointerInputForSnapshot();
           _replaceTerminalWithSnapshot(
             data,
+            text: text,
             resetInteractionModes: shouldResetInteractionModes,
           );
           _completePointerInputSnapshotCatchUp();
@@ -562,10 +568,12 @@ class _XtermTerminalSessionHandle(
 
   void _replaceTerminalWithSnapshot(
     List<int> data, {
+    String? text,
     required bool resetInteractionModes,
   }) {
     _rebuildTerminalFromSnapshot(
       data,
+      text: text,
       resetInteractionModes: resetInteractionModes,
     );
     notifyListeners();

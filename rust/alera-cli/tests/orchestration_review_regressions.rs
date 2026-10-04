@@ -13,6 +13,10 @@ use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: i64 = 4;
 
+#[path = "orchestration_review_regressions/unread_output.rs"]
+mod unread_output;
+#[cfg(unix)]
+use unread_output::collect_output;
 #[path = "orchestration_review_regressions/deferred_delivery_cases.rs"]
 #[cfg(unix)]
 mod deferred_delivery_cases;
@@ -132,6 +136,9 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
         let message = read_message(reader);
         if message.get("id") == Some(&json!(id)) {
             return message;
+        }
+        if message.get("event") == Some(&json!("output")) {
+            unread_output::stash(message);
         }
     }
 }
@@ -261,43 +268,6 @@ fn request(
 fn expect_ok(response: Value) -> Value {
     assert_eq!(response["ok"], json!(true), "request failed: {response}");
     response["payload"].clone()
-}
-
-#[cfg(unix)]
-fn collect_output(
-    reader: &mut BufReader<TcpStream>,
-    session_id: &str,
-    duration: Duration,
-) -> String {
-    let deadline = Instant::now() + duration;
-    let mut output = String::new();
-    reader
-        .get_mut()
-        .set_read_timeout(Some(Duration::from_millis(300)))
-        .unwrap();
-    while Instant::now() < deadline {
-        let mut line = String::new();
-        match reader.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-                let message: Value = serde_json::from_str(line.trim_end()).unwrap();
-                if message.get("event") == Some(&json!("output"))
-                    && message["payload"]["sessionId"] == json!(session_id)
-                {
-                    let bytes = STANDARD
-                        .decode(message["payload"]["dataBase64"].as_str().unwrap())
-                        .unwrap();
-                    output.push_str(&String::from_utf8_lossy(&bytes));
-                }
-            }
-            Err(_) => {}
-        }
-    }
-    reader
-        .get_mut()
-        .set_read_timeout(Some(Duration::from_secs(15)))
-        .unwrap();
-    output
 }
 
 #[cfg(unix)]

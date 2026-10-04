@@ -140,22 +140,34 @@ final class const TerminalHostAttachment({
   required final Uint8List snapshot,
   final int? exitCode,
   final String? initialCommandOverride,
+  final String? snapshotText,
 }) {
+  /// Whether the reply carried scrollback, as bytes or as text the socket
+  /// isolate already decoded.
+  bool get hasSnapshot =>
+      snapshot.isNotEmpty || (snapshotText?.isNotEmpty ?? false);
+
   factory fromJson(Map<String, Object?> json) {
     final override = json['initialCommandOverride'];
     return TerminalHostAttachment(
       sessionId: json['sessionId'] as String,
       created: json['created'] == true,
       running: json['running'] == true,
-      snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
+      snapshot: decodeTerminalHostBytes(json[terminalHostSnapshotKey]),
       exitCode: json['exitCode'] is int ? json['exitCode'] as int : null,
       // Set when the agent in a plain tab reported a resumable conversation:
       // the resume form of the tab's command, typed in place of the original.
       initialCommandOverride: override is String && override.isNotEmpty
           ? override
           : null,
+      snapshotText: _snapshotText(json),
     );
   }
+}
+
+String? _snapshotText(Map<String, Object?> json) {
+  final text = json[terminalHostSnapshotTextKey];
+  return text is String ? text : null;
 }
 
 /// How the host answered a resume.
@@ -168,14 +180,16 @@ final class const TerminalHostResume({
   required final bool isDelta,
   required final Uint8List snapshot,
   final bool resetInteractionModes = false,
+  final String? snapshotText,
 }) {
   factory fromJson(Map<String, Object?> json) {
     return TerminalHostResume(
       // A host that predates delta resumes answers with the whole scrollback
       // and no `delta` field, so an absent flag has to mean "replace".
       isDelta: json['delta'] == true,
-      snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
+      snapshot: decodeTerminalHostBytes(json[terminalHostSnapshotKey]),
       resetInteractionModes: json['resetInteractionModes'] == true,
+      snapshotText: _snapshotText(json),
     );
   }
 }

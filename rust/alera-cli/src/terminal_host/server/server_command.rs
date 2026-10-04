@@ -122,6 +122,12 @@ pub enum ServerCommand {
         session_id: String,
         generation: u64,
     },
+    /// Wakes the actor as soon as a checkpoint worker finishes, so the PTY
+    /// paused for that snapshot resumes without waiting for the next tick.
+    CheckpointJobFinished {
+        session_id: String,
+        job: tokio::task::Id,
+    },
     ShutdownTick {
         generation: u64,
     },

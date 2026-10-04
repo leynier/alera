@@ -375,9 +375,12 @@ final class const TerminalPtyOutputEvent(final Uint8List data)
 final class const TerminalPtyOutputTextEvent(final String text)
     extends TerminalPtySessionEvent;
 
+/// Scrollback that replaces the emulator. [text], when present, is [data]
+/// already decoded off the UI isolate and is used instead of decoding it here.
 final class const TerminalPtySnapshotEvent(
   final Uint8List data, {
   final bool resetInteractionModes = false,
+  final String? text,
 }) extends TerminalPtySessionEvent;
 
 final class const TerminalPtyExitEvent(

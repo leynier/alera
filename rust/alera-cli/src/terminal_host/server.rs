@@ -221,6 +221,7 @@ mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
+mod pty_exit_deferral;
 mod pull_request_watch_evaluation;
 mod pull_request_watch_requests;
 #[cfg(test)]
@@ -698,7 +699,10 @@ impl ServerActor {
                     .await
             }
             ServerCommand::HistoryWriterReady { session_id } => {
-                self.handle_history_writer_ready(&session_id)
+                self.handle_history_writer_ready(&session_id).await
+            }
+            ServerCommand::CheckpointJobFinished { session_id, job } => {
+                self.handle_checkpoint_job_finished(&session_id, job).await
             }
             ServerCommand::CheckpointTick {
                 session_id,

@@ -1,10 +1,21 @@
-import 'dart:math' show max;
+import 'dart:async';
+import 'dart:math' show max, min;
 
 import 'package:alera/src/features/workbench/domain/terminal_search.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xterm2/xterm.dart' as xterm;
 
 typedef TerminalSearchLineScroller = void Function(int lineIndex);
+
+/// Shortest gap between two refreshes driven by terminal output.
+///
+/// Every flush of a streaming terminal notified the controller, and each
+/// refresh rebuilds and sorts the whole match list, so an open search over a
+/// busy agent re-ran on every frame. Ten updates a second is still live to a
+/// reader; output in between is picked up by the trailing refresh.
+const Duration terminalSearchOutputRefreshInterval = Duration(
+  milliseconds: 100,
+);
 
 final class TerminalSearchController._(
   var xterm.Terminal _terminal,
@@ -22,6 +33,15 @@ final class TerminalSearchController._(
   }
 
   xterm.Buffer? _indexedBuffer;
+
+  /// Top of the viewport at the previous refresh. Only the viewport is
+  /// rewritten and new lines land below it, so everything from here down is
+  /// rescanned. Found by identity, because coalesced output can scroll more
+  /// than a screen past it, and once the scrollback is full the line count
+  /// no longer says how far.
+  xterm.BufferLine? _indexedViewportTop;
+  Timer? _outputRefreshTimer;
+  bool _outputRefreshPending = false;
   int _indexedHeight = -1;
   int _indexedWidth = -1;
   bool _needsFullRefresh = true;
@@ -70,6 +90,7 @@ final class TerminalSearchController._(
       return;
     }
     _isOpen = false;
+    _cancelOutputRefresh();
     // Keep the query for the next invocation, but make reopening authoritative
     // after output that arrived while the overlay was hidden. The match index
     // is released because reopening rescans anyway; keeping it would retain
@@ -130,9 +151,11 @@ final class TerminalSearchController._(
     _terminal = terminal;
     _terminal.addListener(_handleTerminalChanged);
     _indexedBuffer = null;
+    _indexedViewportTop = null;
     _indexedHeight = -1;
     _indexedWidth = -1;
     _needsFullRefresh = true;
+    _cancelOutputRefresh();
     if (_isOpen && _query.isNotEmpty) {
       _refresh(forceFull: true);
       notifyListeners();
@@ -147,9 +170,32 @@ final class TerminalSearchController._(
       _needsFullRefresh = true;
       return;
     }
+    // The first change refreshes at once; changes inside the window are
+    // folded into one refresh when it ends.
+    if (_outputRefreshTimer != null) {
+      _outputRefreshPending = true;
+      return;
+    }
+    _refreshForOutput();
+  }
+
+  void _refreshForOutput() {
+    _outputRefreshPending = false;
+    _outputRefreshTimer = Timer(terminalSearchOutputRefreshInterval, () {
+      _outputRefreshTimer = null;
+      if (_outputRefreshPending && _isOpen && _query.isNotEmpty) {
+        _refreshForOutput();
+      }
+    });
     if (_refresh()) {
       notifyListeners();
     }
+  }
+
+  void _cancelOutputRefresh() {
+    _outputRefreshTimer?.cancel();
+    _outputRefreshTimer = null;
+    _outputRefreshPending = false;
   }
 
   bool _refresh({bool forceFull = false}) {
@@ -163,30 +209,38 @@ final class TerminalSearchController._(
 
     final buffer = _terminal.buffer;
     final height = buffer.height;
+    final viewportTop = _indexedViewportTop;
+    final viewportTopIndex = viewportTop == null
+        ? null
+        : _lineIndex(buffer, viewportTop);
     final shouldScanAll =
         forceFull ||
         _needsFullRefresh ||
         !identical(_indexedBuffer, buffer) ||
         _indexedWidth != _terminal.viewWidth ||
         _indexedHeight < 0 ||
-        height < _indexedHeight;
+        height < _indexedHeight ||
+        (_indexedHeight > 0 && viewportTopIndex == null);
     final selected = selectedMatch;
 
     if (shouldScanAll) {
       _matchesByLine.clear();
       _scanLines(buffer, 0, height);
     } else {
-      // A normal output batch appends from the previous tail. When the line
-      // count is stable, rescan only the visible tail because TUIs rewrite
-      // their viewport instead of the whole scrollback.
-      final start = height > _indexedHeight
-          ? max(0, _indexedHeight - 1)
-          : max(0, height - _terminal.viewHeight);
+      // Scrollback above the previous viewport is immutable; output and TUI
+      // redraws only touch that viewport and the lines appended below it.
+      final start = min(
+        viewportTopIndex ?? 0,
+        max(0, height - _terminal.viewHeight),
+      );
       _removeMatchesInRange(buffer, start, height);
       _scanLines(buffer, start, height);
     }
 
     _indexedBuffer = buffer;
+    _indexedViewportTop = height > 0
+        ? buffer.lines[max(0, height - _terminal.viewHeight)]
+        : null;
     _indexedHeight = height;
     _indexedWidth = _terminal.viewWidth;
     _needsFullRefresh = false;
@@ -293,6 +347,7 @@ final class TerminalSearchController._(
 
   @override
   void dispose() {
+    _cancelOutputRefresh();
     _terminal.removeListener(_handleTerminalChanged);
     super.dispose();
   }
