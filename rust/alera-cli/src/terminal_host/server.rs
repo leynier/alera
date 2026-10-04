@@ -600,8 +600,10 @@ impl ServerActor {
                 payload,
                 result,
             } => {
-                self.finish_remote_terminal_lifecycle(client_id, request_id, verb, payload, result)
-                    .await;
+                Box::pin(self.finish_remote_terminal_lifecycle(
+                    client_id, request_id, verb, payload, result,
+                ))
+                .await;
             }
             ServerCommand::OwnerTerminalLifecycleFinished {
                 client_id,
@@ -631,7 +633,9 @@ impl ServerActor {
             command @ (ServerCommand::RelayActivity { .. }
             | ServerCommand::RelayStatus { .. }
             | ServerCommand::RelayClientConnected { .. }
-            | ServerCommand::RelayClientLine { .. }) => self.handle_relay_command(command).await,
+            | ServerCommand::RelayClientLine { .. }) => {
+                Box::pin(self.handle_relay_command(command)).await
+            }
             ServerCommand::ClientConnected { id, handle, kind } => {
                 self.clients.insert(
                     id,
@@ -650,15 +654,12 @@ impl ServerActor {
                     },
                 );
             }
-            ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
+            ServerCommand::ClientLine { id, line } => Box::pin(self.handle_line(id, line)).await,
             ServerCommand::HistoryRequestRetry {
                 client_id,
                 request_id,
                 line,
-            } => {
-                self.handle_history_request_retry(client_id, request_id, line)
-                    .await
-            }
+            } => Box::pin(self.handle_history_request_retry(client_id, request_id, line)).await,
             ServerCommand::ClientDisconnected { id } => {
                 self.account_push.relay_presence.remove(&id);
                 self.dispose_client(id).await;
