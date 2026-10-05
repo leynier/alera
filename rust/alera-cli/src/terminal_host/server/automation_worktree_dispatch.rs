@@ -124,7 +124,7 @@ impl ServerActor {
                             .as_deref()
                             .unwrap_or("managed workspace setup could not be prepared")
                             .to_string();
-                                self.block_run(run, &reason).await;
+                        self.block_run(run, &reason).await;
                         return Ok(None);
                     }
                 }
