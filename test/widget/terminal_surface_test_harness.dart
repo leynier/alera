@@ -39,6 +39,7 @@ Future<void> _pumpTerminalSurface(
   WidgetTester tester,
   TerminalSessionHandle session, {
   AleraSettings? settings,
+  bool refreshOnWorkspaceEntry = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -49,7 +50,13 @@ Future<void> _pumpTerminalSurface(
       ],
       child: MaterialApp(
         home: Scaffold(
-          body: SizedBox.expand(child: TerminalSurface(session: session)),
+          body: WorkspaceTerminalRefresh(
+            workspaceId: refreshOnWorkspaceEntry ? session.workspaceId : null,
+            ready: true,
+            terminalTabIds: <String>[session.tabId],
+            terminalRuntime: _SurfaceRefreshRuntime(session),
+            child: SizedBox.expand(child: TerminalSurface(session: session)),
+          ),
         ),
       ),
     ),
@@ -84,6 +91,9 @@ Offset _cellCenter(WidgetTester tester, xterm.CellOffset offset) {
 }
 
 class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
+  _FakeTerminalPtySessionFactory({this.onStart});
+
+  final void Function(_FakeTerminalPtySession)? onStart;
   final List<_FakeTerminalPtySession> sessions = <_FakeTerminalPtySession>[];
 
   @override
@@ -92,17 +102,21 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
     required String workspaceId,
     required String tabId,
   }) {
-    final session = _FakeTerminalPtySession();
+    final session = _FakeTerminalPtySession(onStart: onStart);
     sessions.add(session);
     return session;
   }
 }
 
 class _FakeTerminalPtySession implements TerminalPtySession {
+  _FakeTerminalPtySession({this.onStart});
+
+  final void Function(_FakeTerminalPtySession)? onStart;
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
   final List<List<int>> writes = <List<int>>[];
   final List<bool> outputPausedCalls = <bool>[];
+  final refreshViewportCalls = <(int, int)>[];
   GhosttyTerminalShellLaunch? startedLaunch;
   int? startedCols;
   int? startedRows;
@@ -130,6 +144,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     startedWorkingDirectory = workingDirectory;
     startedCols = cols;
     startedRows = rows;
+    onStart?.call(this);
     await onProcessCreated?.call();
   }
 
@@ -151,7 +166,9 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     int rows,
     int cellWidthPx,
     int cellHeightPx,
-  ) async {}
+  ) async {
+    refreshViewportCalls.add((cols, rows));
+  }
 
   @override
   Future<void> setOutputPaused(bool paused) async {

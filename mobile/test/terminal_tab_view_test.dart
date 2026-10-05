@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,8 +24,10 @@ import 'support/memory_accessory_layout_repository.dart';
 
 part 'terminal_tab_view_clipboard_cases.dart';
 part 'terminal_tab_view_test_support.dart';
+part 'terminal_tab_entry_refresh_test_cases.dart';
 
 void main() {
+  _registerTerminalTabEntryRefreshTests();
   _registerTerminalClipboardSecurityTests();
   testWidgets(
     'Refresh control remounts the view and preserves terminal state',
@@ -82,7 +87,7 @@ void main() {
         before.viewHeight,
       );
       expect(_resizeCalls(client), <String>[
-        ..._pulsedResizeCalls(
+        ..._entryRefreshResizeCalls(
           'session-tab-1',
           before.viewWidth,
           before.viewHeight,
@@ -250,7 +255,7 @@ void main() {
     // host's.
     expect(
       _resizeCalls(client),
-      _pulsedResizeCalls(
+      _entryRefreshResizeCalls(
         'session-tab-1',
         terminal.viewWidth,
         terminal.viewHeight,
@@ -348,7 +353,7 @@ void main() {
     final terminal = _terminalOf(tester);
     expect(
       _resizeCalls(client),
-      _pulsedResizeCalls(
+      _entryRefreshResizeCalls(
         'session-tab-1',
         terminal.viewWidth,
         terminal.viewHeight,

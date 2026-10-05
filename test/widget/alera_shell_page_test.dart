@@ -68,6 +68,7 @@ part 'alera_shell_page_test_harness.dart';
 part 'alera_shell_page_fixtures.dart';
 part 'alera_shell_page_runtime_test_harness.dart';
 part 'alera_shell_page_workbench_test_cases.dart';
+part 'alera_shell_page_terminal_refresh_test_cases.dart';
 part 'alera_shell_page_shortcut_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_mutation_test_cases.dart';
@@ -174,6 +175,7 @@ class _ShellAgentProfiles extends AgentProfiles {
 }
 
 void main() {
+  _registerAleraShellTerminalRefreshTests();
   _registerAleraShellWorkbenchTests();
   _registerAleraShellShortcutTests();
   _registerAleraShellSidebarActionTests();

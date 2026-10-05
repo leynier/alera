@@ -108,6 +108,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
       StreamController<TerminalRuntimeExitEvent>.broadcast();
   final List<String> closedWorkspaceIds = <String>[];
   final List<String> closedTabIds = <String>[];
+  final startCompleters = <String, Completer<void>>{};
 
   @override
   Stream<TerminalRuntimeExitEvent> get exits => _exitController.stream;
@@ -125,7 +126,11 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }) {
     return _sessions.putIfAbsent(
       tab.id,
-      () => _FakeTerminalSessionHandle(workspace: workspace, tab: tab),
+      () => _FakeTerminalSessionHandle(
+        workspace: workspace,
+        tab: tab,
+        startCompleter: startCompleters[tab.id],
+      ),
     );
   }
 
@@ -205,9 +210,15 @@ class _FakeTerminalRuntime implements TerminalRuntime {
 class _FakeTerminalSessionHandle({
   required final Workspace workspace,
   required final WorkspaceTabRecord tab,
+  final Completer<void>? startCompleter,
 }) extends TerminalSessionHandle {
   bool _started = false;
+  bool _starting = false;
   int visibilityLeases = 0;
+  int refreshRenderingCalls = 0;
+
+  @override
+  bool get isVisible => visibilityLeases > 0;
 
   @override
   String get tabId => tab.id;
@@ -227,14 +238,26 @@ class _FakeTerminalSessionHandle({
   bool get isRunning => _started;
 
   @override
-  bool get isStarting => false;
+  bool get isStarting => _starting;
 
   @override
   String? get errorMessage => null;
 
   @override
   Future<void> ensureStarted() async {
+    if (startCompleter != null) {
+      _starting = true;
+      notifyListeners();
+      await startCompleter!.future;
+      _starting = false;
+    }
     _started = true;
+    if (startCompleter != null) notifyListeners();
+  }
+
+  @override
+  Future<void> refreshRendering() async {
+    refreshRenderingCalls++;
   }
 
   @override

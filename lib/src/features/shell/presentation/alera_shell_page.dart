@@ -45,6 +45,7 @@ import 'package:alera/src/features/workbench/presentation/agent_profile_launch_d
 import 'package:alera/src/features/workbench/presentation/background_setup_job_host.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_terminal_refresh.dart';
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

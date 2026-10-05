@@ -357,6 +357,16 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     widget.onViewportResize(width, height);
   }
 
+  bool get hasMeasuredViewport {
+    final render = _viewKey.currentState?.renderTerminal;
+    return mounted &&
+        _restoreProgress.value == null &&
+        render != null &&
+        render.attached &&
+        render.hasSize &&
+        !render.size.isEmpty;
+  }
+
   Future<void> refreshRendering() async {
     if (!mounted) {
       return;

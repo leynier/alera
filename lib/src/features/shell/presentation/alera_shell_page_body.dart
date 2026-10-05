@@ -65,6 +65,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
           activeProject: state.activeProject,
           activeWorkspace: workspace,
           bootstrapped: state.bootstrapped,
+          sleepSnapshotReady: state.sleepSnapshotReady,
           collapsed: state.collapsed,
           error: state.error,
           hasProjects: state.projects.isNotEmpty,
@@ -452,7 +453,20 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         ),
       ),
     );
-    return Stack(children: <Widget>[content, const BackgroundSetupJobHost()]);
+    return WorkspaceTerminalRefresh(
+      workspaceId: showRunBoard || showAutomations ? null : workspace?.id,
+      ready:
+          shell.bootstrapped &&
+          shell.sleepSnapshotReady &&
+          shell.layout != null,
+      terminalTabIds: <String>[
+        for (final tab in shell.tabs)
+          if (tab.kind == WorkspaceTabKind.terminal) tab.id,
+      ],
+      terminalRuntime: ref.read(terminalRuntimeProvider),
+      selectedTabId: WorkspacePanel.tabId(panel.focusedKey),
+      child: Stack(children: <Widget>[content, const BackgroundSetupJobHost()]),
+    );
   }
 
   Future<bool> _confirmCloseDirtyTabs(

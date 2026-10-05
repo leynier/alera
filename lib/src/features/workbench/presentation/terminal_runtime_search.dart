@@ -82,6 +82,7 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
 
   @override
   void dispose({bool terminatePty = true}) {
+    _notifyDisposing();
     _disposed = true;
     _startAttempt += 1;
     _outputVisibilityGeneration += 1;

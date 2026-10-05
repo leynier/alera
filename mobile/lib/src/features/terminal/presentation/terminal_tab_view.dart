@@ -37,6 +37,7 @@ import 'package:xterm2/xterm.dart';
 part 'terminal_attachment_actions.dart';
 part 'terminal_surface.dart';
 part 'terminal_tab_state_widgets.dart';
+part 'terminal_tab_refresh.dart';
 
 /// One terminal tab filling the available space, with the quick-key bar and
 /// the compose/direct input modes stacked above the keyboard.
@@ -56,6 +57,13 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
   final GlobalKey<_TerminalSurfaceState> _surfaceKey =
       GlobalKey<_TerminalSurfaceState>();
   bool _refreshing = false;
+  bool _entryRefreshPending = true;
+  bool _entryRefreshScheduled = false;
+  bool _entryVisible = false;
+  int _refreshEpoch = 0;
+  int _viewportEpoch = 0;
+  int _pendingViewportResizes = 0;
+
   // Latches once the tab has attached, so a reconnect keeps the input bars
   // that a first start has not earned yet.
   bool _hadSession = false;
@@ -66,6 +74,30 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         widget.tabId,
         observe: widget.observe,
       );
+
+  void _setRefreshing(bool value) {
+    setState(() => _refreshing = value);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncRefreshVisibility();
+  }
+
+  @override
+  void didUpdateWidget(TerminalTabView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((
+          oldWidget.hostId,
+          oldWidget.workspaceId,
+          oldWidget.tabId,
+          oldWidget.observe,
+        ) !=
+        (widget.hostId, widget.workspaceId, widget.tabId, widget.observe)) {
+      _resetEntryRefresh(resetViewport: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +128,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         inputMode: widget.observe ? TerminalInputMode.compose : inputMode,
         allowOsc52Clipboard: allowOsc52Clipboard,
         onInput: (data) => notifier.write(utf8.encode(data)),
-        onViewportResize: notifier.resize,
+        onViewportResize: _resizeViewport,
         onReconnect: notifier.reconnect,
       ),
       AsyncError(:final error) => _SessionError(
@@ -219,21 +251,6 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not paste clipboard')),
         );
-      }
-    }
-  }
-
-  Future<void> _refreshTerminal() async {
-    if (_refreshing) {
-      return;
-    }
-    setState(() => _refreshing = true);
-    try {
-      await ref.read(_sessionProvider.notifier).refreshViewport();
-      await _surfaceKey.currentState?.refreshRendering();
-    } finally {
-      if (mounted) {
-        setState(() => _refreshing = false);
       }
     }
   }
