@@ -77,6 +77,8 @@ void main() {
     expect(rustTests, contains('--test-threads=1'));
     expect(rustTests, contains('orchestration_review_regressions'));
     expect(rustTests, contains('--lib --bins'));
+    expect(rustChecks, contains('ALERA_BUILD_COMMIT=unknown'));
+    expect(rustChecks, contains('tool/ci/test_rust_build_cache.sh'));
     final cargoTests = rustTests
         .split('\n')
         .map((line) => line.trim())
@@ -87,17 +89,26 @@ void main() {
       expect(command, contains('--workspace'));
       expect(command, contains('--locked'));
       expect(command, isNot(contains('--exclude')));
-      expect(command, isNot(contains('--no-run')));
       expect(command, isNot(contains('--doc')));
       expect(command, isNot(contains('-p alera-cli')));
     }
     expect(
-      cargoTests,
-      contains(
-        'cargo test --workspace --locked --test orchestration_review_regressions \\',
-      ),
+      rustTests,
+      contains('workspace_test --test orchestration_review_regressions'),
     );
     expect(hostCompat, contains('--workspace'));
     expect(hostCompat, isNot(contains('-p alera-cli')));
+  });
+
+  test('warms Rust source changes by compiling the PR test graph', () {
+    final warm = File('.github/workflows/warm-cache.yml').readAsStringSync();
+    final checks = File('.github/actions/setup-rust-checks/action.yml')
+        .readAsStringSync();
+    final warmRust = workflowJob(warm, 'warm-rust');
+    expect(warm, contains("- 'rust/**'"));
+    expect(warm, contains("- 'tool/ci/run_rust_workspace_tests.sh'"));
+    expect(warm, contains("- 'tool/ci/test_rust_build_cache.sh'"));
+    expect(warmRust, contains('check: test-build'));
+    expect(checks, contains('tool/ci/run_rust_workspace_tests.sh --no-run'));
   });
 }

@@ -10,12 +10,14 @@ fn main() {
         // stack reservation it receives by default on Unix hosts.
         println!("cargo:rustc-link-arg-bin=alera=/STACK:8388608");
     }
-    watch_git_state();
-
     let commit = std::env::var("ALERA_BUILD_COMMIT")
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .or_else(git_commit)
+        .or_else(|| {
+            // Explicit check identities must not depend on the checkout's HEAD.
+            watch_git_state();
+            git_commit()
+        })
         .unwrap_or_else(|| "unknown".to_string());
     println!("cargo:rustc-env=ALERA_BUILD_COMMIT={commit}");
 

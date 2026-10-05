@@ -9,8 +9,9 @@ inputs:
   check:
     description: >-
       Cargo check to run after setup. `clippy` runs fmt plus clippy. `test`
-      runs the workspace tests. `all` runs clippy then test, for cache warming.
-      `setup` only prepares the environment.
+      runs the workspace tests. `test-build` compiles the same tests without
+      executing them. `all` runs clippy then test. `setup` only prepares the
+      environment.
     required: false
     default: setup
 
@@ -36,10 +37,17 @@ runs:
           # Dev-profile debuginfo dominates link time and is unused by these tests.
           echo "CARGO_PROFILE_DEV_DEBUG=line-tables-only"
           echo "RUSTFLAGS=-C link-arg=-fuse-ld=lld"
+          # Check artifacts are not distributed and can share keys across HEADs.
+          echo "ALERA_BUILD_COMMIT=unknown"
         } >> "$GITHUB_ENV"
 
     - name: Setup Rust and sccache
       uses: ./.github/actions/setup-rust-sccache
+
+    - name: Verify Rust build cache contracts
+      if: inputs.check == 'test' || inputs.check == 'test-build' || inputs.check == 'all'
+      shell: bash
+      run: bash tool/ci/test_rust_build_cache.sh
 
     - name: Format
       if: inputs.check == 'clippy' || inputs.check == 'all'
@@ -64,3 +72,8 @@ runs:
       if: inputs.check == 'test' || inputs.check == 'all'
       shell: bash
       run: bash tool/ci/run_rust_workspace_tests.sh
+
+    - name: Compile tests
+      if: inputs.check == 'test-build'
+      shell: bash
+      run: bash tool/ci/run_rust_workspace_tests.sh --no-run

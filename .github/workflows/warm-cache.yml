@@ -15,7 +15,10 @@ on:
       - main
     paths:
       - 'pubspec.lock'
-      - 'rust/Cargo.lock'
+      - 'rust/**'
+      - 'tool/ci/check_rust_workspace.sh'
+      - 'tool/ci/run_rust_workspace_tests.sh'
+      - 'tool/ci/test_rust_build_cache.sh'
       - 'third_party/**'
       - '.github/actions/**'
       - '.github/workflows/warm-cache.yml'
@@ -120,7 +123,9 @@ jobs:
       matrix:
         include:
           - name: clippy
+            check: clippy
           - name: test
+            check: test-build
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -130,7 +135,7 @@ jobs:
       - name: Setup Rust checks
         uses: ./.github/actions/setup-rust-checks
         with:
-          check: ${{ matrix.name }}
+          check: ${{ matrix.check }}
 
       - name: Report sccache statistics
         if: always()
