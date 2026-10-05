@@ -29,11 +29,15 @@ fn detect_agent(env: &impl Fn(&str) -> Option<String>) -> Option<DetectedAgent> 
             pid: env("CLAUDE_PID").and_then(|pid| pid.parse().ok()),
         });
     }
-    env("CODEX_THREAD_ID").map(|thread| DetectedAgent {
-        agent_type: "codex",
-        session_id: Some(thread),
-        pid: None,
-    })
+    // Codex hooks report the session id, which a sub-agent thread shares with
+    // its root. Releases before `CODEX_SESSION_ID` only export the thread.
+    env("CODEX_SESSION_ID")
+        .or_else(|| env("CODEX_THREAD_ID"))
+        .map(|session| DetectedAgent {
+            agent_type: "codex",
+            session_id: Some(session),
+            pid: None,
+        })
 }
 
 pub(crate) fn link_request(
@@ -181,20 +185,36 @@ mod tests {
     }
 
     #[test]
-    fn inside_codex_the_thread_is_the_conversation() {
+    fn inside_codex_the_hook_session_is_the_conversation() {
         let request = link_request(
             &TabLinkAgentArgs {
                 tab: Some("tab-2".to_string()),
                 ..args()
             },
+            env(&[
+                ("CODEX_SESSION_ID", "session-1"),
+                ("CODEX_THREAD_ID", "thread-9"),
+                ("ALERA_TAB_ID", "tab-1"),
+            ]),
+        )
+        .unwrap();
+
+        assert_eq!(request["agentType"], "codex");
+        assert_eq!(request["nativeSessionId"], "session-1");
+        assert_eq!(request["tabId"], "tab-2");
+        assert_eq!(request["agentPid"], Value::Null);
+    }
+
+    #[test]
+    fn an_older_codex_without_a_session_id_falls_back_to_the_thread() {
+        let request = link_request(
+            &args(),
             env(&[("CODEX_THREAD_ID", "thread-9"), ("ALERA_TAB_ID", "tab-1")]),
         )
         .unwrap();
 
         assert_eq!(request["agentType"], "codex");
         assert_eq!(request["nativeSessionId"], "thread-9");
-        assert_eq!(request["tabId"], "tab-2");
-        assert_eq!(request["agentPid"], Value::Null);
     }
 
     #[test]

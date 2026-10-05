@@ -86,7 +86,7 @@ Inside `tmux`, `screen` or `zellij` the tab's PTY shows the multiplexer client, 
 
 ## Linking an agent to its tab again
 
-When a tab stops following its agent (the hooks name a terminal or tab the host no longer matches, or an earlier process makes the agent look nested), `alera tab link-agent` binds the running agent to the tab again through `agentPresence.link` (capability `agentPresenceLinkV1`). Inside Claude Code and Codex it reads the agent type, conversation id and process id from the agent's environment; otherwise they are flags.
+When a tab stops following its agent (the hooks name a terminal or tab the host no longer matches, or an earlier process makes the agent look nested), `alera tab link-agent` binds the running agent to the tab again through `agentPresence.link` (capability `agentPresenceLinkV1`). Inside Claude Code (`CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PID`) and Codex (`CODEX_SESSION_ID`, the id its hooks report as `session_id`, or `CODEX_THREAD_ID` on releases without it) it reads the agent type, conversation id and process id from the agent's environment; otherwise they are flags.
 
 The host replaces the tab's presence with that identity (agent type, conversation id, process id, the PTY's foreground process group) and drops the turn id and the Claude sub-agent roster, saves the conversation for resume, and, when the caller's `ALERA_TERMINAL_SESSION_ID` (or `--source-terminal`) names another terminal, routes later local hooks from that terminal with the same conversation id or process id to the tab (`agent_hook_links.rs`). Routes are kept in memory, end with the target terminal, and are replaced by the next link into the same terminal. Relayed hooks are not routed.
 

@@ -77,7 +77,7 @@ If no runtime host is available, retry the same managed CLI command once; it can
 
 A tab can stop reflecting its agent's status (working, waiting, done) while the agent keeps running: the agent's hooks report through the terminal identity in its launch environment, and the host ignores them when that identity no longer matches the tab or when it takes the agent for a nested one. `alera tab link-agent` binds the running agent to the tab again. It does not explain or fix why the link was lost.
 
-Run it from the agent's own shell tool. Inside Claude Code (`CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PID`) and Codex (`CODEX_THREAD_ID`) every option is detected, and the tab defaults to `ALERA_TAB_ID`:
+Run it from the agent's own shell tool. Inside Claude Code (`CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PID`) and Codex (`CODEX_SESSION_ID`, or `CODEX_THREAD_ID` on releases without it) every option is detected, and the tab defaults to `ALERA_TAB_ID`:
 
 ```bash
 alera tab link-agent
