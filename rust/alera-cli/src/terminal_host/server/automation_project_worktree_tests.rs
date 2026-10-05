@@ -216,3 +216,28 @@ async fn project_worktree_run_files_its_workspace_under_the_chosen_tags_and_sect
     assert_eq!(saved.tag_ids, vec![tag.id]);
     assert_eq!(saved.section_id.as_deref(), Some(section.id.as_str()));
 }
+
+#[tokio::test]
+async fn project_worktree_target_refuses_a_project_with_no_folder_on_this_computer() {
+    let mut fixture = harness().await;
+    let mut definition = project_worktree(&mut fixture).await;
+    let store = fixture.actor.runtime_store.clone();
+    let mut project = store.find_project("project-1").await.unwrap().unwrap();
+    project.id = "project-remote".into();
+    project.repo_path = "/remote/project".into();
+    store.upsert_project(project).await.unwrap();
+    store
+        .register_project_checkout("project-remote", "ssh", "/remote/project")
+        .await
+        .unwrap();
+    definition.project_id = Some("project-remote".into());
+    if let AutomationTarget::ProjectWorktree { project_id, .. } = &mut definition.target {
+        *project_id = "project-remote".into();
+    }
+    let error = fixture
+        .actor
+        .automation_target_location(&definition)
+        .await
+        .unwrap_err();
+    assert!(error.wire_message().contains("no folder on this computer"));
+}

@@ -45,7 +45,9 @@ AutomationDraft chooseAutomationTargetType(
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
     case AutomationTargetType.projectWorktree:
-      if (project?.isGitRepository == true) filled[.projectId] = project!.id;
+      if (project != null && project.isGitRepository && !project.isRemoteOnly) {
+        filled[.projectId] = project.id;
+      }
     case AutomationTargetType.projectCheckout:
       if (project != null) filled[.projectId] = project.id;
     case AutomationTargetType.existingTab:

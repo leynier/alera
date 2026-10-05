@@ -43,7 +43,7 @@ class const AutomationProjectWorktreeFields({
     final projectId = draft.field(.projectId);
     final projects = <AleraDropdownFieldEntry<String?>>[
       for (final project in names.projects)
-        if (project.isGitRepository)
+        if (project.isGitRepository && !project.isRemoteOnly)
           AleraDropdownFieldEntry(value: project.id, label: project.name),
     ];
     return Column(

@@ -81,7 +81,9 @@ impl ServerActor {
             workspace_root: None,
             path: None,
             parent_workspace_id: parent_workspace_id.map(str::to_string),
-            host_id: None,
+            // Never follow a project's remote primary host: automation
+            // worktrees are created on this computer only.
+            host_id: Some(alera_core::runtime::LOCAL_HOST_ID.to_string()),
             defer_setup: definition.setup_policy != AutomationSetupPolicy::Wait,
             skip_setup: definition.setup_policy == AutomationSetupPolicy::Skip,
             setup_script_directory: (definition.setup_policy != AutomationSetupPolicy::Wait)

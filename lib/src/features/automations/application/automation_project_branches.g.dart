@@ -68,7 +68,7 @@ final class AutomationProjectBranchesProvider
 }
 
 String _$automationProjectBranchesHash() =>
-    r'825282149b8a5080161f88153d3c9ca07b43b664';
+    r'3f2986fb3b189849402e5c39ac906960753f5728';
 
 final class AutomationProjectBranchesFamily extends $Family
     with

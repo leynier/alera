@@ -19,7 +19,7 @@ Future<AutomationProjectBranches> automationProjectBranches(
       .projects
       .where((item) => item.id == projectId)
       .firstOrNull;
-  if (project == null || !project.isGitRepository) {
+  if (project == null || !project.isGitRepository || project.isRemoteOnly) {
     return (branches: const <String>[], initial: null);
   }
   final branches = await ref

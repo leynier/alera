@@ -70,6 +70,14 @@ impl ServerActor {
                     "project worktree automations require a git repository project",
                 ));
             }
+            // The worktree is created on this computer, so the project folder
+            // must be here too: a remote-only project's repoPath is a path on
+            // another machine and would be read locally by the precheck.
+            if !crate::project_hosts::project_folder_is_local(&self.runtime_store, &project).await {
+                return Err(HostError::state(
+                    "This project has no folder on this computer. Project worktree automations run on this computer only.",
+                ));
+            }
             let path = project.repo_path.clone();
             return Ok(AutomationTargetLocation {
                 project,
