@@ -168,12 +168,22 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
         borderColor: AleraTokens.borderSubtle,
         onPressed: widget.session.composerController.toggle,
       ),
-      AleraIconButton(
-        tooltip: widget.refreshing ? 'Refreshing Terminal' : 'Refresh Terminal',
-        icon: widget.refreshing ? AleraIcons.loading : AleraIcons.refresh,
-        backgroundColor: AleraTokens.surfaceElevated,
-        borderColor: AleraTokens.borderSubtle,
-        onPressed: widget.refreshing ? null : widget.onRefresh,
+      ValueListenableBuilder<TerminalRestoreProgress?>(
+        valueListenable: widget.session.restoreProgress,
+        builder: (context, progress, _) => AleraIconButton(
+          tooltip: widget.refreshing
+              ? 'Refreshing Terminal'
+              : 'Refresh Terminal',
+          icon: widget.refreshing ? AleraIcons.loading : AleraIcons.refresh,
+          backgroundColor: AleraTokens.surfaceElevated,
+          borderColor: AleraTokens.borderSubtle,
+          onPressed:
+              widget.refreshing ||
+                  widget.session.isResumingOutput ||
+                  progress != null
+              ? null
+              : widget.onRefresh,
+        ),
       ),
     ];
     return GestureDetector(
