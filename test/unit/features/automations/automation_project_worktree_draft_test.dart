@@ -63,4 +63,48 @@ void main() {
     expect(draft.field(.agentProfileId), 'codex');
     expect(draft.whereError, isNull);
   });
+
+  test('workspace placement is sent only for targets that create one', () {
+    final placed = projectWorktree()
+        .withTargetField(.workspaceSectionId, 'section-1')
+        .copyWith(workspaceTagIds: <String>['tag-1']);
+    expect(placed.toDefinition()['workspacePlacement'], <String, Object?>{
+      'tagIds': <String>['tag-1'],
+      'sectionId': 'section-1',
+    });
+    final kept = placed.withTargetType(AutomationTargetType.projectCheckout);
+    expect(kept.workspaceSectionId, 'section-1');
+    final freshTab = placed.withTargetType(AutomationTargetType.freshTab);
+    expect(freshTab.workspaceSectionId, isNull);
+    expect(freshTab.toDefinition()['workspacePlacement'], isEmpty);
+  });
+
+  test('a saved placement reopens with its tags and section', () {
+    final record = AutomationRecord.fromJson(<String, Object?>{
+      'id': 'a',
+      'slug': 'a',
+      'name': 'A',
+      'promptTemplate': 'Fix',
+      'state': 'active',
+      'revision': 1,
+      'schedule': <String, Object?>{
+        'recurring': <String, Object?>{'cron': '0 7 * * *', 'timezone': 'UTC'},
+      },
+      'target': <String, Object?>{
+        'projectWorktree': <String, Object?>{
+          'projectId': 'project-1',
+          'sourceBranch': 'main',
+          'agentProfileId': 'codex',
+        },
+      },
+      'workspacePlacement': <String, Object?>{
+        'tagIds': <String>['tag-1'],
+        'sectionId': 'section-1',
+      },
+    });
+    expect(record.workspacePlacement.sectionId, 'section-1');
+    final draft = AutomationDraft.fromRecord(record);
+    expect(draft.workspaceTagIds, <String>['tag-1']);
+    expect(draft.workspaceSectionId, 'section-1');
+  });
 }

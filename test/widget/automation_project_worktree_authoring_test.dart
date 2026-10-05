@@ -1,6 +1,8 @@
 import 'package:alera/src/features/automations/application/automation_project_branches.dart';
+import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_prompt_editor.dart';
+import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +19,16 @@ void main() {
     final container = automationContainer(
       runtime,
       overrides: [
+        automationWorkspaceTagsProvider.overrideWith(
+          (ref) async => <WorkspaceTag>[
+            WorkspaceTag(
+              id: 'tag-1',
+              name: 'Triage',
+              createdAt: DateTime.utc(2026, 10),
+              updatedAt: DateTime.utc(2026, 10),
+            ),
+          ],
+        ),
         automationProjectBranchesProvider.overrideWith(
           (ref, projectId) async =>
               (branches: const <String>['main', 'develop'], initial: 'develop'),
@@ -80,6 +92,10 @@ void main() {
     await tester.tap(find.text('Alera').last);
     await tester.pumpAndSettle();
     expect(find.text('develop'), findsOneWidget);
+    await tester.ensureVisible(find.text('Triage'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Triage'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Create Automation'));
@@ -95,6 +111,9 @@ void main() {
         'nameTemplate': 'auto-{{automation.slug}}-{{run.number}}',
         'agentProfileId': 'codex',
       },
+    });
+    expect(sent['workspacePlacement'], <String, Object?>{
+      'tagIds': <String>['tag-1'],
     });
   });
 }

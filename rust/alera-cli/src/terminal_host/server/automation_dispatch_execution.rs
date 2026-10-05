@@ -427,5 +427,7 @@ impl ServerActor {
 
 #[path = "automation_fresh_tab_dispatch.rs"]
 mod automation_fresh_tab_dispatch;
+#[path = "automation_workspace_placement.rs"]
+mod automation_workspace_placement;
 #[path = "automation_worktree_dispatch.rs"]
 mod automation_worktree_dispatch;

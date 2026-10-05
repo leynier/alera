@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
+import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
@@ -119,6 +120,10 @@ class const _SettingsTab({required final AutomationRecord automation})
   Widget build(BuildContext context, WidgetRef ref) {
     final names = ref.watch(automationWorkbenchContextProvider);
     final schedule = automation.scheduleDetails;
+    final placement = automation.workspacePlacement;
+    final tags = placement.tagIds.isEmpty
+        ? null
+        : ref.watch(automationWorkspaceTagsProvider).value;
     final groups = <(String, String, List<(String, String)>)>[
       (
         'Schedule',
@@ -148,6 +153,13 @@ class const _SettingsTab({required final AutomationRecord automation})
           ('Target', automationTargetLine(automation, names)),
           if (automation.associatedWorkspaceId case final workspace?)
             ('Shown In', names.workspaceName(workspace)),
+          if (placement.sectionId case final section?)
+            ('New Workspace Section', names.sectionName(section)),
+          if (placement.tagIds.isNotEmpty)
+            (
+              'New Workspace Tags',
+              automationWorkspaceTagNames(placement.tagIds, tags),
+            ),
           ('Setup', automationPolicyLabel(automation.setupPolicy)),
           (
             'Cleanup',

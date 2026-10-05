@@ -37,10 +37,14 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state("Automation run no longer exists"))?;
-        self.runtime_store
+        let (run, workspace) = self
+            .runtime_store
             .allocate_automation_shared_workspace(&current, candidate)
             .await
-            .map_err(state_error)
+            .map_err(state_error)?;
+        self.apply_automation_workspace_placement(definition, &workspace)
+            .await;
+        Ok((run, workspace))
     }
 }
 

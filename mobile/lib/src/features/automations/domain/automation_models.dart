@@ -18,6 +18,13 @@ enum AutomationTargetType(final String key, final String label) {
   projectCheckout('projectCheckout', 'Project Folder On A Host'),
   existingTab('existingTab', 'Continue An Agent Conversation');
 
+  /// Whether each run creates its own workspace, which can then be given
+  /// tags and a section.
+  bool get createsWorkspace => switch (this) {
+    managedWorkspace || projectWorktree || projectCheckout => true,
+    freshTab || existingTab => false,
+  };
+
   static AutomationTargetType? fromTarget(JsonMap target) {
     for (final type in values) {
       if (target.containsKey(type.key)) return type;
@@ -149,6 +156,14 @@ class const AutomationRecord({
 
   String? get associatedWorkspaceId =>
       association?.workspaceId ?? originWorkspaceId ?? targetWorkspaceId;
+
+  ({List<String> tagIds, String? sectionId}) get workspacePlacement {
+    final placement = automationJsonMap(raw['workspacePlacement']);
+    return (
+      tagIds: automationJsonStringList(placement['tagIds']),
+      sectionId: automationJsonOptionalString(placement['sectionId']),
+    );
+  }
 
   bool get isCompleted => state == 'archived';
 

@@ -160,6 +160,8 @@ impl ServerActor {
             .await
         {
             Ok((run, workspace)) => {
+                self.apply_automation_workspace_placement(&latest, &workspace)
+                    .await;
                 self.continue_automation_dispatch(&latest, run, workspace, &project)
                     .await
             }

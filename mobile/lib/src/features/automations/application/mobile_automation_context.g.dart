@@ -68,7 +68,7 @@ final class MobileAutomationContextProvider
 }
 
 String _$mobileAutomationContextHash() =>
-    r'648ebba8032f8e6832af7f0a472fd69a525e5de2';
+    r'2937b6dc05321b03eb7a6c201cab023244fa6c7e';
 
 final class MobileAutomationContextFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<MobileAutomationContext>, String> {

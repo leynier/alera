@@ -10,6 +10,7 @@ import 'package:alera/src/features/automations/application/automations_navigatio
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_project_worktree_fields.dart';
+import 'package:alera/src/features/automations/presentation/authoring/automation_workspace_placement_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -72,6 +73,14 @@ class const AutomationWhereStep({
         if (draft.targetType != null) ...<Widget>[
           const SizedBox(height: AleraTokens.space12),
           _TargetFields(provider: provider, draft: draft, names: names),
+          if (draft.targetType!.createsWorkspace) ...<Widget>[
+            const SizedBox(height: AleraTokens.space12),
+            AutomationWorkspacePlacementFields(
+              provider: provider,
+              draft: draft,
+              names: names,
+            ),
+          ],
         ],
       ],
     );

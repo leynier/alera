@@ -97,6 +97,8 @@ impl ServerActor {
         // Persist ownership before anything else can fail, so a retry finds
         // and reuses this worktree instead of colliding with its branch.
         let _ = self.runtime_store.save_automation_run(run).await;
+        self.apply_automation_workspace_placement(definition, &result.workspace)
+            .await;
         let failed_step = || {
             result
                 .setup_report

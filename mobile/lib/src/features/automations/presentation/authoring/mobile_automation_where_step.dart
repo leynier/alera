@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
+import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -288,6 +289,49 @@ class const _MobileTargetFields({
           ],
         ),
       );
+    }
+    if (type.createsWorkspace) {
+      final selected = draft.workspaceTagIds.toSet();
+      children.add(
+        picker(
+          .workspaceSectionId,
+          'New Workspace Section',
+          <AleraDropdownFieldEntry<String?>>[
+            const AleraDropdownFieldEntry(value: null, label: 'No Section'),
+            for (final section in names.sections)
+              AleraDropdownFieldEntry(value: section.id, label: section.name),
+          ],
+        ),
+      );
+      if (names.tags.isNotEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: AleraTokens.spaceMd),
+            child: Wrap(
+              spacing: AleraTokens.spaceSm,
+              runSpacing: AleraTokens.spaceSm,
+              children: <Widget>[
+                for (final tag in names.tags)
+                  AleraChip(
+                    label: tag.name,
+                    leading: selected.contains(tag.id)
+                        ? AleraIcons.check
+                        : AleraIcons.tag,
+                    onTap: () => controller.update(
+                      (current) => current.copyWith(
+                        workspaceTagIds: selected.contains(tag.id)
+                            ? current.workspaceTagIds
+                                  .where((id) => id != tag.id)
+                                  .toList()
+                            : <String>[...current.workspaceTagIds, tag.id],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
     }
     return Column(crossAxisAlignment: .stretch, children: children);
   }

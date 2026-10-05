@@ -154,3 +154,65 @@ async fn project_worktree_run_owns_a_new_parentless_worktree_and_reuses_it_on_re
         .len();
     assert_eq!(worktrees, 2, "main workspace plus one run worktree");
 }
+
+#[tokio::test]
+async fn project_worktree_run_files_its_workspace_under_the_chosen_tags_and_section() {
+    let mut fixture = harness().await;
+    init_repo(&fixture.repo_path);
+    let workspaces = fixture.repo_path.parent().unwrap().join("workspaces");
+    let store = fixture.actor.runtime_store.clone();
+    store
+        .set_workspace_directory(Some(&workspaces.to_string_lossy()))
+        .await
+        .unwrap();
+    let plain = project_worktree(&mut fixture).await;
+    let mut first_run = started_run(&fixture, &plain).await;
+    let first = fixture
+        .actor
+        .project_worktree_automation_workspace(&plain, &mut first_run, worktree_target(&plain))
+        .await
+        .unwrap()
+        .expect("first worktree");
+    assert!(first.tag_ids.is_empty());
+    assert!(first.section_id.is_none());
+    let section = store
+        .create_workspace_section("Automations", &first.id)
+        .await
+        .unwrap();
+    let now = Utc::now();
+    let tag = store
+        .upsert_tag(alera_core::runtime::WorkspaceTag {
+            id: "tag-triage".into(),
+            name: "Triage".into(),
+            color: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .await
+        .unwrap();
+
+    let mut placed = plain.clone();
+    placed.id = "automation-placed".into();
+    placed.slug = "placed".into();
+    if let AutomationTarget::ProjectWorktree { name_template, .. } = &mut placed.target {
+        *name_template = "placed-{{run.number}}".into();
+    }
+    placed.workspace_placement = alera_core::runtime::AutomationWorkspacePlacement {
+        tag_ids: vec![tag.id.clone(), "deleted-tag".into()],
+        section_id: Some(section.id.clone()),
+    };
+    let placed = store
+        .upsert_automation(placed.clone(), placed.created_by.clone())
+        .await
+        .unwrap();
+    let mut run = started_run(&fixture, &placed).await;
+    let workspace = fixture
+        .actor
+        .project_worktree_automation_workspace(&placed, &mut run, worktree_target(&placed))
+        .await
+        .unwrap()
+        .expect("placed worktree");
+    let saved = store.find_workspace(&workspace.id).await.unwrap().unwrap();
+    assert_eq!(saved.tag_ids, vec![tag.id]);
+    assert_eq!(saved.section_id.as_deref(), Some(section.id.as_str()));
+}
