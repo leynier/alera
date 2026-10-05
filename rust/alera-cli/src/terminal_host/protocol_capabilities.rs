@@ -202,6 +202,9 @@ pub const RUNTIME_HOST_RESTART_CAPABILITY: &str = "runtimeHostRestartV1";
 // clients feature-check this instead of the protocol version.
 pub const RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY: &str = "resourceMonitorV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
+// Advertised once the host answers `agentPresence.link`, which binds a running
+// agent to a tab again. Additive: older hosts do not know the verb.
+pub const RUNTIME_HOST_AGENT_PRESENCE_LINK_CAPABILITY: &str = "agentPresenceLinkV1";
 // Advertised once the host writes a rotated log file and reports its directory
 // through `status.get`, so the desktop can collect runtime logs into a
 // diagnostics bundle. Additive: a host without it simply reports no directory,

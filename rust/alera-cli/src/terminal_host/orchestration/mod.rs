@@ -1,3 +1,4 @@
+pub mod agent_hook_links;
 pub mod agent_presence;
 pub mod agent_profile_launch_snapshot;
 pub mod agent_prompt_injection;
