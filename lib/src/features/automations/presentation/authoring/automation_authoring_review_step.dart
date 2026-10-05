@@ -4,6 +4,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
+import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_advanced_section.dart';
@@ -22,6 +23,8 @@ String automationDraftTargetLine(
     null => 'No target chosen',
     AutomationTargetType.freshTab =>
       'New agent tab in ${names.workspaceName(value(.workspaceId))}$profile',
+    AutomationTargetType.projectWorktree =>
+      'New workspace and worktree of ${names.projectName(value(.projectId))} from ${value(.sourceBranch) ?? 'its default branch'}$profile',
     AutomationTargetType.managedWorkspace =>
       'New worktree from ${names.workspaceName(value(.workspaceId))} on ${value(.sourceBranch) ?? 'its branch'}$profile',
     AutomationTargetType.projectCheckout =>
@@ -66,6 +69,18 @@ class _AutomationReviewStepState extends ConsumerState<AutomationReviewStep> {
       ('Where', automationDraftTargetLine(draft, names)),
       if (names.workspace(draft.originWorkspaceId) case final origin?)
         ('Shown In', origin.name),
+      if (draft.targetType?.createsWorkspace == true) ...<(String, String)>[
+        if (draft.workspaceSectionId case final section?)
+          ('Section', names.sectionName(section)),
+        if (draft.workspaceTagIds.isNotEmpty)
+          (
+            'Tags',
+            automationWorkspaceTagNames(
+              draft.workspaceTagIds,
+              ref.watch(automationWorkspaceTagsProvider).value,
+            ),
+          ),
+      ],
     ];
     return Column(
       crossAxisAlignment: .stretch,

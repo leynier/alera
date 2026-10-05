@@ -25,6 +25,8 @@ String mobileAutomationTargetLine(
   final where = switch (automation.targetType) {
     AutomationTargetType.freshTab =>
       'New tab in ${names.workspaceName(automation.targetWorkspaceId)}',
+    AutomationTargetType.projectWorktree =>
+      'New worktree of ${names.projectName(automationJsonOptionalString(details['projectId']))} from ${automationJsonOptionalString(details['sourceBranch']) ?? 'its default branch'}',
     AutomationTargetType.managedWorkspace =>
       'New worktree from ${names.workspaceName(automation.targetWorkspaceId)}',
     AutomationTargetType.projectCheckout =>
@@ -48,6 +50,8 @@ String mobileDraftTargetLine(
     null => 'No target chosen',
     AutomationTargetType.freshTab =>
       'New agent tab in ${names.workspaceName(value(.workspaceId))}$profile',
+    AutomationTargetType.projectWorktree =>
+      'New workspace and worktree of ${names.projectName(value(.projectId))} from ${value(.sourceBranch) ?? 'its default branch'}$profile',
     AutomationTargetType.managedWorkspace =>
       'New worktree from ${names.workspaceName(value(.workspaceId))} on ${value(.sourceBranch) ?? 'its branch'}$profile',
     AutomationTargetType.projectCheckout =>
@@ -60,7 +64,8 @@ String mobileDraftTargetLine(
 String mobileTargetDescription(AutomationTargetType type) => switch (type) {
   AutomationTargetType.freshTab =>
     'Each run opens a new agent tab in a workspace you choose.',
-  AutomationTargetType.managedWorkspace => 'Each run creates its own worktree and branch. Git projects on the paired computer only.',
+  AutomationTargetType.projectWorktree => 'Each run creates a new workspace with its own worktree and branch from a project branch. Git projects on the paired computer only.',
+  AutomationTargetType.managedWorkspace => 'Each run creates a child workspace with its own worktree and branch from a workspace. Git projects on the paired computer only.',
   AutomationTargetType.projectCheckout => 'Each run creates a workspace on a registered project folder. Files are shared.',
   AutomationTargetType.existingTab =>
     'Each run sends the prompt to an agent conversation that is already open.',

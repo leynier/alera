@@ -155,20 +155,25 @@ class _MobileAutomationAuthoringScreenState
                             hostId: widget.hostId,
                           ),
                         },
-                        if (error ?? state.error case final message?)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: AleraTokens.spaceSm,
-                            ),
-                            child: Text(
-                              message,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AleraTokens.error),
-                            ),
-                          ),
                       ],
                     ),
             ),
+            // Beside the buttons, not under the step: a long step would push
+            // the reason Continue did nothing below the fold.
+            if (error ?? state.error case final message?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AleraTokens.spaceLg,
+                  AleraTokens.spaceSm,
+                  AleraTokens.spaceLg,
+                  0,
+                ),
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.error),
+                ),
+              ),
             Padding(
               padding: AleraTokens.pagePadding,
               child: Wrap(

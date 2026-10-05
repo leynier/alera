@@ -16,6 +16,8 @@ use crate::terminal_host::client::ClientHandle;
 
 #[path = "automation_project_checkout_tests.rs"]
 mod project_checkout_tests;
+#[path = "automation_project_worktree_tests.rs"]
+mod project_worktree_tests;
 
 struct Harness {
     _runtime_dir: tempfile::TempDir,
@@ -142,6 +144,7 @@ fn draft_definition() -> AutomationDefinition {
         creation_request_key: None,
         creation_request_fingerprint: None,
         state_before_trash: None,
+        workspace_placement: Default::default(),
         approved_revision: None,
         created_by: actor.clone(),
         modified_by: actor,

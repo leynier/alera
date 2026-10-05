@@ -13,6 +13,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import 'run_board_widget_harness.dart';
 
@@ -190,8 +191,10 @@ ProviderContainer automationContainer(
   FakeAutomationRuntime runtime, {
   BoardTestWorkbench? workbench,
   AutomationWorkbenchContext? context,
+  List<Override> overrides = const <Override>[],
 }) => ProviderContainer(
   overrides: [
+    ...overrides,
     automationRepositoryProvider.overrideWithValue(
       RuntimeAutomationRepository(runtime),
     ),

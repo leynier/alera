@@ -1,5 +1,4 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -10,13 +9,16 @@ import 'package:alera/src/features/automations/application/automation_workbench_
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera/src/features/automations/presentation/authoring/automation_project_worktree_fields.dart';
+import 'package:alera/src/features/automations/presentation/authoring/automation_workspace_placement_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 String _targetDescription(AutomationTargetType type) => switch (type) {
   AutomationTargetType.freshTab =>
     'Each run opens a new agent tab in a workspace you choose.',
-  AutomationTargetType.managedWorkspace => 'Each run creates its own worktree and branch from a source workspace. Git projects on this computer only.',
+  AutomationTargetType.projectWorktree => 'Each run creates a new workspace with its own worktree and branch from a project branch, then opens an agent tab there. Git projects on this computer only.',
+  AutomationTargetType.managedWorkspace => 'Each run creates a child workspace with its own worktree and branch from a workspace you choose. Git projects on this computer only.',
   AutomationTargetType.projectCheckout => 'Each run creates a workspace on a registered project folder, here or on an SSH host. Files are shared.',
   AutomationTargetType.existingTab =>
     'Each run sends the prompt to an agent conversation that is already open.',
@@ -71,6 +73,14 @@ class const AutomationWhereStep({
         if (draft.targetType != null) ...<Widget>[
           const SizedBox(height: AleraTokens.space12),
           _TargetFields(provider: provider, draft: draft, names: names),
+          if (draft.targetType!.createsWorkspace) ...<Widget>[
+            const SizedBox(height: AleraTokens.space12),
+            AutomationWorkspacePlacementFields(
+              provider: provider,
+              draft: draft,
+              names: names,
+            ),
+          ],
         ],
       ],
     );
@@ -131,7 +141,7 @@ class const _TargetFields({
     }) {
       final value = draft.field(field);
       final known = entries.any((entry) => entry.value == value);
-      return _ContextMarked(
+      return AutomationContextMarked(
         fromContext: draft.fromContext.contains(field),
         child: AleraDropdownField<String?>(
           labelText: label,
@@ -192,7 +202,7 @@ class const _TargetFields({
           ),
         );
         children.add(
-          _ContextMarked(
+          AutomationContextMarked(
             fromContext: draft.fromContext.contains(
               AutomationDraftField.sourceBranch,
             ),
@@ -201,6 +211,14 @@ class const _TargetFields({
               value: draft.field(.sourceBranch) ?? '',
               onChanged: (value) => set(.sourceBranch, value),
             ),
+          ),
+        );
+      case AutomationTargetType.projectWorktree:
+        children.add(
+          AutomationProjectWorktreeFields(
+            provider: provider,
+            draft: draft,
+            names: names,
           ),
         );
       case AutomationTargetType.projectCheckout:
@@ -316,23 +334,6 @@ class const _TargetFields({
             style: Theme.of(context).textTheme.bodySmall
                 ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
-      ],
-    );
-  }
-}
-
-class const _ContextMarked({
-  required final bool fromContext,
-  required final Widget child,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    if (!fromContext) return child;
-    return Row(
-      children: <Widget>[
-        Expanded(child: child),
-        const SizedBox(width: AleraTokens.space8),
-        const AleraBadge(label: 'From Context'),
       ],
     );
   }

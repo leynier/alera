@@ -37,11 +37,25 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state("Automation run no longer exists"))?;
-        self.runtime_store
+        let creates = creates_shared_workspace(&current);
+        let (run, workspace) = self
+            .runtime_store
             .allocate_automation_shared_workspace(&current, candidate)
             .await
-            .map_err(state_error)
+            .map_err(state_error)?;
+        if creates {
+            self.apply_automation_workspace_placement(definition, &workspace)
+                .await;
+        }
+        Ok((run, workspace))
     }
+}
+
+/// Whether allocating for [run] creates its workspace. A run that already
+/// owns one gets it back from its receipt, and placing it again would undo a
+/// section or tag the user changed since.
+pub(in crate::terminal_host::server) fn creates_shared_workspace(run: &AutomationRun) -> bool {
+    !run.owned_workspace && run.workspace_id.is_none()
 }
 
 fn state_error(error: impl std::fmt::Display) -> HostError {

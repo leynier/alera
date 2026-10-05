@@ -1,5 +1,4 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
@@ -22,6 +21,8 @@ String automationTargetLine(
   final where = switch (automation.targetType) {
     AutomationTargetType.freshTab =>
       'New tab in ${names.workspaceName(automation.targetWorkspaceId)}',
+    AutomationTargetType.projectWorktree =>
+      'New worktree of ${names.projectName(automationJsonOptionalString(details['projectId']))} from ${automationJsonOptionalString(details['sourceBranch']) ?? 'its default branch'}',
     AutomationTargetType.managedWorkspace =>
       'New worktree from ${names.workspaceName(automation.targetWorkspaceId)}',
     AutomationTargetType.projectCheckout =>
@@ -71,10 +72,7 @@ class const AutomationListTile({
             child: Text(automation.name, maxLines: 1, overflow: .ellipsis),
           ),
           const SizedBox(width: AleraTokens.space6),
-          AleraBadge(
-            label: state.label,
-            color: automationToneColor(state.tone),
-          ),
+          AutomationToneBadge(label: state.label, tone: state.tone),
         ],
       ),
       subtitle: Column(

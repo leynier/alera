@@ -375,6 +375,11 @@ pub struct AutomationDefinition {
     pub creation_request_fingerprint: Option<String>,
     #[serde(default)]
     pub state_before_trash: Option<AutomationState>,
+    #[serde(
+        default,
+        skip_serializing_if = "super::AutomationWorkspacePlacement::is_empty"
+    )]
+    pub workspace_placement: super::AutomationWorkspacePlacement,
     pub created_by: AutomationActor,
     pub modified_by: AutomationActor,
     pub created_at: DateTime<Utc>,

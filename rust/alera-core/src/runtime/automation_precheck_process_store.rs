@@ -99,6 +99,12 @@ impl RuntimeStore {
         {
             sqlx::query_as("SELECT projectId, hostId, path FROM repositoryCheckouts WHERE projectId = ? AND hostId = ? AND kind = 'project'")
                 .bind(project).bind(host).fetch_one(&mut *tx).await?
+        } else if let Some((project, _)) = latest.target.project_worktree() {
+            sqlx::query_as("SELECT id, ?, repoPath FROM projects WHERE id = ?")
+                .bind(super::LOCAL_HOST_ID)
+                .bind(project)
+                .fetch_one(&mut *tx)
+                .await?
         } else {
             let workspace = latest
                 .target
