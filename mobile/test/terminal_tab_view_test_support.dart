@@ -8,11 +8,14 @@ List<String> _resizeCalls(FakeTerminalClient client) {
   return client.calls.where((call) => call.startsWith('resize ')).toList();
 }
 
-List<String> _pulsedResizeCalls(String sessionId, int cols, int rows) {
+List<String> _entryRefreshResizeCalls(String sessionId, int cols, int rows) {
   final pulse = terminalViewportPulseSize(cols, rows);
+  final refresh = terminalViewportRefreshPulseSize(cols, rows);
   return <String>[
     'resize $sessionId $cols $rows',
     'resize $sessionId ${pulse.$1} ${pulse.$2}',
+    'resize $sessionId $cols $rows',
+    'resize $sessionId ${refresh.$1} ${refresh.$2}',
     'resize $sessionId $cols $rows',
   ];
 }
