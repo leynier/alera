@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "sourceSha": "0471aeecf795b5ecefb4a7f2e4a06e81488c9019",
+  "sourceSha": "9de3090acf37b81b1f67649c172c913e18e7a9c5",
   "channel": "stable",
   "desktop": {
     "shouldRelease": true,
-    "artifactVersion": "0.100.0",
-    "releaseVersion": "0.100.0",
-    "buildNumber": 490,
-    "tag": "v0.100.0",
-    "previousTag": "v0.99.2"
+    "artifactVersion": "0.101.0",
+    "releaseVersion": "0.101.0",
+    "buildNumber": 496,
+    "tag": "v0.101.0",
+    "previousTag": "v0.100.0"
   },
   "mobile": {
     "shouldRelease": true,
-    "artifactVersion": "0.46.0",
-    "releaseVersion": "0.46.0",
-    "buildNumber": 490,
-    "tag": "v0.46.0-mobile",
-    "previousTag": "v0.45.4-mobile"
+    "artifactVersion": "0.47.0",
+    "releaseVersion": "0.47.0",
+    "buildNumber": 496,
+    "tag": "v0.47.0-mobile",
+    "previousTag": "v0.46.0-mobile"
   }
 }
