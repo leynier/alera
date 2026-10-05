@@ -218,7 +218,7 @@ class _WorkspaceHandOffDialogState extends State<_WorkspaceHandOffDialog> {
                   onPressed: _generating ? null : _generate,
                   child: Text(
                     _generating
-                        ? 'Generating branch name...'
+                        ? 'Generating branch name…'
                         : 'Regenerate Branch Name',
                   ),
                 ),

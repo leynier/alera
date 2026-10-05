@@ -2,6 +2,7 @@
 import AgentLogo from '../primitives/AgentLogo.astro';
 import AppIcon from '../primitives/AppIcon.astro';
 import StateGlyph from '../primitives/StateGlyph.astro';
+import { APP_COPY } from '../../../data/demo/app-copy';
 import { concealedAttributes } from '../primitives/conceal';
 import type { GlyphState } from '../primitives/glyph-state';
 
@@ -35,6 +36,13 @@ interface Props {
 }
 
 const { node, name, active = false, concealed, glyph, logo, pullRequest, watch, tray, runs } = Astro.props;
+// Every label is in the markup and the glyph state the storyboard sets shows
+// one (desktop-sidebar.css), so a state change never replaces elements.
+const statusBadges = [
+  ['waiting', APP_COPY.needsInput.text],
+  ['blocked', APP_COPY.blockedBadge.text],
+  ['done', APP_COPY.doneBadge.text],
+] as const;
 ---
 
 <div class="ws-row" data-demo-node={node} data-state={active ? 'active' : 'idle'} {...concealedAttributes(concealed)}>
@@ -67,6 +75,7 @@ const { node, name, active = false, concealed, glyph, logo, pullRequest, watch, 
           )
         }
       </span>
+      {statusBadges.map(([state, label]) => <span class={`status-badge status-badge-${state}`}>{label}</span>)}
       {
         tray && (
           <span class="ws-tray" data-demo-node={tray.node} data-state="collapsed" {...concealedAttributes(tray.concealed)}>
@@ -86,8 +95,8 @@ const { node, name, active = false, concealed, glyph, logo, pullRequest, watch, 
                 ))}
               </span>
             ))}
-            <AppIcon name="chevronDown" size={12} class="tray-chevron-down" />
-            <AppIcon name="chevronUp" size={12} class="tray-chevron-up" />
+            <AppIcon name="chevronRight" size={12} class="tray-chevron-collapsed" />
+            <AppIcon name="chevronDown" size={12} class="tray-chevron-expanded" />
           </span>
         )
       }
@@ -102,6 +111,7 @@ const { node, name, active = false, concealed, glyph, logo, pullRequest, watch, 
               <span class="run-label" data-demo-node={row.labelNode}>
                 {row.label}
               </span>
+              {statusBadges.map(([state, label]) => <span class={`status-badge status-badge-${state}`}>{label}</span>)}
             </div>
           ))}
         </div>

@@ -19,7 +19,7 @@ class const _EmptyProjectsDialog({
             action: onAddProject != null
                 ? FilledButton.icon(
                     onPressed: onAddProject,
-                    icon: const Icon(AleraIcons.add, size: 16),
+                    icon: const Icon(AleraIcons.add, size: AleraTokens.iconLg),
                     label: const Text('Add Project'),
                   )
                 : null,
@@ -32,7 +32,7 @@ class const _EmptyProjectsDialog({
     if (embedded) {
       return content;
     }
-    return AleraDialog(maxWidth: 440, child: content);
+    return AleraDialog(maxWidth: AleraTokens.dialogWidth, child: content);
   }
 }
 
@@ -58,12 +58,11 @@ class const _CreateWorkspaceDialogFrame({
         _CreateWorkspaceDialogHeader(
           isSelectionStep: isSelectionStep,
           creating: creating,
-          onBack: onBack,
           embedded: embedded,
         ),
         const SizedBox(height: AleraTokens.space16),
         if (creationError case final error?) ...[
-          _CreateWorkspaceError(message: error),
+          AleraInlineNotice(tone: .error, message: error),
           const SizedBox(height: AleraTokens.space12),
         ],
         Flexible(
@@ -114,7 +113,7 @@ class const _CreateWorkspaceDialogFrame({
       return content;
     }
     return AleraDialog(
-      maxWidth: isSelectionStep ? 680 : 560,
+      maxWidth: isSelectionStep ? 680 : AleraTokens.dialogWideWidth,
       maxHeight: 740,
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
@@ -127,7 +126,6 @@ class const _CreateWorkspaceDialogFrame({
 class const _CreateWorkspaceDialogHeader({
   required final bool isSelectionStep,
   required final bool creating,
-  required final VoidCallback onBack,
   final bool embedded = false,
 }) extends StatelessWidget {
   @override
@@ -135,25 +133,13 @@ class const _CreateWorkspaceDialogHeader({
     final theme = Theme.of(context);
     return Row(
       children: <Widget>[
-        if (!isSelectionStep && !creating) ...[
-          IconButton(
-            icon: const Icon(AleraIcons.back, size: 20),
-            color: AleraTokens.foregroundMuted,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: onBack,
-          ),
-          const SizedBox(width: AleraTokens.space12),
-        ],
         if (!embedded) ...[
           const Icon(AleraIcons.gitFork, color: AleraTokens.accent),
           const SizedBox(width: AleraTokens.space8),
         ],
         Expanded(
           child: Text(
-            isSelectionStep
-                ? 'New Workspace - Selection'
-                : 'New Workspace - Settings',
+            'New Workspace',
             overflow: .ellipsis,
             maxLines: 1,
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: .bold),
@@ -161,51 +147,20 @@ class const _CreateWorkspaceDialogHeader({
         ),
         const SizedBox(width: AleraTokens.space12),
         if (creating)
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          const SizedBox.square(
+            dimension: AleraTokens.iconMd,
+            child: CircularProgressIndicator(strokeWidth: AleraTokens.strokeSm),
           )
         else
           Text(
-            isSelectionStep ? 'Step 1 of 2' : 'Step 2 of 2',
+            isSelectionStep
+                ? 'Step 1 of 2 · Selection'
+                : 'Step 2 of 2 · Settings',
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foregroundFaint,
             ),
           ),
       ],
-    );
-  }
-}
-
-class const _CreateWorkspaceError({required final String message})
-    extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: .infinity,
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      decoration: BoxDecoration(
-        color: AleraTokens.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        border: Border.all(color: AleraTokens.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: .start,
-        children: [
-          const Icon(AleraIcons.error, color: AleraTokens.error, size: 16),
-          const SizedBox(width: AleraTokens.space8),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.error,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -230,12 +185,37 @@ class const _CreateWorkspaceDialogActions({
         const SizedBox(width: AleraTokens.space8),
         FilledButton(
           onPressed: isSelectionStep ? onContinue : onCreate,
-          child: Text(
-            isSelectionStep
-                ? 'Continue'
-                : (creating ? 'Creating…' : 'Create Workspace'),
-          ),
+          child: isSelectionStep
+              ? const Text('Continue')
+              : _ReservedWidthLabel(
+                  labels: const <String>['Create Workspace', 'Creating…'],
+                  current: creating ? 'Creating…' : 'Create Workspace',
+                ),
         ),
+      ],
+    );
+  }
+}
+
+/// Sizes to the widest of [labels] so a button does not resize when its label
+/// switches to a progress state.
+class const _ReservedWidthLabel({
+  required final List<String> labels,
+  required final String current,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: .center,
+      children: <Widget>[
+        for (final label in labels)
+          Visibility(
+            visible: label == current,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: Text(label),
+          ),
       ],
     );
   }

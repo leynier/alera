@@ -6,6 +6,7 @@ import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
 import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 /// Readable target line: what runs where, never raw ids.
@@ -61,71 +62,74 @@ class const AutomationListTile({
         automation.readiness?.errors.isNotEmpty == true &&
         !automation.isCompleted &&
         !automation.isTrashed;
-    return ListTile(
-      selected: selected,
-      selectedTileColor: AleraTokens.accentSubtle,
-      onTap: onTap,
-      dense: true,
-      title: Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(automation.name, maxLines: 1, overflow: .ellipsis),
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          AutomationToneBadge(label: state.label, tone: state.tone),
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: .start,
-        children: <Widget>[
-          Text(
-            automationScheduleLine(automation),
-            maxLines: 1,
-            overflow: .ellipsis,
-            style: muted,
-          ),
-          Text(
-            automationTargetLine(automation, names),
-            maxLines: 1,
-            overflow: .ellipsis,
-            style: muted,
-          ),
-          if (automation.attention case final attention?)
-            Text(
-              attention.message,
-              maxLines: 2,
-              overflow: .ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.warning,
-              ),
-            )
-          else if (readinessError)
-            Text(
-              automation.readiness!.errors.first.message,
-              maxLines: 2,
-              overflow: .ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.error,
-              ),
+    return AleraActiveRail(
+      active: selected,
+      child: ListTile(
+        selected: selected,
+        selectedTileColor: AleraActiveRail.selectedColor,
+        onTap: onTap,
+        dense: true,
+        title: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(automation.name, maxLines: 1, overflow: .ellipsis),
             ),
-          if (automation.createdByAgent)
+            const SizedBox(width: AleraTokens.space6),
+            AutomationToneBadge(label: state.label, tone: state.tone),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: .start,
+          children: <Widget>[
             Text(
-              'Created by agent ${automation.createdByLabel ?? ''}'.trim(),
+              automationScheduleLine(automation),
               maxLines: 1,
               overflow: .ellipsis,
               style: muted,
             ),
-        ],
-      ),
-      trailing: lastRun == null
-          ? null
-          : Tooltip(
-              message: 'Last run: ${_lastRunLabel(lastRun)}',
-              child: AleraStatusDot(
-                active: true,
-                color: automationToneColor(_lastRunTone(lastRun.status)),
-              ),
+            Text(
+              automationTargetLine(automation, names),
+              maxLines: 1,
+              overflow: .ellipsis,
+              style: muted,
             ),
+            if (automation.attention case final attention?)
+              Text(
+                attention.message,
+                maxLines: 2,
+                overflow: .ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.warning,
+                ),
+              )
+            else if (readinessError)
+              Text(
+                automation.readiness!.errors.first.message,
+                maxLines: 2,
+                overflow: .ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.error,
+                ),
+              ),
+            if (automation.createdByAgent)
+              Text(
+                'Created by agent ${automation.createdByLabel ?? ''}'.trim(),
+                maxLines: 1,
+                overflow: .ellipsis,
+                style: muted,
+              ),
+          ],
+        ),
+        trailing: lastRun == null
+            ? null
+            : Tooltip(
+                message: 'Last run: ${_lastRunLabel(lastRun)}',
+                child: AleraStatusDot(
+                  active: true,
+                  color: automationToneColor(_lastRunTone(lastRun.status)),
+                ),
+              ),
+      ),
     );
   }
 }

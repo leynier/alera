@@ -308,7 +308,7 @@ class const _PaneMenuButton({
   @override
   Widget build(BuildContext context) {
     return AleraIconButton(
-      tooltip: 'Pane actions',
+      tooltip: 'Pane Actions',
       onPressed: () => unawaited(_openMenu(context)),
       icon: AleraIcons.more,
       minSize: 28,

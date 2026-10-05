@@ -116,7 +116,13 @@ ThemeData buildAleraMobileDarkTheme() {
       borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
     ),
   );
-  final buttonSize = WidgetStateProperty.all<Size>(const Size(0, 34));
+  final buttonSize = WidgetStateProperty.all<Size>(
+    const Size(0, AleraTokens.buttonMinHeight),
+  );
+  OutlineInputBorder inputBorder(Color color) => OutlineInputBorder(
+    borderRadius: .circular(AleraTokens.radiusMd),
+    borderSide: BorderSide(color: color),
+  );
   return base.copyWith(
     colorScheme: colorScheme,
     textTheme: textTheme,
@@ -133,6 +139,9 @@ ThemeData buildAleraMobileDarkTheme() {
     cardTheme: CardThemeData(
       color: AleraTokens.surfaceVariant,
       elevation: 0,
+      // Clips ink splashes to the card radius, so a tappable card needs no
+      // radius of its own on its InkWell.
+      clipBehavior: .antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
       ),
@@ -141,21 +150,15 @@ ThemeData buildAleraMobileDarkTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AleraTokens.surfaceVariant,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(
-        borderRadius: .circular(AleraTokens.radiusMd),
-        borderSide: const BorderSide(color: AleraTokens.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: .circular(AleraTokens.radiusMd),
-        borderSide: const BorderSide(color: AleraTokens.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: .circular(AleraTokens.radiusMd),
-        borderSide: const BorderSide(color: AleraTokens.accent),
-      ),
+      contentPadding: AleraTokens.inputContentPadding,
+      border: inputBorder(AleraTokens.border),
+      enabledBorder: inputBorder(AleraTokens.border),
+      focusedBorder: inputBorder(AleraTokens.accent),
+      errorBorder: inputBorder(AleraTokens.error),
+      focusedErrorBorder: inputBorder(AleraTokens.error),
       hintStyle: const TextStyle(color: AleraTokens.foregroundMuted),
       labelStyle: textTheme.labelMedium,
+      errorStyle: textTheme.bodySmall?.copyWith(color: AleraTokens.error),
     ),
     listTileTheme: const ListTileThemeData(
       dense: true,
@@ -167,7 +170,9 @@ ThemeData buildAleraMobileDarkTheme() {
         shape: buttonShape,
         minimumSize: buttonSize,
         padding: WidgetStateProperty.all(
-          const EdgeInsets.symmetric(horizontal: 14),
+          const EdgeInsets.symmetric(
+            horizontal: AleraTokens.buttonPaddingHorizontal,
+          ),
         ),
       ),
     ),
@@ -179,6 +184,123 @@ ThemeData buildAleraMobileDarkTheme() {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: ButtonStyle(shape: buttonShape, minimumSize: buttonSize),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        iconSize: const WidgetStatePropertyAll<double>(AleraTokens.iconMd),
+        foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+          (states) => states.contains(WidgetState.disabled)
+              ? AleraTokens.foregroundFaint
+              : null,
+        ),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AleraTokens.surfaceElevated;
+          }
+          return Colors.transparent;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AleraTokens.foreground;
+          }
+          return AleraTokens.foregroundMuted;
+        }),
+        iconColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AleraTokens.foreground;
+          }
+          return AleraTokens.foregroundMuted;
+        }),
+        side: WidgetStateProperty.all(
+          const BorderSide(color: AleraTokens.border),
+        ),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      selectedColor: AleraTokens.surfaceElevated,
+      disabledColor: Colors.transparent,
+      checkmarkColor: AleraTokens.foreground,
+      deleteIconColor: AleraTokens.foregroundMuted,
+      labelStyle: textTheme.labelLarge,
+      side: WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.selected)
+              ? AleraTokens.border
+              : AleraTokens.borderSubtle,
+        ),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+      ),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return states.contains(WidgetState.disabled)
+              ? AleraTokens.foregroundFaint
+              : AleraTokens.accent;
+        }
+        return Colors.transparent;
+      }),
+      checkColor: const WidgetStatePropertyAll<Color>(AleraTokens.onAccent),
+      side: WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.disabled)
+              ? AleraTokens.foregroundFaint
+              : AleraTokens.foregroundMuted,
+          width: AleraTokens.strokeSm,
+        ),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
+      ),
+    ),
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return AleraTokens.foregroundFaint;
+        }
+        if (states.contains(WidgetState.selected)) {
+          return AleraTokens.accent;
+        }
+        return AleraTokens.foregroundMuted;
+      }),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AleraTokens.accent,
+      linearTrackColor: AleraTokens.surfaceVariant,
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: AleraTokens.accent,
+      selectionColor: AleraTokens.textSelection,
+      selectionHandleColor: AleraTokens.accent,
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: AleraTokens.foreground,
+      unselectedLabelColor: AleraTokens.foregroundMuted,
+      indicatorColor: AleraTokens.accent,
+      dividerColor: AleraTokens.borderSubtle,
+      labelStyle: textTheme.titleSmall,
+      unselectedLabelStyle: textTheme.titleSmall,
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: AleraTokens.surface,
+      modalBackgroundColor: AleraTokens.surface,
+      surfaceTintColor: Colors.transparent,
+      modalBarrierColor: AleraTokens.barrierDark,
+      // showModalBottomSheet reads this flag; the color alone draws nothing.
+      showDragHandle: true,
+      dragHandleColor: AleraTokens.border,
+      clipBehavior: .antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AleraTokens.radiusXl),
+        ),
+      ),
     ),
     dividerTheme: const DividerThemeData(
       color: AleraTokens.border,

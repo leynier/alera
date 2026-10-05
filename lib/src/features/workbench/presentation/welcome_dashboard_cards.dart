@@ -36,18 +36,19 @@ class const _ActionRow({
   required final String description,
   required final VoidCallback onTap,
   final bool enabled = true,
+  final String? disabledReason,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return HoverContainer(
+    final row = HoverContainer(
       borderRadius: 0, // Handled by DashboardCard clip.
       onTap: enabled ? onTap : null,
       padding: const .all(AleraTokens.space16),
       child: Opacity(
-        opacity: enabled ? 1.0 : 0.4,
+        opacity: enabled ? 1.0 : AleraTokens.disabledOpacity,
         child: Row(
           children: [
-            Icon(icon, size: 24, color: AleraTokens.accent),
+            Icon(icon, size: AleraTokens.iconXxl, color: AleraTokens.accent),
             const SizedBox(width: AleraTokens.space16),
             Expanded(
               child: Column(
@@ -72,30 +73,45 @@ class const _ActionRow({
             const SizedBox(width: AleraTokens.space8),
             const Icon(
               AleraIcons.chevronRight,
-              size: 16,
+              size: AleraTokens.iconLg,
               color: AleraTokens.foregroundFaint,
             ),
           ],
         ),
       ),
     );
+    if (enabled || disabledReason == null) {
+      return row;
+    }
+    return Tooltip(message: disabledReason, child: row);
   }
 }
 
 class const _ShortcutsCard() extends ConsumerWidget {
+  static const List<(KeyboardActionId, String)> _shortcutActions =
+      <(KeyboardActionId, String)>[
+        (KeyboardActionId.addProject, 'Add Project'),
+        (KeyboardActionId.createWorkspace, 'New Workspace'),
+        (KeyboardActionId.toggleSidebar, 'Toggle Sidebar'),
+        (KeyboardActionId.newTerminalTab, 'New Terminal Tab'),
+        (KeyboardActionId.openSettings, 'Open Settings'),
+        (KeyboardActionId.splitRight, 'Split Right'),
+      ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final keyboard = ref.watch(settingsControllerProvider).keyboard;
     final resolver = KeybindingResolver(settings: keyboard);
 
-    final shortcuts = [
-      (KeyboardActionId.addProject, 'Add Project'),
-      (KeyboardActionId.createWorkspace, 'New Workspace'),
-      (KeyboardActionId.toggleSidebar, 'Toggle Sidebar'),
-      (KeyboardActionId.newTerminalTab, 'New Terminal Tab'),
-      (KeyboardActionId.openSettings, 'Open Settings'),
-      (KeyboardActionId.splitRight, 'Split Right'),
+    final isMacOS = resolver.platform.isMacOS;
+    final shortcuts = <(String, String)>[
+      for (final (id, label) in _shortcutActions)
+        if (resolver.effectiveChords(id) case [final chord, ...])
+          (label, chord.format(isMacOS: isMacOS)),
     ];
+    if (shortcuts.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return _DashboardCard(
       child: Padding(
@@ -106,13 +122,16 @@ class const _ShortcutsCard() extends ConsumerWidget {
               if (i > 0)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AleraTokens.space8),
-                  child: Divider(height: 1, color: AleraTokens.borderSubtle),
+                  child: Divider(
+                    height: AleraTokens.dividerExtent,
+                    color: AleraTokens.borderSubtle,
+                  ),
                 ),
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      shortcuts[i].$2,
+                      shortcuts[i].$1,
                       maxLines: 1,
                       overflow: .ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium
@@ -125,10 +144,7 @@ class const _ShortcutsCard() extends ConsumerWidget {
                       alignment: Alignment.centerRight,
                       child: FittedBox(
                         fit: .scaleDown,
-                        child: _KeybindingBadge(
-                          resolver: resolver,
-                          actionId: shortcuts[i].$1,
-                        ),
+                        child: AleraKeybindingBadge(label: shortcuts[i].$2),
                       ),
                     ),
                   ),
@@ -136,41 +152,6 @@ class const _ShortcutsCard() extends ConsumerWidget {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class const _KeybindingBadge({
-  required final KeybindingResolver resolver,
-  required final KeyboardActionId actionId,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final chords = resolver.effectiveChords(actionId);
-    if (chords.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final isMacOS = resolver.platform.isMacOS;
-    final text = chords.first.format(isMacOS: isMacOS);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space8,
-        vertical: AleraTokens.space4,
-      ),
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.border),
-      ),
-      child: Text(
-        text,
-        style: AleraTokens.monoStyle.copyWith(
-          color: AleraTokens.foreground,
-          fontSize: 11,
-          fontWeight: .w500,
         ),
       ),
     );

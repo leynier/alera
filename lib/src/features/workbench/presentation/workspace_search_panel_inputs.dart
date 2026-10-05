@@ -56,19 +56,19 @@ class const _WorkspaceSearchInputs({
                     suffix: _SearchInputActions(
                       children: <Widget>[
                         _SearchInlineToggleButton(
-                          tooltip: 'Match case',
+                          tooltip: 'Match Case',
                           label: 'Aa',
                           active: state.caseSensitive,
                           onPressed: onToggleCaseSensitive,
                         ),
                         _SearchInlineToggleButton(
-                          tooltip: 'Match whole word',
+                          tooltip: 'Match Whole Word',
                           label: 'ab',
                           active: state.wholeWord,
                           onPressed: onToggleWholeWord,
                         ),
                         _SearchInlineToggleButton(
-                          tooltip: 'Use regular expression',
+                          tooltip: 'Use Regular Expression',
                           label: '.*',
                           active: state.useRegex,
                           onPressed: onToggleUseRegex,
@@ -88,13 +88,13 @@ class const _WorkspaceSearchInputs({
                       suffix: _SearchInputActions(
                         children: <Widget>[
                           _SearchInlineToggleButton(
-                            tooltip: 'Preserve case',
+                            tooltip: 'Preserve Case',
                             label: 'AB',
                             active: state.preserveCase,
                             onPressed: onTogglePreserveCase,
                           ),
                           _SearchInlineIconButton(
-                            tooltip: 'Replace all',
+                            tooltip: 'Replace All',
                             icon: AleraIcons.doneAll,
                             active: false,
                             onPressed: canReplaceAll ? onReplaceAll : null,
@@ -112,7 +112,7 @@ class const _WorkspaceSearchInputs({
         Align(
           alignment: Alignment.centerRight,
           child: _SearchInlineIconButton(
-            tooltip: detailsVisible ? 'Hide details' : 'Show details',
+            tooltip: detailsVisible ? 'Hide Details' : 'Show Details',
             icon: AleraIcons.more,
             active: detailsActive,
             onPressed: onToggleDetails,
@@ -194,7 +194,7 @@ class const _SearchChevronButton({
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: expanded ? 'Hide replace' : 'Show replace',
+      message: expanded ? 'Hide Replace' : 'Show Replace',
       child: InkResponse(
         onTap: onPressed,
         mouseCursor: SystemMouseCursors.click,

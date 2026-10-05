@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
@@ -31,37 +32,46 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
         : AleraTokens.foregroundFaint;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
-      child: InkWell(
-        autofocus: widget.selected,
-        onTap: widget.enabled
-            ? () => Navigator.of(context).pop(widget.value)
-            : null,
-        borderRadius: .circular(AleraTokens.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space4,
+      child: AleraActiveRail(
+        active: widget.selected,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: widget.selected ? AleraActiveRail.selectedColor : null,
+            borderRadius: .circular(AleraTokens.radiusSm),
           ),
-          child: Row(
-            children: <Widget>[
-              if (widget.leading != null) ...<Widget>[
-                widget.leading!,
-                const SizedBox(width: AleraTokens.space8),
-              ],
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: color),
-                ),
+          child: InkWell(
+            autofocus: widget.selected,
+            onTap: widget.enabled
+                ? () => Navigator.of(context).pop(widget.value)
+                : null,
+            borderRadius: .circular(AleraTokens.radiusSm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space8,
+                vertical: AleraTokens.space4,
               ),
-              if (widget.selected)
-                const Icon(
-                  AleraIcons.check,
-                  size: 16,
-                  color: AleraTokens.foreground,
-                ),
-            ],
+              child: Row(
+                children: <Widget>[
+                  if (widget.leading != null) ...<Widget>[
+                    widget.leading!,
+                    const SizedBox(width: AleraTokens.space8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: color),
+                    ),
+                  ),
+                  if (widget.selected)
+                    const Icon(
+                      AleraIcons.check,
+                      size: 16,
+                      color: AleraTokens.foreground,
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

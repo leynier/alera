@@ -6,12 +6,39 @@ class const _WorkspaceStatusIndicator({
   required final bool? interrupted,
   required final bool active,
 }) extends StatelessWidget {
+  /// Spoken in place of the glyph, which only says its state through color
+  /// and shape.
+  String get _semanticLabel {
+    if (!hasAgents || state == null) {
+      return active ? 'Terminal open' : 'Idle';
+    }
+    if (state == 'working') {
+      return 'Agent working';
+    }
+    if (interrupted == true) {
+      return 'Agent interrupted';
+    }
+    return switch (state) {
+      'waiting' => 'Agent waiting for input',
+      'blocked' => 'Agent blocked',
+      _ => 'Agent done',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      label: _semanticLabel,
+      excludeSemantics: true,
+      child: _glyph(),
+    );
+  }
+
+  Widget _glyph() {
     if (!hasAgents || state == null) {
       return Container(
-        width: 8,
-        height: 8,
+        width: AleraTokens.spaceSm,
+        height: AleraTokens.spaceSm,
         decoration: BoxDecoration(
           color: active ? AleraTokens.success : AleraTokens.foregroundFaint,
           shape: .circle,
@@ -20,22 +47,74 @@ class const _WorkspaceStatusIndicator({
     }
     if (state == 'working') {
       return const SizedBox.square(
-        dimension: 11,
+        dimension: AleraTokens.iconSm,
         child: CircularProgressIndicator(
           strokeWidth: 1.7,
           color: AleraTokens.warning,
         ),
       );
     }
-    final color = interrupted == true ? AleraTokens.error : _stateColor(state!);
-    final icon = interrupted == true
-        ? AleraIcons.cancel
-        : switch (state) {
-            'waiting' || 'blocked' => AleraIcons.notifications,
-            'done' => AleraIcons.success,
-            _ => AleraIcons.success,
-          };
-    return Icon(icon, size: 13, color: color);
+    if (interrupted == true) {
+      return const Icon(
+        AleraIcons.cancel,
+        size: AleraTokens.rowMetaIcon,
+        color: AleraTokens.error,
+      );
+    }
+    // The trailing status badge carries the color; a neutral dot keeps the
+    // leading column aligned without repeating it.
+    return Container(
+      width: AleraTokens.spaceSm,
+      height: AleraTokens.spaceSm,
+      decoration: const BoxDecoration(
+        color: AleraTokens.foregroundMuted,
+        shape: .circle,
+      ),
+    );
+  }
+}
+
+/// Trailing label for agent states that need the user's attention or report
+/// a finished turn. Working and idle rows show no label.
+class const _WorkspaceStatusBadge({
+  required final String label,
+  required final AleraBadgeTone tone,
+}) extends StatelessWidget {
+  static _WorkspaceStatusBadge? forState({
+    required String? state,
+    required bool? interrupted,
+  }) {
+    if (state == null || interrupted == true) {
+      return null;
+    }
+    return switch (state) {
+      'waiting' => const _WorkspaceStatusBadge(
+        label: 'Needs Input',
+        tone: AleraBadgeTone.attention,
+      ),
+      'blocked' => const _WorkspaceStatusBadge(
+        label: 'Blocked',
+        tone: AleraBadgeTone.error,
+      ),
+      'done' => const _WorkspaceStatusBadge(
+        label: 'Done',
+        tone: AleraBadgeTone.success,
+      ),
+      _ => null,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The leading status indicator already speaks the state, so the badge
+    // stays out of the semantics tree instead of announcing it twice.
+    return ExcludeSemantics(
+      child: AleraBadge(
+        key: const Key('workspace-status-badge'),
+        label: label,
+        tone: tone,
+      ),
+    );
   }
 }
 
@@ -86,7 +165,7 @@ class const _WorkspaceActionTray({
                     children: <Widget>[
                       const Icon(
                         AleraIcons.workspaceChildren,
-                        size: 12,
+                        size: AleraTokens.rowMetaIcon,
                         color: AleraTokens.foregroundMuted,
                       ),
                       const SizedBox(width: AleraTokens.space2),
@@ -102,7 +181,7 @@ class const _WorkspaceActionTray({
                         childrenCollapsed
                             ? AleraIcons.chevronRight
                             : AleraIcons.chevronDown,
-                        size: 12,
+                        size: AleraTokens.rowMetaIcon,
                         color: AleraTokens.foregroundMuted,
                       ),
                     ],
@@ -155,11 +234,14 @@ class const _AgentPresenceRow({
           child: Row(
             crossAxisAlignment: .center,
             children: <Widget>[
-              AgentRunStateIndicator(status: status, size: 12),
+              AgentRunStateIndicator(
+                status: status,
+                size: AleraTokens.rowMetaIcon,
+              ),
               const SizedBox(width: AleraTokens.space6),
               AgentIdentityIcon(
                 agentType: status.agentType,
-                size: 13,
+                size: AleraTokens.rowMetaIcon,
                 color: AleraTokens.foregroundMuted,
               ),
               const SizedBox(width: AleraTokens.space6),
@@ -220,13 +302,6 @@ List<String> _tagLabels(WorkspaceSummary workspace) {
       .where((tag) => tag.isNotEmpty)
       .toList(growable: false);
 }
-
-Color _stateColor(String state) => switch (state) {
-  'blocked' => AleraTokens.error,
-  'waiting' => AleraTokens.warning,
-  'working' => AleraTokens.warning,
-  _ => AleraTokens.success,
-};
 
 String _mostUrgentState(List<AgentPresenceSummary> statuses) {
   const priority = <String, int>{

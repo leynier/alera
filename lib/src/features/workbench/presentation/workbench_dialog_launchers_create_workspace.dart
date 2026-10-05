@@ -395,8 +395,8 @@ void _showWorkspaceCreationToast(
       context,
       message:
           'Workspace created with setup warnings: ${result.setupReport.summary}',
-      tone: .error,
-      duration: const Duration(seconds: 6),
+      tone: .warning,
+      duration: AleraToast.longDuration,
     );
     return;
   }
@@ -405,7 +405,7 @@ void _showWorkspaceCreationToast(
       context,
       message: 'Workspace created, but parent link failed',
       tone: .error,
-      duration: const Duration(seconds: 6),
+      duration: AleraToast.longDuration,
     );
     return;
   }

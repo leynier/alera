@@ -1,8 +1,9 @@
 import 'dart:async';
 
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-enum AleraToastTone { success, error, info }
+enum AleraToastTone { success, warning, error, info }
 
 class const AleraToastData({
   required final String message,
@@ -15,6 +16,9 @@ abstract final class AleraToast {
       StreamController<AleraToastData>.broadcast();
 
   static Stream<AleraToastData> get stream => _controller.stream;
+
+  /// For warnings and errors whose message is a sentence worth reading.
+  static const Duration longDuration = AleraTokens.toastLongDuration;
 
   static void show(
     BuildContext context, {
@@ -43,7 +47,7 @@ abstract final class AleraToast {
       AleraToastData(
         message: trimmedMessage,
         tone: tone,
-        duration: duration ?? const Duration(seconds: 4),
+        duration: duration ?? AleraTokens.toastDuration,
       ),
     );
   }

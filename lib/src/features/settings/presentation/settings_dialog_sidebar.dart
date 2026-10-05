@@ -3,13 +3,12 @@ import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:flutter/material.dart';
 
 const double _kSidebarWidth = 260;
 const double _kSidebarIconSize = 16;
-const double _kActiveBarWidth = 2;
-const double _kActiveBarHeight = 16;
 
 class const SettingsSidebar({
   super.key,
@@ -47,7 +46,10 @@ class const SettingsSidebar({
                 ),
               ),
             ),
-            const Divider(height: 1, color: AleraTokens.borderSubtle),
+            const Divider(
+              height: AleraTokens.dividerExtent,
+              color: AleraTokens.borderSubtle,
+            ),
             Padding(
               padding: const EdgeInsets.all(AleraTokens.space12),
               child: AleraSearchField(
@@ -55,7 +57,10 @@ class const SettingsSidebar({
                 hintText: 'Search settings',
               ),
             ),
-            const Divider(height: 1, color: AleraTokens.borderSubtle),
+            const Divider(
+              height: AleraTokens.dividerExtent,
+              color: AleraTokens.borderSubtle,
+            ),
             Expanded(
               child: visibleSections.isEmpty
                   ? const AleraEmptyState(message: 'No matching settings.')
@@ -134,46 +139,43 @@ class const SettingsNavItem({
         },
         borderRadius: .circular(AleraTokens.radiusMd),
         mouseCursor: SystemMouseCursors.click,
-        child: Container(
-          decoration: BoxDecoration(
-            color: active ? AleraTokens.surfaceElevated : Colors.transparent,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space8,
-          ),
-          child: Row(
-            children: <Widget>[
-              AnimatedContainer(
-                duration: AleraTokens.durationFast,
-                width: _kActiveBarWidth,
-                height: _kActiveBarHeight,
-                decoration: BoxDecoration(
-                  color: active ? AleraTokens.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        child: AleraActiveRail(
+          active: active,
+          child: Container(
+            decoration: BoxDecoration(
+              color: active
+                  ? AleraActiveRail.selectedColor
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space12,
+              vertical: AleraTokens.space8,
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  section.icon,
+                  size: _kSidebarIconSize,
+                  color: active
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundMuted,
                 ),
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Icon(
-                section.icon,
-                size: _kSidebarIconSize,
-                color: active
-                    ? AleraTokens.foreground
-                    : AleraTokens.foregroundMuted,
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Expanded(
-                child: Text(
-                  section.title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AleraTokens.foreground,
-                    fontWeight: .w500,
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: Text(
+                    section.title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: active
+                          ? AleraTokens.foreground
+                          : AleraTokens.foregroundMuted,
+                      fontWeight: active ? .w600 : .w500,
+                    ),
                   ),
                 ),
-              ),
-              if (matchCount > 0) AleraBadge(label: '$matchCount'),
-            ],
+                if (matchCount > 0) AleraBadge(label: '$matchCount'),
+              ],
+            ),
           ),
         ),
       ),

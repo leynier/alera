@@ -142,7 +142,7 @@ class _CodexResetCreditsPanelState
                 minimumSize: const Size(0, 24),
                 tapTargetSize: .shrinkWrap,
               ),
-              child: Text(_loading ? 'Applying...' : 'Use Reset'),
+              child: Text(_loading ? 'Applying…' : 'Use Reset'),
             ),
         ],
       ),

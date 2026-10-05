@@ -16,7 +16,6 @@ Future<void> showPullRequestCommentSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
     builder: (_) => PullRequestCommentSheet(
       title: title,
       submitLabel: submitLabel,

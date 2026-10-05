@@ -23,14 +23,14 @@ List<Widget> _workspaceActionTiles(
       ListTile(
         leading: Icon(
           workspace.isMain ? AleraIcons.gitFork : AleraIcons.workspaceMain,
-          size: 20,
+          size: AleraTokens.iconMd,
         ),
         title: Text(workspace.isMain ? 'Hand Off' : 'Hand On'),
         onTap: () => Navigator.of(context).pop(_WorkspaceAction.relocate),
       ),
     if (canRelocate)
       ListTile(
-        leading: const Icon(AleraIcons.restore, size: 20),
+        leading: const Icon(AleraIcons.restore, size: AleraTokens.iconMd),
         title: const Text('Recovery'),
         onTap: () => Navigator.of(context).pop(_WorkspaceAction.recovery),
       ),
@@ -42,7 +42,7 @@ List<Widget> _workspaceActionTiles(
   );
   return <Widget>[
     ListTile(
-      leading: const Icon(AleraIcons.edit, size: 20),
+      leading: const Icon(AleraIcons.edit, size: AleraTokens.iconMd),
       title: const Text('Rename'),
       onTap: () => Navigator.of(context).pop(_WorkspaceAction.rename),
     ),
@@ -65,7 +65,7 @@ List<Widget> _workspaceActionTiles(
       hasTreeSection: hasTreeSection,
     ),
     ListTile(
-      leading: const Icon(AleraIcons.tag, size: 20),
+      leading: const Icon(AleraIcons.tag, size: AleraTokens.iconMd),
       title: const Text('Manage Tags'),
       onTap: () => Navigator.of(context).pop(_WorkspaceAction.tags),
     ),
@@ -73,11 +73,11 @@ List<Widget> _workspaceActionTiles(
     ...issue,
     if (issue.isNotEmpty) const Divider(height: 1),
     ExpansionTile(
-      leading: const Icon(AleraIcons.external, size: 20),
+      leading: const Icon(AleraIcons.external, size: AleraTokens.iconMd),
       title: const Text('Open'),
       children: <Widget>[
         ListTile(
-          leading: const Icon(AleraIcons.external, size: 20),
+          leading: const Icon(AleraIcons.external, size: AleraTokens.iconMd),
           title: const Text('In Browser'),
           onTap: () =>
               Navigator.of(context).pop(_WorkspaceAction.openRepository),
@@ -85,13 +85,13 @@ List<Widget> _workspaceActionTiles(
       ],
     ),
     ListTile(
-      leading: const Icon(AleraIcons.copy, size: 20),
+      leading: const Icon(AleraIcons.copy, size: AleraTokens.iconMd),
       title: const Text('Copy Path'),
       onTap: () => Navigator.of(context).pop(_WorkspaceAction.copyPath),
     ),
     const Divider(height: 1),
     ListTile(
-      leading: const Icon(AleraIcons.theme, size: 20),
+      leading: const Icon(AleraIcons.theme, size: AleraTokens.iconMd),
       title: const Text('Sleep'),
       onTap: () => Navigator.of(context).pop(_WorkspaceAction.sleep),
     ),
@@ -99,7 +99,7 @@ List<Widget> _workspaceActionTiles(
     ListTile(
       leading: Icon(
         AleraIcons.delete,
-        size: 20,
+        size: AleraTokens.iconMd,
         color: Theme.of(context).colorScheme.error,
       ),
       title: Text(
@@ -119,7 +119,7 @@ List<Widget> _pinActionTiles(
   final toggle = ListTile(
     leading: Icon(
       workspace.isPinned ? AleraIcons.pinOff : AleraIcons.pin,
-      size: 20,
+      size: AleraTokens.iconMd,
     ),
     title: Text(workspace.isPinned ? 'Unpin Workspace' : 'Pin Workspace'),
     onTap: () => Navigator.of(
@@ -133,18 +133,18 @@ List<Widget> _pinActionTiles(
     ExpansionTile(
       leading: Icon(
         workspace.isPinned ? AleraIcons.pinOff : AleraIcons.pin,
-        size: 20,
+        size: AleraTokens.iconMd,
       ),
       title: const Text('Pin'),
       children: <Widget>[
         toggle,
         ListTile(
-          leading: const Icon(AleraIcons.pin, size: 20),
+          leading: const Icon(AleraIcons.pin, size: AleraTokens.iconMd),
           title: const Text('Pin Workspace Tree'),
           onTap: () => Navigator.of(context).pop(_WorkspaceAction.pinTree),
         ),
         ListTile(
-          leading: const Icon(AleraIcons.pinOff, size: 20),
+          leading: const Icon(AleraIcons.pinOff, size: AleraTokens.iconMd),
           title: const Text('Unpin Workspace Tree'),
           onTap: () => Navigator.of(context).pop(_WorkspaceAction.unpinTree),
         ),
@@ -158,7 +158,7 @@ List<Widget> _parentActionTiles(
   required WorkspaceSummary workspace,
 }) {
   final setParent = ListTile(
-    leading: const Icon(AleraIcons.link, size: 20),
+    leading: const Icon(AleraIcons.link, size: AleraTokens.iconMd),
     title: const Text('Set Parent Workspace'),
     onTap: () => Navigator.of(context).pop(_WorkspaceAction.configureParent),
   );
@@ -167,12 +167,12 @@ List<Widget> _parentActionTiles(
   }
   return <Widget>[
     ExpansionTile(
-      leading: const Icon(AleraIcons.link, size: 20),
+      leading: const Icon(AleraIcons.link, size: AleraTokens.iconMd),
       title: const Text('Parent'),
       children: <Widget>[
         setParent,
         ListTile(
-          leading: const Icon(AleraIcons.close, size: 20),
+          leading: const Icon(AleraIcons.close, size: AleraTokens.iconMd),
           title: const Text('Clear Parent Workspace'),
           onTap: () => Navigator.of(context).pop(_WorkspaceAction.unlinkParent),
         ),

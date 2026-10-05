@@ -80,7 +80,7 @@ class const _AgentQuotaHoverSection({
             children: <Widget>[
               AgentQuotaProviderIcon(
                 provider: snapshot.provider,
-                size: 18,
+                size: AleraTokens.iconXl,
                 showTooltip: false,
               ),
               const SizedBox(width: AleraTokens.space8),
@@ -96,19 +96,15 @@ class const _AgentQuotaHoverSection({
                       ),
                     ),
                     if (profileLabel != null)
-                      Text(
-                        profileLabel!,
-                        style: AleraTokens.monoStyle.copyWith(
-                          fontSize: 10,
-                          color: AleraTokens.foregroundMuted,
-                        ),
-                      ),
+                      Text(profileLabel!, style: AleraTokens.monoMicroStyle),
                   ],
                 ),
               ),
               AleraBadge(
                 label: _quotaStatusLabel(snapshot),
-                color: statusColor.withAlpha(28),
+                color: statusColor.withValues(
+                  alpha: AleraTokens.statusTintAlpha,
+                ),
                 foregroundColor: statusColor,
               ),
             ],
@@ -168,8 +164,7 @@ class const _QuotaHoverReading({
             const SizedBox(width: AleraTokens.space12),
             Text(
               entry.valueText ?? '${entry.remainingPercent.round()}% Left',
-              style: AleraTokens.monoStyle.copyWith(
-                fontSize: 11,
+              style: AleraTokens.monoCompactStyle.copyWith(
                 color: color,
                 fontWeight: .w600,
               ),
@@ -188,13 +183,7 @@ class const _QuotaHoverReading({
             semanticsValue: '${entry.remainingPercent.round()}%',
           ),
         const SizedBox(height: AleraTokens.space6),
-        Text(
-          reset,
-          style: AleraTokens.monoStyle.copyWith(
-            fontSize: 9,
-            color: AleraTokens.foregroundFaint,
-          ),
-        ),
+        Text(reset, style: AleraTokens.monoCaptionFaintStyle),
       ],
     );
   }

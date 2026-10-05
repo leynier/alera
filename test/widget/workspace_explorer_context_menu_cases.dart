@@ -9,7 +9,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
 
     await tester.tapAt(const Offset(250, 220), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('New file'));
+    await tester.tap(find.text('New File'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'root.txt');
     await tester.tap(find.text('Create'));
@@ -192,7 +192,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
     final service = _FakeWorkspaceFileService(createGate: createGate);
 
     await _pumpExplorer(tester, service);
-    await tester.tap(find.byTooltip('New file'));
+    await tester.tap(find.byTooltip('New File'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'created.dart');
     await tester.tap(find.text('Create'));
@@ -255,7 +255,7 @@ void _registerWorkspaceExplorerContextMenuTests() {
       ),
     );
 
-    expect(find.byTooltip('Expand panel'), findsOneWidget);
+    expect(find.byTooltip('Expand Panel'), findsOneWidget);
     expect(find.byTooltip('Explorer'), findsOneWidget);
     expect(find.byTooltip('Search'), findsOneWidget);
     expect(find.byTooltip('Source Control'), findsOneWidget);
@@ -315,8 +315,8 @@ void _registerWorkspaceExplorerContextMenuTests() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Expand panel'), findsNothing);
-    expect(find.byTooltip('Collapse panel'), findsOneWidget);
+    expect(find.byTooltip('Expand Panel'), findsNothing);
+    expect(find.byTooltip('Collapse Panel'), findsOneWidget);
     expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(find.byType(WorkspaceExplorer), findsOneWidget);
   });

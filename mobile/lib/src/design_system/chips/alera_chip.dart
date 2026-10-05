@@ -104,7 +104,7 @@ class _AleraChipState extends State<AleraChip> {
       ),
       decoration: BoxDecoration(
         color: AleraTokens.accentSubtle,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         border: Border.all(color: AleraTokens.borderSubtle),
       ),
       child: Row(

@@ -215,11 +215,7 @@ class const _MetricCell({required final String value}) extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: _metricColumnWidth,
-      child: Text(
-        value,
-        textAlign: .right,
-        style: AleraTokens.monoStyle.copyWith(fontSize: 10),
-      ),
+      child: Text(value, textAlign: .right, style: AleraTokens.monoMicroStyle),
     );
   }
 }

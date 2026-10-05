@@ -1,4 +1,5 @@
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_command_palette.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -47,6 +48,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Command Palette'), findsNothing);
     expect(anchorFocus.hasFocus, isTrue);
+  });
+
+  testWidgets('keeps the selected row visible and hides missing shortcuts', (
+    tester,
+  ) async {
+    await _pumpCommandPalette(tester);
+    await tester.tap(find.text('Open Command Palette'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No shortcut'), findsNothing);
+
+    // Up from the first row wraps to the last command, far below the fold.
+    await tester.sendKeyEvent(.arrowUp);
+    await tester.pumpAndSettle();
+    final last = filterKeyboardCommandPalette('').last.definition.id;
+    final row = find.byKey(ValueKey<KeyboardActionId>(last));
+    expect(row, findsOneWidget);
+    final results = tester.getRect(
+      find.byKey(const ValueKey<String>('command-palette-results')),
+    );
+    final rowRect = tester.getRect(row);
+    expect(rowRect.top, greaterThanOrEqualTo(results.top));
+    expect(rowRect.bottom, lessThanOrEqualTo(results.bottom));
   });
 }
 

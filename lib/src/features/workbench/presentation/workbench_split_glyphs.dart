@@ -48,7 +48,7 @@ class const WorkbenchSplitDirectionPainter({
     final outerRect = Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1);
     final outerRRect = RRect.fromRectAndRadius(
       outerRect,
-      const .circular(AleraTokens.radiusSm),
+      const .circular(AleraTokens.radiusXs),
     );
     final fillRect = workbenchSplitDirectionFillRect(zone, size);
     if (!fillRect.isEmpty) {

@@ -43,7 +43,6 @@ bool submitInBackground(
               showModalBottomSheet<void>(
                 context: navigator.context,
                 isScrollControlled: true,
-                showDragHandle: true,
                 builder: restoreForm,
               ).whenComplete(() => release?.call());
             } else {

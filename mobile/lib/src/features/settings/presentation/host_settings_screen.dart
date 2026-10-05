@@ -10,6 +10,8 @@ import 'package:alera_mobile/src/features/settings/application/host_settings_con
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/settings/presentation/host_agent_tools_section.dart';
 import 'package:alera_mobile/src/features/voice/presentation/mobile_voice_settings_screen.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,7 +35,11 @@ class const HostSettingsScreen({
         child: settingsValue != null
             ? _SettingsBody(host: host, settings: settingsValue)
             : settings.hasError
-            ? _UnsupportedSettings(error: settings.error!)
+            ? _UnsupportedSettings(
+                error: settings.error!,
+                onRetry: () =>
+                    ref.invalidate(hostSettingsControllerProvider(host.id)),
+              )
             : const Center(child: CircularProgressIndicator()),
       ),
     );
@@ -73,6 +79,7 @@ class const _SettingsBody({
                   ),
                 ),
                 trailing: PopupMenuButton<String>(
+                  tooltip: 'More Actions',
                   onSelected: (value) async {
                     if (value == 'reset') {
                       await controller.updateWorkspaceDirectory(null);
@@ -313,15 +320,29 @@ class const _NavigationTile({
   }
 }
 
-class const _UnsupportedSettings({required final Object error})
-    extends StatelessWidget {
+class const _UnsupportedSettings({
+  required final Object error,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Text(error.toString(), textAlign: .center),
+    return switch (error) {
+      UnsupportedError(:final message?) => AleraEmptyState(
+        icon: AleraIcons.systemUpdate,
+        title: 'Update required',
+        message: message,
       ),
-    );
+      _ => AleraEmptyState(
+        icon: AleraIcons.loadFailed,
+        title: 'Could not load host settings',
+        message: 'Check the connection to the host and try again.',
+        detail: error.toString(),
+        action: FilledButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(AleraIcons.refresh),
+          label: const Text('Retry'),
+        ),
+      ),
+    };
   }
 }

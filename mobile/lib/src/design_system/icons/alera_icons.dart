@@ -15,6 +15,12 @@ abstract final class const AleraIcons._() {
   static const IconData pinOff = LucideIcons.pinOff;
   static const IconData folderSpecial = LucideIcons.folderGit2;
   static const IconData host = LucideIcons.server;
+  static const IconData pairedDevices = LucideIcons.monitorSmartphone;
+  static const IconData qrCode = LucideIcons.qrCode;
+  static const IconData enterKey = LucideIcons.cornerDownLeft;
+  static const IconData textOnly = LucideIcons.type;
+  static const IconData searchEmpty = LucideIcons.searchX;
+  static const IconData loadFailed = LucideIcons.circleAlert;
   static const IconData tag = LucideIcons.tag;
   // Workspace sections group workspaces; they are not filesystem folders.
   static const IconData section = LucideIcons.layers;

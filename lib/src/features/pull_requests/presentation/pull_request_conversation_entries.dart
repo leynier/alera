@@ -136,10 +136,9 @@ class const PullRequestConversationThread({
                   ],
                   if (thread.resolved) ...<Widget>[
                     const SizedBox(width: AleraTokens.space6),
-                    AleraBadge(
+                    const AleraBadge(
                       label: 'Resolved',
-                      color: AleraTokens.success.withValues(alpha: 0.15),
-                      foregroundColor: AleraTokens.success,
+                      tone: AleraBadgeTone.success,
                     ),
                   ],
                 ],

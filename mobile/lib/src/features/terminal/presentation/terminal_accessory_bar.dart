@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Quick-key strip shown above the keyboard in both input modes.
 ///
@@ -176,9 +177,16 @@ class _AccessoryKeyButtonState extends State<_AccessoryKeyButton> {
     }
   }
 
+  /// One selection click per press; auto-repeat stays silent so a held arrow
+  /// key does not buzz on every repeat.
+  void _tap() {
+    unawaited(HapticFeedback.selectionClick());
+    _activate();
+  }
+
   void _startRepeat() {
     _setPressed(true);
-    _activate();
+    _tap();
     _repeatTimer = Timer.periodic(AleraTokens.keyRepeatInterval, (_) {
       _activate();
     });
@@ -235,7 +243,7 @@ class _AccessoryKeyButtonState extends State<_AccessoryKeyButton> {
       label: key.accessibilityLabel,
       child: repeatable
           ? GestureDetector(
-              onTap: _activate,
+              onTap: _tap,
               onTapDown: (_) => _setPressed(true),
               onTapUp: (_) => _setPressed(false),
               onTapCancel: () => _setPressed(false),
@@ -248,7 +256,7 @@ class _AccessoryKeyButtonState extends State<_AccessoryKeyButton> {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: .circular(AleraTokens.radiusSm),
-                onTap: _activate,
+                onTap: _tap,
                 child: child,
               ),
             ),

@@ -62,7 +62,7 @@ void main() {
         await tester.longPress(find.text('Agent Task'));
         await tester.pumpAndSettle();
         final label = mode == 'busy'
-            ? 'Generating title...'
+            ? 'Generating title…'
             : mode == 'regenerate'
             ? 'Regenerate Title'
             : 'Generate Title';
@@ -77,7 +77,7 @@ void main() {
           );
         }
         if (mode == 'busy') {
-          expect(find.byTooltip('Generating title...'), findsOneWidget);
+          expect(find.byTooltip('Generating title…'), findsOneWidget);
           expect(
             tester
                 .widget<ListTile>(

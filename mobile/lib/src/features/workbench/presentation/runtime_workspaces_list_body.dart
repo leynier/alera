@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -51,6 +52,7 @@ class const RuntimeWorkspacesListBody({
     final workspaceHosts = ref
         .watch(workspaceHostsControllerProvider(hostId))
         .value;
+    final searchQuery = ref.watch(workspaceSearchControllerProvider(hostId));
     final rows = buildMobileWorkspaceRows(
       sections: data.sections,
       workspaces: data.workspaces,
@@ -59,8 +61,10 @@ class const RuntimeWorkspacesListBody({
       activity: data.activity,
       agentPresence: data.agentPresence,
       terminalTabCountByWorkspaceId: data.terminalTabCountByWorkspaceId,
-      searchQuery: ref.watch(workspaceSearchControllerProvider(hostId)),
+      searchQuery: searchQuery,
     );
+    final noSearchMatches =
+        searchQuery.trim().isNotEmpty && !rows.any(_rowHasWorkspaces);
     final agentPresenceByWorkspaceId = <String, List<AgentPresenceSummary>>{};
     for (final status in data.agentPresence) {
       agentPresenceByWorkspaceId
@@ -71,18 +75,7 @@ class const RuntimeWorkspacesListBody({
       mobileViewPrefsControllerProvider(hostId).notifier,
     );
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(workspaceListControllerProvider(hostId));
-        ref.invalidate(workspacePullRequestSummariesControllerProvider(hostId));
-        ref.invalidate(pullRequestWatchControllerProvider(hostId));
-        ref.invalidate(workspaceHostsControllerProvider(hostId));
-        await ref.read(workspaceListControllerProvider(hostId).future);
-        await ref.read(
-          workspacePullRequestSummariesControllerProvider(hostId).future,
-        );
-        await ref.read(pullRequestWatchControllerProvider(hostId).future);
-        await ref.read(workspaceHostsControllerProvider(hostId).future);
-      },
+      onRefresh: () => refreshWorkspaceList(ref, hostId),
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
@@ -104,129 +97,185 @@ class const RuntimeWorkspacesListBody({
               child: RuntimeWorkspacesToolbar(hostId: hostId, data: data),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.only(bottom: AleraTokens.spaceXxl * 2),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final row = rows[index];
-                return switch (row) {
-                  MobileCustomSectionHeaderRow() => MobileCustomSectionHeader(
-                    hostId: hostId,
-                    row: row,
-                    supportsSections: data.supportsSections,
-                  ),
-                  MobilePinnedHeaderRow(:final count, :final collapsed) =>
-                    MobileSectionHeader(
-                      label: 'Pinned',
-                      icon: AleraIcons.pin,
-                      count: count,
-                      collapsed: collapsed,
-                      onToggle: prefsController.togglePinnedSection,
+          if (noSearchMatches)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: AleraEmptyState(
+                icon: AleraIcons.searchEmpty,
+                title: 'No matching workspaces',
+                message: 'No workspace matches "${searchQuery.trim()}".',
+                action: OutlinedButton(
+                  onPressed: ref
+                      .read(workspaceSearchControllerProvider(hostId).notifier)
+                      .clear,
+                  child: const Text('Clear Search'),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: AleraTokens.spaceXxl * 2),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final row = rows[index];
+                  return switch (row) {
+                    MobileCustomSectionHeaderRow() => MobileCustomSectionHeader(
+                      hostId: hostId,
+                      row: row,
+                      supportsSections: data.supportsSections,
                     ),
-                  MobileProjectHeaderRow(
-                    :final projectId,
-                    :final projectName,
-                    :final count,
-                    :final collapsed,
-                  ) =>
-                    MobileSectionHeader(
-                      label: projectName,
-                      icon: collapsed
-                          ? AleraIcons.folder
-                          : AleraIcons.folderOpen,
-                      count: count,
-                      collapsed: collapsed,
-                      onToggle: () =>
-                          prefsController.toggleProjectCollapsed(projectId),
-                    ),
-                  MobileAllHeaderRow(:final count, :final collapsed) =>
-                    MobileSectionHeader(
-                      label: 'All',
-                      icon: AleraIcons.listView,
-                      count: count,
-                      collapsed: collapsed,
-                      onToggle: prefsController.toggleAllSection,
-                    ),
-                  MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
-                    row: row,
-                    linkedIssue: linkedIssues?[row.entry.workspace.id],
-                    pullRequestSummary:
-                        pullRequestSummaries?[row.entry.workspace.id],
-                    pullRequestWatch:
-                        pullRequestWatches?.byWorkspace[row.entry.workspace.id],
-                    host: workspaceHosts?.hostOf(row.entry.workspace),
-                    terminalTabCount:
-                        data.terminalTabCountByWorkspaceId[row
-                            .entry
-                            .workspace
-                            .id] ??
-                        0,
-                    agentPresence:
-                        agentPresenceByWorkspaceId[row.entry.workspace.id] ??
-                        const <AgentPresenceSummary>[],
-                    mainTabIds: {
-                      ...?data.workspaceMainTabIds[row.entry.workspace.id],
-                    },
-                    agentsExpanded: expandedWorkspaceIds.contains(
-                      row.entry.workspace.id,
-                    ),
-                    onToggleAgents: () => ref
-                        .read(
-                          workspaceAgentExpansionControllerProvider(hostId)
-                              .notifier,
-                        )
-                        .toggle(row.entry.workspace.id),
-                    onAgentTap: (status) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => WorkspaceTabsScreen(
-                            hostId: hostId,
-                            workspace: row.entry.workspace,
-                            initialTabId: status.tabId,
+                    MobilePinnedHeaderRow(:final count, :final collapsed) =>
+                      MobileSectionHeader(
+                        label: 'Pinned',
+                        icon: AleraIcons.pin,
+                        count: count,
+                        collapsed: collapsed,
+                        onToggle: prefsController.togglePinnedSection,
+                      ),
+                    MobileProjectHeaderRow(
+                      :final projectId,
+                      :final projectName,
+                      :final count,
+                      :final collapsed,
+                    ) =>
+                      MobileSectionHeader(
+                        label: projectName,
+                        icon: collapsed
+                            ? AleraIcons.folder
+                            : AleraIcons.folderOpen,
+                        count: count,
+                        collapsed: collapsed,
+                        onToggle: () =>
+                            prefsController.toggleProjectCollapsed(projectId),
+                      ),
+                    MobileAllHeaderRow(:final count, :final collapsed) =>
+                      MobileSectionHeader(
+                        label: 'All',
+                        icon: AleraIcons.listView,
+                        count: count,
+                        collapsed: collapsed,
+                        onToggle: prefsController.toggleAllSection,
+                      ),
+                    MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
+                      row: row,
+                      linkedIssue: linkedIssues?[row.entry.workspace.id],
+                      pullRequestSummary:
+                          pullRequestSummaries?[row.entry.workspace.id],
+                      pullRequestWatch: pullRequestWatches
+                          ?.byWorkspace[row.entry.workspace.id],
+                      host: workspaceHosts?.hostOf(row.entry.workspace),
+                      terminalTabCount:
+                          data.terminalTabCountByWorkspaceId[row
+                              .entry
+                              .workspace
+                              .id] ??
+                          0,
+                      agentPresence:
+                          agentPresenceByWorkspaceId[row.entry.workspace.id] ??
+                          const <AgentPresenceSummary>[],
+                      mainTabIds: {
+                        ...?data.workspaceMainTabIds[row.entry.workspace.id],
+                      },
+                      agentsExpanded: expandedWorkspaceIds.contains(
+                        row.entry.workspace.id,
+                      ),
+                      onToggleAgents: () => ref
+                          .read(
+                            workspaceAgentExpansionControllerProvider(hostId)
+                                .notifier,
+                          )
+                          .toggle(row.entry.workspace.id),
+                      onAgentTap: (status) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => WorkspaceTabsScreen(
+                              hostId: hostId,
+                              workspace: row.entry.workspace,
+                              initialTabId: status.tabId,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    onCloseAgent: (status) => closeWorkspaceAgentTerminal(
-                      context,
-                      ref,
-                      status,
-                      hostId: hostId,
-                      workspaceId: row.entry.workspace.id,
-                    ),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => WorkspaceTabsScreen(
-                            hostId: hostId,
-                            workspace: row.entry.workspace,
+                        );
+                      },
+                      onCloseAgent: (status) => closeWorkspaceAgentTerminal(
+                        context,
+                        ref,
+                        status,
+                        hostId: hostId,
+                        workspaceId: row.entry.workspace.id,
+                      ),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => WorkspaceTabsScreen(
+                              hostId: hostId,
+                              workspace: row.entry.workspace,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    onLongPress: () => showWorkspaceActionsSheet(
-                      context,
-                      ref,
-                      hostId: hostId,
-                      workspace: row.entry.workspace,
-                      data: data,
+                        );
+                      },
+                      onLongPress: () => showWorkspaceActionsSheet(
+                        context,
+                        ref,
+                        hostId: hostId,
+                        workspace: row.entry.workspace,
+                        data: data,
+                      ),
+                      onMore: () => showWorkspaceActionsSheet(
+                        context,
+                        ref,
+                        hostId: hostId,
+                        workspace: row.entry.workspace,
+                        data: data,
+                      ),
+                      onToggleChildren: () => prefsController
+                          .toggleParentCollapsed(row.entry.workspace.id),
                     ),
-                    onMore: () => showWorkspaceActionsSheet(
-                      context,
-                      ref,
-                      hostId: hostId,
-                      workspace: row.entry.workspace,
-                      data: data,
-                    ),
-                    onToggleChildren: () => prefsController
-                        .toggleParentCollapsed(row.entry.workspace.id),
-                  ),
-                };
-              }, childCount: rows.length),
+                  };
+                }, childCount: rows.length),
+              ),
             ),
-          ),
         ],
       ),
+    );
+  }
+}
+
+/// Whether [row] stands for at least one visible workspace, including the
+/// collapsed ones a header still counts.
+bool _rowHasWorkspaces(MobileWorkspaceRow row) => switch (row) {
+  MobileWorkspaceEntryRow() => true,
+  MobileCustomSectionHeaderRow(:final count) ||
+  MobilePinnedHeaderRow(:final count) ||
+  MobileProjectHeaderRow(:final count) ||
+  MobileAllHeaderRow(:final count) => count > 0,
+};
+
+/// Reloads the workspace list together with the pull request summaries, watch
+/// state, and host directory that decorate its rows.
+Future<void> refreshWorkspaceList(WidgetRef ref, String hostId) async {
+  ref.invalidate(workspaceListControllerProvider(hostId));
+  ref.invalidate(workspacePullRequestSummariesControllerProvider(hostId));
+  ref.invalidate(pullRequestWatchControllerProvider(hostId));
+  ref.invalidate(workspaceHostsControllerProvider(hostId));
+  await ref.read(workspaceListControllerProvider(hostId).future);
+  await ref.read(
+    workspacePullRequestSummariesControllerProvider(hostId).future,
+  );
+  await ref.read(pullRequestWatchControllerProvider(hostId).future);
+  await ref.read(workspaceHostsControllerProvider(hostId).future);
+}
+
+/// Fills the space below the toolbar with [child] while staying scrollable,
+/// so the empty and error states still answer pull-to-refresh.
+class const WorkspaceListPlaceholder({super.key, required final Widget child})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: <Widget>[
+        SliverFillRemaining(hasScrollBody: false, child: child),
+      ],
     );
   }
 }
@@ -237,18 +286,44 @@ class const RuntimeWorkspacesToolbar({
   super.key,
   required final String hostId,
   required final WorkspaceListData? data,
-}) extends ConsumerWidget {
+}) extends ConsumerStatefulWidget {
   /// Dense search row plus vertical padding; drives the sliver toolbar height.
   static const double extent =
       AleraTextField.denseHeight + AleraTokens.spaceSm * 2;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RuntimeWorkspacesToolbar> createState() =>
+      _RuntimeWorkspacesToolbarState();
+}
+
+class _RuntimeWorkspacesToolbarState
+    extends ConsumerState<RuntimeWorkspacesToolbar> {
+  // Seeded from the query so a toolbar remounted by a state change keeps the
+  // text that is still filtering the list.
+  late final TextEditingController _query = TextEditingController(
+    text: ref.read(workspaceSearchControllerProvider(widget.hostId)),
+  );
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hostId = widget.hostId;
+    final data = widget.data;
+    ref.listen(workspaceSearchControllerProvider(hostId), (previous, next) {
+      if (next.isEmpty && _query.text.isNotEmpty) {
+        _query.clear();
+      }
+    });
     final controller = ref.read(
       workspaceSearchControllerProvider(hostId).notifier,
     );
     return SizedBox(
-      height: extent,
+      height: RuntimeWorkspacesToolbar.extent,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AleraTokens.spaceMd,
@@ -260,6 +335,7 @@ class const RuntimeWorkspacesToolbar({
           children: <Widget>[
             Expanded(
               child: AleraSearchField(
+                controller: _query,
                 dense: true,
                 hintText: 'Search workspaces',
                 onChanged: controller.setQuery,
@@ -274,7 +350,7 @@ class const RuntimeWorkspacesToolbar({
                       context,
                       ref,
                       hostId: hostId,
-                      data: data!,
+                      data: data,
                     ),
               icon: AleraIcons.tune,
               backgroundColor: AleraTokens.surfaceVariant,

@@ -150,7 +150,7 @@ class const _GitRefBadge({required final GitHistoryItemRef itemRef})
     final color = _graphColor(itemRef.color);
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         border: Border.all(color: color ?? AleraTokens.borderSubtle),
       ),
       child: Padding(

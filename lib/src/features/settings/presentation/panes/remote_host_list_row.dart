@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 const double _kSidebarIconSize = 16;
@@ -15,48 +16,51 @@ class const RemoteHostListRow({
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: selected ? AleraTokens.accentSubtle : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space12),
-          child: Row(
-            children: <Widget>[
-              AleraHostOsIcon(
-                os: sshTargetHostOs(target),
-                size: _kSidebarIconSize,
-                color: selected
-                    ? AleraTokens.foreground
-                    : AleraTokens.foregroundMuted,
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: .start,
-                  children: <Widget>[
-                    Text(
-                      target.alias,
-                      maxLines: 1,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foreground,
-                        fontWeight: .w600,
-                      ),
-                    ),
-                    const SizedBox(height: AleraTokens.space4),
-                    Text(
-                      '${target.username}@${target.host}:${target.port}',
-                      maxLines: 1,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
-                    ),
-                  ],
+    return AleraActiveRail(
+      active: selected,
+      child: Material(
+        color: selected ? AleraActiveRail.selectedColor : Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AleraTokens.space12),
+            child: Row(
+              children: <Widget>[
+                AleraHostOsIcon(
+                  os: sshTargetHostOs(target),
+                  size: _kSidebarIconSize,
+                  color: selected
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundMuted,
                 ),
-              ),
-            ],
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: .start,
+                    children: <Widget>[
+                      Text(
+                        target.alias,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AleraTokens.foreground,
+                          fontWeight: .w600,
+                        ),
+                      ),
+                      const SizedBox(height: AleraTokens.space4),
+                      Text(
+                        '${target.username}@${target.host}:${target.port}',
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

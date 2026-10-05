@@ -36,12 +36,15 @@ class const KeepAliveStatusChip({
               child: Row(
                 mainAxisSize: .min,
                 children: <Widget>[
-                  Icon(AleraIcons.keepAlive, size: 13, color: color),
+                  Icon(
+                    AleraIcons.keepAlive,
+                    size: AleraTokens.iconStatusBar,
+                    color: color,
+                  ),
                   const SizedBox(width: AleraTokens.space6),
                   Text(
                     'Keep Alive',
-                    style: AleraTokens.monoStyle.copyWith(
-                      fontSize: 10,
+                    style: AleraTokens.statusBarTextStyle.copyWith(
                       color: color,
                     ),
                   ),

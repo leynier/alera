@@ -155,12 +155,12 @@ class const _StepperButton({
   Widget build(BuildContext context) {
     final radius = position == _StepperPosition.top
         ? const BorderRadius.only(
-            topLeft: .circular(AleraTokens.radiusSm),
-            topRight: .circular(AleraTokens.radiusSm),
+            topLeft: .circular(AleraTokens.radiusXs),
+            topRight: .circular(AleraTokens.radiusXs),
           )
         : const BorderRadius.only(
-            bottomLeft: .circular(AleraTokens.radiusSm),
-            bottomRight: .circular(AleraTokens.radiusSm),
+            bottomLeft: .circular(AleraTokens.radiusXs),
+            bottomRight: .circular(AleraTokens.radiusXs),
           );
     final border = position == _StepperPosition.top
         ? const Border(

@@ -1,4 +1,6 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,5 +56,35 @@ void main() {
     await mouse.moveTo(const Offset(400, 400));
     await tester.pumpAndSettle();
     expect(tester.getSize(animated).width, 1);
+  });
+
+  testWidgets('double-clicking the handle restores the default width', (
+    tester,
+  ) async {
+    final resizedWidths = <double>[];
+    final committedWidths = <double>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.centerLeft,
+            child: SidebarResizeHandle(
+              currentWidth: 380,
+              onResize: resizedWidths.add,
+              onResizeEnd: committedWidths.add,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final center = tester.getCenter(find.byType(SidebarResizeHandle));
+    await tester.tapAt(center);
+    await tester.pump(kDoubleTapMinTime);
+    await tester.tapAt(center);
+    await tester.pumpAndSettle();
+
+    expect(resizedWidths, <double>[AleraTokens.sidebarDefaultWidth]);
+    expect(committedWidths.last, AleraTokens.sidebarDefaultWidth);
   });
 }

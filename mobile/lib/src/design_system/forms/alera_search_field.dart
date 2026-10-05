@@ -35,6 +35,8 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
     final provided = widget.controller;
     if (provided != null) {
       _controller = provided;
+      // An owner may clear the text itself; the clear button must follow.
+      provided.addListener(_handleControllerChange);
     } else {
       _controller = TextEditingController(text: widget.initialValue);
       _ownsController = true;
@@ -46,8 +48,19 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
     _debounce?.cancel();
     if (_ownsController) {
       _controller.dispose();
+    } else {
+      _controller.removeListener(_handleControllerChange);
     }
     super.dispose();
+  }
+
+  bool _showsClear = false;
+
+  void _handleControllerChange() {
+    final hasText = _controller.text.isNotEmpty;
+    if (hasText != _showsClear && mounted) {
+      setState(() {});
+    }
   }
 
   void _emit(String value) {
@@ -91,13 +104,13 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    final hasText = _controller.text.isNotEmpty;
+    final hasText = _showsClear = _controller.text.isNotEmpty;
     final clearButton = hasText
         ? IconButton(
             tooltip: 'Clear',
             icon: const Icon(
               AleraIcons.close,
-              size: 12,
+              size: AleraTokens.iconSm,
               color: AleraTokens.foregroundFaint,
             ),
             onPressed: _clear,

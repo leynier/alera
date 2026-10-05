@@ -335,7 +335,7 @@ void main() {
     expect(find.textContaining('Disk v1'), findsOneWidget);
 
     service.content = '# Disk v2';
-    await tester.tap(find.byTooltip('Refresh preview'));
+    await tester.tap(find.byTooltip('Refresh Preview'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Disk v2'), findsOneWidget);

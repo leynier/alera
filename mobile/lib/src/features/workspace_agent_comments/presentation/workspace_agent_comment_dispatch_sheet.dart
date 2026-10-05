@@ -21,7 +21,6 @@ Future<WorkspaceAgentCommentTarget?> showWorkspaceAgentCommentDispatchSheet(
 }) {
   return showModalBottomSheet<WorkspaceAgentCommentTarget>(
     context: context,
-    showDragHandle: true,
     isScrollControlled: true,
     builder: (context) => WorkspaceAgentCommentDispatchSheet(
       runningAgents: runningAgents,

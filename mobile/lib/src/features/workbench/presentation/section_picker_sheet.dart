@@ -221,9 +221,7 @@ class _SectionPickerState extends ConsumerState<_SectionPicker> {
                               );
                             },
 
-                      child: Text(
-                        current?.saving == true ? 'Saving...' : 'Save',
-                      ),
+                      child: Text(current?.saving == true ? 'Saving…' : 'Save'),
                     ),
                   ],
                 ),

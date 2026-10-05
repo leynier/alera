@@ -221,8 +221,7 @@ class const _WhisperModelRow({
         'Queued. This download starts when the active transfer finishes.',
       AiDictationModelTransferStatus.downloading =>
         '${_formatBytes(transfer.receivedBytes)} of ${_formatBytes(transfer.totalBytes)}',
-      AiDictationModelTransferStatus.verifying =>
-        'Verifying downloaded model...',
+      AiDictationModelTransferStatus.verifying => 'Verifying downloaded model…',
       AiDictationModelTransferStatus.resumable =>
         'Download interrupted at ${_formatBytes(transfer.receivedBytes)}. Resume when ready.',
       AiDictationModelTransferStatus.failed =>

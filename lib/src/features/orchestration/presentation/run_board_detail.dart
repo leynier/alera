@@ -140,7 +140,7 @@ class RunBoardDetail extends StatelessWidget {
           children: [
             AleraBadge(
               label: runBoardStatusLabel(run.status),
-              foregroundColor: runBoardStatusColor(run.status),
+              tone: runBoardStatusTone(run.status),
             ),
             AleraBadge(
               label: '${run.completedCount}/${run.taskCount} Completed',
@@ -149,7 +149,7 @@ class RunBoardDetail extends StatelessWidget {
               AleraBadge(
                 label:
                     '${run.pendingGateCount} Pending ${run.pendingGateCount == 1 ? 'Gate' : 'Gates'}',
-                foregroundColor: AleraTokens.warning,
+                tone: AleraBadgeTone.attention,
               ),
           ],
         ),

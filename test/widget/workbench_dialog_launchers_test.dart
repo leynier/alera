@@ -378,7 +378,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Workspace created'), findsOneWidget);
-        expect(find.text('New Workspace - Settings'), findsOneWidget);
+        expect(find.text('Step 2 of 2 · Settings'), findsOneWidget);
         expect(
           tester
               .widget<TextField>(

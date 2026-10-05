@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
-import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
@@ -10,6 +10,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/quick_open_result_views.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -385,58 +386,21 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
 
   Widget _buildResults(ThemeData theme) {
     if (_loading) {
-      return const Center(
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            CircularProgressIndicator(),
-            SizedBox(height: AleraTokens.space12),
-            Text('Loading workspace files...'),
-          ],
-        ),
+      return const AleraEmptyState(
+        loading: true,
+        message: 'Loading workspace files…',
       );
     }
-    if (_loadError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space16),
-          child: Column(
-            mainAxisSize: .min,
-            children: <Widget>[
-              Icon(AleraIcons.error, color: AleraTokens.error),
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                'Could not load workspace files.',
-                style: theme.textTheme.bodyMedium,
-                textAlign: .center,
-              ),
-              const SizedBox(height: AleraTokens.space4),
-              Text(
-                _loadError.toString(),
-                maxLines: 3,
-                overflow: .ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
-                textAlign: .center,
-              ),
-            ],
-          ),
-        ),
-      );
+    if (_loadError case final error?) {
+      return QuickOpenLoadError(error: error);
     }
     if (_matches.isEmpty) {
       final query = _queryController.text.trim();
-      return Center(
-        child: Text(
-          query.isEmpty
-              ? 'No files are available in this workspace.'
-              : 'No files match "$query".',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-          textAlign: .center,
-        ),
+      return AleraEmptyState(
+        icon: query.isEmpty ? AleraIcons.folderOff : AleraIcons.searchOff,
+        message: query.isEmpty
+            ? 'No files are available in this workspace.'
+            : 'No files match "$query".',
       );
     }
     return ListView.builder(
@@ -447,44 +411,14 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
       itemCount: _matches.length,
       itemBuilder: (context, index) {
         final match = _matches[index];
-        final selected = index == _selectedIndex;
-        final rowKey = _rowKeys.putIfAbsent(
-          match.relativePath,
-          () => GlobalKey(),
-        );
-        return Material(
-          key: rowKey,
-          color: selected ? AleraTokens.accentSubtle : null,
-          child: InkWell(
-            onTap: () {
-              setState(() => _selectedIndex = index);
-              _openSelected();
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space12,
-                vertical: AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  AleraFileIcon(
-                    pathOrName: match.relativePath,
-                    kind: .file,
-                    size: AleraTokens.space16,
-                  ),
-                  const SizedBox(width: AleraTokens.space12),
-                  Expanded(
-                    child: Text(
-                      match.relativePath,
-                      maxLines: 1,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        return QuickOpenResultRow(
+          key: _rowKeys.putIfAbsent(match.relativePath, () => GlobalKey()),
+          relativePath: match.relativePath,
+          selected: index == _selectedIndex,
+          onTap: () {
+            setState(() => _selectedIndex = index);
+            _openSelected();
+          },
         );
       },
     );

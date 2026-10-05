@@ -16,9 +16,15 @@ class const AgentRunStateIndicator({
   required final AgentStatusEntry? status,
   final double size = 13,
   this.idleDotActive = false,
+  this.stateLabeled = false,
 }) extends StatelessWidget {
   /// Whether the idle dot shown for a null [status] reads as active.
   final bool idleDotActive;
+
+  /// Whether a sibling `AgentRunStatusBadge` already names a non-working
+  /// state. The slot then shows a muted dot instead of repeating the state
+  /// color, and the badge carries the tooltip and accessible label.
+  final bool stateLabeled;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +33,17 @@ class const AgentRunStateIndicator({
       return SizedBox.square(
         dimension: size,
         child: Center(child: AleraStatusDot(active: idleDotActive)),
+      );
+    }
+    if (stateLabeled && status.state != AgentStatusState.working) {
+      return SizedBox.square(
+        dimension: size,
+        child: const Center(
+          child: AleraStatusDot(
+            active: false,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
       );
     }
     final label = agentRunStateLabel(status);

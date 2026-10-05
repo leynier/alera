@@ -26,7 +26,7 @@ class const AleraCheckbox({
         color: value
             ? (enabled ? AleraTokens.accent : AleraTokens.foregroundFaint)
             : AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
         border: Border.all(
           color: value ? Colors.transparent : AleraTokens.border,
         ),
@@ -41,7 +41,7 @@ class const AleraCheckbox({
       label: label,
       child: InkWell(
         onTap: enabled ? () => onChanged(!value) : null,
-        borderRadius: .circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusXs),
         mouseCursor: enabled
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,

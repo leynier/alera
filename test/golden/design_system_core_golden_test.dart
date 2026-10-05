@@ -163,15 +163,15 @@ class const _StatusScenario() extends StatelessWidget {
             runSpacing: AleraTokens.space8,
             children: <Widget>[
               const AleraBadge(label: 'Primary'),
+              const AleraBadge(label: 'Synced', tone: .accent),
+              const AleraBadge(label: 'Needs Input', tone: .attention),
+              const AleraBadge(label: 'Blocked', tone: .error),
+              const AleraBadge(label: 'Done', tone: .success),
+              const AleraBadge(label: 'Review', tone: .info),
               const AleraBadge(
-                label: 'Synced',
-                color: AleraTokens.accentSubtle,
-                foregroundColor: AleraTokens.foreground,
-              ),
-              AleraBadge(
-                label: 'Review',
-                color: AleraTokens.info.withAlpha(26),
-                foregroundColor: AleraTokens.info,
+                label: 'Merged',
+                tone: .done,
+                icon: AleraIcons.gitMerge,
               ),
             ],
           ),

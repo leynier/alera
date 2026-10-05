@@ -101,7 +101,7 @@ class _WorkflowSavedProposalsState extends State<WorkflowSavedProposals> {
                 onPressed: _busy ? null : _load,
                 child: const Text('Load More Proposals'),
               ),
-            if (_busy) const Text('Loading proposals...'),
+            if (_busy) const Text('Loading proposals…'),
           ],
         );
       }

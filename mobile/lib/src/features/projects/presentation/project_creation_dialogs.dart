@@ -14,7 +14,6 @@ class const CloneProjectDraft({
 Future<AddProjectChoice?> showAddProjectSheet(BuildContext context) {
   return showModalBottomSheet<AddProjectChoice>(
     context: context,
-    showDragHandle: true,
     builder: (context) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.only(bottom: AleraTokens.spaceLg),

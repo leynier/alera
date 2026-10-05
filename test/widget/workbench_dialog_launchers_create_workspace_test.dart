@@ -132,14 +132,14 @@ void main() {
       await tester.tap(find.text('Create Workspace'));
       await tester.pumpAndSettle();
 
-      expect(find.text('New Workspace - Settings'), findsNothing);
+      expect(find.text('Step 2 of 2 · Settings'), findsNothing);
       expect(find.text('Workspace failed'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
 
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
 
-      expect(find.text('New Workspace - Settings'), findsOneWidget);
+      expect(find.text('Step 2 of 2 · Settings'), findsOneWidget);
       expect(find.text('Retry'), findsNothing);
       expect(find.text('feature/error'), findsWidgets);
     });
@@ -177,7 +177,7 @@ void main() {
         await tester.tap(find.text('Create Workspace'));
         await tester.pumpAndSettle();
 
-        expect(find.text('New Workspace - Settings'), findsOneWidget);
+        expect(find.text('Step 2 of 2 · Settings'), findsOneWidget);
         expect(find.text('Workspace failed'), findsOneWidget);
         expect(find.text('Retry'), findsNothing);
         expect(
@@ -225,7 +225,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(find.text('New Workspace - Settings'), findsNothing);
+        expect(find.text('Step 2 of 2 · Settings'), findsNothing);
         expect(
           find.text('Creating workspace "feature/background"'),
           findsOneWidget,

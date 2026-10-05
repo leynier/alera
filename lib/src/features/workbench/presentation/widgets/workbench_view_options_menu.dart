@@ -51,7 +51,7 @@ class const WorkbenchViewOptionsButton({super.key}) extends ConsumerWidget {
       clipBehavior: .none,
       children: <Widget>[
         AleraIconButton(
-          tooltip: 'View options',
+          tooltip: 'View Options',
           onPressed: () => _showOptions(context),
           icon: AleraIcons.tune,
         ),

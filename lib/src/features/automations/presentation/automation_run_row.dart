@@ -3,6 +3,7 @@ import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
 import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 /// One run in a history list. Selecting it opens the run panel, which holds
@@ -28,32 +29,35 @@ class const AutomationRunRow({
       if (!run.isFinal && run.lastActivityAt != null)
         'Last activity ${automationRelativeTime(run.lastActivityAt!)}',
     ];
-    return ListTile(
-      dense: true,
-      selected: selected,
-      selectedTileColor: AleraTokens.accentSubtle,
-      onTap: onTap,
-      title: Row(
-        children: <Widget>[
-          Text('#${run.number}', style: theme.textTheme.bodyMedium),
-          const SizedBox(width: AleraTokens.space8),
-          Flexible(child: AutomationStatusText(status: status)),
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: .start,
-        children: <Widget>[
-          Text(
-            details.join(' · '),
-            maxLines: 1,
-            overflow: .ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
+    return AleraActiveRail(
+      active: selected,
+      child: ListTile(
+        dense: true,
+        selected: selected,
+        selectedTileColor: AleraActiveRail.selectedColor,
+        onTap: onTap,
+        title: Row(
+          children: <Widget>[
+            Text('#${run.number}', style: theme.textTheme.bodyMedium),
+            const SizedBox(width: AleraTokens.space8),
+            Flexible(child: AutomationStatusText(status: status)),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: .start,
+          children: <Widget>[
+            Text(
+              details.join(' · '),
+              maxLines: 1,
+              overflow: .ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AleraTokens.foregroundMuted,
+              ),
             ),
-          ),
-          if (run.summary ?? run.error case final text?)
-            Text(text, maxLines: 2, overflow: .ellipsis),
-        ],
+            if (run.summary ?? run.error case final text?)
+              Text(text, maxLines: 2, overflow: .ellipsis),
+          ],
+        ),
       ),
     );
   }

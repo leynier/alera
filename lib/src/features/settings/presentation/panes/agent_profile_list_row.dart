@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 const double _kSidebarIconSize = 16;
@@ -28,73 +29,78 @@ class const AgentProfileListRow({
     final subtitle = profile.quotaGroup == null
         ? '$launchLabel  ·  ${profile.command}'
         : '$launchLabel  ·  ${profile.command}  ·  ${profile.quotaGroup}';
-    return Material(
-      key: key,
-      color: selected ? AleraTokens.accentSubtle : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        mouseCursor: SystemMouseCursors.click,
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space12),
-          child: Row(
-            children: <Widget>[
-              Tooltip(message: 'Reorder Agent Profile', child: dragHandle),
-              const SizedBox(width: AleraTokens.space4),
-              if (adapter != null)
-                AgentIdentityIcon(
-                  agentType: adapter,
-                  size: _kSidebarIconSize,
-                  color: selected
-                      ? AleraTokens.foreground
-                      : AleraTokens.foregroundMuted,
-                  showTooltip: false,
-                )
-              else
-                Icon(
-                  Icons.help_outline,
-                  size: _kSidebarIconSize,
-                  color: AleraTokens.foregroundMuted,
-                ),
-              const SizedBox(width: AleraTokens.space8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: .start,
-                  children: <Widget>[
-                    Text(
-                      profile.name,
-                      maxLines: 1,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foreground,
-                        fontWeight: .w600,
+    return AleraActiveRail(
+      active: selected,
+      child: Material(
+        key: key,
+        color: selected ? AleraActiveRail.selectedColor : Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          mouseCursor: SystemMouseCursors.click,
+          child: Padding(
+            padding: const EdgeInsets.all(AleraTokens.space12),
+            child: Row(
+              children: <Widget>[
+                Tooltip(message: 'Reorder Agent Profile', child: dragHandle),
+                const SizedBox(width: AleraTokens.space4),
+                if (adapter != null)
+                  AgentIdentityIcon(
+                    agentType: adapter,
+                    size: _kSidebarIconSize,
+                    color: selected
+                        ? AleraTokens.foreground
+                        : AleraTokens.foregroundMuted,
+                    showTooltip: false,
+                  )
+                else
+                  Icon(
+                    Icons.help_outline,
+                    size: _kSidebarIconSize,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: .start,
+                    children: <Widget>[
+                      Text(
+                        profile.name,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AleraTokens.foreground,
+                          fontWeight: .w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AleraTokens.space4),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
+                      const SizedBox(height: AleraTokens.space4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              AleraIconButton(
-                tooltip: isDefault ? 'Default Agent Profile' : 'Set As Default',
-                icon: AleraIcons.star,
-                iconColor: isDefault
-                    ? AleraTokens.accent
-                    : AleraTokens.foregroundFaint,
-                onPressed: onSetDefault,
-              ),
-              AleraIconButton(
-                tooltip: 'Clone Profile',
-                icon: AleraIcons.duplicate,
-                onPressed: onClone,
-              ),
-            ],
+                AleraIconButton(
+                  tooltip: isDefault
+                      ? 'Default Agent Profile'
+                      : 'Set As Default',
+                  icon: AleraIcons.star,
+                  iconColor: isDefault
+                      ? AleraTokens.accent
+                      : AleraTokens.foregroundFaint,
+                  onPressed: onSetDefault,
+                ),
+                AleraIconButton(
+                  tooltip: 'Clone Profile',
+                  icon: AleraIcons.duplicate,
+                  onPressed: onClone,
+                ),
+              ],
+            ),
           ),
         ),
       ),

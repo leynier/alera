@@ -13,3 +13,15 @@ Widget aleraEmptyStateIconPreview() => const AleraEmptyState(
   title: 'No matching results',
   message: 'Adjust the filters and try again.',
 );
+
+@AleraPreview(name: 'Loading', group: 'Empty State')
+Widget aleraEmptyStateLoadingPreview() =>
+    const AleraEmptyState(loading: true, message: 'Loading workspace files…');
+
+@AleraPreview(name: 'With action', group: 'Empty State')
+Widget aleraEmptyStateActionPreview() => AleraEmptyState(
+  icon: AleraIcons.tabUnselected,
+  title: 'Panel is empty',
+  message: 'Open a tool or a terminal to get started.',
+  action: FilledButton(onPressed: () {}, child: const Text('New Terminal')),
+);

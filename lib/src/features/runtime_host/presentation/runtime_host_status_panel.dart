@@ -37,14 +37,15 @@ class const RuntimeHostStatusChip({
           child: Row(
             mainAxisSize: .min,
             children: <Widget>[
-              Icon(AleraIcons.host, size: 13, color: color),
+              Icon(
+                AleraIcons.host,
+                size: AleraTokens.iconStatusBar,
+                color: color,
+              ),
               const SizedBox(width: AleraTokens.space6),
               Text(
                 label,
-                style: AleraTokens.monoStyle.copyWith(
-                  fontSize: 10,
-                  color: color,
-                ),
+                style: AleraTokens.statusBarTextStyle.copyWith(color: color),
               ),
             ],
           ),
@@ -214,10 +215,7 @@ class const _StatusRow({
           Expanded(
             child: Text(
               value,
-              style: AleraTokens.monoStyle.copyWith(
-                fontSize: 11,
-                color: valueColor,
-              ),
+              style: AleraTokens.monoCompactStyle.copyWith(color: valueColor),
               overflow: .ellipsis,
             ),
           ),

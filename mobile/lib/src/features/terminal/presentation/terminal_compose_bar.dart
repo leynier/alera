@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/prompt_path_insertion.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 
@@ -61,36 +66,33 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
     final text = _controller.text;
     if (text.isEmpty && withEnter) {
       // An empty send still means "press Enter" in a terminal.
+      unawaited(HapticFeedback.selectionClick());
       widget.onSend('', withEnter: true);
       return;
     }
     if (text.isEmpty) {
       return;
     }
+    unawaited(HapticFeedback.selectionClick());
     widget.onSend(text, withEnter: withEnter);
     _controller.clear();
   }
 
   Future<void> _sendOptions() async {
-    final withEnter = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.keyboard_return),
-              title: const Text('Send With Enter'),
-              onTap: () => Navigator.of(context).pop(true),
-            ),
-            ListTile(
-              leading: const Icon(Icons.text_fields),
-              title: const Text('Send Without Enter'),
-              onTap: () => Navigator.of(context).pop(false),
-            ),
-          ],
+    final withEnter = await showAleraActionSheet<bool>(
+      context,
+      entries: const <AleraActionSheetEntry<bool>>[
+        AleraActionSheetEntry<bool>(
+          value: true,
+          label: 'Send With Enter',
+          leading: Icon(AleraIcons.enterKey),
         ),
-      ),
+        AleraActionSheetEntry<bool>(
+          value: false,
+          label: 'Send Without Enter',
+          leading: Icon(AleraIcons.textOnly),
+        ),
+      ],
     );
     if (withEnter != null) {
       _send(withEnter: withEnter);
@@ -193,7 +195,7 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
                     ),
                     decoration: BoxDecoration(
                       color: AleraTokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
                       border: Border.all(color: AleraTokens.borderSubtle),
                     ),
                     child: Row(

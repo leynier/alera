@@ -375,13 +375,13 @@ class const _MarkdownViewerFileBar({
             ),
             const SizedBox(width: AleraTokens.space8),
             AleraIconButton(
-              tooltip: loading ? 'Refreshing preview' : 'Refresh preview',
+              tooltip: loading ? 'Refreshing preview…' : 'Refresh Preview',
               icon: loading ? AleraIcons.loading : AleraIcons.refresh,
               onPressed: loading ? null : onRefresh,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
-              tooltip: 'Open source file',
+              tooltip: 'Open Source File',
               icon: AleraIcons.code,
               onPressed: onOpenEditor,
             ),

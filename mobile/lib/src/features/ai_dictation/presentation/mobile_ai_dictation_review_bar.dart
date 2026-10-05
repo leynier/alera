@@ -76,8 +76,8 @@ class const _RecordingBar({
               Text(
                 processing
                     ? state.stage == MobileAiDictationStage.improving
-                          ? 'Improving Transcript...'
-                          : 'Transcribing Recording...'
+                          ? 'Improving Transcript…'
+                          : 'Transcribing Recording…'
                     : _formatDuration(
                         state.hasRecording
                             ? state.playbackPosition
@@ -154,7 +154,7 @@ class const _RecordingBar({
   Widget _progress() {
     if (state.stage == MobileAiDictationStage.recording) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
         child: LinearProgressIndicator(
           value: state.amplitude,
           minHeight: AleraTokens.space8,

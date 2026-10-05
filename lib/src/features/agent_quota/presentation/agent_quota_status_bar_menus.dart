@@ -53,8 +53,7 @@ class const _QuotaProviderSummary({
               if (readings.isEmpty)
                 Text(
                   '-',
-                  style: AleraTokens.monoStyle.copyWith(
-                    fontSize: 10,
+                  style: AleraTokens.statusBarTextStyle.copyWith(
                     color: _quotaColor(snapshot.status, null),
                   ),
                 )
@@ -134,7 +133,7 @@ class const _CollapsedQuotaBar({
                   children: <Widget>[
                     const Icon(
                       AleraIcons.agent,
-                      size: 13,
+                      size: AleraTokens.iconStatusBar,
                       color: AleraTokens.foregroundMuted,
                     ),
                     const SizedBox(width: AleraTokens.space6),
@@ -145,7 +144,7 @@ class const _CollapsedQuotaBar({
                             : '${snapshots.length} agent quotas - '
                                   '${hostId == 'local' ? 'Local' : hostId}',
                         overflow: .ellipsis,
-                        style: AleraTokens.monoStyle.copyWith(fontSize: 10),
+                        style: AleraTokens.statusBarTextStyle,
                       ),
                     ),
                   ],

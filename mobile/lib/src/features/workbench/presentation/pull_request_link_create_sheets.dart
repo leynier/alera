@@ -95,7 +95,6 @@ Future<void> showCreatePullRequestSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
     builder: (_) => CreatePullRequestSheet(
       headBranch: headBranch,
       baseBranches: baseBranches,

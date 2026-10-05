@@ -216,7 +216,6 @@ Future<String?> showWorkspaceFilePickerSheet(
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => FractionallySizedBox(
       heightFactor: 0.78,
       child: WorkspaceFilePickerSheet(start: start, search: search, stop: stop),

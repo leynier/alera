@@ -116,18 +116,18 @@ class const _WorkspaceTabChip({
           unawaited(_openContextMenu(context, details.globalPosition, ref)),
       child: Material(
         color: active ? AleraTokens.surfaceElevated : AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         child: InkWell(
           onTap: onTap,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: .circular(AleraTokens.radiusMd),
+          borderRadius: .circular(AleraTokens.radiusSm),
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AleraTokens.space6,
-              vertical: AleraTokens.space6,
+              vertical: AleraTokens.space4,
             ),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
               border: Border.all(
                 color: active ? AleraTokens.border : AleraTokens.borderSubtle,
               ),
@@ -141,30 +141,23 @@ class const _WorkspaceTabChip({
                       ? AleraTokens.foreground
                       : AleraTokens.foregroundMuted,
                 ),
-                const SizedBox(width: AleraTokens.space4),
-                SizedBox.square(
-                  dimension: 6,
-                  child: () {
-                    final entry = status;
-                    if (entry == null) {
-                      return const SizedBox.shrink();
-                    }
-                    return Tooltip(
-                      message: workbenchTabAttentionTooltip(
+                if (status case final entry?) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  Tooltip(
+                    message: workbenchTabAttentionTooltip(
+                      status: entry,
+                      completionAcknowledged: completionAcknowledged,
+                    ),
+                    child: AleraStatusDot(
+                      active: true,
+                      size: AleraTokens.statusDotSm,
+                      color: workbenchTabAttentionDotColor(
                         status: entry,
                         completionAcknowledged: completionAcknowledged,
                       ),
-                      child: AleraStatusDot(
-                        active: true,
-                        size: 6,
-                        color: workbenchTabAttentionDotColor(
-                          status: entry,
-                          completionAcknowledged: completionAcknowledged,
-                        ),
-                      ),
-                    );
-                  }(),
-                ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(
                   constraints: BoxConstraints(
@@ -175,20 +168,13 @@ class const _WorkspaceTabChip({
                     maxLines: 1,
                     softWrap: false,
                     overflow: .ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: active
-                          ? AleraTokens.foreground
-                          : AleraTokens.foregroundMuted,
-                      fontStyle: tab.isPreview
-                          ? FontStyle.italic
-                          : FontStyle.normal,
-                    ),
+                    style: _tabTitleStyle(context, tab, active: active),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space4),
                 if (tab.payload['agentTitleStatus'] == 'generating') ...[
                   const Tooltip(
-                    message: 'Generating title...',
+                    message: 'Generating title…',
                     child: Icon(
                       AleraIcons.loading,
                       size: AleraTokens.iconSm,
@@ -197,18 +183,13 @@ class const _WorkspaceTabChip({
                   ),
                   const SizedBox(width: AleraTokens.space4),
                 ],
-                InkWell(
-                  onTap: onClose,
-                  mouseCursor: SystemMouseCursors.click,
-                  borderRadius: .circular(AleraTokens.radiusSm),
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
-                    child: Icon(
-                      AleraIcons.close,
-                      size: 12,
-                      color: AleraTokens.foregroundMuted,
-                    ),
-                  ),
+                AleraIconButton(
+                  tooltip: 'Close Tab',
+                  onPressed: onClose,
+                  icon: AleraIcons.close,
+                  iconSize: AleraTokens.iconSm,
+                  minSize: AleraTokens.iconButtonXs,
+                  borderRadius: AleraTokens.radiusXs,
                 ),
               ],
             ),
@@ -244,21 +225,32 @@ class const _WorkspaceTabLeadingIcon({
       WorkspaceTabKind.pdf => AleraFileIcon(
         pathOrName: tab.filePath ?? tab.title,
         kind: .file,
-        size: 12,
+        size: AleraTokens.iconSm,
         fallbackColor: color,
       ),
       WorkspaceTabKind.gitDiff => Icon(
         AleraIcons.gitBranch,
-        size: 12,
+        size: AleraTokens.iconSm,
         color: color,
       ),
       WorkspaceTabKind.terminal => Icon(
         AleraIcons.terminal,
-        size: 12,
+        size: AleraTokens.iconSm,
         color: color,
       ),
     };
   }
+}
+
+TextStyle? _tabTitleStyle(
+  BuildContext context,
+  WorkspaceTabRecord tab, {
+  required bool active,
+}) {
+  return Theme.of(context).textTheme.bodySmall?.copyWith(
+    color: active ? AleraTokens.foreground : AleraTokens.foregroundMuted,
+    fontStyle: tab.isPreview ? FontStyle.italic : FontStyle.normal,
+  );
 }
 
 double _tabTitleMaxWidth(WorkspaceTabKind kind) {
@@ -279,7 +271,7 @@ class const _DraggedTabFeedback({
   Widget build(BuildContext context) {
     return Material(
       color: AleraTokens.surfaceElevated,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
       child: Container(
         constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
         padding: const EdgeInsets.symmetric(
@@ -287,7 +279,7 @@ class const _DraggedTabFeedback({
           vertical: AleraTokens.space6,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
           border: Border.all(color: AleraTokens.border),
           boxShadow: const <BoxShadow>[
             BoxShadow(
@@ -306,13 +298,7 @@ class const _DraggedTabFeedback({
                 title,
                 maxLines: 1,
                 overflow: .ellipsis,
-                style: AleraTokens.monoStyle.copyWith(
-                  fontSize: 11,
-                  color: AleraTokens.foreground,
-                  fontStyle: tab.isPreview
-                      ? FontStyle.italic
-                      : FontStyle.normal,
-                ),
+                style: _tabTitleStyle(context, tab, active: true),
               ),
             ),
           ],

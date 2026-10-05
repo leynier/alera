@@ -33,6 +33,29 @@ void main() {
     expect(find.text('Project added'), findsNothing);
   });
 
+  testWidgets('warning toasts use the warning icon and color', (tester) async {
+    await _pumpToastHarness(
+      tester,
+      onPressed: (context) {
+        AleraToast.show(
+          context,
+          message: 'Workspace created with setup warnings',
+          tone: .warning,
+          duration: const Duration(milliseconds: 20),
+        );
+      },
+    );
+
+    await tester.tap(find.text('Show'));
+    await tester.pump();
+
+    final icon = tester.widget<Icon>(find.byIcon(AleraIcons.warning));
+    expect(icon.color, AleraTokens.warning);
+
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(AleraTokens.durationMid);
+  });
+
   testWidgets('positions toasts at the bottom right of the host', (
     tester,
   ) async {

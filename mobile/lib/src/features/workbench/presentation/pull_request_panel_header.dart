@@ -162,9 +162,7 @@ class const PullRequestPanelHeader({
           children: <Widget>[
             AleraBadge(
               label: stateLabel,
-              color: pullRequestReviewStateColor(stateLabel)
-                  .withValues(alpha: 0.16),
-              foregroundColor: pullRequestReviewStateColor(stateLabel),
+              tone: pullRequestReviewStateTone(stateLabel),
             ),
             Text('#${review.number}', style: theme.textTheme.bodySmall),
             if (review.author != null)
@@ -224,13 +222,13 @@ String pullRequestReviewStateLabel(MobilePullRequestReview review) {
   };
 }
 
-Color pullRequestReviewStateColor(String label) {
+AleraBadgeTone pullRequestReviewStateTone(String label) {
   return switch (label) {
-    'Open' => AleraTokens.success,
-    'Merged' => AleraTokens.info,
-    'Draft' => AleraTokens.warning,
-    'Closed' => AleraTokens.foregroundMuted,
-    _ => AleraTokens.foregroundMuted,
+    'Open' => AleraBadgeTone.success,
+    'Merged' => AleraBadgeTone.done,
+    'Draft' => AleraBadgeTone.attention,
+    'Closed' => AleraBadgeTone.neutral,
+    _ => AleraBadgeTone.neutral,
   };
 }
 

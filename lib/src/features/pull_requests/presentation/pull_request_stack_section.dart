@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 class const PullRequestStackSection({
@@ -176,81 +177,84 @@ class const _StackEntryRow({
       if (review.headBranch != null) review.headBranch!,
       if (review.baseBranch != null) 'Base ${review.baseBranch}',
     ].join(' · ');
-    return Material(
-      color: current ? AleraTokens.accentSubtle : Colors.transparent,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      child: InkWell(
-        borderRadius: .circular(AleraTokens.radiusSm),
-        onTap: review.url.isEmpty
-            ? null
-            : () => unawaited(onOpenUrl(review.url)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space6,
-          ),
-          child: Row(
-            crossAxisAlignment: .start,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: AleraTokens.space2),
-                child: Icon(
-                  _stateIcon(review.state),
-                  size: 14,
-                  color: _stateColor(review.state),
-                ),
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: .start,
-                  children: <Widget>[
-                    Text(
-                      '#${review.number} ${review.title}',
-                      maxLines: 2,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foreground,
-                        fontWeight: current ? FontWeight.w600 : null,
-                      ),
-                    ),
-                    if (details.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: AleraTokens.space2),
-                      Text(
-                        details,
-                        maxLines: 1,
-                        overflow: .ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (current) ...<Widget>[
-                const SizedBox(width: AleraTokens.space6),
-                Text(
-                  'Current',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.accent,
+    return AleraActiveRail(
+      active: current,
+      child: Material(
+        color: current ? AleraActiveRail.selectedColor : Colors.transparent,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        child: InkWell(
+          borderRadius: .circular(AleraTokens.radiusSm),
+          onTap: review.url.isEmpty
+              ? null
+              : () => unawaited(onOpenUrl(review.url)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space8,
+              vertical: AleraTokens.space6,
+            ),
+            child: Row(
+              crossAxisAlignment: .start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: AleraTokens.space2),
+                  child: Icon(
+                    _stateIcon(review.state),
+                    size: 14,
+                    color: _stateColor(review.state),
                   ),
                 ),
-              ] else if (hasLocalWorkspace &&
-                  onOpenWorkspaceBranch != null) ...<Widget>[
-                const SizedBox(width: AleraTokens.space4),
-                AleraIconButton(
-                  tooltip: 'Open Workspace',
-                  icon: AleraIcons.folderOpen,
-                  onPressed: () {
-                    final branch = review.headBranch;
-                    if (branch != null) {
-                      unawaited(onOpenWorkspaceBranch!(branch));
-                    }
-                  },
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: .start,
+                    children: <Widget>[
+                      Text(
+                        '#${review.number} ${review.title}',
+                        maxLines: 2,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foreground,
+                          fontWeight: current ? FontWeight.w600 : null,
+                        ),
+                      ),
+                      if (details.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: AleraTokens.space2),
+                        Text(
+                          details,
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: AleraTokens.foregroundMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+                if (current) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space6),
+                  Text(
+                    'Current',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.accent,
+                    ),
+                  ),
+                ] else if (hasLocalWorkspace &&
+                    onOpenWorkspaceBranch != null) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  AleraIconButton(
+                    tooltip: 'Open Workspace',
+                    icon: AleraIcons.folderOpen,
+                    onPressed: () {
+                      final branch = review.headBranch;
+                      if (branch != null) {
+                        unawaited(onOpenWorkspaceBranch!(branch));
+                      }
+                    },
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

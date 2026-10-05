@@ -1,5 +1,6 @@
 ---
 import AgentLogo from '../primitives/AgentLogo.astro';
+import { APP_COPY } from '../../../data/demo/app-copy';
 import MobileIcon from '../primitives/MobileIcon.astro';
 import StateGlyph from '../primitives/StateGlyph.astro';
 import { concealedAttributes } from '../primitives/conceal';
@@ -28,6 +29,13 @@ interface Props {
 }
 
 const { node, name, concealed, glyph, logo, pullRequest, watch, tray } = Astro.props;
+// Mirrors the desktop row: every label is in the markup and the glyph state
+// the storyboard sets shows one (mobile-list.css).
+const statusBadges = [
+  ['waiting', APP_COPY.needsInput.text],
+  ['blocked', APP_COPY.blockedBadge.text],
+  ['done', APP_COPY.doneBadge.text],
+] as const;
 ---
 
 <div class="m-row" data-demo-node={node} {...concealedAttributes(concealed)}>
@@ -80,5 +88,6 @@ const { node, name, concealed, glyph, logo, pullRequest, watch, tray } = Astro.p
       </span>
     )
   }
+  {statusBadges.map(([state, label]) => <span class={`status-badge status-badge-${state}`}>{label}</span>)}
   <span class="m-row-more"><MobileIcon name="more" size={16} /></span>
 </div>

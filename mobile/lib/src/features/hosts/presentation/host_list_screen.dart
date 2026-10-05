@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
+import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/pair_host_screen.dart';
@@ -15,13 +18,27 @@ import 'package:alera_mobile/src/features/runtime/application/host_connection_co
 import 'package:alera_mobile/src/features/settings/presentation/app_settings_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/runtime_workspaces_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 
 class const HostListScreen({super.key}) extends ConsumerWidget {
+  static final Logger _logger = Logger('HostListScreen');
+
   Future<void> _pairHost(BuildContext context) async {
     await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(builder: (_) => const PairHostScreen()),
     );
+  }
+
+  Future<void> _refreshHosts(WidgetRef ref) async {
+    ref.invalidate(availableHostsProvider);
+    try {
+      await ref.read(availableHostsProvider.future);
+    } on Object catch (error, stackTrace) {
+      // The list renders the failure; this keeps a record of it.
+      _logger.warning('Could not refresh paired hosts.', error, stackTrace);
+    }
   }
 
   Future<void> _removeHost(
@@ -34,24 +51,20 @@ class const HostListScreen({super.key}) extends ConsumerWidget {
     }
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Host'),
-        content: Text(host.displayName),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (context) => AleraConfirmDialog(
+        title: 'Remove ${host.effectiveName}?',
+        message:
+            'This phone forgets the pairing and stops connecting to this '
+            'host. To connect again, pair it with a new QR code from the '
+            'computer.',
+        confirmLabel: 'Remove',
+        destructive: true,
       ),
     );
     if (confirmed != true) {
       return;
     }
+    unawaited(HapticFeedback.lightImpact());
     await ref.read(pairedHostsControllerProvider.notifier).removeHost(host.id);
   }
 
@@ -63,25 +76,21 @@ class const HostListScreen({super.key}) extends ConsumerWidget {
     if (host.isRemote) {
       return;
     }
-    final action = await showModalBottomSheet<_HostAction>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('Rename Host'),
-              onTap: () => Navigator.of(context).pop(_HostAction.rename),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Remove Host'),
-              onTap: () => Navigator.of(context).pop(_HostAction.remove),
-            ),
-          ],
+    final action = await showAleraActionSheet<_HostAction>(
+      context,
+      entries: const <AleraActionSheetEntry<_HostAction>>[
+        AleraActionSheetEntry<_HostAction>(
+          value: _HostAction.rename,
+          label: 'Rename Host',
+          leading: Icon(AleraIcons.edit),
         ),
-      ),
+        AleraActionSheetEntry<_HostAction>(
+          value: _HostAction.remove,
+          label: 'Remove Host',
+          leading: Icon(AleraIcons.delete),
+          destructive: true,
+        ),
+      ],
     );
     if (!context.mounted) {
       return;
@@ -126,15 +135,26 @@ class const HostListScreen({super.key}) extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: switch (hosts) {
-          AsyncValue(value: final hostList?) when hostList.isEmpty =>
-            _EmptyHosts(onPairHost: () => _pairHost(context)),
-          AsyncValue(value: final hostList?) => RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(availableHostsProvider);
-              await ref.read(availableHostsProvider.future);
-            },
-            child: ListView(
+        child: RefreshIndicator(
+          onRefresh: () => _refreshHosts(ref),
+          child: switch (hosts) {
+            AsyncValue(value: final hostList?) when hostList.isEmpty =>
+              _FillRemaining(
+                child: AleraEmptyState(
+                  icon: AleraIcons.pairedDevices,
+                  title: 'No paired hosts',
+                  message:
+                      'Open Alera on your computer, go to Settings > Mobile '
+                      'Devices, generate a pairing QR code, and scan it with '
+                      'this phone.',
+                  action: FilledButton.icon(
+                    onPressed: () => _pairHost(context),
+                    icon: const Icon(AleraIcons.qrCode),
+                    label: const Text('Pair Host'),
+                  ),
+                ),
+              ),
+            AsyncValue(value: final hostList?) => ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 AleraTokens.space16,
@@ -167,9 +187,9 @@ class const HostListScreen({super.key}) extends ConsumerWidget {
                         ),
                       );
                     },
-                    onRemove: () => _removeHost(context, ref, hostList[index]),
-                    onLongPress: () =>
-                        _showHostActions(context, ref, hostList[index]),
+                    onActions: hostList[index].isRemote
+                        ? null
+                        : () => _showHostActions(context, ref, hostList[index]),
                   ),
                   if (index < hostList.length - 1)
                     const SizedBox(height: AleraTokens.spaceMd),
@@ -177,16 +197,46 @@ class const HostListScreen({super.key}) extends ConsumerWidget {
                 HomeQuotasSection(hosts: hostList),
               ],
             ),
-          ),
-          AsyncError(:final error) => Center(child: Text(error.toString())),
-          _ => const _HomeLoading(),
-        },
+            AsyncError(:final error) => _FillRemaining(
+              child: AleraEmptyState(
+                icon: AleraIcons.loadFailed,
+                title: 'Could not load hosts',
+                message: 'Pull down or tap Retry to try again.',
+                detail: error.toString(),
+                action: FilledButton.icon(
+                  onPressed: () => ref.invalidate(availableHostsProvider),
+                  icon: const Icon(AleraIcons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ),
+            ),
+            _ => const _HomeLoading(),
+          },
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Pair Host',
-        onPressed: () => _pairHost(context),
-        child: const Icon(Icons.add_link),
-      ),
+      // The empty state already offers Pair Host; a FAB there would repeat it.
+      floatingActionButton: hosts.value?.isNotEmpty == true
+          ? FloatingActionButton(
+              tooltip: 'Pair Host',
+              onPressed: () => _pairHost(context),
+              child: const Icon(Icons.add_link),
+            )
+          : null,
+    );
+  }
+}
+
+/// Lets a short placeholder fill the screen while staying scrollable, so
+/// pull-to-refresh still works on an empty or failed list.
+class const _FillRemaining({required final Widget child})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: <Widget>[
+        SliverFillRemaining(hasScrollBody: false, child: child),
+      ],
     );
   }
 }
@@ -207,47 +257,13 @@ class const _HomeLoading() extends StatelessWidget {
   }
 }
 
-class const _EmptyHosts({required final VoidCallback onPairHost})
-    extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            Icon(
-              Icons.devices_other,
-              size: AleraTokens.emptyIcon,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Text(
-              'No paired hosts',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: AleraTokens.spaceMd),
-            FilledButton.icon(
-              onPressed: onPairHost,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Pair Host'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 enum _HostAction { rename, remove }
 
 class const _HostCard({
   super.key,
   required final PairedHostProfile host,
   required final VoidCallback onOpen,
-  required final VoidCallback onRemove,
-  required final VoidCallback onLongPress,
+  required final VoidCallback? onActions,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -255,9 +271,8 @@ class const _HostCard({
     final health = ref.watch(hostConnectionHealthControllerProvider(host.id));
     return Card(
       child: InkWell(
-        borderRadius: .circular(AleraTokens.radiusSm),
         onTap: onOpen,
-        onLongPress: onLongPress,
+        onLongPress: onActions,
         child: Padding(
           padding: AleraTokens.contentPadding,
           child: Row(
@@ -321,11 +336,12 @@ class const _HostCard({
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'Remove Host',
-                onPressed: onRemove,
-                icon: const Icon(Icons.delete_outline),
-              ),
+              if (onActions case final onActions?)
+                IconButton(
+                  tooltip: 'More Actions',
+                  onPressed: onActions,
+                  icon: const Icon(AleraIcons.more),
+                ),
             ],
           ),
         ),

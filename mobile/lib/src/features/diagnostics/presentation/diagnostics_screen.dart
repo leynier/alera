@@ -82,7 +82,9 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                     ? const SizedBox(
                         height: 16,
                         width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: AleraTokens.strokeSm,
+                        ),
                       )
                     : null,
                 onTap: _exportLogs,

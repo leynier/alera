@@ -136,7 +136,7 @@ class _AutomationDetailScreenState
                       children: <Widget>[
                         AleraBadge(
                           label: state.label,
-                          color: mobileAutomationToneColor(state.tone),
+                          tone: mobileAutomationBadgeTone(state.tone),
                         ),
                         const Spacer(),
                       ],

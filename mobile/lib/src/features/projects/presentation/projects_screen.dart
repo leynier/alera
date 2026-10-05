@@ -298,6 +298,7 @@ class const _ProjectListTile({
         style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
       ),
       trailing: PopupMenuButton<_ProjectAction>(
+        tooltip: 'More Actions',
         onSelected: onAction,
         itemBuilder: (_) => const <PopupMenuEntry<_ProjectAction>>[
           PopupMenuItem(value: .rename, child: Text('Rename')),

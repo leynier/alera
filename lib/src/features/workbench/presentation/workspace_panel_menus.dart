@@ -126,9 +126,9 @@ class const _WorkspacePanelToolChip({
       items: <PopupMenuEntry<_WorkspaceToolMenuAction>>[
         if (onSplit != null) ...<PopupMenuEntry<_WorkspaceToolMenuAction>>[
           const AleraDropdownEntry(
-            value: .splitUp,
-            label: 'Split Up',
-            leading: WorkbenchSplitDirectionGlyph(zone: .up),
+            value: .splitRight,
+            label: 'Split Right',
+            leading: WorkbenchSplitDirectionGlyph(zone: .right),
           ),
           const AleraDropdownEntry(
             value: .splitDown,
@@ -141,9 +141,9 @@ class const _WorkspacePanelToolChip({
             leading: WorkbenchSplitDirectionGlyph(zone: .left),
           ),
           const AleraDropdownEntry(
-            value: .splitRight,
-            label: 'Split Right',
-            leading: WorkbenchSplitDirectionGlyph(zone: .right),
+            value: .splitUp,
+            label: 'Split Up',
+            leading: WorkbenchSplitDirectionGlyph(zone: .up),
           ),
           const PopupMenuDivider(height: AleraTokens.space8),
         ],
@@ -207,18 +207,18 @@ class const _WorkspacePanelToolChip({
           unawaited(_openMenu(context, details.globalPosition)),
       child: Material(
         color: active ? AleraTokens.surfaceElevated : AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         child: InkWell(
           onTap: onSelect,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: .circular(AleraTokens.radiusMd),
+          borderRadius: .circular(AleraTokens.radiusSm),
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AleraTokens.space6,
               vertical: AleraTokens.space6,
             ),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
               border: Border.all(
                 color: active ? AleraTokens.border : AleraTokens.borderSubtle,
               ),
@@ -243,7 +243,7 @@ class const _WorkspacePanelToolChip({
                 InkWell(
                   onTap: onClose,
                   mouseCursor: SystemMouseCursors.click,
-                  borderRadius: .circular(AleraTokens.radiusSm),
+                  borderRadius: .circular(AleraTokens.radiusXs),
                   child: Tooltip(
                     message: 'Close $label',
                     child: const Padding(
@@ -468,7 +468,7 @@ class const _WorkspaceStripInsertionIndicator() extends StatelessWidget {
     return const DecoratedBox(
       decoration: BoxDecoration(
         color: AleraTokens.accent,
-        borderRadius: BorderRadius.all(.circular(AleraTokens.radiusSm)),
+        borderRadius: BorderRadius.all(.circular(AleraTokens.radiusXs)),
       ),
     );
   }

@@ -43,7 +43,7 @@ Finder _optionSwitch(String title) {
 
 Finder _viewOptionsButton() {
   return find.byWidgetPredicate(
-    (widget) => widget is IconButton && widget.tooltip == 'View options',
+    (widget) => widget is IconButton && widget.tooltip == 'View Options',
   );
 }
 

@@ -235,7 +235,7 @@ class _AiDictationRemoteSettingsState
 
   Widget _tokenRow(BuildContext context) {
     final status = _loadingToken
-        ? 'Checking saved token...'
+        ? 'Checking saved token…'
         : _tokenError ??
               (_tokenConfigured && !_tokenMatchesBaseUrl
                   ? 'The saved token belongs to another API origin. Replace it before transcribing.'

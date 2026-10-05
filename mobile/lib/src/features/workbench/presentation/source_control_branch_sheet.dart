@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_branches.dart';
@@ -30,7 +31,6 @@ Future<void> showSourceControlBranchSheet(
   final choice = await showModalBottomSheet<_BranchChoice>(
     context: runner.context,
     isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -231,12 +231,19 @@ class _BranchSheetState extends ConsumerState<_BranchSheet> {
       itemBuilder: (context, index) {
         final name = visible[index];
         final isCurrent = name == widget.currentBranch;
-        return ListTile(
-          minTileHeight: AleraTokens.minTapTarget,
-          leading: const Icon(AleraIcons.gitBranch),
-          title: Text(name, maxLines: 1, overflow: .ellipsis),
-          trailing: isCurrent ? const Icon(AleraIcons.check) : null,
-          onTap: () => Navigator.of(context).pop(_SwitchBranch(name)),
+        return AleraActiveRail(
+          active: isCurrent,
+          child: ListTile(
+            tileColor: isCurrent ? AleraActiveRail.selectedColor : null,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(.circular(AleraTokens.radiusSm)),
+            ),
+            minTileHeight: AleraTokens.minTapTarget,
+            leading: const Icon(AleraIcons.gitBranch),
+            title: Text(name, maxLines: 1, overflow: .ellipsis),
+            trailing: isCurrent ? const Icon(AleraIcons.check) : null,
+            onTap: () => Navigator.of(context).pop(_SwitchBranch(name)),
+          ),
         );
       },
     );

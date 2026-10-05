@@ -204,7 +204,7 @@ ThemeData buildAleraDarkTheme() {
     scrollbarTheme: ScrollbarThemeData(
       thumbColor: WidgetStateProperty.all(AleraTokens.border),
       thickness: WidgetStateProperty.all(4),
-      radius: const .circular(2),
+      radius: const .circular(AleraTokens.radiusXs),
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(

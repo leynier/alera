@@ -29,11 +29,57 @@ class const _PanelMenuRow({
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Icon(icon, size: 18, color: AleraTokens.foregroundMuted),
+        Icon(
+          icon,
+          size: AleraTokens.space16,
+          color: AleraTokens.foregroundMuted,
+        ),
         const SizedBox(width: AleraTokens.space12),
         Expanded(child: Text(label)),
         if (selected)
-          const Icon(AleraIcons.check, size: 16, color: AleraTokens.foreground),
+          const Icon(
+            AleraIcons.check,
+            size: AleraTokens.space16,
+            color: AleraTokens.foreground,
+          ),
+      ],
+    );
+  }
+}
+
+/// Workspace name, plus the open panel under it while a panel replaces the
+/// terminal, so the screen says where the terminal went.
+class const _WorkspaceTabsTitle({
+  required final Widget title,
+  required final WorkspacePanelDestination panel,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    if (panel == WorkspacePanelDestination.terminal) {
+      return title;
+    }
+    final label = _panelLabel(panel);
+    return Column(
+      mainAxisSize: .min,
+      children: <Widget>[
+        title,
+        Semantics(
+          label: '$label panel open',
+          excludeSemantics: true,
+          child: Row(
+            key: const Key('workspace-panel-subtitle'),
+            mainAxisSize: .min,
+            children: <Widget>[
+              Icon(
+                _panelIcon(panel),
+                size: AleraTokens.iconSm,
+                color: AleraTokens.foregroundMuted,
+              ),
+              const SizedBox(width: AleraTokens.space4),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -103,6 +149,59 @@ String? _automationRunId(WorkspaceTabSummary tab) =>
     };
 
 extension on _WorkspaceTabsScreenState {
+  void _selectPanel(WorkspacePanelDestination destination) => ref
+      .read(
+        selectedWorkspacePanelControllerProvider(
+          widget.hostId,
+          widget.workspace.id,
+        ).notifier,
+      )
+      .select(destination);
+
+  Widget _moreActionsMenu(
+    WorkspacePanelCapabilities capabilities,
+    WorkspacePanelDestination panel,
+  ) {
+    return PopupMenuButton<_TabsMenuAction>(
+      tooltip: 'More Actions',
+      onSelected: (action) {
+        switch (action) {
+          case _QuickKeysMenuAction():
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const TerminalKeysSettingsScreen(),
+              ),
+            );
+          case _AutomationsMenuAction(:final create):
+            _openWorkspaceAutomations(context, widget, create: create);
+          case _SelectPanelAction(:final destination):
+            _selectPanel(destination);
+        }
+      },
+      itemBuilder: (context) => <PopupMenuEntry<_TabsMenuAction>>[
+        if (capabilities.hasAny) ...<PopupMenuEntry<_TabsMenuAction>>[
+          for (final destination in capabilities.destinations)
+            PopupMenuItem<_TabsMenuAction>(
+              value: _SelectPanelAction(destination),
+              height: AleraTokens.minTapTarget,
+              child: _PanelMenuRow(
+                icon: _panelIcon(destination),
+                label: _panelLabel(destination),
+                selected: destination == panel,
+              ),
+            ),
+          const PopupMenuDivider(),
+        ],
+        ..._automationMenuEntries,
+        const PopupMenuItem<_TabsMenuAction>(
+          value: _QuickKeysMenuAction(),
+          height: AleraTokens.minTapTarget,
+          child: Text('Terminal Quick Keys'),
+        ),
+      ],
+    );
+  }
+
   /// An automation-owned tab attaches read-only, unless it was taken over or
   /// the runtime cannot observe; then the attach keeps its old semantics.
   bool _observes(WorkspaceTabSummary tab) {

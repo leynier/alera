@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/design_system/alera_preview.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,18 @@ Widget aleraActionSheetPreview() => const AleraActionSheet<String>(
       value: 'editor',
       label: 'New Editor',
       leading: Icon(Icons.edit_outlined),
+    ),
+    AleraActionSheetEntry<String>(
+      value: 'busy',
+      label: 'Generating title…',
+      leading: Icon(AleraIcons.generate),
+      enabled: false,
+    ),
+    AleraActionSheetEntry<String>(
+      value: 'remove',
+      label: 'Remove Host',
+      leading: Icon(AleraIcons.delete),
+      destructive: true,
     ),
   ],
 );

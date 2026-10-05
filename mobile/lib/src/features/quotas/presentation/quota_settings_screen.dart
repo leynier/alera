@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/features/quotas/application/agent_quota_control
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/claude_quota_profile_dialog.dart';
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,7 +29,18 @@ class const QuotaSettingsScreen({
                     quotaState?.environment ?? const <String, bool>{},
               )
             : hostSettings.hasError
-            ? Center(child: Text(hostSettings.error.toString()))
+            ? AleraEmptyState(
+                icon: AleraIcons.loadFailed,
+                title: 'Could not load quota settings',
+                message: 'Check the connection to the host and try again.',
+                detail: hostSettings.error.toString(),
+                action: FilledButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(hostSettingsControllerProvider(host.id)),
+                  icon: const Icon(AleraIcons.refresh),
+                  label: const Text('Retry'),
+                ),
+              )
             : const Center(child: CircularProgressIndicator()),
       ),
     );
@@ -141,6 +154,7 @@ class const _QuotaSettingsBody({
                     ),
                   ),
                   trailing: PopupMenuButton<String>(
+                    tooltip: 'More Actions',
                     onSelected: (action) => _handleProfileAction(
                       context,
                       controller,

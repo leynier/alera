@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_linked_worktree_icon.dart';
@@ -58,6 +59,19 @@ class const MobileWorkspaceListRow({
     final rowLeft = AleraTokens.space12 + depthPad;
     final canToggleChildren = entry.hasVisibleChildren;
     final hasAgents = agentPresence.isNotEmpty;
+    final urgentState = hasAgents ? _mostUrgentState(agentPresence) : null;
+    final urgentInterrupted = hasAgents
+        ? agentPresence
+              .firstWhere(
+                (status) => status.state == urgentState,
+                orElse: () => agentPresence.first,
+              )
+              .interrupted
+        : null;
+    final statusBadge = _WorkspaceStatusBadge.forState(
+      state: urgentState,
+      interrupted: urgentInterrupted,
+    );
     final split = splitWorkspaceAgentPresence(
       agentPresence,
       mainTabIds: mainTabIds,
@@ -210,21 +224,8 @@ class const MobileWorkspaceListRow({
                               child: Center(
                                 child: _WorkspaceStatusIndicator(
                                   hasAgents: hasAgents,
-                                  state: hasAgents
-                                      ? _mostUrgentState(agentPresence)
-                                      : null,
-                                  interrupted: hasAgents
-                                      ? agentPresence
-                                            .firstWhere(
-                                              (status) =>
-                                                  status.state ==
-                                                  _mostUrgentState(
-                                                    agentPresence,
-                                                  ),
-                                              orElse: () => agentPresence.first,
-                                            )
-                                            .interrupted
-                                      : null,
+                                  state: urgentState,
+                                  interrupted: urgentInterrupted,
                                   active: terminalTabCount > 0,
                                 ),
                               ),
@@ -271,6 +272,10 @@ class const MobileWorkspaceListRow({
                                 ],
                               ),
                             ),
+                            if (statusBadge != null) ...<Widget>[
+                              const SizedBox(width: AleraTokens.space6),
+                              statusBadge,
+                            ],
                           ],
                         ),
                       ),

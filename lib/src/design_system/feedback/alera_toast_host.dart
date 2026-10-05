@@ -191,6 +191,8 @@ class const _ToastCard({required final _ToastEntry entry})
     switch (tone) {
       case AleraToastTone.success:
         return AleraIcons.success;
+      case AleraToastTone.warning:
+        return AleraIcons.warning;
       case AleraToastTone.error:
         return AleraIcons.error;
       case AleraToastTone.info:
@@ -202,6 +204,8 @@ class const _ToastCard({required final _ToastEntry entry})
     switch (tone) {
       case AleraToastTone.success:
         return AleraTokens.success;
+      case AleraToastTone.warning:
+        return AleraTokens.warning;
       case AleraToastTone.error:
         return AleraTokens.error;
       case AleraToastTone.info:

@@ -30,19 +30,19 @@ class const _ExplorerToolbar({
             WorkbenchScrollableActions(
               children: <Widget>[
                 AleraIconButton(
-                  tooltip: 'New file',
+                  tooltip: 'New File',
                   icon: AleraIcons.newFile,
                   onPressed: onNewFile,
                 ),
                 const SizedBox(width: AleraTokens.space2),
                 AleraIconButton(
-                  tooltip: 'New folder',
+                  tooltip: 'New Folder',
                   icon: AleraIcons.newFolder,
                   onPressed: onNewFolder,
                 ),
                 const SizedBox(width: AleraTokens.space2),
                 AleraIconButton(
-                  tooltip: 'Save all files',
+                  tooltip: 'Save All Files',
                   icon: AleraIcons.save,
                   onPressed: onSaveAll,
                 ),
@@ -261,12 +261,12 @@ class const _ExplorerMenuDelegate({
         items: <PopupMenuEntry<_ExplorerAction>>[
           const AleraDropdownEntry<_ExplorerAction>(
             value: .newFile,
-            label: 'New file',
+            label: 'New File',
             leading: Icon(AleraIcons.newFile, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
             value: .newFolder,
-            label: 'New folder',
+            label: 'New Folder',
             leading: Icon(AleraIcons.newFolder, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
@@ -387,12 +387,12 @@ class const _ExplorerBackgroundMenu({
         items: const <PopupMenuEntry<_ExplorerAction>>[
           AleraDropdownEntry<_ExplorerAction>(
             value: .newFile,
-            label: 'New file',
+            label: 'New File',
             leading: Icon(AleraIcons.newFile, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: .newFolder,
-            label: 'New folder',
+            label: 'New Folder',
             leading: Icon(AleraIcons.newFolder, size: 16),
           ),
         ],

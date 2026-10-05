@@ -20,7 +20,6 @@ import 'package:alera/src/features/voice/presentation/voice_status_bar_control.d
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
 import 'package:alera/src/features/resource_manager/presentation/resource_status_bar_control.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
@@ -47,6 +46,7 @@ import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_r
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_terminal_refresh.dart';
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
+import 'package:alera/src/features/shell/presentation/alera_shell_status_views.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
@@ -63,49 +63,9 @@ class const AleraShellPage({super.key}) extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dbAsync = ref.watch(aleraDatabaseProvider);
     return dbAsync.when(
-      loading: () => const _ShellLoading(),
-      error: (error, _) => _ShellError(error: error.toString()),
+      loading: () => const AleraShellLoadingView(),
+      error: (error, _) => AleraShellDatabaseErrorView(error: error.toString()),
       data: (_) => const GitHubStarPromptWatch(child: _AleraShellPageBody()),
-    );
-  }
-}
-
-class const _ShellLoading() extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-}
-
-class const _ShellError({required final String error}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space24),
-          child: Column(
-            mainAxisSize: .min,
-            children: <Widget>[
-              const Icon(AleraIcons.error, color: AleraTokens.error, size: 32),
-              const SizedBox(height: AleraTokens.space12),
-              Text(
-                'Failed to open the local database',
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                error,
-                textAlign: .center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

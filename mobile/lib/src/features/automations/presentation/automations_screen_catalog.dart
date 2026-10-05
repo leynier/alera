@@ -69,7 +69,6 @@ Future<void> _useTemplate(
     if (!context.mounted) return;
     final selected = await showModalBottomSheet<JsonMap>(
       context: context,
-      showDragHandle: true,
       builder: (sheetContext) => templates.isEmpty
           ? const Padding(
               padding: AleraTokens.pagePadding,

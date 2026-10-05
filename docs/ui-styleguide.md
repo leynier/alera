@@ -40,11 +40,21 @@ Radius:
 
 | Token | Value | Intended usage |
 | --- | --- | --- |
-| `radiusSm` | `4.0` | Small chips, inline toggles, compact controls |
-| `radiusMd` | `6.0` | Standard inputs and controls |
-| `radiusLg` | `10.0` | Cards, panels, grouped containers |
+| `radiusXs` | `4.0` | Tiny inline elements under about 18px tall: keycaps, checkboxes, stepper buttons, drop indicators, tray hit areas |
+| `radiusSm` | `6.0` | Chips, badges, tooltips, tab chips, compact controls |
+| `radiusMd` | `8.0` | Standard inputs and controls |
+| `radiusLg` | `8.0` | Buttons (theme default), cards, panels, grouped containers |
 | `radiusXl` | `12.0` | Dialogs and large elevated containers |
-| `radiusPill` | `20.0` | Pills and badge-like separators |
+| `radiusPill` | `20.0` | Real pills only: floating pill buttons, toggle tracks, round dictation control |
+
+`radiusMd` and `radiusLg` share a value, so a rounded surface nested inside another no longer gets a smaller radius for free. Keep the inner radius at or below the outer radius minus the padding between them: menu item highlights inside a popup use `radiusSm`, and a close button inside a tab chip uses `radiusXs`.
+
+Selection and status:
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `activeRailWidth` | `2.0` | Width of the accent rail `AleraActiveRail` draws on the selected row |
+| `statusTintAlpha` | `0.14` | Alpha of the tone color behind a tinted `AleraBadge` label |
 
 Core colors:
 
@@ -63,9 +73,12 @@ Core colors:
 | `foregroundFaint` | Low-emphasis text/icons |
 | `success` | Positive status |
 | `warning` | Warning status |
+| `info` | Informational status |
+| `done` | Merged or completed-for-review status |
 | `error` | Error and destructive emphasis |
 | `onError` | Foreground on error backgrounds |
 | `shadowSoft` | Soft menu/list overlays and subtle elevated shadows |
+| `focusRing` | Keyboard focus outline on custom tappable surfaces such as `HoverContainer` |
 
 Motion:
 
@@ -75,6 +88,18 @@ Motion:
 | `durationMid` | `180ms` |
 | `durationSlow` | `280ms` |
 | `durationSpin` | `1200ms` (full turn of continuously rotating progress indicators) |
+| `toastDuration` | `4000ms` (default toast lifetime) |
+| `toastLongDuration` | `6000ms` (warnings and errors worth reading; also `AleraToast.longDuration`) |
+
+Typography and sizing:
+
+| Token | Usage |
+| --- | --- |
+| `statusBarTextStyle` | Labels in the bottom status bar (mono, 10px), with `iconStatusBar` (13px) and `iconStatusBarSm` (11px) beside them |
+| `monoMicroStyle`, `monoCaptionFaintStyle` | Dense mono values (10px) and faint mono captions (9px) in hover cards and panels |
+| `logoSm`, `logoMd`, `logoLg` | `AleraLogo` sizes for the sidebar brand row, welcome and loading screens, and About dialog |
+| `iconButtonXs`, `iconButtonSm` | Hit areas for compact `AleraIconButton`s inside chips and row headers |
+| `welcomeDashboardMaxWidth` | Content width of the welcome dashboard |
 
 ## Component Rules
 
@@ -82,6 +107,13 @@ Motion:
 - Secondary actions use `TextButton` or `OutlinedButton`.
 - Destructive primary actions use a filled style with `AleraTokens.error` and `AleraTokens.onError`.
 - Inline micro-actions may use `IconButton` or tokenized `InkWell` patterns.
+- Tappable rows built on `HoverContainer` are keyboard reachable: Tab focuses them, Enter or Space activates them, and a `focusRing` outline shows while navigating by keyboard.
+- Keyboard shortcuts render as `AleraKeybindingBadge` keycaps; hide the badge when an action has no binding instead of printing a placeholder.
+- The selected item of a vertical list (sidebar workspace and agent rows, the Settings navigation, master-detail lists, the command palette and Quick Open highlight, picker rows with a current value) uses `AleraActiveRail`: the row background is `AleraActiveRail.selectedColor` (`accentSubtle`, a translucent accent that reads on any container; `surfaceElevated` sits too close to the sidebar and panel chrome) and a 2px `accent` rail sits at the leading edge, inset by `space6` vertically, drawn over the row so selecting it never shifts the layout. Hover stays on the existing hover color, and the keyboard `focusRing` stays separate from selection.
+- Horizontal strips (tab chips, segmented controls) never get a rail: the active chip uses `surfaceElevated` with accent or foreground text and icon.
+- Status labels use `AleraBadge` with an `AleraBadgeTone`: `neutral`, `accent`, `attention` (warning), `success`, `error`, `info`, `done`. A toned badge draws its Title Case label in the tone color at `labelSmall` w600 on the tone color at `statusTintAlpha`, with `radiusSm` corners; `neutral` and `accent` keep the `accentSubtle` fill. Use tones only for status semantics; tags and counts stay `neutral`.
+- Agent status in sidebar rows: a working run keeps its spinner and gets no label, waiting shows `Needs Input` (attention), blocked shows `Blocked` (error), and done shows `Done` (success). An interrupted run keeps its cancel glyph. While a badge names the state, the leading status slot shows a muted dot so the color is not repeated. At narrow widths the badge outranks the agent glyph and inline metadata trays.
+- Loading and empty lists share `AleraEmptyState` (`loading: true` shows a small spinner in its icon slot).
 - Default Material button shape uses `radiusLg`.
 - Default Material button minimum height is `34`.
 - Confirmation dialogs use equal-width secondary and primary footer actions.
@@ -96,7 +128,7 @@ Requested panel width is stored per workspace, constrained at render time to lea
 
 - Surface layering should follow `bg` -> `surface` -> `surfaceVariant` -> `surfaceElevated`.
 - Container borders should use `border` or `borderSubtle` based on emphasis.
-- Card-like surfaces should use tokenized radii, typically `radiusLg` or `radiusMd`.
+- Card-like surfaces should use tokenized radii, typically `radiusLg`.
 - New or touched UI must migrate nearby non-token outliers when an equivalent token exists.
 
 ## Copy And State
@@ -104,6 +136,7 @@ Requested panel width is stored per workspace, constrained at render time to lea
 - Actions, buttons, menus, dropdowns, labels, and other controls use title case. Descriptions, explanations, helper text, status messages, errors, notifications, and other prose use sentence case, preserving proper nouns, product names, acronyms, and technical identifiers.
 - UI copy must not overclaim. Do not imply an action succeeded, skipped, verified, deleted, or protected something unless code has the result state.
 - For long-running actions, reserve control width up front when labels/icons can change.
+- Loading and progress copy ends with the ellipsis character (`Loading…`), never three periods.
 - Prefer disabled state for short work and stage labels/progress for multi-step work.
 
 ## Iconography
@@ -133,13 +166,13 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Role | Components |
 | --- | --- |
 | Buttons | `AleraIconButton`, `AleraSegmentedButton` |
-| Badges & chips | `AleraBadge`, `AleraChip` |
-| Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer` |
+| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip` |
+| Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail` |
 | Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast`, `AleraQrCode` |
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
 | Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
-| Iconography | `AleraIcons`, `AleraFileIcon` |
+| Iconography | `AleraIcons`, `AleraFileIcon`, `AleraLogo` |
 
 ## Widget Previews
 

@@ -52,7 +52,7 @@ class const _CommitFiles({
           if (state.loading)
             const Padding(
               padding: EdgeInsets.fromLTRB(40, 4, 8, 6),
-              child: Text('Loading files...'),
+              child: Text('Loading files…'),
             )
           else if (state.error != null)
             Padding(

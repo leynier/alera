@@ -114,7 +114,7 @@ class _WorkflowCleanupPageState extends ConsumerState<WorkflowCleanupPage> {
                 : 'Cleanup Status',
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          Text(_session.error?.toString() ?? 'Loading the saved cleanup...'),
+          Text(_session.error?.toString() ?? 'Loading the saved cleanup…'),
           TextButton(
             onPressed: _session.refresh,
             child: const Text('Refresh Status'),

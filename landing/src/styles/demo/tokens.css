@@ -63,16 +63,21 @@
   --app-icon-lg: 16px;
   --app-icon-xl: 18px;
 
-  --app-radius-sm: 4px;
-  --app-radius-md: 6px;
-  --app-radius-lg: 10px;
+  --app-radius-xs: 4px;
+  --app-radius-sm: 6px;
+  --app-radius-md: 8px;
+  --app-radius-lg: 8px;
   --app-radius-xl: 12px;
   --app-radius-pill: 20px;
+
+  --app-active-rail-width: 2px;
 
   --app-duration-fast: 100ms;
   --app-duration-mid: 180ms;
   --app-duration-slow: 280ms;
   --app-duration-spin: 1200ms;
+  --app-toast-duration: 4000ms;
+  --app-toast-long-duration: 6000ms;
   /* The sidebar's shared agent spinner turns once per 1400 ms
      (agent_run_spinner_scope.dart), slower than durationSpin. */
   --app-agent-spin: 1400ms;

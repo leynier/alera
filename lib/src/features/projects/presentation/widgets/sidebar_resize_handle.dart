@@ -1,6 +1,9 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+/// Drag to resize the sidebar; double-click to restore
+/// [AleraTokens.sidebarDefaultWidth].
 class const SidebarResizeHandle({
   super.key,
   required final double currentWidth,
@@ -15,11 +18,14 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
   bool _hovered = false;
   bool _dragging = false;
   double? _dragWidth;
+  Offset? _clickDownPosition;
+  Duration? _lastClickUp;
+  Offset? _lastClickPosition;
 
   @override
   Widget build(BuildContext context) {
     final emphasised = _hovered || _dragging;
-    return MouseRegion(
+    final handle = MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -37,11 +43,13 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
           widget.onResize(next);
         },
         child: SizedBox(
-          width: 6,
+          width: AleraTokens.space6,
           child: Center(
             child: AnimatedContainer(
               duration: AleraTokens.durationFast,
-              width: emphasised ? 2 : 1,
+              width: emphasised
+                  ? AleraTokens.strokeSm
+                  : AleraTokens.dividerExtent,
               decoration: BoxDecoration(
                 color: emphasised
                     ? AleraTokens.border
@@ -52,6 +60,52 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
         ),
       ),
     );
+    // A passive listener, not onDoubleTap: a double-tap recognizer would join
+    // the gesture arena and delay the drag until it clears the touch slop.
+    return Semantics(
+      label: 'Resize Sidebar',
+      hint: 'Double-click to reset the width',
+      onTap: _resetWidth,
+      child: Listener(
+        onPointerDown: (event) => _clickDownPosition = event.position,
+        onPointerUp: _handlePointerUp,
+        child: handle,
+      ),
+    );
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    final down = _clickDownPosition;
+    _clickDownPosition = null;
+    if (down == null || (event.position - down).distance > kTouchSlop) {
+      _lastClickUp = null;
+      return;
+    }
+    final previousUp = _lastClickUp;
+    final previousPosition = _lastClickPosition;
+    final isDoubleClick =
+        previousUp != null &&
+        previousPosition != null &&
+        event.timeStamp - previousUp <= kDoubleTapTimeout &&
+        (event.position - previousPosition).distance <= kDoubleTapSlop;
+    if (isDoubleClick) {
+      _lastClickUp = null;
+      _resetWidth();
+      return;
+    }
+    _lastClickUp = event.timeStamp;
+    _lastClickPosition = event.position;
+  }
+
+  void _resetWidth() {
+    const width = AleraTokens.sidebarDefaultWidth;
+    widget.onResize(width);
+    if (_dragging) {
+      // The click's own drag end follows this pointer-up and commits it.
+      _dragWidth = width;
+    } else {
+      widget.onResizeEnd?.call(width);
+    }
   }
 
   void _stopDragging() {

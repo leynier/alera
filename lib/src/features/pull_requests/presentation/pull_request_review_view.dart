@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
@@ -467,29 +468,12 @@ class const _StateChip({required final HostedReviewState state})
     extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final (label, color) = switch (state) {
-      HostedReviewState.open => ('Open', AleraTokens.success),
-      HostedReviewState.draft => ('Draft', AleraTokens.foregroundMuted),
-      HostedReviewState.merged => ('Merged', AleraTokens.accent),
-      HostedReviewState.closed => ('Closed', AleraTokens.error),
+    final (label, tone) = switch (state) {
+      HostedReviewState.open => ('Open', AleraBadgeTone.success),
+      HostedReviewState.draft => ('Draft', AleraBadgeTone.neutral),
+      HostedReviewState.merged => ('Merged', AleraBadgeTone.done),
+      HostedReviewState.closed => ('Closed', AleraBadgeTone.error),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space8,
-        vertical: AleraTokens.space2,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: .w600,
-        ),
-      ),
-    );
+    return AleraBadge(label: label, tone: tone);
   }
 }

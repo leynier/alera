@@ -141,7 +141,9 @@ class const _ExplorerBody({
               ? const SizedBox(
                   width: AleraTokens.space20,
                   height: AleraTokens.space20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: AleraTokens.strokeSm,
+                  ),
                 )
               : row.entry.isDirectory
               ? Icon(row.expanded ? AleraIcons.folderOpen : AleraIcons.folder)

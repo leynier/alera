@@ -5,7 +5,7 @@ const agentTitleCapability = 'aiTextAgentTitleV1';
 
 String agentTitleActionLabel(Map<String, Object?> payload) {
   if (isAgentTitleGenerating(payload)) {
-    return 'Generating title...';
+    return 'Generating title…';
   }
   if (payload['agentTitleSource'] == 'generated') {
     return 'Regenerate Title';

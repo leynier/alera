@@ -15,7 +15,6 @@ Future<void> showMobileAutomationFilters(
   required MobileAutomationContext names,
 }) => showModalBottomSheet<void>(
   context: context,
-  showDragHandle: true,
   isScrollControlled: true,
   builder: (_) =>
       _FiltersSheet(hostId: hostId, automations: automations, names: names),
