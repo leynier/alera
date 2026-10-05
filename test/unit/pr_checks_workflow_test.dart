@@ -127,6 +127,7 @@ void main() {
 
     expect(rustPush['branches'], contains('main'));
     expect(rustPush['paths'], contains('rust/**'));
+    expect(rustPush['paths'], contains('makefile'));
     expect(desktopPaths.where((path) => '$path'.startsWith('rust/')), isEmpty);
     expect(
       desktopPaths.where((path) => '$path'.startsWith('tool/ci/')),

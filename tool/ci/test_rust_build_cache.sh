@@ -38,6 +38,7 @@ build_metadata() {
     cd "$stage/repo"
     env -u ALERA_BUILD_COMMIT -u ALERA_BUILD_VERSION \
       CARGO_MANIFEST_DIR="$stage/repo" \
+      CARGO_PKG_VERSION=0.1.0 \
       CARGO_CFG_TARGET_OS=linux CARGO_CFG_TARGET_ENV=gnu \
       "$@" "$stage/build-script.exe"
   )
@@ -49,6 +50,9 @@ assert_contains "$default_metadata" 'cargo:rerun-if-changed='
 stable_metadata="$(build_metadata ALERA_BUILD_COMMIT=unknown)"
 assert_not_contains "$stable_metadata" 'cargo:rerun-if-changed='
 assert_contains "$stable_metadata" 'cargo:rustc-env=ALERA_BUILD_COMMIT=unknown'
+[[ "$(build_metadata ALERA_BUILD_COMMIT=unknown ALERA_BUILD_VERSION=)" == "$stable_metadata" ]] || \
+  fail 'An empty check version changed build metadata'
+assert_contains "$stable_metadata" 'cargo:rustc-env=ALERA_BUILD_VERSION=0.1.0'
 
 commit_fixture second
 second_commit="$(git -C "$stage/repo" rev-parse HEAD)"
@@ -106,6 +110,8 @@ verify_runtime_identity() {
     fail 'Runtime did not report the expected build identity'
 }
 verify_runtime_identity unknown 0.1.0
+verify_runtime_identity unknown 0.1.0 \
+  "ALERA_BUILD_VERSION=${stable_metadata##*cargo:rustc-env=ALERA_BUILD_VERSION=}"
 verify_runtime_identity "$second_commit" 0.1.0
 verify_runtime_identity release-sha 1.2.3 ALERA_BUILD_VERSION=1.2.3
 
@@ -146,14 +152,40 @@ else
 fi
 [[ ! -e "$stage/invalid-calls" ]] || fail 'Unknown mode invoked Cargo'
 
-ALERA_TEST_CARGO_LOG="$stage/local-calls" \
-  ALERA_BUILD_COMMIT=caller-sha ALERA_BUILD_VERSION=caller-version \
-  bash "$root/tool/ci/check_rust_workspace.sh" "$stage/bin/cargo"
+# A native Cargo probe lets the real make recipe run with no Bash on PATH.
+cat > "$stage/cargo-probe.rs" <<'RUST'
+use std::io::Write;
+fn main() {
+    let mut log = std::fs::OpenOptions::new().create(true).append(true)
+        .open(std::env::var("ALERA_TEST_CARGO_LOG").unwrap()).unwrap();
+    writeln!(log, "{}\t{}\t{}", std::env::var("ALERA_BUILD_COMMIT").unwrap_or_default(),
+        std::env::var("ALERA_BUILD_VERSION").unwrap_or_default(),
+        std::env::args().skip(1).collect::<Vec<_>>().join(" ")).unwrap();
+}
+RUST
+(
+  cd "$root/rust"
+  rustc --edition=2021 --crate-name cargo_probe "$stage/cargo-probe.rs" -o "$stage/cargo-probe.exe"
+)
+make_bin="$(command -v make)"
+run_local_make() {
+  (
+    cd "$root"
+    PATH="$stage/bin" ALERA_TEST_CARGO_LOG="$1" \
+      ALERA_BUILD_COMMIT=caller-sha ALERA_BUILD_VERSION=caller-version \
+      "$make_bin" --no-print-directory --silent -f "$root/makefile" \
+      "CARGO=$stage/cargo-probe.exe" "${@:2}"
+  )
+}
+run_local_make "$stage/local-calls" rust-test \
+  ALERA_BUILD_COMMIT=command-line-sha ALERA_BUILD_VERSION=command-line-version
 local_calls=()
 while IFS= read -r call; do local_calls+=("$call"); done < "$stage/local-calls"
 [[ "${#local_calls[@]}" == 3 ]] || fail 'Local checks did not run fmt, clippy and tests'
-[[ "${local_calls[0]}" == $'unknown\tunset\tfmt --check' ]] || fail 'Local fmt identity was not isolated'
-[[ "${local_calls[1]}" == $'unknown\tunset\tclippy --workspace --all-targets -- -D warnings' ]] || \
+[[ "${local_calls[0]}" == $'unknown\t\tfmt --check' ]] || fail 'Local fmt identity was not isolated'
+[[ "${local_calls[1]}" == $'unknown\t\tclippy --workspace --all-targets -- -D warnings' ]] || \
   fail 'Local clippy changed its graph or identity'
-[[ "${local_calls[2]}" == $'unknown\tunset\ttest --workspace' ]] || fail 'Local tests changed their graph or identity'
+[[ "${local_calls[2]}" == $'unknown\t\ttest --workspace' ]] || fail 'Local tests changed their graph or identity'
+run_local_make "$stage/cli-calls" cli-build
+assert_contains "$(cat "$stage/cli-calls")" $'caller-sha\tcaller-version\trun --quiet --locked '
 echo 'Rust build cache contracts passed.'

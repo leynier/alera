@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'rust/**'
-      - 'tool/ci/check_rust_workspace.sh'
+      - 'makefile'
       - 'tool/ci/run_rust_workspace_tests.sh'
       - 'tool/ci/test_rust_build_cache.sh'
       - 'pubspec.lock'

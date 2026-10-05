@@ -21,11 +21,12 @@ fn main() {
         .unwrap_or_else(|| "unknown".to_string());
     println!("cargo:rustc-env=ALERA_BUILD_COMMIT={commit}");
 
-    if let Ok(version) = std::env::var("ALERA_BUILD_VERSION") {
-        if !version.trim().is_empty() {
-            println!("cargo:rustc-env=ALERA_BUILD_VERSION={version}");
-        }
-    }
+    // Make clears inherited check overrides by exporting an empty value.
+    let version = std::env::var("ALERA_BUILD_VERSION")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| std::env::var("CARGO_PKG_VERSION").expect("Cargo package version"));
+    println!("cargo:rustc-env=ALERA_BUILD_VERSION={version}");
 }
 
 fn git_commit() -> Option<String> {
