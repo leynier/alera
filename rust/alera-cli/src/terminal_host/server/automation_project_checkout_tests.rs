@@ -13,6 +13,9 @@ mod stalled_ssh;
 #[path = "automation_project_checkout_tests/removal.rs"]
 mod removal;
 
+#[path = "automation_project_checkout_tests/placement.rs"]
+mod placement;
+
 async fn empty_project() -> (Harness, AutomationDefinition) {
     let fixture = harness().await;
     fixture

@@ -1,3 +1,5 @@
+import 'package:alera/src/features/automations/application/automation_target_context.dart';
+import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,9 +74,22 @@ void main() {
       'tagIds': <String>['tag-1'],
       'sectionId': 'section-1',
     });
-    final kept = placed.withTargetType(AutomationTargetType.projectCheckout);
-    expect(kept.workspaceSectionId, 'section-1');
-    final freshTab = placed.withTargetType(AutomationTargetType.freshTab);
+    AutomationDraft choose(AutomationDraft draft, AutomationTargetType type) =>
+        chooseAutomationTargetType(
+          draft,
+          type,
+          const AutomationWorkbenchContext(),
+          null,
+        );
+    final switched = choose(placed, AutomationTargetType.projectCheckout);
+    expect(switched.workspaceSectionId, 'section-1');
+    expect(
+      switched.fromContext,
+      isNot(contains(AutomationDraftField.workspaceSectionId)),
+    );
+    final reselected = choose(placed, AutomationTargetType.projectWorktree);
+    expect(reselected.workspaceSectionId, 'section-1');
+    final freshTab = choose(placed, AutomationTargetType.freshTab);
     expect(freshTab.workspaceSectionId, isNull);
     expect(freshTab.toDefinition()['workspacePlacement'], isEmpty);
   });

@@ -148,7 +148,14 @@ AutomationDraft chooseMobileAutomationTargetType(
       context.profiles.length == 1) {
     filled[.agentProfileId] = context.profiles.single.id;
   }
+  final fromContext = filled.keys.toSet();
+  // The section is the user's earlier choice, not context, and survives a
+  // switch between targets that create workspaces.
+  final section = draft.workspaceSectionId;
+  if (type.createsWorkspace && section != null) {
+    filled[.workspaceSectionId] = section;
+  }
   return draft
       .withTargetType(type)
-      .copyWith(targetFields: filled, fromContext: filled.keys.toSet());
+      .copyWith(targetFields: filled, fromContext: fromContext);
 }

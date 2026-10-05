@@ -154,14 +154,18 @@ impl ServerActor {
                 return;
             }
         };
+        let creates =
+            super::automation_project_checkout_dispatch::creates_shared_workspace(&current);
         match self
             .runtime_store
             .allocate_automation_shared_workspace(&current, candidate)
             .await
         {
             Ok((run, workspace)) => {
-                self.apply_automation_workspace_placement(&latest, &workspace)
-                    .await;
+                if creates {
+                    self.apply_automation_workspace_placement(&latest, &workspace)
+                        .await;
+                }
                 self.continue_automation_dispatch(&latest, run, workspace, &project)
                     .await
             }
