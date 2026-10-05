@@ -80,9 +80,6 @@ impl ServerActor {
         if identity.should_ignore_event || identity.effective_agent_type != event.agent_type {
             return;
         }
-        let Ok(Some(mut tab)) = self.runtime_store.find_workspace_tab(&event.tab_id).await else {
-            return;
-        };
         let ccs_profile = (event.agent_type == "claude")
             .then(|| {
                 event
@@ -92,6 +89,22 @@ impl ServerActor {
                     .and_then(ccs_profile_from_config_dir)
             })
             .flatten();
+        self.store_tab_native_session(&event.tab_id, &event.agent_type, session_id, ccs_profile)
+            .await;
+    }
+
+    /// Binds the conversation a tab resumes. `alera tab link-agent` writes the
+    /// same fields the agent's own hooks do.
+    pub(super) async fn store_tab_native_session(
+        &mut self,
+        tab_id: &str,
+        agent_type: &str,
+        session_id: &str,
+        ccs_profile: Option<&str>,
+    ) {
+        let Ok(Some(mut tab)) = self.runtime_store.find_workspace_tab(tab_id).await else {
+            return;
+        };
         let already_stored = tab
             .payload
             .get(AGENT_NATIVE_SESSION_ID_KEY)
@@ -101,7 +114,7 @@ impl ServerActor {
                 .payload
                 .get(AGENT_NATIVE_SESSION_AGENT_KEY)
                 .and_then(Value::as_str)
-                == Some(event.agent_type.as_str())
+                == Some(agent_type)
             && tab
                 .payload
                 .get(AGENT_NATIVE_CCS_PROFILE_KEY)
@@ -114,7 +127,7 @@ impl ServerActor {
             tab.payload = json!({});
         }
         tab.payload[AGENT_NATIVE_SESSION_ID_KEY] = json!(session_id);
-        tab.payload[AGENT_NATIVE_SESSION_AGENT_KEY] = json!(event.agent_type);
+        tab.payload[AGENT_NATIVE_SESSION_AGENT_KEY] = json!(agent_type);
         if let Some(profile) = ccs_profile {
             tab.payload[AGENT_NATIVE_CCS_PROFILE_KEY] = json!(profile);
         } else if let Some(payload) = tab.payload.as_object_mut() {

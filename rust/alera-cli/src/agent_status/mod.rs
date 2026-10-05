@@ -11,7 +11,7 @@ mod normalize_grok;
 mod normalize_lifecycle;
 
 pub use fx_herdr_receiver::start_fx_herdr_receiver;
-pub use hook_receiver::{start_hook_receiver, AgentHookEvent};
+pub use hook_receiver::{is_supported_hook_agent, start_hook_receiver, AgentHookEvent};
 pub use identity::{resolve_agent_status_identity, AGENT_STATUS_IDENTITY_STALE_THRESHOLD};
 pub use integration_config::{reconcile_agent_integrations, start_agent_integrations};
 pub use launch_environment::prepare_launch_environment;

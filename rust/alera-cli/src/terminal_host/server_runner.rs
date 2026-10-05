@@ -98,6 +98,7 @@ pub async fn run_terminal_host_server(
         pending_history_requests: HashMap::new(),
         history_writers: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
+        agent_hook_links: Default::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
         orchestration_delivery_backpressured: HashSet::new(),

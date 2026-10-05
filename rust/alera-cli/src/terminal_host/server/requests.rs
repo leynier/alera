@@ -423,6 +423,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.agent_presence_items_with_titles().await
             }
+            "agentPresence.link" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.link_agent_presence(payload).await
+            }
             "project.list" => {
                 self.require_auth(client_id)?;
                 let mut projects = self

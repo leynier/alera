@@ -361,6 +361,32 @@ pub enum TabAction {
     List(WorkspaceIdArgs),
     Create(TabCreateArgs),
     Remove(IdArgs),
+    /// Bind a running agent to a tab again so its hooks update that tab's
+    /// status. Inside Claude Code or Codex every option is detected.
+    LinkAgent(TabLinkAgentArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct TabLinkAgentArgs {
+    /// Tab to link the agent to. Defaults to ALERA_TAB_ID.
+    #[arg(long, value_name = "tab-id")]
+    pub tab: Option<String>,
+    /// Agent type, such as claude or codex. Detected inside Claude Code and Codex.
+    #[arg(long)]
+    pub agent: Option<String>,
+    /// The agent's conversation id. Detected inside Claude Code and Codex.
+    #[arg(long = "session-id", value_name = "id")]
+    pub session_id: Option<String>,
+    /// The agent's process id. Detected inside Claude Code.
+    #[arg(long)]
+    pub pid: Option<u32>,
+    /// Terminal session named in the agent's environment, whose hooks are
+    /// routed to the tab. Defaults to ALERA_TERMINAL_SESSION_ID.
+    #[arg(long = "source-terminal", value_name = "terminal-id")]
+    pub source_terminal: Option<String>,
+    /// Status shown until the agent's next hook.
+    #[arg(long, default_value = "working", value_parser = ["working", "waiting", "blocked", "done"])]
+    pub state: String,
 }
 
 #[derive(Debug, Args)]

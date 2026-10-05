@@ -90,6 +90,7 @@ mod ssh_bootstrap;
 mod ssh_remote;
 mod ssh_target_status;
 mod ssh_windows_command;
+mod tab_agent_link_command;
 mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
@@ -729,6 +730,9 @@ async fn run_tab_command(command: TabCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
     match command.action {
+        TabAction::LinkAgent(args) => {
+            return tab_agent_link_command::run(&runtime, args, json_output).await;
+        }
         TabAction::List(args) => match open_store(&runtime).await {
             Ok(store) => match store.list_workspace_tabs(&args.workspace_id).await {
                 Ok(tabs) => print_value(

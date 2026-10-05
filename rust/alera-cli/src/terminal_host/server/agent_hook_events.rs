@@ -25,6 +25,9 @@ impl ServerActor {
         let Ok(settings) = self.runtime_store.agent_status_hook_settings().await else {
             return;
         };
+        if !relayed {
+            self.reroute_linked_hook(&mut event);
+        }
         let Some(session) = self.sessions.get(&event.terminal_session_id) else {
             return;
         };

@@ -53,6 +53,7 @@ mod account_requests_tests;
 mod actor_test_harness;
 mod agent_hook_events;
 mod agent_native_session;
+mod agent_presence_link;
 mod agent_presence_reconciliation;
 mod agent_profile_launch_requests;
 mod agent_profile_session_resume;
@@ -404,6 +405,7 @@ struct ServerActor {
     history_writers:
         HashMap<String, history_writer::OrderedHistoryWriter<TerminalHostHistoryStore>>,
     agent_presence: AgentPresenceRegistry,
+    agent_hook_links: crate::terminal_host::orchestration::agent_hook_links::AgentHookLinks,
     orchestration_waiters: MessageWaiterRegistry,
     orchestration_delivery_in_flight: HashSet<String>,
     orchestration_delivery_backpressured: HashSet<String>,

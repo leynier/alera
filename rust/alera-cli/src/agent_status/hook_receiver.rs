@@ -33,6 +33,10 @@ const SUPPORTED_AGENTS: [&str; 11] = [
     "fx",
 ];
 
+pub fn is_supported_hook_agent(agent: &str) -> bool {
+    SUPPORTED_AGENTS.contains(&agent)
+}
+
 #[derive(Debug, Clone)]
 pub struct AgentHookEvent {
     pub terminal_session_id: String,

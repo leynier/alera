@@ -84,6 +84,12 @@ An inferred `done` (from the silence rule, or `idle_prompt` after `waiting`) nev
 
 Inside `tmux`, `screen` or `zellij` the tab's PTY shows the multiplexer client, not the agent: detaching would read as an exit and a hidden window as silence. The host leaves that presence to the agent's own hooks when the tab's foreground process is a multiplexer client (`tmux`, `screen`, `zellij`, `abduco`, `dtach`), and the hook script, the plugins and the Windows hooks also report the multiplexer they run under, so a reporter that cannot (fx) is still covered. Known gap: an agent that runs another agent in the background after its own turn ended is only recognized as nested for Claude (through its pid).
 
+## Linking an agent to its tab again
+
+When a tab stops following its agent (the hooks name a terminal or tab the host no longer matches, or an earlier process makes the agent look nested), `alera tab link-agent` binds the running agent to the tab again through `agentPresence.link` (capability `agentPresenceLinkV1`). Inside Claude Code (`CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PID`) and Codex (`CODEX_SESSION_ID`, the id its hooks report as `session_id`, or `CODEX_THREAD_ID` on releases without it) it reads the agent type, conversation id and process id from the agent's environment; otherwise they are flags.
+
+The host replaces the tab's presence with that identity (agent type, conversation id, process id, the PTY's foreground process group) and drops the turn id and the Claude sub-agent roster, saves the conversation for resume, and, when the caller's `ALERA_TERMINAL_SESSION_ID` (or `--source-terminal`) names another terminal, routes later local hooks from that terminal with the same conversation id or process id to the tab (`agent_hook_links.rs`). Routes are kept in memory, end with the target terminal, and are replaced by the next link into the same terminal. Relayed hooks are not routed.
+
 ## Activity after migrate
 
 New terminals do not set `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, or a Cursor wrapper `PATH` entry. Agents read their own global config, so activity recognition keeps working for the supported agents listed above as long as the matching toggle stays on. Nested Alera terminals still strip inherited overlay variables from older hosts so a parent runtime home cannot shadow the user config.
