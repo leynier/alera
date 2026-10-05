@@ -16,6 +16,7 @@ import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_terminal_refresh.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,7 @@ part 'terminal_surface_composer_submit_test_cases.dart';
 part 'terminal_surface_interaction_test_cases.dart';
 part 'terminal_surface_tab_switch_test_cases.dart';
 part 'terminal_surface_retention_test_cases.dart';
+part 'terminal_surface_workspace_refresh_test_cases.dart';
 part 'terminal_surface_toolbar_test_cases.dart';
 part 'terminal_surface_test_harness.dart';
 
@@ -43,5 +45,6 @@ void main() {
   _registerTerminalSurfaceInteractionTests();
   _registerTerminalSurfaceTabSwitchTests();
   _registerTerminalSurfaceRetentionTests();
+  _registerTerminalSurfaceWorkspaceRefreshTests();
   _registerTerminalSurfaceToolbarTests();
 }

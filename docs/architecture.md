@@ -2,6 +2,8 @@
 
 This document records the current product and code naming used by Alera. It is intentionally short and should stay aligned with implemented behavior.
 
+Entering or returning to a workspace refreshes each terminal visible in its main and right panes once, using the same rendering and PTY viewport refresh as the terminal toolbar. Selecting another terminal tab also refreshes that terminal, including a terminal already visible in another split. The shell waits for the workspace layout and sleep snapshot, captures mounted visibility after layout, and waits for pending terminal startup before refreshing. Background tabs are not attached or refreshed, status updates do not repeat the refresh, concurrent requests for the same terminal are coalesced, and leaving the workspace cancels pending work.
+
 ## Naming Glossary
 
 - `Project`: a local project path registered in Alera. It can be an existing local folder or a Git repository cloned from a URL; only Git-backed projects support linked workspaces.

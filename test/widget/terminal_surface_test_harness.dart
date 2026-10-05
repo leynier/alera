@@ -39,6 +39,7 @@ Future<void> _pumpTerminalSurface(
   WidgetTester tester,
   TerminalSessionHandle session, {
   AleraSettings? settings,
+  bool refreshOnWorkspaceEntry = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -49,7 +50,13 @@ Future<void> _pumpTerminalSurface(
       ],
       child: MaterialApp(
         home: Scaffold(
-          body: SizedBox.expand(child: TerminalSurface(session: session)),
+          body: WorkspaceTerminalRefresh(
+            workspaceId: refreshOnWorkspaceEntry ? session.workspaceId : null,
+            ready: true,
+            terminalTabIds: <String>[session.tabId],
+            terminalRuntime: _SurfaceRefreshRuntime(session),
+            child: SizedBox.expand(child: TerminalSurface(session: session)),
+          ),
         ),
       ),
     ),
@@ -103,6 +110,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
       StreamController<TerminalPtySessionEvent>.broadcast();
   final List<List<int>> writes = <List<int>>[];
   final List<bool> outputPausedCalls = <bool>[];
+  final refreshViewportCalls = <(int, int)>[];
   GhosttyTerminalShellLaunch? startedLaunch;
   int? startedCols;
   int? startedRows;
@@ -151,7 +159,9 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     int rows,
     int cellWidthPx,
     int cellHeightPx,
-  ) async {}
+  ) async {
+    refreshViewportCalls.add((cols, rows));
+  }
 
   @override
   Future<void> setOutputPaused(bool paused) async {
