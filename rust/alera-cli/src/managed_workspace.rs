@@ -339,7 +339,8 @@ pub async fn workspace_has_active_automation_owner(
                     source_workspace_id,
                     ..
                 } => source_workspace_id == workspace_id,
-                AutomationTarget::ProjectCheckout { .. } => false,
+                AutomationTarget::ProjectCheckout { .. }
+                | AutomationTarget::ProjectWorktree { .. } => false,
             }
     }) {
         return Ok(true);

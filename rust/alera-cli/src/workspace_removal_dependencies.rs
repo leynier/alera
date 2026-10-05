@@ -100,7 +100,9 @@ pub async fn workspace_removal_dependencies(
                 source_workspace_id,
                 ..
             } => source_workspace_id == workspace_id,
-            AutomationTarget::ProjectCheckout { .. } => false,
+            AutomationTarget::ProjectCheckout { .. } | AutomationTarget::ProjectWorktree { .. } => {
+                false
+            }
         };
         let affected_run = runs.iter().any(|run| {
             run.automation_id == definition.id

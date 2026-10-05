@@ -1,16 +1,13 @@
 use alera_core::runtime::{
     prompt_value_map, render_prompt_template, AutomationActorKind, AutomationDefinition,
-    AutomationOverlapPolicy, AutomationRun, AutomationRunStatus, AutomationSetupPolicy,
-    AutomationTarget, WorkspaceTabRecord,
+    AutomationOverlapPolicy, AutomationRun, AutomationRunStatus, AutomationTarget,
 };
 use chrono::Utc;
 use serde_json::json;
-use uuid::Uuid;
 
 use super::automation_run_lifecycle::is_non_retryable_dispatch_error;
-use super::{automation_prompt, render_workspace_name, ServerActor};
-use crate::managed_workspace::ManagedWorkspaceCreateRequest;
-use crate::terminal_host::host_error::HostError;
+use super::{automation_prompt, ServerActor};
+pub(in crate::terminal_host::server) use automation_worktree_dispatch::AutomationWorktree;
 
 impl ServerActor {
     pub(in crate::terminal_host::server) async fn start_automation_run(
@@ -130,7 +127,7 @@ impl ServerActor {
             }
         };
         let mut target_identity = target_identity;
-        if definition.target.project_checkout().is_some() && run.owned_workspace {
+        if definition.target.direct_project_id().is_some() && run.owned_workspace {
             target_identity.workspace_id = run.workspace_id.clone();
         }
         run.target_identity = Some(target_identity.clone());
@@ -217,7 +214,35 @@ impl ServerActor {
             self.start_automation_checkout_preparation(definition.clone(), run, project.clone());
             return;
         }
-        let source_workspace = if definition.target.project_checkout().is_some() {
+        let source_workspace = if let AutomationTarget::ProjectWorktree {
+            project_id,
+            source_branch,
+            name_template,
+            ..
+        } = &definition.target
+        {
+            let target = AutomationWorktree {
+                project_id,
+                source_branch,
+                name_template,
+                parent_workspace_id: None,
+            };
+            match self
+                .project_worktree_automation_workspace(definition, &mut run, target)
+                .await
+            {
+                Ok(Some(workspace)) => workspace,
+                Ok(None) => return,
+                Err(error) if is_non_retryable_dispatch_error(&error) => {
+                    self.block_run(&run, &error.wire_message()).await;
+                    return;
+                }
+                Err(error) => {
+                    self.fail_run(&run, error.wire_message()).await;
+                    return;
+                }
+            }
+        } else if definition.target.project_checkout().is_some() {
             match self
                 .allocate_project_checkout_automation_workspace(definition, &run)
                 .await
@@ -315,6 +340,18 @@ impl ServerActor {
                 self.dispatch_fresh_tab(&mut run, workspace_id, agent_profile_id, &prompt, false)
                     .await
             }
+            AutomationTarget::ProjectWorktree {
+                agent_profile_id, ..
+            } => {
+                self.dispatch_fresh_tab(
+                    &mut run,
+                    &source_workspace.id,
+                    agent_profile_id,
+                    &prompt,
+                    true,
+                )
+                .await
+            }
             AutomationTarget::ManagedWorkspace {
                 source_branch,
                 name_template,
@@ -329,109 +366,28 @@ impl ServerActor {
                     .await;
                     return;
                 }
-                let name = render_workspace_name(name_template, definition, &run);
-                let branch = format!("automation/{}/{}", definition.slug, &run.id[..8]);
-                let request = ManagedWorkspaceCreateRequest {
-                    id: None,
-                    project_id: project.id.clone(),
-                    name: Some(name),
-                    branch,
-                    source_branch: Some(source_branch.clone()),
-                    reuse_existing_branch: false,
-                    workspace_root: None,
-                    path: None,
-                    parent_workspace_id: Some(source_workspace.id.clone()),
-                    host_id: None,
-                    defer_setup: definition.setup_policy != AutomationSetupPolicy::Wait,
-                    skip_setup: definition.setup_policy == AutomationSetupPolicy::Skip,
-                    setup_script_directory: (definition.setup_policy
-                        != AutomationSetupPolicy::Wait)
-                        .then(|| self.runtime_dir.join("automation-setup")),
+                let target = AutomationWorktree {
+                    project_id: &project.id,
+                    source_branch,
+                    name_template,
+                    parent_workspace_id: Some(&source_workspace.id),
                 };
-                match crate::managed_workspace::create_managed_workspace(
-                    &self.runtime_store,
-                    request,
-                )
-                .await
+                match self
+                    .create_automation_worktree(definition, &mut run, target)
+                    .await
                 {
-                    Ok(result) => {
-                        run.workspace_id = Some(result.workspace.id.clone());
-                        run.workspace_branch = result.workspace.branch.clone();
-                        run.owned_workspace = true;
-                        if definition.setup_policy == AutomationSetupPolicy::Wait
-                            && result.setup_report.steps.iter().any(|step| !step.succeeded)
-                        {
-                            let reason = result
-                                .setup_report
-                                .steps
-                                .iter()
-                                .find(|step| !step.succeeded)
-                                .and_then(|step| step.message.as_deref())
-                                .unwrap_or("managed workspace setup failed");
-                            let _ = self.runtime_store.save_automation_run(&run).await;
-                            self.block_run(&run, reason).await;
-                            return;
-                        }
-                        if definition.setup_policy == AutomationSetupPolicy::Parallel
-                            && result.deferred_setup_command.is_none()
-                            && result.setup_report.steps.iter().any(|step| !step.succeeded)
-                        {
-                            let reason = result
-                                .setup_report
-                                .steps
-                                .iter()
-                                .find(|step| !step.succeeded)
-                                .and_then(|step| step.message.as_deref())
-                                .unwrap_or("managed workspace setup could not be prepared");
-                            let _ = self.runtime_store.save_automation_run(&run).await;
-                            self.block_run(&run, reason).await;
-                            return;
-                        }
-                        if definition.setup_policy == AutomationSetupPolicy::Parallel {
-                            if let Some(command) = result.deferred_setup_command.as_deref() {
-                                let setup_id = Uuid::new_v4().to_string();
-                                let now = Utc::now();
-                                let setup_tab = WorkspaceTabRecord {
-                                    id: setup_id.clone(),
-                                    workspace_id: result.workspace.id.clone(),
-                                    kind: "terminal".to_string(),
-                                    title: "Setup".to_string(),
-                                    created_at: now,
-                                    updated_at: now,
-                                    payload: json!({
-                                                        "terminalSessionId": setup_id,
-                                                        "initialCommand": command,
-                                                        "initialCommandOnce": true,
-                                                        "spawnOnCreate": true,
-                                                        "autoCloseOnSuccess": true,
-                                                        "automationRunId": run.id,
-                                    "automationAttemptId": run.attempt_id,
-                                                        "automationOwned": true,
-                                                    }),
-                                };
-                                if let Err(error) =
-                                    self.upsert_workspace_tab_and_spawn(setup_tab).await
-                                {
-                                    tracing::warn!(
-                                        run_id = %run.id,
-                                        "could not start managed workspace setup terminal: {}",
-                                        error.wire_message()
-                                    );
-                                } else {
-                                    run.setup_tab_id = Some(setup_id);
-                                }
-                            }
-                        }
+                    Ok(Some(workspace)) => {
                         self.dispatch_fresh_tab(
                             &mut run,
-                            &result.workspace.id,
+                            &workspace.id,
                             agent_profile_id,
                             &prompt,
                             true,
                         )
                         .await
                     }
-                    Err(error) => Err(HostError::state(error.to_string())),
+                    Ok(None) => return,
+                    Err(error) => Err(error),
                 }
             }
         };
@@ -471,3 +427,5 @@ impl ServerActor {
 
 #[path = "automation_fresh_tab_dispatch.rs"]
 mod automation_fresh_tab_dispatch;
+#[path = "automation_worktree_dispatch.rs"]
+mod automation_worktree_dispatch;

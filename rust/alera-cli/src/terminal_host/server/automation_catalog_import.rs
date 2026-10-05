@@ -130,6 +130,23 @@ pub(super) fn normalize_portable_import(
                         );
                     }
                 }
+                "projectWorktree" => {
+                    if let Some(project_key) = details
+                        .remove("projectKey")
+                        .and_then(|value| value.as_str().map(str::to_string))
+                    {
+                        details.insert(
+                            "projectId".into(),
+                            Value::String(remap_value(remap, &project_key, "project")?),
+                        );
+                    }
+                    if let Some(profile_key) = profile_key {
+                        details.insert(
+                            "agentProfileId".into(),
+                            Value::String(remap_value(remap, &profile_key, "profile")?),
+                        );
+                    }
+                }
                 "managedWorkspace" => {
                     if let Some(workspace_key) = source_workspace_key {
                         details.insert(

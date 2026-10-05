@@ -1,5 +1,6 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,7 +54,10 @@ void main() {
     );
     await reachWhere(tester);
     expect(find.byIcon(AleraIcons.radioOn), findsNothing);
-    expect(find.byIcon(AleraIcons.radioOff), findsNWidgets(4));
+    expect(
+      find.byIcon(AleraIcons.radioOff),
+      findsNWidgets(AutomationTargetType.values.length),
+    );
     expect(
       find.textContaining('Created from Workflow Delivery'),
       findsOneWidget,

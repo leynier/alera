@@ -202,6 +202,11 @@ class const AutomationDraft({
       .sourceBranch,
       .agentProfileId,
     ],
+    AutomationTargetType.projectWorktree => const [
+      .projectId,
+      .sourceBranch,
+      .agentProfileId,
+    ],
     AutomationTargetType.projectCheckout => const [
       .projectId,
       .hostId,
@@ -268,6 +273,12 @@ class const AutomationDraft({
         'nameTemplate': nameTemplate.trim(),
         'agentProfileId': value(.agentProfileId),
       },
+      AutomationTargetType.projectWorktree => <String, Object?>{
+        'projectId': value(.projectId),
+        'sourceBranch': value(.sourceBranch),
+        'nameTemplate': nameTemplate.trim(),
+        'agentProfileId': value(.agentProfileId),
+      },
       AutomationTargetType.projectCheckout => <String, Object?>{
         'projectId': value(.projectId),
         'hostId': value(.hostId),
@@ -311,7 +322,8 @@ class const AutomationDraft({
       'tagIds': tagIds,
       'schedule': schedule.toSchedule(timezone: timezone, bounds: bounds),
       'target': ?target,
-      if (targetType == AutomationTargetType.projectCheckout)
+      if (targetType == AutomationTargetType.projectCheckout ||
+          targetType == AutomationTargetType.projectWorktree)
         'projectId': targetFields[AutomationDraftField.projectId],
       'originWorkspaceId': originWorkspaceId,
       'setupPolicy': setupPolicy,

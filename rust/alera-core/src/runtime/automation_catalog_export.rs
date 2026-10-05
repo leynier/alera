@@ -94,6 +94,17 @@ pub(super) fn portable_definition(
                                 );
                             }
                         }
+                        "projectWorktree" => {
+                            details.remove("projectId");
+                            for (key, suffix) in
+                                [("projectKey", "project"), ("profileKey", "profile")]
+                            {
+                                details.insert(
+                                    key.into(),
+                                    Value::String(format!("{key_prefix}-{suffix}")),
+                                );
+                            }
+                        }
                         "managedWorkspace" => {
                             details.insert(
                                 "sourceWorkspaceKey".to_string(),

@@ -394,6 +394,8 @@ mod automation_dispatch_helpers;
 mod automation_manual_execution;
 #[path = "automation_run_lifecycle.rs"]
 mod automation_run_lifecycle;
+#[cfg(test)]
+pub(super) use automation_dispatch_execution::AutomationWorktree;
 pub(super) use automation_dispatch_helpers::{
     automation_prompt, render_workspace_name, run_precheck_command,
 };

@@ -22,6 +22,8 @@ String automationDraftTargetLine(
     null => 'No target chosen',
     AutomationTargetType.freshTab =>
       'New agent tab in ${names.workspaceName(value(.workspaceId))}$profile',
+    AutomationTargetType.projectWorktree =>
+      'New workspace and worktree of ${names.projectName(value(.projectId))} from ${value(.sourceBranch) ?? 'its default branch'}$profile',
     AutomationTargetType.managedWorkspace =>
       'New worktree from ${names.workspaceName(value(.workspaceId))} on ${value(.sourceBranch) ?? 'its branch'}$profile',
     AutomationTargetType.projectCheckout =>

@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
+import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
@@ -13,6 +13,7 @@ import 'package:alera/src/features/automations/presentation/authoring/automation
 import 'package:alera/src/features/automations/presentation/automation_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_catalog_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_tabs.dart';
+import 'package:alera/src/features/automations/presentation/automation_list_tile.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,30 +33,45 @@ class const AutomationDetailView({
     final theme = Theme.of(context);
     final state = automationStateLabel(automation);
     final value = detail.value;
+    final names = ref.watch(automationWorkbenchContextProvider);
     return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space12),
+      padding: const EdgeInsets.fromLTRB(
+        AleraTokens.space24,
+        AleraTokens.space16,
+        AleraTokens.space24,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Expanded(
+              Flexible(
                 child: Text(
                   automation.name,
-                  style: theme.textTheme.titleMedium,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: .w600,
+                  ),
                   maxLines: 1,
                   overflow: .ellipsis,
                 ),
               ),
-              AleraBadge(
-                label: state.label,
-                color: automationToneColor(state.tone),
-              ),
+              const SizedBox(width: AleraTokens.space12),
+              AutomationToneBadge(label: state.label, tone: state.tone),
             ],
           ),
-          const SizedBox(height: AleraTokens.space12),
+          const SizedBox(height: AleraTokens.space4),
+          Text(
+            '${automationScheduleLine(automation)} · ${automationTargetLine(automation, names)}',
+            maxLines: 1,
+            overflow: .ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+          const SizedBox(height: AleraTokens.space16),
           _AutomationHeaderActions(automation: automation),
-          const SizedBox(height: AleraTokens.space12),
+          const SizedBox(height: AleraTokens.space8),
           Expanded(
             child: value == null
                 ? detail.hasError

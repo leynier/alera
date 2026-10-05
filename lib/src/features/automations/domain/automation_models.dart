@@ -10,7 +10,8 @@ export 'package:alera/src/features/automations/domain/automation_run_models.dart
 /// The execution target families. The user always picks one explicitly.
 enum AutomationTargetType(final String key, final String label) {
   freshTab('freshTab', 'New Agent Tab In A Workspace'),
-  managedWorkspace('managedWorkspace', 'New Worktree Each Run'),
+  projectWorktree('projectWorktree', 'New Worktree From A Project'),
+  managedWorkspace('managedWorkspace', 'New Worktree From A Workspace'),
   projectCheckout('projectCheckout', 'Project Folder On A Host'),
   existingTab('existingTab', 'Continue An Agent Conversation');
 

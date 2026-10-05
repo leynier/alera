@@ -18,7 +18,7 @@ impl ServerActor {
         if let Some(project_id) = &definition.project_id {
             return Ok(Some(project_id.clone()));
         }
-        if let Some((project_id, _)) = definition.target.project_checkout() {
+        if let Some(project_id) = definition.target.direct_project_id() {
             return Ok(Some(project_id.into()));
         }
         let Some(workspace_id) = definition.target.source_workspace_id() else {
@@ -55,6 +55,26 @@ impl ServerActor {
                 project,
                 host_id: host_id.into(),
                 path: checkout.path,
+                workspace: None,
+            });
+        }
+        if let Some((project_id, _)) = definition.target.project_worktree() {
+            let project = self
+                .runtime_store
+                .find_project(project_id)
+                .await
+                .map_err(state_error)?
+                .ok_or_else(|| HostError::state("automation target project is missing"))?;
+            if project.kind != alera_core::runtime::ProjectKind::GitRepository {
+                return Err(HostError::state(
+                    "project worktree automations require a git repository project",
+                ));
+            }
+            let path = project.repo_path.clone();
+            return Ok(AutomationTargetLocation {
+                project,
+                host_id: alera_core::runtime::LOCAL_HOST_ID.into(),
+                path,
                 workspace: None,
             });
         }

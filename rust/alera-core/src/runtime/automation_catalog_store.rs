@@ -378,6 +378,20 @@ fn remap_definition_target(
         }
         return Ok(());
     }
+    if let super::AutomationTarget::ProjectWorktree {
+        project_id,
+        agent_profile_id,
+        ..
+    } = &mut definition.target
+    {
+        for (kind, id) in [("project", project_id), ("profile", agent_profile_id)] {
+            *id = remap
+                .get(id)
+                .cloned()
+                .ok_or_else(|| anyhow!("import requires a local remap for {kind}: {id}"))?;
+        }
+        return Ok(());
+    }
     let source = definition
         .target
         .source_workspace_id()
@@ -393,8 +407,9 @@ fn remap_definition_target(
             source_workspace_id,
             ..
         } => *source_workspace_id = mapped,
-        super::AutomationTarget::ProjectCheckout { .. } => {
-            unreachable!("project checkout remapped above")
+        super::AutomationTarget::ProjectCheckout { .. }
+        | super::AutomationTarget::ProjectWorktree { .. } => {
+            unreachable!("project targets remapped above")
         }
     }
     Ok(())

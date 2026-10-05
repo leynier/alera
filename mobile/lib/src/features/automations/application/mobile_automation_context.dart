@@ -125,6 +125,12 @@ AutomationDraft chooseMobileAutomationTargetType(
         final branch = origin.branch?.trim();
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
+    case AutomationTargetType.projectWorktree:
+      if (origin != null && context.isGitProject(origin.projectId)) {
+        filled[.projectId] = origin.projectId;
+        final branch = origin.branch?.trim();
+        if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
+      }
     case AutomationTargetType.projectCheckout:
       if (origin != null) filled[.projectId] = origin.projectId;
   }
