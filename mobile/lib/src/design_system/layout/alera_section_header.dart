@@ -24,7 +24,11 @@ class const AleraSectionHeader({
       child: Row(
         children: <Widget>[
           if (leadingIcon != null) ...<Widget>[
-            Icon(leadingIcon, size: 12, color: AleraTokens.foregroundFaint),
+            Icon(
+              leadingIcon,
+              size: AleraTokens.iconSm,
+              color: AleraTokens.foregroundFaint,
+            ),
             const SizedBox(width: AleraTokens.space6),
           ],
           Expanded(

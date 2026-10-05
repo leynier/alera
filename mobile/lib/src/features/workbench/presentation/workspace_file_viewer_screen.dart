@@ -49,7 +49,7 @@ class const WorkspaceFileViewerScreen({
 
 class _WorkspaceFileViewerScreenState
     extends ConsumerState<WorkspaceFileViewerScreen> {
-  late final Future<MobileWorkspaceFileRange> _load = _read();
+  late Future<MobileWorkspaceFileRange> _load = _read();
   final ScrollController _scroll = ScrollController();
   late WorkspaceFileViewMode _mode = initialWorkspaceFileViewMode(
     relativePath: widget.relativePath,
@@ -63,18 +63,23 @@ class _WorkspaceFileViewerScreenState
   }
 
   Future<MobileWorkspaceFileRange> _read() async {
-    final client = await ref.read(
-      workspaceClientProvider(widget.hostId).future,
-    );
-    if (client case final MobileCodexWorkspaceClient files) {
-      return files.readWorkspaceFile(
-        workspaceId: widget.workspaceId,
-        relativePath: widget.relativePath,
+    try {
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
       );
+      if (client case final MobileCodexWorkspaceClient files) {
+        return await files.readWorkspaceFile(
+          workspaceId: widget.workspaceId,
+          relativePath: widget.relativePath,
+        );
+      }
+      throw UnsupportedError(
+        'Update the paired Alera runtime to preview workspace files.',
+      );
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not read a workspace file.', error, stackTrace);
+      rethrow;
     }
-    throw UnsupportedError(
-      'Update the paired Alera runtime to preview workspace files.',
-    );
   }
 
   Future<void> _openLink(String rawUrl) async {
@@ -123,10 +128,15 @@ class _WorkspaceFileViewerScreenState
         future: _load,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: AleraTokens.contentPadding,
-                child: Text(snapshot.error.toString(), textAlign: .center),
+            return AleraEmptyState(
+              icon: AleraIcons.loadFailed,
+              title: 'Could not open file',
+              message: 'Check the connection to the host and try again.',
+              detail: snapshot.error.toString(),
+              action: FilledButton.icon(
+                onPressed: () => setState(() => _load = _read()),
+                icon: const Icon(AleraIcons.refresh),
+                label: const Text('Retry'),
               ),
             );
           }

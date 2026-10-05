@@ -154,7 +154,7 @@ class const _RecordingBar({
   Widget _progress() {
     if (state.stage == MobileAiDictationStage.recording) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
         child: LinearProgressIndicator(
           value: state.amplitude,
           minHeight: AleraTokens.space8,

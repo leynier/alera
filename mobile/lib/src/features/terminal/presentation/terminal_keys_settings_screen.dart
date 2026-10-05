@@ -3,6 +3,8 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_accessor
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_layout.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/custom_key_dialog.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,6 +36,7 @@ class const TerminalKeysSettingsScreen({super.key}) extends ConsumerWidget {
             icon: const Icon(Icons.add),
           ),
           PopupMenuButton<String>(
+            tooltip: 'More Actions',
             onSelected: (value) {
               if (value == 'reset') {
                 controller.resetToDefaults();
@@ -54,7 +57,18 @@ class const TerminalKeysSettingsScreen({super.key}) extends ConsumerWidget {
             layout: current,
             controller: controller,
           ),
-          AsyncError(:final error) => Center(child: Text(error.toString())),
+          AsyncError(:final error) => AleraEmptyState(
+            icon: AleraIcons.loadFailed,
+            title: 'Could not load quick keys',
+            message: 'The saved quick-key layout could not be read.',
+            detail: error.toString(),
+            action: FilledButton.icon(
+              onPressed: () =>
+                  ref.invalidate(terminalAccessoryLayoutControllerProvider),
+              icon: const Icon(AleraIcons.refresh),
+              label: const Text('Retry'),
+            ),
+          ),
           _ => const Center(child: CircularProgressIndicator()),
         },
       ),

@@ -37,6 +37,7 @@ class const HostDashboardScreen({
         title: Text(currentHost.effectiveName),
         actions: <Widget>[
           PopupMenuButton<String>(
+            tooltip: 'More Actions',
             onSelected: (value) {
               if (value == 'rename') {
                 showRenameHostDialog(context, ref, currentHost);

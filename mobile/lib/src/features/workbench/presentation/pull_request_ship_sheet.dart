@@ -26,7 +26,6 @@ Future<void> showShipPullRequestSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
     builder: (_) => ShipPullRequestSheet(
       headBranch: headBranch,
       baseBranches: baseBranches,

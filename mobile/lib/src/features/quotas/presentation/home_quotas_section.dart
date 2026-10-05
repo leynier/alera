@@ -180,7 +180,7 @@ class const _HomeQuotaCard({
 
     return Card(
       child: InkWell(
-        borderRadius: .circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusLg),
         onTap: onTap,
         child: Padding(
           padding: AleraTokens.contentPadding,
@@ -256,7 +256,7 @@ class const _HomeQuotaMeterRow({
         const SizedBox(height: AleraTokens.spaceSm),
         if (meter.displayValue == null)
           ClipRRect(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
             child: LinearProgressIndicator(
               value: remaining / 100,
               minHeight: AleraTokens.spaceSm,

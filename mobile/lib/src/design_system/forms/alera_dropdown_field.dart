@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 /// One selectable option of an [AleraDropdownField].
@@ -254,15 +255,27 @@ class _AleraDropdownSearchDialogState<T>
                         itemBuilder: (context, visibleIndex) {
                           final index = indexes[visibleIndex];
                           final entry = widget.entries[index];
-                          return ListTile(
-                            dense: true,
-                            enabled: entry.enabled,
-                            selected: entry.value == widget.selectedValue,
-                            leading: entry.leading,
-                            title: Text(entry.label, overflow: .ellipsis),
-                            onTap: entry.enabled
-                                ? () => Navigator.of(context).pop(index)
-                                : null,
+                          final selected = entry.value == widget.selectedValue;
+                          return AleraActiveRail(
+                            active: selected,
+                            child: ListTile(
+                              tileColor: selected
+                                  ? AleraActiveRail.selectedColor
+                                  : null,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.all(
+                                  .circular(AleraTokens.radiusSm),
+                                ),
+                              ),
+                              dense: true,
+                              enabled: entry.enabled,
+                              selected: selected,
+                              leading: entry.leading,
+                              title: Text(entry.label, overflow: .ellipsis),
+                              onTap: entry.enabled
+                                  ? () => Navigator.of(context).pop(index)
+                                  : null,
+                            ),
                           );
                         },
                       ),

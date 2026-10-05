@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/hosts/application/pairing_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/pairing_flow_state.dart';
+import 'package:alera_mobile/src/features/hosts/presentation/pairing/pairing_cli_hint.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/pairing/pairing_confirm_card.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/pairing/pairing_manual_entry_sheet.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/pairing/pairing_scanner_view.dart';
@@ -74,7 +75,7 @@ class const _ManualFirstEntry({required final VoidCallback onEnterManually})
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: AleraTokens.contentPadding,
         child: Column(
           mainAxisSize: .min,
@@ -91,7 +92,7 @@ class const _ManualFirstEntry({required final VoidCallback onEnterManually})
             ),
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
-              'Paste the offer from the Alera mobile --json pairing create command.',
+              '$pairingDesktopSteps Then paste it here.',
               textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -101,6 +102,8 @@ class const _ManualFirstEntry({required final VoidCallback onEnterManually})
               icon: const Icon(Icons.keyboard_outlined),
               label: const Text('Enter Code Manually'),
             ),
+            const SizedBox(height: AleraTokens.spaceXl),
+            const PairingCliHint(textAlign: .center),
           ],
         ),
       ),

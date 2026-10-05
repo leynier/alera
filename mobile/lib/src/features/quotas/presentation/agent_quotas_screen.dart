@@ -379,7 +379,7 @@ class const _QuotaMeterRow({
         const SizedBox(height: AleraTokens.spaceSm),
         if (meter.displayValue == null)
           ClipRRect(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
             child: LinearProgressIndicator(
               value: remaining / 100,
               minHeight: AleraTokens.spaceSm,

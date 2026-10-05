@@ -201,12 +201,20 @@ class const _TabChip({
   Widget build(BuildContext context) {
     final interactive = tab.isTerminal || opensPreview;
     final status = presence;
+    // Horizontal selection rule: the active chip takes the elevated fill (from
+    // the chip theme) and an accent foreground, never the vertical-list rail.
+    final foreground = selected
+        ? AleraTokens.accent
+        : AleraTokens.foregroundMuted;
     return GestureDetector(
       onLongPress: () => onActions(tab),
       child: InputChip(
         // The fill already says which tab is active; a checkmark on top of it
         // spends width that the title needs on a phone.
         showCheckmark: false,
+        labelStyle: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: foreground),
+        deleteIconColor: foreground,
         avatar: status != null ? AgentRunStateIndicator(status: status) : null,
         label: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _tabTitleMaxWidth(tab.kind)),

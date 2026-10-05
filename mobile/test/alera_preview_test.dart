@@ -1,6 +1,9 @@
 import 'package:alera_mobile/src/design_system/alera_preview.dart';
+import 'package:alera_mobile/src/design_system/badges/alera_badge.preview.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.preview.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.preview.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.preview.dart';
+import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +11,11 @@ void main() {
   for (final (name, buildPreview) in [
     ('Rename Host', aleraRenameDialogPreview),
     ('New Terminal', aleraActionSheetPreview),
+    ('No paired hosts', aleraEmptyStatePreview),
+    ('Could not load hosts', aleraEmptyStateErrorPreview),
+    ('Needs Input', aleraBadgeTonesPreview),
+    ('Checks Passing', aleraBadgeLeadingPreview),
+    ('feat/active-rail', aleraActiveRailPreview),
   ]) {
     testWidgets('$name preview lays out within its phone viewport', (
       tester,

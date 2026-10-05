@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/features/workbench/presentation/section_picker_
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
 import 'package:alera_mobile/src/features/linked_issues/presentation/mobile_link_issue_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_host.dart';

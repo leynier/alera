@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 /// One row of an [AleraActionSheet].
 ///
 /// [leading] is a widget rather than an [IconData] so a caller can pass an
-/// agent identity glyph instead of a Material icon.
+/// agent identity glyph instead of a Material icon. A [destructive] entry
+/// paints its label and icon in the error color; a disabled one stays visible
+/// so the sheet can say why an action is unavailable right now.
 class const AleraActionSheetEntry<T>({
   required final T value,
   required final String label,
   required final Widget leading,
+  final bool enabled = true,
+  final bool destructive = false,
 });
 
 /// Bottom sheet of mutually exclusive actions. Pops the tapped entry's value
@@ -35,6 +39,9 @@ class const AleraActionSheet<T>({
                 minTileHeight: AleraTokens.minTapTarget,
                 leading: entry.leading,
                 title: Text(entry.label),
+                enabled: entry.enabled,
+                iconColor: entry.destructive ? AleraTokens.error : null,
+                textColor: entry.destructive ? AleraTokens.error : null,
                 onTap: () => Navigator.of(context).pop(entry.value),
               ),
           ],
@@ -52,7 +59,6 @@ Future<T?> showAleraActionSheet<T>(
 }) {
   return showModalBottomSheet<T>(
     context: context,
-    showDragHandle: true,
     isScrollControlled: true,
     constraints: BoxConstraints(
       maxHeight: MediaQuery.sizeOf(context).height * 0.85,

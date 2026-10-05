@@ -6,7 +6,10 @@ class const _OutputEndedBanner({
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AleraTokens.surfaceVariant,
+      color: Color.alphaBlend(
+        AleraTokens.warningSubtle,
+        AleraTokens.surfaceVariant,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AleraTokens.spaceLg,
@@ -14,13 +17,20 @@ class const _OutputEndedBanner({
         ),
         child: Row(
           children: <Widget>[
-            const Icon(Icons.link_off, size: AleraTokens.spaceLg),
-            const SizedBox(width: AleraTokens.spaceSm),
-            Text(
-              'Terminal output stopped',
-              style: Theme.of(context).textTheme.labelSmall,
+            const Icon(
+              AleraIcons.warning,
+              size: AleraTokens.spaceLg,
+              color: AleraTokens.warning,
             ),
-            const Spacer(),
+            const SizedBox(width: AleraTokens.spaceSm),
+            Expanded(
+              child: Text(
+                'Terminal output stopped',
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.foreground),
+              ),
+            ),
             TextButton(
               onPressed: () => unawaited(onReconnect()),
               child: const Text('Reconnect'),
@@ -46,9 +56,12 @@ class const _DirectModeBanner() extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.bolt, size: AleraTokens.spaceLg),
             const SizedBox(width: AleraTokens.spaceSm),
-            Text(
-              'Keys go directly to the terminal',
-              style: Theme.of(context).textTheme.labelSmall,
+            Expanded(
+              child: Text(
+                'Keys go directly to the terminal',
+                overflow: .ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           ],
         ),

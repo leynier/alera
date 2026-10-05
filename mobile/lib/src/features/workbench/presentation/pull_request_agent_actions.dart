@@ -22,7 +22,6 @@ Future<PullRequestWatchSheetResult?> showPullRequestWatchSheet(
 }) {
   return showModalBottomSheet<PullRequestWatchSheetResult>(
     context: context,
-    showDragHandle: true,
     isScrollControlled: true,
     builder: (context) => _PullRequestWatchSheet(
       initialScope: initialScope,

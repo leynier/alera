@@ -171,12 +171,23 @@ class const _SectionFamilyTile({
           )
         else ...<Widget>[
           for (final section in sections)
-            ListTile(
-              title: Text(section.name),
-              trailing: section.id == currentSectionId
-                  ? const Icon(AleraIcons.check, size: 20)
-                  : null,
-              onTap: () => onAssign(section.id),
+            AleraActiveRail(
+              active: section.id == currentSectionId,
+              child: ListTile(
+                tileColor: section.id == currentSectionId
+                    ? AleraActiveRail.selectedColor
+                    : null,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(
+                    .circular(AleraTokens.radiusSm),
+                  ),
+                ),
+                title: Text(section.name),
+                trailing: section.id == currentSectionId
+                    ? const Icon(AleraIcons.check, size: 20)
+                    : null,
+                onTap: () => onAssign(section.id),
+              ),
             ),
           ListTile(
             leading: const Icon(AleraIcons.add, size: 20),

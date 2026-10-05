@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/runtime/application/host_connection_co
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_hosts_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_panels_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/explorer_panel.dart';
@@ -38,6 +39,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
+part 'workspace_tabs_actions.dart';
 part 'workspace_tabs_close.dart';
 part 'workspace_tabs_panel_body.dart';
 part 'workspace_tabs_panel_menu.dart';
@@ -143,97 +145,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         });
       }
     }
-  }
-
-  Future<void> _renameTab(WorkspaceTabSummary tab) async {
-    final title = await showDialog<String>(
-      context: context,
-      builder: (_) => AleraRenameDialog(
-        title: 'Rename Tab',
-        labelText: 'Tab Title',
-        initialValue: tab.displayTitle,
-      ),
-    );
-    if (title == null || !mounted) return;
-    try {
-      await ref
-          .read(
-            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-          )
-          .renameTab(tab, title);
-    } on Object catch (error, stackTrace) {
-      _logger.warning('Could not rename workspace tab.', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not rename tab: $error')));
-      }
-    }
-  }
-
-  Future<void> _showTabActions(
-    WorkspaceTabSummary tab, {
-    required bool canRename,
-    required bool canGenerateTitle,
-  }) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: .min,
-          children: <Widget>[
-            if (canRename)
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Rename Tab'),
-                onTap: () => Navigator.of(context).pop('rename'),
-              ),
-            if (canGenerateTitle && tab.isTerminal)
-              ListTile(
-                leading: const Icon(Icons.auto_awesome_outlined),
-                title: Text(
-                  tab.payload['agentTitleStatus'] == 'generating'
-                      ? 'Generating title...'
-                      : tab.payload['agentTitleSource'] == 'generated'
-                      ? 'Regenerate Title'
-                      : 'Generate Title',
-                ),
-                enabled: tab.payload['agentTitleStatus'] != 'generating',
-                onTap: () => Navigator.of(context).pop('generateTitle'),
-              ),
-            if (tab.isTerminal)
-              ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text('Close Tab'),
-                onTap: () => Navigator.of(context).pop('close'),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted) return;
-    if (action == 'generateTitle') {
-      final messenger = ScaffoldMessenger.of(context);
-      try {
-        await ref
-            .read(
-              tabsControllerProvider(
-                widget.hostId,
-                widget.workspace.id,
-              ).notifier,
-            )
-            .generateTitle(tab);
-      } on Object catch (error, stackTrace) {
-        _logger.warning('Could not generate agent title.', error, stackTrace);
-        if (messenger.mounted) {
-          messenger.showSnackBar(
-            SnackBar(content: Text('Could not generate title: $error')),
-          );
-        }
-      }
-    }
-    if (action == 'rename') await _renameTab(tab);
-    if (action == 'close') await _closeTab(tab);
   }
 
   /// A desktop Markdown viewer tab opens its preview on top of the terminal
@@ -355,60 +266,24 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         // toolbar leaves ~18dp of dead space under the title before the chips
         // start; 48dp still fits the back button exactly.
         toolbarHeight: AleraTokens.minTapTarget,
-        title: WorkspaceHostTitle(
-          name: widget.workspace.name,
-          host: ref
-              .watch(workspaceHostsControllerProvider(widget.hostId))
-              .value
-              ?.hostOf(widget.workspace),
+        title: _WorkspaceTabsTitle(
+          title: WorkspaceHostTitle(
+            name: widget.workspace.name,
+            host: ref
+                .watch(workspaceHostsControllerProvider(widget.hostId))
+                .value
+                ?.hostOf(widget.workspace),
+          ),
+          panel: panel,
         ),
         actions: <Widget>[
-          PopupMenuButton<_TabsMenuAction>(
-            tooltip: 'More Actions',
-            onSelected: (action) {
-              switch (action) {
-                case _QuickKeysMenuAction():
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const TerminalKeysSettingsScreen(),
-                    ),
-                  );
-                case _AutomationsMenuAction(:final create):
-                  _openWorkspaceAutomations(context, widget, create: create);
-                case _SelectPanelAction(:final destination):
-                  ref
-                      .read(
-                        selectedWorkspacePanelControllerProvider(
-                          widget.hostId,
-                          widget.workspace.id,
-                        ).notifier,
-                      )
-                      .select(destination);
-              }
-            },
-            itemBuilder: (context) => <PopupMenuEntry<_TabsMenuAction>>[
-              if (panelCapabilities
-                  .hasAny) ...<PopupMenuEntry<_TabsMenuAction>>[
-                for (final destination in destinations)
-                  PopupMenuItem<_TabsMenuAction>(
-                    value: _SelectPanelAction(destination),
-                    height: AleraTokens.minTapTarget,
-                    child: _PanelMenuRow(
-                      icon: _panelIcon(destination),
-                      label: _panelLabel(destination),
-                      selected: destination == panel,
-                    ),
-                  ),
-                const PopupMenuDivider(),
-              ],
-              ..._automationMenuEntries,
-              const PopupMenuItem<_TabsMenuAction>(
-                value: _QuickKeysMenuAction(),
-                height: AleraTokens.minTapTarget,
-                child: Text('Terminal Quick Keys'),
-              ),
-            ],
-          ),
+          if (!showTerminalChrome)
+            IconButton(
+              tooltip: 'Show Terminal',
+              onPressed: () => _selectPanel(WorkspacePanelDestination.terminal),
+              icon: const Icon(AleraIcons.terminal),
+            ),
+          _moreActionsMenu(panelCapabilities, panel),
         ],
         bottom: showTerminalChrome && tabs.value?.isNotEmpty == true
             ? PreferredSize(
@@ -451,14 +326,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       return;
     }
     setState(() => _selectedTabId = tabId);
-    ref
-        .read(
-          selectedWorkspacePanelControllerProvider(
-            widget.hostId,
-            widget.workspace.id,
-          ).notifier,
-        )
-        .select(WorkspacePanelDestination.terminal);
+    _selectPanel(WorkspacePanelDestination.terminal);
   }
 
   Widget _terminalBody(AsyncValue<List<WorkspaceTabSummary>> tabs) {
@@ -483,10 +351,17 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           targetUnavailable: tabList.isNotEmpty && !widget.selectFallbackTab,
         ),
       },
-      AsyncError(:final error) => Center(
-        child: Padding(
-          padding: AleraTokens.contentPadding,
-          child: Text(error.toString(), textAlign: .center),
+      AsyncError(:final error) => AleraEmptyState(
+        icon: AleraIcons.loadFailed,
+        title: 'Could not load tabs',
+        message: 'Check the connection to the host and try again.',
+        detail: error.toString(),
+        action: FilledButton.icon(
+          onPressed: () => ref.invalidate(
+            tabsControllerProvider(widget.hostId, widget.workspace.id),
+          ),
+          icon: const Icon(AleraIcons.refresh),
+          label: const Text('Retry'),
         ),
       ),
       _ => const Center(child: CircularProgressIndicator()),

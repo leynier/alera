@@ -57,85 +57,77 @@ class const _ModelTile({
     final downloading =
         transfer.status == MobileAiModelTransferStatus.downloading ||
         transfer.status == MobileAiModelTransferStatus.verifying;
-    return Card(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          crossAxisAlignment: .stretch,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(model.label, style: theme.textTheme.titleSmall),
-                ),
-                if (selected)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AleraTokens.space8,
-                      vertical: AleraTokens.space4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AleraTokens.accentSubtle,
-                      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-                      border: Border.all(color: AleraTokens.border),
-                    ),
-                    child: Text(
-                      'Selected',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AleraTokens.foreground,
-                      ),
-                    ),
+    return AleraActiveRail(
+      active: selected,
+      child: Card(
+        color: selected ? AleraActiveRail.selectedColor : null,
+        child: Padding(
+          padding: AleraTokens.contentPadding,
+          child: Column(
+            crossAxisAlignment: .stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(model.label, style: theme.textTheme.titleSmall),
                   ),
-              ],
-            ),
-            const SizedBox(height: AleraTokens.space4),
-            Text(
-              _modelStatus(model, transfer, selected),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
+                  if (selected)
+                    const AleraBadge(
+                      label: 'Selected',
+                      tone: AleraBadgeTone.accent,
+                    ),
+                ],
               ),
-            ),
-            if (downloading) ...<Widget>[
+              const SizedBox(height: AleraTokens.space4),
+              Text(
+                _modelStatus(model, transfer, selected),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+              if (downloading) ...<Widget>[
+                const SizedBox(height: AleraTokens.space8),
+                LinearProgressIndicator(
+                  value:
+                      transfer.status == MobileAiModelTransferStatus.verifying
+                      ? null
+                      : transfer.progress,
+                ),
+              ],
               const SizedBox(height: AleraTokens.space8),
-              LinearProgressIndicator(
-                value: transfer.status == MobileAiModelTransferStatus.verifying
-                    ? null
-                    : transfer.progress,
+              Wrap(
+                alignment: .end,
+                spacing: AleraTokens.space8,
+                runSpacing: AleraTokens.space8,
+                children: <Widget>[
+                  if (downloading)
+                    OutlinedButton(
+                      onPressed: () => unawaited(onCancel()),
+                      child: const Text('Cancel Download'),
+                    )
+                  else if (!transfer.installed)
+                    FilledButton(
+                      onPressed: busy ? null : () => unawaited(onDownload()),
+                      child: Text(
+                        transfer.status == MobileAiModelTransferStatus.resumable
+                            ? 'Resume'
+                            : 'Download',
+                      ),
+                    )
+                  else ...<Widget>[
+                    OutlinedButton(
+                      onPressed: selected ? null : () => unawaited(onRemove()),
+                      child: const Text('Remove Model'),
+                    ),
+                    FilledButton(
+                      onPressed: selected ? null : () => unawaited(onSelect()),
+                      child: Text(selected ? 'Selected' : 'Use Model'),
+                    ),
+                  ],
+                ],
               ),
             ],
-            const SizedBox(height: AleraTokens.space8),
-            Wrap(
-              alignment: .end,
-              spacing: AleraTokens.space8,
-              runSpacing: AleraTokens.space8,
-              children: <Widget>[
-                if (downloading)
-                  OutlinedButton(
-                    onPressed: () => unawaited(onCancel()),
-                    child: const Text('Cancel Download'),
-                  )
-                else if (!transfer.installed)
-                  FilledButton(
-                    onPressed: busy ? null : () => unawaited(onDownload()),
-                    child: Text(
-                      transfer.status == MobileAiModelTransferStatus.resumable
-                          ? 'Resume'
-                          : 'Download',
-                    ),
-                  )
-                else ...<Widget>[
-                  OutlinedButton(
-                    onPressed: selected ? null : () => unawaited(onRemove()),
-                    child: const Text('Remove Model'),
-                  ),
-                  FilledButton(
-                    onPressed: selected ? null : () => unawaited(onSelect()),
-                    child: Text(selected ? 'Selected' : 'Use Model'),
-                  ),
-                ],
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );

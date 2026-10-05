@@ -31,7 +31,9 @@ class const AleraJobCard({
                   const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: AleraTokens.strokeSm,
+                    ),
                   ),
                 const SizedBox(width: AleraTokens.spaceSm),
                 Expanded(child: Text(title, style: theme.textTheme.titleSmall)),

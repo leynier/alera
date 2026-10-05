@@ -41,6 +41,10 @@ class const RuntimeWorkspacesScreen({
             ?.where((profile) => profile.id == host.id)
             .firstOrNull ??
         host;
+    // Riverpod keeps the previous value on an error state, so hasValue alone
+    // would keep the dot green on a dead socket.
+    final connected =
+        connection is AsyncData && connection.value?.isConnectionUsable == true;
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -51,19 +55,20 @@ class const RuntimeWorkspacesScreen({
             Positioned(
               right: -AleraTokens.space12,
               top: -AleraTokens.space2,
-              child: AleraStatusDot(
-                // Riverpod keeps the previous value on an error state, so
-                // hasValue alone would keep the dot green on a dead socket.
-                active:
-                    connection is AsyncData &&
-                    connection.value?.isConnectionUsable == true,
-                size: AleraTokens.spaceSm,
+              child: Semantics(
+                label: connected ? 'Host connected' : 'Host disconnected',
+                excludeSemantics: true,
+                child: AleraStatusDot(
+                  active: connected,
+                  size: AleraTokens.spaceSm,
+                ),
               ),
             ),
           ],
         ),
         actions: <Widget>[
           PopupMenuButton<_ScreenMenuAction>(
+            tooltip: 'More Actions',
             onSelected: (action) =>
                 _handleMenu(context, ref, action, currentHost),
             itemBuilder: (context) => const <PopupMenuEntry<_ScreenMenuAction>>[
@@ -98,11 +103,16 @@ class const RuntimeWorkspacesScreen({
             Column(
               children: <Widget>[
                 RuntimeWorkspacesToolbar(hostId: host.id, data: listData),
-                const Expanded(
-                  child: AleraEmptyState(
-                    title: 'No workspaces',
-                    message: 'Create a workspace to get started.',
-                    icon: AleraIcons.workspaces,
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => refreshWorkspaceList(ref, host.id),
+                    child: const WorkspaceListPlaceholder(
+                      child: AleraEmptyState(
+                        title: 'No workspaces',
+                        message: 'Create a workspace to get started.',
+                        icon: AleraIcons.workspaces,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -120,11 +130,16 @@ class const RuntimeWorkspacesScreen({
             children: <Widget>[
               RuntimeWorkspacesToolbar(hostId: host.id, data: data.value),
               Expanded(
-                child: _ConnectionError(
-                  error: error,
-                  onRetry: () {
-                    unawaited(_retryConnection(ref, host.id));
-                  },
+                child: RefreshIndicator(
+                  onRefresh: () => _retryConnection(ref, host.id),
+                  child: WorkspaceListPlaceholder(
+                    child: _ConnectionError(
+                      error: error,
+                      onRetry: () {
+                        unawaited(_retryConnection(ref, host.id));
+                      },
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -240,10 +255,20 @@ class const _ConnectionError({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final updateMessage = switch (error) {
+      UnsupportedError(:final message?) => message,
+      _ => null,
+    };
     final updateRequired = error is UnsupportedError;
     return AleraEmptyState(
       title: updateRequired ? 'Update required' : 'Connection failed',
-      message: error.toString(),
+      message:
+          updateMessage ??
+          (updateRequired
+              ? 'Update Alera on this host to use mobile workspaces.'
+              : 'Could not load workspaces from this host. Pull down or tap '
+                    'Retry to try again.'),
+      detail: updateMessage == null ? error.toString() : null,
       icon: updateRequired ? AleraIcons.systemUpdate : AleraIcons.cloudOff,
       action: FilledButton.icon(
         onPressed: onRetry,

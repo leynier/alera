@@ -36,7 +36,6 @@ Future<void> showMobileAutomationRun(
   required String runId,
 }) => showModalBottomSheet<void>(
   context: context,
-  showDragHandle: true,
   isScrollControlled: true,
   builder: (_) => DraggableScrollableSheet(
     expand: false,

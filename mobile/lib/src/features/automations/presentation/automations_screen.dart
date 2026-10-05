@@ -329,7 +329,7 @@ class const _AutomationCard({
                   ],
                   AleraBadge(
                     label: state.label,
-                    color: mobileAutomationToneColor(state.tone),
+                    tone: mobileAutomationBadgeTone(state.tone),
                   ),
                 ],
               ),

@@ -24,7 +24,25 @@ abstract final class AleraTokens {
 
   /// Minimum comfortable finger tap target (Material / HIG ~48dp).
   static const double minTapTarget = space48;
+
+  /// Leading glyph and dot inside a badge (match desktop).
+  static const double iconXs = 10.0;
+  static const double statusDotSm = 6.0;
   static const double iconSm = space12;
+
+  /// Status glyphs and tray icons in workspace rows: readable at arm's length
+  /// while still fitting the row's 14dp status slot.
+  static const double rowMetaIcon = 14.0;
+  static const double emptyStateIcon = 28.0;
+
+  /// Phone buttons stay at the Material 40dp height rather than the desktop's
+  /// pointer-sized 34dp.
+  static const double buttonMinHeight = 40.0;
+  static const double buttonPaddingHorizontal = 14.0;
+  static const EdgeInsets inputContentPadding = .symmetric(
+    horizontal: space12,
+    vertical: 10,
+  );
 
   static const double dialogWideWidth = 560.0;
   static const double dialogMaxHeight = 520.0;
@@ -38,11 +56,32 @@ abstract final class AleraTokens {
   static const Size previewPhoneSize = Size(390, 844);
 
   // Control radii match desktop so ported DS widgets look identical.
-  static const double radiusSm = 4.0;
-  static const double radiusMd = 6.0;
-  static const double radiusLg = 10.0;
+  /// Tiny inline elements under ~18dp tall (checkboxes, thin progress bars,
+  /// keycaps) where [radiusSm] would read as a blob.
+  static const double radiusXs = 4.0;
+
+  /// Chips, badges, tooltips, compact controls, and tab chips.
+  static const double radiusSm = 6.0;
+
+  /// Inputs and standard controls.
+  static const double radiusMd = 8.0;
+
+  /// Buttons, cards, panels, and grouped containers.
+  static const double radiusLg = 8.0;
+
+  /// Dialogs, bottom sheets, and large elevated containers.
   static const double radiusXl = 12.0;
+
+  /// Real pills only: floating pill buttons and toggle tracks.
   static const double radiusPill = 20.0;
+
+  /// Width of the accent rail `AleraActiveRail` draws at the leading edge of
+  /// the selected row in a vertical list.
+  static const double activeRailWidth = 2.0;
+
+  /// Background alpha for tinted status labels: the tone color at this alpha
+  /// behind text in the full tone color.
+  static const double statusTintAlpha = 0.14;
 
   static const Color bg = Color(0xFF101010);
   static const Color background = bg;
@@ -65,6 +104,8 @@ abstract final class AleraTokens {
   static const Color error = Color(0xFFF87171);
   static const Color onError = Color(0xFF2C0D0D);
   static const Color warning = Color(0xFFF59E0B);
+  static const Color warningSubtle = Color(0x1FF59E0B);
+  static const Color textSelection = Color(0x59E0E0E0);
   static const Color shadowSoft = Color(0x14000000);
   static const Color barrierDark = Color(0x8A000000);
 

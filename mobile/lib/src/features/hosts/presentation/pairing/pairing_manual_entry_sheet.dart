@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/hosts/presentation/pairing/pairing_cli_hint.dart';
 import 'package:flutter/material.dart';
 
 /// Bottom sheet for pasting a pairing offer JSON by hand. Returns the entered
@@ -43,11 +44,10 @@ class _PairingManualEntrySheetState extends State<_PairingManualEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: AleraTokens.spaceLg,
         right: AleraTokens.spaceLg,
-        top: AleraTokens.spaceLg,
         bottom: MediaQuery.viewInsetsOf(context).bottom + AleraTokens.spaceLg,
       ),
       child: Column(
@@ -60,9 +60,12 @@ class _PairingManualEntrySheetState extends State<_PairingManualEntrySheet> {
           ),
           const SizedBox(height: AleraTokens.spaceSm),
           Text(
-            'Copy the offer JSON from the Alera mobile --json pairing create command.',
-            style: Theme.of(context).textTheme.bodySmall,
+            pairingDesktopSteps,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
+          const SizedBox(height: AleraTokens.spaceMd),
+          const PairingCliHint(),
           const SizedBox(height: AleraTokens.spaceLg),
           TextField(
             controller: _controller,

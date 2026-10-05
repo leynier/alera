@@ -64,6 +64,7 @@ class const CloudAccountCard({
                   ),
                 ),
                 PopupMenuButton<CloudAccountAction>(
+                  tooltip: 'More Actions',
                   onSelected: onAction,
                   itemBuilder: (_) =>
                       const <PopupMenuEntry<CloudAccountAction>>[
