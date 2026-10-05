@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/automations/domain/automation_models.d
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -18,6 +19,7 @@ class const MobileAutomationContext({
   final List<WorkspaceSectionSummary> sections =
       const <WorkspaceSectionSummary>[],
   final List<AgentProfileSummary> profiles = const <AgentProfileSummary>[],
+  final List<WorkspaceTagSummary> tags = const <WorkspaceTagSummary>[],
 }) {
   ProjectSummary? project(String? id) =>
       projects.where((item) => item.id == id).firstOrNull;
@@ -33,6 +35,12 @@ class const MobileAutomationContext({
   String sectionName(String? id) =>
       sections.where((item) => item.id == id).firstOrNull?.name ??
       'Unavailable Section';
+
+  String tagNames(List<String> ids) => <String>[
+    for (final id in ids)
+      if (tags.where((tag) => tag.id == id).firstOrNull case final tag?)
+        tag.name,
+  ].join(', ');
 
   String profileName(String? id) =>
       profiles.where((item) => item.id == id).firstOrNull?.name ??
@@ -59,12 +67,14 @@ Future<MobileAutomationContext> mobileAutomationContext(
       client.listWorkspaceSections()
     else
       Future<Object>.value(const <WorkspaceSectionSummary>[]),
+    client.listWorkspaceTags(),
   ]);
   return MobileAutomationContext(
     projects: results[0] as List<ProjectSummary>,
     workspaces: results[1] as List<WorkspaceSummary>,
     profiles: results[2] as List<AgentProfileSummary>,
     sections: results[3] as List<WorkspaceSectionSummary>,
+    tags: results[4] as List<WorkspaceTagSummary>,
   );
 }
 
@@ -125,6 +135,12 @@ AutomationDraft chooseMobileAutomationTargetType(
         final branch = origin.branch?.trim();
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
+    case AutomationTargetType.projectWorktree:
+      if (origin != null && context.isGitProject(origin.projectId)) {
+        filled[.projectId] = origin.projectId;
+        final branch = origin.branch?.trim();
+        if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
+      }
     case AutomationTargetType.projectCheckout:
       if (origin != null) filled[.projectId] = origin.projectId;
   }
@@ -132,7 +148,14 @@ AutomationDraft chooseMobileAutomationTargetType(
       context.profiles.length == 1) {
     filled[.agentProfileId] = context.profiles.single.id;
   }
+  final fromContext = filled.keys.toSet();
+  // The section is the user's earlier choice, not context, and survives a
+  // switch between targets that create workspaces.
+  final section = draft.workspaceSectionId;
+  if (type.createsWorkspace && section != null) {
+    filled[.workspaceSectionId] = section;
+  }
   return draft
       .withTargetType(type)
-      .copyWith(targetFields: filled, fromContext: filled.keys.toSet());
+      .copyWith(targetFields: filled, fromContext: fromContext);
 }

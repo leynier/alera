@@ -126,8 +126,10 @@ impl ServerActor {
             ));
         }
         let project = &location.project;
-        if matches!(definition.target, AutomationTarget::ManagedWorkspace { .. })
-            && project.kind == ProjectKind::Folder
+        if matches!(
+            definition.target,
+            AutomationTarget::ManagedWorkspace { .. } | AutomationTarget::ProjectWorktree { .. }
+        ) && project.kind == ProjectKind::Folder
         {
             return Err(HostError::state(
                 "managed workspace automations require a git repository project",
@@ -160,6 +162,9 @@ impl ServerActor {
                 agent_profile_id, ..
             }
             | AutomationTarget::ProjectCheckout {
+                agent_profile_id, ..
+            }
+            | AutomationTarget::ProjectWorktree {
                 agent_profile_id, ..
             } => Ok(Some(agent_profile_id.clone())),
         }

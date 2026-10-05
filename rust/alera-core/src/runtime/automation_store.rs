@@ -16,27 +16,9 @@ fn decode_definition(row: SqliteRow) -> Result<AutomationDefinition> {
 }
 
 pub(super) fn validate_definition(definition: &AutomationDefinition) -> Result<()> {
-    if let super::AutomationTarget::ProjectCheckout {
-        project_id,
-        host_id,
-        name_template,
-        agent_profile_id,
-    } = &definition.target
-    {
-        if [project_id, host_id, name_template, agent_profile_id]
-            .iter()
-            .any(|value| value.trim().is_empty())
-        {
-            bail!("Project checkout automations require a project, host, task name template and agent profile");
-        }
-        if definition
-            .project_id
-            .as_deref()
-            .is_some_and(|id| id != project_id)
-        {
-            bail!("Automation project does not match its project checkout target");
-        }
-    }
+    definition
+        .target
+        .validate_project_target(definition.project_id.as_deref())?;
     if definition.id.trim().is_empty() {
         bail!(RuntimeStoreError::Message(
             "automation id is required".to_string()
@@ -204,6 +186,13 @@ impl RuntimeStore {
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(str::to_string);
+        // Project references resolve through the top-level project id, so a
+        // project worktree target always records the project it names.
+        if let Some((project_id, _)) = definition.target.project_worktree() {
+            if definition.project_id.is_none() {
+                definition.project_id = Some(project_id.to_string());
+            }
+        }
         definition
             .tag_ids
             .retain(|tag_id| !tag_id.trim().is_empty());

@@ -173,6 +173,7 @@ pub(super) fn automation_definition(workspace_id: &str) -> AutomationDefinition 
         creation_request_key: None,
         creation_request_fingerprint: None,
         state_before_trash: None,
+        workspace_placement: Default::default(),
         approved_revision: None,
         created_by: actor.clone(),
         modified_by: actor,

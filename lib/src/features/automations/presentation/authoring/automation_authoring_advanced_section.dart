@@ -109,6 +109,7 @@ class _AutomationAdvancedSectionState
     final draft = ref.watch(widget.provider).draft;
     final usesWorkspaceName =
         draft.targetType == AutomationTargetType.managedWorkspace ||
+        draft.targetType == AutomationTargetType.projectWorktree ||
         draft.targetType == AutomationTargetType.projectCheckout;
     const gap = SizedBox(height: AleraTokens.space12);
     return ExpansionTile(

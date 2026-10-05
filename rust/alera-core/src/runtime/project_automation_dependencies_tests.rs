@@ -204,3 +204,52 @@ async fn project_removal_and_automation_activation_cannot_both_commit() {
         assert!(store.find_project("project").await.unwrap().is_some());
     }
 }
+
+#[tokio::test]
+async fn project_worktree_automation_records_and_protects_its_project() {
+    let (_directory, store, _) = fixture().await;
+    super::tests::seed_profile(&store).await;
+    let mut definition = super::tests::definition();
+    definition.project_id = None;
+    definition.target = AutomationTarget::ProjectWorktree {
+        project_id: "project".into(),
+        source_branch: "main".into(),
+        name_template: "task".into(),
+        agent_profile_id: "profile".into(),
+    };
+    let saved = store
+        .upsert_automation(definition.clone(), definition.created_by.clone())
+        .await
+        .unwrap();
+    assert_eq!(saved.project_id.as_deref(), Some("project"));
+    let dependencies = store
+        .project_automation_dependencies("project")
+        .await
+        .unwrap();
+    assert_eq!(dependencies.len(), 1);
+    assert_eq!(dependencies[0].id, saved.id);
+
+    let mut mismatched = definition.clone();
+    mismatched.id = "other-automation".into();
+    mismatched.slug = "other-automation".into();
+    mismatched.project_id = Some("another-project".into());
+    let error = store
+        .upsert_automation(mismatched.clone(), mismatched.created_by.clone())
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("project worktree target"));
+    let mut missing_branch = definition;
+    missing_branch.id = "branchless".into();
+    missing_branch.slug = "branchless".into();
+    missing_branch.target = AutomationTarget::ProjectWorktree {
+        project_id: "project".into(),
+        source_branch: " ".into(),
+        name_template: "task".into(),
+        agent_profile_id: "profile".into(),
+    };
+    let error = store
+        .upsert_automation(missing_branch.clone(), missing_branch.created_by.clone())
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("source branch"));
+}

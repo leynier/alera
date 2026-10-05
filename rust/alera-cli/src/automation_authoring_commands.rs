@@ -54,6 +54,11 @@ pub(super) async fn author(
             "managed-workspace" => {
                 json!({"managedWorkspace":{"sourceWorkspaceId":required(workspace,"--workspace-id")?,"sourceBranch":required(args.source_branch,"--source-branch")?,"agentProfileId":required(profile,"--profile-id")?}})
             }
+            "project-worktree" => {
+                let project_id = required(args.project_id.clone(), "--project-id")?;
+                definition["projectId"] = json!(project_id);
+                json!({"projectWorktree":{"projectId":project_id,"sourceBranch":required(args.source_branch,"--source-branch")?,"agentProfileId":required(profile,"--profile-id")?}})
+            }
             "project-checkout" => {
                 json!({"projectCheckout":{"projectId":required(args.project_id,"--project-id")?,"hostId":required(args.host_id,"--host-id")?,"agentProfileId":required(profile,"--profile-id")?}})
             }

@@ -14,15 +14,7 @@ impl ServerActor {
         &self,
         target: &AutomationTarget,
     ) -> Result<AutomationTargetIdentity, String> {
-        let workspace_id = match target {
-            AutomationTarget::ProjectCheckout { .. } => None,
-            AutomationTarget::ExistingTab { workspace_id, .. }
-            | AutomationTarget::FreshTab { workspace_id, .. } => Some(workspace_id),
-            AutomationTarget::ManagedWorkspace {
-                source_workspace_id,
-                ..
-            } => Some(source_workspace_id),
-        };
+        let workspace_id = target.source_workspace_id();
         // Fence prechecks and managed source reads as well as eventual PTY
         // creation. Cleanup checks live owners after publishing this claim.
         if let Some(workspace_id) = workspace_id {
@@ -33,6 +25,9 @@ impl ServerActor {
         }
         match target {
             AutomationTarget::ProjectCheckout {
+                agent_profile_id, ..
+            }
+            | AutomationTarget::ProjectWorktree {
                 agent_profile_id, ..
             } => Ok(AutomationTargetIdentity {
                 workspace_id: None,

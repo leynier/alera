@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 
@@ -136,6 +137,10 @@ class FakeAutomationClient implements MobileAutomationClient {
   @override
   Future<List<WorkspaceSectionSummary>> listWorkspaceSections() async =>
       const <WorkspaceSectionSummary>[];
+
+  @override
+  Future<List<WorkspaceTagSummary>> listWorkspaceTags() async =>
+      const <WorkspaceTagSummary>[];
 
   @override
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async =>

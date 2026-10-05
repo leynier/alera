@@ -118,6 +118,7 @@ abstract interface class MobileAutomationClient {
   Future<List<WorkspaceSummary>> listWorkspaces();
   Future<List<AgentProfileSummary>> listAgentProfiles();
   Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
+  Future<List<WorkspaceTagSummary>> listWorkspaceTags();
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
 }
 

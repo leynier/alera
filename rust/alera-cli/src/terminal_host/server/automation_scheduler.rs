@@ -161,6 +161,7 @@ mod tests {
             creation_request_key: None,
             creation_request_fingerprint: None,
             state_before_trash: None,
+            workspace_placement: Default::default(),
             approved_revision: None,
             created_by: actor(),
             modified_by: actor(),

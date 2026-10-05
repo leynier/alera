@@ -54,6 +54,7 @@ fn definition() -> AutomationDefinition {
         creation_request_key: None,
         creation_request_fingerprint: None,
         state_before_trash: None,
+        workspace_placement: Default::default(),
         approved_revision: Some(1),
         created_by: actor.clone(),
         modified_by: actor,

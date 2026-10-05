@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
 import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
 import 'package:alera/src/features/automations/domain/automation_timezones.dart';
+import 'package:alera/src/features/automations/presentation/authoring/automation_prompt_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,7 +21,7 @@ class AutomationWhatStep extends ConsumerStatefulWidget {
 }
 
 class _AutomationWhatStepState extends ConsumerState<AutomationWhatStep> {
-  late final TextEditingController _prompt;
+  late final AutomationTemplateTextController _prompt;
   late final TextEditingController _name;
   late final TextEditingController _description;
 
@@ -28,7 +29,7 @@ class _AutomationWhatStepState extends ConsumerState<AutomationWhatStep> {
   void initState() {
     super.initState();
     final draft = ref.read(widget.provider).draft;
-    _prompt = TextEditingController(text: draft.promptTemplate);
+    _prompt = AutomationTemplateTextController(text: draft.promptTemplate);
     _name = TextEditingController(text: draft.name);
     _description = TextEditingController(text: draft.description);
   }
@@ -48,24 +49,13 @@ class _AutomationWhatStepState extends ConsumerState<AutomationWhatStep> {
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
-        AleraTextField(
+        AutomationPromptEditor(
           controller: _prompt,
-          labelText: 'What Should The Agent Do?',
-          hintText:
-              'Review open pull requests and summarize what needs attention.',
-          minLines: 5,
-          maxLines: 12,
           autofocus: true,
           errorText: state.showErrors ? state.draft.whatError : null,
           onChanged: (value) => controller.update(
             (draft) => draft.copyWith(promptTemplate: value),
           ),
-        ),
-        const SizedBox(height: AleraTokens.space6),
-        Text(
-          'You can use {{automation.name}}, {{run.number}}, {{run.scheduledAt}}, {{workspace.name}}, {{workspace.path}} and {{project.name}}.',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: AleraTokens.foregroundMuted),
         ),
         const SizedBox(height: AleraTokens.space12),
         AleraTextField(

@@ -16,6 +16,7 @@ const List<String> _mirrored = <String>[
   'automation_field_bounds',
   'automation_timezones',
   'automation_draft',
+  'automation_prompt_variables',
 ];
 
 void main() {

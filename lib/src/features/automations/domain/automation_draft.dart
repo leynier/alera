@@ -11,6 +11,7 @@ enum AutomationDraftField {
   tabId,
   conversationId,
   agentProfileId,
+  workspaceSectionId,
 }
 
 /// Everything the four authoring steps edit. The execution target type starts
@@ -40,9 +41,11 @@ class const AutomationDraft({
   final String cleanupPolicy = 'preserve',
   final bool notifyOnSuccess = false,
   final String? slug,
+  final List<String> workspaceTagIds = const <String>[],
 }) {
   factory fromRecord(AutomationRecord record) {
     final details = record.targetDetails;
+    final placement = automationJsonMap(record.raw['workspacePlacement']);
     final fields = <AutomationDraftField, String>{
       for (final (field, key) in <(AutomationDraftField, String)>[
         (.workspaceId, 'workspaceId'),
@@ -55,6 +58,9 @@ class const AutomationDraft({
         (.agentProfileId, 'agentProfileId'),
       ])
         field: ?automationJsonOptionalString(details[key]),
+      .workspaceSectionId: ?automationJsonOptionalString(
+        placement['sectionId'],
+      ),
     };
     final schedule = record.scheduleDetails;
     return AutomationDraft(
@@ -93,6 +99,7 @@ class const AutomationDraft({
       cleanupPolicy: record.cleanupPolicy ?? 'preserve',
       notifyOnSuccess: record.notifyOnSuccess,
       slug: record.slug,
+      workspaceTagIds: automationJsonStringList(placement['tagIds']),
     );
   }
 
@@ -116,6 +123,7 @@ class const AutomationDraft({
     String? misfirePolicy,
     String? cleanupPolicy,
     bool? notifyOnSuccess,
+    List<String>? workspaceTagIds,
   }) => AutomationDraft(
     name: name ?? this.name,
     description: description ?? this.description,
@@ -138,6 +146,7 @@ class const AutomationDraft({
     cleanupPolicy: cleanupPolicy ?? this.cleanupPolicy,
     notifyOnSuccess: notifyOnSuccess ?? this.notifyOnSuccess,
     slug: slug,
+    workspaceTagIds: workspaceTagIds ?? this.workspaceTagIds,
   );
 
   /// A new definition from this one: same settings and target, its own slug.
@@ -161,15 +170,31 @@ class const AutomationDraft({
     misfirePolicy: misfirePolicy,
     cleanupPolicy: cleanupPolicy,
     notifyOnSuccess: notifyOnSuccess,
+    workspaceTagIds: workspaceTagIds,
   );
 
   /// Chooses a target type and drops every field of the previous one, so a
   /// value from another target type can never leak into this one.
   AutomationDraft withTargetType(AutomationTargetType type) => copyWith(
     targetType: type,
-    targetFields: const <AutomationDraftField, String>{},
+    targetFields: <AutomationDraftField, String>{
+      if (type.createsWorkspace) .workspaceSectionId: ?workspaceSectionId,
+    },
     fromContext: const <AutomationDraftField>{},
   );
+
+  String? get workspaceSectionId =>
+      targetFields[AutomationDraftField.workspaceSectionId];
+
+  /// Tags and section of the workspaces the runs create. Always sent, empty
+  /// when the target creates none, so an edit that changes the target clears
+  /// a placement the new target cannot use.
+  JsonMap get workspacePlacement => targetType?.createsWorkspace == true
+      ? <String, Object?>{
+          'tagIds': workspaceTagIds,
+          'sectionId': ?workspaceSectionId,
+        }
+      : const <String, Object?>{};
 
   /// A user edit clears the "From context" mark of that field.
   AutomationDraft withTargetField(AutomationDraftField field, String? value) {
@@ -199,6 +224,11 @@ class const AutomationDraft({
     AutomationTargetType.freshTab => const [.workspaceId, .agentProfileId],
     AutomationTargetType.managedWorkspace => const [
       .workspaceId,
+      .sourceBranch,
+      .agentProfileId,
+    ],
+    AutomationTargetType.projectWorktree => const [
+      .projectId,
       .sourceBranch,
       .agentProfileId,
     ],
@@ -268,6 +298,12 @@ class const AutomationDraft({
         'nameTemplate': nameTemplate.trim(),
         'agentProfileId': value(.agentProfileId),
       },
+      AutomationTargetType.projectWorktree => <String, Object?>{
+        'projectId': value(.projectId),
+        'sourceBranch': value(.sourceBranch),
+        'nameTemplate': nameTemplate.trim(),
+        'agentProfileId': value(.agentProfileId),
+      },
       AutomationTargetType.projectCheckout => <String, Object?>{
         'projectId': value(.projectId),
         'hostId': value(.hostId),
@@ -311,7 +347,8 @@ class const AutomationDraft({
       'tagIds': tagIds,
       'schedule': schedule.toSchedule(timezone: timezone, bounds: bounds),
       'target': ?target,
-      if (targetType == AutomationTargetType.projectCheckout)
+      if (targetType == AutomationTargetType.projectCheckout ||
+          targetType == AutomationTargetType.projectWorktree)
         'projectId': targetFields[AutomationDraftField.projectId],
       'originWorkspaceId': originWorkspaceId,
       'setupPolicy': setupPolicy,
@@ -319,6 +356,7 @@ class const AutomationDraft({
       'misfirePolicy': misfirePolicy,
       'cleanupPolicy': cleanupPolicy,
       'notifyOnSuccess': notifyOnSuccess,
+      'workspacePlacement': workspacePlacement,
       'precheck': precheckCommand.trim().isEmpty
           ? null
           : <String, Object?>{

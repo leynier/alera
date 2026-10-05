@@ -44,6 +44,10 @@ AutomationDraft chooseAutomationTargetType(
         final branch = source.branch?.trim();
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
+    case AutomationTargetType.projectWorktree:
+      if (project != null && project.isGitRepository && !project.isRemoteOnly) {
+        filled[.projectId] = project.id;
+      }
     case AutomationTargetType.projectCheckout:
       if (project != null) filled[.projectId] = project.id;
     case AutomationTargetType.existingTab:
@@ -61,6 +65,13 @@ AutomationDraft chooseAutomationTargetType(
     final profile = single(context.profiles.map((profile) => profile.id));
     if (profile != null) filled[.agentProfileId] = profile;
   }
-  next = next.copyWith(targetFields: filled, fromContext: filled.keys.toSet());
+  final fromContext = filled.keys.toSet();
+  // The section is the user's earlier choice, not context, and survives a
+  // switch between targets that create workspaces.
+  final section = draft.workspaceSectionId;
+  if (type.createsWorkspace && section != null) {
+    filled[.workspaceSectionId] = section;
+  }
+  next = next.copyWith(targetFields: filled, fromContext: fromContext);
   return next;
 }

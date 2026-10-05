@@ -63,6 +63,12 @@ mixin MobileRuntimeWorkspaceSidebarClient
   bool get supportsWorkspaceSidebarParity =>
       runtimeCapabilities.contains(mobileWorkspaceSidebarParityCapability);
 
+  /// Tags come with the sidebar snapshot; a runtime without it has none.
+  Future<List<WorkspaceTagSummary>> listWorkspaceTags() async =>
+      supportsWorkspaceSidebarParity
+      ? (await workspaceSidebarSnapshot()).tags
+      : const <WorkspaceTagSummary>[];
+
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return WorkspaceSidebarSnapshot.fromJson(
       await requestMap('workspaceSidebar.snapshot'),

@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,24 @@ Color automationToneColor(AutomationTone tone) => switch (tone) {
   AutomationTone.error => AleraTokens.error,
   AutomationTone.neutral => AleraTokens.foregroundMuted,
 };
+
+/// A badge tinted with the tone and labeled in it. A solid tone background
+/// with the default muted label is unreadable on green and amber.
+class const AutomationToneBadge({
+  required final String label,
+  required final AutomationTone tone,
+  super.key,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final color = automationToneColor(tone);
+    return AleraBadge(
+      label: label,
+      color: color.withValues(alpha: 0.16),
+      foregroundColor: color,
+    );
+  }
+}
 
 /// Final runs never use the progress icon, so a skipped run cannot read as
 /// still working.
