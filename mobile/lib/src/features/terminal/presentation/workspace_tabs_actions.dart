@@ -50,7 +50,7 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
           AleraActionSheetEntry<_TabAction>(
             value: .generateTitle,
             label: generating
-                ? 'Generating title...'
+                ? 'Generating title…'
                 : tab.payload['agentTitleSource'] == 'generated'
                 ? 'Regenerate Title'
                 : 'Generate Title',

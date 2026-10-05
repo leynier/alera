@@ -76,8 +76,8 @@ class const _RecordingBar({
               Text(
                 processing
                     ? state.stage == MobileAiDictationStage.improving
-                          ? 'Improving Transcript...'
-                          : 'Transcribing Recording...'
+                          ? 'Improving Transcript…'
+                          : 'Transcribing Recording…'
                     : _formatDuration(
                         state.hasRecording
                             ? state.playbackPosition

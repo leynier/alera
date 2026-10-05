@@ -12,10 +12,11 @@
   border-radius: var(--app-radius-lg);
 }
 
-/* AleraActiveRail: the selected row sits one step above the sidebar with a
-   short accent rail at its leading edge, drawn over the row. */
+/* AleraActiveRail: the selected row takes the translucent accent fill
+   (AleraActiveRail.selectedColor) with a short accent rail at its leading
+   edge, drawn over the row. */
 [data-alera-demo] .ws-row[data-state='active'] .ws-pill {
-  background: var(--app-surface-elevated);
+  background: var(--app-accent-subtle);
 }
 
 [data-alera-demo] .ws-row[data-state='active'] .ws-pill::before {

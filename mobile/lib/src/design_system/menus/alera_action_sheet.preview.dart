@@ -18,7 +18,7 @@ Widget aleraActionSheetPreview() => const AleraActionSheet<String>(
     ),
     AleraActionSheetEntry<String>(
       value: 'busy',
-      label: 'Generating title...',
+      label: 'Generating title…',
       leading: Icon(AleraIcons.generate),
       enabled: false,
     ),

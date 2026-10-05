@@ -232,7 +232,7 @@ class const _TabChip({
               if (tab.payload['agentTitleStatus'] == 'generating') ...[
                 const SizedBox(width: AleraTokens.space4),
                 const Tooltip(
-                  message: 'Generating title...',
+                  message: 'Generating title…',
                   child: Icon(
                     Icons.hourglass_top,
                     size: AleraTokens.iconSm,

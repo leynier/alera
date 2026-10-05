@@ -472,7 +472,7 @@ class const _Header({
               horizontal: AleraTokens.space16,
             ),
             child: AleraSearchField(
-              hintText: 'Filter files...',
+              hintText: 'Filter files…',
               initialValue: view.filter,
               autofocus: true,
               onChanged: onFilterChanged,

@@ -6,7 +6,7 @@
     "height": 720,
     "frames": 315,
     "durationMs": 31500,
-    "bytes": 1641160
+    "bytes": 1641034
   },
   "posters": [
     {
@@ -14,21 +14,21 @@
       "title": "Start From A Prompt",
       "file": "demo-prompt.webp",
       "at": 7300,
-      "bytes": 28352
+      "bytes": 28340
     },
     {
       "chapter": "parallel",
       "title": "Agents In Parallel",
       "file": "demo-parallel.webp",
       "at": 33600,
-      "bytes": 86074
+      "bytes": 85770
     },
     {
       "chapter": "phone",
       "title": "Answer From Your Phone",
       "file": "demo-phone.webp",
       "at": 44950,
-      "bytes": 100520
+      "bytes": 100396
     },
     {
       "chapter": "review",

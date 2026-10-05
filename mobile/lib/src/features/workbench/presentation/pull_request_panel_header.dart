@@ -225,7 +225,7 @@ String pullRequestReviewStateLabel(MobilePullRequestReview review) {
 AleraBadgeTone pullRequestReviewStateTone(String label) {
   return switch (label) {
     'Open' => AleraBadgeTone.success,
-    'Merged' => AleraBadgeTone.info,
+    'Merged' => AleraBadgeTone.done,
     'Draft' => AleraBadgeTone.attention,
     'Closed' => AleraBadgeTone.neutral,
     _ => AleraBadgeTone.neutral,

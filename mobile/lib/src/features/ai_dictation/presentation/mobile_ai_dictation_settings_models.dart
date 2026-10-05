@@ -141,7 +141,7 @@ String _modelStatus(
 ) => switch (transfer.status) {
   MobileAiModelTransferStatus.downloading =>
     '${_formatBytes(transfer.receivedBytes)} of ${_formatBytes(transfer.totalBytes)}',
-  MobileAiModelTransferStatus.verifying => 'Verifying downloaded model...',
+  MobileAiModelTransferStatus.verifying => 'Verifying downloaded model…',
   MobileAiModelTransferStatus.resumable =>
     'Download interrupted at ${_formatBytes(transfer.receivedBytes)}.',
   MobileAiModelTransferStatus.failed =>

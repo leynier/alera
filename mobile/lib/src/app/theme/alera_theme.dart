@@ -292,6 +292,8 @@ ThemeData buildAleraMobileDarkTheme() {
       modalBackgroundColor: AleraTokens.surface,
       surfaceTintColor: Colors.transparent,
       modalBarrierColor: AleraTokens.barrierDark,
+      // showModalBottomSheet reads this flag; the color alone draws nothing.
+      showDragHandle: true,
       dragHandleColor: AleraTokens.border,
       clipBehavior: .antiAlias,
       shape: RoundedRectangleBorder(

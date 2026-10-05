@@ -282,7 +282,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                               !_usingReset
                           ? _useCodexReset
                           : null,
-                      child: Text(_usingReset ? 'Applying...' : 'Use Reset'),
+                      child: Text(_usingReset ? 'Applying…' : 'Use Reset'),
                     ),
                 ],
               ),
@@ -309,9 +309,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                             }
                           }
                         },
-                  child: Text(
-                    _tryingTui ? 'Trying with TUI...' : 'Try With TUI',
-                  ),
+                  child: Text(_tryingTui ? 'Trying with TUI…' : 'Try With TUI'),
                 ),
               ),
             ],
