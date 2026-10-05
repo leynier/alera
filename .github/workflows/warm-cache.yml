@@ -15,7 +15,6 @@ on:
       - main
     paths:
       - 'pubspec.lock'
-      - 'rust/Cargo.lock'
       - 'third_party/**'
       - '.github/actions/**'
       - '.github/workflows/warm-cache.yml'
@@ -113,6 +112,8 @@ jobs:
   # invocations as pr.yml so the shared R2 cache has matching keys.
   warm-rust:
     name: warm rust ${{ matrix.name }}
+    # Push warming is owned by warm-rust-cache.yml, including Rust-only pushes.
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -120,7 +121,9 @@ jobs:
       matrix:
         include:
           - name: clippy
+            check: clippy
           - name: test
+            check: test-build
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -130,7 +133,7 @@ jobs:
       - name: Setup Rust checks
         uses: ./.github/actions/setup-rust-checks
         with:
-          check: ${{ matrix.name }}
+          check: ${{ matrix.check }}
 
       - name: Report sccache statistics
         if: always()

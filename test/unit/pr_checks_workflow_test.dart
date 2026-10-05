@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yaml/yaml.dart';
 
 String workflowJob(String yaml, String jobId) {
   final lines = yaml.replaceAll('\r\n', '\n').split('\n');
@@ -77,6 +78,8 @@ void main() {
     expect(rustTests, contains('--test-threads=1'));
     expect(rustTests, contains('orchestration_review_regressions'));
     expect(rustTests, contains('--lib --bins'));
+    expect(rustChecks, contains('ALERA_BUILD_COMMIT=unknown'));
+    expect(rustChecks, contains('tool/ci/test_rust_build_cache.sh'));
     final cargoTests = rustTests
         .split('\n')
         .map((line) => line.trim())
@@ -87,17 +90,60 @@ void main() {
       expect(command, contains('--workspace'));
       expect(command, contains('--locked'));
       expect(command, isNot(contains('--exclude')));
-      expect(command, isNot(contains('--no-run')));
       expect(command, isNot(contains('--doc')));
       expect(command, isNot(contains('-p alera-cli')));
     }
     expect(
-      cargoTests,
-      contains(
-        'cargo test --workspace --locked --test orchestration_review_regressions \\',
-      ),
+      rustTests,
+      contains('workspace_test --test orchestration_review_regressions'),
     );
     expect(hostCompat, contains('--workspace'));
     expect(hostCompat, isNot(contains('-p alera-cli')));
+  });
+
+  test('warms Rust source changes by compiling the PR test graph', () {
+    final warm = File('.github/workflows/warm-rust-cache.yml')
+        .readAsStringSync();
+    final checks = File('.github/actions/setup-rust-checks/action.yml')
+        .readAsStringSync();
+    final warmRust = workflowJob(warm, 'warm-rust');
+    expect(warm, contains("- 'rust/**'"));
+    expect(warm, contains("- 'tool/ci/run_rust_workspace_tests.sh'"));
+    expect(warm, contains("- 'tool/ci/test_rust_build_cache.sh'"));
+    expect(warmRust, contains('check: test-build'));
+    expect(checks, contains('tool/ci/run_rust_workspace_tests.sh --no-run'));
+  });
+
+  test('Rust-only pushes warm Rust without desktop builds', () {
+    final rust = loadYaml(
+      File('.github/workflows/warm-rust-cache.yml').readAsStringSync(),
+    ) as YamlMap;
+    final desktop = loadYaml(
+      File('.github/workflows/warm-cache.yml').readAsStringSync(),
+    ) as YamlMap;
+    final rustPush = rust['on']['push'] as YamlMap;
+    final desktopEvents = desktop['on'] as YamlMap;
+    final desktopPaths = desktopEvents['push']['paths'] as YamlList;
+
+    expect(rustPush['branches'], contains('main'));
+    expect(rustPush['paths'], contains('rust/**'));
+    expect(rustPush['paths'], contains('makefile'));
+    expect(desktopPaths.where((path) => '$path'.startsWith('rust/')), isEmpty);
+    expect(
+      desktopPaths.where((path) => '$path'.startsWith('tool/ci/')),
+      isEmpty,
+    );
+    expect(desktopPaths, contains('pubspec.lock'));
+    expect(desktopEvents.containsKey('schedule'), isTrue);
+    expect(desktopEvents.containsKey('workflow_dispatch'), isTrue);
+    expect(
+      desktop['jobs']['warm-rust']['if'],
+      "github.event_name != 'push'",
+      reason: 'the separate Rust workflow owns push warming',
+    );
+    expect((rust['jobs'] as YamlMap).keys, ['warm-rust']);
+    final scheduledChecks = desktop['jobs']['warm-rust']['strategy']['matrix'];
+    final pushChecks = rust['jobs']['warm-rust']['strategy']['matrix'];
+    expect(pushChecks, scheduledChecks);
   });
 }

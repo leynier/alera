@@ -1,0 +1,65 @@
+name: Warm Rust caches
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'rust/**'
+      - 'makefile'
+      - 'tool/ci/run_rust_workspace_tests.sh'
+      - 'tool/ci/test_rust_build_cache.sh'
+      - 'pubspec.lock'
+      - 'third_party/**'
+      - '.github/actions/**'
+      - '.github/workflows/warm-cache.yml'
+      - '.github/workflows/warm-rust-cache.yml'
+
+concurrency:
+  group: warm-rust-cache
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
+  ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  ALERA_SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  ALERA_SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
+jobs:
+  warm-rust:
+    name: warm rust ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: clippy
+            check: clippy
+          - name: test
+            check: test-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Rust checks
+        uses: ./.github/actions/setup-rust-checks
+        with:
+          check: ${{ matrix.check }}
+
+      - name: Report sccache statistics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### sccache rust ${{ matrix.name }}"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

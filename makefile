@@ -61,6 +61,8 @@ frb-generate:
 # alera-core, alera-mobile-native, alera-xtask). The `--workspace` flags are
 # required because `rust/` has a root package, so a bare clippy/test would only
 # cover `alera_native` and skip the other members.
+rust-test: override export ALERA_BUILD_COMMIT := unknown
+rust-test: override export ALERA_BUILD_VERSION :=
 rust-test:
 	cd rust && "$(CARGO)" fmt --check && "$(CARGO)" clippy --workspace --all-targets -- -D warnings && "$(CARGO)" test --workspace
 
