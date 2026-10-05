@@ -6,7 +6,7 @@
     "height": 720,
     "frames": 315,
     "durationMs": 31500,
-    "bytes": 1634140
+    "bytes": 1641160
   },
   "posters": [
     {
@@ -14,28 +14,28 @@
       "title": "Start From A Prompt",
       "file": "demo-prompt.webp",
       "at": 7300,
-      "bytes": 28326
+      "bytes": 28352
     },
     {
       "chapter": "parallel",
       "title": "Agents In Parallel",
       "file": "demo-parallel.webp",
       "at": 33600,
-      "bytes": 85770
+      "bytes": 86074
     },
     {
       "chapter": "phone",
       "title": "Answer From Your Phone",
       "file": "demo-phone.webp",
       "at": 44950,
-      "bytes": 100198
+      "bytes": 100520
     },
     {
       "chapter": "review",
       "title": "Review And Ship",
       "file": "demo-review.webp",
       "at": 79000,
-      "bytes": 72690
+      "bytes": 72756
     }
   ]
 }
