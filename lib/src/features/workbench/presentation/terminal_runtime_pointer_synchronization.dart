@@ -64,6 +64,7 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
         _pointerInputCatchUpChars = _output.length;
       }
       _refreshPointerInputSuspension();
+      _notifySessionListeners();
     });
     SchedulerBinding.instance.ensureVisualUpdate();
   }

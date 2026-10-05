@@ -19,7 +19,11 @@ class const WorkspaceTerminalRefresh({
 }
 
 class _WorkspaceTerminalRefreshState extends State<WorkspaceTerminalRefresh> {
-  final _startingSessions = <TerminalSessionHandle, VoidCallback>{};
+  final _waitingSessions =
+      <
+        TerminalSessionHandle,
+        ({VoidCallback changed, VoidCallback disposed})
+      >{};
   final _pendingSessions = <TerminalSessionHandle>{};
   int _generation = 0;
   bool _entryPending = true;
@@ -35,7 +39,7 @@ class _WorkspaceTerminalRefreshState extends State<WorkspaceTerminalRefresh> {
       _entryPending = true;
       _selectionPending = false;
       _captureScheduled = false;
-      _clearStartingSessions();
+      _clearWaitingSessions();
     } else if (widget.selectedTabId != oldWidget.selectedTabId) {
       _selectionPending = true;
     }
@@ -43,15 +47,22 @@ class _WorkspaceTerminalRefreshState extends State<WorkspaceTerminalRefresh> {
 
   @override
   void dispose() {
-    _clearStartingSessions();
+    _clearWaitingSessions();
     super.dispose();
   }
 
-  void _clearStartingSessions() {
-    for (final entry in _startingSessions.entries) {
-      entry.key.removeListener(entry.value);
+  void _stopWaiting(TerminalSessionHandle session) {
+    final callbacks = _waitingSessions.remove(session);
+    if (callbacks == null) return;
+    session.removeListener(callbacks.changed);
+    session.restoreProgress.removeListener(callbacks.changed);
+    session.disposal.removeListener(callbacks.disposed);
+  }
+
+  void _clearWaitingSessions() {
+    for (final session in _waitingSessions.keys.toList()) {
+      _stopWaiting(session);
     }
-    _startingSessions.clear();
     _pendingSessions.clear();
   }
 
@@ -92,31 +103,47 @@ class _WorkspaceTerminalRefreshState extends State<WorkspaceTerminalRefresh> {
               !session.isVisible) {
             continue;
           }
-          _refreshWhenStarted(session, generation);
+          _refreshWhenReady(session, generation);
         }
       });
     }
     return widget.child;
   }
 
-  void _refreshWhenStarted(TerminalSessionHandle session, int generation) {
+  bool _sessionIsReady(TerminalSessionHandle session) =>
+      !session.isStarting &&
+      !session.isResumingOutput &&
+      session.restoreProgress.value == null;
+
+  void _refreshWhenReady(TerminalSessionHandle session, int generation) {
     if (!_pendingSessions.add(session)) return;
-    if (!session.isStarting) {
-      unawaited(_refresh(session, generation));
-      return;
-    }
-    void onStarted() {
-      if (session.isStarting) return;
-      session.removeListener(onStarted);
-      _startingSessions.remove(session);
-      // Startup may replace the loading surface with the terminal view.
+    var scheduled = false;
+    void onChanged() {
+      if (scheduled || !_sessionIsReady(session)) return;
+      scheduled = true;
+      // Restore or resume can begin after startup. Recheck after layout.
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        scheduled = false;
+        if (!_waitingSessions.containsKey(session) || !_isCurrent(generation)) {
+          return;
+        }
+        if (!_sessionIsReady(session)) return;
+        _stopWaiting(session);
         unawaited(_refresh(session, generation));
       });
+      WidgetsBinding.instance.scheduleFrame();
     }
 
-    _startingSessions[session] = onStarted;
-    session.addListener(onStarted);
+    void onDisposed() {
+      _stopWaiting(session);
+      _pendingSessions.remove(session);
+    }
+
+    _waitingSessions[session] = (changed: onChanged, disposed: onDisposed);
+    session.addListener(onChanged);
+    session.restoreProgress.addListener(onChanged);
+    session.disposal.addListener(onDisposed);
+    onChanged();
   }
 
   Future<void> _refresh(TerminalSessionHandle session, int generation) async {

@@ -13,12 +13,18 @@ mixin _TerminalEmulatorFakeResizeSupport on TerminalSessionHandle {
 
   bool get _disposed;
 
+  bool get _pointerInputResumePending;
+
+  @override
+  bool get isResumingOutput => _pointerInputResumePending;
+
   /// Pulses the PTY viewport and the mounted emulator, then repaints.
   ///
   /// Handles without a measured view or a live PTY do nothing. Neither pulse
   /// changes the visible layout or the final PTY dimensions.
   @override
   Future<void> refreshRendering() async {
+    if (isResumingOutput || restoreProgress.value != null) return;
     final size = _lastMeasuredPtySize;
     if (!_refreshEmulatorRendering() || size == null) {
       return;

@@ -56,6 +56,25 @@ part 'terminal_runtime_restore_progress.dart';
 part 'terminal_runtime_testing.dart';
 
 abstract class TerminalSessionHandle extends ChangeNotifier {
+  final _disposal = ChangeNotifier();
+  bool _disposalNotified = false;
+
+  /// Notifies once before the handle and its controllers are disposed.
+  Listenable get disposal => _disposal;
+
+  void _notifyDisposing() {
+    if (_disposalNotified) return;
+    _disposalNotified = true;
+    _disposal.notifyListeners();
+    _disposal.dispose();
+  }
+
+  @override
+  void dispose() {
+    _notifyDisposing();
+    super.dispose();
+  }
+
   final TerminalComposerController composerController =
       TerminalComposerController();
 
@@ -105,6 +124,9 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   bool get isRunning;
 
   bool get isStarting;
+
+  /// True until a visibility resume has delivered its snapshot or delta.
+  bool get isResumingOutput => false;
 
   TerminalSessionOperation? get operation =>
       isStarting ? TerminalSessionOperation.starting : null;
