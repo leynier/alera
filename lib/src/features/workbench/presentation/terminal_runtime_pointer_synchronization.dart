@@ -18,6 +18,14 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
     final paused = !_outputVisible;
     _pointerInputResumePending = !paused;
     _refreshPointerInputSuspension();
+    if (!paused) {
+      // Visibility leases can resume output during a surface build.
+      scheduleMicrotask(() {
+        if (!_disposed && generation == _outputVisibilityGeneration) {
+          _notifySessionListeners();
+        }
+      });
+    }
     unawaited(
       _applyPtyOutputVisibility(
         session: session,

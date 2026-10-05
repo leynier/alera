@@ -1,6 +1,48 @@
 part of 'terminal_surface_test.dart';
 
 void _registerTerminalSurfaceWorkspaceRefreshTests() {
+  testWidgets('foreground resume disables manual refresh until acknowledged', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        shellLaunchesBuilder: _testShellLaunches,
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      await _pumpTerminalSurface(tester, session);
+      final pty = factory.sessions.single;
+      expect(_refreshButton(tester).onPressed, isNotNull);
+      runtime.setAppForeground(false);
+      await tester.pump();
+      final resume = Completer<void>();
+      pty.nextResumeCompleter = resume;
+      runtime.setAppForeground(true);
+      await tester.pumpAndSettle();
+      expect(session.isResumingOutput, isTrue);
+      _expectRefreshUnavailable(tester);
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pump();
+      expect(pty.refreshViewportCalls, isEmpty);
+      expect(find.byTooltip('Refreshing Terminal'), findsNothing);
+
+      resume.complete();
+      await tester.pumpAndSettle();
+      expect(_refreshButton(tester).onPressed, isNotNull);
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pumpAndSettle();
+      expect(pty.refreshViewportCalls, [
+        terminalEmulatorViewSizeForTesting(session),
+      ]);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('workspace entry waits for the attached snapshot to drain', (
     tester,
   ) async {
@@ -25,6 +67,10 @@ void _registerTerminalSurfaceWorkspaceRefreshTests() {
       expect(session.isStarting, isFalse);
       expect(session.restoreProgress.value, isNotNull);
       expect(pty.refreshViewportCalls, isEmpty);
+      _expectRefreshUnavailable(tester);
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pump();
+      expect(find.byTooltip('Refreshing Terminal'), findsNothing);
       await session.refreshRendering();
       expect(pty.refreshViewportCalls, isEmpty);
 
@@ -37,6 +83,10 @@ void _registerTerminalSurfaceWorkspaceRefreshTests() {
         contains('restored history'),
       );
       expect(pty.writes, isEmpty);
+      expect(_refreshButton(tester).onPressed, isNotNull);
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pumpAndSettle();
+      expect(pty.refreshViewportCalls, hasLength(2));
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
@@ -97,6 +147,10 @@ void _registerTerminalSurfaceWorkspaceRefreshTests() {
       expect(session.isResumingOutput, isTrue);
       expect(session.restoreProgress.value, isNull);
       expect(pty.refreshViewportCalls, hasLength(1));
+      _expectRefreshUnavailable(tester);
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pump();
+      expect(find.byTooltip('Refreshing Terminal'), findsNothing);
 
       _emitRefreshSnapshot(pty, '${'resumed history ' * 8}\r\n' * 10000);
       await tester.pump();
@@ -104,6 +158,7 @@ void _registerTerminalSurfaceWorkspaceRefreshTests() {
       resume.complete();
       await tester.pump();
       expect(pty.refreshViewportCalls, hasLength(1));
+      _expectRefreshUnavailable(tester);
       await _drainRefreshSnapshot(tester, session);
       expect(pty.refreshViewportCalls, hasLength(2));
       expect(
@@ -113,6 +168,10 @@ void _registerTerminalSurfaceWorkspaceRefreshTests() {
       expect(factory.sessions, hasLength(1));
       expect(pty.terminated, isFalse);
       expect(tester.takeException(), isNull);
+      expect(_refreshButton(tester).onPressed, isNotNull);
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pumpAndSettle();
+      expect(pty.refreshViewportCalls, hasLength(3));
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
@@ -158,6 +217,15 @@ void _registerTerminalSurfaceWorkspaceRefreshTests() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+}
+
+IconButton _refreshButton(WidgetTester tester) => tester.widget<IconButton>(
+  find.widgetWithIcon(IconButton, AleraIcons.refresh),
+);
+
+void _expectRefreshUnavailable(WidgetTester tester) {
+  expect(_refreshButton(tester).onPressed, isNull);
+  expect(find.byTooltip('Refreshing Terminal'), findsNothing);
 }
 
 void _emitRefreshSnapshot(_FakeTerminalPtySession pty, String text) {

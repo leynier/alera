@@ -143,7 +143,9 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   }
 
   Future<void> _refreshTerminal() async {
-    if (_refreshing) {
+    if (_refreshing ||
+        widget.session.isResumingOutput ||
+        widget.session.restoreProgress.value != null) {
       return;
     }
     final generation = ++_refreshGeneration;
