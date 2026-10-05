@@ -199,8 +199,8 @@ class _WorkflowCleanupReviewPanelState
                           child: Text(
                             widget.busy
                                 ? (widget.abandonPending
-                                      ? 'Abandoning...'
-                                      : 'Cleaning...')
+                                      ? 'Abandoning…'
+                                      : 'Cleaning…')
                                 : fresh
                                 ? 'Clean Selected Resources'
                                 : retry

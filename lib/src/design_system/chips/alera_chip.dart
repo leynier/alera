@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 ///   values that the chip truncates.
 /// - With [onTap]: a tappable tag with hover feedback (e.g. expand/collapse
 ///   child workspaces). Mutually exclusive with [onRemove].
-/// - With [onRemove]: a removable pill with a hover state and a close button
+/// - With [onRemove]: a removable chip with a hover state and a close button
 ///   (e.g. a project added to a visibility filter). Mutually exclusive with
 ///   [onTap].
 class const AleraChip({
@@ -129,7 +129,7 @@ class _AleraChipState extends State<AleraChip> {
           color: _hovered
               ? AleraTokens.surfaceElevated
               : AleraTokens.accentSubtle,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
           border: Border.all(color: AleraTokens.borderSubtle),
         ),
         child: Row(
@@ -146,7 +146,7 @@ class _AleraChipState extends State<AleraChip> {
             InkWell(
               onTap: widget.onRemove,
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: .circular(AleraTokens.radiusPill),
+              borderRadius: .circular(AleraTokens.radiusXs),
               child: const Padding(
                 padding: EdgeInsets.all(AleraTokens.space2),
                 child: Icon(

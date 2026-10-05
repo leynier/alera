@@ -29,9 +29,9 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
       items: <PopupMenuEntry<_TabMenuAction>>[
         if (canSplit) ...<PopupMenuEntry<_TabMenuAction>>[
           const AleraDropdownEntry<_TabMenuAction>(
-            value: .splitUp,
-            label: 'Split Up',
-            leading: WorkbenchSplitDirectionGlyph(zone: .up),
+            value: .splitRight,
+            label: 'Split Right',
+            leading: WorkbenchSplitDirectionGlyph(zone: .right),
           ),
           const AleraDropdownEntry<_TabMenuAction>(
             value: .splitDown,
@@ -44,9 +44,9 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
             leading: WorkbenchSplitDirectionGlyph(zone: .left),
           ),
           const AleraDropdownEntry<_TabMenuAction>(
-            value: .splitRight,
-            label: 'Split Right',
-            leading: WorkbenchSplitDirectionGlyph(zone: .right),
+            value: .splitUp,
+            label: 'Split Up',
+            leading: WorkbenchSplitDirectionGlyph(zone: .up),
           ),
           const PopupMenuDivider(height: AleraTokens.space8),
         ],

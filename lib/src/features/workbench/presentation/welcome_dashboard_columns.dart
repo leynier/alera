@@ -15,12 +15,7 @@ class const _Header({required final ThemeData theme}) extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 border: Border.all(color: AleraTokens.borderSubtle),
               ),
-              child: Image.asset(
-                'assets/logo/alera-logo-white.png',
-                width: 32,
-                height: 32,
-                filterQuality: .medium,
-              ),
+              child: const AleraLogo(),
             ),
             const SizedBox(width: AleraTokens.space16),
             Expanded(
@@ -49,7 +44,10 @@ class const _Header({required final ThemeData theme}) extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space24),
-        const Divider(height: 1, color: AleraTokens.borderSubtle),
+        const Divider(
+          height: AleraTokens.dividerExtent,
+          color: AleraTokens.borderSubtle,
+        ),
       ],
     );
   }
@@ -77,15 +75,23 @@ class const _LeftColumn({required final WorkbenchState state})
                 description: 'Open a local folder or clone a repository',
                 onTap: () => unawaited(showAddProjectFlow(context, ref)),
               ),
-              const Divider(height: 1, color: AleraTokens.borderSubtle),
+              const Divider(
+                height: AleraTokens.dividerExtent,
+                color: AleraTokens.borderSubtle,
+              ),
               _ActionRow(
                 icon: AleraIcons.gitFork,
                 title: 'New Workspace',
-                description: 'Create a linked workspace for active Git project',
+                description:
+                    'Create a linked workspace for the active Git project',
                 enabled: hasGitProjects,
+                disabledReason: 'Add a Git project first',
                 onTap: () => unawaited(showCreateWorkspaceFlow(context, ref)),
               ),
-              const Divider(height: 1, color: AleraTokens.borderSubtle),
+              const Divider(
+                height: AleraTokens.dividerExtent,
+                color: AleraTokens.borderSubtle,
+              ),
               _ActionRow(
                 icon: AleraIcons.settings,
                 title: 'Open Settings',

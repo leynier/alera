@@ -2,13 +2,19 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Centered, low-emphasis placeholder shown when a list or search yields no
-/// results. Optionally renders a leading [icon] and a trailing [action].
+/// results. Optionally renders a leading [icon] and a trailing [action], which
+/// may be any widget (a button, or a list of choices).
+///
+/// With [loading] it shows a small spinner in the icon slot instead, so a
+/// pending list and its empty result share one layout.
 class const AleraEmptyState({
   super.key,
   final String? title,
   required final String message,
   final IconData? icon,
   final Widget? action,
+  final bool loading = false,
+  final EdgeInsetsGeometry padding = const EdgeInsets.all(AleraTokens.space24),
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -19,12 +25,25 @@ class const AleraEmptyState({
           maxWidth: AleraTokens.emptyStateMaxWidth,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space24),
+          padding: padding,
           child: Column(
             mainAxisSize: .min,
             children: <Widget>[
-              if (icon != null) ...<Widget>[
-                Icon(icon, size: 28, color: AleraTokens.foregroundFaint),
+              if (loading) ...<Widget>[
+                const SizedBox.square(
+                  dimension: AleraTokens.iconLg,
+                  child: CircularProgressIndicator(
+                    strokeWidth: AleraTokens.strokeSm,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+                const SizedBox(height: AleraTokens.space12),
+              ] else if (icon != null) ...<Widget>[
+                Icon(
+                  icon,
+                  size: AleraTokens.iconEmptyState,
+                  color: AleraTokens.foregroundFaint,
+                ),
                 const SizedBox(height: AleraTokens.space12),
               ],
               if (title case final title? when title.trim().isNotEmpty) ...[

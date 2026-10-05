@@ -58,7 +58,7 @@ class _ClaudeTryWithTuiButtonState
           tapTargetSize: .shrinkWrap,
         ),
         child: Text(
-          _loading ? 'Trying with TUI...' : 'Try With TUI',
+          _loading ? 'Trying with TUI…' : 'Try With TUI',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: _loading ? AleraTokens.foregroundFaint : AleraTokens.accent,
             fontWeight: .w600,

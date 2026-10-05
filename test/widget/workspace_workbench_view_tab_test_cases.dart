@@ -38,7 +38,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
         await tester.pumpAndSettle();
         await _openTabContextMenu(tester, 'Agent Task');
         final label = mode == 'generating'
-            ? 'Generating title...'
+            ? 'Generating title…'
             : mode == 'generated'
             ? 'Regenerate Title'
             : 'Generate Title';
@@ -66,7 +66,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
           expect((entry.leading! as Icon).icon, AleraIcons.ai);
         }
         if (mode == 'generating') {
-          expect(find.byTooltip('Generating title...'), findsOneWidget);
+          expect(find.byTooltip('Generating title…'), findsOneWidget);
           final entry = tester.widget<AleraDropdownEntry<Object?>>(
             find.ancestor(
               of: find.text(label),

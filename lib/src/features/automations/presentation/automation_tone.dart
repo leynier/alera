@@ -4,16 +4,18 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
 import 'package:flutter/material.dart';
 
-Color automationToneColor(AutomationTone tone) => switch (tone) {
-  AutomationTone.info => AleraTokens.info,
-  AutomationTone.success => AleraTokens.success,
-  AutomationTone.warning => AleraTokens.warning,
-  AutomationTone.error => AleraTokens.error,
-  AutomationTone.neutral => AleraTokens.foregroundMuted,
+AleraBadgeTone automationBadgeTone(AutomationTone tone) => switch (tone) {
+  AutomationTone.info => AleraBadgeTone.info,
+  AutomationTone.success => AleraBadgeTone.success,
+  AutomationTone.warning => AleraBadgeTone.attention,
+  AutomationTone.error => AleraBadgeTone.error,
+  AutomationTone.neutral => AleraBadgeTone.neutral,
 };
 
-/// A badge tinted with the tone and labeled in it. A solid tone background
-/// with the default muted label is unreadable on green and amber.
+Color automationToneColor(AutomationTone tone) =>
+    automationBadgeTone(tone).foreground;
+
+/// A badge tinted with the tone and labeled in it.
 class const AutomationToneBadge({
   required final String label,
   required final AutomationTone tone,
@@ -21,12 +23,7 @@ class const AutomationToneBadge({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final color = automationToneColor(tone);
-    return AleraBadge(
-      label: label,
-      color: color.withValues(alpha: 0.16),
-      foregroundColor: color,
-    );
+    return AleraBadge(label: label, tone: automationBadgeTone(tone));
   }
 }
 

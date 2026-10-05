@@ -590,12 +590,25 @@ void _registerAleraShellSidebarStateTests() {
     final selected = decorationOf('workspace-1');
     final idle = decorationOf('workspace-2');
 
-    expect(selected.color, AleraTokens.accentSubtle);
-    expect(selected.border?.top.color, AleraTokens.border);
+    bool railActive(String workspaceId) => tester
+        .widget<AleraActiveRail>(
+          find
+              .ancestor(
+                of: find.byKey(
+                  ValueKey<String>('workspace-row:regular:$workspaceId'),
+                ),
+                matching: find.byType(AleraActiveRail),
+              )
+              .first,
+        )
+        .active;
+
+    expect(selected.color, AleraActiveRail.selectedColor);
+    expect(railActive('workspace-1'), isTrue);
     expect(nameColor('workspace-1', 'Main'), AleraTokens.foreground);
 
     expect(idle.color, Colors.transparent);
-    expect(idle.border?.top.color, Colors.transparent);
+    expect(railActive('workspace-2'), isFalse);
     expect(
       nameColor('workspace-2', 'Feature login'),
       AleraTokens.foregroundMuted,

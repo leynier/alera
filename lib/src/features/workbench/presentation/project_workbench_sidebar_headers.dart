@@ -40,7 +40,10 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
       crossAxisAlignment: .stretch,
       children: <Widget>[
         if (widget.showTopDivider)
-          const Divider(height: 1, color: AleraTokens.borderSubtle),
+          const Divider(
+            height: AleraTokens.dividerExtent,
+            color: AleraTokens.borderSubtle,
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space8,
@@ -52,6 +55,8 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
             child: InkWell(
               onTap: widget.onToggle,
               mouseCursor: SystemMouseCursors.click,
+              // The animated surface below owns the hover fill.
+              hoverColor: Colors.transparent,
               borderRadius: .circular(AleraTokens.radiusLg),
               child: AnimatedContainer(
                 duration: AleraTokens.durationFast,
@@ -67,7 +72,7 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
                   children: <Widget>[
                     Icon(
                       widget.leadingIcon,
-                      size: 14,
+                      size: AleraTokens.iconMd,
                       color: AleraTokens.foregroundMuted,
                     ),
                     const SizedBox(width: AleraTokens.space6),
@@ -95,9 +100,9 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
                     const SizedBox(width: AleraTokens.space4),
                     Icon(
                       widget.expanded
-                          ? AleraIcons.chevronUp
-                          : AleraIcons.chevronDown,
-                      size: 14,
+                          ? AleraIcons.chevronDown
+                          : AleraIcons.chevronRight,
+                      size: AleraTokens.iconMd,
                       color: AleraTokens.foregroundMuted,
                     ),
                   ],
@@ -232,6 +237,8 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         child: InkWell(
           onTap: widget.onToggle,
           mouseCursor: SystemMouseCursors.click,
+          // The animated surface below owns the hover fill.
+          hoverColor: Colors.transparent,
           borderRadius: .circular(AleraTokens.radiusLg),
           child: AnimatedContainer(
             duration: AleraTokens.durationFast,
@@ -247,7 +254,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
               children: <Widget>[
                 Icon(
                   widget.expanded ? AleraIcons.folderOpen : AleraIcons.folder,
-                  size: 14,
+                  size: AleraTokens.iconMd,
                   color: AleraTokens.foregroundMuted,
                 ),
                 const SizedBox(width: AleraTokens.space6),
@@ -275,21 +282,24 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                 const SizedBox(width: AleraTokens.space4),
                 Icon(
                   widget.expanded
-                      ? AleraIcons.chevronUp
-                      : AleraIcons.chevronDown,
-                  size: 14,
+                      ? AleraIcons.chevronDown
+                      : AleraIcons.chevronRight,
+                  size: AleraTokens.iconMd,
                   color: AleraTokens.foregroundMuted,
                 ),
-                if (widget.onCreateWorkspace != null) ...<Widget>[
-                  const SizedBox(width: AleraTokens.space2),
+                const SizedBox(width: AleraTokens.space2),
+                // Folder projects cannot create workspaces; keep the slot so
+                // counts and chevrons stay in one column across projects.
+                if (widget.onCreateWorkspace case final onCreate?)
                   AleraIconButton(
                     tooltip: 'New Workspace in This Project',
-                    onPressed: widget.onCreateWorkspace!,
+                    onPressed: onCreate,
                     icon: AleraIcons.add,
-                    iconSize: 14,
-                    minSize: 24,
-                  ),
-                ],
+                    iconSize: AleraTokens.iconMd,
+                    minSize: AleraTokens.iconButtonSm,
+                  )
+                else
+                  const SizedBox(width: AleraTokens.iconButtonSm),
               ],
             ),
           ),

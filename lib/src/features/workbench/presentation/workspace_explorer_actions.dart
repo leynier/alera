@@ -94,8 +94,8 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     required bool directory,
   }) async {
     final name = await _promptName(
-      title: directory ? 'New folder' : 'New file',
-      label: directory ? 'Folder name' : 'File name',
+      title: directory ? 'New Folder' : 'New File',
+      label: directory ? 'Folder Name' : 'File Name',
     );
     if (!mounted) {
       return;

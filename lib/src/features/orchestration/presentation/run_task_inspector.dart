@@ -76,9 +76,7 @@ class RunTaskInspector extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: AleraBadge(
           label: runBoardStatusLabel(task.workflow?.state ?? task.status),
-          foregroundColor: runBoardStatusColor(
-            task.workflow?.state ?? task.status,
-          ),
+          tone: runBoardStatusTone(task.workflow?.state ?? task.status),
         ),
       ),
       if (task.workflow != null) ...[

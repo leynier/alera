@@ -19,7 +19,7 @@ void main() {
       workspace: _workspace(id: 'workspace-a', path: '/workspace-a'),
     );
 
-    expect(find.byTooltip('View as tree'), findsOneWidget);
+    expect(find.byTooltip('View as Tree'), findsOneWidget);
     expect(find.byIcon(AleraIcons.gitGraph), findsOneWidget);
     expect(find.byIcon(AleraIcons.listView), findsNothing);
     expect(
@@ -27,10 +27,10 @@ void main() {
       greaterThan(tester.getCenter(find.byTooltip('Collapse All')).dx),
     );
 
-    await tester.tap(find.byTooltip('View as tree'));
+    await tester.tap(find.byTooltip('View as Tree'));
     await tester.pump();
 
-    expect(find.byTooltip('View as list'), findsOneWidget);
+    expect(find.byTooltip('View as List'), findsOneWidget);
     expect(find.byIcon(AleraIcons.gitGraph), findsNothing);
     expect(find.byIcon(AleraIcons.listView), findsOneWidget);
   });

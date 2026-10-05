@@ -7,6 +7,7 @@ import 'package:alera/src/features/orchestration/application/workflow_catalog_pr
 import 'package:alera/src/features/orchestration/infra/workflow_catalog_repository.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -337,22 +338,27 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
-        return ListTile(
-          enabled: !_locked,
-          selected:
-              _selected != null &&
-              _object(_selected!['source']).toString() ==
-                  _object(entry['source']).toString(),
-          title: Text(
-            entry['name'] as String? ??
-                _object(entry['source'])['path'] as String? ??
-                'Invalid Recipe',
+        final selected =
+            _selected != null &&
+            _object(_selected!['source']).toString() ==
+                _object(entry['source']).toString();
+        return AleraActiveRail(
+          active: selected,
+          child: ListTile(
+            enabled: !_locked,
+            selected: selected,
+            selectedTileColor: AleraActiveRail.selectedColor,
+            title: Text(
+              entry['name'] as String? ??
+                  _object(entry['source'])['path'] as String? ??
+                  'Invalid Recipe',
+            ),
+            subtitle: Text(_origin(entry)),
+            trailing: entry['error'] == null
+                ? null
+                : const Icon(AleraIcons.error),
+            onTap: () => _select(entry),
           ),
-          subtitle: Text(_origin(entry)),
-          trailing: entry['error'] == null
-              ? null
-              : const Icon(AleraIcons.error),
-          onTap: () => _select(entry),
         );
       },
     );

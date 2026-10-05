@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/alera_preview.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
+import 'package:alera/src/design_system/badges/alera_keybinding_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
@@ -41,6 +42,9 @@ Widget galleryButtonsAndChips() => Wrap(
       ],
     ),
     const AleraBadge(label: 'Primary'),
+    const AleraBadge(label: 'Needs Input', tone: .attention),
+    const AleraBadge(label: 'Done', tone: .success),
+    const AleraKeybindingBadge(label: 'Ctrl+Shift+P'),
     const AleraChip(label: 'Alera'),
     const AleraChip(
       label: '#frontend',

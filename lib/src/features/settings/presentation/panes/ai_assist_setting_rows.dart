@@ -94,7 +94,7 @@ class const AiAssistModelRow({
           if (canDiscoverModels) ...<Widget>[
             const SizedBox(width: AleraTokens.space8),
             AleraIconButton(
-              tooltip: 'Refresh models',
+              tooltip: 'Refresh Models',
               icon: discovering ? AleraIcons.sync : AleraIcons.refresh,
               onPressed: discovering ? null : onRefreshModels,
             ),

@@ -114,7 +114,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Expand panel'), findsOneWidget);
+      expect(find.byTooltip('Expand Panel'), findsOneWidget);
       expect(find.byTooltip('Source Control'), findsOneWidget);
       expect(find.byTooltip('Pull Request'), findsOneWidget);
 

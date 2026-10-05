@@ -218,7 +218,7 @@ class _SectionDialogState extends State<_SectionDialog> {
                   const SizedBox(width: AleraTokens.space8),
                   FilledButton(
                     onPressed: _saving || _loading ? null : _save,
-                    child: Text(_saving ? 'Saving...' : 'Save'),
+                    child: Text(_saving ? 'Saving…' : 'Save'),
                   ),
                 ],
               ),

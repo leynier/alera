@@ -31,6 +31,20 @@ class WorkflowRunControlPanel extends StatelessWidget {
     final running = controls.canControl && execution?.status == 'running';
     final enabled = !busy && onRetry == null && error == null;
     final names = {for (final stage in controls.stages) stage.id: stage.name};
+    final settling =
+        controls.cancellationPending > 0 ||
+        controls.integrationSettlementPending > 0;
+    final (statusLabel, statusTone) = switch (controls.status) {
+      'completed' => ('Completed', AleraBadgeTone.success),
+      'cancelled' when controls.cancellationError != null => (
+        'Attention',
+        AleraBadgeTone.error,
+      ),
+      'cancelled' when settling => ('Cancelling', AleraBadgeTone.attention),
+      'cancelled' => ('Cancelled', AleraBadgeTone.neutral),
+      _ when running => ('Running', AleraBadgeTone.attention),
+      _ => ('Not Running', AleraBadgeTone.neutral),
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -44,20 +58,7 @@ class WorkflowRunControlPanel extends StatelessWidget {
           runSpacing: AleraTokens.space8,
           children: [
             AleraBadge(label: 'Revision ${controls.revision}'),
-            AleraBadge(
-              label: controls.status == 'completed'
-                  ? 'Completed'
-                  : controls.status == 'cancelled'
-                  ? controls.cancellationError != null
-                        ? 'Attention'
-                        : controls.cancellationPending > 0 ||
-                              controls.integrationSettlementPending > 0
-                        ? 'Cancelling'
-                        : 'Cancelled'
-                  : running
-                  ? 'Running'
-                  : 'Not Running',
-            ),
+            AleraBadge(label: statusLabel, tone: statusTone),
           ],
         ),
         const SizedBox(height: AleraTokens.space12),

@@ -90,7 +90,7 @@ void main() {
 
     expect(createdBranches, <String>['feature/one']);
     expect(createdCallbacks, 1);
-    expect(find.text('New Workspace - Settings'), findsOneWidget);
+    expect(find.text('Step 2 of 2 · Settings'), findsOneWidget);
     expect(
       tester
           .widget<TextField>(
@@ -110,6 +110,6 @@ void main() {
 
     expect(createdBranches, <String>['feature/one', 'feature/two']);
     expect(createdCallbacks, 2);
-    expect(find.text('New Workspace - Settings'), findsOneWidget);
+    expect(find.text('Step 2 of 2 · Settings'), findsOneWidget);
   });
 }

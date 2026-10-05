@@ -428,7 +428,7 @@ class const _PdfToolbar({
         child: Row(
           children: <Widget>[
             AleraIconButton(
-              tooltip: outlineOpen ? 'Hide outline' : 'Show outline',
+              tooltip: outlineOpen ? 'Hide Outline' : 'Show Outline',
               icon: AleraIcons.outline,
               onPressed: outlineEnabled ? onToggleOutline : null,
               iconColor: outlineOpen
@@ -448,12 +448,12 @@ class const _PdfToolbar({
             ),
             const SizedBox(width: AleraTokens.space6),
             AleraIconButton(
-              tooltip: 'Previous match',
+              tooltip: 'Previous Match',
               icon: AleraIcons.chevronUp,
               onPressed: searcher?.hasMatches == true ? onPreviousMatch : null,
             ),
             AleraIconButton(
-              tooltip: 'Next match',
+              tooltip: 'Next Match',
               icon: AleraIcons.chevronDown,
               onPressed: searcher?.hasMatches == true ? onNextMatch : null,
             ),
@@ -474,7 +474,7 @@ class const _PdfToolbar({
             ),
             const SizedBox(width: AleraTokens.space12),
             AleraIconButton(
-              tooltip: 'Zoom out',
+              tooltip: 'Zoom Out',
               icon: AleraIcons.remove,
               onPressed: zoom == null ? null : onZoomOut,
             ),
@@ -486,7 +486,7 @@ class const _PdfToolbar({
               ),
             ),
             AleraIconButton(
-              tooltip: 'Zoom in',
+              tooltip: 'Zoom In',
               icon: AleraIcons.add,
               onPressed: zoom == null ? null : onZoomIn,
             ),
@@ -503,7 +503,7 @@ class const _PdfToolbar({
     if (searcher.isSearching) {
       final progress = searcher.searchProgress;
       if (progress == null) {
-        return 'Searching...';
+        return 'Searching…';
       }
       return 'Searching ${(progress * 100).clamp(0, 100).round()}%';
     }
@@ -604,7 +604,7 @@ class const _PdfOutlinePanel({
                       ),
                     ),
                     AleraIconButton(
-                      tooltip: 'Hide outline',
+                      tooltip: 'Hide Outline',
                       icon: AleraIcons.close,
                       onPressed: onClose,
                     ),

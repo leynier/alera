@@ -1,11 +1,14 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_keybinding_badge.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_command_palette.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +42,9 @@ class _KeyboardCommandPaletteDialogState
   late final FocusNode _queryFocusNode;
   List<KeyboardCommandMatch> _matches = const <KeyboardCommandMatch>[];
   int _selectedIndex = 0;
+  final Map<KeyboardActionId, GlobalKey> _rowKeys =
+      <KeyboardActionId, GlobalKey>{};
+  final ScrollController _resultsScrollController = ScrollController();
 
   @override
   void initState() {
@@ -52,10 +58,14 @@ class _KeyboardCommandPaletteDialogState
   void dispose() {
     _queryController.dispose();
     _queryFocusNode.dispose();
+    _resultsScrollController.dispose();
     super.dispose();
   }
 
   void _updateQuery(String query) {
+    if (_resultsScrollController.hasClients) {
+      _resultsScrollController.jumpTo(0);
+    }
     setState(() {
       _matches = filterKeyboardCommandPalette(query);
       _selectedIndex = 0;
@@ -70,6 +80,40 @@ class _KeyboardCommandPaletteDialogState
       _selectedIndex = (_selectedIndex + delta) % _matches.length;
       if (_selectedIndex < 0) {
         _selectedIndex += _matches.length;
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _matches.isEmpty) {
+        return;
+      }
+      final rowContext =
+          _rowKeys[_matches[_selectedIndex].definition.id]?.currentContext;
+      if (rowContext != null) {
+        Scrollable.ensureVisible(
+          rowContext,
+          alignment: 0.5,
+          duration: AleraTokens.durationFast,
+        );
+      } else if (_resultsScrollController.hasClients) {
+        // The target row is not built yet; jump near it by the average row
+        // height so the next frame builds it, then center it precisely.
+        final position = _resultsScrollController.position;
+        final rowExtent =
+            (position.maxScrollExtent + position.viewportDimension) /
+            _matches.length;
+        _resultsScrollController.jumpTo(
+          (_selectedIndex * rowExtent).clamp(0.0, position.maxScrollExtent),
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _matches.isEmpty) {
+            return;
+          }
+          final context =
+              _rowKeys[_matches[_selectedIndex].definition.id]?.currentContext;
+          if (context != null) {
+            Scrollable.ensureVisible(context, alignment: 0.5);
+          }
+        });
       }
     });
   }
@@ -156,77 +200,92 @@ class _KeyboardCommandPaletteDialogState
   Widget _buildResults(ThemeData theme, KeybindingResolver resolver) {
     if (_matches.isEmpty) {
       final query = _queryController.text.trim();
-      return Center(
-        child: Text(
-          query.isEmpty
-              ? 'No commands are available.'
-              : 'No commands match "$query".',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-          textAlign: .center,
-        ),
+      return AleraEmptyState(
+        icon: AleraIcons.searchOff,
+        message: query.isEmpty
+            ? 'No commands are available.'
+            : 'No commands match "$query".',
       );
     }
+    final isMacOS = resolver.platform.isMacOS;
     return ListView.builder(
       key: const ValueKey<String>('command-palette-results'),
+      controller: _resultsScrollController,
       padding: EdgeInsets.zero,
       itemCount: _matches.length,
       itemBuilder: (context, index) {
         final definition = _matches[index].definition;
         final selected = index == _selectedIndex;
-        final chords = resolver.effectiveChords(definition.id);
-        final shortcut = chords.isEmpty
-            ? 'No shortcut'
-            : chords
-                  .map(
-                    (chord) => chord.format(isMacOS: resolver.platform.isMacOS),
-                  )
-                  .join('  ');
-        return Material(
-          color: selected ? AleraTokens.accentSubtle : null,
-          child: InkWell(
-            key: ValueKey<KeyboardActionId>(definition.id),
-            onTap: () {
-              setState(() => _selectedIndex = index);
-              _executeSelected();
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space12,
-                vertical: AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  const Icon(
-                    AleraIcons.keyboard,
-                    size: AleraTokens.space16,
-                    color: AleraTokens.foregroundMuted,
+        final shortcuts = <String>[
+          for (final chord in resolver.effectiveChords(definition.id))
+            chord.format(isMacOS: isMacOS),
+        ];
+        return Padding(
+          key: _rowKeys.putIfAbsent(definition.id, () => GlobalKey()),
+          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space4),
+          child: AleraActiveRail(
+            active: selected,
+            child: Material(
+              color: selected
+                  ? AleraActiveRail.selectedColor
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              clipBehavior: .antiAlias,
+              child: InkWell(
+                key: ValueKey<KeyboardActionId>(definition.id),
+                onTap: () {
+                  setState(() => _selectedIndex = index);
+                  _executeSelected();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space8,
+                    vertical: AleraTokens.space8,
                   ),
-                  const SizedBox(width: AleraTokens.space12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: .start,
-                      children: <Widget>[
-                        Text(
-                          definition.label,
-                          style: theme.textTheme.bodyMedium,
+                  child: Row(
+                    children: <Widget>[
+                      Tooltip(
+                        message: definition.group.label,
+                        child: Icon(
+                          _groupIcon(definition.group),
+                          size: AleraTokens.iconLg,
+                          color: AleraTokens.foregroundMuted,
                         ),
-                        const SizedBox(height: AleraTokens.space2),
-                        Text(
-                          definition.description,
-                          maxLines: 1,
-                          overflow: .ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AleraTokens.foregroundMuted,
-                          ),
+                      ),
+                      const SizedBox(width: AleraTokens.space12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: .start,
+                          children: <Widget>[
+                            Text(
+                              definition.label,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: AleraTokens.space2),
+                            Text(
+                              definition.description,
+                              maxLines: 1,
+                              overflow: .ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AleraTokens.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (shortcuts.isNotEmpty) ...<Widget>[
+                        const SizedBox(width: AleraTokens.space12),
+                        Wrap(
+                          spacing: AleraTokens.space4,
+                          children: <Widget>[
+                            for (final shortcut in shortcuts)
+                              AleraKeybindingBadge(label: shortcut),
+                          ],
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: AleraTokens.space12),
-                  Text(shortcut, style: AleraTokens.monoStyle),
-                ],
+                ),
               ),
             ),
           ),
@@ -234,4 +293,11 @@ class _KeyboardCommandPaletteDialogState
       },
     );
   }
+
+  static IconData _groupIcon(KeyboardActionGroup group) => switch (group) {
+    .global => AleraIcons.command,
+    .workspace => AleraIcons.folderSpecial,
+    .tabs => AleraIcons.tabUnselected,
+    .panes => AleraIcons.gridView,
+  };
 }

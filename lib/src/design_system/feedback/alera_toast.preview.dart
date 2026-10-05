@@ -25,6 +25,15 @@ WidgetBuilder aleraToastPreview() =>
               FilledButton(
                 onPressed: () => AleraToast.show(
                   context,
+                  message: 'Workspace created with setup warnings',
+                  tone: .warning,
+                  duration: AleraTokens.toastLongDuration,
+                ),
+                child: const Text('Warning'),
+              ),
+              FilledButton(
+                onPressed: () => AleraToast.show(
+                  context,
                   message: 'Something went wrong',
                   tone: .error,
                 ),

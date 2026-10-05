@@ -81,17 +81,24 @@ void main() {
 
     await tester.tap(find.text('Open Quick Open'));
     await tester.pump();
-    expect(find.text('Loading workspace files...'), findsOneWidget);
+    expect(find.text('Loading workspace files…'), findsOneWidget);
 
     session.complete(_session('workspace-1', 3));
     await tester.pumpAndSettle();
-    expect(find.text('lib/main.dart'), findsOneWidget);
-    expect(find.text('lib/main_test.dart'), findsOneWidget);
+    // Rows split the file name from its dimmed directory.
+    expect(find.text('main.dart'), findsOneWidget);
+    expect(find.text('main_test.dart'), findsOneWidget);
+    expect(find.text('lib'), findsNWidgets(2));
+    expect(find.text('notes.txt'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'main_test.dart');
     await tester.pump();
-    expect(find.text('lib/main.dart'), findsNothing);
-    expect(find.text('lib/main_test.dart'), findsOneWidget);
+    final results = find.byKey(const ValueKey<String>('quick-open-results'));
+    expect(find.text('main.dart'), findsNothing);
+    expect(
+      find.descendant(of: results, matching: find.text('main_test.dart')),
+      findsOneWidget,
+    );
 
     await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();

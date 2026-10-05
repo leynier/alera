@@ -29,7 +29,7 @@ void main() {
         ),
       );
       expect(find.text('Must Not Mount'), findsNothing);
-      expect(find.text('Panel is Empty'), findsOneWidget);
+      expect(find.text('Panel is empty'), findsOneWidget);
       for (final label in [
         'Explorer',
         'Search',

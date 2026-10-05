@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -70,5 +71,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(taps, 1);
+  });
+
+  testWidgets('tappable hover container activates from the keyboard', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HoverContainer(onTap: () => taps++, child: const Text('Label')),
+        ),
+      ),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+
+    expect(taps, 2);
+    final container = tester.widget<AnimatedContainer>(
+      find.byType(AnimatedContainer),
+    );
+    expect(container.foregroundDecoration, isNotNull);
+    expect(
+      tester.getSemantics(find.text('Label')),
+      isSemantics(isButton: true, isFocusable: true, label: 'Label'),
+    );
   });
 }

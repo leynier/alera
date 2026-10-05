@@ -8,4 +8,4 @@ import 'package:flutter/material.dart';
   size: Size(360, 56),
 )
 Widget aleraDialogHeaderPreview() =>
-    AleraDialogHeader(title: 'View options', onClose: () {});
+    AleraDialogHeader(title: 'View Options', onClose: () {});

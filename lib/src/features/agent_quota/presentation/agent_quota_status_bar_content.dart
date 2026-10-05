@@ -67,14 +67,14 @@ class const AgentQuotaStatusBarContent({
                   children: <Widget>[
                     const Icon(
                       AleraIcons.host,
-                      size: 13,
+                      size: AleraTokens.iconStatusBar,
                       color: AleraTokens.foregroundFaint,
                     ),
                     const SizedBox(width: AleraTokens.space4),
                     Text(
                       hostId == 'local' ? 'Local' : hostId,
                       overflow: .ellipsis,
-                      style: AleraTokens.monoStyle.copyWith(fontSize: 10),
+                      style: AleraTokens.statusBarTextStyle,
                     ),
                   ],
                 ),
@@ -113,7 +113,7 @@ class const AgentQuotaStatusBarContent({
                                 : error == null
                                 ? 'No quota data'
                                 : 'Quota refresh failed',
-                            style: AleraTokens.monoStyle.copyWith(fontSize: 10),
+                            style: AleraTokens.statusBarTextStyle,
                           ),
                         ),
                       _QuotaRefreshButton(

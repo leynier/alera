@@ -14,7 +14,7 @@ File tools work on the active workspace's checkout, the files its agents change.
 
 ## Explorer
 
-The tree marks untracked, added, and modified files with **U**, **A**, and **M**. Git-ignored files stay hidden until you click **Show ignored files** in the toolbar, next to **New file**, **New folder**, **Save all files**, and **Refresh**.
+The tree marks untracked, added, and modified files with **U**, **A**, and **M**. Git-ignored files stay hidden until you click **Show ignored files** in the toolbar, next to **New File**, **New Folder**, **Save All Files**, and **Refresh**.
 
 Right-click an item for **Copy**, **Cut**, **Paste**, **Duplicate**, **Rename**, **Delete**, **Copy path**, **Copy relative path**, and **Reveal in Finder** (**Reveal in Explorer** on Windows, **Reveal in File Manager** on Linux).
 
@@ -30,13 +30,13 @@ File operations and Search never touch `.git`, `.hg`, or `.svn` folders. A local
 
 ## Search Across The Workspace
 
-`Mod+Shift+F` (**Find in Files**) opens Search with the query focused; `Mod+Shift+H` (**Replace in Files**) also opens the replace field. Results update as you type. The query field toggles **Match case**, **Match whole word**, and **Use regular expression**. **Show details** adds **Files to include** and **Files to exclude**, which take comma-separated globs such as `src/**, *.test.ts`; a pattern without a `/` matches at any depth.
+`Mod+Shift+F` (**Find in Files**) opens Search with the query focused; `Mod+Shift+H` (**Replace in Files**) also opens the replace field. Results update as you type. The query field toggles **Match Case**, **Match Whole Word**, and **Use Regular Expression**. **Show Details** adds **Files to include** and **Files to exclude**, which take comma-separated globs such as `src/**, *.test.ts`; a pattern without a `/` matches at any depth.
 
-Search follows `.gitignore` unless you turn on **Search ignored files**, and **View as tree** groups results by folder. It skips binary files, files over 5 MB, and symbolic links, and stops at 2,000 matches (100 per file). Click a result to open the file with the match selected.
+Search follows `.gitignore` unless you turn on **Search ignored files**, and **View as Tree** groups results by folder. It skips binary files, files over 5 MB, and symbolic links, and stops at 2,000 matches (100 per file). Click a result to open the file with the match selected.
 
 ### Replacing
 
-Open **Show replace** and type the replacement to preview it on every result. **Preserve case** keeps each match's capitalization, and regular expressions can use capture groups such as `$1`. Apply it with **Replace match**, **Replace in file**, or **Replace all**, which needs results under the limit.
+Open **Show Replace** and type the replacement to preview it on every result. **Preserve Case** keeps each match's capitalization, and regular expressions can use capture groups such as `$1`. Apply it with **Replace Match**, **Replace in file**, or **Replace All**, which needs results under the limit.
 
 A file with unsaved editor changes is refused until you save or discard them. A file that changed on disk since the search is skipped and reported, never overwritten.
 
@@ -50,8 +50,8 @@ An editor tab does not reload when an agent changes the file. If the file change
 
 ## Previews
 
-- **Markdown**: `.md` files open rendered. Unsaved edits in an editor tab appear live, **Open source file** switches to the text, and web links open in your browser.
-- **PDF**: page count, zoom, **Show outline**, and **Search PDF** with previous and next match.
+- **Markdown**: `.md` files open rendered. Unsaved edits in an editor tab appear live, **Open Source File** switches to the text, and web links open in your browser.
+- **PDF**: page count, zoom, **Show Outline**, and **Search PDF** with previous and next match.
 - **Mermaid**: `.mmd` files open as text; **Open Preview** renders the saved diagram in its own tab with zoom, pan, and **Refresh**.
 - **Images**: PNG, JPEG, GIF, WebP, BMP, and ICO open in a tab you can zoom and pan.
 

@@ -281,7 +281,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    await tester.tap(find.byTooltip('Pane actions').first);
+    await tester.tap(find.byTooltip('Pane Actions').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
@@ -290,7 +290,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       const _SplitGroupAction('group-a', .right),
     ]);
 
-    await tester.tap(find.byTooltip('Pane actions').first);
+    await tester.tap(find.byTooltip('Pane Actions').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close Split'));
     await tester.pumpAndSettle();
@@ -321,7 +321,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     );
 
     for (final label in <String>['Split Down', 'Split Left', 'Split Up']) {
-      await tester.tap(find.byTooltip('Pane actions').first);
+      await tester.tap(find.byTooltip('Pane Actions').first);
       await tester.pumpAndSettle();
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();

@@ -7,14 +7,26 @@
 }
 
 [data-alera-demo] .ws-pill {
+  position: relative;
   padding: 6px 12px;
-  border: 1px solid transparent;
   border-radius: var(--app-radius-lg);
 }
 
+/* AleraActiveRail: the selected row sits one step above the sidebar with a
+   short accent rail at its leading edge, drawn over the row. */
 [data-alera-demo] .ws-row[data-state='active'] .ws-pill {
-  border-color: var(--app-border);
-  background: var(--app-accent-subtle);
+  background: var(--app-surface-elevated);
+}
+
+[data-alera-demo] .ws-row[data-state='active'] .ws-pill::before {
+  position: absolute;
+  top: var(--app-space-6);
+  bottom: var(--app-space-6);
+  left: 0;
+  width: var(--app-active-rail-width);
+  border-radius: var(--app-radius-xs);
+  background: var(--app-accent);
+  content: '';
 }
 
 [data-alera-demo] .ws-row[data-state='hover'] .ws-pill {
@@ -93,7 +105,7 @@
   height: 18px;
   margin-left: 8px;
   padding: 2px 4px;
-  border-radius: var(--app-radius-sm);
+  border-radius: var(--app-radius-xs);
   color: var(--app-foreground-muted);
 }
 
@@ -128,12 +140,12 @@
   margin-left: -4px;
 }
 
-[data-alera-demo] .ws-tray .tray-chevron-up,
-[data-alera-demo] .ws-tray[data-state='expanded'] .tray-chevron-down {
+[data-alera-demo] .ws-tray .tray-chevron-expanded,
+[data-alera-demo] .ws-tray[data-state='expanded'] .tray-chevron-collapsed {
   display: none;
 }
 
-[data-alera-demo] .ws-tray[data-state='expanded'] .tray-chevron-up {
+[data-alera-demo] .ws-tray[data-state='expanded'] .tray-chevron-expanded {
   display: block;
 }
 
@@ -161,4 +173,50 @@
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* AgentRunStatusBadge (agent_run_status_badge.dart): a toned AleraBadge for
+   waiting, blocked and done runs. The glyph the storyboard sets picks the
+   label, and while one shows, the status slot falls back to a muted dot. */
+[data-alera-demo] .status-badge {
+  display: none;
+  flex: none;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: var(--app-radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+[data-alera-demo] .status-badge-waiting {
+  background: color-mix(in srgb, var(--app-warning) 14%, transparent);
+  color: var(--app-warning);
+}
+
+[data-alera-demo] .status-badge-blocked {
+  background: color-mix(in srgb, var(--app-error) 14%, transparent);
+  color: var(--app-error);
+}
+
+[data-alera-demo] .status-badge-done {
+  background: color-mix(in srgb, var(--app-success) 14%, transparent);
+  color: var(--app-success);
+}
+
+[data-alera-demo] :is(.ws-line:has(> .ws-slot > .state-glyph[data-state='waiting']), .run-row:has(> .state-glyph[data-state='waiting'])) .status-badge-waiting,
+[data-alera-demo] :is(.ws-line:has(> .ws-slot > .state-glyph[data-state='blocked']), .run-row:has(> .state-glyph[data-state='blocked'])) .status-badge-blocked,
+[data-alera-demo] :is(.ws-line:has(> .ws-slot > .state-glyph[data-state='done']), .run-row:has(> .state-glyph[data-state='done'])) .status-badge-done {
+  display: inline-block;
+}
+
+[data-alera-demo] :is(.ws-slot, .run-row) > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='done']) > :not(.glyph-dot) {
+  display: none;
+}
+
+[data-alera-demo] :is(.ws-slot, .run-row) > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='done']) > .glyph-dot {
+  display: block;
+  background: var(--app-foreground-muted);
 }

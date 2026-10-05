@@ -64,9 +64,7 @@ TerminalRuntime terminalRuntime(Ref ref) {
       AleraToast.publish(
         message: message,
         tone: error ? AleraToastTone.error : AleraToastTone.info,
-        duration: error
-            ? const Duration(seconds: 6)
-            : const Duration(seconds: 12),
+        duration: error ? AleraToast.longDuration : const Duration(seconds: 12),
       );
     },
     agentHookEnvironmentBuilder:

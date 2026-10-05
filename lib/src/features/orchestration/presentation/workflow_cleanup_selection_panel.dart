@@ -154,7 +154,7 @@ class WorkflowCleanupSelectionPanel extends StatelessWidget {
                 const Text(
                   'Finish or cancel this run before preparing a cleanup.',
                 ),
-              if (session.loading) const Text('Loading resources...'),
+              if (session.loading) const Text('Loading resources…'),
               if (session.error != null)
                 SelectableText(
                   session.error.toString(),
@@ -179,7 +179,7 @@ class WorkflowCleanupSelectionPanel extends StatelessWidget {
                         : null,
                     child: Text(
                       session.busy
-                          ? 'Working...'
+                          ? 'Working…'
                           : session.previewPending
                           ? 'Retry Preview'
                           : 'Review Cleanup',

@@ -40,7 +40,7 @@ class const _SearchToolbar({
             WorkbenchScrollableActions(
               children: <Widget>[
                 AleraIconButton(
-                  tooltip: 'Clear search results',
+                  tooltip: 'Clear Search Results',
                   icon: AleraIcons.close,
                   onPressed: canClear ? onClear : null,
                 ),
@@ -63,7 +63,7 @@ class const _SearchToolbar({
                 ),
                 const SizedBox(width: AleraTokens.space2),
                 AleraIconButton(
-                  tooltip: state.viewAsTree ? 'View as list' : 'View as tree',
+                  tooltip: state.viewAsTree ? 'View as List' : 'View as Tree',
                   icon: state.viewAsTree
                       ? AleraIcons.listView
                       : AleraIcons.gitGraph,

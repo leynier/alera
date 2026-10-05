@@ -29,6 +29,8 @@ abstract final class AleraTokens {
   static const double masterDetailMaxWidth = 420.0;
   static const double masterDetailMinDetailWidth = 240.0;
   static const double emptyStateMaxWidth = 520.0;
+  static const double emptyStateActionMaxWidth = 360.0;
+  static const double welcomeDashboardMaxWidth = 1000.0;
   static const double conversationMaxWidth = 760.0;
   static const double imagePreviewMaxScale = 5.0;
   static const double chatBubbleMaxWidth = 620.0;
@@ -56,16 +58,38 @@ abstract final class AleraTokens {
   static const double iconMd = 14.0;
   static const double iconLg = space16;
   static const double iconXl = 18.0;
+  static const double iconXxl = 24.0;
+  static const double iconStatusBar = 13.0;
+  static const double iconStatusBarSm = 11.0;
+  static const double iconButtonXs = space20;
+  static const double iconButtonSm = 24.0;
+  static const double statusDotSm = 6.0;
+  static const double iconEmptyState = 28.0;
+  static const double logoSm = space16;
+  static const double logoMd = space32;
+  static const double logoLg = 64.0;
+  static const double disabledOpacity = 0.4;
   static const double strokeHairline = 1.4;
   static const double strokeThin = 1.5;
   static const double strokeIndicator = 1.6;
   static const double strokeSm = 2.0;
 
-  static const double radiusSm = 4.0;
-  static const double radiusMd = 6.0;
-  static const double radiusLg = 10.0;
+  /// Tiny inline elements under ~18px tall (keycaps, checkboxes, status-bar
+  /// chips, drop indicators) where [radiusSm] would read as a blob.
+  static const double radiusXs = 4.0;
+  static const double radiusSm = 6.0;
+  static const double radiusMd = 8.0;
+  static const double radiusLg = 8.0;
   static const double radiusXl = 12.0;
   static const double radiusPill = 20.0;
+
+  /// Width of the accent rail `AleraActiveRail` draws at the leading edge of
+  /// the selected row in a vertical list.
+  static const double activeRailWidth = 2.0;
+
+  /// Background alpha for tinted status labels: the tone color at this alpha
+  /// behind text in the full tone color.
+  static const double statusTintAlpha = 0.14;
 
   static const Color bg = Color(0xFF101010);
   static const Color surface = Color(0xFF181818);
@@ -79,6 +103,10 @@ abstract final class AleraTokens {
   static const Color foreground = Color(0xFFF5F5F5);
   static const Color foregroundMuted = Color(0xFFA1A1A1);
   static const Color foregroundFaint = Color(0xFF606060);
+
+  /// Keyboard focus outline for custom tappable surfaces that lack a Material
+  /// focus treatment.
+  static const Color focusRing = foregroundMuted;
   static const Color success = Color(0xFF22C55E);
   static const Color codexDiffAdditionBackground = Color(0x1F22C55E);
   static const Color info = Color(0xFF60A5FA);
@@ -102,6 +130,11 @@ abstract final class AleraTokens {
   /// Full-turn period for continuously rotating progress indicators.
   static const Duration durationSpin = Duration(milliseconds: 1200);
 
+  /// How long a toast stays up; the long variant is for warnings and errors
+  /// that carry a sentence worth reading.
+  static const Duration toastDuration = Duration(milliseconds: 4000);
+  static const Duration toastLongDuration = Duration(milliseconds: 6000);
+
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
     fontSize: 12,
@@ -114,6 +147,22 @@ abstract final class AleraTokens {
     fontWeight: .w400,
     color: foregroundMuted,
   );
+  static const TextStyle monoMicroStyle = TextStyle(
+    fontFamily: 'JetBrains Mono',
+    fontSize: 10,
+    fontWeight: .w400,
+    color: foregroundMuted,
+  );
+  static const TextStyle monoCaptionFaintStyle = TextStyle(
+    fontFamily: 'JetBrains Mono',
+    fontSize: 9,
+    fontWeight: .w400,
+    color: foregroundFaint,
+  );
+
+  /// Labels inside the bottom status bar; small enough to keep the bar at
+  /// [statusBarHeight] with an icon beside them.
+  static const TextStyle statusBarTextStyle = monoMicroStyle;
   static const TextStyle labelFaintStyle = TextStyle(
     fontFamily: 'Inter',
     fontSize: 12,

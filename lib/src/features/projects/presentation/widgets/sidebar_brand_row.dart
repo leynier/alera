@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_logo.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:flutter/material.dart';
 
@@ -34,12 +35,7 @@ class const SidebarBrandRow({
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
       child: Row(
         children: <Widget>[
-          Image.asset(
-            'assets/logo/alera-logo-white.png',
-            width: AleraTokens.space16,
-            height: AleraTokens.space16,
-            filterQuality: .medium,
-          ),
+          const AleraLogo(size: AleraTokens.logoSm),
           const SizedBox(width: AleraTokens.space8),
           // The logo leaves the name less room, so it yields first when the
           // sidebar is dragged toward its minimum width.

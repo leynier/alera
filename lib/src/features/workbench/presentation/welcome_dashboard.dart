@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_keybinding_badge.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_logo.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
@@ -27,12 +29,15 @@ class const WelcomeDashboard({super.key}) extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(
+              maxWidth: AleraTokens.welcomeDashboardMaxWidth,
+            ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(AleraTokens.space32),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 760;
+                  final isWide =
+                      constraints.maxWidth >= AleraTokens.wideContentBreakpoint;
                   final content = [
                     if (isWide) ...[
                       Expanded(child: _LeftColumn(state: state)),

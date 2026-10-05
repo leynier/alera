@@ -11,6 +11,7 @@ import 'package:alera/src/features/projects/domain/project_selection_order.dart'
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor_loader.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -353,50 +354,53 @@ class const _ProjectConfigProjectList({
     return AleraPanel(
       children: <Widget>[
         for (final project in projects)
-          InkWell(
-            onTap: () => onSelect(project),
-            mouseCursor: SystemMouseCursors.click,
-            child: Container(
-              padding: const EdgeInsets.all(AleraTokens.space12),
-              color: project.id == selectedProjectId
-                  ? AleraTokens.accentSubtle
-                  : Colors.transparent,
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    AleraIcons.folderSpecial,
-                    size: 16,
-                    color: project.id == selectedProjectId
-                        ? AleraTokens.accent
-                        : AleraTokens.foregroundMuted,
-                  ),
-                  const SizedBox(width: AleraTokens.space8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: .start,
-                      children: <Widget>[
-                        Text(
-                          project.name,
-                          overflow: .ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AleraTokens.foreground,
-                            fontWeight: .w500,
-                          ),
-                        ),
-                        const SizedBox(height: AleraTokens.space2),
-                        Text(
-                          overrideProjectIds.contains(project.id)
-                              ? 'UI Override'
-                              : 'Repo File',
-                          overflow: .ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: AleraTokens.foregroundMuted,
-                          ),
-                        ),
-                      ],
+          AleraActiveRail(
+            active: project.id == selectedProjectId,
+            child: InkWell(
+              onTap: () => onSelect(project),
+              mouseCursor: SystemMouseCursors.click,
+              child: Container(
+                padding: const EdgeInsets.all(AleraTokens.space12),
+                color: project.id == selectedProjectId
+                    ? AleraActiveRail.selectedColor
+                    : Colors.transparent,
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      AleraIcons.folderSpecial,
+                      size: 16,
+                      color: project.id == selectedProjectId
+                          ? AleraTokens.accent
+                          : AleraTokens.foregroundMuted,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: AleraTokens.space8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: .start,
+                        children: <Widget>[
+                          Text(
+                            project.name,
+                            overflow: .ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: AleraTokens.foreground,
+                              fontWeight: .w500,
+                            ),
+                          ),
+                          const SizedBox(height: AleraTokens.space2),
+                          Text(
+                            overrideProjectIds.contains(project.id)
+                                ? 'UI Override'
+                                : 'Repo File',
+                            overflow: .ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AleraTokens.foregroundMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

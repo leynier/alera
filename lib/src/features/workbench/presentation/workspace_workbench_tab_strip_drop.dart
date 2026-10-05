@@ -132,7 +132,7 @@ class const _TabStripInsertionIndicator() extends StatelessWidget {
       key: ValueKey<String>('tab-strip-insertion-indicator'),
       decoration: BoxDecoration(
         color: AleraTokens.accent,
-        borderRadius: BorderRadius.all(.circular(AleraTokens.radiusSm)),
+        borderRadius: BorderRadius.all(.circular(AleraTokens.radiusXs)),
       ),
     );
   }

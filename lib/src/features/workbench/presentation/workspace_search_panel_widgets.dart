@@ -62,7 +62,7 @@ class const _SearchSummary({required final WorkspaceSearchState state})
     final text = !state.hasQuery
         ? ''
         : state.loading
-        ? 'Searching...'
+        ? 'Searching…'
         : result == null
         ? 'No results'
         : _resultSummary(result);
@@ -334,7 +334,7 @@ class const _SearchMatchResultRow({
             ),
             const SizedBox(width: AleraTokens.space4),
             AleraIconButton(
-              tooltip: 'Replace match',
+              tooltip: 'Replace Match',
               icon: AleraIcons.findReplace,
               onPressed: replacing ? null : onReplace,
               minSize: AleraTokens.space24,

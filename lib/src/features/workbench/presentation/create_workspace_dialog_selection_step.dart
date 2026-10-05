@@ -132,8 +132,9 @@ class const _ManualSourceBranchField({
                 ),
               ),
               const SizedBox(width: AleraTokens.space8),
-              IconButton(
-                icon: const Icon(AleraIcons.refresh, size: 16),
+              AleraIconButton(
+                tooltip: 'Retry',
+                icon: AleraIcons.refresh,
                 onPressed: onRetry,
               ),
             ],

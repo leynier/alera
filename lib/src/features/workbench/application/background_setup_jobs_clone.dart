@@ -61,8 +61,8 @@ mixin _BackgroundSetupJobsInternals on _$BackgroundSetupJobs {
       AleraToast.publish(
         message:
             'Workspace created with setup warnings: ${result.setupReport.summary}',
-        tone: .error,
-        duration: const Duration(seconds: 6),
+        tone: .warning,
+        duration: AleraToast.longDuration,
       );
       return;
     }
@@ -70,7 +70,7 @@ mixin _BackgroundSetupJobsInternals on _$BackgroundSetupJobs {
       AleraToast.publish(
         message: 'Workspace created, but parent link failed',
         tone: .error,
-        duration: const Duration(seconds: 6),
+        duration: AleraToast.longDuration,
       );
       return;
     }

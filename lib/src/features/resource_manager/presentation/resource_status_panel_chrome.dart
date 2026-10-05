@@ -111,7 +111,7 @@ class const _TotalsRow({required final ResourceSnapshot snapshot})
                   snapshot.host.totalMemoryBytes,
                 ),
                 overflow: .ellipsis,
-                style: AleraTokens.monoStyle.copyWith(fontSize: 10),
+                style: AleraTokens.monoMicroStyle,
               ),
             ),
           ),

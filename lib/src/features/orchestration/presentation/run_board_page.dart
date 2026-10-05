@@ -121,7 +121,7 @@ class RunBoardPage extends ConsumerWidget {
                           ? page.error is RunBoardUpdateRequired
                                 ? 'This host cannot load runs. Update the runtime host, then reconnect.'
                                 : 'The run list is unavailable. Reconnect or refresh to retry.'
-                          : 'Loading runs...',
+                          : 'Loading runs…',
                     ),
                   )
           : null,

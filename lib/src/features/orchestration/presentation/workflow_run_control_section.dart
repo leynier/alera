@@ -164,7 +164,7 @@ class _WorkflowRunControlSectionState
                 ? 'Update Required'
                 : _error != null
                 ? 'Workflow Unavailable'
-                : 'Loading workflow...',
+                : 'Loading workflow…',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           if (_error != null) SelectableText(_error.toString()),

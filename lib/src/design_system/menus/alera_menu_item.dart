@@ -1,12 +1,13 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 
 /// Row used inside picker/autocomplete popovers. Renders three states:
-/// [active] (keyboard-highlighted), [selected] (current value, shows a check)
-/// and idle. An optional [leading] widget replaces the default check slot, and
-/// an optional [subtitle] renders a secondary line under the label (used by
-/// pickers that surface a path or hint).
+/// [active] (keyboard-highlighted), [selected] (current value, shows a check
+/// and the [AleraActiveRail]) and idle. An optional [leading] widget replaces
+/// the default check slot, and an optional [subtitle] renders a secondary line
+/// under the label (used by pickers that surface a path or hint).
 class const AleraMenuItem({
   super.key,
   required final String label,
@@ -32,66 +33,67 @@ class const AleraMenuItem({
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
     return MouseRegion(
       onEnter: onHover == null ? null : (_) => onHover!(),
-      child: Material(
-        color: active && enabled
-            ? AleraTokens.surfaceElevated
-            : selected
-            ? AleraTokens.accentSubtle
-            : Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          mouseCursor: enabled
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space8,
-              vertical: AleraTokens.space6,
-            ),
-            child: Row(
-              crossAxisAlignment: hasSubtitle
-                  ? CrossAxisAlignment.start
-                  : CrossAxisAlignment.center,
-              children: <Widget>[
-                SizedBox(
-                  width: 18,
-                  child:
-                      leading ??
-                      (selected
-                          ? const Icon(AleraIcons.check, size: 14)
-                          : const SizedBox.shrink()),
-                ),
-                const SizedBox(width: AleraTokens.space6),
-                Expanded(
-                  child: hasSubtitle
-                      ? Column(
-                          crossAxisAlignment: .start,
-                          children: <Widget>[
-                            Text(
-                              label,
-                              overflow: .ellipsis,
-                              maxLines: 1,
-                              style: labelStyle,
-                            ),
-                            const SizedBox(height: AleraTokens.space2),
-                            Text(
-                              subtitle!,
-                              overflow: .ellipsis,
-                              maxLines: 1,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: AleraTokens.foregroundFaint,
+      child: AleraActiveRail(
+        active: selected,
+        child: Material(
+          color: (active && enabled) || selected
+              ? AleraActiveRail.selectedColor
+              : Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            mouseCursor: enabled
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space8,
+                vertical: AleraTokens.space6,
+              ),
+              child: Row(
+                crossAxisAlignment: hasSubtitle
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
+                children: <Widget>[
+                  SizedBox(
+                    width: 18,
+                    child:
+                        leading ??
+                        (selected
+                            ? const Icon(AleraIcons.check, size: 14)
+                            : const SizedBox.shrink()),
+                  ),
+                  const SizedBox(width: AleraTokens.space6),
+                  Expanded(
+                    child: hasSubtitle
+                        ? Column(
+                            crossAxisAlignment: .start,
+                            children: <Widget>[
+                              Text(
+                                label,
+                                overflow: .ellipsis,
+                                maxLines: 1,
+                                style: labelStyle,
                               ),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          label,
-                          overflow: .ellipsis,
-                          maxLines: 1,
-                          style: labelStyle,
-                        ),
-                ),
-              ],
+                              const SizedBox(height: AleraTokens.space2),
+                              Text(
+                                subtitle!,
+                                overflow: .ellipsis,
+                                maxLines: 1,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: AleraTokens.foregroundFaint,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            label,
+                            overflow: .ellipsis,
+                            maxLines: 1,
+                            style: labelStyle,
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

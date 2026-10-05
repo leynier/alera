@@ -415,7 +415,7 @@ class DialogLaunchersBackgroundSetupJobs extends BackgroundSetupJobs {
       AleraToast.publish(
         message:
             'Workspace created with setup warnings: ${result.setupReport.summary}',
-        tone: .error,
+        tone: .warning,
         duration: const Duration(seconds: 6),
       );
       return;

@@ -30,7 +30,7 @@ class const AleraDropdownMenuItem({
             mouseCursor: itemEnabled
                 ? SystemMouseCursors.click
                 : SystemMouseCursors.basic,
-            borderRadius: .circular(AleraTokens.radiusLg),
+            borderRadius: .circular(AleraTokens.radiusSm),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space8,

@@ -14,6 +14,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
@@ -83,6 +84,7 @@ part 'alera_shell_page_section_menu_test_cases.dart';
 part 'alera_shell_page_project_hosts_test_cases.dart';
 part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
+part 'alera_shell_page_sidebar_status_badge_test_cases.dart';
 
 Future<AleraDatabase> _openMemoryDb() async {
   return AleraDatabase(executor: NativeDatabase.memory());
@@ -191,4 +193,5 @@ void main() {
   _registerAleraShellPinningTests();
   _registerAleraShellSectionMenuTests();
   _registerAleraShellSidebarIdentityTests();
+  _registerAleraShellSidebarStatusBadgeTests();
 }

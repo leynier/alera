@@ -39,7 +39,7 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
         mouseCursor: widget.enabled
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
-        borderRadius: .circular(AleraTokens.radiusLg),
+        borderRadius: .circular(AleraTokens.radiusSm),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space8,

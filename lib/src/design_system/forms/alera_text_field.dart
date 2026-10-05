@@ -208,7 +208,7 @@ class const AleraTextField({
   }
 
   OutlineInputBorder _denseBorder(Color color) => OutlineInputBorder(
-    borderRadius: .circular(AleraTokens.radiusLg),
+    borderRadius: .circular(AleraTokens.radiusMd),
     borderSide: BorderSide(color: color),
   );
 }

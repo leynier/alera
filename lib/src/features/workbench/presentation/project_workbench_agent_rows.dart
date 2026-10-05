@@ -20,6 +20,7 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
     final theme = Theme.of(context);
     final isActive = widget.isActive;
     final actionsVisible = _hovered || isActive;
+    final hasBadge = agentRunStatusBadge(widget.status) != null;
     ref.watch(agentTitleAvailableProvider);
     final showTabTitle = ref.watch(
       settingsControllerProvider.select(
@@ -37,73 +38,86 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
       child: GestureDetector(
         onSecondaryTapDown: (details) =>
             unawaited(_openContextMenu(context, details.globalPosition)),
-        child: AnimatedContainer(
-          width: .infinity,
-          duration: AleraTokens.durationFast,
-          decoration: BoxDecoration(
-            color: isActive
-                ? AleraTokens.accentSubtle
-                : (_hovered ? AleraTokens.surface : Colors.transparent),
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-          ),
-          child: InkWell(
-            onTap: widget.onTap,
-            mouseCursor: SystemMouseCursors.click,
-            borderRadius: .circular(AleraTokens.radiusSm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space6,
-                vertical: AleraTokens.space4,
-              ),
-              child: Row(
-                crossAxisAlignment: .center,
-                children: <Widget>[
-                  AgentRunStateIndicator(status: widget.status, size: 12),
-                  const SizedBox(width: AleraTokens.space6),
-                  AgentIdentityIcon(
-                    agentType: widget.status.agentType,
-                    size: 13,
-                    color: isActive
-                        ? AleraTokens.foreground
-                        : AleraTokens.foregroundMuted,
-                  ),
-                  const SizedBox(width: AleraTokens.space6),
-                  Expanded(
-                    child: Text(
-                      description,
-                      maxLines: 1,
-                      overflow: .ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: isActive
-                            ? AleraTokens.foreground
-                            : AleraTokens.foregroundMuted,
-                        fontWeight: isActive
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
+        child: AleraActiveRail(
+          active: isActive,
+          child: AnimatedContainer(
+            width: .infinity,
+            duration: AleraTokens.durationFast,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? AleraActiveRail.selectedColor
+                  : (_hovered ? AleraTokens.surface : Colors.transparent),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            ),
+            child: InkWell(
+              onTap: widget.onTap,
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: .circular(AleraTokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space6,
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  crossAxisAlignment: .center,
+                  children: <Widget>[
+                    AgentRunStateIndicator(
+                      status: widget.status,
+                      size: 12,
+                      stateLabeled: hasBadge,
                     ),
-                  ),
-                  IgnorePointer(
-                    ignoring: !actionsVisible,
-                    child: AnimatedOpacity(
-                      opacity: actionsVisible ? 1 : 0,
-                      duration: AleraTokens.durationFast,
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: AleraTokens.space4,
-                        ),
-                        child: AleraIconButton(
-                          tooltip: 'Close Terminal',
-                          onPressed: widget.onClose,
-                          icon: AleraIcons.close,
-                          iconSize: 12,
-                          minSize: 20,
-                          borderRadius: AleraTokens.radiusSm,
+                    const SizedBox(width: AleraTokens.space6),
+                    AgentIdentityIcon(
+                      agentType: widget.status.agentType,
+                      size: 13,
+                      color: isActive
+                          ? AleraTokens.foreground
+                          : AleraTokens.foregroundMuted,
+                    ),
+                    const SizedBox(width: AleraTokens.space6),
+                    Expanded(
+                      child: Text(
+                        description,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: isActive
+                              ? AleraTokens.foreground
+                              : AleraTokens.foregroundMuted,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    if (hasBadge) ...<Widget>[
+                      const SizedBox(width: AleraTokens.space4),
+                      Flexible(
+                        child: AgentRunStatusBadge(status: widget.status),
+                      ),
+                    ],
+                    IgnorePointer(
+                      ignoring: !actionsVisible,
+                      child: AnimatedOpacity(
+                        opacity: actionsVisible ? 1 : 0,
+                        duration: AleraTokens.durationFast,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: AleraTokens.space4,
+                          ),
+                          child: AleraIconButton(
+                            tooltip: 'Close Terminal',
+                            onPressed: widget.onClose,
+                            icon: AleraIcons.close,
+                            iconSize: 12,
+                            minSize: 20,
+                            borderRadius: AleraTokens.radiusSm,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

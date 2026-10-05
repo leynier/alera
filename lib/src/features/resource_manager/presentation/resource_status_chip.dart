@@ -27,51 +27,60 @@ class const ResourceStatusChip({
         mouseCursor: WidgetStateMouseCursor.clickable,
         child: Tooltip(
           message: 'Resource Manager',
-          child: Container(
-            height: AleraTokens.statusBarHeight,
-            padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
-            decoration: const BoxDecoration(
-              border: Border(left: BorderSide(color: AleraTokens.borderSubtle)),
-            ),
-            child: Row(
-              mainAxisSize: .min,
-              children: <Widget>[
-                const Icon(
-                  AleraIcons.resources,
-                  size: 13,
-                  color: AleraTokens.foregroundMuted,
+          excludeFromSemantics: true,
+          child: Semantics(
+            button: true,
+            label: _semanticsLabel(memory),
+            excludeSemantics: true,
+            child: Container(
+              height: AleraTokens.statusBarHeight,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space8,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: AleraTokens.borderSubtle),
                 ),
-                const SizedBox(width: AleraTokens.space6),
-                Text(
-                  memory,
-                  style: AleraTokens.monoStyle.copyWith(fontSize: 10),
-                ),
-                const SizedBox(width: AleraTokens.space6),
-                const Icon(
-                  AleraIcons.terminal,
-                  size: 11,
-                  color: AleraTokens.foregroundMuted,
-                ),
-                const SizedBox(width: AleraTokens.space4),
-                Text(
-                  '$sessionCount',
-                  style: AleraTokens.monoStyle.copyWith(fontSize: 10),
-                ),
-                if (orphanCount > 0) ...<Widget>[
-                  const SizedBox(width: AleraTokens.space4),
-                  Text(
-                    '($orphanCount)',
-                    style: AleraTokens.monoStyle.copyWith(
-                      fontSize: 10,
-                      color: AleraTokens.warning,
-                    ),
+              ),
+              child: Row(
+                mainAxisSize: .min,
+                children: <Widget>[
+                  const Icon(
+                    AleraIcons.resources,
+                    size: AleraTokens.iconStatusBar,
+                    color: AleraTokens.foregroundMuted,
                   ),
+                  const SizedBox(width: AleraTokens.space6),
+                  Text(memory, style: AleraTokens.statusBarTextStyle),
+                  const SizedBox(width: AleraTokens.space6),
+                  const Icon(
+                    AleraIcons.terminal,
+                    size: AleraTokens.iconStatusBarSm,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                  const SizedBox(width: AleraTokens.space4),
+                  Text('$sessionCount', style: AleraTokens.statusBarTextStyle),
+                  if (orphanCount > 0) ...<Widget>[
+                    const SizedBox(width: AleraTokens.space4),
+                    Text(
+                      '($orphanCount)',
+                      style: AleraTokens.statusBarTextStyle.copyWith(
+                        color: AleraTokens.warning,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  String _semanticsLabel(String memory) {
+    final sessions = sessionCount == 1 ? '1 session' : '$sessionCount sessions';
+    final orphans = orphanCount > 0 ? ', $orphanCount orphaned' : '';
+    return 'Resource Manager, memory $memory, $sessions$orphans';
   }
 }

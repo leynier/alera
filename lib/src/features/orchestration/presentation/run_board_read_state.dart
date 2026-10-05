@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/orchestration/infra/runtime_run_board_repository.dart';
 import 'package:flutter/material.dart';
@@ -117,13 +118,16 @@ String runBoardStatusLabel(String status) => switch (status) {
   _ => status,
 };
 
-Color runBoardStatusColor(String status) => switch (status) {
-  'failed' || 'conflict' || 'refused' => AleraTokens.error,
+AleraBadgeTone runBoardStatusTone(String status) => switch (status) {
+  'failed' || 'conflict' || 'refused' => AleraBadgeTone.error,
   'blocked' ||
   'stalled' ||
   'pending' ||
   'rejected' ||
-  'attention' => AleraTokens.warning,
-  'completed' || 'integrated' => AleraTokens.success,
-  _ => AleraTokens.foregroundMuted,
+  'attention' => AleraBadgeTone.attention,
+  'completed' || 'integrated' => AleraBadgeTone.success,
+  _ => AleraBadgeTone.neutral,
 };
+
+Color runBoardStatusColor(String status) =>
+    runBoardStatusTone(status).foreground;

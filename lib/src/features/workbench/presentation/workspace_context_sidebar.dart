@@ -300,7 +300,7 @@ class const _CollapsedContextRail({
           Padding(
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
             child: AleraIconButton(
-              tooltip: 'Expand panel',
+              tooltip: 'Expand Panel',
               icon: AleraIcons.chevronsLeft,
               onPressed: onToggleVisible,
             ),
@@ -362,7 +362,7 @@ class const _ContextTabHeader({
               ),
               const Spacer(),
               AleraIconButton(
-                tooltip: 'Collapse panel',
+                tooltip: 'Collapse Panel',
                 icon: AleraIcons.chevronsRight,
                 onPressed: onToggleVisible,
               ),

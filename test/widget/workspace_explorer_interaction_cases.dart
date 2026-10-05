@@ -356,7 +356,7 @@ void _registerWorkspaceExplorerInteractionTests() {
       ..updateCurrentText('changed');
 
     await _pumpExplorer(tester, service, registry: registry);
-    await tester.tap(find.byTooltip('Save all files'));
+    await tester.tap(find.byTooltip('Save All Files'));
     await tester.pumpAndSettle();
 
     expect(service.writtenFiles, <String, String>{'note.txt': 'changed'});

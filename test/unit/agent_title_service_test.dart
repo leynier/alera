@@ -68,7 +68,7 @@ void main() {
         'agentTitleSource': 'generated',
         'agentTitleStatus': 'generating',
       }),
-      'Generating title...',
+      'Generating title…',
     );
     expect(
       isAgentTitleGenerating(const <String, Object?>{

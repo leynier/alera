@@ -3,6 +3,7 @@ import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/icons/alera_logo.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:flutter/material.dart';
@@ -45,13 +46,7 @@ class const AppMenuAboutDialog({
               onClose: () => Navigator.of(context).pop(),
             ),
             const SizedBox(height: AleraTokens.space16),
-            Center(
-              child: Image.asset(
-                'assets/logo/alera-logo-white.png',
-                width: 64,
-                height: 64,
-              ),
-            ),
+            const Center(child: AleraLogo(size: AleraTokens.logoLg)),
             const SizedBox(height: AleraTokens.space12),
             Center(
               child: Text(kAleraAppName, style: theme.textTheme.titleMedium),

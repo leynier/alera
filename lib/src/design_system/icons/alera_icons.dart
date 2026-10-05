@@ -192,6 +192,9 @@ abstract final class const AleraIcons._() {
   static const IconData terminal = LucideIcons.terminal;
   static const IconData code = LucideIcons.code;
   static const IconData keyboard = LucideIcons.keyboard;
+  // App-wide commands, e.g. the Global group in the command palette. Not the
+  // Mac command glyph, which would read as a shortcut hint on Windows/Linux.
+  static const IconData command = LucideIcons.zap;
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
   static const IconData comment = LucideIcons.messageSquare;

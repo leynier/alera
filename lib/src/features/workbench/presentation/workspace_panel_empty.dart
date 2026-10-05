@@ -35,7 +35,6 @@ class const _WorkspacePanelEmpty({
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
@@ -56,52 +55,37 @@ class const _WorkspacePanelEmpty({
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(AleraTokens.space16),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 360),
+                  child: AleraEmptyState(
+                    // Narrow side panel: the default inset wraps every
+                    // choice's description onto a second line.
+                    padding: const EdgeInsets.all(AleraTokens.space12),
+                    icon: AleraIcons.tabUnselected,
+                    title: 'Panel is empty',
+                    message: 'Open a tool or start a terminal in this panel.',
+                    action: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AleraTokens.emptyStateActionMaxWidth,
+                      ),
                       child: Column(
                         mainAxisSize: .min,
+                        spacing: AleraTokens.space8,
                         children: <Widget>[
-                          Icon(
-                            AleraIcons.add,
-                            size: 28,
-                            color: AleraTokens.foregroundFaint,
-                          ),
-                          const SizedBox(height: AleraTokens.space12),
-                          Text(
-                            'Panel is Empty',
-                            textAlign: .center,
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: AleraTokens.space8),
-                          Text(
-                            'Open a tool or start a terminal in this panel.',
-                            textAlign: .center,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AleraTokens.foregroundMuted,
-                            ),
-                          ),
-                          const SizedBox(height: AleraTokens.space16),
-                          for (final tool in WorkspaceTool.values) ...<Widget>[
+                          for (final tool in WorkspaceTool.values)
                             _WorkspacePanelEmptyChoice(
                               icon: _iconForTool(tool),
                               label: tool.label,
                               description: _descriptionForTool(tool),
                               onTap: () => onSelect(tool.key),
                             ),
-                            const SizedBox(height: AleraTokens.space8),
-                          ],
                           _WorkspacePanelEmptyChoice(
                             icon: AleraIcons.terminal,
                             label: 'Terminal',
                             description: 'Start a new terminal tab.',
                             onTap: onNewTerminal,
                           ),
-                          if (onLaunchAgentProfile != null) ...<Widget>[
-                            const SizedBox(height: AleraTokens.space8),
+                          if (onLaunchAgentProfile != null)
                             _WorkspacePanelEmptyChoice(
                               icon: AleraIcons.agent,
                               label: 'Agents',
@@ -109,7 +93,6 @@ class const _WorkspacePanelEmpty({
                                   'Start an agent profile in a new tab.',
                               onTap: () => unawaited(_openAgentPicker(context)),
                             ),
-                          ],
                         ],
                       ),
                     ),
@@ -160,7 +143,11 @@ class const _WorkspacePanelEmptyChoice({
           ),
           child: Row(
             children: <Widget>[
-              Icon(icon, size: 16, color: AleraTokens.foregroundMuted),
+              Icon(
+                icon,
+                size: AleraTokens.iconLg,
+                color: AleraTokens.foregroundMuted,
+              ),
               const SizedBox(width: AleraTokens.space12),
               Expanded(
                 child: Column(

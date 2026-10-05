@@ -39,7 +39,7 @@ class const WorkspaceAgentCompactSummary({
       child: InkWell(
         onTap: onToggle,
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: .circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusXs),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space4,
@@ -63,7 +63,7 @@ class const WorkspaceAgentCompactSummary({
               ],
               const SizedBox(width: AleraTokens.space2),
               Icon(
-                expanded ? AleraIcons.chevronUp : AleraIcons.chevronDown,
+                expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
                 size: 12,
                 color: AleraTokens.foregroundMuted,
               ),
