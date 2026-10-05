@@ -15,10 +15,6 @@ on:
       - main
     paths:
       - 'pubspec.lock'
-      - 'rust/**'
-      - 'tool/ci/check_rust_workspace.sh'
-      - 'tool/ci/run_rust_workspace_tests.sh'
-      - 'tool/ci/test_rust_build_cache.sh'
       - 'third_party/**'
       - '.github/actions/**'
       - '.github/workflows/warm-cache.yml'
@@ -116,6 +112,8 @@ jobs:
   # invocations as pr.yml so the shared R2 cache has matching keys.
   warm-rust:
     name: warm rust ${{ matrix.name }}
+    # Push warming is owned by warm-rust-cache.yml, including Rust-only pushes.
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:

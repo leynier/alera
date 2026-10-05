@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yaml/yaml.dart';
 
 String workflowJob(String yaml, String jobId) {
   final lines = yaml.replaceAll('\r\n', '\n').split('\n');
@@ -101,7 +102,8 @@ void main() {
   });
 
   test('warms Rust source changes by compiling the PR test graph', () {
-    final warm = File('.github/workflows/warm-cache.yml').readAsStringSync();
+    final warm = File('.github/workflows/warm-rust-cache.yml')
+        .readAsStringSync();
     final checks = File('.github/actions/setup-rust-checks/action.yml')
         .readAsStringSync();
     final warmRust = workflowJob(warm, 'warm-rust');
@@ -110,5 +112,37 @@ void main() {
     expect(warm, contains("- 'tool/ci/test_rust_build_cache.sh'"));
     expect(warmRust, contains('check: test-build'));
     expect(checks, contains('tool/ci/run_rust_workspace_tests.sh --no-run'));
+  });
+
+  test('Rust-only pushes warm Rust without desktop builds', () {
+    final rust = loadYaml(
+      File('.github/workflows/warm-rust-cache.yml').readAsStringSync(),
+    ) as YamlMap;
+    final desktop = loadYaml(
+      File('.github/workflows/warm-cache.yml').readAsStringSync(),
+    ) as YamlMap;
+    final rustPush = rust['on']['push'] as YamlMap;
+    final desktopEvents = desktop['on'] as YamlMap;
+    final desktopPaths = desktopEvents['push']['paths'] as YamlList;
+
+    expect(rustPush['branches'], contains('main'));
+    expect(rustPush['paths'], contains('rust/**'));
+    expect(desktopPaths.where((path) => '$path'.startsWith('rust/')), isEmpty);
+    expect(
+      desktopPaths.where((path) => '$path'.startsWith('tool/ci/')),
+      isEmpty,
+    );
+    expect(desktopPaths, contains('pubspec.lock'));
+    expect(desktopEvents.containsKey('schedule'), isTrue);
+    expect(desktopEvents.containsKey('workflow_dispatch'), isTrue);
+    expect(
+      desktop['jobs']['warm-rust']['if'],
+      "github.event_name != 'push'",
+      reason: 'the separate Rust workflow owns push warming',
+    );
+    expect((rust['jobs'] as YamlMap).keys, ['warm-rust']);
+    final scheduledChecks = desktop['jobs']['warm-rust']['strategy']['matrix'];
+    final pushChecks = rust['jobs']['warm-rust']['strategy']['matrix'];
+    expect(pushChecks, scheduledChecks);
   });
 }
