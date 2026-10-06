@@ -19,6 +19,8 @@ class _FakeTerminalRuntime implements TerminalRuntime {
       StreamController<TerminalRuntimeExitEvent>.broadcast();
   @override
   Stream<TerminalRuntimeExitEvent> get exits => _exits.stream;
+
+  void emitExit(TerminalRuntimeExitEvent event) => _exits.add(event);
   @override
   TerminalSessionHandle? peekSession(String tabId) => sessions[tabId];
 
@@ -100,6 +102,9 @@ class _FakeTerminalSessionHandle({
   final String displayTitle;
 
   @override
+  String? terminalSessionId;
+
+  @override
   late final ValueListenable<String> titleListenable = ValueNotifier<String>(
     displayTitle,
   );
@@ -112,8 +117,10 @@ class _FakeTerminalSessionHandle({
   @override
   bool get isRunning => _running;
 
+  bool starting = false;
+
   @override
-  bool get isStarting => false;
+  bool get isStarting => starting;
 
   @override
   String? get errorMessage => _errorMessage;

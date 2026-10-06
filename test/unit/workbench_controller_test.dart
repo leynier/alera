@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 
+import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
 import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -58,6 +60,8 @@ part 'workbench_controller_tab_focus_close_test_cases.dart';
 part 'workbench_controller_sleep_test_cases.dart';
 part 'workbench_controller_sleep_bootstrap_test_cases.dart';
 part 'workbench_controller_sleep_open_test_cases.dart';
+part 'workbench_controller_sleep_exit_test_cases.dart';
+part 'workbench_controller_sleep_exit_race_test_cases.dart';
 part 'workbench_controller_archive_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
@@ -105,6 +109,8 @@ void main() {
     _registerWorkbenchControllerSleepTests();
     _registerWorkbenchControllerSleepBootstrapTests();
     _registerWorkbenchControllerSleepOpenTests();
+    _registerWorkbenchControllerSleepExitTests();
+    _registerWorkbenchControllerSleepExitRaceTests();
     _registerWorkbenchControllerArchiveTests();
     _registerWorkbenchControllerLayoutPersistenceTests();
     _registerWorkbenchControllerViewPrefsTests();

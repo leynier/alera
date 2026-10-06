@@ -116,6 +116,7 @@ mod workspace_removal_dependencies;
 mod workspace_rename;
 mod workspace_sections;
 mod workspace_setup_command;
+mod workspace_sleep;
 mod workspace_start;
 mod worktree_copy;
 mod worktree_include;
@@ -567,6 +568,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::Unpin(IdArgs { id }) => {
             return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await;
+        }
+        WorkspaceAction::Sleep(args) => {
+            return workspace_sleep::run(&runtime_dir(&runtime), args, json_output).await;
         }
         WorkspaceAction::Archive(IdArgs { id }) => {
             return workspace_archive::run(runtime_dir(&runtime), json_output, id, true).await;

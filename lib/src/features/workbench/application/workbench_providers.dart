@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
+import 'package:alera/src/features/agent_status/infra/agent_runtime_overlay_service.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
@@ -127,13 +128,21 @@ WorkbenchPaneFocusRegistry workbenchPaneFocusRegistry(Ref ref) {
   return WorkbenchPaneFocusRegistry();
 }
 
-/// Rechecks the terminal memory budget when the active workspace changes.
+/// Rechecks the terminal memory budget when the active workspace changes, and
+/// frees the exited handles a sleep kept on screen once their workspace leaves.
 @Riverpod(keepAlive: true)
 void terminalRuntimeActiveWorkspaceCoordinator(Ref ref) {
   final runtime = ref.watch(terminalRuntimeProvider);
   ref.listen<String?>(
     workbenchControllerProvider.select((state) => state.activeWorkspaceId),
-    (previous, next) => runtime.setActiveWorkspace(next),
+    (previous, next) {
+      runtime.setActiveWorkspace(next);
+      if (previous != null && previous != next) {
+        ref
+            .read(workbenchControllerProvider.notifier)
+            .releaseRetainedExitedHandles(previous);
+      }
+    },
     fireImmediately: true,
   );
 }

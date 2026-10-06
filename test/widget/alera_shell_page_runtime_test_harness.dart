@@ -160,6 +160,8 @@ class _FakeTerminalRuntime implements TerminalRuntime {
     required String tabId,
     int exitCode = 0,
   }) {
+    // The real handle stops running before it reports the exit.
+    _sessions[tabId]?._started = false;
     _exitController.add(
       TerminalRuntimeExitEvent(
         workspaceId: workspaceId,

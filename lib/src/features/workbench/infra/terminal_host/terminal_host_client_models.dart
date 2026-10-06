@@ -215,8 +215,45 @@ final class const TerminalHostOutputTextEvent(
 final class const TerminalHostOutputResyncRequiredEvent(super.sessionId)
     extends TerminalHostEvent;
 
-final class const TerminalHostExitEvent(super.sessionId, final int exitCode)
-    extends TerminalHostEvent;
+enum _TerminalExitKind { processExit, hostRemoval, workspaceSleep }
+
+/// Why a terminal stopped running.
+final class TerminalExitCause {
+  const TerminalExitCause._(this._kind, [this.sleepId]);
+
+  /// A workspace sleep ended it, and its tab stays for the wake. [sleepId]
+  /// tells the removals of one sleep from those of the next.
+  const TerminalExitCause.workspaceSleep([String? sleepId])
+    : this._(_TerminalExitKind.workspaceSleep, sleepId);
+
+  /// The process quit.
+  static const processExit = TerminalExitCause._(_TerminalExitKind.processExit);
+
+  /// The host ended the session itself: archive, or another client's close.
+  static const hostRemoval = TerminalExitCause._(_TerminalExitKind.hostRemoval);
+
+  final _TerminalExitKind _kind;
+  final String? sleepId;
+
+  bool get isWorkspaceSleep => _kind == _TerminalExitKind.workspaceSleep;
+
+  bool get removedByHost => _kind != _TerminalExitKind.processExit;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TerminalExitCause &&
+      other._kind == _kind &&
+      other.sleepId == sleepId;
+
+  @override
+  int get hashCode => Object.hash(_kind, sleepId);
+}
+
+final class const TerminalHostExitEvent(
+  super.sessionId,
+  final int exitCode, {
+  final TerminalExitCause cause = .processExit,
+}) extends TerminalHostEvent;
 
 final class const TerminalHostErrorEvent(super.sessionId, final Object error)
     extends TerminalHostEvent;

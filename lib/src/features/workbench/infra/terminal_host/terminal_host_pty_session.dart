@@ -465,8 +465,8 @@ final class TerminalHostPtySession._(
         _events.add(TerminalPtyOutputTextEvent(text));
       case TerminalHostOutputResyncRequiredEvent():
         _requestOutputResync();
-      case TerminalHostExitEvent(:final exitCode):
-        _events.add(TerminalPtyExitEvent(exitCode));
+      case TerminalHostExitEvent(:final exitCode, :final cause):
+        _events.add(TerminalPtyExitEvent(exitCode, cause: cause));
       case TerminalHostErrorEvent(:final error):
         if (!_isInputBackpressure(error)) {
           _events.add(TerminalPtyErrorEvent(error));

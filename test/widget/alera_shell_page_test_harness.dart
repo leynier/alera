@@ -34,6 +34,11 @@ class _ShellTestWorkbenchController(
   @override
   WorkbenchState build() => const WorkbenchState();
 
+  // No runtime host here, so no terminal can have been put to sleep.
+  @override
+  Future<List<String>> sleptTerminalIds(String workspaceId) async =>
+      const <String>[];
+
   @override
   Future<void> bootstrap() async {
     state = _bootstrapState;

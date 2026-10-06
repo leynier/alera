@@ -53,6 +53,11 @@ pub const RUNTIME_HOST_WORKSPACE_ARCHIVE_CAPABILITY: &str = "workspaceArchiveV1"
 /// `workspace.sleptTabs` and announces changes with `workspaceSleepChanged`.
 /// Additive: older hosts reject the verb, so clients feature-check this.
 pub const RUNTIME_HOST_WORKSPACE_SLEEP_STATE_CAPABILITY: &str = "workspaceSleepStateV1";
+/// `reason` on `terminalSessionRemoved` for sessions a workspace sleep ended,
+/// next to a `sleepId` shared by the removals of that one sleep. Their tabs
+/// stay for the wake, so a client must not close them. Additive: an older host
+/// omits both and clients fall back to `workspace.sleptTabs`.
+pub const TERMINAL_SESSION_REMOVED_BY_SLEEP: &str = "workspaceSleep";
 /// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
 /// issues through `issue.fetch`, and links one from `workspace.createManaged`
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and

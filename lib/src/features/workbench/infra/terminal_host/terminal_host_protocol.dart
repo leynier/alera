@@ -32,6 +32,10 @@ const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';
 /// do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostWorkspaceSleepStateCapability =
     'workspaceSleepStateV1';
+
+/// `reason` on `terminalSessionRemoved` for sessions a workspace sleep ended.
+/// Additive: an older host omits it.
+const String terminalSessionRemovedBySleepReason = 'workspaceSleep';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';

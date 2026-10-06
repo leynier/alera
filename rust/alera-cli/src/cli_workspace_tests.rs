@@ -134,6 +134,20 @@ fn workspace_archive_commands_parse_workspace_ids() {
     ));
 }
 #[test]
+fn workspace_sleep_parses_a_required_id_as_its_own_action() {
+    let sleep =
+        Cli::try_parse_from(["alera", "workspace", "--json", "sleep", "--id", "w-1"]).unwrap();
+    assert!(matches!(
+        sleep.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Sleep(IdArgs { id }),
+            output,
+            ..
+        }) if id == "w-1" && output.json
+    ));
+    assert!(Cli::try_parse_from(["alera", "workspace", "sleep"]).is_err());
+}
+#[test]
 fn workspace_section_commands_parse_names_ids_and_json_list() {
     use crate::cli::{WorkspaceSectionAction, WorkspaceSectionCommand};
 
