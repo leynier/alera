@@ -626,6 +626,7 @@ impl ServerActor {
             "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
             "workspace.unarchive" => self.handle_workspace_unarchive(client_id, payload).await,
             "workspace.rename" => self.rename_workspace_request(client_id, payload).await,
+            "workspace.focus" => self.focus_workspace_request(client_id, payload).await,
             "workspace.repositoryWebUrl" => {
                 self.workspace_repository_web_url(client_id, payload).await
             }

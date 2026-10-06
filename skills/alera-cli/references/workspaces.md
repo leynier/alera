@@ -210,6 +210,7 @@ alera workspace tag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace untag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace link --parent-workspace-id <parent-id> --child-workspace-id <child-id>
 alera workspace rename --id <workspace-id> --name "Checkout flow"
+alera workspace focus --id <workspace-id>
 alera workspace pin --id <workspace-id>
 alera workspace unpin --id <workspace-id>
 alera workspace archive --id <workspace-id>
@@ -228,6 +229,8 @@ alera terminal write --handle <terminal-handle> --stdin --enter
 ```
 
 `workspace rename` changes only the display name shown on desktop and mobile; the branch and worktree folder stay as they are. `--id` defaults to the workspace of the current Alera terminal, and `--name` is trimmed and must not be empty. With a live runtime host, connected apps refresh immediately.
+
+`workspace focus` selects an existing workspace in the running Alera desktop app and brings its window forward, the same as clicking it in the sidebar: it leaves the Run Board or Automations page, keeps the workspace's open tabs and terminals, and never creates, wakes, or removes anything. `--id` defaults to the workspace of the current Alera terminal. It needs a running Alera desktop app on the same runtime and fails with a non-zero exit when Alera is not running, when no desktop app is connected (a phone or a CLI does not count), when the app is too old to handle the request, or when the workspace does not exist or is archived (unarchive it first). Success means the request reached the app; every connected desktop app selects it. A focus request is not forwarded from a remote SSH host to the desktop. Modal dialogs stay open, and the desktop environment may refuse to raise the window (Wayland focus-stealing prevention), in which case the selection still changes.
 
 JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
 

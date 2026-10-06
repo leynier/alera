@@ -112,6 +112,28 @@ fn workspace_rename_parses_optional_id_and_required_name() {
     assert!(Cli::try_parse_from(["alera", "workspace", "rename", "--id", "workspace-1"]).is_err());
 }
 #[test]
+fn workspace_focus_parses_an_optional_id() {
+    use crate::cli::WorkspaceFocusArgs;
+
+    let explicit =
+        Cli::try_parse_from(["alera", "workspace", "focus", "--id", "workspace-1"]).unwrap();
+    assert!(matches!(
+        explicit.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Focus(WorkspaceFocusArgs { id: Some(id) }),
+            ..
+        }) if id == "workspace-1"
+    ));
+    let current = Cli::try_parse_from(["alera", "workspace", "--json", "focus"]).unwrap();
+    assert!(matches!(
+        current.command,
+        Command::Workspace(WorkspaceCommand {
+            action: WorkspaceAction::Focus(WorkspaceFocusArgs { id: None }),
+            ..
+        })
+    ));
+}
+#[test]
 fn workspace_archive_commands_parse_workspace_ids() {
     let archive =
         Cli::try_parse_from(["alera", "workspace", "archive", "--id", "workspace-1"]).unwrap();

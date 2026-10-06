@@ -20,7 +20,9 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/workspace_focus/application/workspace_focus_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -50,6 +52,7 @@ import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spin
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -85,6 +88,7 @@ part 'alera_shell_page_project_hosts_test_cases.dart';
 part 'alera_shell_page_project_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 part 'alera_shell_page_sidebar_status_badge_test_cases.dart';
+part 'alera_shell_page_workspace_focus_test_cases.dart';
 
 Future<AleraDatabase> _openMemoryDb() async {
   return AleraDatabase(executor: NativeDatabase.memory());
@@ -106,6 +110,8 @@ Future<_ShellPumpHarness> _pumpShell(
   bool agentTitlesAvailable = false,
   bool projectHostsSupported = false,
   RuntimeProjectHostsClient? projectHostsClient,
+  Stream<String>? workspaceFocusRequests,
+  AgentNotificationWindowActivator? windowActivator,
 }) async {
   final shellController = controller ?? _ShellTestWorkbenchController(state);
   final runtime = terminalRuntime ?? _FakeTerminalRuntime();
@@ -152,6 +158,14 @@ Future<_ShellPumpHarness> _pumpShell(
         ),
         if (projectHostsClient != null)
           projectHostsClientProvider.overrideWithValue(projectHostsClient),
+        if (workspaceFocusRequests != null)
+          workspaceFocusRequestSourceProvider.overrideWithValue(
+            () => workspaceFocusRequests,
+          ),
+        if (windowActivator != null)
+          agentStatusNotificationWindowActivatorProvider.overrideWithValue(
+            windowActivator,
+          ),
         if (workspaceFolderOpener != null)
           workspaceFolderOpenerProvider.overrideWith(
             (ref) => workspaceFolderOpener,
@@ -194,4 +208,5 @@ void main() {
   _registerAleraShellSectionMenuTests();
   _registerAleraShellSidebarIdentityTests();
   _registerAleraShellSidebarStatusBadgeTests();
+  _registerAleraShellWorkspaceFocusTests();
 }

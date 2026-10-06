@@ -32,6 +32,8 @@ pub enum WorkspaceAction {
     Unregister(IdArgs),
     /// Change a workspace's display name. The branch and worktree folder are not touched.
     Rename(WorkspaceRenameArgs),
+    /// Select and show an existing workspace in the running Alera desktop app.
+    Focus(WorkspaceFocusArgs),
     /// Pin a workspace in the desktop sidebar.
     Pin(IdArgs),
     /// Unpin a workspace from the desktop sidebar.
@@ -246,6 +248,13 @@ pub struct WorkspaceRenameArgs {
     /// New display name. Leading and trailing whitespace is trimmed.
     #[arg(long)]
     pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceFocusArgs {
+    /// Workspace to focus. Defaults to the workspace of the current Alera terminal.
+    #[arg(long)]
+    pub id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
