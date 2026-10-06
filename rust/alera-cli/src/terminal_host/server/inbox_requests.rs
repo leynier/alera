@@ -61,6 +61,8 @@ impl ServerActor {
             "inbox.markRead" => self.inbox_mark_read(payload).await.map(Some),
             "inbox.purge" => self.inbox_purge(payload).await.map(Some),
             "inbox.wait" => self.inbox_wait(client_id, request_id, payload).await,
+            "inbox.conversations" => self.inbox_conversations(payload).await.map(Some),
+            "inbox.conversation" => self.inbox_conversation(payload).await.map(Some),
             other => Err(HostError::state(format!("Unknown inbox request: {other}"))),
         }
     }
@@ -107,6 +109,9 @@ impl ServerActor {
         LAST_PRUNE_UNIX.store(now, Ordering::Relaxed);
         if let Err(error) = self.runtime_store.prune_inbox_history().await {
             tracing::warn!("[inbox] pruning history failed: {error}");
+        }
+        if let Err(error) = self.runtime_store.prune_conversation_history().await {
+            tracing::warn!("[inbox] pruning agent conversations failed: {error}");
         }
     }
 

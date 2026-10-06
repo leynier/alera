@@ -81,3 +81,49 @@ fn wait_and_purge_parse_their_flags() {
     };
     assert!(args.confirm);
 }
+
+#[test]
+fn conversations_and_no_wait_asks_parse() {
+    let InboxAction::Conversations(args) =
+        parse(&["conversations", "--workspace", "ws", "--participant", "t"])
+    else {
+        panic!("expected conversations");
+    };
+    assert_eq!(args.workspace.as_deref(), Some("ws"));
+    assert_eq!(args.participant.as_deref(), Some("t"));
+    let InboxAction::Conversation(args) = parse(&["conversation", "--thread", "thread_1"]) else {
+        panic!("expected conversation");
+    };
+    assert_eq!(args.thread, "thread_1");
+    let ask = Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "ask",
+        "--to",
+        "coord",
+        "--question",
+        "?",
+        "--no-wait",
+    ])
+    .unwrap();
+    let Command::Orchestration(command) = ask.command else {
+        panic!("expected orchestration");
+    };
+    let crate::cli_orchestration::OrchestrationAction::Ask(args) = command.action else {
+        panic!("expected ask");
+    };
+    assert!(args.no_wait);
+    assert!(Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "ask",
+        "--to",
+        "coord",
+        "--question",
+        "?",
+        "--no-wait",
+        "--timeout-ms",
+        "10",
+    ])
+    .is_err());
+}

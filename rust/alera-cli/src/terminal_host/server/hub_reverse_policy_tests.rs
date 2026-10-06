@@ -328,6 +328,8 @@ fn inbox_verbs_reach_the_hub_by_name() {
         "inbox.markRead",
         "inbox.purge",
         "inbox.wait",
+        "inbox.conversations",
+        "inbox.conversation",
     ] {
         assert!(hub_answers(verb), "{verb}");
     }

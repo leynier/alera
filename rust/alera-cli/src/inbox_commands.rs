@@ -99,6 +99,22 @@ pub(crate) async fn run(command: InboxCommand) -> i32 {
             call(&runtime, "inbox.purge", json!({ "inbox": inbox })).await
         }
         InboxAction::Wait(args) => wait(&runtime, args).await,
+        InboxAction::Conversations(args) => {
+            let mut payload = Map::new();
+            insert(&mut payload, "workspaceId", args.workspace);
+            insert(&mut payload, "participant", args.participant);
+            insert(&mut payload, "limit", args.limit);
+            insert(&mut payload, "before", args.before);
+            call(&runtime, "inbox.conversations", Value::Object(payload)).await
+        }
+        InboxAction::Conversation(args) => {
+            call(
+                &runtime,
+                "inbox.conversation",
+                json!({ "threadId": args.thread }),
+            )
+            .await
+        }
     };
     match result {
         Ok(value) => {
@@ -252,6 +268,9 @@ fn human_summary(value: &Value) -> String {
         lines.extend(message_lines(&value["messages"]));
         return lines.join("\n");
     }
+    if value["threadId"].is_string() && value["messages"].is_array() {
+        return message_lines(&value["messages"]).join("\n");
+    }
     if value["thread"].is_object() {
         let thread = &value["thread"];
         let mut lines = vec![format!(
@@ -282,6 +301,22 @@ fn human_summary(value: &Value) -> String {
                 inbox["pendingCount"],
                 inbox["awaitingReplyCount"],
                 inbox["unreadReplyCount"],
+            )
+        }),
+        Some("conversations") => list_lines(&value["items"], |thread| {
+            format!(
+                "{}  {} messages  {}  {}",
+                thread["threadId"].as_str().unwrap_or(""),
+                thread["messageCount"],
+                thread["participants"]
+                    .as_array()
+                    .map(|handles| handles
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .collect::<Vec<_>>()
+                        .join(", "))
+                    .unwrap_or_default(),
+                thread["subject"].as_str().unwrap_or(""),
             )
         }),
         Some("inboxTargets") => list_lines(&value["items"], |target| {
@@ -315,7 +350,12 @@ fn message_lines(messages: &Value) -> Vec<String> {
         .into_iter()
         .flatten()
         .map(|entry| {
-            let message = &entry["message"];
+            // Inbox entries wrap the message; agent conversations list it bare.
+            let message = if entry["message"].is_object() {
+                &entry["message"]
+            } else {
+                entry
+            };
             format!(
                 "--- {} {} from {} (#{})\n{}",
                 entry["kind"].as_str().unwrap_or("message"),

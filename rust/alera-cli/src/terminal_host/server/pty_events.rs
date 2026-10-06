@@ -191,6 +191,7 @@ impl ServerActor {
                             .await
                             .is_ok();
                         self.broadcast_inbox_change().await;
+                        self.broadcast_conversation_change().await;
                         self.orchestration_delivery_in_flight.remove(&session_id);
                         if delivered && self.agent_presence.is_injection_ready(&session_id) {
                             self.deliver_pending_messages(&session_id).await;
@@ -226,6 +227,7 @@ impl ServerActor {
                         .is_ok();
                 if message_backed {
                     self.broadcast_inbox_change().await;
+                    self.broadcast_conversation_change().await;
                     self.orchestration_delivery_in_flight.remove(&session_id);
                 }
                 if delivered

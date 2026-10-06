@@ -938,15 +938,10 @@ async fn run_ask(runtime: &RuntimeDirArgs, args: OrchestrationAskArgs, json_outp
         "question": args.question,
         "options": args.options,
         "timeoutMs": timeout_ms,
+        "wait": !args.no_wait,
     });
-    let value = match request_value(
-        runtime,
-        "orchestration.ask",
-        payload,
-        Some(timeout_ms.saturating_add(WAIT_CLIENT_GRACE_MS)),
-    )
-    .await
-    {
+    let deadline = (!args.no_wait).then_some(timeout_ms.saturating_add(WAIT_CLIENT_GRACE_MS));
+    let value = match request_value(runtime, "orchestration.ask", payload, deadline).await {
         Ok(value) => value,
         Err(error) => {
             eprintln!("{error}");
@@ -959,6 +954,8 @@ async fn run_ask(runtime: &RuntimeDirArgs, args: OrchestrationAskArgs, json_outp
         .unwrap_or(false);
     if json_output {
         println!("{value}");
+    } else if let Some(question_id) = value.get("questionId").and_then(Value::as_str) {
+        println!("{question_id}");
     } else if answered {
         let body = value
             .get("reply")

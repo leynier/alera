@@ -55,6 +55,9 @@ mod configuration_store;
 #[cfg(test)]
 mod configuration_store_tests;
 mod configuration_validation;
+mod conversation_store;
+#[cfg(test)]
+mod conversation_store_tests;
 #[cfg(test)]
 mod inbox_listing_tests;
 mod inbox_models;
@@ -304,6 +307,7 @@ pub use automation_run_store::*;
 pub use automation_schedule::*;
 pub use automation_templates::*;
 pub use checkout_models::*;
+pub use conversation_store::{ConversationFilter, ConversationPage, ConversationThread};
 pub use inbox_models::*;
 pub use inbox_queries::question_status;
 pub use linked_issue_store::LinkedIssue;

@@ -152,6 +152,9 @@ mod remote_setup_requests;
 mod remote_terminal_lifecycle;
 pub(crate) mod shared_checkout_compatibility;
 use mobile_gateway_replacement::MobileGatewayReplacement;
+mod conversation_requests;
+#[cfg(test)]
+mod conversation_requests_tests;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;

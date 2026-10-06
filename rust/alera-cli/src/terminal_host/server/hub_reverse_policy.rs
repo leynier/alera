@@ -108,6 +108,8 @@ const ALLOWED_VERBS: &[&str] = &[
     "inbox.markRead",
     "inbox.purge",
     "inbox.wait",
+    "inbox.conversations",
+    "inbox.conversation",
 ];
 
 /// Verbs whose `hostId` names where the checkout lives. A user typing in a
