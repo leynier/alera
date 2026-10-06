@@ -315,3 +315,21 @@ fn the_owners_retirement_of_a_mirrored_copy_stays_on_the_satellite() {
     }
     assert!(!stays_with_owner("workspace.find", &retirement, true));
 }
+
+#[test]
+fn inbox_verbs_reach_the_hub_by_name() {
+    for verb in [
+        "inbox.summary",
+        "inbox.threads",
+        "inbox.thread",
+        "inbox.targets",
+        "inbox.ask",
+        "inbox.cancel",
+        "inbox.markRead",
+        "inbox.purge",
+        "inbox.wait",
+    ] {
+        assert!(hub_answers(verb), "{verb}");
+    }
+    assert!(!hub_answers("inbox.somethingNew"));
+}

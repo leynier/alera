@@ -22,6 +22,12 @@ pub enum WaitKind {
     TaskState {
         targets: Vec<OrchestrationTaskStatus>,
     },
+    /// `inbox.wait`: news for one question, or anything sent to the inbox,
+    /// after `after_sequence`. Keyed by the inbox address.
+    Inbox {
+        question_id: Option<String>,
+        after_sequence: i64,
+    },
 }
 
 /// A client request parked until a matching message arrives or the deadline
@@ -88,7 +94,7 @@ impl MessageWaiterRegistry {
                         // Ask waiters wake on any message to the handle;
                         // the handler re-checks the thread and re-parks
                         // on a miss.
-                        WaitKind::Ask { .. } => true,
+                        WaitKind::Ask { .. } | WaitKind::Inbox { .. } => true,
                         WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => false,
                     }
             });
@@ -106,6 +112,25 @@ impl MessageWaiterRegistry {
 
     pub fn remove_client(&mut self, client_id: u64) {
         self.waiters.retain(|waiter| waiter.client_id != client_id);
+    }
+
+    /// Inboxes with a parked `inbox.wait`, so a sweep can re-check them even
+    /// when another read already expired their questions.
+    pub fn inbox_wait_handles(&self) -> Vec<String> {
+        let mut handles: Vec<String> = self
+            .waiters
+            .iter()
+            .filter(|waiter| matches!(waiter.kind, WaitKind::Inbox { .. }))
+            .map(|waiter| waiter.handle.clone())
+            .collect();
+        handles.sort();
+        handles.dedup();
+        handles
+    }
+
+    #[cfg(test)]
+    pub fn last_id(&self) -> u64 {
+        self.next_id
     }
 
     #[cfg(test)]

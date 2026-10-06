@@ -1,4 +1,4 @@
-use alera_core::runtime::{OrchestrationMessage, OrchestrationMessagePriority};
+use alera_core::runtime::{is_external_inbox, OrchestrationMessage, OrchestrationMessagePriority};
 
 const BANNER_WIDTH: usize = 60;
 const INJECT_BODY_MAX_BYTES: usize = 4 * 1024;
@@ -16,12 +16,22 @@ pub fn format_message_banner(message: &OrchestrationMessage) -> String {
         OrchestrationMessagePriority::High => " [HIGH]",
         OrchestrationMessagePriority::Normal => "",
     };
-    let sender_name = message.from_handle.to_uppercase();
-    let mut lines = vec![format!(
-        "──── From: {sender_name} ({from}){priority_tag} ({message_type}) ────",
-        from = message.from_handle,
-        message_type = message.message_type.as_str(),
-    )];
+    let external = is_external_inbox(&message.from_handle);
+    let mut lines = vec![if external {
+        format!(
+            "──── External question from {from}{via}{priority_tag} ({message_type}) ────",
+            from = message.from_handle,
+            via = external_origin_suffix(message),
+            message_type = message.message_type.as_str(),
+        )
+    } else {
+        format!(
+            "──── From: {sender_name} ({from}){priority_tag} ({message_type}) ────",
+            sender_name = message.from_handle.to_uppercase(),
+            from = message.from_handle,
+            message_type = message.message_type.as_str(),
+        )
+    }];
     lines.push(format!("Subject: {}", message.subject));
     if !message.body.is_empty() {
         let (body, truncated) = truncate_utf8(&message.body, INJECT_BODY_MAX_BYTES);
@@ -40,12 +50,57 @@ pub fn format_message_banner(message: &OrchestrationMessage) -> String {
             if truncated { "…" } else { "" }
         ));
     }
-    lines.push(format!(
-        "[Reply: alera orchestration reply --id {} --body \"...\"]",
-        message.id
-    ));
+    if external {
+        // The asker reads only the reply; text left in the terminal is lost.
+        lines.push(
+            "[The sender cannot read this terminal. Put your complete answer in the reply.]"
+                .to_string(),
+        );
+        lines.push(format!(
+            "[Reply: alera orchestration reply --id {} --body \"...\", or --body-file <path> for a long answer]",
+            message.id
+        ));
+    } else {
+        lines.push(format!(
+            "[Reply: alera orchestration reply --id {} --body \"...\"]",
+            message.id
+        ));
+    }
     lines.push("─".repeat(BANNER_WIDTH));
     lines.join("\n")
+}
+
+fn external_origin_suffix(message: &OrchestrationMessage) -> &'static str {
+    let surface = message
+        .external_meta
+        .as_ref()
+        .and_then(|meta| meta.pointer("/origin/surface"))
+        .and_then(|surface| surface.as_str());
+    match surface {
+        Some("desktop") => " via Alera desktop",
+        Some("mobile") => " via Alera mobile",
+        _ => "",
+    }
+}
+
+/// How many leading messages fit in one injected batch. Delivery pastes only
+/// these and leaves the rest queued for the agent's next turn.
+pub fn injected_message_count(messages: &[OrchestrationMessage]) -> usize {
+    let content_limit = INJECT_BATCH_MAX_BYTES.saturating_sub(INJECT_BATCH_RESERVED_BYTES);
+    let mut used_bytes = 0usize;
+    let mut count = 0;
+    for message in messages {
+        let separator_bytes = if count == 0 { 0 } else { 2 };
+        let next = used_bytes
+            .saturating_add(separator_bytes)
+            .saturating_add(format_message_banner(message).len());
+        if count > 0 && next > content_limit {
+            break;
+        }
+        used_bytes = next;
+        count += 1;
+    }
+    count
 }
 
 /// Grouping banners under a single wrapper line lets agents detect the
@@ -181,5 +236,33 @@ mod tests {
         let formatted = format_messages_for_injection(&batch);
         assert!(formatted.len() <= INJECT_BATCH_MAX_BYTES);
         assert!(formatted.contains("additional message(s) omitted"));
+    }
+
+    #[test]
+    fn inbox_questions_tell_the_agent_the_sender_cannot_see_the_terminal() {
+        let mut question = message(OrchestrationMessagePriority::High);
+        question.from_handle = "ext:user".to_string();
+        question.external_meta = Some(serde_json::json!({"origin": {"surface": "mobile"}}));
+        let banner = format_message_banner(&question);
+        assert!(banner.starts_with("──── External question from ext:user via Alera mobile [HIGH]"));
+        assert!(banner.contains("The sender cannot read this terminal"));
+        assert!(banner.contains("alera orchestration reply --id msg_1 --body \"...\""));
+        assert!(banner.contains("--body-file <path>"));
+        assert!(!banner.contains("<<'EOF'"));
+        assert!(!banner.contains("From: EXT:USER"));
+    }
+
+    #[test]
+    fn injected_count_keeps_whole_messages_within_one_paste() {
+        let mut oversized = message(OrchestrationMessagePriority::Normal);
+        oversized.body = "x".repeat(INJECT_BODY_MAX_BYTES * 2);
+        let batch = vec![oversized; 8];
+        let count = injected_message_count(&batch);
+        assert!((1..8).contains(&count));
+        let formatted = format_messages_for_injection(&batch[..count]);
+        assert!(!formatted.contains("omitted"));
+        assert_eq!(injected_message_count(&[]), 0);
+        let small = vec![message(OrchestrationMessagePriority::Normal); 3];
+        assert_eq!(injected_message_count(&small), 3);
     }
 }

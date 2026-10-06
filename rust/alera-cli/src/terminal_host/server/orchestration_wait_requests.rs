@@ -134,7 +134,7 @@ impl ServerActor {
                 self.terminal_wait_result(&waiter.handle, target).await
             }
             WaitKind::TaskState { targets } => self.task_wait_result(&waiter.handle, targets).await,
-            WaitKind::Check { .. } | WaitKind::Ask { .. } => Ok(None),
+            WaitKind::Check { .. } | WaitKind::Ask { .. } | WaitKind::Inbox { .. } => Ok(None),
         }
     }
 

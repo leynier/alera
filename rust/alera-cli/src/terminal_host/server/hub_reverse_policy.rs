@@ -97,7 +97,18 @@ const ALLOWED_PREFIXES: &[&str] = &[
     "pullRequestWatch.",
 ];
 
-const ALLOWED_VERBS: &[&str] = &["agentPresence.list"];
+const ALLOWED_VERBS: &[&str] = &[
+    "agentPresence.list",
+    "inbox.summary",
+    "inbox.threads",
+    "inbox.thread",
+    "inbox.targets",
+    "inbox.ask",
+    "inbox.cancel",
+    "inbox.markRead",
+    "inbox.purge",
+    "inbox.wait",
+];
 
 /// Verbs whose `hostId` names where the checkout lives. A user typing in a
 /// terminal on host X means host X, so an absent `hostId` becomes the origin.

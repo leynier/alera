@@ -69,14 +69,14 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
         },
         OrchestrationAction::Check(args) => run_check(&runtime, args, json_output).await,
         OrchestrationAction::Reply(args) => {
-            request(
-                &runtime,
-                "orchestration.reply",
-                json!({ "id": args.id, "body": args.body }),
-                json_output,
-                None,
-            )
-            .await
+            match read_body(args.body, args.body_file, args.body_stdin) {
+                Ok(Some(body)) if !body.trim().is_empty() => {
+                    let payload = json!({ "id": args.id, "body": body });
+                    request(&runtime, "orchestration.reply", payload, json_output, None).await
+                }
+                Ok(_) => usage_error("--body, --body-file or --body-stdin is required."),
+                Err(message) => usage_error(&message),
+            }
         }
         OrchestrationAction::Inbox(args) => {
             let mut payload = Map::new();
