@@ -41,7 +41,7 @@ final class InboxNavigationProvider
   }
 }
 
-String _$inboxNavigationHash() => r'3a80dd5cb66c2b547301abf4e3dd18b1367a1822';
+String _$inboxNavigationHash() => r'a7802b2a50ca3043e3dcc3e2b288eb50e13c4658';
 
 abstract class _$InboxNavigation extends $Notifier<InboxLocation> {
   InboxLocation build();

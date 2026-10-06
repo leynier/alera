@@ -391,3 +391,156 @@ final class InboxWindowFocusProvider
 }
 
 String _$inboxWindowFocusHash() => r'3516b717804000b78cbce74a4cc60161f86c36f6';
+
+@ProviderFor(agentConversations)
+final agentConversationsProvider = AgentConversationsFamily._();
+
+final class AgentConversationsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ConversationPage>,
+          ConversationPage,
+          Stream<ConversationPage>
+        >
+    with $FutureModifier<ConversationPage>, $StreamProvider<ConversationPage> {
+  AgentConversationsProvider._({
+    required AgentConversationsFamily super.from,
+    required String? super.argument,
+  }) : super(
+         retry: _noInboxRetry,
+         name: r'agentConversationsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$agentConversationsHash();
+
+  @override
+  String toString() {
+    return r'agentConversationsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<ConversationPage> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<ConversationPage> create(Ref ref) {
+    final argument = this.argument as String?;
+    return agentConversations(ref, workspaceId: argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is AgentConversationsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$agentConversationsHash() =>
+    r'b634c4e9a3eca5a6c646a3937b6828d92c117224';
+
+final class AgentConversationsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<ConversationPage>, String?> {
+  AgentConversationsFamily._()
+    : super(
+        retry: _noInboxRetry,
+        name: r'agentConversationsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  AgentConversationsProvider call({String? workspaceId}) =>
+      AgentConversationsProvider._(argument: workspaceId, from: this);
+
+  @override
+  String toString() => r'agentConversationsProvider';
+}
+
+@ProviderFor(agentConversation)
+final agentConversationProvider = AgentConversationFamily._();
+
+final class AgentConversationProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ConversationDetail>,
+          ConversationDetail,
+          Stream<ConversationDetail>
+        >
+    with
+        $FutureModifier<ConversationDetail>,
+        $StreamProvider<ConversationDetail> {
+  AgentConversationProvider._({
+    required AgentConversationFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: _noInboxRetry,
+         name: r'agentConversationProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$agentConversationHash();
+
+  @override
+  String toString() {
+    return r'agentConversationProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<ConversationDetail> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<ConversationDetail> create(Ref ref) {
+    final argument = this.argument as String;
+    return agentConversation(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is AgentConversationProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$agentConversationHash() => r'b2634941bf501e9160fb5ac353f194431d3ca58c';
+
+final class AgentConversationFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<ConversationDetail>, String> {
+  AgentConversationFamily._()
+    : super(
+        retry: _noInboxRetry,
+        name: r'agentConversationProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  AgentConversationProvider call(String threadId) =>
+      AgentConversationProvider._(argument: threadId, from: this);
+
+  @override
+  String toString() => r'agentConversationProvider';
+}

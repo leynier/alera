@@ -70,7 +70,9 @@ void inboxReplyNotificationCoordinator(Ref ref) {
       if (!isInboxNotificationPayload(payload)) return;
       unawaited(
         windowActivator.showAndFocus().then((_) {
-          if (ref.mounted) ref.read(inboxNavigationProvider.notifier).open();
+          if (ref.mounted) {
+            ref.read(inboxNavigationProvider.notifier).openQuestions();
+          }
         }),
       );
     },
