@@ -29,6 +29,7 @@ const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
 pub struct RuntimeStore {
     pool: SqlitePool,
     pub(super) board_notification_revision: std::sync::Arc<std::sync::atomic::AtomicI64>,
+    pub(super) inbox_notification_revision: std::sync::Arc<std::sync::atomic::AtomicI64>,
 }
 
 impl RuntimeStore {
@@ -45,6 +46,7 @@ impl RuntimeStore {
         Ok(Self {
             pool,
             board_notification_revision: Default::default(),
+            inbox_notification_revision: Default::default(),
         })
     }
 
@@ -70,10 +72,12 @@ impl RuntimeStore {
         let store = RuntimeStore {
             pool,
             board_notification_revision: Default::default(),
+            inbox_notification_revision: Default::default(),
         };
         store.migrate().await?;
         store.migrate_workflows().await?;
         store.migrate_orchestration_board().await?;
+        store.migrate_inbox().await?;
         harden_sqlite_files(&path)?;
         Ok(store)
     }

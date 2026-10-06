@@ -253,9 +253,7 @@ async fn reconcile_worker_done(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alera_core::runtime::{
-        NewOrchestrationMessage, NewOrchestrationTask, OrchestrationMessagePriority,
-    };
+    use alera_core::runtime::{NewOrchestrationMessage, NewOrchestrationTask};
 
     async fn store() -> (tempfile::TempDir, RuntimeStore) {
         let dir = tempfile::tempdir().unwrap();
@@ -287,14 +285,9 @@ mod tests {
                 subject: subject.to_string(),
                 body: body.to_string(),
                 message_type,
-                priority: OrchestrationMessagePriority::Normal,
-                thread_id: None,
                 payload: payload.map(|value| value.to_string()),
-                run_id: None,
                 workspace_id: Some("workspace_1".to_string()),
-                task_id: None,
-                dispatch_id: None,
-                expires_at: None,
+                ..Default::default()
             })
             .await
             .unwrap()

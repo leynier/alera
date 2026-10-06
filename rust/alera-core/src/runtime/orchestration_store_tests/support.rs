@@ -25,6 +25,8 @@ pub(super) fn message(
         task_id: None,
         dispatch_id: None,
         expires_at: None,
+        reply_to_id: None,
+        external_meta: None,
     }
 }
 
