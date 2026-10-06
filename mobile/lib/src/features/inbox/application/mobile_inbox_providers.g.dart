@@ -828,3 +828,550 @@ abstract class _$MobileInboxListController
     return element.handleCreate(ref, () => build(_$args));
   }
 }
+
+/// Conversations between agents, optionally of one workspace. Reloads when
+/// the runtime announces a change.
+
+@ProviderFor(MobileAgentConversations)
+final mobileAgentConversationsProvider = MobileAgentConversationsFamily._();
+
+/// Conversations between agents, optionally of one workspace. Reloads when
+/// the runtime announces a change.
+final class MobileAgentConversationsProvider
+    extends
+        $AsyncNotifierProvider<
+          MobileAgentConversations,
+          AgentConversationPage
+        > {
+  /// Conversations between agents, optionally of one workspace. Reloads when
+  /// the runtime announces a change.
+  MobileAgentConversationsProvider._({
+    required MobileAgentConversationsFamily super.from,
+    required (String, {String? workspaceId}) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileAgentConversationsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileAgentConversationsHash();
+
+  @override
+  String toString() {
+    return r'mobileAgentConversationsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  MobileAgentConversations create() => MobileAgentConversations();
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileAgentConversationsProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileAgentConversationsHash() =>
+    r'e0ca91b21c612ace6551579029173d50aa5a4f89';
+
+/// Conversations between agents, optionally of one workspace. Reloads when
+/// the runtime announces a change.
+
+final class MobileAgentConversationsFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          MobileAgentConversations,
+          AsyncValue<AgentConversationPage>,
+          AgentConversationPage,
+          FutureOr<AgentConversationPage>,
+          (String, {String? workspaceId})
+        > {
+  MobileAgentConversationsFamily._()
+    : super(
+        retry: null,
+        name: r'mobileAgentConversationsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Conversations between agents, optionally of one workspace. Reloads when
+  /// the runtime announces a change.
+
+  MobileAgentConversationsProvider call(String hostId, {String? workspaceId}) =>
+      MobileAgentConversationsProvider._(
+        argument: (hostId, workspaceId: workspaceId),
+        from: this,
+      );
+
+  @override
+  String toString() => r'mobileAgentConversationsProvider';
+}
+
+/// Conversations between agents, optionally of one workspace. Reloads when
+/// the runtime announces a change.
+
+abstract class _$MobileAgentConversations
+    extends $AsyncNotifier<AgentConversationPage> {
+  late final _$args = ref.$arg as (String, {String? workspaceId});
+  String get hostId => _$args.$1;
+  String? get workspaceId => _$args.workspaceId;
+
+  FutureOr<AgentConversationPage> build(String hostId, {String? workspaceId});
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<AsyncValue<AgentConversationPage>, AgentConversationPage>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                AsyncValue<AgentConversationPage>,
+                AgentConversationPage
+              >,
+              AsyncValue<AgentConversationPage>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(
+      ref,
+      () => build(_$args.$1, workspaceId: _$args.workspaceId),
+    );
+  }
+}
+
+@ProviderFor(MobileAgentConversationDetail)
+final mobileAgentConversationDetailProvider =
+    MobileAgentConversationDetailFamily._();
+
+final class MobileAgentConversationDetailProvider
+    extends
+        $AsyncNotifierProvider<
+          MobileAgentConversationDetail,
+          AgentConversationDetail
+        > {
+  MobileAgentConversationDetailProvider._({
+    required MobileAgentConversationDetailFamily super.from,
+    required (String, String) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileAgentConversationDetailProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileAgentConversationDetailHash();
+
+  @override
+  String toString() {
+    return r'mobileAgentConversationDetailProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  MobileAgentConversationDetail create() => MobileAgentConversationDetail();
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileAgentConversationDetailProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileAgentConversationDetailHash() =>
+    r'927fc0406bbda7bd52fa5f7640f7cdfdbc770ff5';
+
+final class MobileAgentConversationDetailFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          MobileAgentConversationDetail,
+          AsyncValue<AgentConversationDetail>,
+          AgentConversationDetail,
+          FutureOr<AgentConversationDetail>,
+          (String, String)
+        > {
+  MobileAgentConversationDetailFamily._()
+    : super(
+        retry: null,
+        name: r'mobileAgentConversationDetailProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  MobileAgentConversationDetailProvider call(String hostId, String threadId) =>
+      MobileAgentConversationDetailProvider._(
+        argument: (hostId, threadId),
+        from: this,
+      );
+
+  @override
+  String toString() => r'mobileAgentConversationDetailProvider';
+}
+
+abstract class _$MobileAgentConversationDetail
+    extends $AsyncNotifier<AgentConversationDetail> {
+  late final _$args = ref.$arg as (String, String);
+  String get hostId => _$args.$1;
+  String get threadId => _$args.$2;
+
+  FutureOr<AgentConversationDetail> build(String hostId, String threadId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<
+              AsyncValue<AgentConversationDetail>,
+              AgentConversationDetail
+            >;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                AsyncValue<AgentConversationDetail>,
+                AgentConversationDetail
+              >,
+              AsyncValue<AgentConversationDetail>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
+  }
+}
+
+/// Agent and tab title of each running terminal, so conversations show names
+/// instead of handles where the runtime knows them.
+
+@ProviderFor(mobileInboxHandleLabels)
+final mobileInboxHandleLabelsProvider = MobileInboxHandleLabelsFamily._();
+
+/// Agent and tab title of each running terminal, so conversations show names
+/// instead of handles where the runtime knows them.
+
+final class MobileInboxHandleLabelsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Map<String, String>>,
+          Map<String, String>,
+          FutureOr<Map<String, String>>
+        >
+    with
+        $FutureModifier<Map<String, String>>,
+        $FutureProvider<Map<String, String>> {
+  /// Agent and tab title of each running terminal, so conversations show names
+  /// instead of handles where the runtime knows them.
+  MobileInboxHandleLabelsProvider._({
+    required MobileInboxHandleLabelsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileInboxHandleLabelsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileInboxHandleLabelsHash();
+
+  @override
+  String toString() {
+    return r'mobileInboxHandleLabelsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Map<String, String>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Map<String, String>> create(Ref ref) {
+    final argument = this.argument as String;
+    return mobileInboxHandleLabels(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileInboxHandleLabelsProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileInboxHandleLabelsHash() =>
+    r'72386f6baf35034805fa64f334330b8e68acd60c';
+
+/// Agent and tab title of each running terminal, so conversations show names
+/// instead of handles where the runtime knows them.
+
+final class MobileInboxHandleLabelsFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Map<String, String>>, String> {
+  MobileInboxHandleLabelsFamily._()
+    : super(
+        retry: null,
+        name: r'mobileInboxHandleLabelsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Agent and tab title of each running terminal, so conversations show names
+  /// instead of handles where the runtime knows them.
+
+  MobileInboxHandleLabelsProvider call(String hostId) =>
+      MobileInboxHandleLabelsProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'mobileInboxHandleLabelsProvider';
+}
+
+/// Workspace filter of the agent conversations list, kept per host.
+
+@ProviderFor(MobileAgentConversationWorkspace)
+final mobileAgentConversationWorkspaceProvider =
+    MobileAgentConversationWorkspaceFamily._();
+
+/// Workspace filter of the agent conversations list, kept per host.
+final class MobileAgentConversationWorkspaceProvider
+    extends $NotifierProvider<MobileAgentConversationWorkspace, String?> {
+  /// Workspace filter of the agent conversations list, kept per host.
+  MobileAgentConversationWorkspaceProvider._({
+    required MobileAgentConversationWorkspaceFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileAgentConversationWorkspaceProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileAgentConversationWorkspaceHash();
+
+  @override
+  String toString() {
+    return r'mobileAgentConversationWorkspaceProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  MobileAgentConversationWorkspace create() =>
+      MobileAgentConversationWorkspace();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String?>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileAgentConversationWorkspaceProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileAgentConversationWorkspaceHash() =>
+    r'7b7040159c4345d9fcd616339dd7ac8b0695f440';
+
+/// Workspace filter of the agent conversations list, kept per host.
+
+final class MobileAgentConversationWorkspaceFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          MobileAgentConversationWorkspace,
+          String?,
+          String?,
+          String?,
+          String
+        > {
+  MobileAgentConversationWorkspaceFamily._()
+    : super(
+        retry: null,
+        name: r'mobileAgentConversationWorkspaceProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// Workspace filter of the agent conversations list, kept per host.
+
+  MobileAgentConversationWorkspaceProvider call(String hostId) =>
+      MobileAgentConversationWorkspaceProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'mobileAgentConversationWorkspaceProvider';
+}
+
+/// Workspace filter of the agent conversations list, kept per host.
+
+abstract class _$MobileAgentConversationWorkspace extends $Notifier<String?> {
+  late final _$args = ref.$arg as String;
+  String get hostId => _$args;
+
+  String? build(String hostId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<String?, String?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<String?, String?>,
+              String?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
+/// Which half of the inbox is open, kept per host while the app runs.
+
+@ProviderFor(MobileInboxSectionController)
+final mobileInboxSectionControllerProvider =
+    MobileInboxSectionControllerFamily._();
+
+/// Which half of the inbox is open, kept per host while the app runs.
+final class MobileInboxSectionControllerProvider
+    extends $NotifierProvider<MobileInboxSectionController, InboxSection> {
+  /// Which half of the inbox is open, kept per host while the app runs.
+  MobileInboxSectionControllerProvider._({
+    required MobileInboxSectionControllerFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileInboxSectionControllerProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileInboxSectionControllerHash();
+
+  @override
+  String toString() {
+    return r'mobileInboxSectionControllerProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  MobileInboxSectionController create() => MobileInboxSectionController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(InboxSection value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<InboxSection>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileInboxSectionControllerProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileInboxSectionControllerHash() =>
+    r'f22519d216a8f91bb0daa07506b070b1071f3aaa';
+
+/// Which half of the inbox is open, kept per host while the app runs.
+
+final class MobileInboxSectionControllerFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          MobileInboxSectionController,
+          InboxSection,
+          InboxSection,
+          InboxSection,
+          String
+        > {
+  MobileInboxSectionControllerFamily._()
+    : super(
+        retry: null,
+        name: r'mobileInboxSectionControllerProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// Which half of the inbox is open, kept per host while the app runs.
+
+  MobileInboxSectionControllerProvider call(String hostId) =>
+      MobileInboxSectionControllerProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'mobileInboxSectionControllerProvider';
+}
+
+/// Which half of the inbox is open, kept per host while the app runs.
+
+abstract class _$MobileInboxSectionController extends $Notifier<InboxSection> {
+  late final _$args = ref.$arg as String;
+  String get hostId => _$args;
+
+  InboxSection build(String hostId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<InboxSection, InboxSection>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<InboxSection, InboxSection>,
+              InboxSection,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}

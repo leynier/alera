@@ -8,7 +8,8 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_compose_screen.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/agent_conversations_view.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/inbox_entry_points.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_labels.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/load_more_button.dart';
@@ -23,124 +24,167 @@ class const InboxScreen({super.key, required final String hostId})
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = ref.watch(mobileInboxSummaryProvider(hostId)).value;
     final filters = ref.watch(mobileInboxListControllerProvider(hostId));
-    final threadsProvider = mobileInboxThreadsProvider(
-      hostId,
-      inbox: filters.inbox,
-      status: filters.status,
-    );
-    final threads = ref.watch(threadsProvider);
-    final controller = ref.read(
-      mobileInboxListControllerProvider(hostId).notifier,
-    );
+    final threads = ref.watch(_threadsProvider(filters));
     final all = threads.value?.items ?? const <InboxThread>[];
     final visible = visibleInboxThreads(all, filters);
     final inboxes = <String>{
       for (final entry in summary ?? const <InboxSummaryEntry>[]) entry.inbox,
       for (final thread in all) thread.inbox,
     }.toList()..sort();
+    final section = ref.watch(mobileInboxSectionControllerProvider(hostId));
+    final questions = section == InboxSection.questions;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inbox'),
         actions: <Widget>[
-          PopupMenuButton<String>(
-            tooltip: 'More Actions',
-            onSelected: (inbox) => unawaited(_purge(context, ref, inbox)),
-            itemBuilder: (context) => <PopupMenuEntry<String>>[
-              for (final inbox in inboxes)
-                PopupMenuItem<String>(
-                  value: inbox,
-                  height: AleraTokens.minTapTarget,
-                  child: Text('Purge $inbox'),
-                ),
-            ],
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => unawaited(_compose(context)),
-        icon: const Icon(AleraIcons.send),
-        label: const Text('Ask Agent'),
-      ),
-      body: SafeArea(
-        child: switch (threads) {
-          AsyncValue(value: null, hasError: true, :final error) =>
-            AleraEmptyState(
-              icon: AleraIcons.inbox,
-              title: 'Inbox Unavailable',
-              message: 'The host could not load the inbox.',
-              detail: '$error',
-              action: TextButton(
-                onPressed: () => ref.invalidate(threadsProvider),
-                child: const Text('Retry'),
-              ),
-            ),
-          AsyncValue(value: null) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-          _ => RefreshIndicator(
-            onRefresh: () => ref.refresh(threadsProvider.future),
-            child: ListView(
-              padding: AleraTokens.pagePadding,
-              children: <Widget>[
-                _InboxFilters(
-                  inboxes: inboxes,
-                  filters: filters,
-                  onInbox: controller.setInbox,
-                  onStatus: controller.setStatus,
-                ),
-                const SizedBox(height: AleraTokens.spaceMd),
-                if (visible.isEmpty)
-                  AleraEmptyState(
-                    icon: AleraIcons.inbox,
-                    message: filters.isFiltered
-                        ? 'No questions match these filters.'
-                        : 'No questions yet. Ask an agent to start a conversation.',
-                    action: filters.isFiltered
-                        ? TextButton(
-                            onPressed: controller.clear,
-                            child: const Text('Clear Filters'),
-                          )
-                        : null,
-                  )
-                else
-                  for (final thread in visible)
-                    InboxThreadRow(
-                      thread: thread,
-                      onOpen: () => unawaited(
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) => InboxThreadScreen(
-                              hostId: hostId,
-                              threadId: thread.threadId,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                if (threads.value?.nextBefore != null)
-                  LoadMoreButton(
-                    onLoad: ref.read(threadsProvider.notifier).loadMore,
+          if (questions)
+            PopupMenuButton<String>(
+              tooltip: 'More Actions',
+              onSelected: (inbox) => unawaited(_purge(context, ref, inbox)),
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
+                for (final inbox in inboxes)
+                  PopupMenuItem<String>(
+                    value: inbox,
+                    height: AleraTokens.minTapTarget,
+                    child: Text('Purge $inbox'),
                   ),
               ],
             ),
-          ),
-        },
+        ],
+      ),
+      floatingActionButton: questions
+          ? FloatingActionButton.extended(
+              onPressed: () => unawaited(
+                askAgentAndOpenThread(context, ref, hostId: hostId),
+              ),
+              icon: const Icon(AleraIcons.send),
+              label: const Text('Ask Agent'),
+            )
+          : null,
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.space16,
+                AleraTokens.space8,
+                AleraTokens.space16,
+                0,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<InboxSection>(
+                  segments: const <ButtonSegment<InboxSection>>[
+                    ButtonSegment(
+                      value: InboxSection.questions,
+                      label: Text('Questions'),
+                    ),
+                    ButtonSegment(
+                      value: InboxSection.conversations,
+                      label: Text('Agent Conversations'),
+                    ),
+                  ],
+                  selected: <InboxSection>{section},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) => ref
+                      .read(
+                        mobileInboxSectionControllerProvider(hostId).notifier,
+                      )
+                      .select(selection.first),
+                ),
+              ),
+            ),
+            Expanded(
+              child: questions
+                  ? _questionsBody(context, ref, threads, visible, inboxes)
+                  : AgentConversationsView(hostId: hostId),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _compose(BuildContext context) async {
-    final threadId = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => InboxComposeScreen(hostId: hostId),
-      ),
+  MobileInboxThreadsProvider _threadsProvider(MobileInboxListState filters) =>
+      mobileInboxThreadsProvider(
+        hostId,
+        inbox: filters.inbox,
+        status: filters.status,
+      );
+
+  Widget _questionsBody(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<InboxThreadPage> threads,
+    List<InboxThread> visible,
+    List<String> inboxes,
+  ) {
+    final filters = ref.watch(mobileInboxListControllerProvider(hostId));
+    final controller = ref.read(
+      mobileInboxListControllerProvider(hostId).notifier,
     );
-    if (threadId == null || !context.mounted) return;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => InboxThreadScreen(hostId: hostId, threadId: threadId),
+    return switch (threads) {
+      AsyncValue(value: null, hasError: true, :final error) => AleraEmptyState(
+        icon: AleraIcons.inbox,
+        title: 'Inbox Unavailable',
+        message: 'The host could not load the inbox.',
+        detail: '$error',
+        action: TextButton(
+          onPressed: () => ref.invalidate(_threadsProvider(filters)),
+          child: const Text('Retry'),
+        ),
       ),
-    );
+      AsyncValue(value: null) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+      _ => RefreshIndicator(
+        onRefresh: () => ref.refresh(_threadsProvider(filters).future),
+        child: ListView(
+          padding: AleraTokens.pagePadding,
+          children: <Widget>[
+            _InboxFilters(
+              inboxes: inboxes,
+              filters: filters,
+              onInbox: controller.setInbox,
+              onStatus: controller.setStatus,
+            ),
+            const SizedBox(height: AleraTokens.spaceMd),
+            if (visible.isEmpty)
+              AleraEmptyState(
+                icon: AleraIcons.inbox,
+                message: filters.isFiltered
+                    ? 'No questions match these filters.'
+                    : 'No questions yet. Ask an agent to start a conversation.',
+                action: filters.isFiltered
+                    ? TextButton(
+                        onPressed: controller.clear,
+                        child: const Text('Clear Filters'),
+                      )
+                    : null,
+              )
+            else
+              for (final thread in visible)
+                InboxThreadRow(
+                  thread: thread,
+                  onOpen: () => unawaited(
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => InboxThreadScreen(
+                          hostId: hostId,
+                          threadId: thread.threadId,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            if (threads.value?.nextBefore != null)
+              LoadMoreButton(
+                onLoad: ref.read(_threadsProvider(filters).notifier).loadMore,
+              ),
+          ],
+        ),
+      ),
+    };
   }
 
   Future<void> _purge(BuildContext context, WidgetRef ref, String inbox) async {

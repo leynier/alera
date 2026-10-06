@@ -144,31 +144,6 @@ class const _SelectPanelAction(final WorkspacePanelDestination destination)
 
 class const _AskAgentMenuAction() extends _TabsMenuAction {}
 
-/// Asks an agent of this workspace from the shared inbox, preselecting the
-/// open terminal, then shows the new conversation.
-Future<void> _askWorkspaceAgent(
-  BuildContext context,
-  WorkspaceTabsScreen screen,
-  String? terminalHandle,
-) async {
-  final threadId = await Navigator.of(context).push<String>(
-    MaterialPageRoute<String>(
-      builder: (_) => InboxComposeScreen(
-        hostId: screen.hostId,
-        workspaceId: screen.workspace.id,
-        preselectedHandle: terminalHandle,
-      ),
-    ),
-  );
-  if (threadId == null || !context.mounted) return;
-  await Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) =>
-          InboxThreadScreen(hostId: screen.hostId, threadId: threadId),
-    ),
-  );
-}
-
 String? _automationRunId(WorkspaceTabSummary tab) =>
     switch (tab.payload['automationRunId']) {
       final String id when id.isNotEmpty => id,
@@ -211,10 +186,14 @@ extension on _WorkspaceTabsScreenState {
                 .value;
             final tab = tabs == null ? null : _selectedTab(tabs);
             unawaited(
-              _askWorkspaceAgent(
+              askAgentAndOpenThread(
                 context,
-                widget,
-                tab != null && tab.isTerminal ? tab.terminalSessionId : null,
+                ref,
+                hostId: widget.hostId,
+                workspaceId: widget.workspace.id,
+                preselectedHandle: tab != null && tab.isTerminal
+                    ? tab.terminalSessionId
+                    : null,
               ),
             );
         }

@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/inbox/domain/agent_conversation_models.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera_mobile/src/features/inbox/infra/mobile_runtime_inbox_repository.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_reader.dart';
@@ -179,3 +180,114 @@ List<InboxThread> visibleInboxThreads(
         (filters.status == null || thread.status == filters.status))
       thread,
 ];
+
+/// Conversations between agents, optionally of one workspace. Reloads when
+/// the runtime announces a change.
+@riverpod
+class MobileAgentConversations extends _$MobileAgentConversations {
+  bool _loadingMore = false;
+
+  @override
+  Future<AgentConversationPage> build(
+    String hostId, {
+    String? workspaceId,
+  }) async {
+    final repository = await ref.watch(
+      mobileInboxRepositoryProvider(hostId).future,
+    );
+    final subscription = repository.conversationChanges.listen(
+      (_) => ref.invalidateSelf(),
+    );
+    ref.onDispose(subscription.cancel);
+    return repository.conversations(
+      workspaceId: workspaceId,
+      limit: inboxThreadPageSize,
+    );
+  }
+
+  /// Appends the next page, skipping conversations already shown.
+  Future<void> loadMore() async {
+    final current = state.value;
+    final before = current?.nextBefore;
+    if (current == null || before == null || _loadingMore) return;
+    _loadingMore = true;
+    try {
+      final repository = await ref.read(
+        mobileInboxRepositoryProvider(hostId).future,
+      );
+      final next = await repository.conversations(
+        workspaceId: workspaceId,
+        before: before,
+        limit: inboxThreadPageSize,
+      );
+      if (!ref.mounted || state.value != current) return;
+      final seen = <String>{for (final item in current.items) item.threadId};
+      state = AsyncData(
+        AgentConversationPage(
+          items: <AgentConversation>[
+            ...current.items,
+            for (final item in next.items)
+              if (seen.add(item.threadId)) item,
+          ],
+          nextBefore: next.nextBefore,
+        ),
+      );
+    } finally {
+      _loadingMore = false;
+    }
+  }
+}
+
+@riverpod
+class MobileAgentConversationDetail extends _$MobileAgentConversationDetail {
+  @override
+  Future<AgentConversationDetail> build(String hostId, String threadId) async {
+    final repository = await ref.watch(
+      mobileInboxRepositoryProvider(hostId).future,
+    );
+    final subscription = repository.conversationChanges.listen(
+      (_) => ref.invalidateSelf(),
+    );
+    ref.onDispose(subscription.cancel);
+    return repository.conversation(threadId);
+  }
+}
+
+/// Agent and tab title of each running terminal, so conversations show names
+/// instead of handles where the runtime knows them.
+@riverpod
+Future<Map<String, String>> mobileInboxHandleLabels(
+  Ref ref,
+  String hostId,
+) async {
+  final repository = await ref.watch(
+    mobileInboxRepositoryProvider(hostId).future,
+  );
+  final targets = await repository.targets();
+  return <String, String>{
+    for (final target in targets)
+      if (target.agent != null || target.tabTitle != null)
+        target.handle: target.label,
+  };
+}
+
+/// Workspace filter of the agent conversations list, kept per host.
+@Riverpod(keepAlive: true)
+class MobileAgentConversationWorkspace
+    extends _$MobileAgentConversationWorkspace {
+  @override
+  String? build(String hostId) => null;
+
+  void select(String? workspaceId) => state = workspaceId;
+}
+
+enum InboxSection { questions, conversations }
+
+/// Which half of the inbox is open, kept per host while the app runs.
+@Riverpod(keepAlive: true)
+class MobileInboxSectionController extends _$MobileInboxSectionController {
+  @override
+  InboxSection build(String hostId) => InboxSection.questions;
+
+  void select(InboxSection section) => state = section;
+}

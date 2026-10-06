@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
+import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_screen.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
 import 'package:alera_mobile/src/features/push_notifications/domain/push_navigation_intent.dart';
@@ -49,6 +50,9 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
     return;
   }
   if (intent.eventKind == PushEventKind.inboxReply) {
+    ref
+        .read(mobileInboxSectionControllerProvider(host.id).notifier)
+        .select(InboxSection.questions);
     unawaited(
       navigator.push<void>(
         MaterialPageRoute<void>(builder: (_) => InboxScreen(hostId: host.id)),
