@@ -182,19 +182,5 @@
 }
 
 /* The phone row's status badge (workspace_row_widgets.dart) reuses the
-   desktop .status-badge look; the urgent glyph picks the label and the slot
-   falls back to a muted dot while it shows. */
-[data-alera-demo] .m-row:has(> .m-row-slot > .state-glyph[data-state='waiting']) > .status-badge-waiting,
-[data-alera-demo] .m-row:has(> .m-row-slot > .state-glyph[data-state='blocked']) > .status-badge-blocked,
-[data-alera-demo] .m-row:has(> .m-row-slot > .state-glyph[data-state='done']) > .status-badge-done {
-  display: inline-block;
-}
-
-[data-alera-demo] .m-row-slot > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='done']) > :not(.glyph-dot) {
-  display: none;
-}
-
-[data-alera-demo] .m-row-slot > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='done']) > .glyph-dot {
-  display: block;
-  background: var(--app-foreground-muted);
-}
+   desktop .status-badge look and its .status-badges state rules; the slot
+   keeps the main agent's own glyph beside it. */

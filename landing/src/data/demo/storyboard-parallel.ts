@@ -65,7 +65,11 @@ export const PARALLEL_CHAPTER = script([
   },
   {
     // Two agents in the main panel: the row drops the merged run for the summary.
-    states: [state(23.3, 'd-row-webhooks-glyph', 'idle-active'), state(25.0, 'd-row-webhooks-tray', 'expanded')],
+    states: [
+      state(23.3, 'd-row-webhooks-glyph', 'idle-active'),
+      state(23.5, 'p-row-webhooks-glyph', 'idle-active'),
+      state(25.0, 'd-row-webhooks-tray', 'expanded'),
+    ],
     shows: [
       hide(23.3, 'd-row-webhooks-logo', 0),
       show(23.3, 'd-row-webhooks-tray', 0),
@@ -85,7 +89,8 @@ export const PARALLEL_CHAPTER = script([
     ],
   },
   {
-    // Claude waits for permission to run the tests.
+    // Claude waits for permission to run the tests. The workspace badge sums
+    // up both agents, so it asks for input with no merged run on the row.
     shows: [
       hide(32.0, 'claude-thinking', 0),
       show(32.0, 'claude-permission', 0),
@@ -97,7 +102,8 @@ export const PARALLEL_CHAPTER = script([
     states: [
       state(32.0, 'd-chip-claude-dot', 'waiting'),
       state(32.0, 'd-run-claude-glyph', 'waiting'),
-      state(32.2, 'p-row-webhooks-glyph', 'waiting'),
+      state(32.0, 'd-row-webhooks-badge', 'waiting'),
+      state(32.2, 'p-row-webhooks-badge', 'waiting'),
     ],
   },
   {

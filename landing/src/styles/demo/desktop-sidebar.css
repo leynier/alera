@@ -177,8 +177,13 @@
 }
 
 /* AgentRunStatusBadge (agent_run_status_badge.dart): a toned AleraBadge for
-   waiting, blocked and done runs. The glyph the storyboard sets picks the
-   label, and while one shows, the status slot falls back to a muted dot. */
+   waiting, blocked, interrupted and done. On the workspace line the badge's
+   own state picks the label and the slot keeps the merged agent's glyph; on
+   an agent run row the glyph picks it and the slot falls back to a muted dot. */
+[data-alera-demo] .status-badges {
+  display: contents;
+}
+
 [data-alera-demo] .status-badge {
   display: none;
   flex: none;
@@ -197,7 +202,7 @@
   color: var(--app-warning);
 }
 
-[data-alera-demo] .status-badge-blocked {
+[data-alera-demo] :is(.status-badge-blocked, .status-badge-interrupted) {
   background: color-mix(in srgb, var(--app-error) 14%, transparent);
   color: var(--app-error);
 }
@@ -207,17 +212,22 @@
   color: var(--app-success);
 }
 
-[data-alera-demo] :is(.ws-line:has(> .ws-slot > .state-glyph[data-state='waiting']), .run-row:has(> .state-glyph[data-state='waiting'])) .status-badge-waiting,
-[data-alera-demo] :is(.ws-line:has(> .ws-slot > .state-glyph[data-state='blocked']), .run-row:has(> .state-glyph[data-state='blocked'])) .status-badge-blocked,
-[data-alera-demo] :is(.ws-line:has(> .ws-slot > .state-glyph[data-state='done']), .run-row:has(> .state-glyph[data-state='done'])) .status-badge-done {
+[data-alera-demo] .status-badges[data-state='waiting'] > .status-badge-waiting,
+[data-alera-demo] .status-badges[data-state='blocked'] > .status-badge-blocked,
+[data-alera-demo] .status-badges[data-state='interrupted'] > .status-badge-interrupted,
+[data-alera-demo] .status-badges[data-state='done'] > .status-badge-done,
+[data-alera-demo] .run-row:has(> .state-glyph[data-state='waiting']) > .status-badge-waiting,
+[data-alera-demo] .run-row:has(> .state-glyph[data-state='blocked']) > .status-badge-blocked,
+[data-alera-demo] .run-row:has(> .state-glyph[data-state='interrupted']) > .status-badge-interrupted,
+[data-alera-demo] .run-row:has(> .state-glyph[data-state='done']) > .status-badge-done {
   display: inline-block;
 }
 
-[data-alera-demo] :is(.ws-slot, .run-row) > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='done']) > :not(.glyph-dot) {
+[data-alera-demo] .run-row > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='interrupted'], [data-state='done']) > :not(.glyph-dot) {
   display: none;
 }
 
-[data-alera-demo] :is(.ws-slot, .run-row) > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='done']) > .glyph-dot {
+[data-alera-demo] .run-row > .state-glyph:is([data-state='waiting'], [data-state='blocked'], [data-state='interrupted'], [data-state='done']) > .glyph-dot {
   display: block;
   background: var(--app-foreground-muted);
 }

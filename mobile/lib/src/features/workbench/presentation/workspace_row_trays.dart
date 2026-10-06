@@ -1,24 +1,23 @@
 part of 'workspace_row_widgets.dart';
 
 class const _WorkspaceStatusIndicator({
-  required final bool hasAgents,
-  required final String? state,
-  required final bool? interrupted,
+  required final AgentPresenceSummary? primary,
   required final bool active,
 }) extends StatelessWidget {
+  static const double _glyphSize = 13;
+
   /// Spoken in place of the glyph, which only says its state through color
   /// and shape.
   String get _semanticLabel {
-    if (!hasAgents || state == null) {
+    final primary = this.primary;
+    if (primary == null) {
       return active ? 'Terminal open' : 'Idle';
     }
-    if (state == 'working') {
-      return 'Agent working';
-    }
-    if (interrupted == true) {
+    if (primary.interrupted == true) {
       return 'Agent interrupted';
     }
-    return switch (state) {
+    return switch (primary.state) {
+      'working' => 'Agent working',
       'waiting' => 'Agent waiting for input',
       'blocked' => 'Agent blocked',
       _ => 'Agent done',
@@ -35,59 +34,42 @@ class const _WorkspaceStatusIndicator({
   }
 
   Widget _glyph() {
-    if (!hasAgents || state == null) {
-      return Container(
-        width: AleraTokens.spaceSm,
-        height: AleraTokens.spaceSm,
-        decoration: BoxDecoration(
-          color: active ? AleraTokens.success : AleraTokens.foregroundFaint,
-          shape: .circle,
-        ),
+    if (primary case final AgentPresenceSummary status) {
+      return AgentRunStateIndicator(
+        key: const Key('workspace-status-glyph'),
+        status: status,
+        size: _glyphSize,
       );
     }
-    if (state == 'working') {
-      return const SizedBox.square(
-        dimension: AleraTokens.iconSm,
-        child: CircularProgressIndicator(
-          strokeWidth: 1.7,
-          color: AleraTokens.warning,
-        ),
-      );
-    }
-    if (interrupted == true) {
-      return const Icon(
-        AleraIcons.cancel,
-        size: AleraTokens.rowMetaIcon,
-        color: AleraTokens.error,
-      );
-    }
-    // The trailing status badge carries the color; a neutral dot keeps the
-    // leading column aligned without repeating it.
     return Container(
       width: AleraTokens.spaceSm,
       height: AleraTokens.spaceSm,
-      decoration: const BoxDecoration(
-        color: AleraTokens.foregroundMuted,
+      decoration: BoxDecoration(
+        color: active ? AleraTokens.success : AleraTokens.foregroundFaint,
         shape: .circle,
       ),
     );
   }
 }
 
-/// Trailing label for agent states that need the user's attention or report
-/// a finished turn. Working and idle rows show no label.
+/// Trailing label summarizing every agent in the workspace: the most urgent
+/// state that needs the user, or Done once nothing is still running. Working
+/// and idle workspaces show no label.
 class const _WorkspaceStatusBadge({
   required final String label,
   required final AleraBadgeTone tone,
 }) extends StatelessWidget {
-  static _WorkspaceStatusBadge? forState({
-    required String? state,
-    required bool? interrupted,
-  }) {
-    if (state == null || interrupted == true) {
+  static _WorkspaceStatusBadge? forStatus(AgentPresenceSummary? status) {
+    if (status == null) {
       return null;
     }
-    return switch (state) {
+    if (status.interrupted == true) {
+      return const _WorkspaceStatusBadge(
+        label: 'Interrupted',
+        tone: AleraBadgeTone.error,
+      );
+    }
+    return switch (status.state) {
       'waiting' => const _WorkspaceStatusBadge(
         label: 'Needs Input',
         tone: AleraBadgeTone.attention,
@@ -106,14 +88,12 @@ class const _WorkspaceStatusBadge({
 
   @override
   Widget build(BuildContext context) {
-    // The leading status indicator already speaks the state, so the badge
-    // stays out of the semantics tree instead of announcing it twice.
-    return ExcludeSemantics(
-      child: AleraBadge(
-        key: const Key('workspace-status-badge'),
-        label: label,
-        tone: tone,
-      ),
+    // Spoken on its own: the leading glyph only describes the main agent,
+    // while the badge can come from a secondary one.
+    return AleraBadge(
+      key: const Key('workspace-status-badge'),
+      label: label,
+      tone: tone,
     );
   }
 }
@@ -301,19 +281,4 @@ List<String> _tagLabels(WorkspaceSummary workspace) {
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList(growable: false);
-}
-
-String _mostUrgentState(List<AgentPresenceSummary> statuses) {
-  const priority = <String, int>{
-    'blocked': 4,
-    'waiting': 3,
-    'working': 2,
-    'done': 1,
-  };
-  return statuses
-      .map((status) => status.state)
-      .reduce(
-        (left, right) =>
-            (priority[left] ?? 0) >= (priority[right] ?? 0) ? left : right,
-      );
 }

@@ -32,9 +32,15 @@ void main() {
     ));
   });
 
-  test('working, interrupted and idle runs get no label', () {
+  test('an interrupted run is labeled over its reported state', () {
+    expect(agentRunStatusBadge(_status(.done, interrupted: true)), (
+      'Interrupted',
+      AleraBadgeTone.error,
+    ));
+  });
+
+  test('working and idle runs get no label', () {
     expect(agentRunStatusBadge(_status(.working)), isNull);
-    expect(agentRunStatusBadge(_status(.done, interrupted: true)), isNull);
     expect(agentRunStatusBadge(null), isNull);
   });
 }
