@@ -130,4 +130,33 @@ void main() {
     history.commitBack(first);
     expect(() => history.commitForward(_target('missing')), throwsStateError);
   });
+
+  test('leaving the current target makes it the back target', () {
+    final history = WorktreeNavigationHistory();
+    final first = _target('a');
+    final second = _target('b');
+    history.record(first);
+    history.record(second);
+    history.commitBack(first);
+
+    expect(history.leaveCurrent(), isTrue);
+    expect(history.leaveCurrent(), isFalse);
+    expect(history.canGoForward, isFalse);
+    expect(history.peekBack(isValid: (_) => true), first);
+
+    history.commitBack(first);
+    expect(history.canGoForward, isFalse);
+  });
+
+  test('returning to the target just left does not stack it twice', () {
+    final history = WorktreeNavigationHistory();
+    final first = _target('a');
+    final second = _target('b');
+    history.record(first);
+    history.record(second);
+    history.leaveCurrent();
+
+    expect(history.record(second), isTrue);
+    expect(history.peekBack(isValid: (_) => true), first);
+  });
 }

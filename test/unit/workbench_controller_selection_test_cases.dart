@@ -1,6 +1,39 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerSelectionTests() {
+  test('going home leaves the workspace open for a later return', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final tabIds = _controller.state
+        .tabsFor(workspace.id)
+        .map((tab) => tab.id)
+        .toList();
+    expect(tabIds, isNotEmpty);
+
+    _controller.showHome();
+
+    expect(_controller.state.activeWorkspaceId, isNull);
+    expect(_controller.state.activeProjectId, _harness.project.id);
+    expect(
+      _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+      tabIds,
+    );
+
+    final beforeNoOp = _controller.state;
+    _controller.showHome();
+    expect(_controller.state, same(beforeNoOp));
+
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: workspace,
+    );
+    expect(_controller.state.activeWorkspaceId, workspace.id);
+    expect(
+      _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+      tabIds,
+    );
+  });
+
   test('syncing a merman rename to text removes redundant preview tabs from state and layout', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

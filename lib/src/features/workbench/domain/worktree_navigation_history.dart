@@ -37,11 +37,32 @@ class WorktreeNavigationHistory {
     if (_current == target) {
       return false;
     }
+    // Returning to the worktree that was just left steps back onto it
+    // instead of stacking it twice.
+    if (_current == null && _back.lastOrNull == target) {
+      _back.removeLast();
+      _forward.clear();
+      _current = target;
+      return true;
+    }
     if (_current case final current?) {
       _back.add(current);
     }
     _forward.clear();
     _current = target;
+    return true;
+  }
+
+  /// Leaves the current target for a view outside the history, such as the
+  /// welcome dashboard, so going back returns to it.
+  bool leaveCurrent() {
+    final current = _current;
+    if (current == null) {
+      return false;
+    }
+    _back.add(current);
+    _forward.clear();
+    _current = null;
     return true;
   }
 
