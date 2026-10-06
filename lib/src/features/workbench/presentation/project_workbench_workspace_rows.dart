@@ -9,7 +9,13 @@ class const _WorkspaceRow({
   final SshTarget? hostTarget,
   required final List<WorkspaceAgentRun> agentRuns,
   required final List<WorkspaceAgentRunGroup> agentRunGroups,
-  required final AgentStatusEntry? status,
+
+  /// Most urgent run across every agent in the workspace, main and secondary
+  /// alike. Drives the trailing badge.
+  required final AgentStatusEntry? workspaceStatus,
+
+  /// The single main-panel agent merged onto this row, if any. Drives the
+  /// leading glyph and the agent icon.
   final AgentStatusEntry? primaryStatus,
   required final bool hasTerminalTabs,
   required final bool isActive,
@@ -98,7 +104,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
     final isActive = widget.isActive;
     final hasAgents = widget.agentRuns.isNotEmpty;
 
-    final badge = agentRunStatusBadge(widget.status);
+    final badge = agentRunStatusBadge(widget.workspaceStatus);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -195,10 +201,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
             // whenever an agent started or finished.
             child: AgentRunStateIndicator(
               key: const ValueKey<String>('workspace-status-glyph'),
-              status: widget.status,
+              status: widget.primaryStatus,
               size: _statusSlotSize - 1,
               idleDotActive: isActive || widget.hasTerminalTabs,
-              stateLabeled: hasBadge,
             ),
           ),
         ),
@@ -247,7 +252,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
             constraints: BoxConstraints(maxWidth: badgeMaxWidth),
             child: AgentRunStatusBadge(
               key: const Key('workspace-status-badge'),
-              status: widget.status,
+              status: widget.workspaceStatus,
             ),
           ),
         ],

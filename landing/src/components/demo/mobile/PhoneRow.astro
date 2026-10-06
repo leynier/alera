@@ -4,13 +4,13 @@ import { APP_COPY } from '../../../data/demo/app-copy';
 import MobileIcon from '../primitives/MobileIcon.astro';
 import StateGlyph from '../primitives/StateGlyph.astro';
 import { concealedAttributes } from '../primitives/conceal';
-import type { GlyphState } from '../primitives/glyph-state';
+import { badgeStateFor, type BadgeState, type GlyphState } from '../primitives/glyph-state';
 
 /**
- * A workspace row on the phone (workspace_row_widgets.dart): the most urgent
- * state across the workspace's agents, the single main agent's logo, the
- * name in the foreground color, metadata icons, the agent summary when two
- * or more agents run, and the actions button.
+ * A workspace row on the phone (workspace_row_widgets.dart): the single main
+ * agent's state and logo, the name in the foreground color, metadata icons,
+ * the agent summary when two or more agents run, the badge for the most
+ * urgent state across every agent, and the actions button.
  */
 type Agent = 'claude' | 'codex';
 interface Part {
@@ -22,20 +22,23 @@ interface Props {
   name: string;
   concealed?: boolean;
   glyph: { state: GlyphState; node?: string };
+  badge?: { state?: BadgeState; node?: string };
   logo?: Part & { agent: Agent };
   pullRequest?: Part;
   watch?: Part;
   tray?: Part & { variants: readonly (Part & { groups: readonly { state: GlyphState; agents: readonly Agent[] }[] })[] };
 }
 
-const { node, name, concealed, glyph, logo, pullRequest, watch, tray } = Astro.props;
-// Mirrors the desktop row: every label is in the markup and the glyph state
-// the storyboard sets shows one (mobile-list.css).
+const { node, name, concealed, glyph, badge, logo, pullRequest, watch, tray } = Astro.props;
+// Mirrors the desktop row: every label is in the markup and the badge's own
+// state shows one (mobile-list.css).
 const statusBadges = [
   ['waiting', APP_COPY.needsInput.text],
   ['blocked', APP_COPY.blockedBadge.text],
+  ['interrupted', APP_COPY.interruptedBadge.text],
   ['done', APP_COPY.doneBadge.text],
 ] as const;
+const badgeState = badge?.state ?? badgeStateFor(glyph.state);
 ---
 
 <div class="m-row" data-demo-node={node} {...concealedAttributes(concealed)}>
@@ -88,6 +91,8 @@ const statusBadges = [
       </span>
     )
   }
-  {statusBadges.map(([state, label]) => <span class={`status-badge status-badge-${state}`}>{label}</span>)}
+  <span class="status-badges" data-demo-node={badge?.node} data-state={badgeState}>
+    {statusBadges.map(([state, label]) => <span class={`status-badge status-badge-${state}`}>{label}</span>)}
+  </span>
   <span class="m-row-more"><MobileIcon name="more" size={16} /></span>
 </div>

@@ -131,10 +131,140 @@ void _registerAleraShellSidebarStatusBadgeTests() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Blocked'), findsOneWidget);
     expect(find.text('Done'), findsOneWidget);
     // Two agents in the center nest as child rows, so the workspace row has
-    // no primary status and therefore no badge of its own.
-    expect(find.byKey(const Key('workspace-status-badge')), findsNothing);
+    // no primary agent; its badge still summarizes the whole workspace.
+    final badge = find.byKey(const Key('workspace-status-badge'));
+    expect(
+      find.descendant(of: badge, matching: find.text('Blocked')),
+      findsOneWidget,
+    );
+    expect(find.text('Blocked'), findsNWidgets(2));
   });
+
+  testWidgets(
+    'a finished primary agent keeps its green check while a secondary works',
+    (tester) async {
+      await _pumpShell(
+        tester,
+        state: _withSidebarAgentRows(_stackedWorkbenchState()),
+        agentStatuses: <String, AgentStatusEntry>{
+          'workspace-1-primary': _agentStatusEntry(
+            terminalSessionId: 'workspace-1-primary',
+            workspaceId: 'workspace-1',
+            tabId: 'workspace-1-primary',
+            state: .done,
+          ),
+          'tab-1': _agentStatusEntry(
+            terminalSessionId: 'tab-1',
+            workspaceId: 'workspace-1',
+            tabId: 'tab-1',
+            state: .working,
+          ),
+        },
+      );
+
+      expect(find.byKey(const Key('workspace-status-badge')), findsNothing);
+      _expectWorkspaceGlyphIcon(
+        tester,
+        AleraIcons.success,
+        AleraTokens.success,
+      );
+    },
+  );
+
+  testWidgets(
+    'a blocked secondary agent badges the workspace while the primary is done',
+    (tester) async {
+      await _pumpShell(
+        tester,
+        state: _withSidebarAgentRows(_stackedWorkbenchState()),
+        agentStatuses: <String, AgentStatusEntry>{
+          'workspace-1-primary': _agentStatusEntry(
+            terminalSessionId: 'workspace-1-primary',
+            workspaceId: 'workspace-1',
+            tabId: 'workspace-1-primary',
+            state: .done,
+          ),
+          'tab-1': _agentStatusEntry(
+            terminalSessionId: 'tab-1',
+            workspaceId: 'workspace-1',
+            tabId: 'tab-1',
+            state: .blocked,
+          ),
+        },
+      );
+
+      final badge = find.byKey(const Key('workspace-status-badge'));
+      expect(
+        find.descendant(of: badge, matching: find.text('Blocked')),
+        findsOneWidget,
+      );
+      _expectWorkspaceGlyphIcon(
+        tester,
+        AleraIcons.success,
+        AleraTokens.success,
+      );
+    },
+  );
+
+  testWidgets('a blocked primary agent keeps its red glyph beside the badge', (
+    tester,
+  ) async {
+    await _pumpNarrowSidebar(tester, .blocked);
+
+    final badge = find.byKey(const Key('workspace-status-badge'));
+    expect(
+      find.descendant(of: badge, matching: find.text('Blocked')),
+      findsOneWidget,
+    );
+    _expectWorkspaceGlyphIcon(
+      tester,
+      AleraIcons.notifications,
+      AleraTokens.error,
+    );
+  });
+
+  testWidgets('an interrupted agent badges the workspace as Interrupted', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _stackedWorkbenchState(),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: .done,
+          interrupted: true,
+        ),
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-2',
+          state: .done,
+        ),
+      },
+    );
+
+    final badge = find.byKey(const Key('workspace-status-badge'));
+    expect(
+      find.descendant(of: badge, matching: find.text('Interrupted')),
+      findsOneWidget,
+    );
+  });
+}
+
+void _expectWorkspaceGlyphIcon(
+  WidgetTester tester,
+  IconData icon,
+  Color color,
+) {
+  final glyph = find.byKey(const ValueKey<String>('workspace-status-glyph'));
+  final rendered = tester.widget<Icon>(
+    find.descendant(of: glyph, matching: find.byType(Icon)),
+  );
+  expect(rendered.icon, icon);
+  expect(rendered.color, color);
 }

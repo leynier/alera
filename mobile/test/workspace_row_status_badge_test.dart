@@ -1,5 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
@@ -27,21 +29,79 @@ void main() {
     });
   }
 
-  testWidgets('working, interrupted, and idle rows show no badge', (
+  testWidgets('an interrupted agent adds the Interrupted badge', (
     tester,
   ) async {
+    await tester.pumpWidget(
+      _rowApp(<AgentPresenceSummary>[_presence('done', interrupted: true)]),
+    );
+
+    final badge = tester.widget<AleraBadge>(find.byKey(badgeKey));
+    expect(badge.label, 'Interrupted');
+    expect(badge.tone, AleraBadgeTone.error);
+  });
+
+  testWidgets('working and idle rows show no badge', (tester) async {
     await tester.pumpWidget(
       _rowApp(<AgentPresenceSummary>[_presence('working')]),
     );
     expect(find.byKey(badgeKey), findsNothing);
 
-    await tester.pumpWidget(
-      _rowApp(<AgentPresenceSummary>[_presence('waiting', interrupted: true)]),
-    );
-    expect(find.byKey(badgeKey), findsNothing);
-
     await tester.pumpWidget(_rowApp(const <AgentPresenceSummary>[]));
     expect(find.byKey(badgeKey), findsNothing);
+  });
+
+  testWidgets(
+    'a working secondary agent hides Done and keeps the green check',
+    (tester) async {
+      await tester.pumpWidget(
+        _rowApp(<AgentPresenceSummary>[
+          _presence('done'),
+          _presence('working', tabId: 'tab-2', sessionId: 'session-2'),
+        ]),
+      );
+
+      expect(find.byKey(badgeKey), findsNothing);
+      _expectLeadingIcon(tester, AleraIcons.success, AleraTokens.success);
+    },
+  );
+
+  testWidgets('a blocked secondary agent badges the row over a done primary', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _rowApp(<AgentPresenceSummary>[
+        _presence('done'),
+        _presence('blocked', tabId: 'tab-2', sessionId: 'session-2'),
+      ]),
+    );
+
+    expect(tester.widget<AleraBadge>(find.byKey(badgeKey)).label, 'Blocked');
+    _expectLeadingIcon(tester, AleraIcons.success, AleraTokens.success);
+  });
+
+  testWidgets('a blocked primary agent keeps its red glyph', (tester) async {
+    await tester.pumpWidget(
+      _rowApp(<AgentPresenceSummary>[_presence('blocked')]),
+    );
+
+    expect(tester.widget<AleraBadge>(find.byKey(badgeKey)).label, 'Blocked');
+    _expectLeadingIcon(tester, AleraIcons.notifications, AleraTokens.error);
+  });
+
+  testWidgets('the badge shows without a primary agent', (tester) async {
+    await tester.pumpWidget(
+      _rowApp(<AgentPresenceSummary>[
+        _presence('waiting', tabId: 'tab-2', sessionId: 'session-2'),
+        _presence('done', tabId: 'tab-3', sessionId: 'session-3'),
+      ]),
+    );
+
+    expect(
+      tester.widget<AleraBadge>(find.byKey(badgeKey)).label,
+      'Needs Input',
+    );
+    expect(find.bySemanticsLabel(RegExp('Terminal open')), findsOneWidget);
   });
 
   testWidgets('the most urgent agent picks the badge', (tester) async {
@@ -55,7 +115,7 @@ void main() {
     expect(tester.widget<AleraBadge>(find.byKey(badgeKey)).label, 'Blocked');
   });
 
-  testWidgets('the badge keeps the row height and speaks once', (tester) async {
+  testWidgets('the badge keeps the row height and is spoken', (tester) async {
     final semantics = tester.ensureSemantics();
     await tester.pumpWidget(_rowApp(const <AgentPresenceSummary>[]));
     final idleHeight = tester
@@ -74,9 +134,21 @@ void main() {
       find.bySemanticsLabel(RegExp('Agent waiting for input')),
       findsOneWidget,
     );
-    expect(find.bySemanticsLabel(RegExp('Needs Input')), findsNothing);
+    // The badge can come from a secondary agent, so it speaks for itself.
+    expect(find.bySemanticsLabel(RegExp('Needs Input')), findsOneWidget);
     semantics.dispose();
   });
+}
+
+void _expectLeadingIcon(WidgetTester tester, IconData icon, Color color) {
+  final glyph = tester.widget<Icon>(
+    find.descendant(
+      of: find.byKey(const Key('workspace-status-glyph')),
+      matching: find.byType(Icon),
+    ),
+  );
+  expect(glyph.icon, icon);
+  expect(glyph.color, color);
 }
 
 Widget _rowApp(List<AgentPresenceSummary> agentPresence) {

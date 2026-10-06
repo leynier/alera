@@ -20,6 +20,7 @@ export const APP_COPY = {
   needsInput: { text: 'Needs Input', source: AGENT_STATUS_BADGE },
   blockedBadge: { text: 'Blocked', source: AGENT_STATUS_BADGE },
   doneBadge: { text: 'Done', source: AGENT_STATUS_BADGE },
+  interruptedBadge: { text: 'Interrupted', source: AGENT_STATUS_BADGE },
   newWorkspace: { text: 'New Workspace', source: `${WORKBENCH}/presentation/prompt_workspace_dialog_shell.dart` },
   fromPrompt: { text: 'From Prompt', source: `${WORKBENCH}/presentation/prompt_workspace_dialog_shell.dart` },
   manual: { text: 'Manual', source: `${WORKBENCH}/presentation/prompt_workspace_dialog_shell.dart` },

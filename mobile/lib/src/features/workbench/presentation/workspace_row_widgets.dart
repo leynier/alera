@@ -58,19 +58,10 @@ class const MobileWorkspaceListRow({
     final depthPad = entry.depth * AleraTokens.space12;
     final rowLeft = AleraTokens.space12 + depthPad;
     final canToggleChildren = entry.hasVisibleChildren;
-    final hasAgents = agentPresence.isNotEmpty;
-    final urgentState = hasAgents ? _mostUrgentState(agentPresence) : null;
-    final urgentInterrupted = hasAgents
-        ? agentPresence
-              .firstWhere(
-                (status) => status.state == urgentState,
-                orElse: () => agentPresence.first,
-              )
-              .interrupted
-        : null;
-    final statusBadge = _WorkspaceStatusBadge.forState(
-      state: urgentState,
-      interrupted: urgentInterrupted,
+    // The badge summarizes every agent in the workspace; the leading glyph
+    // only reflects the main agent merged onto this row.
+    final statusBadge = _WorkspaceStatusBadge.forStatus(
+      mostUrgentAgentPresence(agentPresence),
     );
     final split = splitWorkspaceAgentPresence(
       agentPresence,
@@ -223,9 +214,7 @@ class const MobileWorkspaceListRow({
                               dimension: _statusSlotSize,
                               child: Center(
                                 child: _WorkspaceStatusIndicator(
-                                  hasAgents: hasAgents,
-                                  state: urgentState,
-                                  interrupted: urgentInterrupted,
+                                  primary: split.primary,
                                   active: terminalTabCount > 0,
                                 ),
                               ),

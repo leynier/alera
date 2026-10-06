@@ -150,7 +150,7 @@ class const _SidebarBody({
           hostTarget: sshTargets[row.workspace.hostId.trim()],
           agentRuns: secondaryRuns,
           agentRunGroups: groupWorkspaceAgentRuns(secondaryRuns),
-          status: primaryRun?.status,
+          workspaceStatus: row.aggregateStatus,
           primaryStatus: primaryRun?.status,
           hasTerminalTabs: row.hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
