@@ -52,7 +52,14 @@ const { workspaces, pullRequest } = SAMPLE;
       </span>
       <span class="pr-buttons">
         <span class="app-outlined-button pr-outlined"><AppIcon name="restore" size={16} />Restack Changes</span>
-        <span class="app-outlined-button pr-outlined"><AppIcon name="send" size={16} />Ship Changes</span>
+        <span class="split-button split-button-outlined">
+          <span class="split-button-label">
+            <AppIcon name="send" size={15} />
+            {APP_COPY.shipChanges.text}
+          </span>
+          <span class="split-button-separator"></span>
+          <span class="split-button-chevron"><AppIcon name="chevronDown" size={17} /></span>
+        </span>
         <span class="split-button" data-demo-node="d-pr-create" data-state="idle">
           <span class="split-button-label">
             <AppIcon name="gitPullRequest" size={15} class="pr-create-icon" />
