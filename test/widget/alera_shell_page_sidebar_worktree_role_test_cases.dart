@@ -8,14 +8,7 @@ void _registerAleraShellSidebarWorktreeRoleTests() {
 
     expect(find.byKey(const Key('workspace-tray-home')), findsOneWidget);
     expect(find.byTooltip('Project folder'), findsOneWidget);
-    // The header's Home button shares this glyph, so count it on the row.
-    expect(
-      find.descendant(
-        of: find.byTooltip('Project folder'),
-        matching: find.byIcon(AleraIcons.workspaceMain),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
     expect(find.byKey(const Key('workspace-tray-worktree')), findsOneWidget);
     expect(find.byTooltip('Linked worktree'), findsOneWidget);
     expect(find.byType(AleraLinkedWorktreeIcon), findsOneWidget);
@@ -58,14 +51,7 @@ void _registerAleraShellSidebarWorktreeRoleTests() {
       ),
     );
 
-    // The header's Home button shares this glyph, so count it on the row.
-    expect(
-      find.descendant(
-        of: find.byTooltip('Project folder'),
-        matching: find.byIcon(AleraIcons.workspaceMain),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
     expect(find.byTooltip('Project folder'), findsOneWidget);
     expect(find.byType(AleraLinkedWorktreeIcon), findsNothing);
   });

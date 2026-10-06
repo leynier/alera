@@ -171,7 +171,10 @@ abstract final class const AleraIcons._() {
 
   // Views / layout
   static const IconData sidebarToggle = LucideIcons.panelLeft;
-  static const IconData home = LucideIcons.home;
+
+  /// Welcome dashboard. Not a house: that glyph already marks the main
+  /// worktree on sidebar rows.
+  static const IconData home = LucideIcons.layoutDashboard;
   static const IconData gridView = LucideIcons.layoutGrid;
   static const IconData listView = LucideIcons.list;
   static const IconData outline = LucideIcons.tableOfContents;

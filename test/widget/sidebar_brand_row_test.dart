@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/core/build_flavor.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +62,12 @@ void main() {
     final collapseRect = tester.getRect(find.byTooltip('Collapse Sidebar'));
     expect(homeRect.right, lessThanOrEqualTo(collapseRect.left));
     expect(collapseRect.right, headerRect.right - AleraTokens.space12);
+
+    expect(
+      AleraIcons.home,
+      isNot(AleraIcons.workspaceMain),
+      reason: 'the main worktree row marker must not read as Home',
+    );
 
     await tester.tap(find.byTooltip('Home'));
 

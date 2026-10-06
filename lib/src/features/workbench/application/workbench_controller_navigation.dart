@@ -154,6 +154,9 @@ mixin _WorkbenchControllerNavigation
       ensureInitialTerminal: true,
       recordHistory: false,
     );
+    if (state.activeWorkspaceId != target.workspaceId) {
+      return;
+    }
     _worktreeNavigationHistory.commitBack(target);
     _notifyNavigationHistoryChanged();
   }
@@ -183,6 +186,9 @@ mixin _WorkbenchControllerNavigation
       ensureInitialTerminal: true,
       recordHistory: false,
     );
+    if (state.activeWorkspaceId != target.workspaceId) {
+      return;
+    }
     _worktreeNavigationHistory.commitForward(target);
     _notifyNavigationHistoryChanged();
   }

@@ -254,7 +254,9 @@ mixin _WorkbenchControllerProjectSelection
         }
       }
     }
+    // A later selection or Home may have replaced this one during the awaits.
     if (recordHistory &&
+        state.activeWorkspaceId == workspace.id &&
         _worktreeNavigationHistory.record(
           WorktreeNavigationTarget(
             projectId: project.id,
@@ -279,6 +281,7 @@ mixin _WorkbenchControllerProjectSelection
       unawaited(_persistViewPrefs());
     }
     _pruneExplorerSessions();
+    _leaveWorktreeHistory();
   }
 
   /// Leaves the active workspace for the welcome dashboard. The workspace and
@@ -290,5 +293,12 @@ mixin _WorkbenchControllerProjectSelection
     _workspaceSelectionRevision++;
     state = state.copyWith(activeWorkspaceId: null, error: null);
     _pruneExplorerSessions();
+    _leaveWorktreeHistory();
+  }
+
+  void _leaveWorktreeHistory() {
+    if (_worktreeNavigationHistory.leaveCurrent()) {
+      _notifyNavigationHistoryChanged();
+    }
   }
 }

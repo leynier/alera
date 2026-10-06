@@ -160,4 +160,56 @@ void _registerWorkbenchControllerNavigationHistoryTests() {
     expect(_controller.canGoBack, isFalse);
     expect(_controller.state.activeWorkspaceId, otherWorkspace.id);
   });
+
+  test('going back from home returns to the workspace just left', () async {
+    await _controller.bootstrap();
+    final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
+    final other = (await _controller.createWorkspace(
+      project: _harness.project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/navigation-home',
+    )).workspace;
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: other,
+    );
+
+    _controller.showHome();
+    expect(_controller.canGoBack, isTrue);
+    expect(_controller.canGoForward, isFalse);
+
+    await _controller.goBack();
+    expect(_controller.state.activeWorkspaceId, other.id);
+    expect(_controller.canGoForward, isFalse);
+
+    _controller.showHome();
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: other,
+    );
+    await _controller.goBack();
+    expect(_controller.state.activeWorkspaceId, mainWorkspace.id);
+  });
+
+  test('home during a workspace selection keeps it out of history', () async {
+    await _controller.bootstrap();
+    final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
+    final other = (await _controller.createWorkspace(
+      project: _harness.project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/navigation-home-race',
+    )).workspace;
+
+    final pending = _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: other,
+    );
+    _controller.showHome();
+    await pending;
+    expect(_controller.state.activeWorkspaceId, isNull);
+
+    await _controller.goBack();
+    expect(_controller.state.activeWorkspaceId, mainWorkspace.id);
+    expect(_controller.canGoForward, isFalse);
+  });
 }
