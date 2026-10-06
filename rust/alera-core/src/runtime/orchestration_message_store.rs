@@ -145,6 +145,7 @@ pub(super) const ORCHESTRATION_SCHEMA_VERSION: &str = "2";
 // Future enum widening: SQLite cannot ALTER a CHECK constraint, so adding a
 // message type or status value requires an Orca-style table rebuild migration.
 
+#[derive(Default)]
 pub struct NewOrchestrationMessage {
     pub from_handle: String,
     pub to_handle: String,
@@ -159,6 +160,9 @@ pub struct NewOrchestrationMessage {
     pub task_id: Option<String>,
     pub dispatch_id: Option<String>,
     pub expires_at: Option<String>,
+    pub reply_to_id: Option<String>,
+    /// JSON text; only inbox questions carry it.
+    pub external_meta: Option<String>,
 }
 
 fn validate_message_field(value: &str, field: &str, max_bytes: usize) -> Result<()> {
@@ -192,6 +196,9 @@ fn validate_new_orchestration_message(message: &NewOrchestrationMessage) -> Resu
     if let Some(payload) = message.payload.as_deref() {
         validate_message_field(payload, "payload", ORCHESTRATION_PAYLOAD_MAX_BYTES)?;
     }
+    if let Some(reply_to_id) = message.reply_to_id.as_deref() {
+        validate_message_field(reply_to_id, "reply id", ORCHESTRATION_THREAD_ID_MAX_BYTES)?;
+    }
     Ok(())
 }
 
@@ -200,11 +207,12 @@ pub(super) fn orchestration_id(prefix: &str) -> String {
     format!("{prefix}_{}", &hex[..16])
 }
 
-const MESSAGE_COLUMNS: &str = "id, from_handle, to_handle, subject, body, type, priority, \
-     thread_id, payload, read, sequence, created_at, delivered_at, run_id, workspace_id, \
-     task_id, dispatch_id, state, expires_at, obsolete_at";
+pub(super) const MESSAGE_COLUMNS: &str = "id, from_handle, to_handle, subject, body, type, \
+     priority, thread_id, payload, read, sequence, created_at, delivered_at, run_id, \
+     workspace_id, task_id, dispatch_id, state, expires_at, obsolete_at, reply_to_id, \
+     external_meta";
 
-fn message_from_row(row: SqliteRow) -> Result<OrchestrationMessage> {
+pub(super) fn message_from_row(row: SqliteRow) -> Result<OrchestrationMessage> {
     let type_raw: String = row.try_get("type")?;
     let priority_raw: String = row.try_get("priority")?;
     Ok(OrchestrationMessage {
@@ -229,6 +237,10 @@ fn message_from_row(row: SqliteRow) -> Result<OrchestrationMessage> {
         state: row.try_get("state")?,
         expires_at: row.try_get("expires_at")?,
         obsolete_at: row.try_get("obsolete_at")?,
+        reply_to_id: row.try_get("reply_to_id")?,
+        external_meta: row
+            .try_get::<Option<String>, _>("external_meta")?
+            .and_then(|raw| serde_json::from_str(&raw).ok()),
     })
 }
 
@@ -239,11 +251,13 @@ fn id_placeholders(count: usize) -> String {
 }
 
 impl RuntimeStore {
-    async fn expire_orchestration_messages(&self) -> Result<()> {
+    /// An inbox question only expires before it reaches the agent; once pasted
+    /// it keeps waiting for its reply.
+    pub(super) async fn expire_orchestration_messages(&self) -> Result<()> {
         sqlx::query(
             "UPDATE orchestrationMessages SET state = 'expired' \
-             WHERE state IN ('queued','delivered') AND expires_at IS NOT NULL \
-             AND expires_at <= datetime('now')",
+             WHERE expires_at IS NOT NULL AND expires_at <= datetime('now') \
+             AND (state = 'queued' OR (state = 'delivered' AND substr(from_handle, 1, 4) != 'ext:'))",
         )
         .execute(self.pool())
         .await?;
@@ -259,8 +273,8 @@ impl RuntimeStore {
         sqlx::query(
             "INSERT INTO orchestrationMessages \
              (id, from_handle, to_handle, subject, body, type, priority, thread_id, payload, \
-              run_id, workspace_id, task_id, dispatch_id, expires_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              run_id, workspace_id, task_id, dispatch_id, expires_at, reply_to_id, external_meta) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(&message.from_handle)
@@ -276,6 +290,8 @@ impl RuntimeStore {
         .bind(&message.task_id)
         .bind(&message.dispatch_id)
         .bind(&message.expires_at)
+        .bind(&message.reply_to_id)
+        .bind(&message.external_meta)
         .execute(self.pool())
         .await?;
         self.orchestration_message_by_id(&id)
@@ -442,7 +458,8 @@ impl RuntimeStore {
         }
         let sql = format!(
             "UPDATE orchestrationMessages SET delivered_at = datetime('now'), \
-             state = CASE WHEN state = 'queued' THEN 'delivered' ELSE state END WHERE id IN ({})",
+             state = CASE WHEN state = 'queued' OR (state = 'expired' AND substr(from_handle, 1, 4) = 'ext:') \
+               THEN 'delivered' ELSE state END WHERE id IN ({})",
             id_placeholders(ids.len())
         );
         let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));

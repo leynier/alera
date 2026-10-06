@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 // purpose: the CLI JSON output mirrors Orca's orchestration payload shapes so
 // agent-facing skills and docs stay portable between the two systems.
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum OrchestrationMessageType {
+    #[default]
     Status,
     Dispatch,
     WorkerDone,
@@ -257,6 +258,10 @@ pub struct OrchestrationMessage {
     pub state: String,
     pub expires_at: Option<String>,
     pub obsolete_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

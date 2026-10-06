@@ -273,6 +273,8 @@ impl ServerActor {
                     task_id: optional_string(payload, "taskId"),
                     dispatch_id: optional_string(payload, "dispatchId"),
                     expires_at: optional_string(payload, "expiresAt"),
+                    reply_to_id: None,
+                    external_meta: None,
                 })
                 .await
                 .map_err(state_error)?;
@@ -426,6 +428,8 @@ impl ServerActor {
                 task_id: original.task_id.clone(),
                 dispatch_id: original.dispatch_id.clone(),
                 expires_at: None,
+                reply_to_id: None,
+                external_meta: None,
             })
             .await
             .map_err(state_error)?;
@@ -526,6 +530,8 @@ impl ServerActor {
                     .map(|dispatch| dispatch.id.clone())
                     .or_else(|| optional_string(payload, "dispatchId")),
                 expires_at: optional_string(payload, "expiresAt"),
+                reply_to_id: None,
+                external_meta: None,
             })
             .await
             .map_err(state_error)?;
@@ -832,6 +838,8 @@ impl ServerActor {
                         task_id: Some(task.id.clone()),
                         dispatch_id: Some(dispatch.id),
                         expires_at: None,
+                        reply_to_id: None,
+                        external_meta: None,
                     })
                     .await
                     .map_err(state_error)?;
@@ -1417,6 +1425,8 @@ impl ServerActor {
                 task_id: Some(dispatch.task_id.clone()),
                 dispatch_id: Some(dispatch.id.clone()),
                 expires_at: None,
+                reply_to_id: None,
+                external_meta: None,
             })
             .await
             .map_err(state_error)?;
