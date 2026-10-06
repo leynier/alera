@@ -5,6 +5,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 
 const String inboxChangedEvent = 'inboxChanged';
+const String conversationsChangedEvent = 'conversationsChanged';
 
 /// Re-reads on every inbox revision and on host reconnects. Errors reach the
 /// UI; recovery is event-driven, so an old host never causes a retry loop.
@@ -13,6 +14,7 @@ Stream<T> watchInbox<T>({
   required RuntimeChangeCoalescer coalescer,
   required String key,
   required Future<T> Function() read,
+  String changedEvent = inboxChangedEvent,
 }) {
   final owner = Object();
   late final StreamController<T> controller;
@@ -46,7 +48,7 @@ Stream<T> watchInbox<T>({
             controller.addError(const TerminalHostConnectionClosedException());
             return;
           }
-          if (event.name == inboxChangedEvent ||
+          if (event.name == changedEvent ||
               event.name == aleraRuntimeHostConnectedEvent) {
             schedule();
           }

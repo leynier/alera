@@ -64,4 +64,4 @@ final class InboxReplyNotificationCoordinatorProvider
 }
 
 String _$inboxReplyNotificationCoordinatorHash() =>
-    r'4880ddbe38a2d795346ad8df086504cb3597e64d';
+    r'a2b9acb5b165ace9e6c78a6ae50fe77c7c0943a2';

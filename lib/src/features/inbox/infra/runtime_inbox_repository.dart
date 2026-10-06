@@ -1,3 +1,4 @@
+import 'package:alera/src/features/inbox/domain/conversation_models.dart';
 import 'package:alera/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/inbox/infra/inbox_watch.dart';
@@ -110,5 +111,41 @@ class RuntimeInboxRepository {
     coalescer: _coalescer,
     key: 'inbox-thread:$threadId',
     read: () => readThread(threadId),
+  );
+
+  /// Agent-to-agent threads. Read-only: nothing here marks anything read.
+  Future<ConversationPage> readConversations({
+    String? workspaceId,
+    int? before,
+  }) async => ConversationPage.fromJson(
+    await _request('inbox.conversations', <String, Object?>{
+      'workspaceId': ?workspaceId,
+      'limit': 100,
+      'before': ?before,
+    }),
+  );
+
+  Future<ConversationDetail> readConversation(String threadId) async =>
+      ConversationDetail.fromJson(
+        await _request('inbox.conversation', <String, Object?>{
+          'threadId': threadId,
+        }),
+      );
+
+  Stream<ConversationPage> watchConversations({String? workspaceId}) =>
+      watchInbox(
+        client: _client,
+        coalescer: _coalescer,
+        key: 'conversations:${workspaceId ?? '*'}',
+        read: () => readConversations(workspaceId: workspaceId),
+        changedEvent: conversationsChangedEvent,
+      );
+
+  Stream<ConversationDetail> watchConversation(String threadId) => watchInbox(
+    client: _client,
+    coalescer: _coalescer,
+    key: 'conversation:$threadId',
+    read: () => readConversation(threadId),
+    changedEvent: conversationsChangedEvent,
   );
 }

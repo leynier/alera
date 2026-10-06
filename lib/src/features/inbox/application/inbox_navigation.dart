@@ -8,8 +8,14 @@ part 'inbox_navigation.g.dart';
 /// A request to open the composer, optionally with a recipient chosen.
 class const InboxComposeRequest({final String? targetHandle});
 
+/// Which half of the inbox page is shown.
+enum InboxView { questions, conversations }
+
 class const InboxLocation({
   final bool visible = false,
+  final InboxView view = InboxView.questions,
+  final String? conversationWorkspace,
+  final String? selectedConversationId,
   final String? inboxFilter,
   final InboxQuestionStatus? statusFilter,
   final String? selectedThreadId,
@@ -18,6 +24,9 @@ class const InboxLocation({
 }) {
   InboxLocation copyWith({
     bool? visible,
+    InboxView? view,
+    String? Function()? conversationWorkspace,
+    String? Function()? selectedConversationId,
     String? Function()? inboxFilter,
     InboxQuestionStatus? Function()? statusFilter,
     String? Function()? selectedThreadId,
@@ -25,6 +34,13 @@ class const InboxLocation({
     int? composeSequence,
   }) => InboxLocation(
     visible: visible ?? this.visible,
+    view: view ?? this.view,
+    conversationWorkspace: conversationWorkspace == null
+        ? this.conversationWorkspace
+        : conversationWorkspace(),
+    selectedConversationId: selectedConversationId == null
+        ? this.selectedConversationId
+        : selectedConversationId(),
     inboxFilter: inboxFilter == null ? this.inboxFilter : inboxFilter(),
     statusFilter: statusFilter == null ? this.statusFilter : statusFilter(),
     selectedThreadId: selectedThreadId == null
@@ -50,8 +66,17 @@ class InboxNavigation extends _$InboxNavigation {
 
   void close() => state = state.copyWith(visible: false);
 
-  void selectThread(String? threadId) =>
-      state = state.copyWith(selectedThreadId: () => threadId);
+  /// A thread is a question, so selecting one always shows Questions.
+  void selectThread(String? threadId) => state = state.copyWith(
+    view: InboxView.questions,
+    selectedThreadId: () => threadId,
+  );
+
+  /// Opens the page on Questions, where replies are read.
+  void openQuestions() {
+    open();
+    state = state.copyWith(view: InboxView.questions);
+  }
 
   void filterInbox(String? inbox) => state = state.copyWith(
     inboxFilter: () => inbox,
@@ -63,7 +88,7 @@ class InboxNavigation extends _$InboxNavigation {
 
   /// Opens the page and asks it to show the composer once mounted.
   void compose({String? targetHandle}) {
-    open();
+    openQuestions();
     state = state.copyWith(
       compose: () => InboxComposeRequest(targetHandle: targetHandle),
       composeSequence: state.composeSequence + 1,
@@ -71,4 +96,15 @@ class InboxNavigation extends _$InboxNavigation {
   }
 
   void consumeCompose() => state = state.copyWith(compose: () => null);
+
+  void showView(InboxView view) => state = state.copyWith(view: view);
+
+  void selectConversation(String? threadId) =>
+      state = state.copyWith(selectedConversationId: () => threadId);
+
+  void filterConversationWorkspace(String? workspaceId) =>
+      state = state.copyWith(
+        conversationWorkspace: () => workspaceId,
+        selectedConversationId: () => null,
+      );
 }

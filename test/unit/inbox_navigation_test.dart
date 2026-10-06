@@ -72,4 +72,26 @@ void main() {
     expect(isInboxNotificationPayload('{"terminalSessionId":"x"}'), isFalse);
     expect(isInboxNotificationPayload('not json'), isFalse);
   });
+
+  test('selecting a question, composing or a notification shows Questions', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final inbox = container.read(inboxNavigationProvider.notifier);
+    InboxView view() => container.read(inboxNavigationProvider).view;
+
+    inbox.showView(InboxView.conversations);
+    inbox.selectThread('msg_q1');
+    expect(view(), InboxView.questions);
+    expect(container.read(inboxNavigationProvider).selectedThreadId, 'msg_q1');
+
+    inbox.showView(InboxView.conversations);
+    inbox.compose(targetHandle: 'term-1');
+    expect(view(), InboxView.questions);
+
+    inbox.close();
+    inbox.showView(InboxView.conversations);
+    inbox.openQuestions();
+    expect(view(), InboxView.questions);
+    expect(container.read(inboxNavigationProvider).visible, isTrue);
+  });
 }

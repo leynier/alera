@@ -1,3 +1,4 @@
+import 'package:alera/src/features/inbox/domain/conversation_models.dart';
 import 'package:alera/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
@@ -19,6 +20,25 @@ void main() {
     expect(const InboxOrigin(surface: 'cli').label, 'CLI');
     expect(InboxQuestionStatus.delivered.open, isTrue);
     expect(InboxQuestionStatus.answered.open, isFalse);
+  });
+
+  test('conversation pages keep their cursor and tolerate bad shapes', () {
+    final page = ConversationPage.fromJson(<String, Object?>{
+      'items': [
+        {'threadId': 't', 'participants': 'not a list', 'group': true},
+        'not a map',
+      ],
+      'nextBefore': 9,
+      'revision': 2,
+    });
+    expect(page.nextBefore, 9);
+    expect(page.items.single.participants, isEmpty);
+    expect(page.items.single.group, isTrue);
+    expect(ConversationPage.fromJson(const {'items': 3}).items, isEmpty);
+    expect(
+      ConversationMessage.fromJson(const {'type': 'merge_ready'}).typeLabel,
+      'merge ready',
+    );
   });
 
   test('every host error code has a sentence-case message', () {

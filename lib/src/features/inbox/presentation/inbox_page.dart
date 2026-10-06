@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -10,6 +11,8 @@ import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.da
 import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
 import 'package:alera/src/features/inbox/application/inbox_providers.dart';
 import 'package:alera/src/features/inbox/domain/inbox_error_messages.dart';
+import 'package:alera/src/features/inbox/presentation/agent_conversation_detail.dart';
+import 'package:alera/src/features/inbox/presentation/agent_conversation_list.dart';
 import 'package:alera/src/features/inbox/presentation/inbox_composer_dialog.dart';
 import 'package:alera/src/features/inbox/presentation/inbox_thread_detail.dart';
 import 'package:alera/src/features/inbox/presentation/inbox_thread_list.dart';
@@ -81,19 +84,34 @@ class _InboxPageState extends ConsumerState<InboxPage> {
     final navigation = ref.read(inboxNavigationProvider.notifier);
     final summary = ref.watch(inboxSummaryProvider);
     final updateRequired = summary.error is InboxUpdateRequired;
-    final selected = location.selectedThreadId;
-    const master = InboxThreadListPane();
-    final detail = selected == null
-        ? const AleraEmptyState(
-            icon: AleraIcons.inbox,
-            title: 'Select A Question',
-            message: 'Read replies, follow up with the same agent, or cancel a question it has not received yet.',
-          )
-        : InboxThreadDetailView(
-            key: ValueKey<String>(selected),
-            threadId: selected,
-          );
-    final purgeTarget = location.inboxFilter;
+    final conversations = location.view == InboxView.conversations;
+    final selected = conversations
+        ? location.selectedConversationId
+        : location.selectedThreadId;
+    final Widget master = conversations
+        ? const AgentConversationListPane()
+        : const InboxThreadListPane();
+    final Widget detail = switch ((conversations, selected)) {
+      (true, null) => const AleraEmptyState(
+        icon: AleraIcons.comment,
+        title: 'Select A Conversation',
+        message: 'Follow what agents tell each other. This view is read-only.',
+      ),
+      (false, null) => const AleraEmptyState(
+        icon: AleraIcons.inbox,
+        title: 'Select A Question',
+        message: 'Read replies, follow up with the same agent, or cancel a question it has not received yet.',
+      ),
+      (true, final String id) => AgentConversationDetailView(
+        key: ValueKey<String>('conversation:$id'),
+        threadId: id,
+      ),
+      (false, final String id) => InboxThreadDetailView(
+        key: ValueKey<String>(id),
+        threadId: id,
+      ),
+    };
+    final purgeTarget = conversations ? null : location.inboxFilter;
     return FocusTraversalGroup(
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space12),
@@ -107,6 +125,22 @@ class _InboxPageState extends ConsumerState<InboxPage> {
               children: <Widget>[
                 const AleraAppMenuButton(),
                 Text('Inbox', style: Theme.of(context).textTheme.titleLarge),
+                AleraSegmentedButton<InboxView>(
+                  key: const ValueKey<String>('inboxViewSwitch'),
+                  dense: true,
+                  selected: location.view,
+                  onSelectionChanged: navigation.showView,
+                  segments: const <ButtonSegment<InboxView>>[
+                    ButtonSegment<InboxView>(
+                      value: InboxView.questions,
+                      label: Text('Questions'),
+                    ),
+                    ButtonSegment<InboxView>(
+                      value: InboxView.conversations,
+                      label: Text('Agent Conversations'),
+                    ),
+                  ],
+                ),
                 FilledButton.icon(
                   key: const ValueKey<String>('inboxNewQuestion'),
                   onPressed: updateRequired
@@ -133,9 +167,9 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                   onPressed: () {
                     ref.invalidate(inboxSummaryProvider);
                     ref.invalidate(inboxThreadsProvider);
-                    if (selected != null) {
-                      ref.invalidate(inboxThreadDetailProvider(selected));
-                    }
+                    ref.invalidate(inboxThreadDetailProvider);
+                    ref.invalidate(agentConversationsProvider);
+                    ref.invalidate(agentConversationProvider);
                   },
                 ),
               ],
@@ -174,16 +208,24 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                         crossAxisAlignment: .start,
                         children: <Widget>[
                           TextButton.icon(
-                            onPressed: () => navigation.selectThread(null),
+                            onPressed: () => conversations
+                                ? navigation.selectConversation(null)
+                                : navigation.selectThread(null),
                             icon: const Icon(AleraIcons.back),
-                            label: const Text('Back To Questions'),
+                            label: Text(
+                              conversations
+                                  ? 'Back To Conversations'
+                                  : 'Back To Questions',
+                            ),
                           ),
                           Expanded(child: detail),
                         ],
                       );
                     }
                     return AleraMasterDetail(
-                      masterTitle: 'Questions',
+                      masterTitle: conversations
+                          ? 'Conversations'
+                          : 'Questions',
                       masterWidth: AleraTokens.sidebarDefaultWidth,
                       masterMaxWidth: AleraTokens.masterDetailMaxWidth,
                       master: master,
