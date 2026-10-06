@@ -151,6 +151,18 @@
   width: 34px;
 }
 
+/* Outlined split button (Ship in the Pull Request composer). */
+[data-alera-demo] .split-button-outlined {
+  box-sizing: border-box;
+  border: 1px solid var(--app-border);
+  background: transparent;
+  color: var(--app-accent);
+}
+
+[data-alera-demo] .split-button-outlined .split-button-separator {
+  background: var(--app-border);
+}
+
 [data-alera-demo] .split-button[data-state='busy'] {
   opacity: 0.38;
 }
