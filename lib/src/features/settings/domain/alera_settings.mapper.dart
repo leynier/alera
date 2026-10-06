@@ -1389,6 +1389,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = GeneralSettingsMapper._());
       PullRequestAgentWatchScopeMapper.ensureInitialized();
+      PullRequestShipFollowUpMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1482,6 +1483,15 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: PullRequestAgentWatchScope.defaults,
   );
+  static PullRequestShipFollowUp _$pullRequestShipFollowUp(GeneralSettings v) =>
+      v.pullRequestShipFollowUp;
+  static const Field<GeneralSettings, PullRequestShipFollowUp>
+  _f$pullRequestShipFollowUp = Field(
+    'pullRequestShipFollowUp',
+    _$pullRequestShipFollowUp,
+    opt: true,
+    def: PullRequestShipFollowUp.none,
+  );
   static bool _$trayHideNoticeShown(GeneralSettings v) => v.trayHideNoticeShown;
   static const Field<GeneralSettings, bool> _f$trayHideNoticeShown = Field(
     'trayHideNoticeShown',
@@ -1504,6 +1514,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #pullRequestFailureNotificationsEnabled:
         _f$pullRequestFailureNotificationsEnabled,
     #pullRequestAgentWatchScope: _f$pullRequestAgentWatchScope,
+    #pullRequestShipFollowUp: _f$pullRequestShipFollowUp,
     #trayHideNoticeShown: _f$trayHideNoticeShown,
   };
 
@@ -1524,6 +1535,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
         _f$pullRequestFailureNotificationsEnabled,
       ),
       pullRequestAgentWatchScope: data.dec(_f$pullRequestAgentWatchScope),
+      pullRequestShipFollowUp: data.dec(_f$pullRequestShipFollowUp),
       trayHideNoticeShown: data.dec(_f$trayHideNoticeShown),
     );
   }
@@ -1608,6 +1620,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
     PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    PullRequestShipFollowUp? pullRequestShipFollowUp,
     bool? trayHideNoticeShown,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -1644,6 +1657,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? showPullRequestStatusInSidebar,
     bool? pullRequestFailureNotificationsEnabled,
     PullRequestAgentWatchScope? pullRequestAgentWatchScope,
+    PullRequestShipFollowUp? pullRequestShipFollowUp,
     bool? trayHideNoticeShown,
   }) => $apply(
     FieldCopyWithData({
@@ -1664,6 +1678,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
             pullRequestFailureNotificationsEnabled,
       if (pullRequestAgentWatchScope != null)
         #pullRequestAgentWatchScope: pullRequestAgentWatchScope,
+      if (pullRequestShipFollowUp != null)
+        #pullRequestShipFollowUp: pullRequestShipFollowUp,
       if (trayHideNoticeShown != null)
         #trayHideNoticeShown: trayHideNoticeShown,
     }),
@@ -1698,6 +1714,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     pullRequestAgentWatchScope: data.get(
       #pullRequestAgentWatchScope,
       or: $value.pullRequestAgentWatchScope,
+    ),
+    pullRequestShipFollowUp: data.get(
+      #pullRequestShipFollowUp,
+      or: $value.pullRequestShipFollowUp,
     ),
     trayHideNoticeShown: data.get(
       #trayHideNoticeShown,

@@ -4,6 +4,7 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dar
 import 'package:alera/src/features/voice/domain/voice_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
@@ -302,6 +303,7 @@ class const GeneralSettings({
   this.showPullRequestStatusInSidebar = true,
   this.pullRequestFailureNotificationsEnabled = false,
   this.pullRequestAgentWatchScope = PullRequestAgentWatchScope.defaults,
+  this.pullRequestShipFollowUp = PullRequestShipFollowUp.none,
   this.trayHideNoticeShown = false,
 }) with GeneralSettingsMappable {
   /// User-configured root directory where new linked workspaces are created.
@@ -337,6 +339,9 @@ class const GeneralSettings({
 
   /// Last problems chosen for pull request Watch and Fix.
   final PullRequestAgentWatchScope pullRequestAgentWatchScope;
+
+  /// Last follow-up chosen on the Ship split button.
+  final PullRequestShipFollowUp pullRequestShipFollowUp;
 
   /// Windows: the one-time notice that closing keeps Alera in the tray was shown.
   final bool trayHideNoticeShown;

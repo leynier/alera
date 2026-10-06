@@ -17,8 +17,15 @@ class const _PullRequestBody({
   final PullRequestAgentWatchMode? agentWatchMode,
   final PullRequestAgentWatchScope agentWatchScope =
       PullRequestAgentWatchScope.defaults,
+  final PullRequestShipFollowUp shipFollowUp = PullRequestShipFollowUp.none,
   required final WidgetRef ref,
 }) extends StatelessWidget {
+  void _saveAgentWatchScope(PullRequestAgentWatchScope watchScope) => unawaited(
+    ref
+        .read(settingsControllerProvider.notifier)
+        .setPullRequestAgentWatchScope(watchScope),
+  );
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -97,11 +104,7 @@ class const _PullRequestBody({
         onLoadCheckDetails: controller.loadCheckDetails,
         agentWatchMode: agentWatchMode,
         agentWatchScope: agentWatchScope,
-        onAgentWatchScopeChanged: (watchScope) => unawaited(
-          ref
-              .read(settingsControllerProvider.notifier)
-              .setPullRequestAgentWatchScope(watchScope),
-        ),
+        onAgentWatchScopeChanged: _saveAgentWatchScope,
         onFixFailedChecks: review.isOpen
             ? () => unawaited(
                 dispatchPullRequestFailedChecks(
@@ -198,19 +201,33 @@ class const _PullRequestBody({
           ),
         );
       },
+      shipFollowUp: shipFollowUp,
+      watchScope: agentWatchScope,
+      onShipFollowUpChanged: (followUp) => unawaited(
+        ref
+            .read(settingsControllerProvider.notifier)
+            .setPullRequestShipFollowUp(followUp),
+      ),
+      onWatchScopeChanged: _saveAgentWatchScope,
       onShip:
           ({
             required String baseBranch,
             required bool draft,
             required PullRequestShipScope scope,
-          }) async {
-            await controller.ship(
+            required PullRequestShipFollowUp followUp,
+          }) => shipPullRequestWithFollowUp(
+            context: context,
+            ref: ref,
+            controller: controller,
+            followUp: followUp,
+            watchScope: agentWatchScope,
+            ship: () => controller.ship(
               baseBranch: baseBranch,
               draft: draft,
               settings: aiAssistSettings,
               scope: scope,
-            );
-          },
+            ),
+          ),
       onCreateStack: (draft) =>
           _openWorkspaceStackDialog(context, currentDraft: draft),
       onRestack: () => unawaited(

@@ -157,6 +157,7 @@ void main() {
                   required baseBranch,
                   required draft,
                   required scope,
+                  required followUp,
                 }) async {},
                 onLink: (_) {},
                 onCreateActionChanged: (_) {},
