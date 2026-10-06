@@ -12,6 +12,9 @@ mod cli;
 mod cli_async_runtime;
 #[cfg(test)]
 mod cli_help_tests;
+mod cli_inbox;
+#[cfg(test)]
+mod cli_inbox_tests;
 mod cli_orchestration;
 mod cli_orchestration_runs;
 mod cli_orchestration_terminal;
@@ -24,6 +27,7 @@ mod cli_workflow_workspaces;
 mod host_tools;
 mod hosted_review_retention;
 mod hub_federation;
+mod inbox_commands;
 mod issue_commands;
 mod issue_tracking;
 mod linked_issue_service;
@@ -218,6 +222,7 @@ async fn run(cli: Cli) -> i32 {
             orchestration_commands::run_orchestration_command(command).await
         }
         Command::Voice(command) => voice_commands::run(command).await,
+        Command::Inbox(command) => inbox_commands::run(command).await,
     }
 }
 

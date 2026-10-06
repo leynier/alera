@@ -193,9 +193,9 @@ impl RuntimeHostRpcClient {
         };
         if !control.is_usable(required_capability) {
             let required = required_capability.unwrap_or("requested");
-            return Err(anyhow!(
+            return Err(anyhow::Error::new(RuntimeHostAnswer(format!(
                 "A live Alera runtime host does not support {required}. Restart Alera and retry."
-            ));
+            ))));
         }
 
         Ok(Some(client))
@@ -295,15 +295,27 @@ impl RuntimeHostRpcClient {
             if frame.ok == Some(true) {
                 return Ok(frame.payload.unwrap_or(Value::Null));
             }
-            return Err(anyhow!(
-                "{}",
+            return Err(anyhow::Error::new(RuntimeHostAnswer(
                 frame
                     .error
-                    .unwrap_or_else(|| "runtime host request failed".to_string())
-            ));
+                    .unwrap_or_else(|| "runtime host request failed".to_string()),
+            )));
         }
     }
 }
+
+/// A definitive answer from a live host: it refused the request or lacks a
+/// capability. Retrying cannot change it, unlike a lost or starting host.
+#[derive(Debug)]
+pub(crate) struct RuntimeHostAnswer(pub(crate) String);
+
+impl std::fmt::Display for RuntimeHostAnswer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for RuntimeHostAnswer {}
 
 impl RuntimeHostControl {
     fn is_protocol_compatible(&self) -> bool {

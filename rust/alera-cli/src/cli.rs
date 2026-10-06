@@ -88,6 +88,9 @@ pub enum Command {
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
 
+    /// Ask agents questions from outside a terminal and read their replies.
+    Inbox(crate::cli_inbox::InboxCommand),
+
     /// Global voice home agent: speak, status, and the runtime home folder.
     Voice(VoiceCommand),
 }
