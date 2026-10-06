@@ -93,6 +93,21 @@ class const MobileTerminalOutputEvent(
 const int defaultTerminalCols = 80;
 const int defaultTerminalRows = 24;
 
+/// What the Inbox screens need from a paired runtime.
+abstract interface class MobileInboxClient {
+  Stream<MobileRuntimeEvent> get events;
+  bool get supportsInbox;
+
+  /// Names the workspaces of the agents a question can go to.
+  Future<List<WorkspaceSummary>> listWorkspaces();
+
+  Future<Map<String, Object?>> requestMap(
+    String type, [
+    Map<String, Object?> payload,
+    Duration? timeout,
+  ]);
+}
+
 /// What the Automations screens need from a paired runtime.
 abstract interface class MobileAutomationClient {
   Stream<MobileRuntimeEvent> get events;

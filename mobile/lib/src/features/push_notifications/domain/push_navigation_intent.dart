@@ -3,11 +3,15 @@ enum PushEventKind {
   done,
   terminalExit,
   automation,
+
+  /// An agent replied to a question asked from an inbox.
+  inboxReply,
   unknown;
 
   static PushEventKind parse(String? value) {
     return switch (value) {
       'automation' => automation,
+      'inboxReply' || 'inbox_reply' => inboxReply,
       'waiting' || 'blocked' || 'gate' || 'attention' => attention,
       'done' => done,
       'terminalExit' || 'terminal_exit' => terminalExit,
@@ -24,10 +28,12 @@ class const PushNavigationIntent({
   final String? tabId,
   final String? automationId,
   final String? runId,
+  final String? threadId,
 }) {
   bool get shouldOpenTerminal =>
       eventKind != PushEventKind.terminalExit &&
       eventKind != PushEventKind.automation &&
+      eventKind != PushEventKind.inboxReply &&
       tabId != null;
 
   factory fromData(Map<String, Object?> data) {
@@ -47,6 +53,7 @@ class const PushNavigationIntent({
       ),
       automationId: _nonEmpty(data['automationId']),
       runId: _nonEmpty(data['runId']),
+      threadId: _nonEmpty(data['threadId']),
     );
   }
 
@@ -58,6 +65,7 @@ class const PushNavigationIntent({
       if (tabId != null) 'tabId': tabId,
       if (automationId != null) 'automationId': automationId,
       if (runId != null) 'runId': runId,
+      if (threadId != null) 'threadId': threadId,
       'eventType': eventKind.name,
     };
   }
