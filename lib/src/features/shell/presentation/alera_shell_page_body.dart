@@ -47,17 +47,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         });
       },
     );
-    ref.watch(terminalHostWarmupCoordinatorProvider);
-    ref.watch(runtimeAgentStatusSyncProvider);
-    ref.watch(agentStatusNotificationCoordinatorProvider);
-    ref.watch(workspacePullRequestMonitorControllerProvider.notifier);
-    ref.watch(workspacePullRequestFailureNotificationCoordinatorProvider);
-    ref.watch(agentAwakeCoordinatorProvider);
-    ref.watch(keepAliveCoordinatorProvider);
-    ref.watch(terminalRuntimeExitCoordinatorProvider);
-    ref.watch(workspaceActivityCoordinatorProvider);
-    ref.watch(terminalRuntimeActiveWorkspaceCoordinatorProvider);
-    ref.watch(workspaceActivityPersistenceCoordinatorProvider);
+    _watchShellCoordinators(ref);
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {
         final workspace = state.activeWorkspace;

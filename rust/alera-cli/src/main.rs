@@ -105,6 +105,7 @@ mod workspace_add;
 mod workspace_archive;
 mod workspace_buffer_guard_request;
 mod workspace_context;
+mod workspace_focus;
 mod workspace_handoff;
 mod workspace_issue_commands;
 mod workspace_pinning;
@@ -562,6 +563,9 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         }
         WorkspaceAction::Rename(args) => {
             return workspace_rename::run(&runtime, args, json_output).await;
+        }
+        WorkspaceAction::Focus(args) => {
+            return workspace_focus::run(&runtime, args, json_output).await;
         }
         WorkspaceAction::Pin(IdArgs { id }) => {
             return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await;

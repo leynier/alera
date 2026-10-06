@@ -89,6 +89,7 @@ class _ProjectWorkbenchSidebarState
               children: <Widget>[
                 SidebarBrandRow(
                   collapsed: false,
+                  onGoHome: controller.showHome,
                   onToggleCollapsed: () =>
                       controller.setCollapsed(!state.collapsed),
                 ),

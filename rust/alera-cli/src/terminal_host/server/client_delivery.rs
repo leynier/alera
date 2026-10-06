@@ -69,6 +69,11 @@ impl ServerActor {
             client.binary_frames = binary_frames;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
+                client.workspace_focus = local_role == LocalClientRole::App
+                    && payload
+                        .get("workspaceFocusV1")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
             }
         }
         self.cancel_shutdown_timer();
@@ -335,6 +340,7 @@ mod tests {
                     authenticated: true,
                     shared_checkout_workspaces: true,
                     checkout_buffer_guards: true,
+                    workspace_focus: false,
                     binary_frames: false,
                     kind: ClientKind::Local,
                     local_role: LocalClientRole::Cli,

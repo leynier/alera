@@ -28,6 +28,7 @@ impl ClientState {
             authenticated: true,
             shared_checkout_workspaces: true,
             checkout_buffer_guards: true,
+            workspace_focus: app_client,
             binary_frames: false,
             kind: ClientKind::Local,
             local_role: if app_client {
@@ -49,6 +50,7 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         authenticated: true,
         shared_checkout_workspaces: true,
         checkout_buffer_guards: true,
+        workspace_focus: false,
         binary_frames: false,
         kind: ClientKind::Mobile,
         local_role: LocalClientRole::Cli,
@@ -65,6 +67,7 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         authenticated: true,
         shared_checkout_workspaces: true,
         checkout_buffer_guards: true,
+        workspace_focus: false,
         binary_frames: false,
         kind: ClientKind::Local,
         local_role: LocalClientRole::Cli,

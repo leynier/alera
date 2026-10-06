@@ -46,6 +46,7 @@ import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_r
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_terminal_refresh.dart';
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
+import 'package:alera/src/features/workspace_focus/application/workspace_focus_providers.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_status_views.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,6 +55,7 @@ import 'package:alera/src/features/workbench/domain/workspace_panel_width.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
 
 part 'alera_shell_page_body.dart';
+part 'alera_shell_page_coordinators.dart';
 part 'alera_shell_page_body_tools.dart';
 part 'alera_shell_page_body_content.dart';
 part 'alera_shell_page_workspace_panel.dart';

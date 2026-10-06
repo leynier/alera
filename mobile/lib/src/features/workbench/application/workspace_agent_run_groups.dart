@@ -42,6 +42,33 @@ WorkspaceAgentPresenceSplit splitWorkspaceAgentPresence(
   );
 }
 
+/// The run that drives the workspace badge, across main and secondary agents
+/// alike. Interruption ranks above working and done so a leftover interrupted
+/// tab is not hidden behind a green badge; ties keep the earliest run.
+AgentPresenceSummary? mostUrgentAgentPresence(
+  List<AgentPresenceSummary> presence,
+) {
+  AgentPresenceSummary? mostUrgent;
+  for (final run in presence) {
+    if (mostUrgent == null || _urgencyOf(run) > _urgencyOf(mostUrgent)) {
+      mostUrgent = run;
+    }
+  }
+  return mostUrgent;
+}
+
+int _urgencyOf(AgentPresenceSummary status) {
+  if (status.interrupted ?? false) {
+    return 3;
+  }
+  return switch (status.state) {
+    'blocked' => 5,
+    'waiting' => 4,
+    'working' => 2,
+    _ => 1,
+  };
+}
+
 /// Groups a workspace's agent presence by visual state for the compact summary
 /// pill. Interruption wins over the reported state, mirroring the per-row
 /// indicator.

@@ -56,6 +56,7 @@ Future<void> _pumpComposer(
                 required baseBranch,
                 required draft,
                 required scope,
+                required followUp,
               }) async {},
               onRestack: onRestack,
               onLink: (_) {},

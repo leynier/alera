@@ -89,9 +89,7 @@ Future<void> startPullRequestAgentWatch({
         concerns: concerns,
         baseBranch: review.baseRefName,
       ),
-      title: mode == PullRequestAgentWatchMode.fixAndMerge
-          ? 'Watch, Fix and Merge'
-          : 'Watch and Fix',
+      title: _watchTitle(mode),
       message: _agentDispatchMessage,
     ),
   );
@@ -243,6 +241,36 @@ Future<AgentTaskDispatchResult?> completeAgentTaskDispatch({
     messenger?.showSnackBar(SnackBar(content: Text(error.toString())));
     return null;
   }
+}
+
+String _watchTitle(PullRequestAgentWatchMode mode) =>
+    mode == PullRequestAgentWatchMode.fixAndMerge
+    ? 'Watch, Fix and Merge'
+    : 'Watch and Fix';
+
+/// Picks the agent for a Ship follow-up before shipping starts, so the
+/// background ship needs no dialog and declining the picker commits nothing.
+Future<AgentTaskDispatchBinding?> choosePullRequestShipWatchAgent({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String hostId,
+  required String workspaceId,
+  required PullRequestAgentWatchMode mode,
+}) async {
+  final choice = await chooseAgentTaskDispatchTarget(
+    context,
+    ref,
+    request: AgentTaskDispatchRequest(
+      hostId: hostId,
+      workspaceId: workspaceId,
+      prompt:
+          'Please check the pull request for this branch and fix anything '
+          'that blocks it.',
+      title: 'Ship, ${_watchTitle(mode)}',
+      message: _agentDispatchMessage,
+    ),
+  );
+  return choice?.binding;
 }
 
 Future<void> persistPullRequestAgentWatchScope(

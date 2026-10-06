@@ -11,10 +11,15 @@ class const SidebarBrandRow({
   required final bool collapsed,
   required final VoidCallback onToggleCollapsed,
   this.onAddProject,
+  this.onGoHome,
 }) extends StatelessWidget {
   /// Optional add-project handler. The expanded workbench sidebar moves this
   /// action to the footer, while older callers can still wire it here.
   final VoidCallback? onAddProject;
+
+  /// Leaves the active workspace for the welcome dashboard. Only the expanded
+  /// header shows it; a null handler hides the button.
+  final VoidCallback? onGoHome;
 
   @override
   Widget build(BuildContext context) {
@@ -35,29 +40,46 @@ class const SidebarBrandRow({
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
       child: Row(
         children: <Widget>[
-          const AleraLogo(size: AleraTokens.logoSm),
-          const SizedBox(width: AleraTokens.space8),
-          // The logo leaves the name less room, so it yields first when the
-          // sidebar is dragged toward its minimum width.
-          Flexible(
-            child: Text(
-              kAleraAppName,
-              maxLines: 1,
-              overflow: .ellipsis,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: AleraTokens.foreground,
-                fontWeight: .w600,
-              ),
+          // The brand group takes the slack itself; a Spacer beside the
+          // Flexible name would split the slack and strand the actions
+          // mid-row.
+          Expanded(
+            child: Row(
+              children: <Widget>[
+                const AleraLogo(size: AleraTokens.logoSm),
+                const SizedBox(width: AleraTokens.space8),
+                // The logo leaves the name less room, so it yields first when
+                // the sidebar is dragged toward its minimum width.
+                Flexible(
+                  child: Text(
+                    kAleraAppName,
+                    maxLines: 1,
+                    overflow: .ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: AleraTokens.foreground,
+                      fontWeight: .w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space4),
+                const AleraAppMenuButton(),
+              ],
             ),
           ),
           const SizedBox(width: AleraTokens.space4),
-          const AleraAppMenuButton(),
-          const Spacer(),
           if (onAddProject != null) ...<Widget>[
             AleraIconButton(
               tooltip: 'Add Project',
               onPressed: onAddProject!,
               icon: AleraIcons.newFolder,
+            ),
+            const SizedBox(width: AleraTokens.space4),
+          ],
+          if (onGoHome != null) ...<Widget>[
+            AleraIconButton(
+              tooltip: 'Home',
+              onPressed: onGoHome,
+              icon: AleraIcons.home,
             ),
             const SizedBox(width: AleraTokens.space4),
           ],

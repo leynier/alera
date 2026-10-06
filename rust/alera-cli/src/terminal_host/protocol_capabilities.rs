@@ -58,6 +58,10 @@ pub const RUNTIME_HOST_WORKSPACE_SLEEP_STATE_CAPABILITY: &str = "workspaceSleepS
 /// stay for the wake, so a client must not close them. Additive: an older host
 /// omits both and clients fall back to `workspace.sleptTabs`.
 pub const TERMINAL_SESSION_REMOVED_BY_SLEEP: &str = "workspaceSleep";
+/// The host answers `workspace.focus` by sending `workspaceFocusRequested` to
+/// the connected desktop apps that announced `workspaceFocusV1` in `hello`.
+/// Additive: an older host rejects the verb, so the CLI feature-checks this.
+pub const RUNTIME_HOST_WORKSPACE_FOCUS_CAPABILITY: &str = "workspaceFocusV1";
 /// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
 /// issues through `issue.fetch`, and links one from `workspace.createManaged`
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and

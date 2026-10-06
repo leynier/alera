@@ -4,11 +4,13 @@ import 'package:alera/src/features/workbench/presentation/widgets/agent_run_stat
 import 'package:flutter/material.dart';
 
 /// Badge label and tone for an agent run, or null when the run needs no label:
-/// a working run keeps its spinner, an interrupted run keeps its cancel glyph
-/// (as on mobile) and an idle row shows nothing.
+/// a working run keeps its spinner and an idle row shows nothing.
 (String, AleraBadgeTone)? agentRunStatusBadge(AgentStatusEntry? status) {
-  if (status == null || status.interrupted == true) {
+  if (status == null) {
     return null;
+  }
+  if (status.interrupted == true) {
+    return ('Interrupted', AleraBadgeTone.error);
   }
   return switch (status.state) {
     AgentStatusState.working => null,

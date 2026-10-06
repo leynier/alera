@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
+import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
@@ -23,6 +24,8 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workspace_focus/application/workspace_focus_request_handler.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_sleep_repository.dart';
@@ -83,6 +86,7 @@ part 'workbench_controller_test_harness.dart';
 part 'workbench_controller_terminal_runtime_fakes.dart';
 part 'workbench_controller_selection_test_cases.dart';
 part 'workbench_controller_terminal_cleanup_test_cases.dart';
+part 'workbench_controller_workspace_focus_test_cases.dart';
 
 late _WorkbenchHarness _harness;
 late WorkbenchController _controller;
@@ -128,5 +132,6 @@ void main() {
     _registerWorkbenchControllerPreviewTabTests();
     _registerWorkbenchControllerPreviewCloseTests();
     _registerWorkbenchControllerTerminalCleanupTests();
+    _registerWorkbenchControllerWorkspaceFocusTests();
   });
 }
