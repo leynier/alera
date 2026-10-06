@@ -243,7 +243,6 @@ class const PullRequestPanelActions({
     if (!context.mounted) {
       return;
     }
-    final messenger = ScaffoldMessenger.of(context);
     return showShipPullRequestSheet(
       context,
       headBranch: snapshot.branch,
@@ -272,9 +271,9 @@ class const PullRequestPanelActions({
           );
         });
         if (error != null) {
-          return error;
+          return (error: error, notice: null);
         }
-        final watchError = await startShippedPullRequestWatch(
+        final notice = await startShippedPullRequestWatch(
           request: request,
           shipped: shipped,
           start: (reviewNumber, mode, binding, snapshot) => watch.start(
@@ -285,10 +284,7 @@ class const PullRequestPanelActions({
             snapshot: snapshot,
           ),
         );
-        if (watchError != null && messenger.mounted) {
-          messenger.showSnackBar(SnackBar(content: Text(watchError)));
-        }
-        return null;
+        return (error: null, notice: notice);
       },
     );
   }

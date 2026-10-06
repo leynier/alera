@@ -50,6 +50,11 @@ typedef PullRequestShipRequest = ({
   AgentTaskDispatchBinding? binding,
 });
 
+/// What a submitted Ship reports. [error] means Ship failed and the form comes
+/// back; [notice] means the pull request exists but a follow-up did not start,
+/// and replaces the success message.
+typedef PullRequestShipOutcome = ({String? error, String? notice});
+
 /// Starts the watch [request] asks for on the pull request in [shipped].
 /// Returns a message for the user when the pull request exists but the watch
 /// could not start, and null otherwise.

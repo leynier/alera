@@ -30,7 +30,10 @@ Future<void> showShipPullRequestSheet(
       PullRequestAgentWatchScope.defaults,
   Future<AgentTaskDispatchBinding?> Function(PullRequestAgentWatchMode mode)?
   chooseAgent,
-  required Future<String?> Function(PullRequestShipRequest request) onSubmit,
+  required Future<PullRequestShipOutcome> Function(
+    PullRequestShipRequest request,
+  )
+  onSubmit,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -66,7 +69,9 @@ class const ShipPullRequestSheet({
     PullRequestAgentWatchMode mode,
   )?
   chooseAgent,
-  required final Future<String?> Function(PullRequestShipRequest request)
+  required final Future<PullRequestShipOutcome> Function(
+    PullRequestShipRequest request,
+  )
   onSubmit,
 }) extends StatefulWidget {
   @override
@@ -143,10 +148,18 @@ class _ShipPullRequestSheetState extends State<ShipPullRequestSheet> {
       watchScope: watchScope,
       binding: binding,
     );
+    String? notice;
     submitInBackground(
       context,
       title: 'Ship changes',
-      action: () => form.onSubmit(request),
+      action: () async {
+        final outcome = await form.onSubmit(request);
+        notice = outcome.notice;
+        return outcome.error;
+      },
+      // A follow-up that failed after the pull request was created must not be
+      // followed by a success message, and must not reopen the form either.
+      successMessage: () => notice ?? 'Ship changes completed.',
       restoreForm: (_) => ShipPullRequestSheet(
         headBranch: form.headBranch,
         baseBranches: form.baseBranches,

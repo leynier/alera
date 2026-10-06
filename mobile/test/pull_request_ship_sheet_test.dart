@@ -59,7 +59,7 @@ void main() {
         askWorkingTreeScope: false,
         onSubmit: (request) async {
           submitted = request.input;
-          return null;
+          return (error: null, notice: null);
         },
       );
 
@@ -102,7 +102,7 @@ void main() {
         onSubmit: (request) async {
           events.add('ship');
           submitted = request;
-          return null;
+          return (error: null, notice: null);
         },
       );
 
@@ -118,6 +118,26 @@ void main() {
       expect(submitted?.input.draft, isFalse);
     });
 
+    testWidgets('a watch that fails to start replaces the success message', (
+      tester,
+    ) async {
+      const notice =
+          'Pull request #42 was created, but watching could not start.';
+      await _pumpSheet(
+        tester,
+        askWorkingTreeScope: false,
+        initialFollowUp: .watchAndFix,
+        chooseAgent: (_) async => const AgentTaskDispatchBinding(tabId: 't'),
+        onSubmit: (_) async => (error: null, notice: notice),
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Ship and Watch'));
+      await tester.pumpAndSettle();
+      expect(find.text(notice), findsOneWidget);
+      expect(find.text('Ship changes completed.'), findsNothing);
+      expect(find.byType(ShipPullRequestSheet), findsNothing);
+    });
+
     testWidgets('declining the agent keeps the sheet and ships nothing', (
       tester,
     ) async {
@@ -129,7 +149,7 @@ void main() {
         chooseAgent: (_) async => null,
         onSubmit: (_) async {
           shipped = true;
-          return null;
+          return (error: null, notice: null);
         },
       );
 
@@ -266,7 +286,8 @@ FakeTerminalClient _shipClient() {
 Future<void> _pumpSheet(
   WidgetTester tester, {
   required bool askWorkingTreeScope,
-  Future<String?> Function(PullRequestShipRequest request)? onSubmit,
+  Future<PullRequestShipOutcome> Function(PullRequestShipRequest request)?
+  onSubmit,
   Future<AgentTaskDispatchBinding?> Function(PullRequestAgentWatchMode mode)?
   chooseAgent,
   PullRequestShipFollowUp initialFollowUp = PullRequestShipFollowUp.none,
@@ -289,7 +310,7 @@ Future<void> _pumpSheet(
                 initialFollowUp: initialFollowUp,
                 initialWatchScope: initialWatchScope,
                 chooseAgent: chooseAgent,
-                onSubmit: onSubmit ?? (_) async => null,
+                onSubmit: onSubmit ?? (_) async => (error: null, notice: null),
               ),
               child: const Text('Open'),
             ),

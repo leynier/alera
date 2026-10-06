@@ -45,7 +45,9 @@ void main() {
                         onSubmit: (input) {
                           calls++;
                           submitted = input.input;
-                          return completion.future;
+                          return completion.future.then(
+                            (error) => (error: error, notice: null),
+                          );
                         },
                       ),
                       child: const Text('Open Ship'),
