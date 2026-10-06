@@ -208,6 +208,8 @@ mod orchestration_board_requests;
 #[cfg(test)]
 mod orchestration_board_tests;
 mod orchestration_completion;
+#[cfg(test)]
+mod orchestration_mobile_access_tests;
 mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
 mod orchestration_profile_spawn;

@@ -110,7 +110,9 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<Option<Value>> {
-        self.require_auth(client_id)?;
+        // This router runs before `handle_request`, so it must apply the
+        // mobile allowlist itself; no orchestration verb is on it.
+        self.require_authenticated_local_request(client_id, request_type)?;
         match request_type {
             "orchestration.agentSpawn" => self.orchestration_agent_spawn(payload).await.map(Some),
             "orchestration.agentSpawnTimeout" => self
