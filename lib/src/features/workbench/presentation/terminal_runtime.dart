@@ -311,6 +311,7 @@ final class const TerminalRuntimeExitEvent({
   required final String tabId,
   required final int exitCode,
   final bool autoCloseOnSuccess = false,
+  final TerminalExitCause cause = .processExit,
 });
 
 abstract interface class TerminalPtySessionFactory {
@@ -421,6 +422,7 @@ final class const TerminalPtySnapshotEvent(
 final class const TerminalPtyExitEvent(
   final int exitCode, {
   final bool notifyRuntime = true,
+  final TerminalExitCause cause = .processExit,
 }) extends TerminalPtySessionEvent;
 
 final class const TerminalPtyErrorEvent(final Object error)

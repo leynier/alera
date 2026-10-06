@@ -378,6 +378,10 @@ void main() {
       expect(events.whereType<TerminalPtyOutputEvent>().single.data, <int>[67]);
       expect(events.whereType<TerminalPtyExitEvent>().single.exitCode, 4);
       expect(
+        events.whereType<TerminalPtyExitEvent>().single.cause,
+        TerminalExitCause.processExit,
+      );
+      expect(
         events.whereType<TerminalPtyErrorEvent>().map((event) => event.error),
         containsAll(<Object>['host failed', isA<StateError>()]),
       );

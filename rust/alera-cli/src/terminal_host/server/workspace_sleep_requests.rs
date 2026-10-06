@@ -4,7 +4,7 @@ use alera_core::runtime::WorkspaceTabRecord;
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::event;
+use crate::terminal_host::protocol::{event, TERMINAL_SESSION_REMOVED_BY_SLEEP};
 
 use super::ServerActor;
 
@@ -38,6 +38,25 @@ impl ServerActor {
             Ok(false) => {}
             Err(error) => tracing::warn!("could not wake workspace {workspace_id}: {error}"),
         }
+    }
+
+    /// Ends a slept workspace's sessions and names the cause on
+    /// `terminalSessionRemoved`, so clients keep the tabs for the wake.
+    pub(super) async fn terminate_slept_workspace_sessions(&mut self, workspace_id: &str) {
+        let session_ids = self
+            .sessions
+            .iter()
+            .filter(|(_, session)| session.workspace_id == workspace_id)
+            .map(|(session_id, _)| session_id.clone())
+            .collect();
+        // One id per sleep lets a client tell its removals apart from those of
+        // the next sleep of the same workspace.
+        let cause = json!({
+            "reason": TERMINAL_SESSION_REMOVED_BY_SLEEP,
+            "sleepId": uuid::Uuid::new_v4().to_string(),
+        });
+        self.terminate_sessions_because(session_ids, Some(cause))
+            .await;
     }
 
     pub(super) fn broadcast_workspace_sleep_changed(&self, workspace_id: &str) {

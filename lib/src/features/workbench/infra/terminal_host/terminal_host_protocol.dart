@@ -33,6 +33,10 @@ const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';
 const String aleraRuntimeHostWorkspaceSleepStateCapability =
     'workspaceSleepStateV1';
 
+/// `reason` on `terminalSessionRemoved` for sessions a workspace sleep ended.
+/// Additive: an older host omits it.
+const String terminalSessionRemovedBySleepReason = 'workspaceSleep';
+
 /// Sent in the app's `hello` to say it handles [aleraWorkspaceFocusRequestedEvent],
 /// which the host delivers for `alera workspace focus`. Additive: do not bump
 /// [aleraTerminalHostProtocolVersion].

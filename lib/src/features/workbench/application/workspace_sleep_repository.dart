@@ -5,4 +5,9 @@ abstract interface class WorkspaceSleepRepository {
   /// Slept terminal tab ids by workspace. Empty on a host without
   /// `workspaceSleepStateV1`.
   Stream<Map<String, List<String>>> watchSleptWorkspaceTabs();
+
+  /// One read of [watchSleptWorkspaceTabs]. The host records a sleep before it
+  /// ends the sessions, so this already lists a terminal whose exit the sleep
+  /// caused.
+  Future<Map<String, List<String>>> listSleptWorkspaceTabs();
 }

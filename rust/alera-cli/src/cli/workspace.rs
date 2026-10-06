@@ -38,6 +38,9 @@ pub enum WorkspaceAction {
     Pin(IdArgs),
     /// Unpin a workspace from the desktop sidebar.
     Unpin(IdArgs),
+    /// Sleep a workspace: stop its terminal sessions while it stays visible in
+    /// the sidebar, preserving tabs, branch, and files. Opening it wakes it.
+    Sleep(IdArgs),
     /// Archive a workspace: stop its sessions and hide it from the sidebar
     /// while preserving tabs, branch, and files for later resume.
     Archive(IdArgs),

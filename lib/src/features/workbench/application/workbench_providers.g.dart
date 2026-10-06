@@ -267,18 +267,21 @@ final class WorkbenchPaneFocusRegistryProvider
 String _$workbenchPaneFocusRegistryHash() =>
     r'ea8c56f066826f6024f8195c6cb0d97054ed30d0';
 
-/// Rechecks the terminal memory budget when the active workspace changes.
+/// Rechecks the terminal memory budget when the active workspace changes, and
+/// frees the exited handles a sleep kept on screen once their workspace leaves.
 
 @ProviderFor(terminalRuntimeActiveWorkspaceCoordinator)
 final terminalRuntimeActiveWorkspaceCoordinatorProvider =
     TerminalRuntimeActiveWorkspaceCoordinatorProvider._();
 
-/// Rechecks the terminal memory budget when the active workspace changes.
+/// Rechecks the terminal memory budget when the active workspace changes, and
+/// frees the exited handles a sleep kept on screen once their workspace leaves.
 
 final class TerminalRuntimeActiveWorkspaceCoordinatorProvider
     extends $FunctionalProvider<void, void, void>
     with $Provider<void> {
-  /// Rechecks the terminal memory budget when the active workspace changes.
+  /// Rechecks the terminal memory budget when the active workspace changes, and
+  /// frees the exited handles a sleep kept on screen once their workspace leaves.
   TerminalRuntimeActiveWorkspaceCoordinatorProvider._()
     : super(
         from: null,
@@ -314,7 +317,7 @@ final class TerminalRuntimeActiveWorkspaceCoordinatorProvider
 }
 
 String _$terminalRuntimeActiveWorkspaceCoordinatorHash() =>
-    r'e01d17c5ce70a9aaa04ee477b661703888484b84';
+    r'b0812d581c2cbb5d11939ab06458a56131d2ffc5';
 
 @ProviderFor(workspaceExplorerSessionStore)
 final workspaceExplorerSessionStoreProvider =
@@ -1092,7 +1095,7 @@ final class TerminalRuntimeProvider
   }
 }
 
-String _$terminalRuntimeHash() => r'da43bb1933299d4a36c4a392026807db566b4394';
+String _$terminalRuntimeHash() => r'cf55ae7c6a8ad8b535915b503b44b15edb68f3aa';
 
 @ProviderFor(terminalShellStartupPreparer)
 final terminalShellStartupPreparerProvider =
@@ -1184,4 +1187,4 @@ final class TerminalRuntimeExitCoordinatorProvider
 }
 
 String _$terminalRuntimeExitCoordinatorHash() =>
-    r'f9aaa1121a88909b644a3d96083320520b389265';
+    r'9bd05726d2c4c2c52b1cfe871ca787e92a6aee43';

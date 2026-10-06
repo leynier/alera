@@ -45,7 +45,27 @@ void _registerTerminalHostClientResilienceTests() {
       'event': 'terminalSessionRemoved',
       'payload': <String, Object?>{'sessionId': 'session-1'},
     });
-    expect((await exit).exitCode, -1);
+    final removed = await exit;
+    expect(removed.exitCode, -1);
+    expect(removed.cause, TerminalExitCause.hostRemoval);
+
+    final slept = client
+        .eventsForSession('session-1')
+        .where((event) => event is TerminalHostExitEvent)
+        .cast<TerminalHostExitEvent>()
+        .first;
+    server.send(<String, Object?>{
+      'event': 'terminalSessionRemoved',
+      'payload': <String, Object?>{
+        'sessionId': 'session-1',
+        'reason': terminalSessionRemovedBySleepReason,
+        'sleepId': 'sleep-1',
+      },
+    });
+    expect(
+      (await slept).cause,
+      const TerminalExitCause.workspaceSleep('sleep-1'),
+    );
   });
 
   test('pulse state distinguishes an unavailable status from disarmed', () {

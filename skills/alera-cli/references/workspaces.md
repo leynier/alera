@@ -215,9 +215,12 @@ alera workspace pin --id <workspace-id>
 alera workspace unpin --id <workspace-id>
 alera workspace archive --id <workspace-id>
 alera workspace unarchive --id <workspace-id>
+alera workspace sleep --id <workspace-id>
 alera tab list --workspace-id <workspace-id>
 alera tab create --workspace-id <workspace-id> --title "Terminal" --kind terminal
 ```
+
+`workspace sleep` is the CLI form of the app's Sleep action and sends the same `workspace.sleep` host verb: it stops that workspace's terminal sessions and their child processes while the workspace stays visible in the sidebar, and keeps its tabs, layout, branch, and files so agent sessions resume when it is opened again. Other workspaces keep running. It is not `workspace archive`, which also hides the workspace, nor `workspace remove`/`unregister`, which delete state. `--id` is required and is never inferred from the current terminal; the command refuses the workspace of the terminal it runs in, and fails for an unknown, removed, or archived workspace. `--json` returns the workspace, the stopped terminal tab ids (`sleptTabIds`), and `runtimeHost`; without a running host there are no live sessions, so it only records the sleep in the runtime store. It fails instead when a host is alive but does not answer, because its terminals would keep running. Workspaces on an SSH host are refused for now, because their terminals belong to that host's runtime, which this command cannot stop yet.
 
 Read retained terminal output or write input without opening the UI:
 

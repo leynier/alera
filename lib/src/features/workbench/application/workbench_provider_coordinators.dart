@@ -48,15 +48,8 @@ TerminalRuntime terminalRuntime(Ref ref) {
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
     shellStartupPreparer: shellStartupPreparer,
-    terminalSessionCleanup: (terminalSessionId) {
-      // A terminal closed mid-turn never emits the Codex Stop hook, so the
-      // transcript watch has to be dropped here or its file poller outlives
-      // the session.
-      ref
-          .read(agentHookReceiverProvider)
-          .clearTerminalSession(terminalSessionId);
-      return agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
-    },
+    terminalSessionCleanup: (terminalSessionId) =>
+        _cleanUpTerminalSession(ref, agentRuntimeOverlay, terminalSessionId),
     terminalProcessCreated: (terminalSessionId) => ref
         .read(agentStatusControllerProvider.notifier)
         .clearTerminal(terminalSessionId),
@@ -107,13 +100,31 @@ TerminalShellStartupPreparer terminalShellStartupPreparer(Ref ref) {
 void terminalRuntimeExitCoordinator(Ref ref) {
   final runtime = ref.watch(terminalRuntimeProvider);
   final closingTabIds = <String>{};
+  // An exit that arrives while the tab's previous one is still being handled,
+  // such as a reopened terminal quitting during the sleep lookup, waits here
+  // instead of being dropped.
+  final queuedExits = <String, TerminalRuntimeExitEvent>{};
   var disposed = false;
+  late final void Function(TerminalRuntimeExitEvent event) handleExit;
 
   Future<void> closeExitedTerminalTab(TerminalRuntimeExitEvent event) async {
     try {
       if (disposed) {
         return;
       }
+      // Taken before any await: a different handle afterwards, or this one
+      // running or starting again, means the tab restarted and this exit is
+      // stale. A start already under way belongs to the process that exited,
+      // and a handle that is merely gone was evicted, not restarted.
+      final handle = runtime.peekSession(event.tabId);
+      final wasStarting = handle?.isStarting ?? false;
+      bool restarted() {
+        final current = runtime.peekSession(event.tabId);
+        return (current != null && !identical(current, handle)) ||
+            (handle != null &&
+                (handle.isRunning || (handle.isStarting && !wasStarting)));
+      }
+
       final state = ref.read(workbenchControllerProvider);
       final workspace = findWorkspaceById(state, event.workspaceId);
       final tabStillExists = state
@@ -123,30 +134,123 @@ void terminalRuntimeExitCoordinator(Ref ref) {
         runtime.closeTab(event.tabId);
         return;
       }
+      final controller = ref.read(workbenchControllerProvider.notifier);
+      // Sleep ends the session but keeps the tab for the wake. The host names
+      // that cause on the removal, which no later wake can erase.
+      final List<String> slept;
+      if (event.cause.isWorkspaceSleep) {
+        slept = <String>{
+          ...?state.sleptTabIdsByWorkspaceId[event.workspaceId],
+          event.tabId,
+        }.toList(growable: false);
+      } else {
+        // An older host does not, so its slept list, recorded before the
+        // sessions ended, is the only evidence.
+        try {
+          slept = await controller.sleptTerminalIds(event.workspaceId);
+        } catch (_) {
+          // Without the host's answer the tab stays, as on any other failure
+          // here, but the session is dead either way, so its agent state goes.
+          final terminalSessionId = handle?.terminalSessionId;
+          if (!disposed && !restarted() && terminalSessionId != null) {
+            await _cleanUpTerminalSession(
+              ref,
+              ref.read(agentRuntimeOverlayServiceProvider),
+              terminalSessionId,
+            );
+          }
+          return;
+        }
+      }
+      if (disposed || restarted()) {
+        return;
+      }
+      // Any other terminal of the workspace running, a slept one woken or one
+      // opened since, means the user is back in it.
+      bool workspaceAwake() => ref
+          .read(workbenchControllerProvider)
+          .tabsFor(event.workspaceId)
+          .any((tab) {
+            final other = tab.id == event.tabId
+                ? null
+                : runtime.peekSession(tab.id);
+            return other != null && (other.isRunning || other.isStarting);
+          });
+      final terminalSessionId = handle?.terminalSessionId;
+      if (slept.contains(event.tabId)) {
+        // When the workspace woke meanwhile, it stays open and this exited
+        // handle stays on screen: releasing a mounted handle would leave its
+        // surface on disposed objects. A named sleep cause arrives with no
+        // wait, while siblings of the same sleep may still be running, so they
+        // are no evidence of a wake.
+        if (event.cause.isWorkspaceSleep || !workspaceAwake()) {
+          controller.settleSleptTerminal(
+            event.workspaceId,
+            event.tabId,
+            slept,
+            sleepId: event.cause.sleepId,
+          );
+        } else {
+          controller.retainExitedHandle(event.workspaceId, event.tabId);
+        }
+        // Neither path closes the session, so its agent state goes here.
+        if (terminalSessionId != null) {
+          await _cleanUpTerminalSession(
+            ref,
+            ref.read(agentRuntimeOverlayServiceProvider),
+            terminalSessionId,
+          );
+        }
+        return;
+      }
+      // On an older host, waking clears the slept list for the whole
+      // workspace, so a sleep that ended this session can look like nothing by
+      // now. The host never removes a session whose tab the desktop should
+      // delete while the workspace is in use: the client that closed it
+      // removes the tab too.
+      if (event.cause.removedByHost && workspaceAwake()) {
+        // The exited handle stays mounted, as above, until the tab closes or
+        // the workspace leaves the screen.
+        controller.retainExitedHandle(event.workspaceId, event.tabId);
+        if (terminalSessionId != null) {
+          await _cleanUpTerminalSession(
+            ref,
+            ref.read(agentRuntimeOverlayServiceProvider),
+            terminalSessionId,
+          );
+        }
+        return;
+      }
       if (event.autoCloseOnSuccess && event.exitCode != 0) {
         return;
       }
       // The controller disposes the terminal handle alongside the tab record.
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .closeWorkspaceTab(workspace: workspace, tabId: event.tabId);
+      await controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: event.tabId,
+      );
     } catch (_) {
       // WorkbenchController records close failures in state; keep the tab so
       // the user is not left with a silently removed terminal on persistence errors.
     } finally {
       closingTabIds.remove(event.tabId);
+      final queued = queuedExits.remove(event.tabId);
+      final current = runtime.peekSession(event.tabId);
+      // A terminal running again has outlived the queued exit, which would
+      // otherwise mark its new agent finished.
+      if (queued != null &&
+          !(current != null && (current.isRunning || current.isStarting))) {
+        handleExit(queued);
+      }
     }
   }
 
-  final subscription = runtime.exits.listen((event) {
-    // A command terminal belongs to the dialog that opened it, not to the
-    // workbench. Closing its session here would wipe the output the moment the
-    // shell exited, which is exactly when the user wants to read it, and would
-    // report agent and activity events against a synthetic workspace id.
-    if (isCommandTerminalWorkspaceId(event.workspaceId)) {
+  handleExit = (event) {
+    if (disposed) {
       return;
     }
-    if (disposed || !closingTabIds.add(event.tabId)) {
+    if (!closingTabIds.add(event.tabId)) {
+      queuedExits[event.tabId] = event;
       return;
     }
     ref
@@ -160,12 +264,35 @@ void terminalRuntimeExitCoordinator(Ref ref) {
         .read(workspaceActivityControllerProvider.notifier)
         .recordActivity(event.workspaceId, DateTime.now().toUtc());
     unawaited(closeExitedTerminalTab(event));
+  };
+
+  final subscription = runtime.exits.listen((event) {
+    // A command terminal belongs to the dialog that opened it, not to the
+    // workbench. Closing its session here would wipe the output the moment the
+    // shell exited, which is exactly when the user wants to read it, and would
+    // report agent and activity events against a synthetic workspace id.
+    if (isCommandTerminalWorkspaceId(event.workspaceId)) {
+      return;
+    }
+    handleExit(event);
   });
 
   ref.onDispose(() {
     disposed = true;
     unawaited(subscription.cancel());
   });
+}
+
+Future<void> _cleanUpTerminalSession(
+  Ref ref,
+  AgentRuntimeOverlayService agentRuntimeOverlay,
+  String terminalSessionId,
+) {
+  // A terminal closed mid-turn never emits the Codex Stop hook, so the
+  // transcript watch has to be dropped here or its file poller outlives the
+  // session.
+  ref.read(agentHookReceiverProvider).clearTerminalSession(terminalSessionId);
+  return agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
 }
 
 Workspace? findWorkspaceById(WorkbenchState state, String workspaceId) {

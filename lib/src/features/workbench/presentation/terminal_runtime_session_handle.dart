@@ -490,6 +490,7 @@ class _XtermTerminalSessionHandle(
           exitCode: exitCode,
           generation: generation,
           notifyRuntime: event.notifyRuntime,
+          cause: event.cause,
         );
       case TerminalPtyErrorEvent(:final error):
         _setTerminalHostError(error);
@@ -502,6 +503,7 @@ class _XtermTerminalSessionHandle(
     required int exitCode,
     required int generation,
     required bool notifyRuntime,
+    required TerminalExitCause cause,
   }) {
     if (!_exitedPtyGenerations.add(generation)) {
       return;
@@ -519,6 +521,7 @@ class _XtermTerminalSessionHandle(
           tabId: tabId,
           exitCode: exitCode,
           autoCloseOnSuccess: _tab.autoCloseOnSuccess,
+          cause: cause,
         ),
       );
     }

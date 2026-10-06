@@ -340,8 +340,7 @@ impl ServerActor {
                 if let Some(server) = self.codex.as_ref() {
                     server.clear_thread_hydrations().await;
                 }
-                self.terminate_terminal_sessions_for_workspace(&workspace_id)
-                    .await;
+                self.terminate_slept_workspace_sessions(&workspace_id).await;
                 self.broadcast_workspace_tabs_changed(Some(&workspace_id));
                 self.broadcast_authenticated(event(
                     "workbenchLayoutsChanged",
@@ -409,6 +408,17 @@ impl ServerActor {
     }
 
     pub(super) async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
+        self.terminate_sessions_because(session_ids, None).await;
+    }
+
+    /// [cause] fields join `terminalSessionRemoved` for the attached clients,
+    /// so a client can tell a sleep that keeps the tab from a close that does
+    /// not.
+    pub(super) async fn terminate_sessions_because(
+        &mut self,
+        session_ids: Vec<String>,
+        cause: Option<serde_json::Value>,
+    ) {
         if session_ids.is_empty() {
             return;
         }
@@ -450,11 +460,14 @@ impl ServerActor {
                 self.inbox.resume_pty_session(&session_id);
                 let clients: Vec<_> = session.clients.iter().copied().collect();
                 session.terminate(!retained_workflow_history, &store).await;
+                let mut payload = json!({"sessionId": session_id});
+                if let (Some(serde_json::Value::Object(fields)), Some(target)) =
+                    (cause.as_ref(), payload.as_object_mut())
+                {
+                    target.extend(fields.clone());
+                }
                 for client in clients {
-                    self.client_write(
-                        client,
-                        event("terminalSessionRemoved", json!({"sessionId":session_id})),
-                    );
+                    self.client_write(client, event("terminalSessionRemoved", payload.clone()));
                 }
             }
             self.settle_closed_workflow_terminal(

@@ -4,9 +4,29 @@ class _FakeSleepingWorkbenchRepository extends _FakeWorkbenchRepository
     implements WorkspaceSleepRepository {
   Stream<Map<String, List<String>>>? sleepSnapshots;
 
+  Map<String, List<String>> sleptTabs = const <String, List<String>>{};
+
   @override
   Stream<Map<String, List<String>>> watchSleptWorkspaceTabs() =>
       sleepSnapshots ?? Stream<Map<String, List<String>>>.value(const {});
+
+  Future<void> Function()? onSleep;
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {
+    await onSleep?.call();
+  }
+
+  Completer<void>? sleptTabsGate;
+  Object? sleptTabsError;
+
+  @override
+  Future<Map<String, List<String>>> listSleptWorkspaceTabs() async {
+    final snapshot = sleptTabs;
+    await sleptTabsGate?.future;
+    if (sleptTabsError case final error?) throw error;
+    return snapshot;
+  }
 }
 
 void _registerWorkbenchControllerSleepBootstrapTests() {

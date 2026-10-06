@@ -10,12 +10,13 @@ mixin _RuntimeWorkbenchSleep implements WorkspaceSleepRepository {
       runtimeSnapshotStream(
         client: _client,
         eventNames: const {'workspaceSleepChanged', 'workspaceTabsChanged'},
-        readSnapshot: _listSleptWorkspaceTabs,
+        readSnapshot: listSleptWorkspaceTabs,
         coalesceKey: 'slept-workspace-tabs',
         coalescer: _coalescer,
       );
 
-  Future<Map<String, List<String>>> _listSleptWorkspaceTabs() async {
+  @override
+  Future<Map<String, List<String>>> listSleptWorkspaceTabs() async {
     await _ensureReady();
     final client = _client;
     // Keep watching an older host: an in-app update can add the capability.
