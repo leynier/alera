@@ -113,6 +113,7 @@ impl ServerActor {
         // This router runs before `handle_request`, so it must apply the
         // mobile allowlist itself; no orchestration verb is on it.
         self.require_authenticated_local_request(client_id, request_type)?;
+        super::inbox_guards::reject_inbox_address(request_type, payload)?;
         match request_type {
             "orchestration.agentSpawn" => self.orchestration_agent_spawn(payload).await.map(Some),
             "orchestration.agentSpawnTimeout" => self
@@ -222,7 +223,11 @@ impl ServerActor {
         let message_type = parse_message_type(payload)?;
         let priority = parse_priority(payload)?;
         let message_payload = optional_string(payload, "payload");
-        let explicit_thread_id = optional_string(payload, "threadId");
+        let mut explicit_thread_id = optional_string(payload, "threadId");
+        if alera_core::runtime::is_external_inbox(&to) {
+            let root = self.inbox_thread_for_send(&from_handle, &to, explicit_thread_id.as_deref());
+            explicit_thread_id = Some(root.await?);
+        }
 
         if message_type.is_lifecycle() {
             return Err(HostError::state(format!(
@@ -278,6 +283,7 @@ impl ServerActor {
                 })
                 .await
                 .map_err(state_error)?;
+            self.queue_inbox_reply_push(&message).await;
             inserted.push(message);
         }
 
@@ -405,6 +411,7 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state(format!("message not found: {message_id}")))?;
+        super::inbox_guards::reject_reply_as_inbox(&original)?;
         self.runtime_store
             .mark_orchestration_messages_read(std::slice::from_ref(&original.id))
             .await
@@ -428,12 +435,13 @@ impl ServerActor {
                 task_id: original.task_id.clone(),
                 dispatch_id: original.dispatch_id.clone(),
                 expires_at: None,
-                reply_to_id: None,
+                reply_to_id: Some(original.id.clone()),
                 external_meta: None,
             })
             .await
             .map_err(state_error)?;
         let recipient = reply.to_handle.clone();
+        self.queue_inbox_reply_push(&reply).await;
         self.deliver_pending_messages_if_idle(&recipient).await;
         self.notify_message_arrived(&recipient, OrchestrationMessageType::Status)
             .await;
@@ -1893,6 +1901,7 @@ impl ServerActor {
                     }
                 }
             }
+            WaitKind::Inbox { .. } => self.resolve_inbox_waiter(waiter).await,
             WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => {
                 self.orchestration_waiters.repark(waiter);
             }
@@ -1907,6 +1916,11 @@ impl ServerActor {
         let Some(waiter) = self.orchestration_waiters.take_by_id(waiter_id) else {
             return;
         };
+        if matches!(&waiter.kind, WaitKind::Inbox { .. }) {
+            self.finish_inbox_wait_timeout(waiter, effective_timeout_ms)
+                .await;
+            return;
+        }
         if matches!(
             &waiter.kind,
             WaitKind::TerminalState { .. } | WaitKind::TaskState { .. }
@@ -1918,7 +1932,11 @@ impl ServerActor {
         let mut payload = match waiter.kind {
             WaitKind::Check { inject, .. } => check_response(&[], inject),
             WaitKind::Ask { .. } => json!({ "answered": false }),
-            WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => unreachable!(),
+            WaitKind::TerminalState { .. }
+            | WaitKind::TaskState { .. }
+            | WaitKind::Inbox { .. } => {
+                unreachable!()
+            }
         };
         payload["timedOut"] = Value::Bool(true);
         payload["outcome"] = Value::String("timeout".to_string());

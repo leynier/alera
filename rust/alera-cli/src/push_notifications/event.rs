@@ -101,6 +101,33 @@ impl PushEvent {
         }
     }
 
+    /// Generic title and ids only: the reply itself is orchestration text,
+    /// which never travels in a push payload. No `tabId`, so an app that does
+    /// not know this kind cannot route it to a terminal.
+    pub(crate) fn inbox_reply(thread_id: &str, message_id: &str, location: PushLocation) -> Self {
+        let location = PushLocation {
+            tab_id: None,
+            terminal_session_id: None,
+            ..location
+        };
+        Self {
+            event_id: Uuid::new_v4().to_string(),
+            category: "attention".to_string(),
+            event_type: "inbox_reply".to_string(),
+            title: "New Inbox Reply".to_string(),
+            body: location_body(&location),
+            data: location_data(
+                &location,
+                json!({
+                    "kind": "inboxReply",
+                    "threadId": thread_id,
+                    "messageId": message_id,
+                }),
+            ),
+            occurred_at: Utc::now(),
+        }
+    }
+
     pub(crate) fn escalation(task_id: &str, _subject: &str, location: PushLocation) -> Self {
         Self {
             event_id: Uuid::new_v4().to_string(),
@@ -288,6 +315,29 @@ mod tests {
         .unwrap();
         assert_eq!(event.title, "Codex needs attention");
         assert_eq!(event.body, "Workspace Push in Alera");
+        assert!(!event.data.to_string().contains("Secret prompt"));
+    }
+
+    #[test]
+    fn inbox_replies_carry_ids_but_no_text_or_terminal() {
+        let event = PushEvent::inbox_reply(
+            "msg_question",
+            "msg_reply",
+            PushLocation {
+                terminal_session_id: Some("session".to_string()),
+                workspace_id: Some("workspace".to_string()),
+                tab_id: Some("tab".to_string()),
+                project_name: Some("Alera".to_string()),
+                workspace_name: Some("Push".to_string()),
+                tab_title: Some("Secret prompt".to_string()),
+            },
+        );
+        assert_eq!(event.category, "attention");
+        assert_eq!(event.title, "New Inbox Reply");
+        assert_eq!(event.data["kind"], "inboxReply");
+        assert_eq!(event.data["threadId"], "msg_question");
+        assert!(event.data["tabId"].is_null());
+        assert!(event.data["terminalSessionId"].is_null());
         assert!(!event.data.to_string().contains("Secret prompt"));
     }
 

@@ -3,7 +3,9 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
-use alera_core::runtime::{AutomationDefinition, AutomationRun, AutomationRunStatus};
+use alera_core::runtime::{
+    AutomationDefinition, AutomationRun, AutomationRunStatus, OrchestrationMessage,
+};
 
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::push_notifications::{
@@ -103,6 +105,23 @@ impl ServerActor {
             return;
         };
         self.enqueue_push_event(PushEvent::decision_gate(task_id, question, location));
+    }
+
+    /// One push per message an agent sends to an inbox, in the attention
+    /// category so the cloud contract stays unchanged.
+    pub(super) async fn queue_inbox_reply_push(&mut self, message: &OrchestrationMessage) {
+        if !alera_core::runtime::is_external_inbox(&message.to_handle) {
+            return;
+        }
+        match self.runtime_store.mobile_push_settings().await {
+            Ok(settings) if settings.enabled && settings.attention => {}
+            _ => return,
+        }
+        let Some(location) = self.push_location_for_session(&message.from_handle).await else {
+            return;
+        };
+        let thread_id = message.thread_id.clone().unwrap_or(message.id.clone());
+        self.enqueue_push_event(PushEvent::inbox_reply(&thread_id, &message.id, location));
     }
 
     pub(super) async fn queue_escalation_push(&mut self, task_id: &str, subject: &str) {

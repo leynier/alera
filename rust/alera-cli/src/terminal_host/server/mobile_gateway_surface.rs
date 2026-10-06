@@ -86,6 +86,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_INBOX_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
@@ -339,6 +340,14 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "automation.export"
             | "automation.import"
             | "automation.policy"
+            | "inbox.summary"
+            | "inbox.threads"
+            | "inbox.thread"
+            | "inbox.targets"
+            | "inbox.ask"
+            | "inbox.cancel"
+            | "inbox.markRead"
+            | "inbox.purge"
     )
 }
 

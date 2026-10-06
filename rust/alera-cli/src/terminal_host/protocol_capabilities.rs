@@ -161,6 +161,9 @@ pub const RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY: &str = "workflowLocalIn
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";
+// Advertised once the host answers `inbox.*` for questions from addresses
+// outside Alera (`ext:`), on desktop, CLI and paired phones alike.
+pub const RUNTIME_HOST_INBOX_CAPABILITY: &str = "inboxV1";
 // Advertised once dispatch honors the explicit agent adapter override. Older
 // hosts ignore assumeAgent, so callers must negotiate this capability first.
 pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrationAssumeAgentV1";

@@ -79,11 +79,24 @@ impl ServerActor {
                             return;
                         }
                     }
+                    if request_type.starts_with("inbox.") {
+                        let result = self
+                            .handle_inbox_request(client_id, id, &request_type, &payload)
+                            .await;
+                        self.broadcast_inbox_change().await;
+                        match result {
+                            Ok(None) => {}
+                            Ok(Some(value)) => self.client_write(client_id, ok_response(id, value)),
+                            Err(error) => self.client_write(client_id, error_response(id, &error)),
+                        }
+                        return;
+                    }
                     if request_type.starts_with("orchestration.") {
                         let result = self
                             .handle_orchestration_request(client_id, id, &request_type, &payload)
                             .await;
                         self.broadcast_orchestration_board_change().await;
+                        self.broadcast_inbox_change().await;
                         match result {
                             // A parked waiter answers later (wake or timeout).
                             Ok(None) => return,

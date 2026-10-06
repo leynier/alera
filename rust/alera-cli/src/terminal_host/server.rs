@@ -34,7 +34,9 @@ use crate::terminal_host::orchestration::coordinator_loop::CoordinatorHandle;
 use crate::terminal_host::orchestration::message_delivery::{
     skips_auto_enter, DEFERRED_ENTER_DELAY_MS,
 };
-use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
+use crate::terminal_host::orchestration::message_formatter::{
+    format_messages_for_injection, injected_message_count,
+};
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::runtime_owner;
@@ -168,6 +170,16 @@ mod host_status;
 mod hub_reverse_policy;
 mod hub_reverse_requests;
 mod hub_self_client;
+#[cfg(test)]
+mod inbox_guard_tests;
+mod inbox_guards;
+mod inbox_mutations;
+mod inbox_requests;
+#[cfg(test)]
+mod inbox_requests_tests;
+#[cfg(test)]
+mod inbox_test_fixture;
+mod inbox_wait;
 mod lifecycle;
 mod linked_issue_requests;
 #[cfg(test)]
@@ -1011,7 +1023,10 @@ impl ServerActor {
                 self.finish_remote_resource_sample(host_id, result)
             }
             ServerCommand::PullRequestWatchTick => self.poll_pull_request_watches().await,
-            ServerCommand::AgentPresenceSweepTick => self.reconcile_agent_presence().await,
+            ServerCommand::AgentPresenceSweepTick => {
+                self.reconcile_agent_presence().await;
+                self.sweep_inbox_expiry_if_due().await;
+            }
             ServerCommand::PullRequestWatchSnapshot {
                 watch,
                 generation,
@@ -1121,7 +1136,10 @@ impl ServerActor {
             Ok(messages) if !messages.is_empty() => messages,
             _ => return,
         };
-        let formatted = format_messages_for_injection(&messages);
+        // A batch larger than one paste leaves the rest queued for the next
+        // turn instead of stamping messages the agent never saw.
+        let messages = &messages[..injected_message_count(&messages)];
+        let formatted = format_messages_for_injection(messages);
         let Some(session) = self.sessions.get_mut(handle) else {
             return;
         };

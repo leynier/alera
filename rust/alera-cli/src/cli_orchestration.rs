@@ -240,8 +240,14 @@ pub struct OrchestrationReplyArgs {
     pub id: String,
 
     /// Reply body.
-    #[arg(long = "body", value_name = "text")]
-    pub body: String,
+    #[arg(long = "body", value_name = "text", conflicts_with_all = ["body_file", "body_stdin"])]
+    pub body: Option<String>,
+    /// Read the reply body from a file.
+    #[arg(long = "body-file", value_name = "path", conflicts_with_all = ["body", "body_stdin"])]
+    pub body_file: Option<String>,
+    /// Read the reply body from standard input.
+    #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
+    pub body_stdin: bool,
 }
 
 #[derive(Debug, Args)]
