@@ -348,6 +348,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "inbox.cancel"
             | "inbox.markRead"
             | "inbox.purge"
+            | "inbox.conversations"
+            | "inbox.conversation"
     )
 }
 

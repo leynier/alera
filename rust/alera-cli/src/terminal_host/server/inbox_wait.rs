@@ -35,9 +35,6 @@ impl ServerActor {
                     .orchestration_message_by_id(&question_id)
                     .await
                     .map_err(inbox_error)?
-                    .filter(|question| {
-                        alera_core::runtime::is_external_inbox(&question.from_handle)
-                    })
                     .ok_or_else(|| {
                         HostError::conflict(
                             "inbox_question_not_found",
@@ -53,7 +50,9 @@ impl ServerActor {
                 None,
             ),
         };
-        alera_core::runtime::validate_inbox_address(&inbox).map_err(inbox_error)?;
+        if question_id.is_none() {
+            alera_core::runtime::validate_inbox_address(&inbox).map_err(inbox_error)?;
+        }
         let state = self
             .inbox_wait_state(&inbox, question_id.as_deref(), after)
             .await?;
@@ -155,6 +154,9 @@ impl ServerActor {
                 settled,
             });
         };
+        if !alera_core::runtime::is_external_inbox(inbox) {
+            return self.agent_question_state(inbox, question_id, after).await;
+        }
         let question = self
             .runtime_store
             .orchestration_message_by_id(question_id)
@@ -223,6 +225,61 @@ impl ServerActor {
                 "messages": incoming,
                 "cursor": cursor,
                 "recipient": self.inbox_recipient(&detail.thread.recipient),
+            }),
+        })
+    }
+
+    /// An agent that asked with `--no-wait` reads its answer here. Reading
+    /// consumes the reply, so it is not pasted into the terminal again.
+    async fn agent_question_state(
+        &self,
+        asker: &str,
+        question_id: &str,
+        after: i64,
+    ) -> HostResult<InboxWaitState> {
+        // A follow-up question lives in its root's thread, where replies to it
+        // are stored too.
+        let thread_id = self
+            .runtime_store
+            .orchestration_message_by_id(question_id)
+            .await
+            .map_err(inbox_error)?
+            .and_then(|question| question.thread_id)
+            .unwrap_or_else(|| question_id.to_string());
+        let messages = self
+            .runtime_store
+            .conversation_thread(&thread_id)
+            .await
+            .map_err(inbox_error)?;
+        // Only a reply to this question settles the wait. Other thread
+        // traffic, such as the answer to an earlier question, stays unread
+        // so it is still pasted.
+        let incoming: Vec<_> = messages
+            .into_iter()
+            .filter(|message| {
+                message.to_handle == asker
+                    && message.sequence > after
+                    && message.reply_to_id.as_deref() == Some(question_id)
+            })
+            .collect();
+        let cursor = incoming.last().map_or(after, |message| message.sequence);
+        let outcome = if incoming.is_empty() {
+            "pending"
+        } else {
+            "answered"
+        };
+        let ids: Vec<String> = incoming.iter().map(|message| message.id.clone()).collect();
+        self.runtime_store
+            .mark_orchestration_messages_read(&ids)
+            .await
+            .map_err(inbox_error)?;
+        Ok(InboxWaitState {
+            settled: outcome != "pending",
+            body: json!({
+                "outcome": outcome,
+                "questionId": question_id,
+                "messages": incoming,
+                "cursor": cursor,
             }),
         })
     }

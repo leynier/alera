@@ -283,8 +283,13 @@ pub struct OrchestrationAskArgs {
     pub options: Option<String>,
 
     /// Wait timeout in milliseconds (default 120000).
-    #[arg(long = "timeout-ms", value_name = "ms", value_parser = parse_wait_timeout_ms)]
+    #[arg(long = "timeout-ms", value_name = "ms", value_parser = parse_wait_timeout_ms, conflicts_with = "no_wait")]
     pub timeout_ms: Option<u64>,
+
+    /// Return the question id at once. The answer reaches this terminal on its
+    /// next turn, or read it with `alera inbox wait --question <id>`.
+    #[arg(long = "no-wait")]
+    pub no_wait: bool,
 }
 
 #[derive(Debug, Args)]

@@ -33,6 +33,32 @@ pub enum InboxAction {
     Read(InboxShowArgs),
     /// Delete an inbox and every thread it started.
     Purge(InboxPurgeArgs),
+    /// List conversations between agents (read only).
+    Conversations(InboxConversationsArgs),
+    /// Show one conversation between agents (read only).
+    Conversation(InboxConversationArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct InboxConversationsArgs {
+    /// Only conversations in this workspace.
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: Option<String>,
+    /// Only conversations this terminal took part in.
+    #[arg(long = "participant", value_name = "handle")]
+    pub participant: Option<String>,
+    /// Maximum conversations returned (default 50).
+    #[arg(long = "limit", value_name = "n")]
+    pub limit: Option<i64>,
+    /// Continue a listing from the `nextBefore` value it returned.
+    #[arg(long = "before", value_name = "sequence")]
+    pub before: Option<i64>,
+}
+
+#[derive(Debug, Args)]
+pub struct InboxConversationArgs {
+    #[arg(long = "thread", value_name = "thread_id")]
+    pub thread: String,
 }
 
 #[derive(Debug, Args)]

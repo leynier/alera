@@ -297,8 +297,8 @@ impl ServerActor {
         }
 
         for recipient in &recipients {
-            self.deliver_pending_messages_if_idle(recipient).await;
             self.notify_message_arrived(recipient, message_type).await;
+            self.deliver_pending_messages_if_idle(recipient).await;
         }
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "orchestrationMessagesChanged",
@@ -442,9 +442,11 @@ impl ServerActor {
             .map_err(state_error)?;
         let recipient = reply.to_handle.clone();
         self.queue_inbox_reply_push(&reply).await;
-        self.deliver_pending_messages_if_idle(&recipient).await;
+        // Waiters that consume the reply run first, so an answer read through
+        // `inbox.wait` or `check --wait` is not pasted into the terminal too.
         self.notify_message_arrived(&recipient, OrchestrationMessageType::Status)
             .await;
+        self.deliver_pending_messages_if_idle(&recipient).await;
         Ok(json!(reply))
     }
 
@@ -548,6 +550,13 @@ impl ServerActor {
         self.deliver_pending_messages_if_idle(&to).await;
         self.notify_message_arrived(&to, OrchestrationMessageType::DecisionGate)
             .await;
+        if payload.get("wait").and_then(Value::as_bool) == Some(false) {
+            // The reply reaches the asker's terminal on its next turn, or
+            // through `inbox.wait` on this question id.
+            return Ok(Some(
+                json!({ "questionId": message.id, "threadId": message.id, "to": to }),
+            ));
+        }
 
         let waiter_id = self.orchestration_waiters.register(
             client_id,
