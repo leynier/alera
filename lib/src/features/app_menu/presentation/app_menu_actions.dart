@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 
 import 'package:alera/src/app/providers.dart';
@@ -18,6 +19,9 @@ typedef AppMenuPackageInfoLoader = Future<PackageInfo> Function();
 
 void openRunBoardFromAppMenu(WidgetRef ref) =>
     ref.read(runBoardNavigationProvider.notifier).open();
+
+void openInboxFromAppMenu(WidgetRef ref) =>
+    ref.read(inboxNavigationProvider.notifier).open();
 
 Future<void> openAppMenuSettings(BuildContext context) {
   return openSettingsDialog(context);

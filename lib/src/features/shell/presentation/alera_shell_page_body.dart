@@ -5,10 +5,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
       WorkbenchTabCompletionAcknowledgements();
 
-  void _returnFromRunBoard() {
-    ref.read(runBoardNavigationProvider.notifier).close();
-  }
-
   @override
   void initState() {
     super.initState();
@@ -19,34 +15,14 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(
-      runBoardNavigationProvider.select((location) => location.visible),
-      (wasVisible, visible) {
-        if (wasVisible != true || visible) return;
-        // All exit routes restore focus after the retained panes become visible.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || ref.read(runBoardNavigationProvider).visible) return;
-          KeyboardCommandDispatcher(
-            ref: ref,
-            context: context,
-          ).focusActivePane();
-        });
-      },
-    );
-    ref.listen(
-      automationsNavigationProvider.select((location) => location.visible),
-      (wasVisible, visible) {
-        if (wasVisible != true || visible) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          if (ref.read(automationsNavigationProvider).visible) return;
-          KeyboardCommandDispatcher(
-            ref: ref,
-            context: context,
-          ).focusActivePane();
-        });
-      },
-    );
+    ref.listen(shellOverlayPageProvider, (previous, next) {
+      if (previous == null || previous == .none || next != .none) return;
+      // All exit routes restore focus after the retained panes become visible.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || ref.read(shellOverlayPageProvider) != .none) return;
+        KeyboardCommandDispatcher(ref: ref, context: context).focusActivePane();
+      });
+    });
     _watchShellCoordinators(ref);
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {
@@ -102,12 +78,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       workspace: workspace,
       prefs: shell.viewPrefs,
     );
-    final showRunBoard = ref.watch(
-      runBoardNavigationProvider.select((location) => location.visible),
-    );
-    final showAutomations = ref.watch(
-      automationsNavigationProvider.select((location) => location.visible),
-    );
+    final showOverlay = ref.watch(shellOverlayPageProvider) != .none;
 
     final content = AleraAppMenuScope(
       child: Scaffold(
@@ -121,7 +92,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       fit: StackFit.expand,
                       children: <Widget>[
                         Visibility(
-                          visible: !showRunBoard && !showAutomations,
+                          visible: !showOverlay,
                           maintainState: true,
                           child: Row(
                             crossAxisAlignment: .stretch,
@@ -412,14 +383,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             ],
                           ),
                         ),
-                        if (showRunBoard)
-                          RunBoardPage(onReturnToWorkspace: _returnFromRunBoard)
-                        else if (showAutomations)
-                          AutomationsPage(
-                            onReturnToWorkspace: () => ref
-                                .read(automationsNavigationProvider.notifier)
-                                .close(),
-                          ),
+                        if (showOverlay) const ShellOverlayPageView(),
                       ],
                     ),
                   ),
@@ -429,6 +393,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       children: <Widget>[
                         RunBoardAttentionControl(),
                         AutomationAttentionControl(),
+                        InboxAttentionControl(),
                         VoiceStatusBarControl(),
                         ResourceStatusBarControl(),
                         KeepAliveStatusBarControl(),
@@ -444,7 +409,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       ),
     );
     return WorkspaceTerminalRefresh(
-      workspaceId: showRunBoard || showAutomations ? null : workspace?.id,
+      workspaceId: showOverlay ? null : workspace?.id,
       ready:
           shell.bootstrapped &&
           shell.sleepSnapshotReady &&

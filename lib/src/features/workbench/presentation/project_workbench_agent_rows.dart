@@ -130,9 +130,7 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
     BuildContext context,
     Offset globalPosition,
   ) async {
-    if (ref.read(agentTitleAvailableProvider).value != true) {
-      return;
-    }
+    final titleAvailable = ref.read(agentTitleAvailableProvider).value == true;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final selected = await showMenu<String>(
@@ -142,17 +140,28 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<String>>[
-        AleraDropdownEntry<String>(
-          value: 'generateTitle',
-          label: agentTitleActionLabel(widget.tab.payload),
-          enabled: !isAgentTitleGenerating(widget.tab.payload),
-          leading: const Icon(AleraIcons.ai, size: 16),
+        const AleraDropdownEntry<String>(
+          value: 'askAgent',
+          label: 'Ask Agent',
+          leading: Icon(AleraIcons.inbox, size: 16),
         ),
+        if (titleAvailable)
+          AleraDropdownEntry<String>(
+            value: 'generateTitle',
+            label: agentTitleActionLabel(widget.tab.payload),
+            enabled: !isAgentTitleGenerating(widget.tab.payload),
+            leading: const Icon(AleraIcons.ai, size: 16),
+          ),
       ],
     );
-    if (selected != 'generateTitle' || !context.mounted) {
+    if (!context.mounted) return;
+    if (selected == 'askAgent') {
+      ref
+          .read(inboxNavigationProvider.notifier)
+          .compose(targetHandle: widget.tab.terminalSessionId);
       return;
     }
+    if (selected != 'generateTitle') return;
     try {
       await ref.read(agentTitleServiceProvider).generate(widget.tab);
     } on Object catch (error) {

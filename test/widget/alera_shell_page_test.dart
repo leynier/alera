@@ -6,6 +6,7 @@ import 'package:alera/src/features/orchestration/application/run_board_providers
 import 'package:alera/src/features/orchestration/presentation/run_board_page.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 
+import '../support/inbox_test_client.dart';
 import '../support/run_board_fixtures.dart';
 import '../support/run_board_widget_harness.dart';
 
@@ -49,6 +50,7 @@ import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dar
 import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spinner_scope.dart';
+import 'package:alera/src/features/inbox/presentation/inbox_composer_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
@@ -112,6 +114,7 @@ Future<_ShellPumpHarness> _pumpShell(
   RuntimeProjectHostsClient? projectHostsClient,
   Stream<String>? workspaceFocusRequests,
   AgentNotificationWindowActivator? windowActivator,
+  InboxTestClient? inboxClient,
 }) async {
   final shellController = controller ?? _ShellTestWorkbenchController(state);
   final runtime = terminalRuntime ?? _FakeTerminalRuntime();
@@ -127,6 +130,9 @@ Future<_ShellPumpHarness> _pumpShell(
       overrides: [
         if (boardRepository != null)
           runBoardRepositoryProvider.overrideWithValue(boardRepository),
+        ...inboxClientOverrides(
+          inboxClient ?? (InboxTestClient()..supported = false),
+        ),
         aleraDatabaseProvider.overrideWith((ref) async => db),
         workbenchControllerProvider.overrideWith(() => shellController),
         agentProfilesProvider.overrideWith(() => _ShellAgentProfiles()),

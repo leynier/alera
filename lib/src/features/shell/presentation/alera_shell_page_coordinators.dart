@@ -5,6 +5,7 @@ void _watchShellCoordinators(WidgetRef ref) {
   ref.watch(terminalHostWarmupCoordinatorProvider);
   ref.watch(runtimeAgentStatusSyncProvider);
   ref.watch(agentStatusNotificationCoordinatorProvider);
+  ref.watch(inboxReplyNotificationCoordinatorProvider);
   ref.watch(workspacePullRequestMonitorControllerProvider.notifier);
   ref.watch(workspacePullRequestFailureNotificationCoordinatorProvider);
   ref.watch(workspaceFocusRequestCoordinatorProvider);

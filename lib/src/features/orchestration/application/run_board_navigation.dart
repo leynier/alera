@@ -1,4 +1,5 @@
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
 import 'package:alera/src/features/orchestration/domain/run_board_location.dart';
 import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -13,6 +14,9 @@ class RunBoardNavigation extends _$RunBoardNavigation {
   void open() {
     if (ref.read(automationsNavigationProvider).visible) {
       ref.read(automationsNavigationProvider.notifier).close();
+    }
+    if (ref.read(inboxNavigationProvider).visible) {
+      ref.read(inboxNavigationProvider.notifier).close();
     }
     state = state.copyWith(visible: true);
   }

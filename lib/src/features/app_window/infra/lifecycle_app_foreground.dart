@@ -4,10 +4,19 @@ import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:flutter/widgets.dart';
 
 /// [AppForeground] backed by the Flutter app lifecycle.
-class LifecycleAppForeground() implements AppForeground {
+///
+/// With [requireFocus], an unfocused window (`inactive` on desktop) counts as
+/// background too: for acknowledging something the user must actually be
+/// looking at, rather than for parking work.
+class LifecycleAppForeground({final bool requireFocus = false})
+    implements AppForeground {
   this {
     try {
       _listener = AppLifecycleListener(onStateChange: _apply);
+      final initial = WidgetsBinding.instance.lifecycleState;
+      if (requireFocus && initial != null) {
+        _isForeground = _isForegroundState(initial, requireFocus: true);
+      }
     } catch (_) {
       // No widgets binding, so there is no lifecycle to observe: a unit test,
       // or anything constructed before `runApp`. Reporting a permanent
@@ -35,7 +44,7 @@ class LifecycleAppForeground() implements AppForeground {
   }
 
   void _apply(AppLifecycleState state) {
-    final next = _isForegroundState(state);
+    final next = _isForegroundState(state, requireFocus: requireFocus);
     if (next == _isForeground) {
       return;
     }
@@ -48,9 +57,10 @@ class LifecycleAppForeground() implements AppForeground {
 /// every time the user reads something in another app. Parking there would stop
 /// updating state the user is about to look back at, so only states where the
 /// window is actually gone from view count as background.
-bool _isForegroundState(AppLifecycleState state) {
+bool _isForegroundState(AppLifecycleState state, {required bool requireFocus}) {
   return switch (state) {
-    AppLifecycleState.resumed || AppLifecycleState.inactive => true,
+    AppLifecycleState.resumed => true,
+    AppLifecycleState.inactive => !requireFocus,
     AppLifecycleState.hidden ||
     AppLifecycleState.paused ||
     AppLifecycleState.detached => false,
