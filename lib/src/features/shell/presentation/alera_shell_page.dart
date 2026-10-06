@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/automations/presentation/automation_attention_control.dart';
-import 'package:alera/src/features/automations/presentation/automations_page.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
-import 'package:alera/src/features/orchestration/presentation/run_board_page.dart';
+import 'package:alera/src/features/inbox/application/inbox_notifications.dart';
+import 'package:alera/src/features/inbox/presentation/inbox_attention_control.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_attention_control.dart';
+import 'package:alera/src/features/shell/application/shell_overlay_page.dart';
+import 'package:alera/src/features/shell/presentation/shell_overlay_page_view.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';

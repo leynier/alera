@@ -1,4 +1,5 @@
 import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
+import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -51,6 +52,9 @@ class AutomationsNavigation extends _$AutomationsNavigation {
   /// The Run Board and Automations share the shell's page slot.
   void open({AutomationScope? scope}) {
     ref.read(runBoardNavigationProvider.notifier).close();
+    if (ref.read(inboxNavigationProvider).visible) {
+      ref.read(inboxNavigationProvider.notifier).close();
+    }
     state = state.copyWith(
       visible: true,
       scope: scope,
@@ -82,6 +86,9 @@ class AutomationsNavigation extends _$AutomationsNavigation {
     AutomationScope? scope,
   }) {
     ref.read(runBoardNavigationProvider.notifier).close();
+    if (ref.read(inboxNavigationProvider).visible) {
+      ref.read(inboxNavigationProvider.notifier).close();
+    }
     state = state.copyWith(
       visible: true,
       scope: scope,

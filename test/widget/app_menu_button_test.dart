@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
+import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +37,22 @@ void main() {
         });
       });
     }
+
+    testWidgets('opens the inbox and closes the Run Board', (tester) async {
+      await _withPlatform(.linux, () async {
+        await _pumpButton(tester);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(AleraAppMenuButton)),
+        );
+        container.read(runBoardNavigationProvider.notifier).open();
+        await tester.tap(find.byTooltip('Application Menu'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Inbox'));
+        await tester.pumpAndSettle();
+        expect(container.read(inboxNavigationProvider).visible, isTrue);
+        expect(container.read(runBoardNavigationProvider).visible, isFalse);
+      });
+    });
 
     testWidgets('stays out of the window on macOS', (tester) async {
       await _withPlatform(.macOS, () async {

@@ -70,6 +70,7 @@ enum _AppMenuAction {
   openRunBoard,
   openSettings,
   openAutomations,
+  openInbox,
   reviewExecutionPlans,
   checkForUpdates,
   undo,
@@ -137,6 +138,7 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
           value: .openAutomations,
           label: 'Automations',
         ),
+        AleraDropdownEntry<_AppMenuAction>(value: .openInbox, label: 'Inbox'),
         AleraDropdownEntry<_AppMenuAction>(
           value: .reviewExecutionPlans,
           label: 'Execution Plans',
@@ -181,6 +183,8 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
         await openAppMenuSettings(context);
       case _AppMenuAction.openAutomations:
         openAutomationsPage(ref);
+      case _AppMenuAction.openInbox:
+        openInboxFromAppMenu(ref);
       case _AppMenuAction.reviewExecutionPlans:
         await showRunPolicyReviewDialog(context);
       case _AppMenuAction.checkForUpdates:
@@ -260,6 +264,10 @@ class const _MacOsPlatformMenuBar({required final Widget child})
                 PlatformMenuItem(
                   label: 'Run Board',
                   onSelected: () => openRunBoardFromAppMenu(ref),
+                ),
+                PlatformMenuItem(
+                  label: 'Inbox',
+                  onSelected: () => openInboxFromAppMenu(ref),
                 ),
                 PlatformMenuItem(
                   label: 'Execution Plans',
