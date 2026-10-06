@@ -199,6 +199,45 @@ alera orchestration task-wait --task <task-id> --for completed,failed,stalled --
 alera terminal wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
 ```
 
+## Inbox
+
+The inbox lets a caller that is not an Alera terminal ask an agent a question and read the answer later: another agent session, a script, an integration, or the desktop and mobile apps. The caller writes from an inbox address, `ext:<name>` (lowercase letters, digits, dots, underscores and hyphens, at most 63 characters after the prefix). No terminal is created for the asker, and no credential is issued per inbox: the runtime host token and the paired-device session are the only authorization, as for every other request.
+
+```bash
+export ALERA_EXTERNAL_INBOX=ext:ci-review
+alera inbox targets --workspace <workspace-id>
+q=$(alera inbox --json ask --workspace <workspace-id> --agent claude --body "Which tests cover login?" | jq -r .questionId)
+alera inbox --json wait --question "$q" --timeout 30m
+alera inbox ask --thread "$q" --body "And the logout path?"
+alera inbox threads
+alera inbox show --question "$q"
+alera inbox cancel --question "$q"
+alera inbox purge --inbox ext:ci-review --confirm
+```
+
+A question is an `orchestrationMessages` row from the inbox to an agent terminal, type `decision_gate`, high priority by default, with the recipient's workspace and no task, dispatch or run scope, so finishing a dispatch never makes it obsolete. It is pasted into the agent when its turn ends, through the same delivery as every orchestration message, even when the agent's task or dispatch is still open. An active coordinator is not pasted into; it reads the question in its `check` loop. A terminal without agent presence hooks never receives a paste; `inbox.targets` and every thread report `deliveryMode` as `paste`, `check` or `unavailable` so callers can tell. The banner tells the agent that the sender cannot read the terminal and to answer with `alera orchestration reply --id <question> --body "..."`, or `--body-file <path>` for a long answer, both of which work in every shell; text left in the terminal never reaches the inbox, and the last assistant message is never captured as an answer.
+
+Answers are explicit. `orchestration.reply` records `reply_to_id`, and a question counts as answered only when a reply from its recipient names it. A message sent to the inbox in the same thread without that reference is shown as a message, not an answer. An agent can write to an inbox only inside a thread that inbox started with it (`send --to ext:... --thread-id <question>`), so every message shows in a thread and its push opens it; anything else is refused with `inbox_thread_required`. Follow-ups continue a thread with the same inbox and recipient. The derived status is, in precedence order, `cancelled`, `answered`, `expired`, `delivered`, `received` (a coordinator consumed it with `check`) and `pending`. `external_meta` records the surface that asked (`cli`, `desktop`, or `mobile` with the device), decided by the connection rather than the payload, a snapshot of the target agent, tab and workspace, and the cancellation.
+
+A question that has not reached the agent expires after 5 hours by default (`--expires-in`, from 1 minute to 7 days) and is never pasted after that; a delivered question keeps waiting for its reply. A recipient holds at most 20 undelivered inbox questions. Inbox conversations are deleted 7 days after their last activity, unless a question in them is still waiting for delivery. Only a question that has not been pasted, read or answered can be cancelled; delivery is best effort, so a batch that is being pasted cannot be withdrawn, and a batch larger than one paste leaves the remainder queued for the next turn. An `ext:` address cannot send through `orchestration.send` or `ask`, be dispatched to, coordinate, own a task or spawn, and a message an inbox received cannot be replied to; follow-ups always go through `inbox.ask`, so expiry and the pending limit always apply.
+
+`inbox.wait` parks a request for one question or for anything new addressed to an inbox after a cursor, wakes on replies, cancellation and purge, and reads the store once more at the deadline before reporting `timeout`. The host ceiling is 10 minutes per request; `alera inbox wait` chains requests up to `--timeout`, retries across a host restart, and exits 2 on timeout. Every change to an inbox row moves a durable revision in the same transaction (`inboxRevision`, maintained by triggers), and the host announces it to every authenticated client as `inboxChanged {revision}`. A reply to an inbox also sends a push in the existing `attention` category, with a generic title, the workspace, and ids only; push payloads never carry the question or the reply.
+
+The host negotiates the inbox as `inboxV1` for local clients and in `mobile.hello`. Paired phones and relay clients may call exactly `inbox.summary`, `inbox.threads`, `inbox.thread`, `inbox.targets`, `inbox.ask`, `inbox.cancel`, `inbox.markRead`, `inbox.purge`, `inbox.conversations` and `inbox.conversation`; `inbox.wait` stays local because the apps use the event, and no `orchestration.*` verb is on the phone allowlist. The orchestration router applies that allowlist itself, since it runs before the generic request handler. A satellite forwards the inbox verbs to its hub by name, so the inbox of a remote terminal is the hub's inbox and the hub's sessions deliver to remote agents. The desktop and mobile apps ask from the shared `ext:user` inbox, and the read state of a reply is shared between devices.
+
+### Agent conversations
+
+The same message model is the read-only conversation view between agents. `inbox.conversations` groups `status`, `handoff`, `merge_ready` and `decision_gate` messages between terminals by thread (a group send is one thread with a generated id and no root row) and `inbox.conversation` returns one thread; viewing never marks a message read, because an agent's `read` flag means it consumed the message. Lifecycle reports, dispatches and escalations stay task control and are not part of this view. The host announces changes as `conversationsChanged {revision}`. Agent conversations are deleted 7 days after their last activity unless a message in them is still queued or belongs to a task or dispatch that is not finished; inbox expiry and the pending limit do not apply to them.
+
+A worker or coordinator can ask without blocking:
+
+```bash
+q=$(alera orchestration ask --to <coordinator> --question "Which branch?" --no-wait)
+alera inbox wait --question "$q" --timeout 10m
+```
+
+`ask --no-wait` keeps the existing routing (a worker's question still goes to its dispatch's coordinator) and returns the question id. The reply is pasted on the asker's next turn like any message, or read earlier with `alera inbox wait`, which consumes it so it is not pasted again.
+
 ## Observability And Terminal Diagnostics
 
 ```bash
@@ -227,6 +266,7 @@ All CLI list commands use the collection envelope `{ "kind": "...", "items": [..
 
 - `cargo test -p alera-core --features runtime` covers store, DAG, ownership, startup budget, cancellation, leases, and run isolation.
 - `cargo test -p alera-cli` covers CLI/RPC contracts, real PTY behavior, wait outcomes, delivery, adapters, and regression scenarios.
+- `inbox_store_tests`, `inbox_listing_tests` and `conversation_store_tests` cover the inbox store; `inbox_requests_tests`, `conversation_requests_tests` and `orchestration_mobile_access_tests` drive the real dispatcher with local, desktop, paired-phone, relay and unauthenticated clients.
 - Adapter command construction is deterministic across supported platforms. Codex and Claude are the required live smoke targets when their executables are available.
 
 The agent-facing command guide is `skills/alera-orchestration/SKILL.md`.
