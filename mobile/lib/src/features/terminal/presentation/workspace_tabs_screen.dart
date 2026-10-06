@@ -8,8 +8,7 @@ import 'package:alera_mobile/src/features/automations/domain/automation_catalog_
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_compose_screen.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/inbox_entry_points.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';

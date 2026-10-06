@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
+import 'package:alera_mobile/src/features/inbox/domain/agent_conversation_models.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
@@ -6,9 +7,42 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 /// and a revision; screens reload what they show when it arrives.
 const String inboxChangedEvent = 'inboxChanged';
 
+/// Sent when a message between agents is added, read or pruned.
+const String conversationsChangedEvent = 'conversationsChanged';
+
 class MobileRuntimeInboxRepository(final MobileInboxClient _client) {
   Stream<MobileRuntimeEvent> get changes =>
       _client.events.where((event) => event.name == inboxChangedEvent);
+
+  Stream<MobileRuntimeEvent> get conversationChanges =>
+      _client.events.where((event) => event.name == conversationsChangedEvent);
+
+  /// Conversations between agents, newest activity first. Read only.
+  Future<AgentConversationPage> conversations({
+    String? workspaceId,
+    String? participant,
+    int? before,
+    int limit = 100,
+  }) async {
+    final payload = await _client.requestMap(
+      'inbox.conversations',
+      <String, Object?>{
+        'workspaceId': ?workspaceId,
+        'participant': ?participant,
+        'before': ?before,
+        'limit': limit,
+      },
+    );
+    return AgentConversationPage.fromJson(payload);
+  }
+
+  Future<AgentConversationDetail> conversation(String threadId) async {
+    final payload = await _client.requestMap(
+      'inbox.conversation',
+      <String, Object?>{'threadId': threadId},
+    );
+    return AgentConversationDetail.fromJson(payload);
+  }
 
   Future<List<InboxSummaryEntry>> summary() async {
     final payload = await _client.requestMap('inbox.summary');
