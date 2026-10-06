@@ -163,14 +163,15 @@ Future<void> shipPullRequestWithFollowUp({
       final choice = await chooseAgentTaskDispatchTarget(
         context,
         ref,
+        // The watch composes the prompt once a watched problem appears, so
+        // the picker only binds and has nothing to copy.
         request: AgentTaskDispatchRequest(
           workspaceId: scope.workspaceId,
-          prompt:
-              'Please check the pull request for this branch and fix anything '
-              'that blocks it.',
+          prompt: '',
           title: 'Ship, ${_watchTitle(mode)}',
           message: _agentDispatchMessage,
         ),
+        bindOnly: true,
       );
       return choice?.binding;
     },

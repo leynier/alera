@@ -23,13 +23,18 @@ class const AgentTaskDispatchChoice({
 /// Callers own the prompt. File and diff comments reuse this picker. It does
 /// not inject; [showAgentTaskDispatchFlow] and [completeAgentTaskDispatch] are
 /// the inject step.
+///
+/// With [bindOnly] the caller only wants the binding and will compose its own
+/// prompt later, so an empty prompt is accepted and the picker offers no
+/// prompt to copy.
 Future<AgentTaskDispatchChoice?> chooseAgentTaskDispatchTarget(
   BuildContext context,
   WidgetRef ref, {
   required AgentTaskDispatchRequest request,
+  bool bindOnly = false,
 }) async {
   final prompt = request.prompt.trim();
-  if (prompt.isEmpty) {
+  if (prompt.isEmpty && !bindOnly) {
     AleraToast.show(context, message: 'The prompt is empty.', tone: .error);
     return null;
   }
