@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_scope_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/pull_request_ship_follow_up_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_pull_request_conversation.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_ship_follow_up.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/pull_request_agent_dispatch.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_comment_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_link_create_sheets.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
@@ -219,21 +226,70 @@ class const PullRequestPanelActions({
     MobilePullRequestSnapshot snapshot,
   ) async {
     final controller = _controller;
-    final askWorkingTreeScope = await _askWorkingTreeScope();
+    final watch = ref.read(
+      pullRequestAgentWatchControllerProvider(hostId, workspaceId).notifier,
+    );
+    final followUps = ref.read(
+      pullRequestShipFollowUpControllerProvider.notifier,
+    );
+    final scopes = ref.read(
+      pullRequestAgentWatchScopeControllerProvider.notifier,
+    );
+    final (askWorkingTreeScope, followUp, watchScope) = await (
+      _askWorkingTreeScope(),
+      ref.read(pullRequestShipFollowUpControllerProvider.future),
+      ref.read(pullRequestAgentWatchScopeControllerProvider.future),
+    ).wait;
     if (!context.mounted) {
       return;
     }
+    final messenger = ScaffoldMessenger.of(context);
     return showShipPullRequestSheet(
       context,
       headBranch: snapshot.branch,
       baseBranches: snapshot.baseBranches,
       suggestedBaseBranch: snapshot.suggestedBaseBranch,
       askWorkingTreeScope: askWorkingTreeScope,
-      onSubmit: (input) => controller.run(
-        .ship,
-        (client) =>
-            client.shipPullRequest(workspaceId: workspaceId, input: input),
+      initialFollowUp: followUp,
+      initialWatchScope: watchScope,
+      chooseAgent: (mode) => choosePullRequestShipWatchAgent(
+        context: context,
+        ref: ref,
+        hostId: hostId,
+        workspaceId: workspaceId,
+        mode: mode,
       ),
+      onSubmit: (request) async {
+        unawaited(followUps.set(request.followUp));
+        if (request.followUp.watches) {
+          unawaited(scopes.set(request.watchScope));
+        }
+        MobilePullRequestSnapshot? shipped;
+        final error = await controller.run(.ship, (client) async {
+          return shipped = await client.shipPullRequest(
+            workspaceId: workspaceId,
+            input: request.input,
+          );
+        });
+        if (error != null) {
+          return error;
+        }
+        final watchError = await startShippedPullRequestWatch(
+          request: request,
+          shipped: shipped,
+          start: (reviewNumber, mode, binding, snapshot) => watch.start(
+            reviewNumber: reviewNumber,
+            mode: mode,
+            binding: binding,
+            watchScope: request.watchScope,
+            snapshot: snapshot,
+          ),
+        );
+        if (watchError != null && messenger.mounted) {
+          messenger.showSnackBar(SnackBar(content: Text(watchError)));
+        }
+        return null;
+      },
     );
   }
 

@@ -44,7 +44,7 @@ void main() {
                         suggestedBaseBranch: 'main',
                         onSubmit: (input) {
                           calls++;
-                          submitted = input;
+                          submitted = input.input;
                           return completion.future;
                         },
                       ),
