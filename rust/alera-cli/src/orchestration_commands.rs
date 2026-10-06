@@ -781,7 +781,7 @@ fn read_policy_document(path: &str) -> Result<Value, String> {
     serde_json::from_str(&raw).map_err(|error| format!("policy file is not valid JSON: {error}"))
 }
 
-fn read_body(
+pub(crate) fn read_body(
     inline: Option<String>,
     file: Option<String>,
     stdin: bool,
