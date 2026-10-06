@@ -66,7 +66,7 @@ final class HostDashboardDataProvider
   }
 }
 
-String _$hostDashboardDataHash() => r'665cabaf586ccc3822a75296680bb27edab7962e';
+String _$hostDashboardDataHash() => r'8379da0bb7d6391d4d7d9ebfe9449640a1c496d4';
 
 final class HostDashboardDataFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<HostDashboardData>, String> {

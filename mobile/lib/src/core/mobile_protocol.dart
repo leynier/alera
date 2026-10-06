@@ -6,6 +6,10 @@ const int aleraMobileProtocolVersion = 1;
 const String mobileCloudEnrollmentCapability = 'mobileCloudEnrollmentV1';
 const String mobilePromptImageUploadCapability = 'mobilePromptImageUploadV1';
 const String automationsCapability = 'automationsV1';
+
+/// Questions to agents from an inbox address, answered by the runtime's
+/// `inbox.*` verbs and announced with `inboxChanged`.
+const String mobileInboxCapability = 'inboxV1';
 const String aiDictationCapability = 'aiDictationV1';
 const String aiDictationModelsCapability = 'aiDictationModelsV2';
 const String aiDictationBackendsCapability = 'aiDictationBackendsV3';

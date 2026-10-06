@@ -142,6 +142,33 @@ void _openWorkspaceAutomations(
 class const _SelectPanelAction(final WorkspacePanelDestination destination)
     extends _TabsMenuAction {}
 
+class const _AskAgentMenuAction() extends _TabsMenuAction {}
+
+/// Asks an agent of this workspace from the shared inbox, preselecting the
+/// open terminal, then shows the new conversation.
+Future<void> _askWorkspaceAgent(
+  BuildContext context,
+  WorkspaceTabsScreen screen,
+  String? terminalHandle,
+) async {
+  final threadId = await Navigator.of(context).push<String>(
+    MaterialPageRoute<String>(
+      builder: (_) => InboxComposeScreen(
+        hostId: screen.hostId,
+        workspaceId: screen.workspace.id,
+        preselectedHandle: terminalHandle,
+      ),
+    ),
+  );
+  if (threadId == null || !context.mounted) return;
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          InboxThreadScreen(hostId: screen.hostId, threadId: threadId),
+    ),
+  );
+}
+
 String? _automationRunId(WorkspaceTabSummary tab) =>
     switch (tab.payload['automationRunId']) {
       final String id when id.isNotEmpty => id,
@@ -176,6 +203,20 @@ extension on _WorkspaceTabsScreenState {
             _openWorkspaceAutomations(context, widget, create: create);
           case _SelectPanelAction(:final destination):
             _selectPanel(destination);
+          case _AskAgentMenuAction():
+            final tabs = ref
+                .read(
+                  tabsControllerProvider(widget.hostId, widget.workspace.id),
+                )
+                .value;
+            final tab = tabs == null ? null : _selectedTab(tabs);
+            unawaited(
+              _askWorkspaceAgent(
+                context,
+                widget,
+                tab != null && tab.isTerminal ? tab.terminalSessionId : null,
+              ),
+            );
         }
       },
       itemBuilder: (context) => <PopupMenuEntry<_TabsMenuAction>>[
@@ -193,6 +234,14 @@ extension on _WorkspaceTabsScreenState {
           const PopupMenuDivider(),
         ],
         ..._automationMenuEntries,
+        if (_supportsInbox) ...const <PopupMenuEntry<_TabsMenuAction>>[
+          PopupMenuItem<_TabsMenuAction>(
+            value: _AskAgentMenuAction(),
+            height: AleraTokens.minTapTarget,
+            child: Text('Ask Agent'),
+          ),
+          PopupMenuDivider(),
+        ],
         const PopupMenuItem<_TabsMenuAction>(
           value: _QuickKeysMenuAction(),
           height: AleraTokens.minTapTarget,
@@ -201,6 +250,13 @@ extension on _WorkspaceTabsScreenState {
       ],
     );
   }
+
+  bool get _supportsInbox =>
+      ref
+          .watch(hostConnectionControllerProvider(widget.hostId))
+          .value
+          ?.supportsInbox ??
+      false;
 
   /// An automation-owned tab attaches read-only, unless it was taken over or
   /// the runtime cannot observe; then the attach keeps its old semantics.

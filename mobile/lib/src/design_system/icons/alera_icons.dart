@@ -98,6 +98,7 @@ abstract final class const AleraIcons._() {
   static const IconData tool = LucideIcons.wrench;
   static const IconData public = LucideIcons.globe;
   static const IconData comment = LucideIcons.messageSquare;
+  static const IconData inbox = LucideIcons.inbox;
   static const IconData send = LucideIcons.send;
   static const IconData restore = LucideIcons.history;
 

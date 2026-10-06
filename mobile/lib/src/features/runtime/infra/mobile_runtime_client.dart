@@ -41,6 +41,7 @@ import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocatio
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_recovery_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
+import 'package:alera_mobile/src/features/inbox/infra/mobile_runtime_inbox_requests.dart';
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -84,7 +85,8 @@ class MobileRuntimeClient._(
         MobileRuntimeLinkedIssueRequests,
         MobileRuntimeWorkspaceHostRequests,
         MobileRuntimePullRequestWatchRequests,
-        MobileRuntimePullRequestRequests
+        MobileRuntimePullRequestRequests,
+        MobileRuntimeInboxRequests
     implements
         MobileAutomationClient,
         MobileTerminalClient,
