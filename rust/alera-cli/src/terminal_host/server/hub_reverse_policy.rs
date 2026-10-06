@@ -54,6 +54,8 @@ const DENIED_PREFIXES: &[&str] = &[
 /// to the attach event. The `workspace.*` entries are what the owner commands
 /// (`remote_owner_*`, the Setup tab) send to the satellite about its own
 /// checkout and sessions, and MUST keep running where the checkout is.
+/// `workspace.focus` raises the desktop window and switches its selection, which
+/// a remote host must not be able to do.
 const DENIED_VERBS: &[&str] = &[
     "hello",
     "configure",
@@ -72,6 +74,7 @@ const DENIED_VERBS: &[&str] = &[
     "workspace.retirementReceipt",
     "workspace.sshRelocationRecovery",
     "workspace.relocationRecovery",
+    "workspace.focus",
 ];
 
 /// Hub-owned records and the actions on them. `workspace.bufferGuard.*` is

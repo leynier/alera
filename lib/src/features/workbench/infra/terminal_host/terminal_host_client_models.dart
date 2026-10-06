@@ -321,6 +321,7 @@ const Set<String> runtimeHostEventNames = <String>{
   'workbenchViewPrefsChanged',
   'workspaceActivityChanged',
   'workspaceSleepChanged',
+  aleraWorkspaceFocusRequestedEvent,
   'projectConfigsChanged',
   'projectCloneJobsChanged',
   'linkedReviewsChanged',

@@ -307,6 +307,7 @@ mod workflow_workspace_requests;
 mod workspace_archive_requests;
 mod workspace_blocking;
 mod workspace_file_mutation_requests;
+mod workspace_focus_requests;
 mod workspace_git_requests;
 mod workspace_handoff_relocate;
 mod workspace_main_tabs;
@@ -353,6 +354,8 @@ struct ClientState {
     authenticated: bool,
     shared_checkout_workspaces: bool,
     checkout_buffer_guards: bool,
+    /// The desktop app said in `hello` that it handles `workspaceFocusRequested`.
+    workspace_focus: bool,
     binary_frames: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
@@ -646,6 +649,7 @@ impl ServerActor {
                         authenticated: false,
                         shared_checkout_workspaces: false,
                         checkout_buffer_guards: false,
+                        workspace_focus: false,
                         binary_frames: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,

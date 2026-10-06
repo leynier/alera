@@ -47,6 +47,7 @@ const ALLOWED: &[&str] = &[
 
 const DENIED: &[&str] = &[
     "hello",
+    "workspace.focus",
     "configure",
     "createOrAttach",
     "write",

@@ -53,6 +53,10 @@ pub const RUNTIME_HOST_WORKSPACE_ARCHIVE_CAPABILITY: &str = "workspaceArchiveV1"
 /// `workspace.sleptTabs` and announces changes with `workspaceSleepChanged`.
 /// Additive: older hosts reject the verb, so clients feature-check this.
 pub const RUNTIME_HOST_WORKSPACE_SLEEP_STATE_CAPABILITY: &str = "workspaceSleepStateV1";
+/// The host answers `workspace.focus` by sending `workspaceFocusRequested` to
+/// the connected desktop apps that announced `workspaceFocusV1` in `hello`.
+/// Additive: an older host rejects the verb, so the CLI feature-checks this.
+pub const RUNTIME_HOST_WORKSPACE_FOCUS_CAPABILITY: &str = "workspaceFocusV1";
 /// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
 /// issues through `issue.fetch`, and links one from `workspace.createManaged`
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and

@@ -32,6 +32,12 @@ const String aleraRuntimeHostWorkspaceArchiveCapability = 'workspaceArchiveV1';
 /// do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostWorkspaceSleepStateCapability =
     'workspaceSleepStateV1';
+
+/// Sent in the app's `hello` to say it handles [aleraWorkspaceFocusRequestedEvent],
+/// which the host delivers for `alera workspace focus`. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraWorkspaceFocusHelloFlag = 'workspaceFocusV1';
+const String aleraWorkspaceFocusRequestedEvent = 'workspaceFocusRequested';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
