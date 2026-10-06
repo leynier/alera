@@ -280,4 +280,15 @@ mixin _WorkbenchControllerProjectSelection
     }
     _pruneExplorerSessions();
   }
+
+  /// Leaves the active workspace for the welcome dashboard. The workspace and
+  /// its tabs stay alive, so selecting it again resumes where it was.
+  void showHome() {
+    if (state.activeWorkspaceId == null) {
+      return;
+    }
+    _workspaceSelectionRevision++;
+    state = state.copyWith(activeWorkspaceId: null, error: null);
+    _pruneExplorerSessions();
+  }
 }

@@ -171,6 +171,7 @@ abstract final class const AleraIcons._() {
 
   // Views / layout
   static const IconData sidebarToggle = LucideIcons.panelLeft;
+  static const IconData home = LucideIcons.home;
   static const IconData gridView = LucideIcons.layoutGrid;
   static const IconData listView = LucideIcons.list;
   static const IconData outline = LucideIcons.tableOfContents;

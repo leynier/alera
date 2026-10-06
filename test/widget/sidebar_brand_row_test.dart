@@ -1,3 +1,4 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,32 @@ void main() {
     expect(collapseTaps, 1);
   });
 
+  testWidgets('expanded header pins home and collapse to the right edge', (
+    tester,
+  ) async {
+    var homeTaps = 0;
+
+    await tester.pumpWidget(
+      _Host(
+        child: SidebarBrandRow(
+          collapsed: false,
+          onGoHome: () => homeTaps++,
+          onToggleCollapsed: () {},
+        ),
+      ),
+    );
+
+    final headerRect = tester.getRect(find.byType(SidebarBrandRow));
+    final homeRect = tester.getRect(find.byTooltip('Home'));
+    final collapseRect = tester.getRect(find.byTooltip('Collapse Sidebar'));
+    expect(homeRect.right, lessThanOrEqualTo(collapseRect.left));
+    expect(collapseRect.right, headerRect.right - AleraTokens.space12);
+
+    await tester.tap(find.byTooltip('Home'));
+
+    expect(homeTaps, 1);
+  });
+
   testWidgets('collapsed header only shows expand action', (tester) async {
     var addProjectTaps = 0;
     var expandTaps = 0;
@@ -49,6 +76,7 @@ void main() {
         child: SidebarBrandRow(
           collapsed: true,
           onAddProject: () => addProjectTaps++,
+          onGoHome: () {},
           onToggleCollapsed: () => expandTaps++,
         ),
       ),
@@ -57,6 +85,7 @@ void main() {
     expect(find.text(kAleraAppName), findsNothing);
     expect(find.byTooltip('Add Project'), findsNothing);
     expect(find.byTooltip('Collapse Sidebar'), findsNothing);
+    expect(find.byTooltip('Home'), findsNothing);
     expect(find.byTooltip('Expand Sidebar'), findsOneWidget);
 
     final headerRect = tester.getRect(find.byType(SidebarBrandRow));
