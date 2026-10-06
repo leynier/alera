@@ -23,6 +23,6 @@ If the task defines a custom result schema, add its properties with `--result-ex
 - `worker-done --task --dispatch --summary` is the idempotent explicit recovery form.
 - Never use `send --type worker_done`, `send --type heartbeat`, or arbitrary task status mutation; protocol v2 rejects them.
 - After successful completion, stop the turn. Default policy returns immediately and leaves the terminal open for reuse.
-- Use `ask` for coordinator questions. While a dispatch is active, the host routes the question to the dispatch's current durable coordinator even if the run was transferred after its preamble was injected. Do not open a local user-input prompt the coordinator cannot see.
+- Use `ask` for coordinator questions. While a dispatch is active, the host routes the question to the dispatch's current durable coordinator even if the run was transferred after its preamble was injected. Do not open a local user-input prompt the coordinator cannot see. Add `--no-wait` to keep working; the answer is pasted on your next turn (see [messaging](messaging.md)).
 
 For the installed compact command contract, use `alera orchestration worker-help`. For message and terminal inspection commands, read [messaging](messaging.md).

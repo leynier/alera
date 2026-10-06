@@ -14,6 +14,7 @@ Use the managed `alera` CLI for Alera resources. Inside Alera terminals, its shi
 - Scheduled agent work: use the `alera-automations` skill; CLI entry points are in [automations](references/automations.md).
 - Missing runtime host, external-shell configuration, metadata repair, or a tab that stopped showing its agent's status: read [recovery](references/recovery.md).
 - Agent Profile inspection, launch, or maintenance: use the `alera-agent-profiles` skill. Its simple-maintenance route does not require catalog research.
+- Asking a running agent a question from outside its terminal, or reading an inbox: read [inbox](references/inbox.md).
 - Agent dispatch, worker tasks, or coordinator lifecycle: use the `alera-orchestration` skill.
 
 Load only the workflow needed for the current request.
