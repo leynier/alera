@@ -6,6 +6,7 @@ import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.d
 import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -249,6 +250,7 @@ void main() {
         await controller.setPullRequestAgentWatchScope(
           const PullRequestAgentWatchScope(comments: false),
         );
+        await controller.setPullRequestShipFollowUp(.watchFixAndMerge);
 
         final restored = await repository.load();
         expect(
@@ -289,6 +291,10 @@ void main() {
         expect(
           restored.general.pullRequestAgentWatchScope,
           const PullRequestAgentWatchScope(comments: false),
+        );
+        expect(
+          restored.general.pullRequestShipFollowUp,
+          PullRequestShipFollowUp.watchFixAndMerge,
         );
       },
     );

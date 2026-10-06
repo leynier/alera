@@ -110,7 +110,7 @@ export const APP_COPY = {
   baseBranch: { text: 'Base Branch', source: `${PULL_REQUESTS}/presentation/pull_request_composer_form.dart` },
   description: { text: 'Description', source: `${PULL_REQUESTS}/presentation/pull_request_composer_form.dart` },
   restackChanges: { text: 'Restack Changes', source: `${PULL_REQUESTS}/presentation/pull_request_restack_button.dart` },
-  shipChanges: { text: 'Ship Changes', source: `${PULL_REQUESTS}/presentation/pull_request_composer_actions.dart` },
+  shipChanges: { text: 'Ship Changes', source: `${PULL_REQUESTS}/presentation/pull_request_composer_ship_button.dart` },
   linkExistingPullRequest: { text: 'Link Existing Pull Request', source: `${PULL_REQUESTS}/presentation/pull_request_composer.dart` },
   pullRequestDetailsGenerated: {
     text: 'Pull request details generated with Codex',

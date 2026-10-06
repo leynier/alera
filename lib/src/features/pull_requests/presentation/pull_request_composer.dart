@@ -7,11 +7,14 @@ import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_toggle_entry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
@@ -24,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'pull_request_composer_actions.dart';
 part 'pull_request_composer_form.dart';
+part 'pull_request_composer_ship_button.dart';
 
 /// User-entered result of the inline create-pull-request form.
 class const CreateReviewDraft({
@@ -37,6 +41,7 @@ typedef PullRequestShipCallback = Future<void> Function({
   required String baseBranch,
   required bool draft,
   required PullRequestShipScope scope,
+  required PullRequestShipFollowUp followUp,
 });
 
 enum _ComposerMode { create, link }
@@ -60,6 +65,11 @@ class const PullRequestComposer({
   final bool canCreateStack = false,
   final bool creatingStack = false,
   final bool shipping = false,
+  final PullRequestShipFollowUp shipFollowUp = PullRequestShipFollowUp.none,
+  final PullRequestAgentWatchScope watchScope =
+      PullRequestAgentWatchScope.defaults,
+  final ValueChanged<PullRequestShipFollowUp>? onShipFollowUpChanged,
+  final ValueChanged<PullRequestAgentWatchScope>? onWatchScopeChanged,
   final Future<void> Function(CreateReviewDraft draft)? onCreateStack,
 }) extends ConsumerStatefulWidget {
   @override
@@ -179,6 +189,11 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       setState(() => _errorText = 'Base branch is required');
       return;
     }
+    final followUp = widget.shipFollowUp;
+    if (followUp.watches && widget.watchScope.isEmpty) {
+      setState(() => _errorText = 'Choose at least one problem to watch');
+      return;
+    }
     final scope = await _resolveShipScope();
     if (!mounted || scope == null) {
       return;
@@ -186,8 +201,11 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     setState(() => _errorText = null);
     await widget.onShip(
       baseBranch: base,
-      draft: widget.createAction == PullRequestCreateAction.draft,
+      draft:
+          widget.createAction == PullRequestCreateAction.draft &&
+          !followUp.merges,
       scope: scope,
+      followUp: followUp,
     );
   }
 
@@ -398,6 +416,8 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                     const SizedBox(height: AleraTokens.space8),
                   ],
                   _ShipPullRequestButton(
+                    followUp: widget.shipFollowUp,
+                    watchScope: widget.watchScope,
                     shipping: widget.shipping,
                     aiEnabled: aiEnabled,
                     enabled:
@@ -405,7 +425,14 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                         widget.canCreate &&
                         !_generating &&
                         aiEnabled,
+                    menuEnabled: !widget.busy,
                     onPressed: () => unawaited(_submitShip()),
+                    onFollowUpChanged: (value) {
+                      setState(() => _errorText = null);
+                      widget.onShipFollowUpChanged?.call(value);
+                    },
+                    onWatchScopeChanged: (value) =>
+                        widget.onWatchScopeChanged?.call(value),
                   ),
                   const SizedBox(height: AleraTokens.space8),
                   _CreatePullRequestButton(

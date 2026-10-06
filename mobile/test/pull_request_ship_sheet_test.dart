@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -8,6 +9,9 @@ import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_s
 import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/explorer_preferences.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera_mobile/src/features/workbench/domain/pull_request_ship_follow_up.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/pull_request_ship_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,9 +57,9 @@ void main() {
       await _pumpSheet(
         tester,
         askWorkingTreeScope: false,
-        onSubmit: (input) async {
-          submitted = input;
-          return null;
+        onSubmit: (request) async {
+          submitted = request.input;
+          return (error: null, notice: null);
         },
       );
 
@@ -73,6 +77,112 @@ void main() {
 
       expect(find.text('All Changes'), findsOneWidget);
       expect(find.text('Staged Changes'), findsOneWidget);
+    });
+  });
+
+  group('Ship follow-ups', () {
+    testWidgets('stay hidden without an agent picker', (tester) async {
+      await _pumpSheet(tester, askWorkingTreeScope: false);
+      expect(find.text('After Shipping'), findsNothing);
+    });
+
+    testWidgets('pick the agent first and ship a ready pull request', (
+      tester,
+    ) async {
+      final events = <String>[];
+      PullRequestShipRequest? submitted;
+      await _pumpSheet(
+        tester,
+        askWorkingTreeScope: false,
+        initialFollowUp: .watchFixAndMerge,
+        chooseAgent: (mode) async {
+          events.add('choose ${mode.name}');
+          return const AgentTaskDispatchBinding(tabId: 'tab-1');
+        },
+        onSubmit: (request) async {
+          events.add('ship');
+          submitted = request;
+          return (error: null, notice: null);
+        },
+      );
+
+      expect(find.text('After Shipping'), findsOneWidget);
+      expect(find.text('Merge Conflicts'), findsOneWidget);
+      expect(find.text('Merging needs a ready pull request.'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Ship and Merge'));
+      await tester.pumpAndSettle();
+
+      expect(events, <String>['choose fixAndMerge', 'ship']);
+      expect(submitted?.followUp, PullRequestShipFollowUp.watchFixAndMerge);
+      expect(submitted?.binding?.tabId, 'tab-1');
+      expect(submitted?.input.draft, isFalse);
+    });
+
+    testWidgets('a watch that fails to start replaces the success message', (
+      tester,
+    ) async {
+      const notice =
+          'Pull request #42 was created, but watching could not start.';
+      await _pumpSheet(
+        tester,
+        askWorkingTreeScope: false,
+        initialFollowUp: .watchAndFix,
+        chooseAgent: (_) async => const AgentTaskDispatchBinding(tabId: 't'),
+        onSubmit: (_) async => (error: null, notice: notice),
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Ship and Watch'));
+      await tester.pumpAndSettle();
+      expect(find.text(notice), findsOneWidget);
+      expect(find.text('Ship changes completed.'), findsNothing);
+      expect(find.byType(ShipPullRequestSheet), findsNothing);
+    });
+
+    testWidgets('declining the agent keeps the sheet and ships nothing', (
+      tester,
+    ) async {
+      var shipped = false;
+      await _pumpSheet(
+        tester,
+        askWorkingTreeScope: false,
+        initialFollowUp: .watchAndFix,
+        chooseAgent: (_) async => null,
+        onSubmit: (_) async {
+          shipped = true;
+          return (error: null, notice: null);
+        },
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Ship and Watch'));
+      await tester.pumpAndSettle();
+      expect(shipped, isFalse);
+      expect(find.byType(ShipPullRequestSheet), findsOneWidget);
+    });
+
+    testWidgets('need at least one problem to watch', (tester) async {
+      var chose = false;
+      await _pumpSheet(
+        tester,
+        askWorkingTreeScope: false,
+        initialFollowUp: .watchAndFix,
+        initialWatchScope: const PullRequestAgentWatchScope(
+          checks: false,
+          comments: false,
+          conflicts: false,
+        ),
+        chooseAgent: (_) async {
+          chose = true;
+          return null;
+        },
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Ship and Watch'));
+      await tester.pumpAndSettle();
+      expect(chose, isFalse);
+      expect(
+        find.text('Choose at least one problem to watch.'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -176,7 +286,13 @@ FakeTerminalClient _shipClient() {
 Future<void> _pumpSheet(
   WidgetTester tester, {
   required bool askWorkingTreeScope,
-  Future<String?> Function(MobilePullRequestShipInput input)? onSubmit,
+  Future<PullRequestShipOutcome> Function(PullRequestShipRequest request)?
+  onSubmit,
+  Future<AgentTaskDispatchBinding?> Function(PullRequestAgentWatchMode mode)?
+  chooseAgent,
+  PullRequestShipFollowUp initialFollowUp = PullRequestShipFollowUp.none,
+  PullRequestAgentWatchScope initialWatchScope =
+      PullRequestAgentWatchScope.defaults,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -191,7 +307,10 @@ Future<void> _pumpSheet(
                 baseBranches: const ['main'],
                 suggestedBaseBranch: 'main',
                 askWorkingTreeScope: askWorkingTreeScope,
-                onSubmit: onSubmit ?? (_) async => null,
+                initialFollowUp: initialFollowUp,
+                initialWatchScope: initialWatchScope,
+                chooseAgent: chooseAgent,
+                onSubmit: onSubmit ?? (_) async => (error: null, notice: null),
               ),
               child: const Text('Open'),
             ),

@@ -44,8 +44,10 @@ void main() {
                         suggestedBaseBranch: 'main',
                         onSubmit: (input) {
                           calls++;
-                          submitted = input;
-                          return completion.future;
+                          submitted = input.input;
+                          return completion.future.then(
+                            (error) => (error: error, notice: null),
+                          );
                         },
                       ),
                       child: const Text('Open Ship'),

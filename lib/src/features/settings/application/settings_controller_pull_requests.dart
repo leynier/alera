@@ -34,6 +34,20 @@ mixin _SettingsControllerPullRequestSettings on _$SettingsController {
     });
   }
 
+  Future<void> setPullRequestShipFollowUp(PullRequestShipFollowUp value) {
+    final controller = _pullRequestSettingsController;
+    return controller._serialize(() async {
+      if (state.general.pullRequestShipFollowUp == value) {
+        return;
+      }
+      await controller._save(
+        state.copyWith(
+          general: state.general.copyWith(pullRequestShipFollowUp: value),
+        ),
+      );
+    });
+  }
+
   Future<void> setPullRequestFailureNotificationsEnabled(bool value) {
     final controller = _pullRequestSettingsController;
     return controller._serialize(() async {

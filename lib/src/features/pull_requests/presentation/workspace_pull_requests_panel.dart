@@ -17,6 +17,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_agent
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -191,6 +192,11 @@ class _VisiblePullRequestsPanelState
         (settings) => settings.general.pullRequestAgentWatchScope,
       ),
     );
+    final shipFollowUp = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.general.pullRequestShipFollowUp,
+      ),
+    );
     final agentWatchMode = ref.watch(
       pullRequestAgentWatchControllerProvider.select(
         (sessions) => sessions[widget.scope.workspaceId]?.mode,
@@ -244,6 +250,7 @@ class _VisiblePullRequestsPanelState
               .setPullRequestCreateAction(action),
           agentWatchMode: agentWatchMode,
           agentWatchScope: agentWatchScope,
+          shipFollowUp: shipFollowUp,
           ref: ref,
         );
       },
