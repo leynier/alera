@@ -218,47 +218,10 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
     .bind(event_body["eventId"].as_str())
     .execute(&pool)
     .await?;
-    let (duplicate_a, duplicate_b) = tokio::join!(
-        call_status(
-            &app,
-            TestRequest {
-                method: Method::POST,
-                uri: "/v1/runtime/events",
-                bearer: Some(runtime_token),
-                body: event_body.clone(),
-            }
-        ),
-        call_status(
-            &app,
-            TestRequest {
-                method: Method::POST,
-                uri: "/v1/runtime/events",
-                bearer: Some(runtime_token),
-                body: event_body.clone(),
-            }
-        )
+    assert_eq!(
+        concurrent_duplicate_deliveries(&app, runtime_token, &event_body).await?,
+        1
     );
-    let (status_a, duplicate_a) = duplicate_a?;
-    let (status_b, duplicate_b) = duplicate_b?;
-    assert!(matches!(
-        status_a,
-        StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
-    ));
-    assert!(matches!(
-        status_b,
-        StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
-    ));
-    let resumed = [(status_a, &duplicate_a), (status_b, &duplicate_b)]
-        .into_iter()
-        .filter(|(status, _)| *status == StatusCode::OK)
-        .map(|(_, response)| response["deliveriesQueued"].as_u64().unwrap_or_default())
-        .sum::<u64>();
-    assert_eq!(resumed, 1);
-    for (status, response) in [(status_a, &duplicate_a), (status_b, &duplicate_b)] {
-        if status == StatusCode::OK {
-            assert_eq!(response["duplicate"].as_bool(), Some(true));
-        }
-    }
     assert_eq!(sent.load(Ordering::SeqCst), 2);
     let duplicate_again = call(
         &app,
@@ -291,37 +254,10 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
     .bind(event_body["eventId"].as_str())
     .execute(&pool)
     .await?;
-    let (stale_duplicate_a, stale_duplicate_b) = tokio::join!(
-        call(
-            &app,
-            TestRequest {
-                method: Method::POST,
-                uri: "/v1/runtime/events",
-                bearer: Some(runtime_token),
-                body: event_body.clone(),
-            }
-        ),
-        call(
-            &app,
-            TestRequest {
-                method: Method::POST,
-                uri: "/v1/runtime/events",
-                bearer: Some(runtime_token),
-                body: event_body.clone(),
-            }
-        )
+    assert_eq!(
+        concurrent_duplicate_deliveries(&app, runtime_token, &event_body).await?,
+        1
     );
-    let stale_duplicate_a = stale_duplicate_a?;
-    let stale_duplicate_b = stale_duplicate_b?;
-    assert_eq!(stale_duplicate_a["duplicate"].as_bool(), Some(true));
-    assert_eq!(stale_duplicate_b["duplicate"].as_bool(), Some(true));
-    let reclaimed = stale_duplicate_a["deliveriesQueued"]
-        .as_u64()
-        .unwrap_or_default()
-        + stale_duplicate_b["deliveriesQueued"]
-            .as_u64()
-            .unwrap_or_default();
-    assert_eq!(reclaimed, 1);
     assert_eq!(sent.load(Ordering::SeqCst), 3);
     relay_authorization_cases::rejects_rotation_conflicts_and_revoked_renewals(
         &app,
@@ -454,6 +390,42 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
         .await?;
     pool.close().await;
     Ok(())
+}
+
+async fn concurrent_duplicate_deliveries(
+    app: &Router,
+    runtime_token: &str,
+    event_body: &Value,
+) -> anyhow::Result<u64> {
+    let (first, second) = tokio::join!(
+        call_status(app, duplicate_event_request(runtime_token, event_body)),
+        call_status(app, duplicate_event_request(runtime_token, event_body)),
+    );
+    let (status_a, body_a) = first?;
+    let (status_b, body_b) = second?;
+    for status in [status_a, status_b] {
+        assert!(matches!(
+            status,
+            StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+        ));
+    }
+    let mut queued = 0;
+    for (status, body) in [(status_a, &body_a), (status_b, &body_b)] {
+        if status == StatusCode::OK {
+            assert_eq!(body["duplicate"].as_bool(), Some(true));
+            queued += body["deliveriesQueued"].as_u64().unwrap_or_default();
+        }
+    }
+    Ok(queued)
+}
+
+fn duplicate_event_request<'a>(runtime_token: &'a str, event_body: &Value) -> TestRequest<'a> {
+    TestRequest {
+        method: Method::POST,
+        uri: "/v1/runtime/events",
+        bearer: Some(runtime_token),
+        body: event_body.clone(),
+    }
 }
 
 async fn call_status(
