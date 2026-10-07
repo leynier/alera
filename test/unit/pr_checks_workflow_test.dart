@@ -146,4 +146,28 @@ void main() {
     final pushChecks = rust['jobs']['warm-rust']['strategy']['matrix'];
     expect(pushChecks, scheduledChecks);
   });
+
+  test('mobile checks wait for ALSA before the parallel test run', () {
+    final pr = loadYaml(
+      File('.github/workflows/pr.yml').readAsStringSync(),
+    ) as YamlMap;
+    final steps = (pr['jobs']['mobile']['steps'] as YamlList).cast<YamlMap>();
+    final alsa = steps.indexWhere((s) => s['name'] == 'Install ALSA headers');
+    final setup = steps.indexWhere(
+      (s) => s['name'] == 'Setup Flutter workspace',
+    );
+    final wait = steps.indexWhere((s) => s['wait'] == steps[alsa]['id']);
+    final group = steps.indexWhere((s) => s.containsKey('parallel'));
+    expect(steps[alsa]['background'], isTrue);
+    expect(alsa, lessThan(setup));
+    expect(wait, greaterThan(setup));
+    expect(group, greaterThan(wait));
+    final checks = (steps[group]['parallel'] as YamlList).cast<YamlMap>();
+    expect([for (final s in checks) s['name']], ['Format', 'Analyze', 'Test']);
+    // A concurrent implicit pub get would rewrite package_config.json while
+    // the other checks read it.
+    for (final check in checks.where((s) => s['name'] != 'Format')) {
+      expect(check['run'], contains('--no-pub'));
+    }
+  });
 }

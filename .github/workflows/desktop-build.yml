@@ -117,32 +117,54 @@ jobs:
           submodules: false
           persist-credentials: false
 
+      # Started before the setup so the Defender exclusions already cover the
+      # Flutter and pub caches while the setup restores them. Its environment
+      # (Ninja on PATH, the R: scratch drive) applies at the wait below.
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        background: true
+        uses: ./.github/actions/tune-windows-build
+
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
           xvfb: 'true'
 
-      - name: Tune Windows build environment
-        if: runner.os == 'Windows'
-        uses: ./.github/actions/tune-windows-build
+      # wait-all, not `wait: <id>`: off Windows the tune step is skipped.
+      - name: Wait for Windows build environment
+        wait-all:
 
+      # The two workflow suites compile and run their own debug test binaries,
+      # which share nothing with the release build, so they run in the
+      # background while the app builds. Each gets a private target directory:
+      # the release sidecar builds in rust/target on Linux and macOS, and the
+      # native library in R:\c\n on Windows, and sharing either one would make
+      # the app build wait on Cargo's build directory lock. R:\c\v and R:\c\w
+      # keep the R:\c\n length, which the Whisper MAX_PATH budget requires.
       - name: Verify workflow contracts and native Git integration
+        background: true
+        env:
+          CARGO_TARGET_DIR: ${{ runner.os == 'Windows' && 'R:\c\v' || format('{0}/workflow-tests', runner.temp) }}
         run: >-
           cargo test --manifest-path rust/Cargo.toml --locked
           -p alera-core --features runtime --lib workflow_
 
       - name: Verify native workflow launch and recovery
         if: runner.os != 'Windows'
+        background: true
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/workflow-tests
         run: >-
           cargo test --manifest-path rust/Cargo.toml --locked
           -p alera-cli --bin alera workflow_ -- --nocapture
 
       - name: Verify Windows workflow launch and recovery
         if: runner.os == 'Windows'
+        background: true
         shell: pwsh
         env:
-          CARGO_TARGET_DIR: R:\c\n
+          CARGO_TARGET_DIR: R:\c\w
           CMAKE_GENERATOR: Ninja
           _CL_: /Z7 /FS
           GGML_CCACHE: 'OFF'
@@ -164,6 +186,11 @@ jobs:
 
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
+
+      # The native suites below drive the real app against timing budgets, so
+      # the background cargo tests must finish before they start.
+      - name: Wait for workflow tests
+        wait-all:
 
       - name: Capture native typography at three scales
         shell: bash
@@ -340,13 +367,19 @@ jobs:
           submodules: false
           persist-credentials: false
 
+      # See the build job: the exclusions are in place before the cache restores.
+      - name: Tune Windows build environment
+        id: tune
+        background: true
+        uses: ./.github/actions/tune-windows-build
+
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
 
-      - name: Tune Windows build environment
-        uses: ./.github/actions/tune-windows-build
+      - name: Wait for Windows build environment
+        wait: tune
 
       - name: Restore cargokit build
         uses: actions/cache/restore@v6

@@ -354,15 +354,23 @@ jobs:
           ref: ${{ needs.plan.outputs.target_sha }}
           submodules: false
 
+      # Started before the setup so the Defender exclusions already cover the
+      # Flutter and pub caches while the setup restores them. Its environment
+      # (Ninja on PATH, the R: scratch drive) applies at the wait below.
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        background: true
+        uses: ./.github/actions/tune-windows-build
+
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
           extra-linux-packages: rpm
 
-      - name: Tune Windows build environment
-        if: runner.os == 'Windows'
-        uses: ./.github/actions/tune-windows-build
+      # wait-all, not `wait: <id>`: off Windows the tune step is skipped.
+      - name: Wait for Windows build environment
+        wait-all:
 
       - name: Restore cargokit build
         uses: actions/cache/restore@v6
@@ -558,56 +566,73 @@ jobs:
             exit 1
           fi
 
-      - name: Package Windows release assets
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        env:
-          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-        run: |
-          tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
-          # Chocolatey and Scoop both unpack a zip natively.
-          Compress-Archive -Path "$env:BUNDLE_DIR\*" `
-            -DestinationPath "release-assets/alera-$env:RELEASE_VERSION-windows.zip"
+      # Every archive reads the finished bundle and writes its own file under
+      # release-assets/, and each compressor is single threaded, so the
+      # archives of one platform are written side by side.
+      - parallel:
+          - name: Package Windows release tarball
+            if: matrix.platform == 'windows'
+            shell: pwsh
+            env:
+              RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+            run: tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
 
-      - name: Package Linux release
-        if: matrix.platform == 'linux'
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-          ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
-          BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
-        run: |
-          set -euo pipefail
-          bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
+          # Chocolatey and Scoop both unpack a zip natively.
+          - name: Package Windows release zip
+            if: matrix.platform == 'windows'
+            shell: pwsh
+            env:
+              RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+            run: |
+              Compress-Archive -Path "$env:BUNDLE_DIR\*" `
+                -DestinationPath "release-assets/alera-$env:RELEASE_VERSION-windows.zip"
+
+          - name: Package Linux release
+            if: matrix.platform == 'linux'
+            shell: bash
+            env:
+              RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+              ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+              BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
+            run: bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
+
           # The unmanaged install path. Distributions outside the deb and rpm
           # families have no package to install, and only a directory Alera
           # owns can be replaced in place by the updater.
-          tar -czf "release-assets/alera-${RELEASE_VERSION}-linux-x64.tar.gz" \
-            -C "$BUNDLE_DIR" .
+          - name: Package Linux release tarball
+            if: matrix.platform == 'linux'
+            shell: bash
+            env:
+              RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+            run: |
+              tar -czf "release-assets/alera-${RELEASE_VERSION}-linux-x64.tar.gz" \
+                -C "$BUNDLE_DIR" .
 
-      - name: Upload updater artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: updater-${{ matrix.platform }}
-          path: pages/
-          retention-days: 1
-          if-no-files-found: error
+      # Three independent artifact uploads.
+      - parallel:
+          - name: Upload updater artifact
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+            with:
+              name: updater-${{ matrix.platform }}
+              path: pages/
+              retention-days: 1
+              if-no-files-found: error
 
-      - name: Upload release asset artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-${{ matrix.platform }}
-          path: release-assets/
-          retention-days: 1
-          if-no-files-found: error
+          - name: Upload release asset artifact
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+            with:
+              name: release-${{ matrix.platform }}
+              path: release-assets/
+              retention-days: 1
+              if-no-files-found: error
 
-      - name: Upload native runtime input
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}
-          path: runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}.tar.gz
-          retention-days: 1
-          if-no-files-found: error
+          - name: Upload native runtime input
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+            with:
+              name: runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}
+              path: runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}.tar.gz
+              retention-days: 1
+              if-no-files-found: error
 
       - name: Report sccache statistics
         if: always()
@@ -881,6 +906,14 @@ jobs:
           ref: ${{ needs.plan.outputs.target_sha }}
           submodules: false
 
+      # flutter_soloud 5 compiles its native library in a build hook, and
+      # flutter test runs that hook for the Linux host, which needs ALSA headers.
+      # apt shares nothing with the Flutter setup, so it installs meanwhile.
+      - name: Install ALSA headers
+        id: alsa
+        background: true
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
         with:
@@ -893,18 +926,24 @@ jobs:
       - name: Apply mobile release version locally
         run: dart tool/release/update_mobile_pubspec_version.dart "${{ needs.plan.outputs.mobile_artifact_version }}" "${{ needs.plan.outputs.mobile_build_number }}"
 
-      - name: Analyze mobile app
+      # The version bump touches pubspec.yaml, so resolve once here. Analyze
+      # and test then skip their implicit pub get and cannot race each other
+      # rewriting package_config.json.
+      - name: Resolve mobile dependencies
         working-directory: mobile
-        run: flutter analyze
+        run: flutter pub get
 
-      # flutter_soloud 5 compiles its native library in a build hook, and
-      # flutter test runs that hook for the Linux host, which needs ALSA headers.
-      - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Wait for ALSA headers
+        wait: alsa
 
-      - name: Test mobile app
-        working-directory: mobile
-        run: flutter test
+      - parallel:
+          - name: Analyze mobile app
+            working-directory: mobile
+            run: flutter analyze --no-pub
+
+          - name: Test mobile app
+            working-directory: mobile
+            run: flutter test --no-pub
 
       - name: Decode Android signing keystore
         shell: bash
@@ -1043,6 +1082,53 @@ jobs:
       - name: Setup Dart
         uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
 
+      # The downloads and tool installs below write only their own directories
+      # and need nothing from the Flutter setup, so they run in the background
+      # while it restores the SDK. Their outputs and PATH changes apply at the
+      # wait before the first step that reads them.
+      - name: Download updater artifacts
+        if: needs.plan.outputs.desktop_should_release == 'true'
+        background: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: updater-*
+          path: public
+          merge-multiple: true
+
+      - name: Download release assets
+        if: needs.plan.outputs.desktop_should_release == 'true'
+        background: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download Android release assets
+        if: needs.plan.outputs.mobile_should_release == 'true'
+        background: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: mobile-android-release-assets
+          path: mobile-release-assets
+
+      - name: Install Linux repository tools
+        if: needs.plan.outputs.desktop_should_release == 'true' && needs.plan.outputs.channel == 'stable'
+        background: true
+        run: sudo apt-get update && sudo apt-get install -y apt-utils createrepo-c
+
+      - name: Ensure AWS CLI
+        if: needs.plan.outputs.desktop_should_release == 'true'
+        background: true
+        run: |
+          set -euo pipefail
+          if ! command -v aws >/dev/null 2>&1; then
+            python3 -m pip install --user awscli
+            echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          aws --version
+
       - name: Setup Flutter workspace
         if: needs.plan.outputs.desktop_should_release == 'true'
         uses: ./.github/actions/setup-flutter-workspace
@@ -1056,28 +1142,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Download updater artifacts
-        if: needs.plan.outputs.desktop_should_release == 'true'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          pattern: updater-*
-          path: public
-          merge-multiple: true
-
-      - name: Download release assets
-        if: needs.plan.outputs.desktop_should_release == 'true'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          pattern: release-*
-          path: release-assets
-          merge-multiple: true
-
-      - name: Download Android release assets
-        if: needs.plan.outputs.mobile_should_release == 'true'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: mobile-android-release-assets
-          path: mobile-release-assets
+      # wait-all, not `wait: <ids>`: which of them run depends on the plan.
+      - name: Wait for downloads and tools
+        wait-all:
 
       - name: Verify complete mobile release
         if: needs.plan.outputs.mobile_should_release == 'true'
@@ -1100,10 +1167,6 @@ jobs:
             exit 1
           fi
           (cd mobile-release-assets && sha256sum -c ./*.sha256)
-
-      - name: Install Linux repository tools
-        if: needs.plan.outputs.desktop_should_release == 'true' && needs.plan.outputs.channel == 'stable'
-        run: sudo apt-get update && sudo apt-get install -y apt-utils createrepo-c
 
       - name: Merge and verify desktop update channel
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1153,17 +1216,6 @@ jobs:
           ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
           ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
         run: bash tool/release/build_linux_repositories.sh public release-assets
-
-      - name: Ensure AWS CLI
-        if: needs.plan.outputs.desktop_should_release == 'true'
-        run: |
-          set -euo pipefail
-          if ! command -v aws >/dev/null 2>&1; then
-            python3 -m pip install --user awscli
-            echo "$HOME/.local/bin" >>"$GITHUB_PATH"
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
-          aws --version
 
       - name: Verify R2 deployment prerequisites
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1329,44 +1381,48 @@ jobs:
               --notes-file mobile-release-notes.md
           fi
 
-      - name: Upload desktop release assets
-        if: needs.plan.outputs.desktop_should_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.plan.outputs.desktop_tag }}
-        run: |
-          bash tool/release/upload_release_assets.sh \
-            "$TAG" \
-            "$GITHUB_REPOSITORY" \
-            release-assets/* \
-            "public/$ALERA_ARCHIVE_FILE" \
-            "public/$ALERA_RUNTIME_ARCHIVE_FILE"
+      # Both releases are still drafts here. The uploads go to different
+      # releases and the attestations hash the local files, so all four run
+      # at once; the public flips below still wait for every one of them.
+      - parallel:
+          - name: Upload desktop release assets
+            if: needs.plan.outputs.desktop_should_release == 'true'
+            env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              TAG: ${{ needs.plan.outputs.desktop_tag }}
+            run: |
+              bash tool/release/upload_release_assets.sh \
+                "$TAG" \
+                "$GITHUB_REPOSITORY" \
+                release-assets/* \
+                "public/$ALERA_ARCHIVE_FILE" \
+                "public/$ALERA_RUNTIME_ARCHIVE_FILE"
 
-      - name: Upload mobile release assets
-        if: needs.plan.outputs.mobile_should_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.plan.outputs.mobile_tag }}
-        run: |
-          bash tool/release/upload_release_assets.sh \
-            "$TAG" \
-            "$GITHUB_REPOSITORY" \
-            mobile-release-assets/*
+          - name: Upload mobile release assets
+            if: needs.plan.outputs.mobile_should_release == 'true'
+            env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              TAG: ${{ needs.plan.outputs.mobile_tag }}
+            run: |
+              bash tool/release/upload_release_assets.sh \
+                "$TAG" \
+                "$GITHUB_REPOSITORY" \
+                mobile-release-assets/*
 
-      - name: Attest desktop release assets
-        if: needs.plan.outputs.desktop_should_release == 'true'
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
-        with:
-          subject-path: |
-            release-assets/*
-            public/${{ env.ALERA_ARCHIVE_FILE }}
-            public/${{ env.ALERA_RUNTIME_ARCHIVE_FILE }}
+          - name: Attest desktop release assets
+            if: needs.plan.outputs.desktop_should_release == 'true'
+            uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+            with:
+              subject-path: |
+                release-assets/*
+                public/${{ env.ALERA_ARCHIVE_FILE }}
+                public/${{ env.ALERA_RUNTIME_ARCHIVE_FILE }}
 
-      - name: Attest mobile release assets
-        if: needs.plan.outputs.mobile_should_release == 'true'
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
-        with:
-          subject-path: mobile-release-assets/*
+          - name: Attest mobile release assets
+            if: needs.plan.outputs.mobile_should_release == 'true'
+            uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+            with:
+              subject-path: mobile-release-assets/*
 
       - name: Publish mobile release
         if: needs.plan.outputs.mobile_should_release == 'true'

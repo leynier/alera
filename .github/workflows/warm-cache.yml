@@ -59,14 +59,22 @@ jobs:
         with:
           submodules: false
 
+      # Started before the setup so the Defender exclusions already cover the
+      # Flutter and pub caches while the setup restores them. Its environment
+      # (Ninja on PATH, the R: scratch drive) applies at the wait below.
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        background: true
+        uses: ./.github/actions/tune-windows-build
+
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
 
-      - name: Tune Windows build environment
-        if: runner.os == 'Windows'
-        uses: ./.github/actions/tune-windows-build
+      # wait-all, not `wait: <id>`: off Windows the tune step is skipped.
+      - name: Wait for Windows build environment
+        wait-all:
 
       - name: Restore cargokit build
         uses: actions/cache/restore@v6
