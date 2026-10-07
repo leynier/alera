@@ -51,9 +51,6 @@ void main() {
     expect(r'R:\c\n'.length + 1 + nestedObj.length, lessThan(260));
     expect(r'C:\c\n'.length + 1 + nestedObj.length, lessThan(260));
     expect(r'R:\c\cli'.length + 1 + nestedObj.length, lessThan(260));
-    // Private target dirs of the desktop-build workflow tests.
-    expect(r'R:\c\v'.length + 1 + nestedObj.length, lessThan(260));
-    expect(r'R:\c\w'.length + 1 + nestedObj.length, lessThan(260));
 
     final tune = File('.github/actions/tune-windows-build/action.yml')
         .readAsStringSync();

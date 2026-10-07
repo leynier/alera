@@ -158,37 +158,17 @@ void main() {
     expect(workflows['run'], contains('-p alera-core --features runtime'));
     expect(workflows['run'], contains('--lib workflow_'));
     expect(workflows['run'], contains('--locked'));
-  });
-
-  test('workflow tests overlap the app build without its cargo lock', () {
-    final buildSteps = steps('build');
-    final names = [for (final s in buildSteps) s['name']];
-    final build = names.indexOf('Build desktop app');
-    final typography = names.indexOf(
-      'Capture native typography at three scales',
-    );
+    // Run 37696090551 overlapped both suites with the app build: the build
+    // doubled on every platform and the debug integration builds lost the
+    // dependencies these suites leave in rust/target, a net loss of ~13 min
+    // on Linux and ~14 min on macOS.
     for (final name in [
       'Verify workflow contracts and native Git integration',
       'Verify native workflow launch and recovery',
       'Verify Windows workflow launch and recovery',
     ]) {
-      final verify = step('build', name);
-      expect(verify['background'], isTrue, reason: name);
-      expect(names.indexOf(name), lessThan(build), reason: name);
-      // The app build compiles the sidecar in rust/target and the native
-      // library in R:\c\n; sharing either would serialize on Cargo's lock.
-      final targetDir = verify['env']['CARGO_TARGET_DIR'] as String;
-      expect(targetDir, isNot(contains(r'R:\c\n')), reason: name);
-      expect(targetDir, isNot(contains('rust/target')), reason: name);
+      expect(step('build', name)['background'], isNull, reason: name);
     }
-    // The native suites after the build run against timing budgets, so the
-    // background cargo tests must be finished before they start.
-    expect(
-      buildSteps
-          .sublist(build + 1, typography)
-          .any((s) => s.containsKey('wait-all')),
-      isTrue,
-    );
   });
 
   test('Windows tuning runs in the background ahead of the setup', () {
