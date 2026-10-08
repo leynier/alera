@@ -370,7 +370,13 @@ describe('OAuth routing', () => {
       expect((await send(path, { method: 'POST' })).status).toBe(200);
     }
     expect(keys).toContain('address:203.0.113.9:/v1/auth/device/token');
-    expect((await send('/device?user_code=ABCD-EFGH')).status).toBe(429);
+    const limited = await send('/device?user_code=ABCD-EFGH');
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get('retry-after')).toBe('60');
+    env.OAUTH_LIMITER = limiter(false);
+    const token = await send('/oauth/token', { method: 'POST' });
+    expect(token.status).toBe(429);
+    expect(token.headers.get('access-control-allow-origin')).toBe('*');
     expect((await send('/oauth/authorize?client_id=x')).status).toBe(429);
     expect((await send('/v1/account', { method: 'DELETE' })).status).toBe(429);
   });

@@ -1108,7 +1108,7 @@
         "readOnlyHint": false,
         "title": "Cancel Task"
       },
-      "description": "Cancel an orchestration task and its not-yet-started descendants.",
+      "description": "Cancel an orchestration task and its not-yet-started descendants. Runs as an audited administrative cancellation, because an MCP client is not the task's coordinator terminal.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {

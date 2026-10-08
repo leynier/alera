@@ -1,19 +1,22 @@
 //! Account calls behind MCP Control: naming, connected apps, relay capability
 //! reports, and the device sign-in for runtimes without a local browser.
 
-use alera_core::runtime::LocalAleraAccount;
 use anyhow::Result;
 
 use super::super::cloud_client::{
-    CloudRequestError, DeviceAuthorization, McpGrant, RelayCapabilities,
+    AuthEnvelope, CloudRequestError, DeviceAuthorization, McpGrant, RelayCapabilities,
 };
 use super::AleraAccountService;
 use crate::mcp_settings::{mcp_access, McpAccess};
 
 /// What a device sign-in poll learned.
 pub(crate) enum DevicePoll {
-    Pending { slow_down: bool },
-    Completed(Box<LocalAleraAccount>),
+    Pending {
+        slow_down: bool,
+    },
+    /// Approved, but not yet saved: the caller saves it with `complete_auth`
+    /// only if the sign-in was not cancelled meanwhile.
+    Approved(Box<AuthEnvelope>),
 }
 
 impl AleraAccountService {
@@ -38,6 +41,11 @@ impl AleraAccountService {
         let token = self.access_token().await?;
         let capabilities = self.relay_capabilities().await;
         self.cloud.report_capabilities(&token, capabilities).await
+    }
+
+    /// Revokes a session the runtime received but must not keep.
+    pub(crate) async fn discard_session(&self, envelope: &AuthEnvelope) -> Result<()> {
+        self.cloud.revoke(&envelope.refresh_token).await
     }
 
     pub(crate) async fn rename_runtime(&self, name: &str) -> Result<()> {
@@ -66,9 +74,7 @@ impl AleraAccountService {
 
     pub(crate) async fn poll_device_sign_in(&self, device_code: &str) -> Result<DevicePoll> {
         match self.cloud.poll_device_authorization(device_code).await {
-            Ok(envelope) => Ok(DevicePoll::Completed(Box::new(
-                self.complete_auth(envelope).await?,
-            ))),
+            Ok(envelope) => Ok(DevicePoll::Approved(Box::new(envelope))),
             Err(error) => {
                 let request = error.downcast_ref::<CloudRequestError>();
                 if request.is_some_and(CloudRequestError::is_rate_limited) {

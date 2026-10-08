@@ -206,8 +206,24 @@ async fn poll_device_sign_in(
         if chrono::Utc::now() >= expires_at {
             return Err(HostError::state("The sign-in code expired. Start again."));
         }
-        match service.poll_device_sign_in(device_code).await {
-            Ok(DevicePoll::Completed(account)) => return Ok(json!(*account)),
+        let polled = tokio::select! {
+            polled = service.poll_device_sign_in(device_code) => polled,
+            _ = &mut cancelled => return Err(HostError::state("The sign-in was cancelled.")),
+        };
+        match polled {
+            Ok(DevicePoll::Approved(envelope)) => {
+                // Cancellation can land while the approving poll is in flight;
+                // the approved session is then revoked instead of saved.
+                if cancelled.try_recv().is_ok() {
+                    let _ = service.discard_session(&envelope).await;
+                    return Err(HostError::state("The sign-in was cancelled."));
+                }
+                let account = service
+                    .complete_auth(*envelope)
+                    .await
+                    .map_err(cloud_error)?;
+                return Ok(json!(account));
+            }
             Ok(DevicePoll::Pending { slow_down }) => {
                 if slow_down {
                     interval += Duration::from_secs(5);

@@ -205,3 +205,10 @@ fn inbox_wait_timeouts_are_answers_not_failures() {
     assert!(!super::executor::is_wait_timeout(r#"{"outcome":"reply"}"#));
     assert!(!super::executor::is_wait_timeout("error: no such question"));
 }
+
+#[test]
+fn mcp_task_cancellation_is_an_audited_administrative_action() {
+    let (args, _) = invocation_args("cancel_task", json!({ "taskId": "t-1", "reason": "stale" }));
+    assert!(args.contains(&"--force".to_owned()));
+    assert!(args.contains(&"--reason=[mcp] stale".to_owned()));
+}

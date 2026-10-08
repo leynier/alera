@@ -299,7 +299,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
             ..execute(
                 "cancel_task",
                 "Cancel Task",
-                "Cancel an orchestration task and its not-yet-started descendants.",
+                "Cancel an orchestration task and its not-yet-started descendants. Runs as an audited administrative cancellation, because an MCP client is not the task's coordinator terminal.",
                 || {
                     object(
                         &[("taskId", string("Task id.")), ("reason", string("Why it is cancelled."))],
@@ -309,7 +309,8 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 |arguments| {
                     Ok(Invocation::new("orchestration", &["task-cancel"])
                         .option("--id", arguments.required("taskId")?)
-                        .option("--reason", arguments.required("reason")?))
+                        .option("--reason", format!("[mcp] {}", arguments.required("reason")?))
+                        .flag("--force"))
                 },
             )
         },

@@ -294,7 +294,8 @@ export async function handleRequest(
     if (!result.success) {
       const response = jsonError(429, 'edge_rate_limited', 'Too many requests. Try again shortly.');
       response.headers.set('retry-after', '60');
-      return response;
+      // Without CORS headers a browser client sees a network error, not the 429.
+      return secureResponse(response, cors);
     }
   } else if (!SAFE_METHODS.has(request.method)) {
     const key = await requestLimitKey(request, url.pathname);
