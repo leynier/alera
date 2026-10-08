@@ -25,6 +25,8 @@ pub(super) struct AccountPushState {
     pub(super) relay_stop: Option<oneshot::Sender<()>>,
     pub(super) relay_generation: u64,
     pub(super) relay_status: serde_json::Value,
+    /// How the latest sign-in attempt ended, cleared when a new one starts.
+    pub(super) last_sign_in: Option<serde_json::Value>,
     pub(super) relay_presence: std::collections::HashMap<
         u64,
         (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>),
@@ -64,6 +66,7 @@ impl AccountPushState {
             relay_stop: None,
             relay_generation: 0,
             relay_status: serde_json::json!({ "state": "disabled" }),
+            last_sign_in: None,
             relay_presence: Default::default(),
         })
     }

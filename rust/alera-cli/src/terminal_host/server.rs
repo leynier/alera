@@ -51,6 +51,7 @@ mod account_push_state;
 mod account_requests;
 #[cfg(test)]
 mod account_requests_tests;
+mod account_status_requests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;

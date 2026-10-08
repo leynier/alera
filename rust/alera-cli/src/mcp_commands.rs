@@ -227,11 +227,8 @@ async fn wait_for_sign_in(client: &mut RuntimeHostRpcClient) -> Result<Value> {
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;
         let status = client.request_value("account.status", &json!({})).await?;
-        if status["connected"].as_bool() == Some(true) && status["signInPending"] != json!(true) {
-            return Ok(status);
-        }
         if status["signInPending"] != json!(true) {
-            bail!("The sign-in did not complete. Run `alera account login` again.");
+            return sign_in_result(status);
         }
         if tokio::time::Instant::now() >= deadline {
             let _ = client
@@ -239,6 +236,23 @@ async fn wait_for_sign_in(client: &mut RuntimeHostRpcClient) -> Result<Value> {
                 .await;
             bail!("The sign-in timed out.");
         }
+    }
+}
+
+/// Judges this attempt by its own outcome: an account that was already signed
+/// in stays connected when a new attempt fails or is cancelled.
+fn sign_in_result(status: Value) -> Result<Value> {
+    match status["lastSignIn"]["ok"].as_bool() {
+        Some(true) => Ok(status),
+        Some(false) => bail!(
+            "The sign-in did not complete: {}",
+            status["lastSignIn"]["message"]
+                .as_str()
+                .unwrap_or("it failed or was cancelled.")
+        ),
+        // A host without the outcome record: fall back to the connection.
+        None if status["connected"] == json!(true) => Ok(status),
+        None => bail!("The sign-in did not complete. Run `alera account login` again."),
     }
 }
 
@@ -328,4 +342,24 @@ fn tools_message() -> String {
         ));
     }
     lines.join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::sign_in_result;
+
+    #[test]
+    fn a_failed_attempt_is_a_failure_even_with_an_old_session() {
+        let failed = json!({
+            "connected": true,
+            "signInPending": false,
+            "lastSignIn": { "ok": false, "message": "cancelled" },
+        });
+        assert!(sign_in_result(failed).is_err());
+        let done = json!({ "connected": true, "lastSignIn": { "ok": true } });
+        assert!(sign_in_result(done).is_ok());
+        assert!(sign_in_result(json!({ "connected": false })).is_err());
+    }
 }

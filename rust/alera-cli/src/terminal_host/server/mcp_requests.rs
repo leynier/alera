@@ -138,6 +138,7 @@ impl ServerActor {
         }
         let (cancel_tx, cancel_rx) = oneshot::channel();
         self.account_push.sign_in_cancel = Some(cancel_tx);
+        self.account_push.last_sign_in = None;
         self.account_push.cloud_jobs += 1;
         self.cancel_shutdown_timer();
         let inbox = self.inbox.clone();

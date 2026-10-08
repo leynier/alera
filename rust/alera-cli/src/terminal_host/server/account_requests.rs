@@ -171,29 +171,6 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn account_status(&self) -> HostResult<Value> {
-        let account = self
-            .account_push
-            .service
-            .local_account()
-            .await
-            .map_err(account_error)?;
-        Ok(json!({
-            "connected": account.is_some(),
-            "account": account,
-            "signInPending": self.account_push.sign_in_cancel.is_some(),
-        }))
-    }
-
-    pub(super) fn cancel_account_sign_in(&mut self) -> Value {
-        let cancelled = self
-            .account_push
-            .sign_in_cancel
-            .take()
-            .is_some_and(|cancel| cancel.send(()).is_ok());
-        json!({ "cancelled": cancelled })
-    }
-
     fn require_local_account_request(&self, client_id: u64, request_type: &str) -> HostResult<()> {
         self.require_auth(client_id)?;
         self.require_request_allowed(client_id, request_type)
@@ -208,6 +185,7 @@ impl ServerActor {
     ) {
         let (cancel_tx, cancel_rx) = oneshot::channel();
         self.account_push.sign_in_cancel = Some(cancel_tx);
+        self.account_push.last_sign_in = None;
         self.account_push.cloud_jobs += 1;
         self.cancel_shutdown_timer();
         let inbox = self.inbox.clone();
@@ -304,6 +282,7 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_account_sign_in_completed(&mut self, result: HostResult<Value>) {
+        self.record_sign_in_outcome(&result);
         self.account_push.sign_in_cancel = None;
         self.account_push.cloud_jobs = self.account_push.cloud_jobs.saturating_sub(1);
         match result {
@@ -494,6 +473,6 @@ async fn async_mobile_enrollment(
         .map_err(account_error)
 }
 
-fn account_error(error: impl std::fmt::Display) -> HostError {
+pub(super) fn account_error(error: impl std::fmt::Display) -> HostError {
     HostError::state(error.to_string())
 }

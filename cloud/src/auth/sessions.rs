@@ -71,9 +71,70 @@ pub async fn create_session(
     .await
 }
 
+/// Like [`create_session`], inside a transaction the caller already holds, which
+/// it commits before the response is built. The caller's locks stay held while
+/// the session is written, and no second pool connection is needed.
+#[allow(clippy::too_many_arguments)]
+pub async fn create_session_in(
+    mut transaction: sqlx::Transaction<'_, sqlx::Postgres>,
+    pool: &PgPool,
+    tokens: &TokenService,
+    account_id: Uuid,
+    client_id: &str,
+    client_kind: ClientKind,
+    label: &str,
+    authenticated_at: DateTime<Utc>,
+) -> Result<TokenEnvelope, ApiError> {
+    let (family_id, refresh_token) = insert_family(
+        &mut transaction,
+        account_id,
+        client_id,
+        client_kind,
+        label,
+        authenticated_at,
+    )
+    .await?;
+    transaction.commit().await?;
+    envelope(
+        pool,
+        tokens,
+        SessionDescriptor {
+            account_id,
+            family_id,
+            client_id,
+            client_kind,
+            authenticated_at,
+        },
+        refresh_token,
+    )
+    .await
+}
+
 /// Creates a refresh family and its first token, returning the family id and raw token.
 pub(crate) async fn create_family(
     pool: &PgPool,
+    account_id: Uuid,
+    client_id: &str,
+    client_kind: ClientKind,
+    label: &str,
+    authenticated_at: DateTime<Utc>,
+) -> Result<(Uuid, String), ApiError> {
+    let mut transaction = pool.begin().await?;
+    let created = insert_family(
+        &mut transaction,
+        account_id,
+        client_id,
+        client_kind,
+        label,
+        authenticated_at,
+    )
+    .await?;
+    transaction.commit().await?;
+    Ok(created)
+}
+
+async fn insert_family(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     account_id: Uuid,
     client_id: &str,
     client_kind: ClientKind,
@@ -87,7 +148,6 @@ pub(crate) async fn create_family(
     let token_hash = hash_secret(&refresh_token);
     let absolute_expires_at = now + TimeDelta::days(ABSOLUTE_DAYS);
     let inactivity_expires_at = now + TimeDelta::days(INACTIVITY_DAYS);
-    let mut transaction = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO refresh_token_families (
@@ -104,7 +164,7 @@ pub(crate) async fn create_family(
     .bind(authenticated_at)
     .bind(now)
     .bind(absolute_expires_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
     sqlx::query(
         r#"
@@ -118,9 +178,8 @@ pub(crate) async fn create_family(
     .bind(token_hash)
     .bind(now)
     .bind(inactivity_expires_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
-    transaction.commit().await?;
     Ok((family_id, refresh_token))
 }
 

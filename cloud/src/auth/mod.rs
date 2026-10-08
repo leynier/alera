@@ -20,7 +20,7 @@ pub use mcp_tokens::{
     McpAccessInput, McpCallGrantClaims, McpCallGrantInput, MCP_CALL_AUDIENCE,
     MCP_CALL_GRANT_SECONDS,
 };
-pub use sessions::{create_session, revoke_family, rotate_session};
+pub use sessions::{create_session, create_session_in, revoke_family, rotate_session};
 pub use tokens::{AccessClaims, RelayGrantClaims, RelayGrantInput, TokenService};
 pub use transactions::create_link_transaction;
 

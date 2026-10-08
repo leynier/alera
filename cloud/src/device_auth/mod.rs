@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::{
     api_models::{ClientKind, TokenEnvelope},
     auth::{
-        create_session,
+        create_session_in,
         validation::{hash_secret, random_secret, validate_label, validate_new_client_id},
     },
     error::ApiError,
@@ -172,7 +172,8 @@ pub async fn token(
                     "This runtime is already signed in. Sign it out first, then try again.",
                 ));
             }
-            let envelope = create_session(
+            let envelope = create_session_in(
+                guard,
                 &state.pool,
                 &state.tokens,
                 account_id,
@@ -182,7 +183,6 @@ pub async fn token(
                 row.approved_at.unwrap_or(now),
             )
             .await?;
-            guard.commit().await?;
             Ok(Json(envelope))
         }
         _ if too_fast => error("slow_down", "Poll the token endpoint less often."),
