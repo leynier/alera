@@ -165,7 +165,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
             || {
                 object(
                     &[
-                        ("status", one_of("Task status.", &TASK_STATES[..6])),
+                        ("status", one_of("Task status.", TASK_STATES)),
                         ("runId", string("Coordinator run id.")),
                         ("workspaceId", string("Workspace id.")),
                     ],

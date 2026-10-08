@@ -229,7 +229,9 @@
               "dispatched",
               "completed",
               "failed",
-              "blocked"
+              "blocked",
+              "stalled",
+              "cancelled"
             ],
             "type": "string"
           },

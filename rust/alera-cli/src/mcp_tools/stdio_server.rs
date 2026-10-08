@@ -90,7 +90,16 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> an
                 let pending = pending.clone();
                 let permits = permits.clone();
                 tokio::spawn(async move {
-                    let _permit = permits.acquire_owned().await;
+                    let mut cancelled = cancelled;
+                    // A call cancelled while queued must never start its command.
+                    let _permit = tokio::select! {
+                        biased;
+                        _ = &mut cancelled => return,
+                        permit = permits.acquire_owned() => permit,
+                    };
+                    if cancelled.try_recv().is_ok() {
+                        return;
+                    }
                     let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
                     let result = run_tool(&execution, &tool, &arguments, Some(cancelled)).await;
                     let still_pending = pending

@@ -288,6 +288,9 @@ impl GrantVerifier {
             anyhow::bail!("MCP call grant is expired or invalid");
         }
         verify_signature(self, &header.kid, &segments).await?;
+        if claims.exp <= chrono::Utc::now().timestamp() {
+            anyhow::bail!("MCP call grant expired during verification");
+        }
         Ok(claims)
     }
 }

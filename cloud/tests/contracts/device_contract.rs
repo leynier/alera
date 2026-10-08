@@ -132,6 +132,25 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     .await?;
     assert_eq!(again.status, StatusCode::CONFLICT);
     assert_eq!(again.error_code(), "runtime_already_signed_in");
+    // A session idle past its inactivity window no longer blocks a new sign-in.
+    sqlx::query(
+        r#"
+        UPDATE refresh_tokens t SET inactivity_expires_at = NOW() - INTERVAL '1 minute'
+        FROM refresh_token_families f
+        WHERE t.family_id = f.id AND f.client_kind = 'runtime' AND f.client_id = $1
+        "#,
+    )
+    .bind(&runtime_id)
+    .execute(&pool)
+    .await?;
+    let idle = post_json(
+        &app,
+        "/v1/auth/device",
+        None,
+        json!({"clientId": runtime_id, "clientKind": "runtime", "deviceName": "Build Box"}),
+    )
+    .await?;
+    assert_eq!(idle.status, StatusCode::OK, "{}", idle.text());
 
     let denied = post_json(
         &app,

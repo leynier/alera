@@ -56,9 +56,12 @@ pub async fn start(
     let signed_in = sqlx::query_scalar::<_, bool>(
         r#"
         SELECT EXISTS(
-            SELECT 1 FROM refresh_token_families
-            WHERE client_kind = 'runtime' AND client_id = $1
-              AND revoked_at IS NULL AND absolute_expires_at > $2
+            SELECT 1 FROM refresh_token_families f
+            JOIN refresh_tokens t ON t.family_id = f.id
+            WHERE f.client_kind = 'runtime' AND f.client_id = $1
+              AND f.revoked_at IS NULL AND f.absolute_expires_at > $2
+              AND t.used_at IS NULL AND t.revoked_at IS NULL
+              AND t.inactivity_expires_at > $2
         )
         "#,
     )
