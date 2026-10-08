@@ -116,7 +116,10 @@ fn rejects_unknown_missing_and_mistyped_arguments() {
     assert!(tool.invocation(&json!(["t"])).is_err());
     let delegate = find_tool("delegate_task").unwrap();
     assert!(delegate
-        .invocation(&json!({ "profile": "p", "spec": "s" }))
+        .invocation(&json!({ "profile": "p", "spec": "s", "coordinator": "t" }))
+        .is_err());
+    assert!(delegate
+        .invocation(&json!({ "profile": "p", "spec": "s", "workspaceId": "w" }))
         .is_err());
 }
 
@@ -124,10 +127,11 @@ fn rejects_unknown_missing_and_mistyped_arguments() {
 fn delegate_into_a_new_workspace_uses_the_source_workspace() {
     let (args, stdin) = invocation_args(
         "delegate_task",
-        json!({ "profile": "p", "spec": "do it", "workspaceId": "w-1", "newWorkspace": true }),
+        json!({ "profile": "p", "spec": "do it", "workspaceId": "w-1", "newWorkspace": true, "coordinator": "t-9" }),
     );
     assert!(args.contains(&"--from-workspace=w-1".to_owned()));
     assert!(args.contains(&"--new-workspace".to_owned()));
+    assert!(args.contains(&"--from=t-9".to_owned()));
     assert!(!args.iter().any(|arg| arg == "--no-parent"));
     assert_eq!(stdin.as_deref(), Some("do it"));
 }
@@ -177,4 +181,18 @@ fn terminal_reads_drop_the_base64_copy() {
         super::executor::without_fields("not json", tool.omit_fields),
         "not json"
     );
+}
+
+#[test]
+fn messages_name_their_sender() {
+    let (args, stdin) = invocation_args(
+        "send_message",
+        json!({ "from": "t-1", "to": "@all", "subject": "hi", "body": "status" }),
+    );
+    assert!(args.contains(&"--from=t-1".to_owned()));
+    assert_eq!(stdin.as_deref(), Some("status"));
+    assert!(find_tool("send_message")
+        .unwrap()
+        .invocation(&json!({ "to": "@all", "subject": "hi" }))
+        .is_err());
 }

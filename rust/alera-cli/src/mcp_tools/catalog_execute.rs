@@ -157,12 +157,13 @@ pub(super) fn tools() -> Vec<ToolSpec> {
             ..execute(
                 "delegate_task",
                 "Delegate Task",
-                "Create an orchestration task and start an agent profile that accepts it, in an existing workspace or a new child worktree. Returns the task; follow it with wait_for_task.",
+                "Create an orchestration task and start an agent profile that accepts it, in an existing workspace or a new child worktree. The coordinator is a running agent terminal (from list_terminals) that receives the worker's messages. Returns the task; follow it with wait_for_task. Without a coordinator terminal, use start_agent_workspace or ask_agent instead.",
                 || {
                     object(
                         &[
                             ("profile", profile_schema()),
                             ("spec", text("Task brief the worker receives.", PROMPT_LIMIT)),
+                            ("coordinator", string("Terminal handle of the coordinating agent, from list_terminals.")),
                             ("title", string("Short title for listings.")),
                             ("workspaceId", string("Workspace that owns the task, or the source workspace with newWorkspace.")),
                             ("newWorkspace", boolean("Create a child worktree and delegate into it.")),
@@ -172,7 +173,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                             ("sourceBranch", string("Branch the new workspace starts from.")),
                             ("timeoutSeconds", integer("Seconds to wait for the agent to accept.", 1, MAX_WAIT_SECONDS)),
                         ],
-                        &["profile", "spec"],
+                        &["profile", "spec", "coordinator"],
                     )
                 },
                 |arguments| {
@@ -190,6 +191,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     )
                     .flag("--spec-stdin")
                     .flag("--keep-on-failure")
+                    .option("--from", arguments.required("coordinator")?)
                     .option_if("--task-title", arguments.string("title"))
                     .option_if(workspace_flag, workspace)
                     .flag_if("--new-workspace", new_workspace)
@@ -230,10 +232,11 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         execute(
             "send_message",
             "Send Orchestration Message",
-            "Send an orchestration message to a terminal handle or a group such as @all, @idle, or @workspace:<id>.",
+            "Send an orchestration message from one agent terminal to a terminal handle or a group such as @all, @idle, or @workspace:<id>. To ask an agent a question from outside, use ask_agent.",
             || {
                 object(
                     &[
+                        ("from", string("Sender terminal handle, from list_terminals.")),
                         ("to", string("Terminal handle or @group.")),
                         ("subject", string("Message subject.")),
                         ("body", text("Message body.", PROMPT_LIMIT)),
@@ -241,11 +244,12 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("priority", one_of("Priority.", &["normal", "high", "urgent"])),
                         ("threadId", string("Thread to attach the message to.")),
                     ],
-                    &["to", "subject"],
+                    &["from", "to", "subject"],
                 )
             },
             |arguments| {
                 let invocation = Invocation::new("orchestration", &["send"])
+                    .option("--from", arguments.required("from")?)
                     .option("--to", arguments.required("to")?)
                     .option("--subject", arguments.required("subject")?)
                     .option_if("--type", arguments.string("type"))

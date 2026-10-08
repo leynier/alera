@@ -62,7 +62,7 @@ async fn jwks_origin(key: &SigningKey) -> (GrantVerifier, tokio::task::JoinHandl
 }
 
 /// `echo` stands in for the `alera` binary: the tool output is its argv.
-fn owned_link(access: McpAccess, verifier: GrantVerifier) -> (McpLink, McpLinkLifetime) {
+fn link(access: McpAccess, verifier: GrantVerifier) -> McpLink {
     McpLink::new(
         access,
         ToolExecution {
@@ -73,13 +73,20 @@ fn owned_link(access: McpAccess, verifier: GrantVerifier) -> (McpLink, McpLinkLi
     )
 }
 
-fn link(access: McpAccess, verifier: GrantVerifier) -> McpLink {
-    let (link, lifetime) = owned_link(access, verifier);
-    std::mem::forget(lifetime);
-    link
+async fn call(link: &McpLink, id: &str, grant: String, tool: &str) -> Value {
+    let (lifetime, closed) = watch::channel(());
+    let value = call_on(link, id, grant, tool, &closed).await;
+    drop(lifetime);
+    value
 }
 
-async fn call(link: &McpLink, id: &str, grant: String, tool: &str) -> Value {
+async fn call_on(
+    link: &McpLink,
+    id: &str,
+    grant: String,
+    tool: &str,
+    connection_closed: &watch::Receiver<()>,
+) -> Value {
     let (control, mut frames) = mpsc::channel(4);
     let payload = serde_json::to_vec(&json!({
         "type": "mcp.call", "id": id, "grant": grant, "tool": tool, "arguments": {},
@@ -91,6 +98,7 @@ async fn call(link: &McpLink, id: &str, grant: String, tool: &str) -> Value {
             account_id: "account",
             runtime_id: "runtime",
             control: &control,
+            connection_closed,
         },
     );
     let Some(Message::Binary(frame)) = frames.recv().await else {
@@ -195,6 +203,7 @@ async fn unreadable_calls_are_answered_instead_of_left_waiting() {
     let (verifier, server) = jwks_origin(&key).await;
     let link = link(McpAccess::Full, verifier);
     let (control, mut frames) = mpsc::channel(4);
+    let (_lifetime, closed) = watch::channel(());
     let payload = br#"{"type":"mcp.call","id":"g","grant":5}"#;
     link.handle_frame(
         payload,
@@ -202,6 +211,7 @@ async fn unreadable_calls_are_answered_instead_of_left_waiting() {
             account_id: "account",
             runtime_id: "runtime",
             control: &control,
+            connection_closed: &closed,
         },
     );
     let Some(Message::Binary(frame)) = frames.recv().await else {
@@ -215,13 +225,14 @@ async fn unreadable_calls_are_answered_instead_of_left_waiting() {
 }
 
 #[tokio::test]
-async fn calls_stop_once_the_link_lifetime_ends() {
+async fn calls_stop_once_their_connection_ends() {
     let key = SigningKey::from_bytes(&[7; 32]);
     let (verifier, server) = jwks_origin(&key).await;
-    let (link, lifetime) = owned_link(McpAccess::Full, verifier);
+    let link = link(McpAccess::Full, verifier);
+    let (lifetime, closed) = watch::channel(());
     drop(lifetime);
     let grant = call_grant(&key, json!({ "jti": "h" }));
-    let result = call(&link, "h", grant, "runtime_status").await;
+    let result = call_on(&link, "h", grant, "runtime_status", &closed).await;
     assert_eq!(result["error"]["code"], "runtime_unavailable");
     server.abort();
 }
@@ -236,5 +247,28 @@ async fn metadata_document_clients_with_long_ids_can_call_tools() {
     let grant = call_grant(&key, json!({ "jti": "i", "clientId": client_id }));
     let result = call(&link, "i", grant, "runtime_status").await;
     assert_eq!(result["result"]["isError"], false, "{result}");
+    server.abort();
+}
+
+#[tokio::test]
+async fn cancelled_calls_never_start_their_command() {
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let (verifier, server) = jwks_origin(&key).await;
+    let link = link(McpAccess::Full, verifier);
+    let (cancel, cancelled) = oneshot::channel();
+    cancel.send(()).unwrap();
+    let grant = call_grant(&key, json!({ "jti": "j" }));
+    let outcome = link
+        .run_call(
+            "j",
+            &grant,
+            "runtime_status",
+            &json!({}),
+            "account",
+            "runtime",
+            cancelled,
+        )
+        .await;
+    assert_eq!(outcome.unwrap_err().0, "cancelled");
     server.abort();
 }

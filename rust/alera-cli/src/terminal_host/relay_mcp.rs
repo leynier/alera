@@ -47,20 +47,18 @@ pub(super) struct McpLink {
     verifier: GrantVerifier,
     permits: Arc<Semaphore>,
     calls: Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>,
-    /// Call ids already used, until their grant expires.
+    /// Call ids already used, until their grant expires. Kept across
+    /// reconnects so a replayed grant fails on the next socket too.
     seen: Arc<Mutex<HashMap<String, i64>>>,
-    /// Ends when the link's owner drops its sender, which stops queued and
-    /// running calls once MCP Control changes or the account signs out.
-    closed: watch::Receiver<()>,
 }
-
-/// Keeps a link's calls alive; dropping it cancels every queued and running call.
-pub(super) struct McpLinkLifetime(#[allow(dead_code)] watch::Sender<()>);
 
 pub(super) struct CallContext<'a> {
     pub(super) account_id: &'a str,
     pub(super) runtime_id: &'a str,
     pub(super) control: &'a mpsc::Sender<Message>,
+    /// Ends with the socket the call arrived on. Its caller has already been
+    /// told the runtime went offline, so queued and running calls stop then.
+    pub(super) connection_closed: &'a watch::Receiver<()>,
 }
 
 impl McpLink {
@@ -68,18 +66,15 @@ impl McpLink {
         access: McpAccess,
         execution: ToolExecution,
         verifier: GrantVerifier,
-    ) -> (Self, McpLinkLifetime) {
-        let (lifetime, closed) = watch::channel(());
-        let link = Self {
+    ) -> Self {
+        Self {
             access,
             execution,
             verifier,
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT_CALLS)),
             calls: Arc::default(),
             seen: Arc::default(),
-            closed,
-        };
-        (link, McpLinkLifetime(lifetime))
+        }
     }
 
     pub(super) fn handle_frame(&self, payload: &[u8], context: CallContext<'_>) {
@@ -130,8 +125,8 @@ impl McpLink {
                 let account_id = context.account_id.to_owned();
                 let runtime_id = context.runtime_id.to_owned();
                 let control = context.control.clone();
+                let mut closed = context.connection_closed.clone();
                 tokio::spawn(async move {
-                    let mut closed = link.closed.clone();
                     let call = link.run_call(
                         &id,
                         &grant,
@@ -146,7 +141,7 @@ impl McpLink {
                         outcome = call => outcome,
                         _ = closed.changed() => Err((
                             "runtime_unavailable",
-                            "MCP Control stopped on this runtime.".to_owned(),
+                            "The runtime's connection closed.".to_owned(),
                         )),
                     };
                     let finished = link
@@ -174,8 +169,39 @@ impl McpLink {
         arguments: &Value,
         account_id: &str,
         runtime_id: &str,
-        cancelled: oneshot::Receiver<()>,
+        mut cancelled: oneshot::Receiver<()>,
     ) -> Result<ToolResult, (&'static str, String)> {
+        let cancelled_error = || ("cancelled", "The call was cancelled.".to_owned());
+        // A call can be cancelled while it waits for verification or a free
+        // slot; it must never start its command after that.
+        let permit = tokio::select! {
+            biased;
+            _ = &mut cancelled => return Err(cancelled_error()),
+            prepared = self.prepare(id, grant, tool_name, account_id, runtime_id) => prepared?,
+        };
+        let (tool, _permit, client_name) = permit;
+        if cancelled.try_recv().is_ok() {
+            return Err(cancelled_error());
+        }
+        tracing::info!(tool = tool_name, client = %client_name, "running MCP tool");
+        Ok(run_tool(&self.execution, &tool, arguments, Some(cancelled)).await)
+    }
+
+    async fn prepare(
+        &self,
+        id: &str,
+        grant: &str,
+        tool_name: &str,
+        account_id: &str,
+        runtime_id: &str,
+    ) -> Result<
+        (
+            crate::mcp_tools::ToolSpec,
+            tokio::sync::SemaphorePermit<'_>,
+            String,
+        ),
+        (&'static str, String),
+    > {
         let claims = self
             .verifier
             .verify_call(grant)
@@ -200,14 +226,13 @@ impl McpLink {
                 "MCP Control on this runtime only allows reading.".into(),
             ));
         }
-        let _permit = self.permits.acquire().await.map_err(|_| {
+        let permit = self.permits.acquire().await.map_err(|_| {
             (
                 "runtime_unavailable",
                 "The runtime is shutting down.".to_owned(),
             )
         })?;
-        tracing::info!(tool = tool_name, client = %claims.client_name, "running MCP tool");
-        Ok(run_tool(&self.execution, &tool, arguments, Some(cancelled)).await)
+        Ok((tool, permit, claims.client_name))
     }
 
     fn authorize(

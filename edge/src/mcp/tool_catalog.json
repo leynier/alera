@@ -846,12 +846,17 @@
         "readOnlyHint": false,
         "title": "Delegate Task"
       },
-      "description": "Create an orchestration task and start an agent profile that accepts it, in an existing workspace or a new child worktree. Returns the task; follow it with wait_for_task.",
+      "description": "Create an orchestration task and start an agent profile that accepts it, in an existing workspace or a new child worktree. The coordinator is a running agent terminal (from list_terminals) that receives the worker's messages. Returns the task; follow it with wait_for_task. Without a coordinator terminal, use start_agent_workspace or ask_agent instead.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
           "branch": {
             "description": "Branch for the new workspace.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "coordinator": {
+            "description": "Terminal handle of the coordinating agent, from list_terminals.",
             "minLength": 1,
             "type": "string"
           },
@@ -904,7 +909,8 @@
         },
         "required": [
           "profile",
-          "spec"
+          "spec",
+          "coordinator"
         ],
         "type": "object"
       },
@@ -962,13 +968,18 @@
         "readOnlyHint": false,
         "title": "Send Orchestration Message"
       },
-      "description": "Send an orchestration message to a terminal handle or a group such as @all, @idle, or @workspace:<id>.",
+      "description": "Send an orchestration message from one agent terminal to a terminal handle or a group such as @all, @idle, or @workspace:<id>. To ask an agent a question from outside, use ask_agent.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
           "body": {
             "description": "Message body.",
             "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "from": {
+            "description": "Sender terminal handle, from list_terminals.",
             "minLength": 1,
             "type": "string"
           },
@@ -1010,6 +1021,7 @@
           }
         },
         "required": [
+          "from",
           "to",
           "subject"
         ],

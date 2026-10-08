@@ -128,17 +128,12 @@ async fn run(
         );
         return;
     };
-    let (mcp, _mcp_lifetime) = match features.mcp {
-        Some((access, execution)) => {
-            let (link, lifetime) = McpLink::new(access, execution, verifier.clone());
-            (Some(link), Some(lifetime))
-        }
-        None => (None, None),
-    };
     let services = LinkServices {
         generation,
         mobile_access: features.mobile_access,
-        mcp,
+        mcp: features
+            .mcp
+            .map(|(access, execution)| McpLink::new(access, execution, verifier.clone())),
     };
     let mut backoff = RelayRetryBackoff::default();
     loop {
@@ -204,6 +199,8 @@ async fn connect_and_serve(
         .and_then(|value| value.to_str().ok())
         == Some(CONTROL_PROTOCOL);
     let (write, mut read) = socket.split();
+    // Dropped when this socket ends, which stops the MCP calls it carried.
+    let (_connection_lifetime, connection_closed) = tokio::sync::watch::channel(());
     let (output, frames) = mpsc::channel(16);
     let (control, control_rx) = mpsc::channel(16);
     let mut writer = SocketTask(tokio::spawn(socket_writer::run(write, frames, control_rx)));
@@ -304,7 +301,7 @@ async fn connect_and_serve(
                 let Ok((client_id, payload)) = relay_wire::unwrap(&bytes) else { continue; };
                 if client_id == MCP_CLIENT_ID {
                     if let Some(link) = &services.mcp {
-                        link.handle_frame(payload, CallContext { account_id: &grant.account_id, runtime_id, control: &control });
+                        link.handle_frame(payload, CallContext { account_id: &grant.account_id, runtime_id, control: &control, connection_closed: &connection_closed });
                     }
                     continue;
                 }
