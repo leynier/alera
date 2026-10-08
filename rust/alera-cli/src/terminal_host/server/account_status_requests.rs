@@ -30,6 +30,12 @@ impl ServerActor {
             .sign_in_cancel
             .take()
             .is_some_and(|cancel| cancel.send(()).is_ok());
+        if cancelled {
+            // Recorded now: `signInPending` turns false here, before the
+            // attempt itself reports back.
+            self.account_push.last_sign_in =
+                Some(json!({ "ok": false, "message": "The sign-in was cancelled." }));
+        }
         json!({ "cancelled": cancelled })
     }
 

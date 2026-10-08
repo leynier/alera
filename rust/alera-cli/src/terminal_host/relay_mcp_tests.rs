@@ -272,3 +272,18 @@ async fn cancelled_calls_never_start_their_command() {
     assert_eq!(outcome.unwrap_err().0, "cancelled");
     server.abort();
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_rebuilt_link_still_refuses_a_consumed_grant() {
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let (verifier, server) = jwks_origin(&key).await;
+    let grant = call_grant(&key, json!({ "jti": "k" }));
+    let first = link(McpAccess::Read, verifier.clone());
+    let used = call(&first, "k", grant.clone(), "runtime_status").await;
+    assert_eq!(used["result"]["isError"], false, "{used}");
+    let rebuilt = link(McpAccess::Read, verifier);
+    let replayed = call(&rebuilt, "k", grant, "runtime_status").await;
+    assert_eq!(replayed["error"]["code"], "call_grant_invalid");
+    server.abort();
+}

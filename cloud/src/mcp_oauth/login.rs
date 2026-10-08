@@ -18,10 +18,7 @@ use crate::{
     state::AppState,
 };
 
-use super::{
-    authorize::ClientRedirect, consent, forms::FormFields, pages::PageError,
-    AUTHORIZATION_REQUEST_MINUTES,
-};
+use super::{consent, forms::FormFields, pages::PageError, AUTHORIZATION_REQUEST_MINUTES};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LoginPurpose {
@@ -47,12 +44,6 @@ struct WebLoginRow {
     nonce: Option<String>,
     expires_at: DateTime<Utc>,
     used_at: Option<DateTime<Utc>>,
-}
-
-#[derive(FromRow)]
-struct PendingRequest {
-    redirect_uri: String,
-    state: Option<String>,
 }
 
 pub async fn start(State(state): State<AppState>, RawQuery(query): RawQuery) -> Response {
@@ -218,33 +209,22 @@ async fn finish_login(state: &AppState, query: Option<&str>) -> Result<Response,
     }
 }
 
-/// The person canceled at the provider. An MCP client learns through `access_denied`.
+/// The person canceled at the provider. The page explains it here instead of
+/// redirecting: this callback is reachable without provider authentication,
+/// so a redirect would let anyone bounce a visitor to a client's chosen URI.
 async fn provider_declined(
     state: &AppState,
     purpose: LoginPurpose,
     target_id: Uuid,
 ) -> Result<Response, PageError> {
     if purpose == LoginPurpose::Mcp {
-        let request = sqlx::query_as::<_, PendingRequest>(
-            r#"
-            UPDATE mcp_authorization_requests
-            SET completed_at = $2
-            WHERE id = $1 AND completed_at IS NULL
-            RETURNING redirect_uri, state
-            "#,
+        sqlx::query(
+            "UPDATE mcp_authorization_requests SET completed_at = $2 WHERE id = $1 AND completed_at IS NULL",
         )
         .bind(target_id)
         .bind(Utc::now())
-        .fetch_optional(&state.pool)
+        .execute(&state.pool)
         .await?;
-        if let Some(request) = request {
-            let redirect = ClientRedirect {
-                redirect_uri: &request.redirect_uri,
-                state: request.state.as_deref(),
-                issuer: &state.config.issuer,
-            };
-            return Ok(redirect.error("access_denied", "Sign-in was canceled."));
-        }
     }
     Err(PageError::bad_request(
         "Sign-in was canceled. Start again from the app that sent you here.",

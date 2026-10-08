@@ -109,6 +109,27 @@ async fn mcp_oauth_authorization_code_refresh_and_revocation() -> anyhow::Result
     assert_eq!(bad_resource.status, StatusCode::BAD_REQUEST);
     assert!(bad_resource.header("location").is_empty());
 
+    // A provider callback without a code (the person declined) renders a page:
+    // the callback needs no provider authentication, so redirecting from it
+    // would be an open redirect.
+    let declined_sign_in = get(&app, &authorize_uri(&client_id, "mcp:read"), None).await?;
+    let declined_request = between(&declined_sign_in.text(), "/oauth/login?request=", "&amp;")?;
+    let declined_login = get(
+        &app,
+        &format!("/oauth/login?request={declined_request}&provider=google"),
+        None,
+    )
+    .await?;
+    let declined_state = query_value(&declined_login.location()?, "state").unwrap_or_default();
+    let declined = get(
+        &app,
+        &format!("/oauth/callback?state={declined_state}&error=access_denied"),
+        None,
+    )
+    .await?;
+    assert_eq!(declined.status, StatusCode::BAD_REQUEST);
+    assert!(declined.header("location").is_empty());
+
     let (consent, request, consent_token) =
         reach_consent(&app, &client_id, "mcp:read mcp:execute").await?;
     let page = consent.text();

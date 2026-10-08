@@ -25,6 +25,14 @@ const MAX_CONCURRENT_CALLS: usize = 4;
 const MAX_CALL_FRAME_BYTES: usize = 1024 * 1024;
 const MAX_RESULT_FRAME_BYTES: usize = 1024 * 1024 - 1024;
 
+type ConsumedCalls = Arc<Mutex<HashMap<String, i64>>>;
+
+/// Call ids used by this runtime process. The relay link is rebuilt whenever
+/// settings change, so the record outlives each link: a grant replayed after a
+/// restart, while still unexpired, must not run again.
+static CONSUMED_CALLS: std::sync::LazyLock<ConsumedCalls> =
+    std::sync::LazyLock::new(ConsumedCalls::default);
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 enum Incoming {
@@ -47,9 +55,8 @@ pub(super) struct McpLink {
     verifier: GrantVerifier,
     permits: Arc<Semaphore>,
     calls: Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>,
-    /// Call ids already used, until their grant expires. Kept across
-    /// reconnects so a replayed grant fails on the next socket too.
-    seen: Arc<Mutex<HashMap<String, i64>>>,
+    /// Call ids already used, until their grant expires.
+    seen: ConsumedCalls,
 }
 
 pub(super) struct CallContext<'a> {
@@ -73,7 +80,7 @@ impl McpLink {
             verifier,
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT_CALLS)),
             calls: Arc::default(),
-            seen: Arc::default(),
+            seen: CONSUMED_CALLS.clone(),
         }
     }
 

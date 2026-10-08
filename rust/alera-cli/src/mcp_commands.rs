@@ -250,8 +250,10 @@ fn sign_in_result(status: Value) -> Result<Value> {
                 .as_str()
                 .unwrap_or("it failed or was cancelled.")
         ),
-        // A host without the outcome record: fall back to the connection.
-        None if status["connected"] == json!(true) => Ok(status),
+        // Only a host that predates the outcome record omits the field.
+        None if status.get("lastSignIn").is_none() && status["connected"] == json!(true) => {
+            Ok(status)
+        }
         None => bail!("The sign-in did not complete. Run `alera account login` again."),
     }
 }
@@ -361,5 +363,8 @@ mod tests {
         let done = json!({ "connected": true, "lastSignIn": { "ok": true } });
         assert!(sign_in_result(done).is_ok());
         assert!(sign_in_result(json!({ "connected": false })).is_err());
+        let unknown = json!({ "connected": true, "lastSignIn": null });
+        assert!(sign_in_result(unknown).is_err());
+        assert!(sign_in_result(json!({ "connected": true })).is_ok());
     }
 }
