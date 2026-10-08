@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::{mpsc, oneshot, Semaphore};
+use tokio::sync::{mpsc, oneshot, watch, Semaphore};
 use tokio_tungstenite::tungstenite::Message;
 
 use super::relay_runtime_auth::{CallGrantClaims, GrantVerifier};
@@ -49,7 +49,13 @@ pub(super) struct McpLink {
     calls: Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>,
     /// Call ids already used, until their grant expires.
     seen: Arc<Mutex<HashMap<String, i64>>>,
+    /// Ends when the link's owner drops its sender, which stops queued and
+    /// running calls once MCP Control changes or the account signs out.
+    closed: watch::Receiver<()>,
 }
+
+/// Keeps a link's calls alive; dropping it cancels every queued and running call.
+pub(super) struct McpLinkLifetime(#[allow(dead_code)] watch::Sender<()>);
 
 pub(super) struct CallContext<'a> {
     pub(super) account_id: &'a str,
@@ -62,15 +68,18 @@ impl McpLink {
         access: McpAccess,
         execution: ToolExecution,
         verifier: GrantVerifier,
-    ) -> Self {
-        Self {
+    ) -> (Self, McpLinkLifetime) {
+        let (lifetime, closed) = watch::channel(());
+        let link = Self {
             access,
             execution,
             verifier,
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT_CALLS)),
             calls: Arc::default(),
             seen: Arc::default(),
-        }
+            closed,
+        };
+        (link, McpLinkLifetime(lifetime))
     }
 
     pub(super) fn handle_frame(&self, payload: &[u8], context: CallContext<'_>) {
@@ -122,17 +131,24 @@ impl McpLink {
                 let runtime_id = context.runtime_id.to_owned();
                 let control = context.control.clone();
                 tokio::spawn(async move {
-                    let outcome = link
-                        .run_call(
-                            &id,
-                            &grant,
-                            &tool,
-                            &arguments,
-                            &account_id,
-                            &runtime_id,
-                            cancelled,
-                        )
-                        .await;
+                    let mut closed = link.closed.clone();
+                    let call = link.run_call(
+                        &id,
+                        &grant,
+                        &tool,
+                        &arguments,
+                        &account_id,
+                        &runtime_id,
+                        cancelled,
+                    );
+                    // Dropping the call future kills its child process.
+                    let outcome = tokio::select! {
+                        outcome = call => outcome,
+                        _ = closed.changed() => Err((
+                            "runtime_unavailable",
+                            "MCP Control stopped on this runtime.".to_owned(),
+                        )),
+                    };
                     let finished = link
                         .calls
                         .lock()

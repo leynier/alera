@@ -122,7 +122,12 @@ const MAX_RUNTIME_NAME_CHARS: usize = 64;
 pub fn normalize_runtime_name(value: &str) -> Result<String, ApiError> {
     let name = value.trim();
     let length = name.chars().count();
-    if length == 0 || length > MAX_RUNTIME_NAME_CHARS || name.chars().any(char::is_control) {
+    // Sign-in sends the same name as a label, which is capped at 160 bytes.
+    if length == 0
+        || length > MAX_RUNTIME_NAME_CHARS
+        || name.len() > 160
+        || name.chars().any(char::is_control)
+    {
         return Err(ApiError::bad_request(
             "invalid_runtime_name",
             "Runtime names must contain 1 to 64 characters.",
@@ -241,6 +246,7 @@ mod tests {
         assert!(normalize_runtime_name("   ").is_err());
         assert!(normalize_runtime_name(&"n".repeat(65)).is_err());
         assert!(normalize_runtime_name(&"ñ".repeat(64)).is_ok());
+        assert!(normalize_runtime_name(&"\u{4f60}".repeat(54)).is_err());
         assert!(normalize_runtime_name("bad\nname").is_err());
     }
 }

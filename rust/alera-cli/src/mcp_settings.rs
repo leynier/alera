@@ -9,6 +9,8 @@ use crate::mcp_tools::ToolAccess;
 const ACCESS_KEY: &str = "settings.mcp.access";
 const RUNTIME_NAME_KEY: &str = "settings.runtime.name";
 pub(crate) const MAX_RUNTIME_NAME_CHARS: usize = 64;
+/// The cloud stores the name as a sign-in label, which is capped in bytes.
+pub(crate) const MAX_RUNTIME_NAME_BYTES: usize = 160;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -85,8 +87,8 @@ pub(crate) fn validate_runtime_name(name: &str) -> Result<String> {
     if name.is_empty() {
         bail!("The runtime name cannot be empty.");
     }
-    if name.chars().count() > MAX_RUNTIME_NAME_CHARS {
-        bail!("The runtime name can have at most {MAX_RUNTIME_NAME_CHARS} characters.");
+    if name.chars().count() > MAX_RUNTIME_NAME_CHARS || name.len() > MAX_RUNTIME_NAME_BYTES {
+        bail!("The runtime name is too long. Use at most {MAX_RUNTIME_NAME_CHARS} characters.");
     }
     if name.chars().any(char::is_control) {
         bail!("The runtime name cannot contain control characters.");
@@ -114,6 +116,8 @@ mod tests {
         assert!(validate_runtime_name("   ").is_err());
         assert!(validate_runtime_name(&"x".repeat(65)).is_err());
         assert!(validate_runtime_name("a\nb").is_err());
+        assert!(validate_runtime_name(&"\u{4f60}".repeat(54)).is_err());
+        assert!(validate_runtime_name(&"\u{4f60}".repeat(53)).is_ok());
     }
 
     #[tokio::test]

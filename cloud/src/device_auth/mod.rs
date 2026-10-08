@@ -142,12 +142,20 @@ pub async fn token(
     let too_fast = row
         .last_polled_at
         .is_some_and(|polled| now - polled < minimum_gap);
+    let expired = row.expires_at <= now;
     let next_status = match (row.status.as_str(), row.account_id) {
-        ("approved", Some(_)) => "consumed",
+        ("approved", Some(_)) if !expired => "consumed",
         (status, _) => status,
     };
+    // A pending poll keeps the consent token: the confirmation page may be open
+    // while the runtime polls, and clearing it would expire that form.
     sqlx::query(
-        "UPDATE device_authorizations SET last_polled_at = $2, status = $3, consent_token_hash = NULL WHERE device_code_hash = $1",
+        r#"
+        UPDATE device_authorizations
+        SET last_polled_at = $2, status = $3,
+            consent_token_hash = CASE WHEN $3 = 'pending' THEN consent_token_hash ELSE NULL END
+        WHERE device_code_hash = $1
+        "#,
     )
     .bind(&device_code_hash)
     .bind(now)
@@ -157,6 +165,9 @@ pub async fn token(
     transaction.commit().await?;
     let error = |code: &'static str, message: &str| Err(ApiError::bad_request(code, message));
     match (row.status.as_str(), row.account_id) {
+        ("denied", _) => error("access_denied", "The sign-in request was denied."),
+        ("consumed", _) => error("expired_token", "The device code was already used."),
+        _ if expired => error("expired_token", "The device code expired."),
         ("approved", Some(account_id)) => {
             let envelope = create_session(
                 &state.pool,
@@ -170,9 +181,6 @@ pub async fn token(
             .await?;
             Ok(Json(envelope))
         }
-        ("denied", _) => error("access_denied", "The sign-in request was denied."),
-        ("consumed", _) => error("expired_token", "The device code was already used."),
-        _ if row.expires_at <= now => error("expired_token", "The device code expired."),
         _ if too_fast => error("slow_down", "Poll the token endpoint less often."),
         _ => error(
             "authorization_pending",

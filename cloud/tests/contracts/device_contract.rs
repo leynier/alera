@@ -97,6 +97,8 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     )
     .await?;
     assert_eq!(replayed_state.status, StatusCode::BAD_REQUEST);
+    // The runtime keeps polling while the confirmation page is open.
+    assert_eq!(poll().await?.error_code(), "slow_down");
     let approved = post_form(
         &app,
         "/oauth/consent",
@@ -178,6 +180,43 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     .await?;
     assert_eq!(refused.status, StatusCode::BAD_REQUEST);
     assert_eq!(refused.error_code(), "access_denied");
+
+    let late = post_json(
+        &app,
+        "/v1/auth/device",
+        None,
+        json!({"clientId": format!("runtime-{}", Uuid::now_v7()), "clientKind": "runtime", "deviceName": "Late"}),
+    )
+    .await?
+    .json();
+    let late_code = late["deviceCode"].as_str().unwrap_or_default().to_owned();
+    sqlx::query(
+        r#"
+        UPDATE device_authorizations
+        SET status = 'approved', account_id = $2, approved_at = NOW(),
+            expires_at = NOW() - INTERVAL '1 minute'
+        WHERE user_code = $1
+        "#,
+    )
+    .bind(
+        late["userCode"]
+            .as_str()
+            .unwrap_or_default()
+            .replace('-', ""),
+    )
+    .bind(Uuid::parse_str(
+        tokens["account"]["id"].as_str().unwrap_or_default(),
+    )?)
+    .execute(&pool)
+    .await?;
+    let expired = post_json(
+        &app,
+        "/v1/auth/device/token",
+        None,
+        json!({"deviceCode": late_code}),
+    )
+    .await?;
+    assert_eq!(expired.error_code(), "expired_token");
 
     delete_account(&pool, tokens["account"]["id"].as_str()).await?;
     pool.close().await;

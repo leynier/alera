@@ -275,11 +275,14 @@ impl GrantVerifier {
                 &claims.account_id,
                 &claims.runtime_id,
                 &claims.grant_id,
-                &claims.client_id,
                 &claims.tool,
             ]
             .iter()
             .all(|value| !value.is_empty() && value.len() <= 256)
+            // A Client ID Metadata Document URL may be as long as the
+            // authorization server accepts.
+            || claims.client_id.is_empty()
+            || claims.client_id.len() > 2048
             || !matches!(claims.access.as_str(), "read" | "execute")
         {
             anyhow::bail!("MCP call grant is expired or invalid");

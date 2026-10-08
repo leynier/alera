@@ -128,12 +128,17 @@ async fn run(
         );
         return;
     };
+    let (mcp, _mcp_lifetime) = match features.mcp {
+        Some((access, execution)) => {
+            let (link, lifetime) = McpLink::new(access, execution, verifier.clone());
+            (Some(link), Some(lifetime))
+        }
+        None => (None, None),
+    };
     let services = LinkServices {
         generation,
         mobile_access: features.mobile_access,
-        mcp: features
-            .mcp
-            .map(|(access, execution)| McpLink::new(access, execution, verifier.clone())),
+        mcp,
     };
     let mut backoff = RelayRetryBackoff::default();
     loop {

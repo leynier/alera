@@ -62,7 +62,7 @@ async fn jwks_origin(key: &SigningKey) -> (GrantVerifier, tokio::task::JoinHandl
 }
 
 /// `echo` stands in for the `alera` binary: the tool output is its argv.
-fn link(access: McpAccess, verifier: GrantVerifier) -> McpLink {
+fn owned_link(access: McpAccess, verifier: GrantVerifier) -> (McpLink, McpLinkLifetime) {
     McpLink::new(
         access,
         ToolExecution {
@@ -71,6 +71,12 @@ fn link(access: McpAccess, verifier: GrantVerifier) -> McpLink {
         },
         verifier,
     )
+}
+
+fn link(access: McpAccess, verifier: GrantVerifier) -> McpLink {
+    let (link, lifetime) = owned_link(access, verifier);
+    std::mem::forget(lifetime);
+    link
 }
 
 async fn call(link: &McpLink, id: &str, grant: String, tool: &str) -> Value {
@@ -205,5 +211,30 @@ async fn unreadable_calls_are_answered_instead_of_left_waiting() {
     let result: Value = serde_json::from_slice(payload).unwrap();
     assert_eq!(result["id"], "g");
     assert_eq!(result["error"]["code"], "invalid_call");
+    server.abort();
+}
+
+#[tokio::test]
+async fn calls_stop_once_the_link_lifetime_ends() {
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let (verifier, server) = jwks_origin(&key).await;
+    let (link, lifetime) = owned_link(McpAccess::Full, verifier);
+    drop(lifetime);
+    let grant = call_grant(&key, json!({ "jti": "h" }));
+    let result = call(&link, "h", grant, "runtime_status").await;
+    assert_eq!(result["error"]["code"], "runtime_unavailable");
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn metadata_document_clients_with_long_ids_can_call_tools() {
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let (verifier, server) = jwks_origin(&key).await;
+    let link = link(McpAccess::Read, verifier);
+    let client_id = format!("https://client.example/{}.json", "a".repeat(400));
+    let grant = call_grant(&key, json!({ "jti": "i", "clientId": client_id }));
+    let result = call(&link, "i", grant, "runtime_status").await;
+    assert_eq!(result["result"]["isError"], false, "{result}");
     server.abort();
 }
