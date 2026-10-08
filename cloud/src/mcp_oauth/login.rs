@@ -147,6 +147,15 @@ pub async fn callback(State(state): State<AppState>, RawQuery(query): RawQuery) 
     }
 }
 
+/// The edge forwards the browser's query as a form body, so Cloud Run request
+/// logs never record the provider code or state.
+pub async fn callback_form(State(state): State<AppState>, body: String) -> Response {
+    match finish_login(&state, Some(&body)).await {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    }
+}
+
 async fn finish_login(state: &AppState, query: Option<&str>) -> Result<Response, PageError> {
     let form = FormFields::parse_query(query);
     let read = |name: &str| {

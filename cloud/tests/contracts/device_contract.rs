@@ -171,6 +171,16 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     )
     .await?;
     let device = between(&page.text(), "/oauth/login?device=", "&amp;")?;
+    let posted = post_form(
+        &app,
+        "/device",
+        &[("user_code", denied["userCode"].as_str().unwrap_or_default())],
+    )
+    .await?;
+    assert_eq!(posted.status, StatusCode::OK, "{}", posted.text());
+    assert!(posted
+        .text()
+        .contains(&format!("/oauth/login?device={device}")));
     let login = get(
         &app,
         &format!("/oauth/login?device={device}&provider=google"),

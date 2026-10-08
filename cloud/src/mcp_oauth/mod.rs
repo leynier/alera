@@ -26,9 +26,15 @@ pub const AUTHORIZATION_REQUEST_MINUTES: i64 = 10;
 pub fn router(mcp_enabled: bool) -> Router<AppState> {
     let mut router = Router::new()
         .route("/oauth/login", get(login::start))
-        .route("/oauth/callback", get(login::callback))
+        .route(
+            "/oauth/callback",
+            get(login::callback).post(login::callback_form),
+        )
         .route("/oauth/consent", post(consent::submit))
-        .route("/device", get(device_auth::page))
+        .route(
+            "/device",
+            get(device_auth::page).post(device_auth::page_form),
+        )
         .route("/v1/auth/device", post(device_auth::start))
         .route("/v1/auth/device/token", post(device_auth::token))
         .route("/v1/mcp/grants", get(grants::list))

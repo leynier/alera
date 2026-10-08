@@ -33,7 +33,16 @@ struct ConfirmRow {
 }
 
 pub async fn page(State(state): State<AppState>, RawQuery(query): RawQuery) -> Response {
-    let form = FormFields::parse_query(query.as_deref());
+    page_for(&state, query.as_deref()).await
+}
+
+/// The edge forwards `?user_code=` as a form body so request logs stay free of codes.
+pub async fn page_form(State(state): State<AppState>, body: String) -> Response {
+    page_for(&state, Some(&body)).await
+}
+
+async fn page_for(state: &AppState, query: Option<&str>) -> Response {
+    let form = FormFields::parse_query(query);
     let Ok(Some(raw_code)) = form.get("user_code") else {
         return entry_page(None);
     };

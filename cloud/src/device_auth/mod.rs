@@ -19,7 +19,7 @@ use crate::{
     state::AppState,
 };
 
-pub use web::{begin_confirm, page, submit_confirm};
+pub use web::{begin_confirm, page, page_form, submit_confirm};
 
 pub const DEVICE_CODE_SECONDS: i64 = 600;
 pub const POLL_INTERVAL_SECONDS: i64 = 5;

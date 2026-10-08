@@ -290,7 +290,6 @@ describe('OAuth routing', () => {
     '/.well-known/oauth-protected-resource/v1/mcp',
     '/oauth/authorize?client_id=x',
     '/oauth/login',
-    '/oauth/callback?code=c',
     '/device',
   ]) {
     test(`proxies GET ${path}`, async () => {
@@ -301,6 +300,20 @@ describe('OAuth routing', () => {
       expect(seen[0].headers.get('x-alera-origin-auth')).toBe('edge-secret');
     });
   }
+
+  test('moves callback and device query strings into a POST body for the origin', async () => {
+    for (const path of ['/oauth/callback?code=provider-code&state=s1', '/device?user_code=ABCD-EFGH']) {
+      const { result, seen } = await proxy(path);
+      expect(result.status).toBe(200);
+      const [pathname, query] = path.split('?');
+      expect(seen[0].url).toBe(`${ORIGIN}${pathname}`);
+      expect(seen[0].method).toBe('POST');
+      expect(seen[0].headers.get('content-type')).toBe('application/x-www-form-urlencoded');
+      expect(await seen[0].text()).toBe(query);
+    }
+    const { seen } = await proxy('/device');
+    expect(seen[0].method).toBe('GET');
+  });
 
   test('passes a consent redirect through unchanged', async () => {
     const location = 'http://127.0.0.1:5555/cb?code=abc&state=s&iss=https%3A%2F%2Fapi.alera.build';

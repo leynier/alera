@@ -33,7 +33,12 @@
   ],
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 0.1
+    "head_sampling_rate": 0.1,
+    // Invocation logs record request URLs, and OAuth callbacks and device
+    // pages carry codes in theirs. Console logs from the Worker stay on.
+    "logs": {
+      "invocation_logs": false
+    }
   },
   "ratelimits": [
     {
