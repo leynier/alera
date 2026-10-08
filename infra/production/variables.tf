@@ -84,6 +84,24 @@ variable "previous_jwks_json" {
   }
 }
 
+variable "web_google_oauth_client_id" {
+  description = "Public Google OAuth web client id for {api_hostname}/oauth/callback, used by MCP and device sign-in. Empty reuses the desktop client."
+  type        = string
+  default     = ""
+}
+
+variable "web_github_oauth_client_id" {
+  description = "Public GitHub OAuth App client id for {api_hostname}/oauth/callback, used by MCP and device sign-in. Empty reuses the desktop client."
+  type        = string
+  default     = ""
+}
+
+variable "mcp_enabled" {
+  description = "Serve the remote MCP authorization server and gateway."
+  type        = bool
+  default     = true
+}
+
 variable "enable_previous_edge_origin_token" {
   description = "Expose the previous edge token secret during a zero-downtime rotation."
   type        = bool

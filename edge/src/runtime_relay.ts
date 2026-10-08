@@ -16,12 +16,14 @@ import {
   relayDisconnectFrame,
   originRequest,
 } from './index';
+import { McpRelayCalls, MCP_CLIENT_ID } from './mcp/relay_calls';
 const MAX_RELAY_FRAME_BYTES = 1024 * 1024;
 const MAX_RELAY_MOBILE_CONNECTIONS = 8;
 const MAX_RELAY_INGRESS_BYTES_PER_SECOND = 16 * 1024 * 1024;
 export class RuntimeRelayDurableObject {
   private readonly ctx: DurableObjectState;
   private readonly renewing = new WeakSet<WebSocket>();
+  private readonly mcpCalls: McpRelayCalls;
 
   constructor(
     ctx: DurableObjectState,
@@ -29,9 +31,13 @@ export class RuntimeRelayDurableObject {
     private readonly fetchJwks?: RelayFetch,
   ) {
     this.ctx = ctx;
+    this.mcpCalls = new McpRelayCalls(() => this.ctx.getWebSockets('runtime'));
   }
 
   async fetch(request: Request): Promise<Response> {
+    if (!isWebSocketUpgrade(request) && new URL(request.url).pathname === '/mcp/call') {
+      return this.mcpCalls.handle(request);
+    }
     if (!isWebSocketUpgrade(request)) {
       return jsonError(426, 'websocket_required', 'The relay requires a WebSocket connection.');
     }
@@ -44,6 +50,12 @@ export class RuntimeRelayDurableObject {
     } catch {
       return jsonError(403, 'invalid_relay_claims', 'Relay claims are invalid.');
     }
+    if (
+      attachment.role === 'mobile' &&
+      (typeof attachment.clientId !== 'string' || attachment.clientId.startsWith('~'))
+    ) {
+      return jsonError(403, 'invalid_relay_client', 'Client ids starting with ~ are reserved.');
+    }
     const peers = this.ctx.getWebSockets();
     const peerAttachments = peers.map((peer) => peer.deserializeAttachment() as RelayAttachment);
     if (
@@ -52,6 +64,7 @@ export class RuntimeRelayDurableObject {
         (peer) =>
           peer.role === 'runtime' &&
           !peer.suppressDisconnect &&
+          peer.mobileAccess !== false &&
           peer.exp > Math.floor(Date.now() / 1000) &&
           peer.accountId === attachment.accountId &&
           peer.runtimeId === attachment.runtimeId,
@@ -76,6 +89,7 @@ export class RuntimeRelayDurableObject {
             ...peerAttachment,
             suppressDisconnect: true,
           });
+          this.mcpCalls.settleSocket(peer);
           this.disconnectMobilesForRuntime(peerAttachment);
         }
         peer.close(
@@ -126,6 +140,7 @@ export class RuntimeRelayDurableObject {
     if (initialSender.suppressDisconnect) return;
     const now = Math.floor(Date.now() / 1000);
     if (initialSender.exp <= now) {
+      this.mcpCalls.settleSocket(socket);
       socket.close(4003, 'relay grant expired');
       return;
     }
@@ -184,11 +199,18 @@ export class RuntimeRelayDurableObject {
       socket.close(1008, 'relay client id mismatch');
       return;
     }
+    if (clientId.startsWith('~')) {
+      if (sender.role === 'runtime' && clientId === MCP_CLIENT_ID) {
+        this.mcpCalls.handleRuntimeFrame(socket, bytes);
+      }
+      return;
+    }
     for (const peer of this.ctx.getWebSockets()) {
       if (peer === socket) continue;
       const target = peer.deserializeAttachment() as RelayAttachment;
       if (target.suppressDisconnect || target.awaitingRuntime) continue;
       if (target.exp <= now) {
+        this.mcpCalls.settleSocket(peer);
         peer.close(4003, 'relay grant expired');
         continue;
       }
@@ -319,10 +341,12 @@ export class RuntimeRelayDurableObject {
   }
 
   webSocketClose(socket: WebSocket): void {
+    this.mcpCalls.settleSocket(socket);
     this.handlePeerDisconnectOnce(socket);
   }
 
   webSocketError(socket: WebSocket): void {
+    this.mcpCalls.settleSocket(socket);
     this.handlePeerDisconnectOnce(socket);
   }
 

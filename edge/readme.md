@@ -1,8 +1,14 @@
 # Alera API Edge
 
-This Cloudflare Worker is the only supported public route to the Alera Cloud Run service. It admits `/v1/*`, `/.well-known/jwks.json`, and `/health`; applies a short mutation burst limit; removes cookies; overwrites the origin-authentication header; and proxies the request without interpreting Alera protocol payloads. The `/v1/relay/{runtimeId}` route is the exception in transport only: it verifies a short-lived cloud grant and forwards opaque WebSocket frames to one per-runtime Durable Object.
+This Cloudflare Worker is the only supported public route to the Alera Cloud Run service. It admits `/v1/*`, `/.well-known/jwks.json`, the OAuth metadata routes under `/.well-known/`, `/oauth/*`, `/device`, and `/health`; applies a short mutation burst limit; removes cookies; overwrites the origin-authentication header; and proxies the request without interpreting Alera protocol payloads. The `/v1/relay/{runtimeId}` route is the exception in transport only: it verifies a short-lived cloud grant and forwards opaque WebSocket frames to one per-runtime Durable Object.
 
 The relay control-plane endpoints, `POST /v1/relay/identity` and `POST /v1/relay/grants`, remain ordinary HTTP requests proxied to Cloud Run. Only the runtime-id route enters the Durable Object WebSocket path.
+
+## Remote MCP
+
+`POST /v1/mcp` is answered by the Worker itself (see [Remote MCP](../docs/remote-mcp.md)). It verifies the OAuth access token against the cloud JWKS, serves `src/mcp/tool_catalog.json` plus `list_runtimes`, asks Cloud Run for a call grant at `/v1/mcp/calls`, and calls the runtime's Durable Object at `/mcp/call`, which forwards a `~mcp` frame over the existing runtime socket and waits for the runtime's `mcp.result`. Pending calls live only in Object memory. `/v1/mcp/calls*` is not reachable through the public route. The endpoint is exposed only when `MCP_ENABLED=true`, uses `MCP_RESOURCE` as the token audience, and is limited per token by the `MCP_LIMITER` binding instead of the mutation burst limit. OAuth metadata, token, registration, revocation, and `/v1/mcp` answer CORS preflight at the edge.
+
+`tool_catalog.json` is generated from the Rust catalog; do not edit it by hand.
 
 Production deployment is owned by `.github/workflows/cloud-deploy.yml`. Wrangler receives a dedicated `cloud-production` Environment token limited to `Workers Scripts: Edit` on the Leynier account and `Workers Routes: Edit` on `alera.build`. Local `wrangler deploy` is a break-glass operation.
 
@@ -14,7 +20,7 @@ bun run check
 bun test
 ```
 
-Relay checks use the WebSocket Hibernation API. Each Object accepts one runtime connection and at most eight mobile connections, forwards only between opposite roles, enforces a 1 MiB frame bound, and keeps only verified claims in WebSocket attachments. It does not use Durable Object storage, alarms, recurring timers, outbound WebSockets, or payload logging. Negotiated authorization renewal uses bounded HTTP JWKS validation and serialized WebSocket attachments. The runtime and mobile endpoints provide the E2E encryption layer; the Worker and Object never decrypt protocol content. Only the exact value `RELAY_ENABLED=true` exposes the relay route; every other value preserves the ordinary backend proxy behavior.
+Relay checks use the WebSocket Hibernation API. Each Object accepts one runtime connection and at most eight mobile connections, forwards only between opposite roles, enforces a 1 MiB frame bound, and keeps only verified claims in WebSocket attachments. It does not use Durable Object storage, alarms, recurring timers, outbound WebSockets, or payload logging; the only timer bounds an in-flight MCP call. Negotiated authorization renewal uses bounded HTTP JWKS validation and serialized WebSocket attachments. The runtime and mobile endpoints provide the E2E encryption layer; the Worker and Object never decrypt protocol content. Only the exact value `RELAY_ENABLED=true` exposes the relay route; every other value preserves the ordinary backend proxy behavior.
 
 ## Renewal Rollout And Rollback
 

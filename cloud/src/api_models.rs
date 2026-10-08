@@ -49,6 +49,7 @@ impl FromStr for ProviderKind {
 pub enum ClientKind {
     Runtime,
     Mobile,
+    Mcp,
 }
 
 impl ClientKind {
@@ -56,6 +57,7 @@ impl ClientKind {
         match self {
             Self::Runtime => "runtime",
             Self::Mobile => "mobile",
+            Self::Mcp => "mcp",
         }
     }
 
@@ -81,6 +83,7 @@ impl ClientKind {
                 "relay:identity".to_owned(),
                 "relay:grant".to_owned(),
             ],
+            Self::Mcp => vec!["mcp:read".to_owned(), "mcp:execute".to_owned()],
         }
     }
 }
@@ -92,6 +95,7 @@ impl FromStr for ClientKind {
         match value {
             "runtime" => Ok(Self::Runtime),
             "mobile" => Ok(Self::Mobile),
+            "mcp" => Ok(Self::Mcp),
             _ => Err(ApiError::bad_request(
                 "invalid_client_kind",
                 "The client kind is invalid.",
@@ -316,6 +320,10 @@ pub struct RelayIdentityResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RelayGrantRequest {
     pub runtime_id: String,
+    #[serde(default)]
+    pub mcp_access: Option<crate::mcp_models::McpAccess>,
+    #[serde(default)]
+    pub mobile_access: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize)]

@@ -1,10 +1,9 @@
 use chrono::{DateTime, TimeDelta, Utc};
-use sqlx::{FromRow, Postgres, Transaction};
+use sqlx::FromRow;
 use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 use crate::{
-    accounts::identity_tombstone_hash,
     api_models::{
         AuthTransactionResponse, ClientKind, CreateAuthTransactionRequest, ExchangeAuthRequest,
         LinkAccountRequest, ProviderKind, TokenEnvelope,
@@ -15,11 +14,13 @@ use crate::{
 };
 
 use super::{
-    create_session, revoke_family,
+    create_session,
+    identity::{ensure_client, resolve_account},
+    revoke_family,
     validation::{
         hash_secret, pkce_challenge, random_secret, validate_code_challenge,
         validate_code_verifier, validate_identifier, validate_label, validate_loopback_redirect,
-        validate_short_secret,
+        validate_new_client_id, validate_short_secret,
     },
     AuthContext,
 };
@@ -56,6 +57,7 @@ pub async fn create_sign_in_transaction(
             "Interactive sign-in is not available to this client.",
         ));
     }
+    validate_new_client_id(&request.client_id)?;
     create_transaction(
         state,
         TransactionSpec {
@@ -271,71 +273,15 @@ async fn resolve_identity_and_runtime(
     identity: &ProviderIdentity,
     client_kind: ClientKind,
 ) -> Result<Uuid, ApiError> {
-    let mut transaction = state.pool.begin().await?;
-    let existing_account = sqlx::query_scalar::<_, Uuid>(
-        "SELECT account_id FROM account_identities WHERE provider = $1 AND provider_user_id = $2",
-    )
-    .bind(identity.provider.as_str())
-    .bind(&identity.provider_user_id)
-    .fetch_optional(&mut *transaction)
-    .await?;
-    let account_id = if auth.purpose == "link" {
-        let target = auth.account_id.ok_or_else(|| {
+    let link_target = if auth.purpose == "link" {
+        Some(auth.account_id.ok_or_else(|| {
             ApiError::bad_request("invalid_link", "The link transaction has no account.")
-        })?;
-        if existing_account.is_some_and(|value| value != target) {
-            return Err(ApiError::conflict(
-                "identity_already_linked",
-                "That provider identity belongs to another Alera account.",
-            ));
-        }
-        target
-    } else if let Some(existing) = existing_account {
-        existing
+        })?)
     } else {
-        reject_tombstoned_identity(state, &mut transaction, identity).await?;
-        find_verified_email_account(&mut transaction, identity)
-            .await?
-            .unwrap_or_else(Uuid::now_v7)
+        None
     };
-
-    if existing_account.is_none() {
-        ensure_account(&mut transaction, account_id, identity).await?;
-        sqlx::query(
-            r#"
-            INSERT INTO account_identities (
-                provider, provider_user_id, account_id, email, email_verified, linked_at
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-            "#,
-        )
-        .bind(identity.provider.as_str())
-        .bind(&identity.provider_user_id)
-        .bind(account_id)
-        .bind(&identity.email)
-        .bind(identity.email_verified)
-        .bind(Utc::now())
-        .execute(&mut *transaction)
-        .await?;
-    } else {
-        sqlx::query(
-            r#"
-            UPDATE account_identities
-            SET email = $3, email_verified = $4
-            WHERE provider = $1 AND provider_user_id = $2
-            "#,
-        )
-        .bind(identity.provider.as_str())
-        .bind(&identity.provider_user_id)
-        .bind(&identity.email)
-        .bind(identity.email_verified)
-        .execute(&mut *transaction)
-        .await?;
-        sqlx::query("UPDATE accounts SET last_seen_at = $2, updated_at = $2 WHERE id = $1")
-            .bind(account_id)
-            .bind(Utc::now())
-            .execute(&mut *transaction)
-            .await?;
-    }
+    let mut transaction = state.pool.begin().await?;
+    let account_id = resolve_account(state, &mut transaction, identity, link_target).await?;
     ensure_client(
         state,
         &mut transaction,
@@ -347,151 +293,4 @@ async fn resolve_identity_and_runtime(
     .await?;
     transaction.commit().await?;
     Ok(account_id)
-}
-
-async fn find_verified_email_account(
-    transaction: &mut Transaction<'_, Postgres>,
-    identity: &ProviderIdentity,
-) -> Result<Option<Uuid>, ApiError> {
-    if !identity.email_verified {
-        return Ok(None);
-    }
-    let candidates = sqlx::query_scalar::<_, Uuid>(
-        r#"
-        SELECT DISTINCT account_id
-        FROM account_identities
-        WHERE email_verified AND LOWER(email) = LOWER($1)
-        LIMIT 2
-        "#,
-    )
-    .bind(&identity.email)
-    .fetch_all(&mut **transaction)
-    .await?;
-    Ok((candidates.len() == 1).then(|| candidates[0]))
-}
-
-async fn ensure_account(
-    transaction: &mut Transaction<'_, Postgres>,
-    account_id: Uuid,
-    identity: &ProviderIdentity,
-) -> Result<(), ApiError> {
-    let now = Utc::now();
-    sqlx::query(
-        r#"
-        INSERT INTO accounts (
-            id, primary_email, created_at, updated_at, last_seen_at
-        ) VALUES ($1, $2, $3, $3, $3)
-        ON CONFLICT (id) DO UPDATE
-        SET last_seen_at = EXCLUDED.last_seen_at, updated_at = EXCLUDED.updated_at
-        "#,
-    )
-    .bind(account_id)
-    .bind(&identity.email)
-    .bind(now)
-    .execute(&mut **transaction)
-    .await?;
-    Ok(())
-}
-
-async fn ensure_client(
-    state: &AppState,
-    transaction: &mut Transaction<'_, Postgres>,
-    account_id: Uuid,
-    runtime_id: &str,
-    name: &str,
-    client_kind: ClientKind,
-) -> Result<(), ApiError> {
-    if client_kind == ClientKind::Mobile {
-        sqlx::query(
-            r#"
-            INSERT INTO mobile_devices (
-                account_id, id, name, created_at, last_seen_at
-            ) VALUES ($1, $2, $3, $4, $4)
-            ON CONFLICT (account_id, id) DO UPDATE
-            SET name = EXCLUDED.name, last_seen_at = EXCLUDED.last_seen_at,
-                revoked_at = NULL
-            "#,
-        )
-        .bind(account_id)
-        .bind(runtime_id)
-        .bind(name)
-        .bind(Utc::now())
-        .execute(&mut **transaction)
-        .await?;
-        return Ok(());
-    }
-    let existing =
-        sqlx::query_scalar::<_, Uuid>("SELECT account_id FROM runtimes WHERE id = $1 FOR UPDATE")
-            .bind(runtime_id)
-            .fetch_optional(&mut **transaction)
-            .await?;
-    if existing.is_some_and(|value| value != account_id) {
-        return Err(ApiError::conflict(
-            "runtime_owned_by_another_account",
-            "This runtime is already assigned to another Alera account.",
-        ));
-    }
-    if existing.is_none() {
-        sqlx::query("SELECT id FROM accounts WHERE id = $1 FOR UPDATE")
-            .bind(account_id)
-            .fetch_one(&mut **transaction)
-            .await?;
-        let count =
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM runtimes WHERE account_id = $1")
-                .bind(account_id)
-                .fetch_one(&mut **transaction)
-                .await?;
-        if count >= state.config.limits.max_runtimes_per_account {
-            return Err(ApiError::forbidden(
-                "runtime_limit_reached",
-                "This account has reached its runtime limit.",
-            ));
-        }
-    }
-    sqlx::query(
-        r#"
-        INSERT INTO runtimes (id, account_id, name, created_at, last_seen_at)
-        VALUES ($1, $2, $3, $4, $4)
-        ON CONFLICT (id) DO UPDATE
-        SET name = EXCLUDED.name, last_seen_at = EXCLUDED.last_seen_at
-        "#,
-    )
-    .bind(runtime_id)
-    .bind(account_id)
-    .bind(name)
-    .bind(Utc::now())
-    .execute(&mut **transaction)
-    .await?;
-    Ok(())
-}
-
-async fn reject_tombstoned_identity(
-    state: &AppState,
-    transaction: &mut Transaction<'_, Postgres>,
-    identity: &ProviderIdentity,
-) -> Result<(), ApiError> {
-    let subject_hash = identity_tombstone_hash(
-        &state.config.tombstone_pepper,
-        identity.provider.as_str(),
-        &identity.provider_user_id,
-    )?;
-    let tombstoned = sqlx::query_scalar::<_, bool>(
-        r#"
-        SELECT EXISTS(
-            SELECT 1 FROM abuse_tombstones
-            WHERE subject_kind = 'identity' AND subject_hash = $1 AND expires_at > $2
-        )
-        "#,
-    )
-    .bind(subject_hash)
-    .bind(Utc::now())
-    .fetch_one(&mut **transaction)
-    .await?;
-    if tombstoned {
-        return Err(ApiError::forbidden(
-            "identity_cooling_down",
-            "This identity recently deleted an Alera account and cannot create another yet.",
-        ));
-    }
-    Ok(())
 }

@@ -55,7 +55,11 @@ async fn relay_cross_language_fixture() {
         &ids,
         &verifier,
         &mut backoff,
-        1,
+        &LinkServices {
+            generation: 1,
+            mobile_access: true,
+            mcp: None,
+        },
     );
     tokio::pin!(transport);
     let mut handles = HashMap::<u64, ClientHandle>::new();

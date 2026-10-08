@@ -97,6 +97,9 @@ abstract final class const AleraIcons._() {
   static const IconData qrCode = LucideIcons.qrCode;
   static const IconData account = LucideIcons.userRound;
 
+  // Remote MCP control and the MCP clients connected to it.
+  static const IconData mcp = LucideIcons.plug;
+
   /// Main/default worktree (root of the project workspace graph).
   static const IconData workspaceMain = LucideIcons.home;
 

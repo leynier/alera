@@ -18,7 +18,7 @@ cargo run
 
 Local mode uses a deterministic Ed25519 development seed and disables FCM. Neither setting is acceptable in production.
 
-The service applies required schema migrations 0001-0004 before opening its listener, then starts the explicitly allowlisted performance-index migrations 0005-0020 in a bounded background task after `/health` is available. The online phase takes a non-blocking session lock, builds one index at a time with a generous per-index deadline, logs a failure, and retries on the next startup or guarded operator phase. A dirty SQLx migration row remains an operator error and is never cleared automatically. Retention cleanup runs once after bind and repeats every six hours while an instance is active.
+The service applies required schema migrations 0001-0004, 0021, and 0022 before opening its listener, then starts the explicitly allowlisted performance-index migrations 0005-0020 in a bounded background task after `/health` is available. The online phase takes a non-blocking session lock, builds one index at a time with a generous per-index deadline, logs a failure, and retries on the next startup or guarded operator phase. A dirty SQLx migration row remains an operator error and is never cleared automatically. Retention cleanup runs once after bind and repeats every six hours while an instance is active.
 
 ## HTTP Contract
 
@@ -47,6 +47,16 @@ All JSON uses camelCase. Every route except `GET /health` requires the `x-alera-
 | `POST` | `/v1/relay/identity` | Bearer runtime or mobile | Register or rotate the caller's long-lived relay public key |
 | `GET` | `/v1/mobile/runtimes` | Bearer mobile | Discover active, account-owned runtimes with relay public keys |
 | `POST` | `/v1/relay/grants` | Bearer runtime or mobile | Issue a 120-second, audience-bound relay grant |
+| `GET` | `/v1/mcp/grants` | Bearer runtime or mobile | List the account's live MCP grants |
+| `DELETE` | `/v1/mcp/grants/{id}` | Bearer runtime or mobile | Revoke an MCP grant and its refresh families |
+| `PUT` | `/v1/runtime/name` | Bearer runtime | Rename the calling runtime, unique per account ignoring case |
+| `POST` | `/v1/auth/device` | Edge | Start device sign-in for a headless runtime |
+| `POST` | `/v1/auth/device/token` | Edge | Poll device sign-in; returns the token envelope once |
+| `GET` | `/v1/mcp/runtimes` | Bearer MCP | Runtimes the MCP grant reaches |
+| `POST` | `/v1/mcp/calls` | Bearer MCP | Resolve a runtime, audit the call, and sign a 120-second call grant |
+| `POST` | `/v1/mcp/calls/{id}/outcome` | Bearer MCP | Record the call outcome once |
+
+The OAuth 2.1 authorization server for Remote MCP (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, `/oauth/*`, and the `/device` page) follows [`../docs/remote-mcp.md`](../docs/remote-mcp.md). Its endpoints use the standard snake_case OAuth field names. `ALERA_MCP_ENABLED=false` removes the authorization server and gateway routes; device sign-in and grant management stay available.
 
 Interactive OAuth accepts only exact loopback HTTP callbacks at `127.0.0.1` or `localhost` with an explicit port and `/callback` path. Transactions expire after five minutes and are consumed before provider exchange. Google ID tokens are verified against its cached JWKS, including the RS256 signature, issuer, audience, expiry, authorized presenter, and transaction nonce. The JWKS cache honors Google's `Cache-Control` lifetime and refreshes early when a token names a new key. GitHub exchange always occurs server-side because its client secret cannot ship in Alera binaries.
 

@@ -69,6 +69,8 @@ const DENIED: &[&str] = &[
     "sshTarget.list",
     "sshTarget.upsert",
     "account.status",
+    "mcp.settings.update",
+    "mcp.grants.revoke",
     "runtimeSettings.update",
     "runtimeMetadata.set",
     "mobile.hello",

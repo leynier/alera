@@ -4,7 +4,7 @@ This document defines the implemented cloud boundary for Alera accounts, mobile 
 
 ## Scope
 
-Alera remains local-first. Projects, repositories, conversation prompts, terminal input, terminal output, source code, PTYs, worktree state, and orchestration messages remain on the user's runtime. An Alera account is optional and gates shared cloud features. Configuration Sync uploads only when requested and can include reusable profile commands and prompts; the backend can read this configuration content.
+Alera remains local-first. Projects, repositories, conversation prompts, terminal input, terminal output, source code, PTYs, worktree state, and orchestration messages remain on the user's runtime. Remote MCP ([`remote-mcp.md`](remote-mcp.md)) is opt-in per runtime: when it is on, tool arguments and results pass through the edge in transit without being stored, and the cloud acts as the OAuth authorization server for MCP clients. An Alera account is optional and gates shared cloud features. Configuration Sync uploads only when requested and can include reusable profile commands and prompts; the backend can read this configuration content.
 
 The first production workload has four components:
 
@@ -27,7 +27,7 @@ Cloudflare Worker -> Cloud Run API -> Neon Postgres
 
 ## Architectural Invariants
 
-- The cloud API never participates in the Alera runtime-host socket or WebSocket protocol.
+- The cloud API never participates in the Alera runtime-host socket or WebSocket protocol. For Remote MCP it authorizes each tool call and signs a short-lived call grant that the runtime verifies; the edge forwards the call without the cloud reading the terminal protocol.
 - The future internet relay must move opaque end-to-end encrypted frames. The current backend must not become a second protocol implementation.
 - Cloud agents belong to a separate compute plane that runs the real Alera runtime host. The account service may provision or authorize that plane later, but it does not emulate a PTY.
 - Provider access tokens are used only to resolve identity during an OAuth exchange and are not persisted.

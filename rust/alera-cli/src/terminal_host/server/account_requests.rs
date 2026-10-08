@@ -3,7 +3,6 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
-use crate::mobile_access::host_name;
 use crate::terminal_host::alera_account::{
     bind_callback_listener, wait_for_callback, AleraAccountService, AuthProvider, Pkce,
 };
@@ -21,6 +20,9 @@ pub(crate) enum AccountOperation {
     Delete,
     Transfer,
     MobileEnrollment,
+    McpSettingsRead,
+    McpSettingsUpdate,
+    McpGrants,
 }
 
 pub(crate) enum AccountCommand {
@@ -399,6 +401,13 @@ impl ServerActor {
         self.account_push.cloud_jobs = self.account_push.cloud_jobs.saturating_sub(1);
         match result {
             Ok(payload) => {
+                let payload = match operation {
+                    AccountOperation::McpSettingsUpdate => {
+                        self.finish_mcp_settings_update(payload).await
+                    }
+                    AccountOperation::McpSettingsRead => self.with_relay_status(payload),
+                    _ => payload,
+                };
                 self.client_write(client_id, ok_response(request_id, payload));
                 if matches!(
                     operation,
@@ -438,7 +447,12 @@ async fn prepare_sign_in(
             .await?
     } else {
         service
-            .create_auth_transaction(provider, &redirect_uri, &pkce.challenge, &host_name())
+            .create_auth_transaction(
+                provider,
+                &redirect_uri,
+                &pkce.challenge,
+                &service.runtime_display_name().await,
+            )
             .await?
     };
     Ok((listener, redirect_uri, pkce, transaction))

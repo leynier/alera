@@ -10,7 +10,8 @@ const MIGRATION_LOCK_KEY: i64 = 0x41_6c_65_72_61_53_78;
 const REQUIRED_MIGRATION_DEADLINE: Duration = Duration::from_secs(30);
 const MIGRATION_LOCK_DEADLINE: Duration = Duration::from_secs(30);
 const ONLINE_MIGRATION_STEP_DEADLINE: Duration = Duration::from_secs(15 * 60);
-const REQUIRED_SCHEMA_MIGRATION_VERSIONS: &[i64] = &[1, 2, 3, 4, 21];
+const LATEST_MIGRATION_VERSION: i64 = 22;
+const REQUIRED_SCHEMA_MIGRATION_VERSIONS: &[i64] = &[1, 2, 3, 4, 21, 22];
 const ONLINE_MIGRATION_VERSIONS: &[i64] =
     &[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const ONLINE_INDEXES: &[(&str, &str)] = &[
@@ -98,7 +99,7 @@ pub async fn run_required(pool: &PgPool) -> anyhow::Result<()> {
     required_migrator.set_ignore_missing(true);
     let mut migration_result = match timeout_at(
         Instant::now() + REQUIRED_MIGRATION_DEADLINE,
-        required_migrator.run_direct(Some(21), &mut *connection, false),
+        required_migrator.run_direct(Some(LATEST_MIGRATION_VERSION), &mut *connection, false),
     )
     .await
     {
@@ -190,8 +191,9 @@ async fn ensure_no_unclassified_database_migrations(
     connection: &mut PoolConnection<Postgres>,
 ) -> anyhow::Result<()> {
     let version = sqlx::query_scalar::<_, i64>(
-        "SELECT version FROM _sqlx_migrations WHERE version < 1 OR version > 21 ORDER BY version LIMIT 1",
+        "SELECT version FROM _sqlx_migrations WHERE version < 1 OR version > $1 ORDER BY version LIMIT 1",
     )
+    .bind(LATEST_MIGRATION_VERSION)
     .fetch_optional(&mut **connection)
     .await
     .context("check unclassified PostgreSQL migrations")?;

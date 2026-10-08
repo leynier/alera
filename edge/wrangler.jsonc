@@ -11,6 +11,8 @@
     }
   ],
   "vars": {
+    "MCP_ENABLED": "true",
+    "MCP_RESOURCE": "https://api.alera.build/v1/mcp",
     "RELAY_ENABLED": "true",
     "RELAY_ISSUER": "https://api.alera.build",
     "RELAY_JWKS_URL": "https://api.alera.build/.well-known/jwks.json"
@@ -39,6 +41,30 @@
       "namespace_id": "1001",
       "simple": {
         "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "OAUTH_LIMITER",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 600,
+        "period": 60
+      }
+    },
+    {
+      "name": "BROWSER_LIMITER",
+      "namespace_id": "1004",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    },
+    {
+      "name": "MCP_LIMITER",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 120,
         "period": 60
       }
     }

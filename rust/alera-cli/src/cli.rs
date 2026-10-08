@@ -6,6 +6,7 @@ use crate::terminal_host::protocol::{
 mod agent_profile;
 mod automation;
 mod issue;
+mod mcp;
 mod mobile;
 mod project;
 mod text_source;
@@ -15,6 +16,7 @@ mod workspace;
 pub use agent_profile::*;
 pub use automation::*;
 pub use issue::*;
+pub use mcp::*;
 pub use mobile::*;
 pub use project::*;
 pub use text_source::*;
@@ -93,6 +95,12 @@ pub enum Command {
 
     /// Global voice home agent: speak, status, and the runtime home folder.
     Voice(VoiceCommand),
+
+    /// Sign this runtime in to or out of an Alera account.
+    Account(AccountCommand),
+
+    /// Let MCP clients run Alera tools on this runtime, locally or through the Alera cloud.
+    Mcp(McpCommand),
 }
 
 #[derive(Debug, Args)]
@@ -279,6 +287,14 @@ pub enum RuntimeAction {
     Clear(RuntimeClearArgs),
     /// Inspect or change runtime-owned agent integrations.
     Agents(RuntimeAgentsCommand),
+    /// Name this runtime so MCP clients and phones can tell it apart.
+    Rename(RuntimeRenameArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct RuntimeRenameArgs {
+    /// New runtime name, unique within your Alera account.
+    pub name: String,
 }
 
 #[derive(Debug, Args)]

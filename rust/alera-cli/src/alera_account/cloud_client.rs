@@ -9,6 +9,10 @@ use crate::terminal_host::alera_account::cloud_base_url::validate_cloud_base_url
 
 pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://api.alera.build";
 
+#[path = "cloud_client_mcp.rs"]
+mod mcp;
+pub(crate) use mcp::{DeviceAuthorization, McpGrant, RelayCapabilities};
+
 #[derive(Debug, Error)]
 #[error("{path}: {message}")]
 pub(crate) struct CloudRequestError {
@@ -35,6 +39,15 @@ impl CloudRequestError {
     }
     pub(crate) fn is_permanent_authorization_failure(&self) -> bool {
         self.status == StatusCode::UNAUTHORIZED || self.status == StatusCode::FORBIDDEN
+    }
+    pub(crate) fn is_rate_limited(&self) -> bool {
+        self.status == StatusCode::TOO_MANY_REQUESTS
+    }
+    pub(crate) fn code(&self) -> Option<&str> {
+        self.code.as_deref()
+    }
+    pub(crate) fn message(&self) -> &str {
+        &self.message
     }
     pub(crate) fn is_relay_key_rotation_conflict(&self) -> bool {
         self.status == StatusCode::CONFLICT
@@ -343,20 +356,6 @@ impl CloudAccountClient {
                 "publicKey": public_key,
                 "keyVersion": key_version,
             })),
-        )
-        .await
-    }
-
-    pub(crate) async fn relay_grant(
-        &self,
-        access_token: &str,
-        runtime_id: &str,
-    ) -> Result<RelayGrant> {
-        self.json(
-            Method::POST,
-            "/v1/relay/grants",
-            Some(access_token),
-            Some(serde_json::json!({ "runtimeId": runtime_id })),
         )
         .await
     }

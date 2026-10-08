@@ -12,9 +12,10 @@ use crate::{
     signing::{JsonWebKeySet, TokenSigner},
 };
 
-const ACCESS_TOKEN_SECONDS: i64 = 15 * 60;
+pub(super) const ACCESS_TOKEN_SECONDS: i64 = 15 * 60;
 const RELAY_GRANT_SECONDS: i64 = 120;
 
+#[derive(Clone, Copy)]
 pub struct RelayGrantInput<'a> {
     pub account_id: Uuid,
     pub runtime_id: &'a str,
@@ -23,13 +24,16 @@ pub struct RelayGrantInput<'a> {
     pub key_version: i32,
     pub client_public_key: &'a str,
     pub runtime_public_key: &'a str,
+    pub mcp_access: Option<&'a str>,
+    pub mobile_access: Option<bool>,
 }
 
 #[derive(Clone)]
 pub struct TokenService {
     signer: Arc<dyn TokenSigner>,
-    issuer: String,
+    pub(super) issuer: String,
     audience: String,
+    pub(super) mcp_resource: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -46,13 +50,15 @@ pub struct AccessClaims {
     pub client_kind: String,
     pub auth_time: i64,
     pub scope: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gid: Option<String>,
 }
 
 #[derive(Serialize)]
 struct TokenHeader<'a> {
     alg: &'static str,
     kid: &'a str,
-    typ: &'static str,
+    typ: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -62,13 +68,34 @@ struct ParsedHeader {
     typ: String,
 }
 
+/// Registered claims every signed token checks before its type-specific claims.
+#[derive(Deserialize)]
+struct RegisteredClaims {
+    iss: String,
+    aud: String,
+    exp: i64,
+    iat: i64,
+    nbf: i64,
+}
+
 impl TokenService {
     pub fn new(signer: Arc<dyn TokenSigner>, issuer: String, audience: String) -> Self {
+        let mcp_resource = format!("{}/v1/mcp", issuer.trim_end_matches('/'));
         Self {
             signer,
             issuer,
             audience,
+            mcp_resource,
         }
+    }
+
+    pub fn with_mcp_resource(mut self, resource: String) -> Self {
+        self.mcp_resource = resource;
+        self
+    }
+
+    pub fn mcp_resource(&self) -> &str {
+        &self.mcp_resource
     }
 
     pub fn jwks(&self) -> JsonWebKeySet {
@@ -99,30 +126,9 @@ impl TokenService {
             client_kind: client_kind.as_str().to_owned(),
             auth_time: authenticated_at.timestamp(),
             scope: client_kind.scopes().join(" "),
+            gid: None,
         };
-        let header = TokenHeader {
-            alg: "EdDSA",
-            kid: self.signer.key_id(),
-            typ: "at+jwt",
-        };
-        let encoded_header = URL_SAFE_NO_PAD.encode(
-            serde_json::to_vec(&header)
-                .map_err(|error| ApiError::internal(anyhow::Error::from(error)))?,
-        );
-        let encoded_claims = URL_SAFE_NO_PAD.encode(
-            serde_json::to_vec(&claims)
-                .map_err(|error| ApiError::internal(anyhow::Error::from(error)))?,
-        );
-        let signing_input = format!("{encoded_header}.{encoded_claims}");
-        let signature = self
-            .signer
-            .sign(signing_input.as_bytes())
-            .await
-            .map_err(ApiError::internal)?;
-        Ok(format!(
-            "{signing_input}.{}",
-            URL_SAFE_NO_PAD.encode(signature)
-        ))
+        self.sign_jwt("at+jwt", &claims).await
     }
 
     pub async fn issue_relay_grant(&self, input: RelayGrantInput<'_>) -> Result<String, ApiError> {
@@ -142,18 +148,41 @@ impl TokenService {
             key_version: input.key_version,
             client_public_key: input.client_public_key.to_owned(),
             runtime_public_key: input.runtime_public_key.to_owned(),
+            mcp_access: input.mcp_access.map(ToOwned::to_owned),
+            mobile_access: input.mobile_access,
         };
+        self.sign_jwt("relay+jwt", &claims).await
+    }
+
+    /// Verifies a cloud access token. MCP tokens fail here because their audience differs.
+    pub fn verify(&self, token: &str) -> Result<AccessClaims, ApiError> {
+        let claims: AccessClaims = self.verify_jwt(token, "at+jwt", &self.audience)?;
+        if claims.client_kind == ClientKind::Mcp.as_str() || claims.gid.is_some() {
+            return Err(invalid_token());
+        }
+        Ok(claims)
+    }
+
+    pub fn expires_in_seconds(&self) -> i64 {
+        ACCESS_TOKEN_SECONDS
+    }
+
+    pub(crate) async fn sign_jwt<T: Serialize>(
+        &self,
+        typ: &str,
+        claims: &T,
+    ) -> Result<String, ApiError> {
         let header = TokenHeader {
             alg: "EdDSA",
             kid: self.signer.key_id(),
-            typ: "relay+jwt",
+            typ,
         };
         let encoded_header = URL_SAFE_NO_PAD.encode(
             serde_json::to_vec(&header)
                 .map_err(|error| ApiError::internal(anyhow::Error::from(error)))?,
         );
         let encoded_claims = URL_SAFE_NO_PAD.encode(
-            serde_json::to_vec(&claims)
+            serde_json::to_vec(claims)
                 .map_err(|error| ApiError::internal(anyhow::Error::from(error)))?,
         );
         let signing_input = format!("{encoded_header}.{encoded_claims}");
@@ -168,23 +197,23 @@ impl TokenService {
         ))
     }
 
-    pub fn verify(&self, token: &str) -> Result<AccessClaims, ApiError> {
+    pub(crate) fn verify_jwt<T: for<'de> Deserialize<'de>>(
+        &self,
+        token: &str,
+        typ: &str,
+        audience: &str,
+    ) -> Result<T, ApiError> {
         let mut segments = token.split('.');
-        let header_segment = segments.next();
-        let claims_segment = segments.next();
-        let signature_segment = segments.next();
-        if header_segment.is_none()
-            || claims_segment.is_none()
-            || signature_segment.is_none()
-            || segments.next().is_some()
-        {
+        let (Some(header_segment), Some(claims_segment), Some(signature_segment), None) = (
+            segments.next(),
+            segments.next(),
+            segments.next(),
+            segments.next(),
+        ) else {
             return Err(invalid_token());
-        }
-        let header_segment = header_segment.unwrap_or_default();
-        let claims_segment = claims_segment.unwrap_or_default();
-        let signature_segment = signature_segment.unwrap_or_default();
+        };
         let header: ParsedHeader = decode_json(header_segment)?;
-        if header.alg != "EdDSA" || header.typ != "at+jwt" {
+        if header.alg != "EdDSA" || header.typ != typ {
             return Err(invalid_token());
         }
         let key = self
@@ -212,21 +241,17 @@ impl TokenService {
             )
             .map_err(|_| invalid_token())?;
 
-        let claims: AccessClaims = decode_json(claims_segment)?;
+        let registered: RegisteredClaims = decode_json(claims_segment)?;
         let now = Utc::now().timestamp();
-        if claims.iss != self.issuer
-            || claims.aud != self.audience
-            || claims.exp <= now
-            || claims.nbf > now + 30
-            || claims.iat > now + 30
+        if registered.iss != self.issuer
+            || registered.aud != audience
+            || registered.exp <= now
+            || registered.nbf > now + 30
+            || registered.iat > now + 30
         {
             return Err(invalid_token());
         }
-        Ok(claims)
-    }
-
-    pub fn expires_in_seconds(&self) -> i64 {
-        ACCESS_TOKEN_SECONDS
+        decode_json(claims_segment)
     }
 }
 
@@ -247,6 +272,10 @@ pub struct RelayGrantClaims {
     pub key_version: i32,
     pub client_public_key: String,
     pub runtime_public_key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_access: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mobile_access: Option<bool>,
 }
 
 fn decode_json<T: for<'de> Deserialize<'de>>(value: &str) -> Result<T, ApiError> {
@@ -254,38 +283,48 @@ fn decode_json<T: for<'de> Deserialize<'de>>(value: &str) -> Result<T, ApiError>
     serde_json::from_slice(&decoded).map_err(|_| invalid_token())
 }
 
-fn invalid_token() -> ApiError {
+pub(super) fn invalid_token() -> ApiError {
     ApiError::unauthorized("invalid_token", "The access token is invalid or expired.")
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use std::sync::Arc;
 
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     use chrono::Utc;
+    use serde_json::Value;
     use uuid::Uuid;
 
     use crate::{api_models::ClientKind, signing::LocalEd25519Signer};
 
     use super::TokenService;
 
-    #[tokio::test]
-    async fn issues_and_verifies_scoped_access_token() {
+    pub(crate) fn test_service() -> TokenService {
         let signer = LocalEd25519Signer::from_seed_b64url(
             "test-key".to_owned(),
             &URL_SAFE_NO_PAD.encode([9_u8; 32]),
         );
-        assert!(signer.is_ok());
         let signer = match signer {
             Ok(value) => value,
             Err(error) => panic!("unexpected signer error: {error}"),
         };
-        let service = TokenService::new(
+        TokenService::new(
             Arc::new(signer),
             "https://issuer.example".to_owned(),
             "alera-cloud".to_owned(),
-        );
+        )
+    }
+
+    pub(crate) fn decode_claims(token: &str) -> Value {
+        let segment = token.split('.').nth(1).unwrap_or_default();
+        let bytes = URL_SAFE_NO_PAD.decode(segment).unwrap_or_default();
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+    }
+
+    #[tokio::test]
+    async fn issues_and_verifies_scoped_access_token() {
+        let service = test_service();
         let account_id = Uuid::now_v7();
         let token = service
             .issue(
@@ -297,13 +336,44 @@ mod tests {
             )
             .await;
         assert!(token.is_ok());
-        let claims = token.and_then(|value| service.verify(&value));
-        assert!(claims.is_ok());
-        let claims = match claims {
+        let token = token.unwrap_or_default();
+        assert!(decode_claims(&token).get("gid").is_none());
+        let claims = match service.verify(&token) {
             Ok(value) => value,
             Err(error) => panic!("unexpected token error: {error}"),
         };
         assert_eq!(claims.sub, account_id.to_string());
         assert!(claims.scope.contains("push:send"));
+    }
+
+    #[tokio::test]
+    async fn relay_grants_omit_mcp_claims_unless_given() {
+        let service = test_service();
+        let mut input = super::RelayGrantInput {
+            account_id: Uuid::now_v7(),
+            runtime_id: "runtime-1",
+            client_id: "phone",
+            role: "mobile",
+            key_version: 1,
+            client_public_key: "a",
+            runtime_public_key: "b",
+            mcp_access: None,
+            mobile_access: None,
+        };
+        let mobile = service.issue_relay_grant(input).await.unwrap_or_default();
+        let claims = decode_claims(&mobile);
+        assert!(claims.get("mcpAccess").is_none());
+        assert!(claims.get("mobileAccess").is_none());
+        input = super::RelayGrantInput {
+            role: "runtime",
+            client_id: "runtime-1",
+            mcp_access: Some("read"),
+            mobile_access: Some(false),
+            ..input
+        };
+        let runtime = service.issue_relay_grant(input).await.unwrap_or_default();
+        let claims = decode_claims(&runtime);
+        assert_eq!(claims["mcpAccess"], "read");
+        assert_eq!(claims["mobileAccess"], false);
     }
 }

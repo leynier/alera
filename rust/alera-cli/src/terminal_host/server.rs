@@ -133,6 +133,7 @@ mod codex_dictation;
 mod codex_server_startup;
 mod configuration_requests;
 mod configuration_transfers;
+mod mcp_requests;
 mod mobile_gateway_replacement;
 mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;

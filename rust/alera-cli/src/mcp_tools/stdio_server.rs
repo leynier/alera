@@ -1,0 +1,164 @@
+//! `alera mcp serve`: the catalog as a local MCP server over stdio.
+//!
+//! Messages are newline-delimited JSON-RPC. Calls run concurrently, and a
+//! `notifications/cancelled` stops the matching child process.
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+use serde_json::{json, Value};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::sync::{mpsc, oneshot};
+
+use super::{catalog, find_tool, run_tool, ToolAccess, ToolExecution, ToolSpec};
+
+pub(crate) const PROTOCOL_VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
+pub(crate) const INSTRUCTIONS: &str = "Alera runs coding agents in workspaces (Git worktrees) and orchestrates them. Start with list_projects, list_workspaces, and list_agent_profiles. Use start_agent_workspace or delegate_task to start work, then wait_for_task, read_terminal, or ask_agent with wait_for_reply to follow it. Waits return after at most 50 seconds; call them again to keep waiting.";
+const MAX_CONCURRENT_CALLS: usize = 4;
+
+type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
+
+pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> anyhow::Result<()> {
+    let (output, mut outgoing) = mpsc::channel::<Value>(64);
+    let writer = tokio::spawn(async move {
+        let mut stdout = tokio::io::stdout();
+        while let Some(message) = outgoing.recv().await {
+            let mut line = serde_json::to_vec(&message).unwrap_or_default();
+            line.push(b'\n');
+            if stdout.write_all(&line).await.is_err() || stdout.flush().await.is_err() {
+                break;
+            }
+        }
+    });
+    let pending: Pending = Arc::default();
+    let permits = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_CALLS));
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    while let Some(line) = lines.next_line().await? {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let message: Value = match serde_json::from_str(&line) {
+            Ok(message) => message,
+            Err(_) => {
+                let _ = output.send(error(Value::Null, -32700, "Parse error")).await;
+                continue;
+            }
+        };
+        let id = message.get("id").cloned();
+        let method = message["method"].as_str().unwrap_or_default().to_owned();
+        let params = message.get("params").cloned().unwrap_or(Value::Null);
+        let Some(id) = id else {
+            if method == "notifications/cancelled" {
+                let key = params["requestId"].to_string();
+                if let Some(cancel) = pending.lock().ok().and_then(|mut map| map.remove(&key)) {
+                    let _ = cancel.send(());
+                }
+            }
+            continue;
+        };
+        match method.as_str() {
+            "initialize" => {
+                let _ = output.send(success(id, initialize_result(&params))).await;
+            }
+            "ping" => {
+                let _ = output.send(success(id, json!({}))).await;
+            }
+            "tools/list" => {
+                let tools = visible_tools(read_only)
+                    .iter()
+                    .map(listed_tool)
+                    .collect::<Vec<_>>();
+                let _ = output.send(success(id, json!({ "tools": tools }))).await;
+            }
+            "tools/call" => {
+                let name = params["name"].as_str().unwrap_or_default().to_owned();
+                let Some(tool) =
+                    find_tool(&name).filter(|tool| !read_only || tool.access == ToolAccess::Read)
+                else {
+                    let _ = output
+                        .send(error(id, -32602, &format!("Unknown tool: {name}")))
+                        .await;
+                    continue;
+                };
+                let (cancel, cancelled) = oneshot::channel();
+                let key = id.to_string();
+                if let Ok(mut map) = pending.lock() {
+                    map.insert(key.clone(), cancel);
+                }
+                let output = output.clone();
+                let execution = execution.clone();
+                let pending = pending.clone();
+                let permits = permits.clone();
+                tokio::spawn(async move {
+                    let _permit = permits.acquire_owned().await;
+                    let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
+                    let result = run_tool(&execution, &tool, &arguments, Some(cancelled)).await;
+                    let still_pending = pending
+                        .lock()
+                        .ok()
+                        .and_then(|mut map| map.remove(&key))
+                        .is_some();
+                    if still_pending {
+                        let _ = output.send(success(id, result.to_mcp())).await;
+                    }
+                });
+            }
+            _ => {
+                let _ = output
+                    .send(error(id, -32601, &format!("Method not found: {method}")))
+                    .await;
+            }
+        }
+    }
+    drop(output);
+    let _ = writer.await;
+    Ok(())
+}
+
+fn visible_tools(read_only: bool) -> Vec<ToolSpec> {
+    catalog()
+        .into_iter()
+        .filter(|tool| !read_only || tool.access == ToolAccess::Read)
+        .collect()
+}
+
+pub(crate) fn negotiate_version(requested: Option<&str>) -> &'static str {
+    requested
+        .and_then(|requested| {
+            PROTOCOL_VERSIONS
+                .iter()
+                .find(|version| **version == requested)
+        })
+        .copied()
+        .unwrap_or(PROTOCOL_VERSIONS[0])
+}
+
+fn initialize_result(params: &Value) -> Value {
+    json!({
+        "protocolVersion": negotiate_version(params["protocolVersion"].as_str()),
+        "capabilities": { "tools": { "listChanged": false } },
+        "serverInfo": {
+            "name": "alera",
+            "title": "Alera",
+            "version": crate::terminal_host::runtime_build_info::version(),
+        },
+        "instructions": INSTRUCTIONS,
+    })
+}
+
+fn listed_tool(tool: &ToolSpec) -> Value {
+    let mut value = tool.to_json();
+    if let Some(object) = value.as_object_mut() {
+        object.remove("access");
+        object.remove("timeoutSeconds");
+    }
+    value
+}
+
+fn success(id: Value, result: Value) -> Value {
+    json!({ "jsonrpc": "2.0", "id": id, "result": result })
+}
+
+fn error(id: Value, code: i64, message: &str) -> Value {
+    json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
+}

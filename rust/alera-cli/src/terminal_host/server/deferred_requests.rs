@@ -73,6 +73,9 @@ impl ServerActor {
         if self.try_start_account_request(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
+        if self.try_start_mcp_request(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
         if self.try_start_deferred_workspace_setup(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }

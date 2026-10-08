@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 
 use crate::error::ApiError;
 
-pub(super) fn validate_loopback_redirect(value: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_loopback_redirect(value: &str) -> Result<(), ApiError> {
     let url = url::Url::parse(value).map_err(|_| {
         ApiError::bad_request("invalid_redirect_uri", "The redirect URI is invalid.")
     })?;
@@ -27,7 +27,7 @@ pub(super) fn validate_loopback_redirect(value: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub(super) fn validate_code_challenge(value: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_code_challenge(value: &str) -> Result<(), ApiError> {
     if value.len() != 43
         || !value
             .bytes()
@@ -41,7 +41,7 @@ pub(super) fn validate_code_challenge(value: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub(super) fn validate_code_verifier(value: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_code_verifier(value: &str) -> Result<(), ApiError> {
     if !(43..=128).contains(&value.len())
         || !value
             .bytes()
@@ -55,7 +55,7 @@ pub(super) fn validate_code_verifier(value: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub(super) fn validate_identifier(value: &str, field: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_identifier(value: &str, field: &str) -> Result<(), ApiError> {
     if value.is_empty() || value.len() > 128 || value.chars().any(char::is_control) {
         return Err(ApiError::bad_request(
             "invalid_identifier",
@@ -65,7 +65,19 @@ pub(super) fn validate_identifier(value: &str, field: &str) -> Result<(), ApiErr
     Ok(())
 }
 
-pub(super) fn validate_label(value: &str, field: &str) -> Result<(), ApiError> {
+/// Rejects client ids in the namespace reserved for relay control channels such as `~mcp`.
+pub(crate) fn validate_new_client_id(value: &str) -> Result<(), ApiError> {
+    validate_identifier(value, "clientId")?;
+    if value.starts_with('~') {
+        return Err(ApiError::bad_request(
+            "reserved_client_id",
+            "Client ids starting with ~ are reserved.",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_label(value: &str, field: &str) -> Result<(), ApiError> {
     if value.trim().is_empty() || value.len() > 160 || value.chars().any(char::is_control) {
         return Err(ApiError::bad_request(
             "invalid_label",
@@ -75,7 +87,7 @@ pub(super) fn validate_label(value: &str, field: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub(super) fn validate_short_secret(value: &str, code: &'static str) -> Result<(), ApiError> {
+pub(crate) fn validate_short_secret(value: &str, code: &'static str) -> Result<(), ApiError> {
     if value.len() < 16 || value.len() > 2048 || value.chars().any(char::is_control) {
         return Err(ApiError::bad_request(
             code,
@@ -85,17 +97,17 @@ pub(super) fn validate_short_secret(value: &str, code: &'static str) -> Result<(
     Ok(())
 }
 
-pub(super) fn pkce_challenge(verifier: &str) -> String {
+pub(crate) fn pkce_challenge(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
 
-pub(super) fn random_secret(prefix: &str) -> String {
+pub(crate) fn random_secret(prefix: &str) -> String {
     let mut bytes = [0_u8; 32];
     UnwrapErr(SysRng).fill_bytes(&mut bytes);
     format!("{prefix}{}", URL_SAFE_NO_PAD.encode(bytes))
 }
 
-pub(super) fn hash_secret(value: &str) -> Vec<u8> {
+pub(crate) fn hash_secret(value: &str) -> Vec<u8> {
     Sha256::digest(value.as_bytes()).to_vec()
 }
 
@@ -112,6 +124,13 @@ mod tests {
         assert!(validate_loopback_redirect("https://127.0.0.1:43121/callback").is_err());
         assert!(validate_loopback_redirect("http://example.com:43121/callback").is_err());
         assert!(validate_loopback_redirect("http://127.0.0.1:43121/other").is_err());
+    }
+
+    #[test]
+    fn rejects_reserved_client_ids() {
+        assert!(super::validate_new_client_id("runtime-1").is_ok());
+        assert!(super::validate_new_client_id("~mcp").is_err());
+        assert!(super::validate_new_client_id("").is_err());
     }
 
     #[test]

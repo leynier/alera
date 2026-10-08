@@ -14,7 +14,7 @@ use crate::{
 };
 
 const GRANT_SECONDS: i64 = 120;
-const ACTIVE_RUNTIME_SECONDS: i64 = 180;
+pub(crate) const ACTIVE_RUNTIME_SECONDS: i64 = 180;
 
 pub async fn register_identity(
     State(state): State<AppState>,
@@ -133,6 +133,7 @@ pub async fn discover_runtimes(
         WHERE r.account_id = $1
           AND r.last_seen_at > $2
           AND r.transferred_at IS NULL
+          AND r.mobile_access_enabled
         ORDER BY r.name, r.id
         "#,
     )
@@ -230,6 +231,9 @@ pub async fn create_grant(
     let client_public_key = URL_SAFE_NO_PAD.encode(&client_key);
     let runtime_public_key = URL_SAFE_NO_PAD.encode(&runtime_key);
     let role = auth.client_kind.as_str();
+    let is_runtime = auth.client_kind == ClientKind::Runtime;
+    let mcp_access = request.mcp_access.unwrap_or_default();
+    let mobile_access = request.mobile_access.unwrap_or(true);
     let grant = state
         .tokens
         .issue_relay_grant(RelayGrantInput {
@@ -240,15 +244,26 @@ pub async fn create_grant(
             key_version: client_key_version,
             client_public_key: &client_public_key,
             runtime_public_key: &runtime_public_key,
+            mcp_access: is_runtime.then_some(mcp_access.as_str()),
+            mobile_access: is_runtime.then_some(mobile_access),
         })
         .await?;
-    if auth.client_kind == ClientKind::Runtime {
-        sqlx::query("UPDATE runtimes SET last_seen_at = $2 WHERE id = $1 AND account_id = $3")
-            .bind(&request.runtime_id)
-            .bind(Utc::now())
-            .bind(auth.account_id)
-            .execute(&state.pool)
-            .await?;
+    if is_runtime {
+        sqlx::query(
+            r#"
+            UPDATE runtimes
+            SET last_seen_at = $2, relay_granted_at = $2, mcp_access = $4,
+                mobile_access_enabled = $5
+            WHERE id = $1 AND account_id = $3
+            "#,
+        )
+        .bind(&request.runtime_id)
+        .bind(Utc::now())
+        .bind(auth.account_id)
+        .bind(mcp_access.as_str())
+        .bind(mobile_access)
+        .execute(&state.pool)
+        .await?;
     }
     Ok(Json(RelayGrantResponse {
         grant,

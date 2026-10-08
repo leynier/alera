@@ -1,8 +1,11 @@
 mod handlers;
-mod sessions;
+pub(crate) mod identity;
+mod mcp_session;
+mod mcp_tokens;
+pub(crate) mod sessions;
 mod tokens;
 mod transactions;
-mod validation;
+pub(crate) mod validation;
 
 use axum::http::HeaderMap;
 use chrono::{DateTime, Utc};
@@ -12,8 +15,13 @@ use uuid::Uuid;
 use crate::{api_models::ClientKind, error::ApiError, state::AppState};
 
 pub use handlers::{create_transaction, exchange, jwks, refresh, revoke};
+pub use mcp_session::{authenticate_mcp, McpAuthContext};
+pub use mcp_tokens::{
+    McpAccessInput, McpCallGrantClaims, McpCallGrantInput, MCP_CALL_AUDIENCE,
+    MCP_CALL_GRANT_SECONDS,
+};
 pub use sessions::{create_session, revoke_family, rotate_session};
-pub use tokens::{AccessClaims, RelayGrantInput, TokenService};
+pub use tokens::{AccessClaims, RelayGrantClaims, RelayGrantInput, TokenService};
 pub use transactions::create_link_transaction;
 
 #[derive(Clone, Debug)]
@@ -102,7 +110,7 @@ pub async fn authenticate(
     Ok(context)
 }
 
-fn bearer_token(headers: &HeaderMap) -> Result<&str, ApiError> {
+pub(crate) fn bearer_token(headers: &HeaderMap) -> Result<&str, ApiError> {
     let value = headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
