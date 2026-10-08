@@ -135,7 +135,8 @@ pub(crate) async fn run_tool(
     };
     let (stdout, stdout_truncated) = collect(stdout).await;
     let (stderr, _) = collect(stderr).await;
-    let mut text = if status.is_some_and(|status| status.success()) {
+    let succeeded = status.is_some_and(|status| status.success()) || is_wait_timeout(&stdout);
+    let mut text = if succeeded {
         if stdout.trim().is_empty() {
             "Done.".to_owned()
         } else {
@@ -158,8 +159,14 @@ pub(crate) async fn run_tool(
     }
     ToolResult {
         text,
-        is_error: !status.is_some_and(|status| status.success()),
+        is_error: !succeeded,
     }
+}
+
+/// `inbox wait` exits with 2 when its wait ends with nothing new. For a polling
+/// tool that is an ordinary answer, not a failure.
+pub(super) fn is_wait_timeout(stdout: &str) -> bool {
+    serde_json::from_str::<Value>(stdout.trim()).is_ok_and(|value| value["outcome"] == "timeout")
 }
 
 pub(super) fn without_fields(text: &str, fields: &[&str]) -> String {

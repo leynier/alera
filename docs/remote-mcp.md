@@ -14,7 +14,7 @@ The same tool catalog is also served locally by `alera mcp serve` over stdio, wi
 - Every routed call carries a short-lived call grant signed by the cloud for one runtime, account, tool, and call id. The runtime verifies it against the published JWKS and refuses replays before running anything, so a frame without such a grant cannot drive a runtime. The edge stays inside the trust boundary: it serves the JWKS and forwards the arguments, which the grant does not cover.
 - A call names its runtime with `runtime` (name or id). When the grant reaches exactly one connected runtime, `runtime` may be omitted. Nothing is remembered between calls, so concurrent conversations cannot move each other.
 - The consent page grants a list of runtimes, or every runtime including future ones, plus the `mcp:read` and `mcp:execute` scopes.
-- Runtime names are chosen by the user, unique per account (case-insensitive) when set explicitly, and sent again on every sign-in so the cloud never reverts to the host name.
+- Runtime names are chosen by the user, unique per account (case-insensitive) when set explicitly, and sent again on every sign-in so the cloud never reverts to the host name. Renaming needs a signed-in account so the cloud can reserve the name. Host-name defaults, or a name carried into another account, can still repeat; name-based calls then fail with `runtime_ambiguous` and list the ids.
 - Long operations are bounded. Waiting tools accept at most 50 seconds because hosted MCP clients abandon HTTP calls after about a minute; the agent polls again.
 
 ## Architecture

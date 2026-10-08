@@ -196,3 +196,12 @@ fn messages_name_their_sender() {
         .invocation(&json!({ "to": "@all", "subject": "hi" }))
         .is_err());
 }
+
+#[test]
+fn inbox_wait_timeouts_are_answers_not_failures() {
+    assert!(super::executor::is_wait_timeout(
+        r#"{"outcome":"timeout","cursor":3}"#
+    ));
+    assert!(!super::executor::is_wait_timeout(r#"{"outcome":"reply"}"#));
+    assert!(!super::executor::is_wait_timeout("error: no such question"));
+}

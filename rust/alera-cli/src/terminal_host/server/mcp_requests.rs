@@ -241,16 +241,20 @@ async fn apply_settings(
     name: Option<String>,
 ) -> HostResult<Value> {
     if let Some(name) = name {
-        // The cloud enforces uniqueness, so a taken name is refused before it
-        // is saved locally.
+        // The cloud reserves the name, so renaming needs an account: a name
+        // saved while signed out would reach the cloud at the next sign-in
+        // without its uniqueness check.
         if service
             .local_account()
             .await
             .map_err(store_error)?
-            .is_some()
+            .is_none()
         {
-            service.rename_runtime(&name).await.map_err(cloud_error)?;
+            return Err(HostError::state(
+                "Sign in to an Alera account before renaming this runtime, so the name can be reserved.",
+            ));
         }
+        service.rename_runtime(&name).await.map_err(cloud_error)?;
         set_runtime_name(store, &name).await.map_err(store_error)?;
     }
     if let Some(access) = access {

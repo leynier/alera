@@ -20,20 +20,26 @@ type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 
 pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> anyhow::Result<()> {
     let (output, mut outgoing) = mpsc::channel::<Value>(64);
+    let pending: Pending = Arc::default();
+    let writer_pending = pending.clone();
     let writer = tokio::spawn(async move {
         let mut stdout = tokio::io::stdout();
         while let Some(message) = outgoing.recv().await {
             let mut line = serde_json::to_vec(&message).unwrap_or_default();
             line.push(b'\n');
             if stdout.write_all(&line).await.is_err() || stdout.flush().await.is_err() {
+                // A closed stdout is a disconnect, like stdin reaching EOF.
+                cancel_all(&writer_pending);
                 break;
             }
         }
     });
-    let pending: Pending = Arc::default();
     let permits = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_CALLS));
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
+        if output.is_closed() {
+            break;
+        }
         if line.trim().is_empty() {
             continue;
         }
@@ -119,9 +125,20 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> an
             }
         }
     }
+    // The client is gone: stop running calls and keep queued ones from
+    // starting, since nobody can receive their results.
+    cancel_all(&pending);
     drop(output);
     let _ = writer.await;
     Ok(())
+}
+
+fn cancel_all(pending: &Pending) {
+    if let Ok(mut map) = pending.lock() {
+        for (_, cancel) in map.drain() {
+            let _ = cancel.send(());
+        }
+    }
 }
 
 fn visible_tools(read_only: bool) -> Vec<ToolSpec> {

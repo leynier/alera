@@ -10,7 +10,7 @@ Use these commands when the user wants an MCP client (Claude, ChatGPT, Cursor, C
 
 ## Runtime Name
 
-`alera runtime rename "<name>"` names the runtime. MCP clients and phones pick runtimes by this name, so it must be unique (ignoring case) within the account; a taken name fails without changing anything. The name is kept locally and sent again on every sign-in.
+`alera runtime rename "<name>"` names the runtime. It needs a signed-in account, because the cloud reserves the name: it must be unique (ignoring case) within the account, and a taken name fails without changing anything. MCP clients and phones pick runtimes by this name. The name is kept locally and sent again on every sign-in.
 
 ## MCP Control
 
