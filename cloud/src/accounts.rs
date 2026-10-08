@@ -191,6 +191,16 @@ pub async fn load_account_summary(
     pool: &PgPool,
     account_id: Uuid,
 ) -> Result<AccountSummary, ApiError> {
+    let mut connection = pool.acquire().await?;
+    load_account_summary_on(&mut connection, account_id).await
+}
+
+/// [`load_account_summary`] on a connection the caller holds, such as an open
+/// transaction.
+pub async fn load_account_summary_on(
+    connection: &mut sqlx::PgConnection,
+    account_id: Uuid,
+) -> Result<AccountSummary, ApiError> {
     let row = sqlx::query(
         r#"
         SELECT primary_email
@@ -199,7 +209,7 @@ pub async fn load_account_summary(
         "#,
     )
     .bind(account_id)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *connection)
     .await?
     .ok_or_else(|| {
         ApiError::unauthorized("account_unavailable", "The Alera account is unavailable.")
@@ -213,7 +223,7 @@ pub async fn load_account_summary(
         "#,
     )
     .bind(account_id)
-    .fetch_all(pool)
+    .fetch_all(&mut *connection)
     .await?
     .into_iter()
     .map(|row| IdentitySummary {

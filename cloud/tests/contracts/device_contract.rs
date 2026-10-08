@@ -1,3 +1,5 @@
+use alera_cloud::signing::{JsonWebKey, TokenSigner};
+
 use super::mcp_contract::delete_account;
 use super::mcp_http::*;
 use super::*;
@@ -291,7 +293,67 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     assert_eq!(second.status, StatusCode::CONFLICT);
     assert_eq!(second.error_code(), "runtime_already_signed_in");
 
+    // A redemption whose token signing fails leaves no session behind, so the
+    // runtime can start another device sign-in.
+    let failing = router(test_state_with_signer(
+        pool.clone(),
+        url.clone(),
+        format!("{}@example.test", Uuid::now_v7()),
+        true,
+        Arc::new(AtomicUsize::new(0)),
+        Arc::new(FailingSigner),
+    )?);
+    let orphan_id = format!("runtime-{}", Uuid::now_v7());
+    let orphan = post_json(
+        &failing,
+        "/v1/auth/device",
+        None,
+        json!({"clientId": orphan_id, "clientKind": "runtime", "deviceName": "Orphan"}),
+    )
+    .await?
+    .json();
+    sqlx::query(
+        "UPDATE device_authorizations SET status = 'approved', account_id = $2, approved_at = NOW() WHERE client_id = $1",
+    )
+    .bind(&orphan_id)
+    .bind(Uuid::parse_str(tokens["account"]["id"].as_str().unwrap_or_default())?)
+    .execute(&pool)
+    .await?;
+    let redeemed = post_json(
+        &failing,
+        "/v1/auth/device/token",
+        None,
+        json!({"deviceCode": orphan["deviceCode"]}),
+    )
+    .await?;
+    assert_eq!(redeemed.status, StatusCode::INTERNAL_SERVER_ERROR);
+    let retried = post_json(
+        &app,
+        "/v1/auth/device",
+        None,
+        json!({"clientId": orphan_id, "clientKind": "runtime", "deviceName": "Orphan"}),
+    )
+    .await?;
+    assert_eq!(retried.status, StatusCode::OK, "{}", retried.text());
+
     delete_account(&pool, tokens["account"]["id"].as_str()).await?;
     pool.close().await;
     Ok(())
+}
+
+struct FailingSigner;
+
+#[async_trait]
+impl TokenSigner for FailingSigner {
+    fn key_id(&self) -> &str {
+        "failing"
+    }
+
+    fn public_keys(&self) -> Vec<JsonWebKey> {
+        Vec::new()
+    }
+
+    async fn sign(&self, _message: &[u8]) -> anyhow::Result<Vec<u8>> {
+        anyhow::bail!("signing is unavailable")
+    }
 }

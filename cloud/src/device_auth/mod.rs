@@ -174,7 +174,6 @@ pub async fn token(
             }
             let envelope = create_session_in(
                 guard,
-                &state.pool,
                 &state.tokens,
                 account_id,
                 &row.client_id,

@@ -5,7 +5,7 @@ use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::{
-    accounts::load_account_summary,
+    accounts::{load_account_summary, load_account_summary_on},
     api_models::{ClientKind, ClientSummary, TokenEnvelope},
     error::ApiError,
 };
@@ -71,13 +71,13 @@ pub async fn create_session(
     .await
 }
 
-/// Like [`create_session`], inside a transaction the caller already holds, which
-/// it commits before the response is built. The caller's locks stay held while
-/// the session is written, and no second pool connection is needed.
+/// Like [`create_session`], inside a transaction the caller already holds. The
+/// response, including the signed access token, is built before the commit, so
+/// a signing failure leaves no orphaned session, and no second pool connection
+/// is needed while the caller's locks are held.
 #[allow(clippy::too_many_arguments)]
 pub async fn create_session_in(
     mut transaction: sqlx::Transaction<'_, sqlx::Postgres>,
-    pool: &PgPool,
     tokens: &TokenService,
     account_id: Uuid,
     client_id: &str,
@@ -94,9 +94,8 @@ pub async fn create_session_in(
         authenticated_at,
     )
     .await?;
-    transaction.commit().await?;
-    envelope(
-        pool,
+    let account = load_account_summary_on(&mut transaction, account_id).await?;
+    let built = envelope_for(
         tokens,
         SessionDescriptor {
             account_id,
@@ -106,8 +105,11 @@ pub async fn create_session_in(
             authenticated_at,
         },
         refresh_token,
+        account,
     )
-    .await
+    .await?;
+    transaction.commit().await?;
+    Ok(built)
 }
 
 /// Creates a refresh family and its first token, returning the family id and raw token.
@@ -372,6 +374,15 @@ async fn envelope(
     refresh_token: String,
 ) -> Result<TokenEnvelope, ApiError> {
     let account = load_account_summary(pool, session.account_id).await?;
+    envelope_for(tokens, session, refresh_token, account).await
+}
+
+async fn envelope_for(
+    tokens: &TokenService,
+    session: SessionDescriptor<'_>,
+    refresh_token: String,
+    account: crate::api_models::AccountSummary,
+) -> Result<TokenEnvelope, ApiError> {
     let access_token = tokens
         .issue(
             session.account_id,

@@ -217,7 +217,7 @@ async fn account_login(runtime_dir: &Path, args: AccountLoginArgs, quiet: bool) 
         announce(format!(
             "Opening the browser to sign in. If it does not open, visit:\n{url}"
         ));
-        open_in_browser(url).await;
+        open_in_browser(url);
     }
     wait_for_sign_in(&mut client).await
 }
@@ -258,7 +258,7 @@ fn sign_in_result(status: Value) -> Result<Value> {
     }
 }
 
-async fn open_in_browser(url: &str) {
+fn open_in_browser(url: &str) {
     #[cfg(target_os = "macos")]
     let mut command = alera_core::child_process::windowless_async_command("open");
     #[cfg(windows)]
@@ -269,13 +269,14 @@ async fn open_in_browser(url: &str) {
     };
     #[cfg(all(unix, not(target_os = "macos")))]
     let mut command = alera_core::child_process::windowless_async_command("xdg-open");
+    // Not awaited: `xdg-open` can run the browser in the foreground, and the
+    // sign-in must be polled while it is open.
     let _ = command
         .arg(url)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .status()
-        .await;
+        .spawn();
 }
 
 fn settings_message(value: &Value) -> String {
