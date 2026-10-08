@@ -216,17 +216,11 @@ async fn poll_device_sign_in(
         }
         match polled {
             Ok(DevicePoll::Approved(envelope)) => {
-                // Cancellation can land while the approving poll is in flight;
-                // the approved session is then revoked instead of saved.
-                if cancelled.try_recv().is_ok() {
-                    let _ = service.discard_session(&envelope).await;
-                    return Err(HostError::state("The sign-in was cancelled."));
-                }
-                let account = service
-                    .complete_auth(*envelope)
-                    .await
-                    .map_err(cloud_error)?;
-                return Ok(json!(account));
+                return if cancelled.try_recv().is_ok() {
+                    Err(drop_cancelled_session(service, *envelope).await)
+                } else {
+                    save_session(service, *envelope).await
+                };
             }
             Ok(DevicePoll::Pending { slow_down }) => {
                 if slow_down {
@@ -234,6 +228,39 @@ async fn poll_device_sign_in(
                 }
             }
             Err(error) => return Err(cloud_error(error)),
+        }
+    }
+}
+
+/// The cloud already created this session, and a session nobody holds still
+/// blocks the next device sign-in until it idles out. So it is revoked, or,
+/// when revoking fails, kept so the person can sign out.
+async fn drop_cancelled_session(
+    service: &AleraAccountService,
+    envelope: crate::terminal_host::alera_account::AuthEnvelope,
+) -> HostError {
+    if service.discard_session(&envelope).await.is_ok() {
+        return HostError::state("The sign-in was cancelled.");
+    }
+    match service.complete_auth(envelope).await {
+        Ok(_) => HostError::state(
+            "The sign-in was cancelled after it was approved, and its session could not be revoked, so it was kept. Run `alera account logout` to remove it.",
+        ),
+        Err(error) => cloud_error(error),
+    }
+}
+
+async fn save_session(
+    service: &AleraAccountService,
+    envelope: crate::terminal_host::alera_account::AuthEnvelope,
+) -> HostResult<Value> {
+    match service.complete_auth(envelope.clone()).await {
+        Ok(account) => Ok(json!(account)),
+        Err(error) => {
+            // Not saved locally, so revoke it in the cloud rather than leave
+            // an unreachable session behind.
+            let _ = service.discard_session(&envelope).await;
+            Err(cloud_error(error))
         }
     }
 }

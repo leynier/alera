@@ -153,13 +153,17 @@ async fn reports_invalid_arguments_without_spawning() {
 fn mcp_tool_catalog_matches_edge_copy() {
     let path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../edge/src/mcp/tool_catalog.json");
-    let mut expected = serde_json::to_string_pretty(&catalog_json()).unwrap();
-    expected.push('\n');
+    // Keys are sorted explicitly: workspace builds can enable serde_json's
+    // `preserve_order`, which would otherwise change the written key order.
+    let expected = sorted_keys(catalog_json());
     if std::env::var_os("ALERA_UPDATE_MCP_CATALOG").is_some() {
-        std::fs::write(&path, &expected).unwrap();
+        let mut text = serde_json::to_string_pretty(&expected).unwrap();
+        text.push('\n');
+        std::fs::write(&path, text).unwrap();
         return;
     }
-    let actual = std::fs::read_to_string(&path).unwrap_or_default();
+    let actual: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap_or_default())
+        .unwrap_or_default();
     assert_eq!(
         actual, expected,
         "edge/src/mcp/tool_catalog.json is stale; run with ALERA_UPDATE_MCP_CATALOG=1"
@@ -210,4 +214,21 @@ fn mcp_task_cancellation_is_an_audited_administrative_action() {
     let (args, _) = invocation_args("cancel_task", json!({ "taskId": "t-1", "reason": "stale" }));
     assert!(args.contains(&"--force".to_owned()));
     assert!(args.contains(&"--reason=[mcp] stale".to_owned()));
+}
+
+fn sorted_keys(value: Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut entries = map.into_iter().collect::<Vec<_>>();
+            entries.sort_by(|left, right| left.0.cmp(&right.0));
+            Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key, sorted_keys(value)))
+                    .collect(),
+            )
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(sorted_keys).collect()),
+        other => other,
+    }
 }
