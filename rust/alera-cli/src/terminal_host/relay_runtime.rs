@@ -1,4 +1,5 @@
 use super::relay_connection::{relay_request, RelayRetryBackoff, CONTROL_PROTOCOL};
+use super::relay_mcp::{CallContext, McpLink, MCP_CLIENT_ID};
 use super::relay_runtime_auth::{encode, GrantVerifier};
 use super::server::ServerCommand;
 use super::{client_budget, relay_crypto, relay_runtime_auth, relay_wire};
@@ -69,12 +70,23 @@ impl RelayAccount for AleraAccountService {
     }
 }
 
+/// What the link serves besides the transport: phones when Remote Access is
+/// on, and MCP tool calls when MCP Control is on.
+pub(crate) struct RelayFeatures {
+    pub(crate) mobile_access: bool,
+    pub(crate) mcp: Option<(
+        crate::mcp_settings::McpAccess,
+        crate::mcp_tools::ToolExecution,
+    )>,
+}
+
 pub fn spawn(
     service: Arc<AleraAccountService>,
     runtime_id: String,
     inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
     generation: u64,
+    features: RelayFeatures,
 ) -> (JoinHandle<()>, oneshot::Sender<()>) {
     let (stop_tx, stop_rx) = oneshot::channel();
     (
@@ -85,9 +97,16 @@ pub fn spawn(
             next_client_id,
             stop_rx,
             generation,
+            features,
         )),
         stop_tx,
     )
+}
+
+struct LinkServices {
+    generation: u64,
+    mobile_access: bool,
+    mcp: Option<McpLink>,
 }
 
 async fn run(
@@ -97,6 +116,7 @@ async fn run(
     next_client_id: Arc<AtomicU64>,
     mut stop: oneshot::Receiver<()>,
     generation: u64,
+    features: RelayFeatures,
 ) {
     let Ok(verifier) = GrantVerifier::new() else {
         report(
@@ -108,12 +128,19 @@ async fn run(
         );
         return;
     };
+    let services = LinkServices {
+        generation,
+        mobile_access: features.mobile_access,
+        mcp: features
+            .mcp
+            .map(|(access, execution)| McpLink::new(access, execution, verifier.clone())),
+    };
     let mut backoff = RelayRetryBackoff::default();
     loop {
         report(&inbox, generation, "connecting", None, None);
         let result = tokio::select! {
             _ = &mut stop => return,
-            result = connect_and_serve(service.as_ref(), &runtime_id, &inbox, &next_client_id, &verifier, &mut backoff, generation) => result,
+            result = connect_and_serve(service.as_ref(), &runtime_id, &inbox, &next_client_id, &verifier, &mut backoff, &services) => result,
         };
         let Err(error) = result else {
             return;
@@ -144,8 +171,9 @@ async fn connect_and_serve(
     next_id: &Arc<AtomicU64>,
     verifier: &GrantVerifier,
     backoff: &mut RelayRetryBackoff,
-    generation: u64,
+    services: &LinkServices,
 ) -> anyhow::Result<()> {
+    let generation = services.generation;
     let established = tokio::time::timeout(Duration::from_secs(30), async {
         let identity = Arc::new(service.relay_identity().await?);
         let grant = service.relay_grant().await?;
@@ -171,6 +199,8 @@ async fn connect_and_serve(
         .and_then(|value| value.to_str().ok())
         == Some(CONTROL_PROTOCOL);
     let (write, mut read) = socket.split();
+    // Dropped when this socket ends, which stops the MCP calls it carried.
+    let (_connection_lifetime, connection_closed) = tokio::sync::watch::channel(());
     let (output, frames) = mpsc::channel(16);
     let (control, control_rx) = mpsc::channel(16);
     let mut writer = SocketTask(tokio::spawn(socket_writer::run(write, frames, control_rx)));
@@ -269,10 +299,17 @@ async fn connect_and_serve(
                     continue;
                 }
                 let Ok((client_id, payload)) = relay_wire::unwrap(&bytes) else { continue; };
+                if client_id == MCP_CLIENT_ID {
+                    if let Some(link) = &services.mcp {
+                        link.handle_frame(payload, CallContext { account_id: &grant.account_id, runtime_id, control: &control, connection_closed: &connection_closed });
+                    }
+                    continue;
+                }
+                if client_id.starts_with('~') { continue; }
                 if payload.is_empty() { peers.remove(&client_id); continue; }
                 if payload.len() > 1024 * 1024 { peers.remove(&client_id); continue; }
                 if !peers.contains_key(&client_id) {
-                    if peers.len() >= MAX_MOBILE_CLIENTS || payload.len() > 16 * 1024 { continue; }
+                    if !services.mobile_access || peers.len() >= MAX_MOBILE_CLIENTS || payload.len() > 16 * 1024 { continue; }
                     let peer = peer::PeerContext {
                         control_protocol: negotiated,
                         client_id: client_id.clone(), numeric_id: next_id.fetch_add(1, Ordering::Relaxed),

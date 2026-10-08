@@ -75,6 +75,10 @@ The local cross-language fixture runs the production Dart relay client, Rust rel
 
 Local automated tests do not measure production latency or prove Android/iOS suspension behavior. Release verification must still exercise a real phone against the updated desktop and edge: cold start, rapid app switching, a file picker round trip, Wi-Fi/cellular changes, a background interval longer than grant expiry, and a runtime restart. Confirm that terminal drafts survive, remote device presence follows the live connection, and no stale commands are replayed. Publishing or replacing the installed apps and edge is a separate operation.
 
+## Shared Runtime Link
+
+The runtime keeps one relay WebSocket when Remote Access or MCP Control ([`remote-mcp.md`](remote-mcp.md)) is on. Each runtime relay grant carries `mobileAccess` and `mcpAccess` claims. With `mobileAccess: false` the Durable Object refuses phones with `relay_runtime_unavailable`, discovery hides the runtime, and the runtime ignores phone handshakes. MCP calls use the reserved client id `~mcp` in plaintext JSON frames, separate from the encrypted phone traffic; phones may not use client ids that start with `~`, and `~mcp` frames are never forwarded to phones.
+
 ## Deferred Work
 
 The initial implementation intentionally defers key transparency, offline relay delivery, payload-aware support tooling, multi-runtime relay multiplexing, and durable connection history. Any future observability must remain metadata-only and must preserve the ciphertext-only boundary.

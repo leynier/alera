@@ -98,9 +98,22 @@ impl ServerActor {
                 return;
             }
         };
-        if !settings.remote_access_enabled {
+        let mcp_access = crate::mcp_settings::mcp_access(&self.runtime_store)
+            .await
+            .unwrap_or_default();
+        if !settings.remote_access_enabled && mcp_access == crate::mcp_settings::McpAccess::Off {
             return;
         }
+        let mcp = match mcp_access {
+            crate::mcp_settings::McpAccess::Off => None,
+            access => match crate::mcp_tools::ToolExecution::current(self.runtime_dir.clone()) {
+                Ok(execution) => Some((access, execution)),
+                Err(error) => {
+                    tracing::warn!("MCP Control is unavailable: {error}");
+                    None
+                }
+            },
+        };
         match self.account_push.service.local_account().await {
             Ok(Some(_)) => {}
             Ok(None) => return,
@@ -115,6 +128,10 @@ impl ServerActor {
             self.inbox.clone(),
             self.next_client_id.clone(),
             self.account_push.relay_generation,
+            relay_runtime::RelayFeatures {
+                mobile_access: settings.remote_access_enabled,
+                mcp,
+            },
         );
         self.account_push.relay_task = Some(task);
         self.account_push.relay_stop = Some(stop);

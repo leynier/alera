@@ -1,0 +1,1188 @@
+{
+  "tools": [
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Runtime Status"
+      },
+      "description": "Show whether the Alera runtime host is running, its database, and its active sessions.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "runtime_status",
+      "timeoutSeconds": 30,
+      "title": "Runtime Status"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Projects"
+      },
+      "description": "List the projects registered in this Alera runtime with their ids, names, and the hosts each one is on.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_projects",
+      "timeoutSeconds": 30,
+      "title": "List Projects"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Workspaces"
+      },
+      "description": "List workspaces (tasks with their branch and worktree) of one project, or of every project when projectId is omitted. Filter by host with hostId.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "hostId": {
+            "description": "SSH target id, or `local`.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Project id from list_projects.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_workspaces",
+      "timeoutSeconds": 30,
+      "title": "List Workspaces"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Tabs"
+      },
+      "description": "List the tabs of a workspace, including terminal and agent tabs.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId"
+        ],
+        "type": "object"
+      },
+      "name": "list_tabs",
+      "timeoutSeconds": 30,
+      "title": "List Tabs"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Agent Profiles"
+      },
+      "description": "List the agent profiles (Claude, Codex, and others) that can be launched or delegated to, with their ids and names.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_agent_profiles",
+      "timeoutSeconds": 30,
+      "title": "List Agent Profiles"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Terminals"
+      },
+      "description": "List live terminal sessions with their handles, optionally for one workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_terminals",
+      "timeoutSeconds": 30,
+      "title": "List Terminals"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Terminal"
+      },
+      "description": "Show one terminal session by handle, including its agent and lifecycle state.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "description": "Terminal handle from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "type": "object"
+      },
+      "name": "show_terminal",
+      "timeoutSeconds": 30,
+      "title": "Show Terminal"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Read Terminal"
+      },
+      "description": "Read retained terminal output. Pass the returned cursor on the next call to read only new output.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Cursor returned by a previous read.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "handle": {
+            "description": "Terminal handle from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxBytes": {
+            "description": "Maximum bytes to return (default 32768).",
+            "maximum": 262144,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "type": "object"
+      },
+      "name": "read_terminal",
+      "timeoutSeconds": 30,
+      "title": "Read Terminal"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Tasks"
+      },
+      "description": "List orchestration tasks, optionally filtered by status, coordinator run, or workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Coordinator run id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "description": "Task status.",
+            "enum": [
+              "pending",
+              "ready",
+              "dispatched",
+              "completed",
+              "failed",
+              "blocked",
+              "stalled",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_tasks",
+      "timeoutSeconds": 30,
+      "title": "List Tasks"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Task"
+      },
+      "description": "Show one orchestration task with its active dispatch.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "show_task",
+      "timeoutSeconds": 30,
+      "title": "Show Task"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Coordinator Runs"
+      },
+      "description": "List durable orchestration coordinator runs, optionally for one workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_runs",
+      "timeoutSeconds": 30,
+      "title": "List Coordinator Runs"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Orchestration Status"
+      },
+      "description": "Aggregate the run, task, worker, and escalation state of one coordinator run.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Coordinator run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "orchestration_status",
+      "timeoutSeconds": 30,
+      "title": "Orchestration Status"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Orchestration Messages"
+      },
+      "description": "List recent orchestration messages across all recipients, or the inbox or outbox of one terminal.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "direction": {
+            "description": "Direction relative to terminal.",
+            "enum": [
+              "inbox",
+              "outbox"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum messages (default 50).",
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "terminal": {
+            "description": "Terminal handle.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_messages",
+      "timeoutSeconds": 30,
+      "title": "List Orchestration Messages"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Askable Agents"
+      },
+      "description": "List running agents that ask_agent can reach, optionally for one workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_inbox_targets",
+      "timeoutSeconds": 30,
+      "title": "List Askable Agents"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Question Threads"
+      },
+      "description": "List question threads started through ask_agent, newest first.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "before": {
+            "description": "Continue from the nextBefore value of a previous listing.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Maximum threads (default 50).",
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "description": "Thread status.",
+            "enum": [
+              "pending",
+              "received",
+              "delivered",
+              "expired",
+              "answered",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_inbox_threads",
+      "timeoutSeconds": 30,
+      "title": "List Question Threads"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Question Thread"
+      },
+      "description": "Show a question thread with every question and reply.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "questionId": {
+            "description": "Any question id in the thread.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionId"
+        ],
+        "type": "object"
+      },
+      "name": "show_inbox_thread",
+      "timeoutSeconds": 30,
+      "title": "Show Question Thread"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Automations"
+      },
+      "description": "List runtime automations, optionally filtered by state, project, or search text.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "description": "Project id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "search": {
+            "description": "Text to search for.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "state": {
+            "description": "Automation state.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_automations",
+      "timeoutSeconds": 30,
+      "title": "List Automations"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Automation Runs"
+      },
+      "description": "List automation runs, newest first, optionally for one automation.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "description": "Automation id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum runs (default 20).",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_automation_runs",
+      "timeoutSeconds": 30,
+      "title": "List Automation Runs"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Task"
+      },
+      "description": "Wait up to timeoutSeconds for an orchestration task to reach one of the given states, then return it. Returns the current state when the wait ends first.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "states": {
+            "description": "States to wait for (default completed, failed, stalled, cancelled).",
+            "items": {
+              "enum": [
+                "pending",
+                "ready",
+                "dispatched",
+                "completed",
+                "failed",
+                "blocked",
+                "stalled",
+                "cancelled"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_task",
+      "timeoutSeconds": 58,
+      "title": "Wait For Task"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Terminal"
+      },
+      "description": "Wait up to timeoutSeconds for a terminal to reach a lifecycle state, such as an agent becoming ready.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "description": "Terminal handle.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "state": {
+            "description": "Lifecycle state.",
+            "enum": [
+              "process-started",
+              "agent-detected",
+              "agent-ready",
+              "dispatch-accepted"
+            ],
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "handle",
+          "state"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_terminal",
+      "timeoutSeconds": 58,
+      "title": "Wait For Terminal"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Reply"
+      },
+      "description": "Wait up to timeoutSeconds for news about a question asked with ask_agent. Pass the returned cursor as after to skip what was already seen.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "description": "Cursor from a previous result.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "questionId": {
+            "description": "Question id returned by ask_agent.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "questionId"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_reply",
+      "timeoutSeconds": 58,
+      "title": "Wait For Reply"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Create Workspace"
+      },
+      "description": "Create a workspace (task) in a project, optionally on its own Git worktree and branch. A worktree also needs sourceBranch, such as main. No agent is started.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "description": "Branch to create or use.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "hostId": {
+            "description": "SSH target that owns the worktree. Omit for this machine.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "issueUrl": {
+            "description": "Issue URL to link to the workspace.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "description": "Workspace display name.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Project id from list_projects.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "section": {
+            "description": "Sidebar section name.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceBranch": {
+            "description": "Branch the new branch starts from.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "worktree": {
+            "description": "Create an exclusive Git worktree instead of sharing the project folder.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "type": "object"
+      },
+      "name": "create_workspace",
+      "timeoutSeconds": 30,
+      "title": "Create Workspace"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Start Agent In New Workspace"
+      },
+      "description": "Create a workspace and launch an agent profile in it with a prompt. Pass projectId, or workspaceId to infer the project and source branch from an existing workspace. A worktree created from projectId also needs sourceBranch.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "description": "Branch to create or use.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "hostId": {
+            "description": "SSH target that owns the worktree. Omit for this machine.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "issueUrl": {
+            "description": "Issue URL to link to the workspace.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "description": "Workspace display name.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "profile": {
+            "description": "Agent profile id or unique name from list_agent_profiles.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Project id from list_projects.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "prompt": {
+            "description": "Prompt delivered to the agent.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "section": {
+            "description": "Sidebar section name.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceBranch": {
+            "description": "Branch the new branch starts from.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Existing workspace used to infer the project.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "worktree": {
+            "description": "Create an exclusive Git worktree instead of sharing the project folder.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profile",
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "name": "start_agent_workspace",
+      "timeoutSeconds": 58,
+      "title": "Start Agent In New Workspace"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Launch Agent"
+      },
+      "description": "Launch an agent profile in a new tab of an existing workspace with a prompt.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "description": "Agent profile id or unique name from list_agent_profiles.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "prompt": {
+            "description": "Prompt delivered to the agent.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "profile",
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "name": "launch_agent",
+      "timeoutSeconds": 58,
+      "title": "Launch Agent"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Delegate Task"
+      },
+      "description": "Create an orchestration task and start an agent profile that accepts it, in an existing workspace or a new child worktree. The coordinator is a running agent terminal (from list_terminals) that receives the worker's messages. Returns the task; follow it with wait_for_task. Without a coordinator terminal, use start_agent_workspace or ask_agent instead.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "description": "Branch for the new workspace.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "coordinator": {
+            "description": "Terminal handle of the coordinating agent, from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "description": "Name for the new workspace.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "newWorkspace": {
+            "description": "Create a child worktree and delegate into it.",
+            "type": "boolean"
+          },
+          "profile": {
+            "description": "Agent profile id or unique name from list_agent_profiles.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Project for the new workspace.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceBranch": {
+            "description": "Branch the new workspace starts from.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "spec": {
+            "description": "Task brief the worker receives.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait for the agent to accept.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "title": {
+            "description": "Short title for listings.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace that owns the task, or the source workspace with newWorkspace.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile",
+          "spec",
+          "coordinator"
+        ],
+        "type": "object"
+      },
+      "name": "delegate_task",
+      "timeoutSeconds": 58,
+      "title": "Delegate Task"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Write To Terminal"
+      },
+      "description": "Type text into a terminal. Set submit to send it to an interactive agent as a prompt, or enter to press Enter after it.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "enter": {
+            "description": "Press Enter after the text.",
+            "type": "boolean"
+          },
+          "handle": {
+            "description": "Terminal handle from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "submit": {
+            "description": "Submit to an interactive agent with bracketed paste and Enter.",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "Text to type.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "text"
+        ],
+        "type": "object"
+      },
+      "name": "write_terminal",
+      "timeoutSeconds": 30,
+      "title": "Write To Terminal"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Send Orchestration Message"
+      },
+      "description": "Send an orchestration message from one agent terminal to a terminal handle or a group such as @all, @idle, or @workspace:<id>. To ask an agent a question from outside, use ask_agent.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "description": "Message body.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "from": {
+            "description": "Sender terminal handle, from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "priority": {
+            "description": "Priority.",
+            "enum": [
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "description": "Message subject.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "threadId": {
+            "description": "Thread to attach the message to.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "to": {
+            "description": "Terminal handle or @group.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "description": "Message type.",
+            "enum": [
+              "status",
+              "dispatch",
+              "merge_ready",
+              "escalation",
+              "handoff",
+              "decision_gate"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "subject"
+        ],
+        "type": "object"
+      },
+      "name": "send_message",
+      "timeoutSeconds": 30,
+      "title": "Send Orchestration Message"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Ask Agent"
+      },
+      "description": "Ask a running agent a question by terminal handle, or the single agent of a workspace. Returns the question id; follow it with wait_for_reply.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "description": "With workspaceId, only agents of this type (claude, codex, ...).",
+            "minLength": 1,
+            "type": "string"
+          },
+          "body": {
+            "description": "The question.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expiresIn": {
+            "description": "Drop the question if undelivered in time, such as 30m or 2h.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "priority": {
+            "description": "Priority.",
+            "enum": [
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "description": "Short subject.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "threadId": {
+            "description": "Continue an earlier question's thread.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "to": {
+            "description": "Terminal handle of the agent.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Ask the single running agent of this workspace.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "name": "ask_agent",
+      "timeoutSeconds": 30,
+      "title": "Ask Agent"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Cancel Task"
+      },
+      "description": "Cancel an orchestration task and its not-yet-started descendants. Runs as an audited administrative cancellation, because an MCP client is not the task's coordinator terminal.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "description": "Why it is cancelled.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "name": "cancel_task",
+      "timeoutSeconds": 30,
+      "title": "Cancel Task"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Sleep Workspace"
+      },
+      "description": "Stop a workspace's terminal sessions while keeping its tabs, branch, and files. Opening it again wakes it.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId"
+        ],
+        "type": "object"
+      },
+      "name": "sleep_workspace",
+      "timeoutSeconds": 58,
+      "title": "Sleep Workspace"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Run Automation"
+      },
+      "description": "Start one run of an automation immediately.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "description": "Automation id from list_automations.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "automationId"
+        ],
+        "type": "object"
+      },
+      "name": "run_automation",
+      "timeoutSeconds": 30,
+      "title": "Run Automation"
+    }
+  ],
+  "version": 1
+}

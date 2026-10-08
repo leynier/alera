@@ -37,7 +37,7 @@ async fn migrations_and_refresh_replay_contract() -> anyhow::Result<()> {
     blocker.close().await;
     migrations::run(&pool).await?;
     sqlx::query(
-        "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (22, 'future-schema', true, decode('00', 'hex'), 0)",
+        "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (23, 'future-schema', true, decode('00', 'hex'), 0)",
     )
     .execute(&pool)
     .await?;
@@ -46,7 +46,7 @@ async fn migrations_and_refresh_replay_contract() -> anyhow::Result<()> {
         Err(error) => error,
     };
     assert!(format!("{unclassified:#}").contains("not classified"));
-    sqlx::query("DELETE FROM _sqlx_migrations WHERE version = 22")
+    sqlx::query("DELETE FROM _sqlx_migrations WHERE version = 23")
         .execute(&pool)
         .await?;
     migrations::run_required(&pool).await?;
@@ -62,6 +62,12 @@ async fn migrations_and_refresh_replay_contract() -> anyhow::Result<()> {
         .execute(&pool)
         .await?;
     sqlx::query("DROP INDEX CONCURRENTLY IF EXISTS public.auth_transactions_expiry_idx")
+        .execute(&pool)
+        .await?;
+    // Autovacuum would analyze the million rows inserted below while holding
+    // the lock that CREATE INDEX CONCURRENTLY needs, so the 100ms timeout could
+    // fire before the build creates its invalid index.
+    sqlx::query("ALTER TABLE auth_transactions SET (autovacuum_enabled = false)")
         .execute(&pool)
         .await?;
     sqlx::query(
@@ -119,6 +125,9 @@ async fn migrations_and_refresh_replay_contract() -> anyhow::Result<()> {
     .fetch_optional(&pool)
     .await?;
     assert!(matches!(invalid_state, Some((false, _))));
+    sqlx::query("ALTER TABLE auth_transactions RESET (autovacuum_enabled)")
+        .execute(&pool)
+        .await?;
     migrations::run_online(&pool).await?;
     let repaired_state = sqlx::query_as::<_, (bool, bool)>(
         r#"

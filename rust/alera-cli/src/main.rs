@@ -37,6 +37,9 @@ mod managed_workspace_handoff;
 #[cfg(test)]
 mod managed_workspace_removal_tests;
 mod managed_workspace_slug;
+mod mcp_commands;
+mod mcp_settings;
+mod mcp_tools;
 mod mobile_access;
 mod native_credential_entry;
 mod netbird;
@@ -223,6 +226,8 @@ async fn run(cli: Cli) -> i32 {
         }
         Command::Voice(command) => voice_commands::run(command).await,
         Command::Inbox(command) => inbox_commands::run(command).await,
+        Command::Account(command) => mcp_commands::run_account(command).await,
+        Command::Mcp(command) => mcp_commands::run_mcp(command).await,
     }
 }
 

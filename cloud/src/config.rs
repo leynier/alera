@@ -22,6 +22,45 @@ pub struct AppConfig {
     pub tombstone_pepper: String,
     pub http_timeout: Duration,
     pub limits: LimitsConfig,
+    pub mcp: McpConfig,
+}
+
+#[derive(Clone, Debug)]
+pub struct McpConfig {
+    pub enabled: bool,
+    pub resource: String,
+    pub web_google: OAuthProviderConfig,
+    pub web_github: OAuthProviderConfig,
+}
+
+impl McpConfig {
+    /// Builds the default MCP settings, reusing the native provider credentials for the web leg.
+    pub fn defaults(
+        public_base_url: &Url,
+        google: &OAuthProviderConfig,
+        github: &OAuthProviderConfig,
+    ) -> Self {
+        Self {
+            enabled: true,
+            resource: format!("{}/v1/mcp", base_url_text(public_base_url)),
+            web_google: google.clone(),
+            web_github: github.clone(),
+        }
+    }
+}
+
+impl AppConfig {
+    pub fn web_callback_url(&self) -> String {
+        format!("{}/oauth/callback", base_url_text(&self.public_base_url))
+    }
+
+    pub fn public_url(&self, path: &str) -> String {
+        format!("{}{path}", base_url_text(&self.public_base_url))
+    }
+}
+
+pub fn base_url_text(url: &Url) -> &str {
+    url.as_str().trim_end_matches('/')
 }
 
 #[derive(Clone, Debug)]
@@ -76,12 +115,16 @@ impl AppConfig {
             bail!("ALERA_EDGE_ORIGIN_TOKEN is required when direct origin access is disabled");
         }
 
+        let public_base_url = required_url("ALERA_PUBLIC_BASE_URL")?;
+        let google = google_config()?;
+        let github = github_config()?;
+        let mcp = mcp_config(&public_base_url, &google, &github)?;
         let config = Self {
             bind: required("ALERA_BIND")?
                 .parse()
                 .context("invalid ALERA_BIND")?,
             database_url: required("DATABASE_URL")?,
-            public_base_url: required_url("ALERA_PUBLIC_BASE_URL")?,
+            public_base_url,
             relay_base_url: env_url("ALERA_RELAY_BASE_URL", "wss://api.alera.build/v1/relay")?,
             issuer: required("ALERA_ISSUER")?,
             audience: required("ALERA_AUDIENCE")?,
@@ -89,8 +132,8 @@ impl AppConfig {
             edge_previous_origin_token: optional("ALERA_EDGE_PREVIOUS_ORIGIN_TOKEN"),
             allow_direct_origin,
             signing: signing_config()?,
-            google: google_config()?,
-            github: github_config()?,
+            google,
+            github,
             fcm: fcm_config()?,
             push_delivery_enabled: optional_bool("ALERA_PUSH_DELIVERY_ENABLED", true)?,
             tombstone_pepper: required("ALERA_TOMBSTONE_PEPPER")?,
@@ -102,6 +145,7 @@ impl AppConfig {
                 push_hourly: env_number("ALERA_PUSH_HOURLY_LIMIT", 60)?,
                 push_burst: env_number("ALERA_PUSH_BURST_LIMIT", 10)?,
             },
+            mcp,
         };
         config.validate()?;
         Ok(config)
@@ -124,6 +168,10 @@ impl AppConfig {
         {
             bail!("push limits must satisfy burst <= hourly <= daily");
         }
+        if self.mcp.resource == self.audience {
+            bail!("ALERA_MCP_RESOURCE must differ from ALERA_AUDIENCE");
+        }
+        Url::parse(&self.mcp.resource).context("invalid ALERA_MCP_RESOURCE")?;
         Ok(())
     }
 }
@@ -191,6 +239,39 @@ fn github_config() -> anyhow::Result<OAuthProviderConfig> {
         )?),
         jwks_url: None,
     })
+}
+
+fn mcp_config(
+    public_base_url: &Url,
+    google: &OAuthProviderConfig,
+    github: &OAuthProviderConfig,
+) -> anyhow::Result<McpConfig> {
+    let mut config = McpConfig::defaults(public_base_url, google, github);
+    config.enabled = optional_bool("ALERA_MCP_ENABLED", true)?;
+    if let Some(resource) = optional("ALERA_MCP_RESOURCE") {
+        config.resource = resource;
+    }
+    config.web_google = web_credentials(google, "ALERA_WEB_GOOGLE")?;
+    config.web_github = web_credentials(github, "ALERA_WEB_GITHUB")?;
+    Ok(config)
+}
+
+fn web_credentials(
+    native: &OAuthProviderConfig,
+    prefix: &str,
+) -> anyhow::Result<OAuthProviderConfig> {
+    let client_id = optional(&format!("{prefix}_CLIENT_ID"));
+    let client_secret = optional(&format!("{prefix}_CLIENT_SECRET"));
+    let mut config = native.clone();
+    match (client_id, client_secret) {
+        (Some(id), Some(secret)) => {
+            config.client_id = id;
+            config.client_secret = secret;
+        }
+        (None, None) => {}
+        _ => bail!("{prefix}_CLIENT_ID and {prefix}_CLIENT_SECRET must be set together"),
+    }
+    Ok(config)
 }
 
 fn fcm_config() -> anyhow::Result<FcmConfig> {

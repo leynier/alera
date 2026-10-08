@@ -18,9 +18,21 @@ mod push_delivery_contract;
 #[path = "contracts/push_claim_contract.rs"]
 mod push_claim_contract;
 
+#[path = "support/mcp_http.rs"]
+mod mcp_http;
+
+#[path = "contracts/mcp_contract.rs"]
+mod mcp_contract;
+
+#[path = "contracts/mcp_gateway_contract.rs"]
+mod mcp_gateway_contract;
+
+#[path = "contracts/device_contract.rs"]
+mod device_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
-    config::{FcmConfig, LimitsConfig, OAuthProviderConfig, SigningConfig},
+    config::{FcmConfig, LimitsConfig, McpConfig, OAuthProviderConfig, SigningConfig},
     fcm::{FcmMessage, FcmReceipt, FcmSender},
     migrations,
     oauth::{
@@ -201,10 +213,12 @@ fn test_config(database_url: String) -> anyhow::Result<AppConfig> {
         emails_url: None,
         jwks_url: None,
     };
+    let public_base_url = Url::parse("https://api.example.test")?;
+    let mcp = McpConfig::defaults(&public_base_url, &endpoint, &endpoint);
     Ok(AppConfig {
         bind: "127.0.0.1:0".parse()?,
         database_url,
-        public_base_url: Url::parse("https://api.example.test")?,
+        public_base_url,
         relay_base_url: Url::parse("wss://api.example.test/v1/relay")?,
         issuer: "https://api.example.test".to_owned(),
         audience: "alera-cloud".to_owned(),
@@ -228,6 +242,7 @@ fn test_config(database_url: String) -> anyhow::Result<AppConfig> {
             push_hourly: 60,
             push_burst: 10,
         },
+        mcp,
     })
 }
 
@@ -238,6 +253,37 @@ fn test_app(
     github_verified: bool,
     sent: Arc<AtomicUsize>,
 ) -> anyhow::Result<Router> {
+    Ok(router(test_state(
+        pool,
+        database_url,
+        email,
+        github_verified,
+        sent,
+    )?))
+}
+
+fn test_state(
+    pool: sqlx::PgPool,
+    database_url: String,
+    email: String,
+    github_verified: bool,
+    sent: Arc<AtomicUsize>,
+) -> anyhow::Result<AppState> {
+    let signer = Arc::new(LocalEd25519Signer::from_seed_b64url(
+        "api-contract".to_owned(),
+        &URL_SAFE_NO_PAD.encode([23_u8; 32]),
+    )?);
+    test_state_with_signer(pool, database_url, email, github_verified, sent, signer)
+}
+
+fn test_state_with_signer(
+    pool: sqlx::PgPool,
+    database_url: String,
+    email: String,
+    github_verified: bool,
+    sent: Arc<AtomicUsize>,
+    signer: Arc<dyn alera_cloud::signing::TokenSigner>,
+) -> anyhow::Result<AppState> {
     let providers = OAuthProviderRegistry::new(vec![
         Arc::new(FakeProvider {
             kind: ProviderKind::Google,
@@ -258,16 +304,12 @@ fn test_app(
             },
         }),
     ]);
-    let signer = Arc::new(LocalEd25519Signer::from_seed_b64url(
-        "api-contract".to_owned(),
-        &URL_SAFE_NO_PAD.encode([23_u8; 32]),
-    )?);
     let fcm = Arc::new(RecordingFcm { sent });
-    Ok(router(AppState::from_dependencies(
+    Ok(AppState::from_dependencies(
         pool,
         test_config(database_url)?,
         providers,
         signer,
         fcm,
-    )))
+    ))
 }

@@ -22,6 +22,7 @@ pub mod protocol;
 pub(crate) mod push_notifications;
 mod relay_connection;
 pub mod relay_crypto;
+mod relay_mcp;
 mod relay_runtime;
 mod relay_runtime_auth;
 pub mod relay_wire;

@@ -332,6 +332,15 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("account.status"));
     assert!(!mobile_request_allowed("account.signIn.start"));
     assert!(!mobile_request_allowed("account.signOut"));
+    assert!(!mobile_request_allowed("account.signIn.device.start"));
+    for verb in [
+        "mcp.settings.get",
+        "mcp.settings.update",
+        "mcp.grants.list",
+        "mcp.grants.revoke",
+    ] {
+        assert!(!mobile_request_allowed(verb), "{verb}");
+    }
     for verb in [
         "status",
         "signIn",

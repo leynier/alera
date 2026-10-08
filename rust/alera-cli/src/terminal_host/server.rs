@@ -51,6 +51,7 @@ mod account_push_state;
 mod account_requests;
 #[cfg(test)]
 mod account_requests_tests;
+mod account_status_requests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
@@ -133,6 +134,7 @@ mod codex_dictation;
 mod codex_server_startup;
 mod configuration_requests;
 mod configuration_transfers;
+mod mcp_requests;
 mod mobile_gateway_replacement;
 mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;

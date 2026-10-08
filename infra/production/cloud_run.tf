@@ -13,6 +13,7 @@ locals {
     ALERA_KMS_SIGN_URL           = "https://cloudkms.googleapis.com/v1/${data.google_kms_crypto_key_version.access_tokens_primary.name}:asymmetricSign"
     ALERA_MAX_MOBILE_DEVICES     = tostring(var.account_mobile_limit)
     ALERA_MAX_RUNTIMES           = tostring(var.account_runtime_limit)
+    ALERA_MCP_ENABLED            = tostring(var.mcp_enabled)
     ALERA_PUBLIC_BASE_URL        = "https://${var.api_hostname}"
     ALERA_RELAY_BASE_URL         = "wss://${var.api_hostname}/v1/relay"
     ALERA_PUSH_BURST_LIMIT       = "10"
@@ -34,6 +35,16 @@ locals {
     var.enable_previous_edge_origin_token ? {
       ALERA_EDGE_PREVIOUS_ORIGIN_TOKEN = google_secret_manager_secret.runtime["edge_previous_origin_token"].secret_id
     } : {},
+    var.web_github_oauth_client_id != "" ? {
+      ALERA_WEB_GITHUB_CLIENT_SECRET = google_secret_manager_secret.runtime["web_github_client_secret"].secret_id
+    } : {},
+    var.web_google_oauth_client_id != "" ? {
+      ALERA_WEB_GOOGLE_CLIENT_SECRET = google_secret_manager_secret.runtime["web_google_client_secret"].secret_id
+    } : {},
+  )
+  web_client_environment = merge(
+    var.web_github_oauth_client_id != "" ? { ALERA_WEB_GITHUB_CLIENT_ID = var.web_github_oauth_client_id } : {},
+    var.web_google_oauth_client_id != "" ? { ALERA_WEB_GOOGLE_CLIENT_ID = var.web_google_oauth_client_id } : {},
   )
 }
 
@@ -99,7 +110,7 @@ resource "google_cloud_run_v2_service" "cloud" {
       }
 
       dynamic "env" {
-        for_each = local.plain_environment
+        for_each = merge(local.plain_environment, local.web_client_environment)
         content {
           name  = env.key
           value = env.value

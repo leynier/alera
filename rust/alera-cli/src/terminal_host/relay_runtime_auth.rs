@@ -193,11 +193,23 @@ async fn verify_grant(verifier: &GrantVerifier, token: &str) -> anyhow::Result<G
     {
         anyhow::bail!("relay grant is expired or invalid");
     }
-    let jwks = verifier.keys(&header.kid).await?;
+    verify_signature(verifier, &header.kid, &segments).await?;
+    if claims.exp <= chrono::Utc::now().timestamp() {
+        anyhow::bail!("relay grant expired during verification");
+    }
+    Ok(claims)
+}
+
+async fn verify_signature(
+    verifier: &GrantVerifier,
+    kid: &str,
+    segments: &[&str],
+) -> anyhow::Result<()> {
+    let jwks = verifier.keys(kid).await?;
     let key = jwks
         .keys
         .into_iter()
-        .find(|key| key.kid == header.kid)
+        .find(|key| key.kid == kid)
         .ok_or_else(|| anyhow::anyhow!("relay grant signing key is unavailable"))?;
     if key.kty != "OKP" || key.crv != "Ed25519" || key.alg != "EdDSA" {
         anyhow::bail!("relay grant signing key is invalid");
@@ -214,10 +226,73 @@ async fn verify_grant(verifier: &GrantVerifier, token: &str) -> anyhow::Result<G
         format!("{}.{}", segments[0], segments[1]).as_bytes(),
         &Signature::from_bytes(&signature),
     )?;
-    if claims.exp <= chrono::Utc::now().timestamp() {
-        anyhow::bail!("relay grant expired during verification");
+    Ok(())
+}
+
+/// The cloud's authorization for one MCP tool call on this runtime.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct CallGrantClaims {
+    pub(super) iss: String,
+    pub(super) aud: String,
+    pub(super) exp: i64,
+    pub(super) iat: i64,
+    pub(super) nbf: i64,
+    pub(super) jti: String,
+    pub(super) account_id: String,
+    pub(super) runtime_id: String,
+    pub(super) grant_id: String,
+    pub(super) client_id: String,
+    #[serde(default)]
+    pub(super) client_name: String,
+    pub(super) tool: String,
+    pub(super) access: String,
+}
+
+pub(super) const CALL_GRANT_AUDIENCE: &str = "alera-runtime-mcp";
+
+impl GrantVerifier {
+    pub(super) async fn verify_call(&self, token: &str) -> anyhow::Result<CallGrantClaims> {
+        let segments = token.split('.').collect::<Vec<_>>();
+        if token.len() > 16 * 1024 || segments.len() != 3 {
+            anyhow::bail!("MCP call grant is malformed");
+        }
+        let header: GrantHeader = decode_json_part(segments[0])?;
+        if header.alg != "EdDSA" || header.typ != "mcp-call+jwt" {
+            anyhow::bail!("MCP call grant header is invalid");
+        }
+        let claims: CallGrantClaims = decode_json_part(segments[1])?;
+        let now = chrono::Utc::now().timestamp();
+        if claims.aud != CALL_GRANT_AUDIENCE
+            || claims.iss != self.issuer
+            || claims.exp <= now
+            || claims.exp <= claims.iat
+            || claims.exp.saturating_sub(claims.iat) > 300
+            || claims.nbf > now + 30
+            || claims.iat > now + 30
+            || ![
+                &claims.jti,
+                &claims.account_id,
+                &claims.runtime_id,
+                &claims.grant_id,
+                &claims.tool,
+            ]
+            .iter()
+            .all(|value| !value.is_empty() && value.len() <= 256)
+            // A Client ID Metadata Document URL may be as long as the
+            // authorization server accepts.
+            || claims.client_id.is_empty()
+            || claims.client_id.len() > 2048
+            || !matches!(claims.access.as_str(), "read" | "execute")
+        {
+            anyhow::bail!("MCP call grant is expired or invalid");
+        }
+        verify_signature(self, &header.kid, &segments).await?;
+        if claims.exp <= chrono::Utc::now().timestamp() {
+            anyhow::bail!("MCP call grant expired during verification");
+        }
+        Ok(claims)
     }
-    Ok(claims)
 }
 
 fn decode_json_part<T: for<'de> Deserialize<'de>>(value: &str) -> anyhow::Result<T> {

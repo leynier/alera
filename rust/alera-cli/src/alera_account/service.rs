@@ -1,4 +1,7 @@
 mod configuration;
+mod mcp;
+
+pub(crate) use mcp::DevicePoll;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -377,7 +380,12 @@ impl AleraAccountService {
     pub(crate) async fn relay_grant(&self) -> Result<super::cloud_client::RelayGrant> {
         let _ = self.relay_identity().await?;
         let token = self.access_token().await?;
-        match self.cloud.relay_grant(&token, &self.runtime_id).await {
+        let capabilities = self.relay_capabilities().await;
+        match self
+            .cloud
+            .relay_grant(&token, &self.runtime_id, capabilities)
+            .await
+        {
             Err(error)
                 if error
                     .downcast_ref::<CloudRequestError>()
@@ -393,7 +401,9 @@ impl AleraAccountService {
                     }
                 }
                 let refreshed = self.access_token().await?;
-                self.cloud.relay_grant(&refreshed, &self.runtime_id).await
+                self.cloud
+                    .relay_grant(&refreshed, &self.runtime_id, capabilities)
+                    .await
             }
             result => result,
         }

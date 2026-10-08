@@ -6,6 +6,8 @@ locals {
     github_oauth_client_secret = "alera-github-oauth-client-secret"
     google_oauth_client_secret = "alera-google-oauth-client-secret"
     tombstone_pepper           = "alera-tombstone-pepper"
+    web_github_client_secret   = "alera-web-github-oauth-client-secret"
+    web_google_client_secret   = "alera-web-google-oauth-client-secret"
   }
 }
 

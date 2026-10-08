@@ -33,6 +33,37 @@ pub async fn run_once(pool: &PgPool) -> Result<(), sqlx::Error> {
     .bind(now)
     .execute(&mut *transaction)
     .await?;
+    for table in [
+        "web_logins",
+        "mcp_authorization_requests",
+        "mcp_authorization_codes",
+        "device_authorizations",
+    ] {
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE expires_at < $1"
+        )))
+        .bind(now - TimeDelta::days(1))
+        .execute(&mut *transaction)
+        .await?;
+    }
+    sqlx::query("DELETE FROM mcp_calls WHERE created_at < $1")
+        .bind(now - TimeDelta::days(30))
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("DELETE FROM mcp_grants WHERE revoked_at < $1")
+        .bind(now - TimeDelta::days(30))
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query(
+        r#"
+        DELETE FROM mcp_clients c
+        WHERE COALESCE(c.last_used_at, c.created_at) < $1
+          AND NOT EXISTS (SELECT 1 FROM mcp_grants g WHERE g.client_id = c.id)
+        "#,
+    )
+    .bind(now - TimeDelta::days(90))
+    .execute(&mut *transaction)
+    .await?;
     sqlx::query("DELETE FROM runtime_events WHERE created_at < $1")
         .bind(now - TimeDelta::days(30))
         .execute(&mut *transaction)

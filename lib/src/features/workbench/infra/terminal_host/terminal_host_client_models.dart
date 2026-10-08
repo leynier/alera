@@ -373,6 +373,7 @@ const Set<String> runtimeHostEventNames = <String>{
   'mobileDevicesChanged',
   'mobileRelayChanged',
   'mobileGatewayChanged',
+  'mcpSettingsChanged',
   'agentPresenceChanged',
   'codexThreadChanged',
   'codexServerChanged',

@@ -38,6 +38,7 @@ pub async fn create_enrollment(
     let auth = authenticate(&headers, &state, "enrollment:write").await?;
     validate_id(&request.runtime_id, "runtimeId")?;
     validate_id(&request.device_id, "deviceId")?;
+    crate::auth::validation::validate_new_client_id(&request.device_id)?;
     validate_name(&request.device_name)?;
     if auth.client_kind != ClientKind::Runtime
         || auth.client_id != request.runtime_id

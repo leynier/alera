@@ -5,7 +5,7 @@ use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::{
-    accounts::load_account_summary,
+    accounts::{load_account_summary, load_account_summary_on},
     api_models::{ClientKind, ClientSummary, TokenEnvelope},
     error::ApiError,
 };
@@ -47,6 +47,102 @@ pub async fn create_session(
     label: &str,
     authenticated_at: DateTime<Utc>,
 ) -> Result<TokenEnvelope, ApiError> {
+    let (family_id, refresh_token) = create_family(
+        pool,
+        account_id,
+        client_id,
+        client_kind,
+        label,
+        authenticated_at,
+    )
+    .await?;
+    envelope(
+        pool,
+        tokens,
+        SessionDescriptor {
+            account_id,
+            family_id,
+            client_id,
+            client_kind,
+            authenticated_at,
+        },
+        refresh_token,
+    )
+    .await
+}
+
+/// Like [`create_session`], inside a transaction the caller already holds. The
+/// response, including the signed access token, is built before the commit, so
+/// a signing failure leaves no orphaned session, and no second pool connection
+/// is needed while the caller's locks are held.
+#[allow(clippy::too_many_arguments)]
+pub async fn create_session_in(
+    mut transaction: sqlx::Transaction<'_, sqlx::Postgres>,
+    tokens: &TokenService,
+    account_id: Uuid,
+    client_id: &str,
+    client_kind: ClientKind,
+    label: &str,
+    authenticated_at: DateTime<Utc>,
+) -> Result<TokenEnvelope, ApiError> {
+    let (family_id, refresh_token) = insert_family(
+        &mut transaction,
+        account_id,
+        client_id,
+        client_kind,
+        label,
+        authenticated_at,
+    )
+    .await?;
+    let account = load_account_summary_on(&mut transaction, account_id).await?;
+    let built = envelope_for(
+        tokens,
+        SessionDescriptor {
+            account_id,
+            family_id,
+            client_id,
+            client_kind,
+            authenticated_at,
+        },
+        refresh_token,
+        account,
+    )
+    .await?;
+    transaction.commit().await?;
+    Ok(built)
+}
+
+/// Creates a refresh family and its first token, returning the family id and raw token.
+pub(crate) async fn create_family(
+    pool: &PgPool,
+    account_id: Uuid,
+    client_id: &str,
+    client_kind: ClientKind,
+    label: &str,
+    authenticated_at: DateTime<Utc>,
+) -> Result<(Uuid, String), ApiError> {
+    let mut transaction = pool.begin().await?;
+    let created = insert_family(
+        &mut transaction,
+        account_id,
+        client_id,
+        client_kind,
+        label,
+        authenticated_at,
+    )
+    .await?;
+    transaction.commit().await?;
+    Ok(created)
+}
+
+async fn insert_family(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    account_id: Uuid,
+    client_id: &str,
+    client_kind: ClientKind,
+    label: &str,
+    authenticated_at: DateTime<Utc>,
+) -> Result<(Uuid, String), ApiError> {
     let now = Utc::now();
     let family_id = Uuid::now_v7();
     let token_id = Uuid::now_v7();
@@ -54,7 +150,6 @@ pub async fn create_session(
     let token_hash = hash_secret(&refresh_token);
     let absolute_expires_at = now + TimeDelta::days(ABSOLUTE_DAYS);
     let inactivity_expires_at = now + TimeDelta::days(INACTIVITY_DAYS);
-    let mut transaction = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO refresh_token_families (
@@ -71,7 +166,7 @@ pub async fn create_session(
     .bind(authenticated_at)
     .bind(now)
     .bind(absolute_expires_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
     sqlx::query(
         r#"
@@ -85,23 +180,9 @@ pub async fn create_session(
     .bind(token_hash)
     .bind(now)
     .bind(inactivity_expires_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
-    transaction.commit().await?;
-
-    envelope(
-        pool,
-        tokens,
-        SessionDescriptor {
-            account_id,
-            family_id,
-            client_id,
-            client_kind,
-            authenticated_at,
-        },
-        refresh_token,
-    )
-    .await
+    Ok((family_id, refresh_token))
 }
 
 pub async fn rotate_session(
@@ -109,10 +190,72 @@ pub async fn rotate_session(
     tokens: &TokenService,
     refresh_token: &str,
 ) -> Result<TokenEnvelope, ApiError> {
-    validate_refresh_token(refresh_token)?;
+    let rotated = rotate_family(pool, refresh_token, FamilyKind::Native).await?;
+    envelope(
+        pool,
+        tokens,
+        SessionDescriptor {
+            account_id: rotated.account_id,
+            family_id: rotated.family_id,
+            client_id: &rotated.client_id,
+            client_kind: rotated.client_kind,
+            authenticated_at: rotated.authenticated_at,
+        },
+        rotated.refresh_token,
+    )
+    .await
+}
+
+/// Which refresh families an endpoint may rotate, so MCP and native sessions never cross.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FamilyKind {
+    Native,
+    Mcp,
+}
+
+pub(crate) struct RotatedFamily {
+    pub account_id: Uuid,
+    pub family_id: Uuid,
+    pub client_id: String,
+    pub client_kind: ClientKind,
+    pub authenticated_at: DateTime<Utc>,
+    pub refresh_token: String,
+}
+
+/// How a rotation attempt ended. A refusal may have revoked the family for
+/// replay, which the caller must commit before reporting the refusal.
+pub(crate) enum Rotation {
+    Rotated(RotatedFamily),
+    Refused(ApiError),
+}
+
+pub(crate) async fn rotate_family(
+    pool: &PgPool,
+    refresh_token: &str,
+    kind: FamilyKind,
+) -> Result<RotatedFamily, ApiError> {
+    let mut transaction = pool.begin().await?;
+    let rotation = rotate_family_in(&mut transaction, refresh_token, kind).await?;
+    transaction.commit().await?;
+    match rotation {
+        Rotation::Rotated(rotated) => Ok(rotated),
+        Rotation::Refused(error) => Err(error),
+    }
+}
+
+/// Rotates inside the caller's transaction, so the caller can sign the new
+/// access token before anything commits. `Err` is reserved for database and
+/// internal failures; credential problems come back as `Refused`.
+pub(crate) async fn rotate_family_in(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    refresh_token: &str,
+    kind: FamilyKind,
+) -> Result<Rotation, ApiError> {
+    if let Err(error) = validate_refresh_token(refresh_token) {
+        return Ok(Rotation::Refused(error));
+    }
     let token_hash = hash_secret(refresh_token);
     let now = Utc::now();
-    let mut transaction = pool.begin().await?;
     let row = sqlx::query_as::<_, SessionRow>(
         r#"
         SELECT
@@ -134,11 +277,15 @@ pub async fn rotate_session(
         "#,
     )
     .bind(token_hash)
-    .fetch_optional(&mut *transaction)
-    .await?
-    .ok_or_else(|| {
-        ApiError::unauthorized("invalid_refresh_token", "The refresh token is invalid.")
-    })?;
+    .fetch_optional(&mut **transaction)
+    .await?;
+    let Some(row) = row else {
+        return Ok(Rotation::Refused(invalid_refresh_token()));
+    };
+    let is_mcp = row.client_kind == ClientKind::Mcp.as_str();
+    if is_mcp != (kind == FamilyKind::Mcp) {
+        return Ok(Rotation::Refused(invalid_refresh_token()));
+    }
 
     let replayed = row.used_at.is_some();
     let expired = row.inactivity_expires_at <= now || row.absolute_expires_at <= now;
@@ -150,10 +297,9 @@ pub async fn rotate_session(
             .bind(row.family_id)
             .bind(now)
             .bind("refresh_token_replay")
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
         }
-        transaction.commit().await?;
         let (code, message) = if replayed {
             (
                 "refresh_token_reuse",
@@ -162,7 +308,7 @@ pub async fn rotate_session(
         } else {
             ("refresh_token_expired", "The account session has expired.")
         };
-        return Err(ApiError::unauthorized(code, message));
+        return Ok(Rotation::Refused(ApiError::unauthorized(code, message)));
     }
 
     let new_token_id = Uuid::now_v7();
@@ -181,34 +327,31 @@ pub async fn rotate_session(
     .bind(hash_secret(&new_refresh_token))
     .bind(now)
     .bind(inactivity_expires_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
     sqlx::query("UPDATE refresh_tokens SET used_at = $2, replaced_by_id = $3 WHERE id = $1")
         .bind(row.token_id)
         .bind(now)
         .bind(new_token_id)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
     sqlx::query("UPDATE refresh_token_families SET last_used_at = $2 WHERE id = $1")
         .bind(row.family_id)
         .bind(now)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
-    transaction.commit().await?;
-    let client_kind = row.client_kind.parse()?;
-    envelope(
-        pool,
-        tokens,
-        SessionDescriptor {
-            account_id: row.account_id,
-            family_id: row.family_id,
-            client_id: &row.client_id,
-            client_kind,
-            authenticated_at: row.authenticated_at,
-        },
-        new_refresh_token,
-    )
-    .await
+    Ok(Rotation::Rotated(RotatedFamily {
+        account_id: row.account_id,
+        family_id: row.family_id,
+        client_kind: row.client_kind.parse()?,
+        client_id: row.client_id,
+        authenticated_at: row.authenticated_at,
+        refresh_token: new_refresh_token,
+    }))
+}
+
+fn invalid_refresh_token() -> ApiError {
+    ApiError::unauthorized("invalid_refresh_token", "The refresh token is invalid.")
 }
 
 pub async fn revoke_by_refresh_token(
@@ -256,6 +399,15 @@ async fn envelope(
     refresh_token: String,
 ) -> Result<TokenEnvelope, ApiError> {
     let account = load_account_summary(pool, session.account_id).await?;
+    envelope_for(tokens, session, refresh_token, account).await
+}
+
+async fn envelope_for(
+    tokens: &TokenService,
+    session: SessionDescriptor<'_>,
+    refresh_token: String,
+    account: crate::api_models::AccountSummary,
+) -> Result<TokenEnvelope, ApiError> {
     let access_token = tokens
         .issue(
             session.account_id,
@@ -290,7 +442,7 @@ fn random_refresh_token() -> String {
     format!("art_{}", URL_SAFE_NO_PAD.encode(bytes))
 }
 
-fn validate_refresh_token(value: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_refresh_token(value: &str) -> Result<(), ApiError> {
     if value.len() < 40 || value.len() > 128 || !value.starts_with("art_") {
         return Err(ApiError::unauthorized(
             "invalid_refresh_token",

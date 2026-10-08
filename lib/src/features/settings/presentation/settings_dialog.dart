@@ -9,6 +9,7 @@ import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/mcp_access_settings_section.dart';
 import 'package:alera/src/features/settings/presentation/voice_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
@@ -267,6 +268,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         builder: (_) =>
             AccountSettingsPane(groupKeys: _paneKeys('account', accountGroups)),
       ),
+      mcpAccessSettingsSection(paneKeys: _paneKeys),
       SettingsSectionData(
         id: 'application',
         title: 'Application',

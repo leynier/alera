@@ -89,6 +89,14 @@ pub(crate) async fn run_runtime_command(command: RuntimeCommand) -> i32 {
                 Err(error) => print_error(error),
             }
         }
+        RuntimeAction::Rename(args) => {
+            crate::mcp_commands::rename_runtime(
+                &runtime_dir(&command.runtime),
+                args.name,
+                command.output.json,
+            )
+            .await
+        }
         RuntimeAction::Agents(agents) => {
             run_runtime_agents_command(&command.runtime, command.output.json, agents.action).await
         }

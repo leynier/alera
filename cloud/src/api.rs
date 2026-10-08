@@ -65,13 +65,25 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/relay/identity", post(relay::register_identity))
         .route("/v1/relay/grants", post(relay::create_grant))
         .route("/v1/mobile/runtimes", get(relay::discover_runtimes))
+        .merge(crate::mcp_oauth::router(state.config.mcp.enabled))
         .layer(DefaultBodyLimit::max(64 * 1024))
-        .layer(TraceLayer::new_for_http())
+        .layer(TraceLayer::new_for_http().make_span_with(request_span))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             require_edge_origin,
         ))
         .with_state(state)
+}
+
+/// Records the path only: OAuth callbacks and device pages carry authorization
+/// codes, state, and user codes in the query string, which must never be logged.
+fn request_span(request: &Request<Body>) -> tracing::Span {
+    tracing::debug_span!(
+        "request",
+        method = %request.method(),
+        path = %request.uri().path(),
+        version = ?request.version(),
+    )
 }
 
 async fn health() -> impl IntoResponse {
@@ -125,7 +137,51 @@ fn token_matches(provided: &str, current: Option<&str>, previous: Option<&str>) 
 
 #[cfg(test)]
 mod tests {
-    use super::token_matches;
+    use super::{request_span, token_matches};
+
+    #[derive(Clone, Default)]
+    struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Captured {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if let Ok(mut buffer) = self.0.lock() {
+                buffer.extend_from_slice(bytes);
+            }
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn request_spans_leave_out_the_query_string() {
+        let captured = Captured::default();
+        let writer = captured.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_ansi(false)
+            .with_writer(move || writer.clone())
+            .finish();
+        tracing::subscriber::with_default(subscriber, || {
+            let request = axum::http::Request::builder()
+                .uri("/oauth/callback?code=secret-code&state=secret-state")
+                .body(axum::body::Body::empty())
+                .unwrap_or_default();
+            let span = request_span(&request);
+            let _entered = span.enter();
+            tracing::debug!("handled");
+        });
+        let output = captured
+            .0
+            .lock()
+            .map(|buffer| String::from_utf8_lossy(&buffer).into_owned())
+            .unwrap_or_default();
+        assert!(output.contains("/oauth/callback"), "{output}");
+        assert!(!output.contains("secret-code"), "{output}");
+        assert!(!output.contains("secret-state"), "{output}");
+    }
 
     #[test]
     fn accepts_current_or_previous_edge_secret() {

@@ -16,6 +16,7 @@ Use the managed `alera` CLI for Alera resources. Inside Alera terminals, its shi
 - Agent Profile inspection, launch, or maintenance: use the `alera-agent-profiles` skill. Its simple-maintenance route does not require catalog research.
 - Asking a running agent a question from outside its terminal, or reading an inbox: read [inbox](references/inbox.md).
 - Agent dispatch, worker tasks, or coordinator lifecycle: use the `alera-orchestration` skill.
+- Signing the runtime in to an Alera account, naming it, or letting MCP clients drive it (MCP Control, `alera mcp serve`): read [mcp](references/mcp.md).
 
 Load only the workflow needed for the current request.
 

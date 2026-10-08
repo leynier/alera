@@ -21,6 +21,7 @@ const DENIED_PREFIXES: &[&str] = &[
     "hostLink.",
     "sshTarget.",
     "account.",
+    "mcp.",
     "configuration.",
     "runtimeSettings.",
     "runtimeMetadata.",

@@ -15,6 +15,8 @@ export interface RelayClaims {
   keyVersion: number;
   clientPublicKey: string;
   runtimePublicKey: string;
+  mcpAccess?: 'off' | 'read' | 'full';
+  mobileAccess?: boolean;
 }
 
 export interface RelayAttachment extends RelayClaims {
@@ -151,22 +153,76 @@ export function bearerToken(request: Request): string | null {
   return value?.startsWith('Bearer ') ? value.slice('Bearer '.length) : null;
 }
 
+export interface DecodedJwt<T> {
+  header: { alg?: string; typ?: string; kid?: string };
+  claims: T;
+  parts: string[];
+}
+
+export function decodeJwt<T>(token: string): DecodedJwt<T> | null {
+  const parts = token.split('.');
+  if (token.length > 16384 || parts.length !== 3) return null;
+  try {
+    const header = decodeJsonPart<DecodedJwt<T>['header']>(parts[0]);
+    const claims = decodeJsonPart<T>(parts[1]);
+    if (!header || typeof header !== 'object' || !claims || typeof claims !== 'object') return null;
+    return { header, claims, parts };
+  } catch {
+    return null;
+  }
+}
+
+/** Verifies an EdDSA signature against the cloud JWKS. Throws when the keys cannot be loaded. */
+export async function verifyJwtSignature(
+  decoded: DecodedJwt<unknown>,
+  env: EdgeEnvironment,
+  fetcher: RelayFetch,
+): Promise<boolean> {
+  const kid = decoded.header.kid;
+  if (!kid || !env.RELAY_JWKS_URL) return false;
+  let keys: SigningKey[];
+  try {
+    keys = await signingKeys(env, fetcher, kid);
+  } catch {
+    throw new RelayAuthorizationUnavailable('Relay signing keys unavailable');
+  }
+  const key = keys.find(
+    (candidate) =>
+      candidate.kid === kid &&
+      candidate.kty === 'OKP' &&
+      candidate.crv === 'Ed25519' &&
+      candidate.alg === 'EdDSA' &&
+      typeof candidate.x === 'string',
+  );
+  if (!key?.x) return false;
+  try {
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      base64UrlBytes(key.x),
+      { name: 'Ed25519', namedCurve: 'Ed25519' },
+      false,
+      ['verify'],
+    );
+    const [header, payload, signature] = decoded.parts;
+    return await crypto.subtle.verify(
+      { name: 'Ed25519' },
+      cryptoKey,
+      base64UrlBytes(signature),
+      new TextEncoder().encode(`${header}.${payload}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function verifyRelayGrant(
   token: string,
   env: EdgeEnvironment,
   fetcher: RelayFetch = (request) => fetch(request),
 ): Promise<RelayAttachment | null> {
-  const parts = token.split('.');
-  if (token.length > 16384 || parts.length !== 3 || !env.RELAY_JWKS_URL) return null;
-  let header: { alg?: string; typ?: string; kid?: string };
-  let claims: RelayClaims;
-  try {
-    header = decodeJsonPart(parts[0]);
-    claims = decodeJsonPart(parts[1]);
-  } catch {
-    return null;
-  }
-  if (!header || typeof header !== 'object' || !claims || typeof claims !== 'object') return null;
+  const decoded = env.RELAY_JWKS_URL ? decodeJwt<RelayClaims>(token) : null;
+  if (!decoded) return null;
+  const { header, claims } = decoded;
   let publicKeyBytes: Uint8Array;
   let runtimeKeyBytes: Uint8Array;
   try {
@@ -201,42 +257,12 @@ export async function verifyRelayGrant(
     !Number.isInteger(claims.keyVersion) ||
     claims.keyVersion <= 0 ||
     publicKeyBytes.byteLength !== 32 ||
-    runtimeKeyBytes.byteLength !== 32
+    runtimeKeyBytes.byteLength !== 32 ||
+    (claims.mcpAccess !== undefined && !['off', 'read', 'full'].includes(claims.mcpAccess)) ||
+    (claims.mobileAccess !== undefined && typeof claims.mobileAccess !== 'boolean')
   ) {
     return null;
   }
-
-  let keys: SigningKey[];
-  try {
-    keys = await signingKeys(env, fetcher, header.kid);
-  } catch {
-    throw new RelayAuthorizationUnavailable('Relay signing keys unavailable');
-  }
-  const key = keys.find(
-    (candidate) =>
-      candidate.kid === header.kid &&
-      candidate.kty === 'OKP' &&
-      candidate.crv === 'Ed25519' &&
-      candidate.alg === 'EdDSA' &&
-      typeof candidate.x === 'string',
-  );
-  if (!key?.x) return null;
-  try {
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      base64UrlBytes(key.x),
-      { name: 'Ed25519', namedCurve: 'Ed25519' },
-      false,
-      ['verify'],
-    );
-    const valid = await crypto.subtle.verify(
-      { name: 'Ed25519' },
-      cryptoKey,
-      base64UrlBytes(parts[2]),
-      new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
-    );
-    return valid && claims.exp > Math.floor(Date.now() / 1000) ? claims : null;
-  } catch {
-    return null;
-  }
+  const valid = await verifyJwtSignature(decoded, env, fetcher);
+  return valid && claims.exp > Math.floor(Date.now() / 1000) ? claims : null;
 }

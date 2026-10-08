@@ -5,6 +5,8 @@ import {
   RelayAuthorizationUnavailable,
   type RelayAttachment,
 } from './relay_authorization';
+import { handleMcpRequest } from './mcp/endpoint';
+import { CORS_HEADERS, corsPreflight, MCP_PATH } from './mcp/protocol';
 interface RateLimitBinding {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
@@ -17,6 +19,11 @@ export interface RelayNamespace {
 export interface EdgeEnvironment {
   EDGE_BURST_LIMITER: RateLimitBinding;
   EDGE_ORIGIN_TOKEN: string;
+  MCP_ENABLED?: string;
+  MCP_LIMITER?: RateLimitBinding;
+  OAUTH_LIMITER?: RateLimitBinding;
+  BROWSER_LIMITER?: RateLimitBinding;
+  MCP_RESOURCE?: string;
   ORIGIN_BASE_URL: string;
   RELAY_ENABLED?: string;
   RELAY_OBJECTS?: RelayNamespace;
@@ -25,14 +32,39 @@ export interface EdgeEnvironment {
   RELAY_RENEWAL_ENABLED?: string;
 }
 
-type OriginFetch = (request: Request) => Promise<Response>;
+export type OriginFetch = (request: Request) => Promise<Response>;
 type RelayFetch = (request: Request) => Promise<Response>;
+type WaitUntil = Pick<ExecutionContext, 'waitUntil'>;
 
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE']);
 const SAFE_METHODS = new Set(['GET']);
 const ORIGIN_HEADER = 'x-alera-origin-auth';
-const PUBLIC_EXACT_PATHS = new Set(['/health', '/.well-known/jwks.json']);
+const PUBLIC_EXACT_PATHS = new Set([
+  '/health',
+  '/.well-known/jwks.json',
+  '/.well-known/oauth-authorization-server',
+  '/.well-known/oauth-protected-resource',
+  `/.well-known/oauth-protected-resource${MCP_PATH}`,
+  '/oauth/authorize',
+  '/oauth/login',
+  '/oauth/callback',
+  '/oauth/consent',
+  '/oauth/token',
+  '/oauth/register',
+  '/oauth/revoke',
+  '/device',
+]);
 const PUBLIC_PREFIXES = ['/v1/'];
+// Gateway calls mint runtime call grants; only the edge may reach them, through the origin directly.
+const EDGE_ONLY_PREFIX = '/v1/mcp/calls';
+const CORS_EXACT_PATHS = new Set(['/oauth/token', '/oauth/register', '/oauth/revoke', MCP_PATH]);
+// Machine-to-machine sign-in calls carry no bearer, so the burst limiter would key
+// them by address alone: a device poll every five seconds, or a hosted client
+// refreshing for many users from shared addresses, would trip it.
+const OAUTH_CLIENT_PATHS = new Set(['/oauth/token', '/oauth/register', '/oauth/revoke', '/v1/auth/device/token']);
+// Pages a person opens. Limited even for GET because each one writes a request
+// row, and the device page must not allow guessing user codes.
+const BROWSER_PATHS = new Set(['/device', '/oauth/authorize', '/oauth/login', '/oauth/callback', '/oauth/consent']);
 const RELAY_PREFIX = '/v1/relay/';
 const RELAY_CONTROL_PATHS = new Set(['/v1/relay/identity', '/v1/relay/grants']);
 const MAX_RELAY_FRAME_BYTES = 1024 * 1024;
@@ -49,7 +81,12 @@ export function jsonError(status: number, code: string, message: string): Respon
 }
 
 function isPublicPath(pathname: string): boolean {
+  if (pathname === EDGE_ONLY_PREFIX || pathname.startsWith(`${EDGE_ONLY_PREFIX}/`)) return false;
   return PUBLIC_EXACT_PATHS.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isCorsPath(pathname: string): boolean {
+  return CORS_EXACT_PATHS.has(pathname) || pathname.startsWith('/.well-known/');
 }
 
 function validateEnvironment(env: EdgeEnvironment): Response | null {
@@ -72,10 +109,31 @@ async function requestLimitKey(request: Request, pathname: string): Promise<stri
   return `address:${address}:${pathname}`;
 }
 
+// Pages whose query carries a provider code, OAuth state, or a device user
+// code. Cloud Run logs every request URL, so the edge moves the query into a
+// POST body before it reaches the origin.
+const QUERY_SECRET_PATHS = new Set(['/oauth/authorize', '/oauth/callback', '/device']);
+
 export function originRequest(request: Request, env: EdgeEnvironment, incomingUrl: URL): Request {
   const originUrl = new URL(env.ORIGIN_BASE_URL);
   originUrl.pathname = incomingUrl.pathname;
   originUrl.search = incomingUrl.search;
+  if (request.method === 'GET' && QUERY_SECRET_PATHS.has(incomingUrl.pathname) && incomingUrl.search) {
+    originUrl.search = '';
+    const headers = new Headers(request.headers);
+    headers.delete('cookie');
+    headers.set(ORIGIN_HEADER, env.EDGE_ORIGIN_TOKEN);
+    headers.set('x-forwarded-host', incomingUrl.host);
+    headers.set('x-forwarded-proto', 'https');
+    headers.set('content-type', 'application/x-www-form-urlencoded');
+    return new Request(originUrl, {
+      signal: request.signal,
+      body: incomingUrl.search.slice(1),
+      headers,
+      method: 'POST',
+      redirect: 'manual',
+    });
+  }
 
   const headers = new Headers(request.headers);
   headers.delete('cookie');
@@ -92,8 +150,13 @@ export function originRequest(request: Request, env: EdgeEnvironment, incomingUr
   });
 }
 
-function secureResponse(response: Response): Response {
+function secureResponse(response: Response, cors = false): Response {
   const headers = new Headers(response.headers);
+  if (cors) {
+    for (const name of ['access-control-allow-origin', 'access-control-expose-headers']) {
+      if (!headers.has(name)) headers.set(name, CORS_HEADERS[name]);
+    }
+  }
   headers.set('cache-control', response.headers.get('cache-control') ?? 'no-store');
   headers.set('referrer-policy', 'no-referrer');
   headers.set('x-content-type-options', 'nosniff');
@@ -198,21 +261,24 @@ async function handleRelayRequest(
 export async function handleRequest(
   request: Request,
   env: EdgeEnvironment,
-  fetchOrigin: OriginFetch = fetch,
+  // Wrapped so callers can store it as an object property: workerd throws
+  // "Illegal invocation" when the global fetch is called with another `this`.
+  fetchOrigin: OriginFetch = (originRequest) => fetch(originRequest),
   fetchRelay?: RelayFetch,
+  ctx?: WaitUntil,
 ): Promise<Response> {
   const url = new URL(request.url);
+  const fetchJwks =
+    fetchRelay ??
+    ((jwksRequest: Request) => {
+      const jwksUrl = new URL(jwksRequest.url);
+      return fetchOrigin(originRequest(jwksRequest, env, jwksUrl));
+    });
   if (
     env.RELAY_ENABLED === 'true' &&
     url.pathname.startsWith(RELAY_PREFIX) &&
     !RELAY_CONTROL_PATHS.has(url.pathname)
   ) {
-    const fetchJwks =
-      fetchRelay ??
-      ((jwksRequest: Request) => {
-        const jwksUrl = new URL(jwksRequest.url);
-        return fetchOrigin(originRequest(jwksRequest, env, jwksUrl));
-      });
     return handleRelayRequest(request, env, fetchJwks);
   }
   const configurationError = validateEnvironment(env);
@@ -221,11 +287,38 @@ export async function handleRequest(
   if (!isPublicPath(url.pathname)) {
     return jsonError(404, 'route_not_found', 'The requested API route does not exist.');
   }
+  if (url.pathname === MCP_PATH) {
+    return handleMcpRequest(request, {
+      env,
+      fetchOrigin,
+      fetchJwks,
+      waitUntil: (promise) => {
+        if (ctx) ctx.waitUntil(promise);
+        else promise.catch(() => undefined);
+      },
+    });
+  }
+  const cors = isCorsPath(url.pathname);
+  if (request.method === 'OPTIONS' && cors) return corsPreflight('GET, POST, OPTIONS');
   if (!ALLOWED_METHODS.has(request.method)) {
     return jsonError(405, 'method_not_allowed', 'The request method is not allowed.');
   }
 
-  if (!SAFE_METHODS.has(request.method)) {
+  const signInLimiter = OAUTH_CLIENT_PATHS.has(url.pathname)
+    ? env.OAUTH_LIMITER
+    : BROWSER_PATHS.has(url.pathname)
+      ? env.BROWSER_LIMITER
+      : undefined;
+  if (signInLimiter && request.method !== 'OPTIONS') {
+    const address = request.headers.get('cf-connecting-ip') ?? 'unknown';
+    const result = await signInLimiter.limit({ key: `address:${address}:${url.pathname}` });
+    if (!result.success) {
+      const response = jsonError(429, 'edge_rate_limited', 'Too many requests. Try again shortly.');
+      response.headers.set('retry-after', '60');
+      // Without CORS headers a browser client sees a network error, not the 429.
+      return secureResponse(response, cors);
+    }
+  } else if (!SAFE_METHODS.has(request.method)) {
     const key = await requestLimitKey(request, url.pathname);
     const result = await env.EDGE_BURST_LIMITER.limit({ key });
     if (!result.success) {
@@ -237,7 +330,7 @@ export async function handleRequest(
 
   try {
     const response = await fetchOrigin(originRequest(request, env, url));
-    return secureResponse(response);
+    return secureResponse(response, cors);
   } catch {
     return jsonError(502, 'origin_unavailable', 'The Alera service is temporarily unavailable.');
   }
@@ -246,7 +339,7 @@ export async function handleRequest(
 export { RuntimeRelayDurableObject } from './runtime_relay';
 
 export default {
-  fetch(request: Request, env: EdgeEnvironment): Promise<Response> {
-    return handleRequest(request, env);
+  fetch(request: Request, env: EdgeEnvironment, ctx: ExecutionContext): Promise<Response> {
+    return handleRequest(request, env, undefined, undefined, ctx);
   },
 };
