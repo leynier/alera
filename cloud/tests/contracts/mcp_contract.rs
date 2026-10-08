@@ -225,6 +225,27 @@ async fn mcp_oauth_authorization_code_refresh_and_revocation() -> anyhow::Result
         .is_client_error());
 
     let refresh = tokens["refresh_token"].as_str().unwrap_or_default();
+    // A signing failure during refresh must not spend the refresh token.
+    let failing = router(test_state_with_signer(
+        pool.clone(),
+        url.clone(),
+        format!("{}@example.test", Uuid::now_v7()),
+        true,
+        Arc::new(AtomicUsize::new(0)),
+        Arc::new(super::device_contract::FailingSigner),
+    )?);
+    let unsigned = post_form(
+        &failing,
+        "/oauth/token",
+        &[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh),
+            ("client_id", client_id.as_str()),
+        ],
+    )
+    .await?;
+    assert_eq!(unsigned.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(unsigned.json()["error"], "server_error");
     let refreshed = post_form(
         &app,
         "/oauth/token",

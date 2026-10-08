@@ -222,15 +222,40 @@ pub(crate) struct RotatedFamily {
     pub refresh_token: String,
 }
 
+/// How a rotation attempt ended. A refusal may have revoked the family for
+/// replay, which the caller must commit before reporting the refusal.
+pub(crate) enum Rotation {
+    Rotated(RotatedFamily),
+    Refused(ApiError),
+}
+
 pub(crate) async fn rotate_family(
     pool: &PgPool,
     refresh_token: &str,
     kind: FamilyKind,
 ) -> Result<RotatedFamily, ApiError> {
-    validate_refresh_token(refresh_token)?;
+    let mut transaction = pool.begin().await?;
+    let rotation = rotate_family_in(&mut transaction, refresh_token, kind).await?;
+    transaction.commit().await?;
+    match rotation {
+        Rotation::Rotated(rotated) => Ok(rotated),
+        Rotation::Refused(error) => Err(error),
+    }
+}
+
+/// Rotates inside the caller's transaction, so the caller can sign the new
+/// access token before anything commits. `Err` is reserved for database and
+/// internal failures; credential problems come back as `Refused`.
+pub(crate) async fn rotate_family_in(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    refresh_token: &str,
+    kind: FamilyKind,
+) -> Result<Rotation, ApiError> {
+    if let Err(error) = validate_refresh_token(refresh_token) {
+        return Ok(Rotation::Refused(error));
+    }
     let token_hash = hash_secret(refresh_token);
     let now = Utc::now();
-    let mut transaction = pool.begin().await?;
     let row = sqlx::query_as::<_, SessionRow>(
         r#"
         SELECT
@@ -252,12 +277,14 @@ pub(crate) async fn rotate_family(
         "#,
     )
     .bind(token_hash)
-    .fetch_optional(&mut *transaction)
-    .await?
-    .ok_or_else(invalid_refresh_token)?;
+    .fetch_optional(&mut **transaction)
+    .await?;
+    let Some(row) = row else {
+        return Ok(Rotation::Refused(invalid_refresh_token()));
+    };
     let is_mcp = row.client_kind == ClientKind::Mcp.as_str();
     if is_mcp != (kind == FamilyKind::Mcp) {
-        return Err(invalid_refresh_token());
+        return Ok(Rotation::Refused(invalid_refresh_token()));
     }
 
     let replayed = row.used_at.is_some();
@@ -270,10 +297,9 @@ pub(crate) async fn rotate_family(
             .bind(row.family_id)
             .bind(now)
             .bind("refresh_token_replay")
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
         }
-        transaction.commit().await?;
         let (code, message) = if replayed {
             (
                 "refresh_token_reuse",
@@ -282,7 +308,7 @@ pub(crate) async fn rotate_family(
         } else {
             ("refresh_token_expired", "The account session has expired.")
         };
-        return Err(ApiError::unauthorized(code, message));
+        return Ok(Rotation::Refused(ApiError::unauthorized(code, message)));
     }
 
     let new_token_id = Uuid::now_v7();
@@ -301,28 +327,27 @@ pub(crate) async fn rotate_family(
     .bind(hash_secret(&new_refresh_token))
     .bind(now)
     .bind(inactivity_expires_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
     sqlx::query("UPDATE refresh_tokens SET used_at = $2, replaced_by_id = $3 WHERE id = $1")
         .bind(row.token_id)
         .bind(now)
         .bind(new_token_id)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
     sqlx::query("UPDATE refresh_token_families SET last_used_at = $2 WHERE id = $1")
         .bind(row.family_id)
         .bind(now)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
-    transaction.commit().await?;
-    Ok(RotatedFamily {
+    Ok(Rotation::Rotated(RotatedFamily {
         account_id: row.account_id,
         family_id: row.family_id,
         client_kind: row.client_kind.parse()?,
         client_id: row.client_id,
         authenticated_at: row.authenticated_at,
         refresh_token: new_refresh_token,
-    })
+    }))
 }
 
 fn invalid_refresh_token() -> ApiError {

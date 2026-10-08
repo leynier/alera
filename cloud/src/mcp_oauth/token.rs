@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::{
     api_models::ClientKind,
     auth::{
-        sessions::{create_family, rotate_family, validate_refresh_token, FamilyKind},
+        sessions::{create_family, rotate_family_in, validate_refresh_token, FamilyKind, Rotation},
         validation::{hash_secret, pkce_challenge, validate_code_verifier},
         McpAccessInput,
     },
@@ -197,9 +197,16 @@ async fn refresh(state: &AppState, form: &FormFields) -> Result<Value, OAuthErro
             "The refresh token was issued to another client.",
         ));
     }
-    let rotated = rotate_family(&state.pool, refresh_token, FamilyKind::Mcp)
-        .await
-        .map_err(|_| invalid())?;
+    // Rotation, the grant check, and signing share one transaction: a signing
+    // failure must not spend the client's refresh token.
+    let mut transaction = state.pool.begin().await?;
+    let rotated = match rotate_family_in(&mut transaction, refresh_token, FamilyKind::Mcp).await? {
+        Rotation::Rotated(rotated) => rotated,
+        Rotation::Refused(_) => {
+            transaction.commit().await?;
+            return Err(invalid());
+        }
+    };
     let live = sqlx::query_as::<_, (String, DateTime<Utc>)>(
         r#"
         SELECT g.scopes, g.created_at
@@ -211,17 +218,17 @@ async fn refresh(state: &AppState, form: &FormFields) -> Result<Value, OAuthErro
     )
     .bind(grant.grant_id)
     .bind(rotated.account_id)
-    .fetch_optional(&state.pool)
+    .fetch_optional(&mut *transaction)
     .await?;
     let Some((scopes, authenticated_at)) = live else {
-        let mut connection = state.pool.acquire().await?;
         revoke_grant(
-            &mut connection,
+            &mut transaction,
             rotated.account_id,
             grant.grant_id,
             "grant_revoked",
         )
         .await?;
+        transaction.commit().await?;
         return Err(OAuthError::invalid_grant("The authorization was revoked."));
     };
     let access_token = state
@@ -235,6 +242,7 @@ async fn refresh(state: &AppState, form: &FormFields) -> Result<Value, OAuthErro
             authenticated_at,
         })
         .await?;
+    transaction.commit().await?;
     Ok(token_response(
         state,
         &access_token,

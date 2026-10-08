@@ -341,7 +341,7 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     Ok(())
 }
 
-struct FailingSigner;
+pub(super) struct FailingSigner;
 
 #[async_trait]
 impl TokenSigner for FailingSigner {
