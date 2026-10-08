@@ -288,7 +288,6 @@ describe('OAuth routing', () => {
     '/.well-known/oauth-authorization-server',
     '/.well-known/oauth-protected-resource',
     '/.well-known/oauth-protected-resource/v1/mcp',
-    '/oauth/authorize?client_id=x',
     '/oauth/login',
     '/device',
   ]) {
@@ -302,7 +301,11 @@ describe('OAuth routing', () => {
   }
 
   test('moves callback and device query strings into a POST body for the origin', async () => {
-    for (const path of ['/oauth/callback?code=provider-code&state=s1', '/device?user_code=ABCD-EFGH']) {
+    for (const path of [
+      '/oauth/authorize?client_id=c&state=client-state',
+      '/oauth/callback?code=provider-code&state=s1',
+      '/device?user_code=ABCD-EFGH',
+    ]) {
       const { result, seen } = await proxy(path);
       expect(result.status).toBe(200);
       const [pathname, query] = path.split('?');

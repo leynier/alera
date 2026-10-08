@@ -247,6 +247,50 @@ async fn device_authorization_signs_in_a_headless_runtime() -> anyhow::Result<()
     .await?;
     assert_eq!(expired.error_code(), "expired_token");
 
+    // Two approved codes for one signed-out runtime: only the first redeems.
+    let twin_id = format!("runtime-{}", Uuid::now_v7());
+    let mut twin_codes = Vec::new();
+    for _ in 0..2 {
+        let started = post_json(
+            &app,
+            "/v1/auth/device",
+            None,
+            json!({"clientId": twin_id, "clientKind": "runtime", "deviceName": "Twin"}),
+        )
+        .await?
+        .json();
+        twin_codes.push(
+            started["deviceCode"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+        );
+    }
+    sqlx::query(
+        "UPDATE device_authorizations SET status = 'approved', account_id = $2, approved_at = NOW() WHERE client_id = $1",
+    )
+    .bind(&twin_id)
+    .bind(Uuid::parse_str(tokens["account"]["id"].as_str().unwrap_or_default())?)
+    .execute(&pool)
+    .await?;
+    let first = post_json(
+        &app,
+        "/v1/auth/device/token",
+        None,
+        json!({"deviceCode": twin_codes[0]}),
+    )
+    .await?;
+    assert_eq!(first.status, StatusCode::OK, "{}", first.text());
+    let second = post_json(
+        &app,
+        "/v1/auth/device/token",
+        None,
+        json!({"deviceCode": twin_codes[1]}),
+    )
+    .await?;
+    assert_eq!(second.status, StatusCode::CONFLICT);
+    assert_eq!(second.error_code(), "runtime_already_signed_in");
+
     delete_account(&pool, tokens["account"]["id"].as_str()).await?;
     pool.close().await;
     Ok(())

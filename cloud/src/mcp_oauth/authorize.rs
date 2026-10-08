@@ -70,6 +70,15 @@ pub async fn authorize(State(state): State<AppState>, RawQuery(query): RawQuery)
     }
 }
 
+/// The edge forwards the authorization query as a form body, so Cloud Run
+/// request logs never record the client's state.
+pub async fn authorize_form(State(state): State<AppState>, body: String) -> Response {
+    match authorize_request(&state, Some(&body)).await {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    }
+}
+
 async fn authorize_request(state: &AppState, query: Option<&str>) -> Result<Response, PageError> {
     let form = FormFields::parse_query(query);
     let trusted = |name: &str| {

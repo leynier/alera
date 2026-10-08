@@ -62,7 +62,10 @@ pub fn router(mcp_enabled: bool) -> Router<AppState> {
                 "/oauth/register",
                 post(clients::register).options(preflight),
             )
-            .route("/oauth/authorize", get(authorize::authorize))
+            .route(
+                "/oauth/authorize",
+                get(authorize::authorize).post(authorize::authorize_form),
+            )
             .route("/oauth/token", post(token::token).options(preflight))
             .route("/oauth/revoke", post(token::revoke).options(preflight))
             .route("/v1/mcp/runtimes", get(mcp_gateway::list_runtimes))

@@ -53,22 +53,7 @@ pub async fn start(
     // The request is unauthenticated and runtime ids are not secret, so a
     // runtime that still holds a session cannot be signed in again from here:
     // an approved code would hand its identity to whoever started the flow.
-    let signed_in = sqlx::query_scalar::<_, bool>(
-        r#"
-        SELECT EXISTS(
-            SELECT 1 FROM refresh_token_families f
-            JOIN refresh_tokens t ON t.family_id = f.id
-            WHERE f.client_kind = 'runtime' AND f.client_id = $1
-              AND f.revoked_at IS NULL AND f.absolute_expires_at > $2
-              AND t.used_at IS NULL AND t.revoked_at IS NULL
-              AND t.inactivity_expires_at > $2
-        )
-        "#,
-    )
-    .bind(&request.client_id)
-    .bind(Utc::now())
-    .fetch_one(&state.pool)
-    .await?;
+    let signed_in = runtime_signed_in(&state.pool, &request.client_id, Utc::now()).await?;
     if signed_in {
         return Err(ApiError::conflict(
             "runtime_already_signed_in",
@@ -172,6 +157,21 @@ pub async fn token(
         ("consumed", _) => error("expired_token", "The device code was already used."),
         _ if expired => error("expired_token", "The device code expired."),
         ("approved", Some(account_id)) => {
+            // Two codes for one runtime can both be approved while it is signed
+            // out. Redemptions take a per-runtime lock and recheck, so only the
+            // first one gets a session.
+            let mut guard = state.pool.begin().await?;
+            sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+                .bind(&row.client_id)
+                .execute(&mut *guard)
+                .await?;
+            if runtime_signed_in(&mut *guard, &row.client_id, now).await? {
+                guard.rollback().await?;
+                return Err(ApiError::conflict(
+                    "runtime_already_signed_in",
+                    "This runtime is already signed in. Sign it out first, then try again.",
+                ));
+            }
             let envelope = create_session(
                 &state.pool,
                 &state.tokens,
@@ -182,6 +182,7 @@ pub async fn token(
                 row.approved_at.unwrap_or(now),
             )
             .await?;
+            guard.commit().await?;
             Ok(Json(envelope))
         }
         _ if too_fast => error("slow_down", "Poll the token endpoint less often."),
@@ -190,6 +191,31 @@ pub async fn token(
             "The sign-in has not been approved yet.",
         ),
     }
+}
+
+/// Whether the runtime holds a usable session: an unrevoked family with a
+/// refresh token that is neither used, revoked, nor idle past its window.
+async fn runtime_signed_in<'e>(
+    executor: impl sqlx::PgExecutor<'e>,
+    client_id: &str,
+    now: DateTime<Utc>,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM refresh_token_families f
+            JOIN refresh_tokens t ON t.family_id = f.id
+            WHERE f.client_kind = 'runtime' AND f.client_id = $1
+              AND f.revoked_at IS NULL AND f.absolute_expires_at > $2
+              AND t.used_at IS NULL AND t.revoked_at IS NULL
+              AND t.inactivity_expires_at > $2
+        )
+        "#,
+    )
+    .bind(client_id)
+    .bind(now)
+    .fetch_one(executor)
+    .await
 }
 
 pub async fn is_pending(state: &AppState, id: Uuid) -> Result<bool, sqlx::Error> {

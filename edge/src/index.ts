@@ -112,7 +112,7 @@ async function requestLimitKey(request: Request, pathname: string): Promise<stri
 // Pages whose query carries a provider code, OAuth state, or a device user
 // code. Cloud Run logs every request URL, so the edge moves the query into a
 // POST body before it reaches the origin.
-const QUERY_SECRET_PATHS = new Set(['/oauth/callback', '/device']);
+const QUERY_SECRET_PATHS = new Set(['/oauth/authorize', '/oauth/callback', '/device']);
 
 export function originRequest(request: Request, env: EdgeEnvironment, incomingUrl: URL): Request {
   const originUrl = new URL(env.ORIGIN_BASE_URL);
