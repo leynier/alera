@@ -55,12 +55,11 @@ fn reads_and_executes_are_classified() {
 
 #[test]
 fn builds_cli_arguments_with_equals_form_values() {
-    let (args, stdin) = invocation_args(
-        "list_workspaces",
-        json!({ "projectId": "--all", "all": true }),
-    );
-    assert_eq!(args, ["workspace", "list", "--project-id=--all", "--all"]);
+    let (args, stdin) = invocation_args("list_workspaces", json!({ "projectId": "--all" }));
+    assert_eq!(args, ["workspace", "list", "--project-id=--all"]);
     assert!(stdin.is_none());
+    let (all, _) = invocation_args("list_workspaces", json!({ "hostId": "local" }));
+    assert_eq!(all, ["workspace", "list", "--host-id=local", "--all"]);
 }
 
 #[test]

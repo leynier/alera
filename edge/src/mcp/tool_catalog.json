@@ -44,14 +44,10 @@
         "readOnlyHint": true,
         "title": "List Workspaces"
       },
-      "description": "List workspaces (tasks with their branch and worktree). Filter by project id or host; set all to include every project.",
+      "description": "List workspaces (tasks with their branch and worktree) of one project, or of every project when projectId is omitted. Filter by host with hostId.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "all": {
-            "description": "List workspaces of every project.",
-            "type": "boolean"
-          },
           "hostId": {
             "description": "SSH target id, or `local`.",
             "minLength": 1,

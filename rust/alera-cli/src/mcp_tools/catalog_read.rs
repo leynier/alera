@@ -1,6 +1,6 @@
 //! Tools that only read runtime state, plus bounded waits.
 
-use super::schema::{boolean, integer, object, one_of, string, string_list};
+use super::schema::{integer, object, one_of, string, string_list};
 use super::{Invocation, ToolAccess, ToolArguments, ToolInputError, ToolSpec, MAX_WAIT_SECONDS};
 
 /// Inbox used for questions an MCP client asks, kept apart from the user's own.
@@ -76,22 +76,23 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "list_workspaces",
             "List Workspaces",
-            "List workspaces (tasks with their branch and worktree). Filter by project id or host; set all to include every project.",
+            "List workspaces (tasks with their branch and worktree) of one project, or of every project when projectId is omitted. Filter by host with hostId.",
             || {
                 object(
                     &[
                         ("projectId", string("Project id from list_projects.")),
                         ("hostId", string("SSH target id, or `local`.")),
-                        ("all", boolean("List workspaces of every project.")),
                     ],
                     &[],
                 )
             },
             |arguments| {
+                let project = arguments.string("projectId");
+                let all = project.is_none();
                 Ok(Invocation::new("workspace", &["list"])
-                    .option_if("--project-id", arguments.string("projectId"))
+                    .option_if("--project-id", project)
                     .option_if("--host-id", arguments.string("hostId"))
-                    .flag_if("--all", arguments.flag("all")))
+                    .flag_if("--all", all))
             },
         ),
         read(
