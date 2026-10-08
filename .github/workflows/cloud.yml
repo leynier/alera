@@ -53,6 +53,14 @@ jobs:
         with:
           submodules: false
 
+      # The image compiles its own release build inside the Docker daemon and
+      # needs nothing from the host toolchain, so it runs alongside the cargo
+      # checks instead of after them. It was half of this job's wall time.
+      - name: Build Container
+        id: container
+        background: true
+        run: docker build --file Dockerfile .
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
@@ -77,8 +85,8 @@ jobs:
       - name: PostgreSQL Contract Tests
         run: cargo test --workspace -- --ignored --test-threads=1
 
-      - name: Build Container
-        run: docker build --file Dockerfile .
+      - name: Wait for container build
+        wait: container
 
   edge:
     runs-on: ubuntu-latest
@@ -126,29 +134,33 @@ jobs:
         with:
           tofu_version: 1.12.1
 
-      - name: Validate Production Root
-        working-directory: infra/production
-        run: |
-          tofu fmt -check -recursive
-          tofu init -backend=false -input=false
-          tofu validate
+      # Each check reads its own root or script. tofu init downloads providers
+      # into each root's own .terraform directory, so the roots validate
+      # side by side.
+      - parallel:
+          - name: Validate Production Root
+            working-directory: infra/production
+            run: |
+              tofu fmt -check -recursive
+              tofu init -backend=false -input=false
+              tofu validate
 
-      - name: Validate Bootstrap Root
-        working-directory: infra/bootstrap/github
-        run: |
-          tofu fmt -check -recursive
-          tofu init -backend=false -input=false
-          tofu validate
+          - name: Validate Bootstrap Root
+            working-directory: infra/bootstrap/github
+            run: |
+              tofu fmt -check -recursive
+              tofu init -backend=false -input=false
+              tofu validate
 
-      - name: Test Plan Guard
-        working-directory: tool/cloud
-        run: python3 -m unittest -v test_validate_tofu_plan.py
+          - name: Test Plan Guard
+            working-directory: tool/cloud
+            run: python3 -m unittest -v test_validate_tofu_plan.py
 
-      - name: Validate Deployment Scripts
-        run: bash -n tool/cloud/deploy_worker_relay_disabled.sh tool/cloud/test_verify_production.sh tool/cloud/verify_production.sh tool/cloud/verify_worker_namespace.sh
+          - name: Validate Deployment Scripts
+            run: bash -n tool/cloud/deploy_worker_relay_disabled.sh tool/cloud/test_verify_production.sh tool/cloud/verify_production.sh tool/cloud/verify_worker_namespace.sh
 
-      - name: Test Production Verifier
-        run: bash tool/cloud/test_verify_production.sh
+          - name: Test Production Verifier
+            run: bash tool/cloud/test_verify_production.sh
 
   cloud-ready:
     name: cloud-ready

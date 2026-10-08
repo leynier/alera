@@ -233,6 +233,37 @@ jobs:
             fi
           done
 
+      # The image build is most of this job and needs only the registry login.
+      # It starts once the preflight has passed and keeps building while the
+      # state, the current deployment and the relay state are read, then the
+      # plan waits for its digest.
+      - name: Setup Docker Buildx
+        if: ${{ env.DEPLOY_MODE != 'rollback' }}
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Configure Artifact Registry
+        if: ${{ env.DEPLOY_MODE != 'rollback' }}
+        run: gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+
+      - name: Build And Publish Image
+        id: image
+        if: ${{ env.DEPLOY_MODE != 'rollback' }}
+        background: true
+        run: |
+          set -euo pipefail
+          repository="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/alera-cloud/alera-cloud"
+          image_tag="$repository:$GITHUB_SHA"
+          docker buildx build \
+            --file cloud/Dockerfile \
+            --platform linux/amd64 \
+            --push \
+            --tag "$image_tag" \
+            --metadata-file "$RUNNER_TEMP/alera-cloud-build.json" \
+            cloud
+          digest="$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/alera-cloud-build.json")"
+          echo "target_image=$repository@$digest" >>"$GITHUB_OUTPUT"
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
@@ -243,10 +274,6 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: '1.3.14'
-
-      - name: Setup Docker Buildx
-        if: ${{ env.DEPLOY_MODE != 'rollback' }}
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Install Edge Dependencies
         working-directory: edge
@@ -358,27 +385,10 @@ jobs:
           fi
           echo "state=$relay_state" >>"$GITHUB_OUTPUT"
 
-      - name: Configure Artifact Registry
-        if: ${{ env.DEPLOY_MODE != 'rollback' }}
-        run: gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
-
-      - name: Build And Publish Image
-        id: image
-        if: ${{ env.DEPLOY_MODE != 'rollback' }}
-        run: |
-          set -euo pipefail
-          repository="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/alera-cloud/alera-cloud"
-          image_tag="$repository:$GITHUB_SHA"
-          docker buildx build \
-            --file cloud/Dockerfile \
-            --platform linux/amd64 \
-            --push \
-            --tag "$image_tag" \
-            --metadata-file "$RUNNER_TEMP/alera-cloud-build.json" \
-            cloud
-          digest="$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/alera-cloud-build.json")"
-          echo "target_image=$repository@$digest" >>"$GITHUB_OUTPUT"
-          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+      # A rollback builds nothing, so there is no background step to wait for
+      # and wait-all returns at once.
+      - name: Wait for image
+        wait-all:
 
       - name: Select Deployment Target
         id: target

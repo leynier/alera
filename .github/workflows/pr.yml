@@ -148,20 +148,25 @@ jobs:
           native-assets: 'false'
           preflight: 'false'
 
-      - name: Format
-        if: needs.changes.outputs.static_dart == 'true'
-        run: dart format --set-exit-if-changed lib test integration_test tool
+      # The three checks only read the resolved workspace, so they share the
+      # runner instead of queueing behind analyze. Analyze skips its implicit
+      # pub get: the setup already resolved, and a concurrent rewrite of
+      # package_config.json could race the other two readers.
+      - parallel:
+          - name: Format
+            if: needs.changes.outputs.static_dart == 'true'
+            run: dart format --set-exit-if-changed lib test integration_test tool
 
-      # `dart run` would resolve the package and fire the native asset build
-      # hooks, which this job deliberately has no Zig for. The script imports
-      # only dart:io, so run the file directly.
-      - name: Max lines ratchet
-        if: needs.changes.outputs.static_dart == 'true'
-        run: dart tool/quality/check_max_lines.dart
+          # `dart run` would resolve the package and fire the native asset build
+          # hooks, which this job deliberately has no Zig for. The script imports
+          # only dart:io, so run the file directly.
+          - name: Max lines ratchet
+            if: needs.changes.outputs.static_dart == 'true'
+            run: dart tool/quality/check_max_lines.dart
 
-      - name: Analyze
-        if: needs.changes.outputs.static_dart == 'true'
-        run: flutter analyze
+          - name: Analyze
+            if: needs.changes.outputs.static_dart == 'true'
+            run: flutter analyze --no-pub
 
   packages:
     needs: changes
@@ -181,48 +186,51 @@ jobs:
           native-assets: 'false'
           preflight: 'false'
 
-      - name: Validate shared packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          for package in packages/alera_configuration; do
-            (
-              cd "$package"
-              flutter pub get --enforce-lockfile
-              dart format --set-exit-if-changed lib test
-              flutter analyze --no-pub
-              flutter test --no-pub
-            )
-          done
+      # Each validation resolves and checks its own package directory, so they
+      # run side by side. Only the packager verification needs its resolution.
+      - parallel:
+          - name: Validate shared packages
+            shell: bash
+            run: |
+              set -euo pipefail
+              for package in packages/alera_configuration; do
+                (
+                  cd "$package"
+                  flutter pub get --enforce-lockfile
+                  dart format --set-exit-if-changed lib test
+                  flutter analyze --no-pub
+                  flutter test --no-pub
+                )
+              done
 
-      - name: Validate vendored desktop updater
-        shell: bash
-        run: |
-          set -euo pipefail
-          (
-            cd third_party/desktop_updater
-            # The vendored package has no committed lockfile; resolve its own
-            # dependency graph before running its package-local checks.
-            flutter pub get
-            flutter analyze --no-pub --no-fatal-infos
-            flutter test --no-pub
-          )
+          - name: Validate vendored desktop updater
+            shell: bash
+            run: |
+              set -euo pipefail
+              (
+                cd third_party/desktop_updater
+                # The vendored package has no committed lockfile; resolve its own
+                # dependency graph before running its package-local checks.
+                flutter pub get
+                flutter analyze --no-pub --no-fatal-infos
+                flutter test --no-pub
+              )
 
-      - name: Validate native plugin manifests
-        shell: bash
-        run: |
-          set -euo pipefail
-          for package in rust_builder mobile/rust_builder; do
-            (
-              cd "$package"
-              flutter pub get
-              dart analyze pubspec.yaml
-            )
-          done
+          - name: Validate native plugin manifests
+            shell: bash
+            run: |
+              set -euo pipefail
+              for package in rust_builder mobile/rust_builder; do
+                (
+                  cd "$package"
+                  flutter pub get
+                  dart analyze pubspec.yaml
+                )
+              done
 
-      - name: Resolve standalone Dart packager
-        working-directory: tool/release/runtime_packager
-        run: dart pub get --enforce-lockfile
+          - name: Resolve standalone Dart packager
+            working-directory: tool/release/runtime_packager
+            run: dart pub get --enforce-lockfile
 
       - name: Verify standalone packaging
         run: dart tool/ci/verify_runtime_packager.dart
@@ -243,19 +251,27 @@ jobs:
         with:
           linux-toolchain: 'false'
 
-      - name: Regenerate desktop
-        run: |
-          dart run build_runner build
-          dart tool/ci/normalize_generated_eof.dart
-          dart format lib test
-
+      # The mobile package resolves and generates under mobile/ only, and the
+      # desktop pass only writes lib/ and test/ at the root, so mobile runs in
+      # the background behind the longer desktop pass.
       - name: Regenerate mobile
+        id: regenerate-mobile
+        background: true
         working-directory: mobile
         run: |
           flutter pub get --enforce-lockfile
           dart run build_runner build
           dart ../tool/ci/normalize_generated_eof.dart .
           dart format lib test
+
+      - name: Regenerate desktop
+        run: |
+          dart run build_runner build
+          dart tool/ci/normalize_generated_eof.dart
+          dart format lib test
+
+      - name: Wait for mobile generation
+        wait: regenerate-mobile
 
       - name: Require reproducible generation
         run: git diff --exit-code
@@ -360,6 +376,14 @@ jobs:
         with:
           submodules: false
 
+      # flutter_soloud 5 compiles its native library in a build hook, and
+      # flutter test runs that hook for the Linux host, which needs ALSA headers.
+      # apt shares nothing with the Flutter setup, so it installs meanwhile.
+      - name: Install ALSA headers
+        id: alsa
+        background: true
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       # The mobile package overrides xterm to ../third_party/xterm and runs no
       # native asset hooks, so it needs neither the other submodule nor Zig.
       - name: Setup Flutter workspace
@@ -371,19 +395,20 @@ jobs:
           native-assets: 'false'
           preflight: 'false'
 
-      # flutter_soloud 5 compiles its native library in a build hook, and
-      # flutter test runs that hook for the Linux host, which needs ALSA headers.
-      - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Wait for ALSA headers
+        wait: alsa
 
-      - name: Format
-        run: dart format --set-exit-if-changed lib test
+      # Format and analyze finish inside the test run's wall time. None of
+      # them resolves again, so nothing rewrites package_config.json mid-run.
+      - parallel:
+          - name: Format
+            run: dart format --set-exit-if-changed lib test
 
-      - name: Analyze
-        run: flutter analyze
+          - name: Analyze
+            run: flutter analyze --no-pub
 
-      - name: Test
-        run: flutter test --no-pub
+          - name: Test
+            run: flutter test --no-pub
 
   # Clippy-driver and rustc do not share rustc artifacts, so this stays a
   # second job rather than running after rust-test. It waits for `changes` so

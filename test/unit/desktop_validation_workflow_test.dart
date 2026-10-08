@@ -158,6 +158,35 @@ void main() {
     expect(workflows['run'], contains('-p alera-core --features runtime'));
     expect(workflows['run'], contains('--lib workflow_'));
     expect(workflows['run'], contains('--locked'));
+    // Run 37696090551 overlapped both suites with the app build: the build
+    // doubled on every platform and the debug integration builds lost the
+    // dependencies these suites leave in rust/target, a net loss of ~13 min
+    // on Linux and ~14 min on macOS.
+    for (final name in [
+      'Verify workflow contracts and native Git integration',
+      'Verify native workflow launch and recovery',
+      'Verify Windows workflow launch and recovery',
+    ]) {
+      expect(step('build', name)['background'], isNull, reason: name);
+    }
+  });
+
+  test('Windows tuning runs in the background ahead of the setup', () {
+    for (final job in ['build', 'windows_native_smoke']) {
+      final jobSteps = steps(job);
+      final names = [for (final s in jobSteps) s['name']];
+      final tune = names.indexOf('Tune Windows build environment');
+      final setup = names.indexOf('Setup Flutter workspace');
+      expect(jobSteps[tune]['background'], isTrue, reason: job);
+      expect(tune, lessThan(setup), reason: job);
+      // Its PATH and env changes only apply once a wait includes it.
+      final wait = jobSteps[setup + 1];
+      expect(
+        wait.containsKey('wait') || wait.containsKey('wait-all'),
+        isTrue,
+        reason: job,
+      );
+    }
   });
 
   test(
