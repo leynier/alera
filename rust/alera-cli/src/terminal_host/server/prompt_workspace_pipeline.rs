@@ -25,7 +25,7 @@ use crate::terminal_host::ServerInbox;
 
 pub(super) const IDENTITY_DEADLINE: Duration = Duration::from_secs(11 * 60);
 const CREATE_DEADLINE: Duration = Duration::from_secs(10 * 60);
-const SHORT_DEADLINE: Duration = Duration::from_secs(60);
+pub(super) const SHORT_DEADLINE: Duration = Duration::from_secs(60);
 
 pub(super) enum Stop {
     Cancelled,
@@ -378,58 +378,6 @@ impl PromptWorkspaceRun {
         }));
         self.save().await;
         Ok(())
-    }
-
-    /// Starts the deferred worktree setup in a tab named "Setup", as the app
-    /// does after a From Prompt launch. A failure leaves a warning.
-    async fn start_setup(&mut self, workspace_id: &str) {
-        if self
-            .operation
-            .setup
-            .as_ref()
-            .is_some_and(|setup| setup.get("tabId").is_some())
-        {
-            return;
-        }
-        let Some(command) = self
-            .operation
-            .setup
-            .as_ref()
-            .and_then(|setup| setup["command"].as_str())
-            .map(str::to_owned)
-        else {
-            return;
-        };
-        if self.set_phase("startingSetup").await.is_err() {
-            return;
-        }
-        let tab_id = Uuid::new_v4().to_string();
-        let now = chrono::Utc::now().to_rfc3339();
-        let tab = json!({
-            "id": tab_id,
-            "workspaceId": workspace_id,
-            "kind": "terminal",
-            "title": "Setup",
-            "createdAt": now,
-            "updatedAt": now,
-            "payload": {
-                "terminalSessionId": tab_id,
-                "manualTitle": true,
-                "initialCommand": command,
-                "initialCommandOnce": true,
-                "spawnOnCreate": true,
-                "autoCloseOnSuccess": true,
-            },
-        });
-        match self.call("tab.upsert", tab, SHORT_DEADLINE).await {
-            Ok(_) => self.operation.setup = Some(json!({ "tabId": tab_id })),
-            Err(Stop::Failed(error)) => self
-                .operation
-                .warnings
-                .push(format!("The worktree setup did not start: {error}")),
-            Err(Stop::Cancelled) => {}
-        }
-        self.save().await;
     }
 
     pub(super) fn auto_section(&self) -> bool {

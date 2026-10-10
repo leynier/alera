@@ -6,7 +6,57 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::azure::AzureDevOpsForge;
+use super::input_file::json_input_file;
 use super::provider::CreateInput;
+
+impl AzureDevOpsForge {
+    /// One `az devops invoke` call on the git area, with [body] as its JSON
+    /// request body.
+    pub(super) async fn invoke(
+        &self,
+        resource: &str,
+        route: &[String],
+        method: &str,
+        body: Option<&Value>,
+    ) -> HostResult<Value> {
+        // A checkout on another host cannot read a file written here, so its
+        // body travels on stdin. A unix host reads that as /dev/stdin; a
+        // Windows host has no such path, so `az` fails and the request is
+        // refused rather than sent without its body.
+        let (file, stdin) = match body {
+            Some(body) if !self.runner.shares_local_files() => (
+                None,
+                Some(
+                    serde_json::to_string(body)
+                        .map_err(|error| HostError::state(error.to_string()))?,
+                ),
+            ),
+            body => (body.map(json_input_file).transpose()?, None),
+        };
+        let mut args = ["devops", "invoke", "--area", "git", "--resource", resource]
+            .map(String::from)
+            .to_vec();
+        args.push("--route-parameters".into());
+        args.extend(route.iter().cloned());
+        args.extend(["--http-method", method, "--api-version", "7.1"].map(String::from));
+        if let Some(file) = &file {
+            args.extend([
+                "--in-file".to_string(),
+                file.path().to_string_lossy().into_owned(),
+            ]);
+        } else if stdin.is_some() {
+            args.extend(["--in-file", "/dev/stdin"].map(String::from));
+        }
+        args.extend(["--organization".to_string(), self.org()]);
+        args.extend(["--output", "json"].map(String::from));
+        let result = self
+            .run_json_with_stdin(args, false, stdin.as_deref())
+            .await;
+        drop(file);
+        result
+    }
+}
 
 /// `refs/heads/<branch>` unless [branch] is already a full ref, as
 /// `az repos pr create` and `az repos pr list` qualify it.

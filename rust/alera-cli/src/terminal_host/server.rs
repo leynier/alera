@@ -251,6 +251,7 @@ mod prompt_workspace_creation;
 mod prompt_workspace_operation;
 mod prompt_workspace_pipeline;
 mod prompt_workspace_requests;
+mod prompt_workspace_setup;
 mod pty_event_forwarder;
 mod pty_events;
 mod pty_exit_deferral;

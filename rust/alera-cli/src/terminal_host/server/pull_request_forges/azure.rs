@@ -14,7 +14,6 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::azure_requests::{branch_argument, completion_body, create_body, reject_file_expansion};
 use super::identity::{ForgeIdentity, ForgeKind};
-use super::input_file::json_input_file;
 use super::mappers::{
     azure_check, azure_comments, azure_reply_body, azure_review, azure_thread_body,
 };
@@ -48,7 +47,7 @@ fn mentions_not_found(stderr: &str) -> bool {
 }
 
 impl AzureDevOpsForge {
-    fn org(&self) -> String {
+    pub(super) fn org(&self) -> String {
         self.identity.azure_org_url()
     }
 
@@ -65,8 +64,17 @@ impl AzureDevOpsForge {
     }
 
     async fn run(&self, args: Vec<String>, allow_not_found: bool) -> HostResult<Option<String>> {
+        self.run_with_stdin(args, allow_not_found, None).await
+    }
+
+    async fn run_with_stdin(
+        &self,
+        args: Vec<String>,
+        allow_not_found: bool,
+        stdin: Option<&str>,
+    ) -> HostResult<Option<String>> {
         reject_file_expansion(&args)?;
-        let output = self.runner.run("az", &args, &[]).await?;
+        let output = self.runner.run_with_stdin("az", &args, &[], stdin).await?;
         if output.code == 0 {
             return Ok(Some(output.stdout));
         }
@@ -88,7 +96,16 @@ impl AzureDevOpsForge {
     }
 
     async fn run_json(&self, args: Vec<String>, allow_not_found: bool) -> HostResult<Value> {
-        let Some(output) = self.run(args, allow_not_found).await? else {
+        self.run_json_with_stdin(args, allow_not_found, None).await
+    }
+
+    pub(super) async fn run_json_with_stdin(
+        &self,
+        args: Vec<String>,
+        allow_not_found: bool,
+        stdin: Option<&str>,
+    ) -> HostResult<Value> {
+        let Some(output) = self.run_with_stdin(args, allow_not_found, stdin).await? else {
             return Ok(Value::Null);
         };
         let trimmed = output.trim();
@@ -119,38 +136,6 @@ impl AzureDevOpsForge {
     /// `az devops invoke` against a pull request resource. The body travels
     /// in a private temporary file, as the desktop does, removed when the
     /// call ends however it ends.
-    async fn invoke(
-        &self,
-        resource: &str,
-        route: &[String],
-        method: &str,
-        body: Option<&Value>,
-    ) -> HostResult<Value> {
-        if body.is_some() && !self.runner.shares_local_files() {
-            return Err(HostError::state(
-                "Azure DevOps requests with a body need the checkout on this machine.",
-            ));
-        }
-        let file = body.map(json_input_file).transpose()?;
-        let mut args = ["devops", "invoke", "--area", "git", "--resource", resource]
-            .map(String::from)
-            .to_vec();
-        args.push("--route-parameters".into());
-        args.extend(route.iter().cloned());
-        args.extend(["--http-method", method, "--api-version", "7.1"].map(String::from));
-        if let Some(file) = &file {
-            args.extend([
-                "--in-file".to_string(),
-                file.path().to_string_lossy().into_owned(),
-            ]);
-        }
-        args.extend(["--organization".to_string(), self.org()]);
-        args.extend(["--output", "json"].map(String::from));
-        let result = self.run_json(args, false).await;
-        drop(file);
-        result
-    }
-
     fn repository_route(&self) -> HostResult<Vec<String>> {
         Ok(vec![
             format!("project={}", self.project()?),
@@ -369,9 +354,8 @@ impl ForgeProvider for AzureDevOpsForge {
 
     /// With an expected head, completes through `PATCH pullRequests/{id}`
     /// carrying `lastMergeSourceCommit`, so Azure DevOps itself refuses a head
-    /// that moved after it was read. A checkout on another host cannot take
-    /// the body file, so there (and without an expected head) it completes
-    /// through `az repos pr update`, after the same client-side head check.
+    /// that moved after it was read, on this machine or on a checkout's host.
+    /// Without an expected head it completes through `az repos pr update`.
     async fn merge(
         &self,
         number: i64,
@@ -394,15 +378,13 @@ impl ForgeProvider for AzureDevOpsForge {
                     "The pull request head changed before it could be merged.",
                 ));
             }
-            if self.runner.shares_local_files() {
-                let mut route = self.repository_route()?;
-                route.push(format!("pullRequestId={number}"));
-                let body = completion_body(&current, expected, method == MergeMethod::Squash);
-                return self
-                    .invoke("pullRequests", &route, "PATCH", Some(&body))
-                    .await
-                    .map(|_| ());
-            }
+            let mut route = self.repository_route()?;
+            route.push(format!("pullRequestId={number}"));
+            let body = completion_body(&current, expected, method == MergeMethod::Squash);
+            return self
+                .invoke("pullRequests", &route, "PATCH", Some(&body))
+                .await
+                .map(|_| ());
         }
         let squash = if method == MergeMethod::Squash {
             "true"

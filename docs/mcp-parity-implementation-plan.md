@@ -946,7 +946,8 @@ Corregido en las forjas de PR:
   - Azure crea con `az devops invoke --in-file`.
   - En Windows el runner local lanza la CLI directamente, resolviéndola con `PATH` y `PATHEXT`, sin pasar por `cmd.exe`. Nunca busca la CLI en el checkout.
 - **Expansión `@file` de `az`:** se rechaza cualquier argumento que empiece por `@`. Una rama así se pasa como `refs/heads/@…`.
-- **Carrera al mezclar en Azure:** con un checkout local, el merge envía `lastMergeSourceCommit` con la cabeza esperada para que Azure rechace una cabeza vieja. En un host SSH queda la comprobación previa del cliente.
+- **Carrera al mezclar en Azure:** el merge envía `lastMergeSourceCommit` con la cabeza esperada para que Azure rechace una cabeza vieja. Con un checkout local el cuerpo va en un archivo. En un host SSH va por stdin (`--in-file /dev/stdin`); en un host Windows, que no tiene esa ruta, el merge se rechaza en vez de hacerse sin la guarda.
+- **Setup en reintentos:** el id de la pestaña Setup se guarda antes de crearla, así que el setup corre como mucho una vez. Si no se puede confirmar, queda el comando con un aviso para que el usuario decida.
 - **Archivo temporal de Azure:** se crea nuevo y solo para el dueño (0600), y se borra al terminar la llamada.
 
 Corregido en los eventos de la nube:

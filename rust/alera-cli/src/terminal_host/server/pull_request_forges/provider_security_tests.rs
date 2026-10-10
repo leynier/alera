@@ -179,19 +179,25 @@ async fn azure_merge_binds_the_head_on_the_server() {
 }
 
 #[tokio::test]
-async fn a_remote_checkout_never_gets_a_local_body_file() {
+async fn a_remote_checkout_gets_its_body_on_stdin_and_keeps_the_head_guard() {
     let current = r#"{"pullRequestId":43,"lastMergeSourceCommit":{"commitId":"abc"}}"#;
-    let (forge, runner) = azure(FakeRunner::remote([ok(current), ok("")]));
+    let (forge, runner) = azure(FakeRunner::remote([ok(current), ok("{}")]));
     forge
         .merge(43, MergeMethod::Squash, Some("abc"))
         .await
         .unwrap();
     let calls = runner.calls();
-    assert_eq!(calls[1].args[..3], ["repos", "pr", "update"]);
-    assert_eq!(calls[1].option("status"), Some("completed"));
-    assert!(calls.iter().all(|call| call.option("in-file").is_none()));
+    assert_eq!(calls[1].option("http-method"), Some("PATCH"));
+    assert_eq!(calls[1].option("in-file"), Some("/dev/stdin"));
+    let body: serde_json::Value =
+        serde_json::from_str(calls[1].stdin.as_deref().expect("a body on stdin")).unwrap();
+    assert_eq!(body["lastMergeSourceCommit"]["commitId"], "abc");
+    assert_eq!(body["status"], "completed");
 
-    let (forge, runner) = azure(FakeRunner::remote([]));
-    assert!(forge.comment(43, "hi", None).await.is_err());
-    assert!(runner.calls().is_empty());
+    let (forge, runner) = azure(FakeRunner::remote([ok("{}")]));
+    forge.comment(43, "hi & %PATH%", None).await.unwrap();
+    let calls = runner.calls();
+    assert_eq!(calls[0].option("in-file"), Some("/dev/stdin"));
+    assert!(calls[0].stdin.as_deref().unwrap().contains("hi & %PATH%"));
+    assert!(calls[0].args.iter().all(|arg| !arg.contains("%PATH%")));
 }
