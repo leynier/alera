@@ -195,6 +195,14 @@ export async function callTool(
       ),
     };
   }
+  if (tool.access === 'admin' && !access.scopes.has('mcp:admin')) {
+    return {
+      kind: 'result',
+      result: toolError(
+        `insufficient_scope: ${tool.name} needs the mcp:admin scope, but this connection was not granted administrative tools. Reconnect Alera and allow administrative tools.`,
+      ),
+    };
+  }
   const { runtime, ...args } = (params.arguments ?? {}) as Record<string, unknown>;
   if (runtime !== undefined && (typeof runtime !== 'string' || !runtime.trim())) {
     return { kind: 'result', result: toolError('The runtime argument must be a runtime name or id.') };

@@ -146,7 +146,14 @@ class const McpGrantListRow({
                         fontWeight: .w600,
                       ),
                     ),
-                    for (final scope in grant.scopes) AleraChip(label: scope),
+                    for (final scope in grant.scopes)
+                      if (scope != mcpAdminScope) AleraChip(label: scope),
+                    if (grant.canAdmin)
+                      const AleraChip(
+                        label: 'Admin',
+                        leading: AleraIcons.secure,
+                        tooltip: mcpAdminScope,
+                      ),
                   ],
                 ),
                 const SizedBox(height: AleraTokens.space4),

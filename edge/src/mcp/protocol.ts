@@ -1,7 +1,7 @@
 export const MCP_PATH = '/v1/mcp';
 export const MCP_SERVER_VERSION = '0.1.0';
 export const MCP_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'] as const;
-export const MCP_SCOPES = 'mcp:read mcp:execute';
+export const MCP_SCOPES = 'mcp:read mcp:execute mcp:admin';
 export const MAX_MCP_BODY_BYTES = 1024 * 1024;
 
 export const MCP_INSTRUCTIONS =

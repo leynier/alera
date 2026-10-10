@@ -18,7 +18,7 @@ cargo run
 
 Local mode uses a deterministic Ed25519 development seed and disables FCM. Neither setting is acceptable in production.
 
-The service applies required schema migrations 0001-0004 and 0021-0023 before opening its listener, then starts the explicitly allowlisted performance-index migrations 0005-0020 in a bounded background task after `/health` is available. The online phase takes a non-blocking session lock, builds one index at a time with a generous per-index deadline, logs a failure, and retries on the next startup or guarded operator phase. A dirty SQLx migration row remains an operator error and is never cleared automatically. Retention cleanup runs once after bind and repeats every six hours while an instance is active.
+The service applies required schema migrations 0001-0004 and 0021-0024 before opening its listener, then starts the explicitly allowlisted performance-index migrations 0005-0020 in a bounded background task after `/health` is available. The online phase takes a non-blocking session lock, builds one index at a time with a generous per-index deadline, logs a failure, and retries on the next startup or guarded operator phase. A dirty SQLx migration row remains an operator error and is never cleared automatically. Retention cleanup runs once after bind and repeats every six hours while an instance is active.
 
 ## HTTP Contract
 

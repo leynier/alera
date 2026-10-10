@@ -12,7 +12,7 @@ describe('MCP authorization', () => {
     const response = await harness.send({ jsonrpc: '2.0', id: 1, method: 'ping' }, { token: null });
     expect(response.status).toBe(401);
     expect(response.headers.get('www-authenticate')).toBe(
-      `Bearer resource_metadata="${METADATA}", scope="mcp:read mcp:execute"`,
+      `Bearer resource_metadata="${METADATA}", scope="mcp:read mcp:execute mcp:admin"`,
     );
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(response.headers.get('access-control-expose-headers')).toContain('www-authenticate');
@@ -147,7 +147,7 @@ describe('MCP transport', () => {
 describe('MCP tools', () => {
   test('the bundled catalog loads and invalid catalogs are rejected', () => {
     expect(RUNTIME_TOOLS.size).toBeGreaterThan(0);
-    expect(() => loadCatalog({ version: 2, tools: [] })).toThrow();
+    expect(() => loadCatalog({ version: 3, tools: [] })).toThrow();
     expect(() => loadCatalog({ version: 1, tools: [{ name: 'x' }] })).toThrow();
   });
 

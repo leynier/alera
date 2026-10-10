@@ -2,12 +2,14 @@
 /// `docs/remote-mcp.md`). MCP clients connect here, not to the runtime.
 const String aleraRemoteMcpEndpoint = 'https://api.alera.build/v1/mcp';
 
-/// Per-runtime MCP Control level. `off` is the default and what an unknown
-/// wire value falls back to, so a malformed payload never widens access.
+/// Per-runtime MCP Control level, ordered `off` < `read` < `full` < `admin`.
+/// `off` is the default and what an unknown wire value falls back to, so a
+/// malformed payload never widens access.
 enum McpAccessLevel(final String wireName, final String label) {
   off('off', 'Off'),
   read('read', 'Read Only'),
-  full('full', 'Full Control');
+  full('full', 'Full Control'),
+  admin('admin', 'Admin');
 
   static McpAccessLevel fromWire(Object? value) {
     for (final level in values) {

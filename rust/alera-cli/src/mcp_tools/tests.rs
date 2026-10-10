@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
-use super::{catalog, catalog_json, find_tool, run_tool, ToolAccess, ToolExecution};
+use super::{catalog, catalog_json, find_tool, run_tool, CallOrigin, ToolAccess, ToolExecution};
 
 fn invocation_args(tool: &str, arguments: Value) -> (Vec<String>, Option<String>) {
     let tool = find_tool(tool).expect("tool exists");
@@ -23,7 +23,7 @@ fn tool_names_are_unique_short_and_snake_case() {
             .name
             .bytes()
             .all(|byte| byte.is_ascii_lowercase() || byte == b'_'));
-        let schema = (tool.input_schema)();
+        let schema = tool.schema();
         assert_eq!(schema["type"], "object");
         assert_eq!(schema["additionalProperties"], false);
         assert!(
@@ -142,9 +142,14 @@ async fn reports_invalid_arguments_without_spawning() {
         runtime_dir: PathBuf::from("/nonexistent"),
     };
     let tool = find_tool("show_task").unwrap();
-    let result = run_tool(&execution, &tool, &json!({}), None).await;
+    let result = run_tool(&execution, &tool, &json!({}), &CallOrigin::default(), None).await;
     assert!(result.is_error);
     assert!(result.text.contains("taskId"));
+    let mcp = result.to_mcp();
+    assert_eq!(
+        mcp["structuredContent"]["error"]["code"],
+        "invalid_argument"
+    );
 }
 
 /// The edge serves a copy of the catalog. Set `ALERA_UPDATE_MCP_CATALOG=1` to

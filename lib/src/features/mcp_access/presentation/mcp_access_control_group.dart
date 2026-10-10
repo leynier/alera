@@ -9,7 +9,7 @@ import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/mcp_access/domain/mcp_access_settings.dart';
 import 'package:flutter/material.dart';
 
-const double _kAccessControlWidth = 320;
+const double _kAccessControlWidth = 400;
 const double _kEndpointControlWidth = 340;
 
 /// Access level, cloud link status and endpoint. Presentational: the pane owns
@@ -165,7 +165,12 @@ String _accessDescription(McpAccessLevel access) {
       'MCP clients can run read-only tools. Tools that change anything are '
           'refused.',
     .full =>
-      'MCP clients can run every Alera tool, including ones that start '
-          'agents and change workspaces.',
+      'MCP clients can also run tools that start agents, change or delete '
+          'workspaces, merge pull requests, and run automations. '
+          'Administrative tools are refused.',
+    .admin =>
+      'Connected apps can also change agent profiles, runtime settings, '
+          'webhooks, and run internal maintenance. Each app must also be '
+          'allowed administrative tools when you connect it.',
   };
 }

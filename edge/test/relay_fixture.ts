@@ -100,7 +100,7 @@ export class TestSocket {
       controlProtocol?: boolean;
       connectionId?: string;
       awaitingRuntime?: boolean;
-      mcpAccess?: 'off' | 'read' | 'full';
+      mcpAccess?: 'off' | 'read' | 'full' | 'admin';
       mobileAccess?: boolean;
     },
   ) {}

@@ -283,7 +283,7 @@ impl GrantVerifier {
             // authorization server accepts.
             || claims.client_id.is_empty()
             || claims.client_id.len() > 2048
-            || !matches!(claims.access.as_str(), "read" | "execute")
+            || !matches!(claims.access.as_str(), "read" | "execute" | "admin")
         {
             anyhow::bail!("MCP call grant is expired or invalid");
         }

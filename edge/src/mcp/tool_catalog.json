@@ -4,6 +4,7 @@
       "access": "read",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Runtime Status"
@@ -22,6 +23,7 @@
       "access": "read",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List Projects"
@@ -40,6 +42,7 @@
       "access": "read",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List Workspaces"
@@ -66,601 +69,10 @@
       "title": "List Workspaces"
     },
     {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Tabs"
-      },
-      "description": "List the tabs of a workspace, including terminal and agent tabs.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "workspaceId"
-        ],
-        "type": "object"
-      },
-      "name": "list_tabs",
-      "timeoutSeconds": 30,
-      "title": "List Tabs"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Agent Profiles"
-      },
-      "description": "List the agent profiles (Claude, Codex, and others) that can be launched or delegated to, with their ids and names.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {},
-        "type": "object"
-      },
-      "name": "list_agent_profiles",
-      "timeoutSeconds": 30,
-      "title": "List Agent Profiles"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Terminals"
-      },
-      "description": "List live terminal sessions with their handles, optionally for one workspace.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_terminals",
-      "timeoutSeconds": 30,
-      "title": "List Terminals"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Show Terminal"
-      },
-      "description": "Show one terminal session by handle, including its agent and lifecycle state.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "handle": {
-            "description": "Terminal handle from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "handle"
-        ],
-        "type": "object"
-      },
-      "name": "show_terminal",
-      "timeoutSeconds": 30,
-      "title": "Show Terminal"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Read Terminal"
-      },
-      "description": "Read retained terminal output. Pass the returned cursor on the next call to read only new output.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cursor": {
-            "description": "Cursor returned by a previous read.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "handle": {
-            "description": "Terminal handle from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "maxBytes": {
-            "description": "Maximum bytes to return (default 32768).",
-            "maximum": 262144,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "handle"
-        ],
-        "type": "object"
-      },
-      "name": "read_terminal",
-      "timeoutSeconds": 30,
-      "title": "Read Terminal"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Tasks"
-      },
-      "description": "List orchestration tasks, optionally filtered by status, coordinator run, or workspace.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "status": {
-            "description": "Task status.",
-            "enum": [
-              "pending",
-              "ready",
-              "dispatched",
-              "completed",
-              "failed",
-              "blocked",
-              "stalled",
-              "cancelled"
-            ],
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_tasks",
-      "timeoutSeconds": 30,
-      "title": "List Tasks"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Show Task"
-      },
-      "description": "Show one orchestration task with its active dispatch.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "taskId": {
-            "description": "Task id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "taskId"
-        ],
-        "type": "object"
-      },
-      "name": "show_task",
-      "timeoutSeconds": 30,
-      "title": "Show Task"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Coordinator Runs"
-      },
-      "description": "List durable orchestration coordinator runs, optionally for one workspace.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_runs",
-      "timeoutSeconds": 30,
-      "title": "List Coordinator Runs"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Orchestration Status"
-      },
-      "description": "Aggregate the run, task, worker, and escalation state of one coordinator run.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "runId": {
-            "description": "Coordinator run id from list_runs.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "orchestration_status",
-      "timeoutSeconds": 30,
-      "title": "Orchestration Status"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Orchestration Messages"
-      },
-      "description": "List recent orchestration messages across all recipients, or the inbox or outbox of one terminal.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "direction": {
-            "description": "Direction relative to terminal.",
-            "enum": [
-              "inbox",
-              "outbox"
-            ],
-            "type": "string"
-          },
-          "limit": {
-            "description": "Maximum messages (default 50).",
-            "maximum": 200,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "terminal": {
-            "description": "Terminal handle.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_messages",
-      "timeoutSeconds": 30,
-      "title": "List Orchestration Messages"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Askable Agents"
-      },
-      "description": "List running agents that ask_agent can reach, optionally for one workspace.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_inbox_targets",
-      "timeoutSeconds": 30,
-      "title": "List Askable Agents"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Question Threads"
-      },
-      "description": "List question threads started through ask_agent, newest first.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "before": {
-            "description": "Continue from the nextBefore value of a previous listing.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "limit": {
-            "description": "Maximum threads (default 50).",
-            "maximum": 200,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "status": {
-            "description": "Thread status.",
-            "enum": [
-              "pending",
-              "received",
-              "delivered",
-              "expired",
-              "answered",
-              "cancelled"
-            ],
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_inbox_threads",
-      "timeoutSeconds": 30,
-      "title": "List Question Threads"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Show Question Thread"
-      },
-      "description": "Show a question thread with every question and reply.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "questionId": {
-            "description": "Any question id in the thread.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "questionId"
-        ],
-        "type": "object"
-      },
-      "name": "show_inbox_thread",
-      "timeoutSeconds": 30,
-      "title": "Show Question Thread"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Automations"
-      },
-      "description": "List runtime automations, optionally filtered by state, project, or search text.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "projectId": {
-            "description": "Project id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "search": {
-            "description": "Text to search for.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "state": {
-            "description": "Automation state.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_automations",
-      "timeoutSeconds": 30,
-      "title": "List Automations"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Automation Runs"
-      },
-      "description": "List automation runs, newest first, optionally for one automation.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "automationId": {
-            "description": "Automation id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "limit": {
-            "description": "Maximum runs (default 20).",
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_automation_runs",
-      "timeoutSeconds": 30,
-      "title": "List Automation Runs"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Wait For Task"
-      },
-      "description": "Wait up to timeoutSeconds for an orchestration task to reach one of the given states, then return it. Returns the current state when the wait ends first.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "states": {
-            "description": "States to wait for (default completed, failed, stalled, cancelled).",
-            "items": {
-              "enum": [
-                "pending",
-                "ready",
-                "dispatched",
-                "completed",
-                "failed",
-                "blocked",
-                "stalled",
-                "cancelled"
-              ],
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array",
-            "uniqueItems": true
-          },
-          "taskId": {
-            "description": "Task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "timeoutSeconds": {
-            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "taskId"
-        ],
-        "type": "object"
-      },
-      "name": "wait_for_task",
-      "timeoutSeconds": 58,
-      "title": "Wait For Task"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Wait For Terminal"
-      },
-      "description": "Wait up to timeoutSeconds for a terminal to reach a lifecycle state, such as an agent becoming ready.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "handle": {
-            "description": "Terminal handle.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "state": {
-            "description": "Lifecycle state.",
-            "enum": [
-              "process-started",
-              "agent-detected",
-              "agent-ready",
-              "dispatch-accepted"
-            ],
-            "type": "string"
-          },
-          "timeoutSeconds": {
-            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "handle",
-          "state"
-        ],
-        "type": "object"
-      },
-      "name": "wait_for_terminal",
-      "timeoutSeconds": 58,
-      "title": "Wait For Terminal"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Wait For Reply"
-      },
-      "description": "Wait up to timeoutSeconds for news about a question asked with ask_agent. Pass the returned cursor as after to skip what was already seen.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "after": {
-            "description": "Cursor from a previous result.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "questionId": {
-            "description": "Question id returned by ask_agent.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "timeoutSeconds": {
-            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "questionId"
-        ],
-        "type": "object"
-      },
-      "name": "wait_for_reply",
-      "timeoutSeconds": 58,
-      "title": "Wait For Reply"
-    },
-    {
       "access": "execute",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create Workspace"
@@ -722,6 +134,7 @@
       "access": "execute",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Start Agent In New Workspace"
@@ -799,7 +212,264 @@
     {
       "access": "execute",
       "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Sleep Workspace"
+      },
+      "description": "Stop a workspace's terminal sessions while keeping its tabs, branch, and files. Opening it again wakes it.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId"
+        ],
+        "type": "object"
+      },
+      "name": "sleep_workspace",
+      "timeoutSeconds": 58,
+      "title": "Sleep Workspace"
+    },
+    {
+      "access": "read",
+      "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Tabs"
+      },
+      "description": "List the tabs of a workspace, including terminal and agent tabs.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId"
+        ],
+        "type": "object"
+      },
+      "name": "list_tabs",
+      "timeoutSeconds": 30,
+      "title": "List Tabs"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Terminals"
+      },
+      "description": "List live terminal sessions with their handles, optionally for one workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_terminals",
+      "timeoutSeconds": 30,
+      "title": "List Terminals"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Terminal"
+      },
+      "description": "Show one terminal session by handle, including its agent and lifecycle state.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "description": "Terminal handle from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "type": "object"
+      },
+      "name": "show_terminal",
+      "timeoutSeconds": 30,
+      "title": "Show Terminal"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Read Terminal"
+      },
+      "description": "Read retained terminal output. Pass the returned cursor on the next call to read only new output.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Cursor returned by a previous read.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "handle": {
+            "description": "Terminal handle from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxBytes": {
+            "description": "Maximum bytes to return (default 32768).",
+            "maximum": 262144,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "type": "object"
+      },
+      "name": "read_terminal",
+      "timeoutSeconds": 30,
+      "title": "Read Terminal"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Terminal"
+      },
+      "description": "Wait up to timeoutSeconds for a terminal to reach a lifecycle state, such as an agent becoming ready.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "description": "Terminal handle.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "state": {
+            "description": "Lifecycle state.",
+            "enum": [
+              "process-started",
+              "agent-detected",
+              "agent-ready",
+              "dispatch-accepted"
+            ],
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "handle",
+          "state"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_terminal",
+      "timeoutSeconds": 58,
+      "title": "Wait For Terminal"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Write To Terminal"
+      },
+      "description": "Type text into a terminal. Set submit to send it to an interactive agent as a prompt, or enter to press Enter after it.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "enter": {
+            "description": "Press Enter after the text.",
+            "type": "boolean"
+          },
+          "handle": {
+            "description": "Terminal handle from list_terminals.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "submit": {
+            "description": "Submit to an interactive agent with bracketed paste and Enter.",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "Text to type.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "text"
+        ],
+        "type": "object"
+      },
+      "name": "write_terminal",
+      "timeoutSeconds": 30,
+      "title": "Write To Terminal"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Agent Profiles"
+      },
+      "description": "List the agent profiles (Claude, Codex, and others) that can be launched or delegated to, with their ids and names.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_agent_profiles",
+      "timeoutSeconds": 30,
+      "title": "List Agent Profiles"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Launch Agent"
@@ -808,6 +478,12 @@
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
           "profile": {
             "description": "Agent profile id or unique name from list_agent_profiles.",
             "minLength": 1,
@@ -837,9 +513,437 @@
       "title": "Launch Agent"
     },
     {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Askable Agents"
+      },
+      "description": "List running agents that ask_agent can reach, optionally for one workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_inbox_targets",
+      "timeoutSeconds": 30,
+      "title": "List Askable Agents"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Question Threads"
+      },
+      "description": "List question threads started through ask_agent, newest first.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "before": {
+            "description": "Continue from the nextBefore value of a previous listing.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Maximum threads (default 50).",
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "description": "Thread status.",
+            "enum": [
+              "pending",
+              "received",
+              "delivered",
+              "expired",
+              "answered",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_inbox_threads",
+      "timeoutSeconds": 30,
+      "title": "List Question Threads"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Question Thread"
+      },
+      "description": "Show a question thread with every question and reply.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "questionId": {
+            "description": "Any question id in the thread.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionId"
+        ],
+        "type": "object"
+      },
+      "name": "show_inbox_thread",
+      "timeoutSeconds": 30,
+      "title": "Show Question Thread"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Reply"
+      },
+      "description": "Wait up to timeoutSeconds for news about a question asked with ask_agent. Pass the returned cursor as after to skip what was already seen.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "description": "Cursor from a previous result.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "questionId": {
+            "description": "Question id returned by ask_agent.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "questionId"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_reply",
+      "timeoutSeconds": 58,
+      "title": "Wait For Reply"
+    },
+    {
       "access": "execute",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Ask Agent"
+      },
+      "description": "Ask a running agent a question by terminal handle, or the single agent of a workspace. Returns the question id; follow it with wait_for_reply.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "description": "With workspaceId, only agents of this type (claude, codex, ...).",
+            "minLength": 1,
+            "type": "string"
+          },
+          "body": {
+            "description": "The question.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expiresIn": {
+            "description": "Drop the question if undelivered in time, such as 30m or 2h.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "priority": {
+            "description": "Priority.",
+            "enum": [
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "description": "Short subject.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "threadId": {
+            "description": "Continue an earlier question's thread.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "to": {
+            "description": "Terminal handle of the agent.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Ask the single running agent of this workspace.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "name": "ask_agent",
+      "timeoutSeconds": 30,
+      "title": "Ask Agent"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Tasks"
+      },
+      "description": "List orchestration tasks, optionally filtered by status, coordinator run, or workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Coordinator run id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "description": "Task status.",
+            "enum": [
+              "pending",
+              "ready",
+              "dispatched",
+              "completed",
+              "failed",
+              "blocked",
+              "stalled",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_tasks",
+      "timeoutSeconds": 30,
+      "title": "List Tasks"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Task"
+      },
+      "description": "Show one orchestration task with its active dispatch.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "show_task",
+      "timeoutSeconds": 30,
+      "title": "Show Task"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Coordinator Runs"
+      },
+      "description": "List durable orchestration coordinator runs, optionally for one workspace.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_runs",
+      "timeoutSeconds": 30,
+      "title": "List Coordinator Runs"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Orchestration Status"
+      },
+      "description": "Aggregate the run, task, worker, and escalation state of one coordinator run.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Coordinator run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "orchestration_status",
+      "timeoutSeconds": 30,
+      "title": "Orchestration Status"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Orchestration Messages"
+      },
+      "description": "List recent orchestration messages across all recipients, or the inbox or outbox of one terminal.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "direction": {
+            "description": "Direction relative to terminal.",
+            "enum": [
+              "inbox",
+              "outbox"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum messages (default 50).",
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "terminal": {
+            "description": "Terminal handle.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_messages",
+      "timeoutSeconds": 30,
+      "title": "List Orchestration Messages"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Task"
+      },
+      "description": "Wait up to timeoutSeconds for an orchestration task to reach one of the given states, then return it. Returns the current state when the wait ends first.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "states": {
+            "description": "States to wait for (default completed, failed, stalled, cancelled).",
+            "items": {
+              "enum": [
+                "pending",
+                "ready",
+                "dispatched",
+                "completed",
+                "failed",
+                "blocked",
+                "stalled",
+                "cancelled"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutSeconds": {
+            "description": "Seconds to wait before returning the current state. Call again to keep waiting.",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_task",
+      "timeoutSeconds": 58,
+      "title": "Wait For Task"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delegate Task"
@@ -920,48 +1024,7 @@
       "access": "execute",
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Write To Terminal"
-      },
-      "description": "Type text into a terminal. Set submit to send it to an interactive agent as a prompt, or enter to press Enter after it.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "enter": {
-            "description": "Press Enter after the text.",
-            "type": "boolean"
-          },
-          "handle": {
-            "description": "Terminal handle from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "submit": {
-            "description": "Submit to an interactive agent with bracketed paste and Enter.",
-            "type": "boolean"
-          },
-          "text": {
-            "description": "Text to type.",
-            "maxLength": 65536,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "handle",
-          "text"
-        ],
-        "type": "object"
-      },
-      "name": "write_terminal",
-      "timeoutSeconds": 30,
-      "title": "Write To Terminal"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Send Orchestration Message"
@@ -1032,74 +1095,8 @@
     {
       "access": "execute",
       "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Ask Agent"
-      },
-      "description": "Ask a running agent a question by terminal handle, or the single agent of a workspace. Returns the question id; follow it with wait_for_reply.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "agent": {
-            "description": "With workspaceId, only agents of this type (claude, codex, ...).",
-            "minLength": 1,
-            "type": "string"
-          },
-          "body": {
-            "description": "The question.",
-            "maxLength": 65536,
-            "minLength": 1,
-            "type": "string"
-          },
-          "expiresIn": {
-            "description": "Drop the question if undelivered in time, such as 30m or 2h.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "priority": {
-            "description": "Priority.",
-            "enum": [
-              "normal",
-              "high",
-              "urgent"
-            ],
-            "type": "string"
-          },
-          "subject": {
-            "description": "Short subject.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "threadId": {
-            "description": "Continue an earlier question's thread.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "to": {
-            "description": "Terminal handle of the agent.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Ask the single running agent of this workspace.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "name": "ask_agent",
-      "timeoutSeconds": 30,
-      "title": "Ask Agent"
-    },
-    {
-      "access": "execute",
-      "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Cancel Task"
@@ -1130,36 +1127,76 @@
       "title": "Cancel Task"
     },
     {
-      "access": "execute",
+      "access": "read",
       "annotations": {
-        "destructiveHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Sleep Workspace"
+        "readOnlyHint": true,
+        "title": "List Automations"
       },
-      "description": "Stop a workspace's terminal sessions while keeping its tabs, branch, and files. Opening it again wakes it.",
+      "description": "List runtime automations, optionally filtered by state, project, or search text.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "workspaceId": {
-            "description": "Workspace id.",
+          "projectId": {
+            "description": "Project id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "search": {
+            "description": "Text to search for.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "state": {
+            "description": "Automation state.",
             "minLength": 1,
             "type": "string"
           }
         },
-        "required": [
-          "workspaceId"
-        ],
         "type": "object"
       },
-      "name": "sleep_workspace",
-      "timeoutSeconds": 58,
-      "title": "Sleep Workspace"
+      "name": "list_automations",
+      "timeoutSeconds": 30,
+      "title": "List Automations"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Automation Runs"
+      },
+      "description": "List automation runs, newest first, optionally for one automation.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "description": "Automation id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum runs (default 20).",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_automation_runs",
+      "timeoutSeconds": 30,
+      "title": "List Automation Runs"
     },
     {
       "access": "execute",
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Run Automation"
@@ -1184,5 +1221,5 @@
       "title": "Run Automation"
     }
   ],
-  "version": 1
+  "version": 2
 }

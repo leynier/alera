@@ -1,7 +1,11 @@
 import catalog from './tool_catalog.json';
 import { isJsonObject } from './protocol';
 
-export type ToolAccess = 'read' | 'execute';
+export type ToolAccess = 'read' | 'execute' | 'admin';
+
+/** Catalog versions this edge understands. Version 2 adds the admin access class. */
+const CATALOG_VERSIONS: readonly unknown[] = [1, 2];
+const TOOL_ACCESS: readonly unknown[] = ['read', 'execute', 'admin'];
 
 export interface CatalogTool {
   name: string;
@@ -28,7 +32,7 @@ function validCatalogTool(value: unknown): value is CatalogTool {
     value.name.length > 0 &&
     typeof value.title === 'string' &&
     typeof value.description === 'string' &&
-    (value.access === 'read' || value.access === 'execute') &&
+    TOOL_ACCESS.includes(value.access) &&
     Number.isInteger(value.timeoutSeconds) &&
     (value.timeoutSeconds as number) > 0 &&
     isJsonObject(value.inputSchema) &&
@@ -37,7 +41,7 @@ function validCatalogTool(value: unknown): value is CatalogTool {
 }
 
 export function loadCatalog(source: unknown): Map<string, CatalogTool> {
-  if (!isJsonObject(source) || source.version !== 1 || !Array.isArray(source.tools)) {
+  if (!isJsonObject(source) || !CATALOG_VERSIONS.includes(source.version) || !Array.isArray(source.tools)) {
     throw new Error('Invalid MCP tool catalog');
   }
   const tools = new Map<string, CatalogTool>();

@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
-use super::{catalog, find_tool, run_tool, ToolAccess, ToolExecution, ToolSpec};
+use super::{catalog, find_tool, run_tool, CallOrigin, ToolExecution, ToolSpec};
+use crate::mcp_settings::McpAccess;
 
 pub(crate) const PROTOCOL_VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
 pub(crate) const INSTRUCTIONS: &str = "Alera runs coding agents in workspaces (Git worktrees) and orchestrates them. Start with list_projects, list_workspaces, and list_agent_profiles. Use start_agent_workspace or delegate_task to start work, then wait_for_task, read_terminal, or ask_agent with wait_for_reply to follow it. Waits return after at most 50 seconds; call them again to keep waiting.";
@@ -18,7 +19,10 @@ const MAX_CONCURRENT_CALLS: usize = 4;
 
 type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 
-pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> anyhow::Result<()> {
+/// Serves the catalog up to `access`: `read` lists only reading tools, `full`
+/// adds execution tools, and `admin` adds administrative ones.
+pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> anyhow::Result<()> {
+    let mut origin = CallOrigin::local(&Value::Null);
     let (output, mut outgoing) = mpsc::channel::<Value>(64);
     let pending: Pending = Arc::default();
     let writer_pending = pending.clone();
@@ -64,13 +68,14 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> an
         };
         match method.as_str() {
             "initialize" => {
+                origin = CallOrigin::local(&params["clientInfo"]);
                 let _ = output.send(success(id, initialize_result(&params))).await;
             }
             "ping" => {
                 let _ = output.send(success(id, json!({}))).await;
             }
             "tools/list" => {
-                let tools = visible_tools(read_only)
+                let tools = visible_tools(access)
                     .iter()
                     .map(listed_tool)
                     .collect::<Vec<_>>();
@@ -78,9 +83,7 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> an
             }
             "tools/call" => {
                 let name = params["name"].as_str().unwrap_or_default().to_owned();
-                let Some(tool) =
-                    find_tool(&name).filter(|tool| !read_only || tool.access == ToolAccess::Read)
-                else {
+                let Some(tool) = find_tool(&name).filter(|tool| access.allows(tool.access)) else {
                     let _ = output
                         .send(error(id, -32602, &format!("Unknown tool: {name}")))
                         .await;
@@ -93,6 +96,7 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> an
                 }
                 let output = output.clone();
                 let execution = execution.clone();
+                let origin = origin.clone().with_call_id(key.trim_matches('"'));
                 let pending = pending.clone();
                 let permits = permits.clone();
                 tokio::spawn(async move {
@@ -107,7 +111,8 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, read_only: bool) -> an
                         return;
                     }
                     let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
-                    let result = run_tool(&execution, &tool, &arguments, Some(cancelled)).await;
+                    let result =
+                        run_tool(&execution, &tool, &arguments, &origin, Some(cancelled)).await;
                     let still_pending = pending
                         .lock()
                         .ok()
@@ -141,10 +146,10 @@ fn cancel_all(pending: &Pending) {
     }
 }
 
-fn visible_tools(read_only: bool) -> Vec<ToolSpec> {
+fn visible_tools(access: McpAccess) -> Vec<ToolSpec> {
     catalog()
         .into_iter()
-        .filter(|tool| !read_only || tool.access == ToolAccess::Read)
+        .filter(|tool| access.allows(tool.access))
         .collect()
 }
 

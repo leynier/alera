@@ -1,10 +1,7 @@
 use axum::{extract::State, response::Response, Json};
 use serde_json::{json, Value};
 
-use crate::{
-    mcp_models::{SCOPE_EXECUTE, SCOPE_READ},
-    state::AppState,
-};
+use crate::{mcp_models::SCOPES_SUPPORTED, state::AppState};
 
 use super::{
     client_authentication::{
@@ -45,7 +42,7 @@ pub fn authorization_server_document(state: &AppState) -> Value {
         "token_endpoint_auth_signing_alg_values_supported": signing_algs,
         "revocation_endpoint_auth_methods_supported": ["none"],
         "code_challenge_methods_supported": ["S256"],
-        "scopes_supported": [SCOPE_READ, SCOPE_EXECUTE],
+        "scopes_supported": SCOPES_SUPPORTED,
         "client_id_metadata_document_supported": true,
         "authorization_response_iss_parameter_supported": true,
     })
@@ -55,7 +52,7 @@ pub fn protected_resource_document(state: &AppState) -> Value {
     json!({
         "resource": state.config.mcp.resource,
         "authorization_servers": [state.config.issuer],
-        "scopes_supported": [SCOPE_READ, SCOPE_EXECUTE],
+        "scopes_supported": SCOPES_SUPPORTED,
         "bearer_methods_supported": ["header"],
         "resource_name": "Alera",
     })

@@ -6,14 +6,14 @@ The same tool catalog is also served locally by `alera mcp serve` over stdio, wi
 
 ## Decisions
 
-- MCP Control is a per-runtime opt-in with three levels: `off` (default), `read`, and `full`. Remote Access for the phone stays a separate setting. Either one keeps the cloud link open.
+- MCP Control is a per-runtime opt-in with four ordered levels: `off` (default), `read`, `full`, and `admin`. Each level allows everything the previous one does: read tools need `read`, execute tools need `full`, and administrative tools need `admin`. A runtime never moves to `admin` on its own; the user has to choose it. Remote Access for the phone stays a separate setting. Either one keeps the cloud link open.
 - The privacy boundary differs from the mobile relay. An MCP client sends tool arguments over TLS to the edge, so the edge and the cloud gateway handle tool arguments and results in plaintext while forwarding them. Neither stores them. The audit log keeps metadata only: tool name, runtime, client, time, outcome, and duration. Terminal traffic between a phone and a runtime remains end-to-end encrypted and unchanged.
 - The Rust cloud service is the only authorization server. It adds standard OAuth endpoints, Dynamic Client Registration, Client ID Metadata Documents, a consent page, and a device authorization flow for headless runtimes. Google and GitHub remain the identity providers.
 - The MCP endpoint lives in the edge Worker, because Cloud Run requests time out after 30 seconds and the runtime socket already lives in the relay Durable Object. The edge is stateless: it builds no MCP session and keeps nothing between requests.
 - The runtime is the source of the tool catalog. Each tool maps to one typed `alera` CLI invocation with `--json`, so the MCP tools keep the CLI's exact semantics. The edge serves a generated copy of the catalog and adds the `runtime` argument.
 - Every routed call carries a short-lived call grant signed by the cloud for one runtime, account, tool, and call id. The runtime verifies it against the published JWKS and refuses replays before running anything, so a frame without such a grant cannot drive a runtime. The edge stays inside the trust boundary: it serves the JWKS and forwards the arguments, which the grant does not cover.
 - A call names its runtime with `runtime` (name or id). When the grant reaches exactly one connected runtime, `runtime` may be omitted. Nothing is remembered between calls, so concurrent conversations cannot move each other.
-- The consent page grants a list of runtimes, or every runtime including future ones, plus the `mcp:read` and `mcp:execute` scopes.
+- The consent page grants a list of runtimes, or every runtime including future ones, plus scopes. `mcp:read` is always granted and `mcp:execute` is checked by default. `mcp:admin` is offered only when the client requests it, behind an "Allow administrative tools" box that starts unchecked, and it is granted only together with `mcp:execute`. A tool needs both barriers: the scope of its class on the grant and a high enough MCP Control level on the runtime. Existing grants keep the scopes they were given.
 - Runtime names are chosen by the user, unique per account (case-insensitive) when set explicitly, and sent again on every sign-in so the cloud never reverts to the host name. Renaming needs a signed-in account so the cloud can reserve the name. Host-name defaults, or a name carried into another account, can still repeat; name-based calls then fail with `runtime_ambiguous` and list the ids.
 - Long operations are bounded. Waiting tools accept at most 50 seconds because hosted MCP clients abandon HTTP calls after about a minute; the agent polls again.
 
@@ -61,7 +61,7 @@ Rules:
 - A `private_key_jwt` client sends an RFC 7523 assertion (`client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer`) on both the code and the refresh grant. It must be signed with `RS256`, `PS256`, or `ES256` by a key from the client's `jwks_uri` (named by `kid`, or the only key published), carry `iss` and `sub` equal to the `client_id`, an `aud` that includes the issuer or the token endpoint URL, an `exp` at most five minutes ahead, and a `jti`. Each `jti` is accepted once per client (`mcp_client_assertions`, purged after expiry). The client is authenticated, and must be the client the code was issued to, before the code is consumed or treated as a replay, so a caller without the key cannot spend or revoke a stolen code. The `client_id` form field may be omitted; the assertion subject then names the client.
 - Client JWKS are fetched with the same guards as metadata documents and cached per instance for ten minutes. Each JWKS is fetched by one request at a time and at most once a minute, failed attempts included, and requests that miss during a fetch wait for its result, so an unknown `kid` or an unreachable host cannot amplify unauthenticated token requests into fetches. The cache holds up to 1,024 URIs; when every entry is still inside its rate window, a new URI is refused until one frees up rather than evicting another URI's guard.
 - Invalid `client_id` or `redirect_uri` renders an error page instead of redirecting.
-- `resource` is optional; when present it must equal the MCP resource. `scope` defaults to `mcp:read mcp:execute`.
+- `resource` is optional; when present it must equal the MCP resource. `scope` defaults to `mcp:read mcp:execute` and never includes `mcp:admin` by default. A request that names `mcp:admin` also requests `mcp:execute`, and consent still decides whether to grant it. The metadata `scopes_supported` and the registration response `scope` list `mcp:read`, `mcp:execute`, and `mcp:admin`.
 - The sign-in, consent, and device pages send `Content-Security-Policy` with `frame-ancestors 'none'` and a `form-action` that admits the client's redirect origin, because the consent form's response redirects there. The edge removes cookies, so the flow carries a single-use consent token in the form instead.
 - Access tokens are Ed25519 JWTs (`typ: at+jwt`) valid for 15 minutes with `aud` equal to the MCP resource, `client_kind: mcp`, `client_id` equal to the OAuth client id, `gid` equal to the grant id, `sid` equal to the refresh family, and `scope` from the grant. They are rejected by every other cloud route because the audience differs.
 - Refresh tokens reuse the rotating refresh families (`client_kind = 'mcp'`, `client_id = grant id`). Revoking a grant revokes its families, and `POST /oauth/revoke` with any token of a grant revokes the whole grant, because each grant has one session.
@@ -89,7 +89,7 @@ These use the existing runtime and mobile access tokens.
 | `DELETE /v1/mcp/grants/{id}` | runtime or mobile | Revokes the grant and its refresh families; `204` |
 | `PUT /v1/runtime/name` | the runtime itself | `{ name }` (1-64 characters, unique per account ignoring case) returns `{ id, name }`; `409 runtime_name_taken` |
 | `PUT /v1/runtime/capabilities` | the runtime itself | `{ mcpAccess, mobileAccess }` returns `204`. Sent when MCP Control changes, because a runtime that turns both features off stops requesting relay grants |
-| `POST /v1/relay/grants` | runtime | Adds optional `mcpAccess` (`off`, `read`, `full`; absent means `off`) and `mobileAccess` (absent means `true`). The cloud stores both on the runtime row and copies them into the runtime's relay grant claims |
+| `POST /v1/relay/grants` | runtime | Adds optional `mcpAccess` (`off`, `read`, `full`, `admin`; absent means `off`) and `mobileAccess` (absent means `true`). The cloud stores both on the runtime row and copies them into the runtime's relay grant claims |
 | `GET /v1/mobile/runtimes` | mobile | Excludes runtimes whose last grant reported `mobileAccess: false` |
 
 ## Gateway APIs
@@ -102,8 +102,8 @@ The edge returns `404` for `/v1/mcp/calls` and everything under it on the public
 - `POST /v1/mcp/calls` with `{ runtime?, tool, access }` resolves the runtime and records the call:
   - `runtime` matches an id exactly or a name ignoring case. Unknown, ungranted, and transferred runtimes all fail with `404 runtime_not_found`. A name shared by several runtimes fails with `409 runtime_ambiguous`.
   - Without `runtime`, exactly one connected runtime is chosen; none fails with `404 no_runtime_available`, several with `409 runtime_required`. The error message lists the candidate names.
-  - `access: execute` needs the `mcp:execute` scope (`403 insufficient_scope`). A runtime reporting `off` fails with `409 runtime_mcp_disabled`; `read` refuses execute tools with `403 runtime_read_only`.
-  - The response is `{ callId, runtimeId, runtimeName, grant, expiresIn }`. `grant` is an Ed25519 JWT with `typ: mcp-call+jwt`, `aud: alera-runtime-mcp`, a 120-second lifetime, `jti` equal to the call id, and claims `accountId`, `runtimeId`, `grantId`, `clientId`, `clientName`, `tool`, and `access`.
+  - `access` is `read`, `execute`, or `admin`. `execute` needs the `mcp:execute` scope and `admin` needs the `mcp:admin` scope (`403 insufficient_scope`; for `admin` the message asks the user to reconnect and allow administrative tools). A runtime reporting `off` fails with `409 runtime_mcp_disabled`; `read` refuses execute tools with `403 runtime_read_only`; any level below `admin` refuses administrative tools with `403 runtime_not_admin`.
+  - The response is `{ callId, runtimeId, runtimeName, grant, expiresIn }`. `grant` is an Ed25519 JWT with `typ: mcp-call+jwt`, `aud: alera-runtime-mcp`, a 120-second lifetime, `jti` equal to the call id, and claims `accountId`, `runtimeId`, `grantId`, `clientId`, `clientName`, `tool`, and `access` (`read`, `execute`, or `admin`).
 - `POST /v1/mcp/calls/{id}/outcome` with `{ outcome, durationMs }` completes the audit row once and returns `204`; a second outcome returns `409 call_already_completed`. Outcomes are `ok`, `tool_error`, `runtime_offline`, `timeout`, and `failed`.
 - Missing or invalid bearers return `401` (`missing_bearer`, `invalid_token`); a revoked grant or session returns `401 session_revoked` or `invalid_session`, which the edge turns into a `401` with `WWW-Authenticate`.
 
@@ -116,7 +116,7 @@ The audit row (`mcp_calls`) is written before the runtime is contacted. A missin
 - `POST` accepts one JSON-RPC message and answers with `application/json`. Notifications return `202`. `GET` and `DELETE` return `405` because the server keeps no sessions or streams. `OPTIONS` answers CORS preflight.
 - Supported protocol versions: `2025-11-25`, `2025-06-18`, and `2025-03-26`. An unknown requested version gets the newest supported one.
 - Methods: `initialize`, `ping`, `tools/list`, and `tools/call`. Anything else returns `-32601`.
-- A missing or invalid bearer returns `401` with `WWW-Authenticate: Bearer resource_metadata="<resource metadata URL>", scope="mcp:read mcp:execute"`. A read-only token calling an execute tool returns a tool error naming the missing scope.
+- A missing or invalid bearer returns `401` with `WWW-Authenticate: Bearer resource_metadata="<resource metadata URL>", scope="mcp:read mcp:execute mcp:admin"`. A token without `mcp:execute` calling an execute tool, or without `mcp:admin` calling an administrative tool, gets a tool error naming the missing scope without contacting the cloud.
 - `tools/list` serves `edge/src/mcp/tool_catalog.json` plus the gateway tool `list_runtimes`. Each runtime tool gains an optional `runtime` string argument.
 - Calls are limited per token by the `MCP_LIMITER` binding.
 - `tools/call` asks the cloud for a call grant, then calls the runtime's Durable Object at `/mcp/call` with `{ callId, grant, tool, arguments, timeoutMs }`. The object answers `{ ok: true, result }` or `{ ok: false, code, message }`. The edge records the outcome with `waitUntil`.
@@ -128,12 +128,12 @@ MCP traffic shares the runtime's existing relay WebSocket. A frame uses the norm
 - Durable Object to runtime: `{ "type": "mcp.call", "id", "grant", "tool", "arguments", "timeoutMs" }` and `{ "type": "mcp.cancel", "id" }`.
 - Runtime to Durable Object: `{ "type": "mcp.result", "id", "result": { "content", "structuredContent"?, "isError" } }` or `{ "type": "mcp.result", "id", "error": { "code", "message" } }`.
 - A single frame is at most 1 MiB; the runtime truncates command output to stay under it, and answers a call frame it cannot read with an `invalid_call` error instead of leaving the caller waiting.
-- The object only routes to a runtime socket whose relay grant carries `mcpAccess` `read` or `full`, rejects pending calls when that socket closes, and never forwards `~mcp` frames to phones.
+- The object only routes to a runtime socket whose relay grant carries `mcpAccess` `read`, `full`, or `admin`, rejects pending calls when that socket closes, and never forwards `~mcp` frames to phones.
 - The relay grant's `mobileAccess: false` makes the object refuse phones with `relay_runtime_unavailable`, and the runtime ignores phone handshakes while Remote Access is off.
 
 ## Runtime
 
-- Settings live in `runtimeMetadata`: `settings.mcp.access` (`off`, `read`, `full`) and `settings.runtime.name`.
+- Settings live in `runtimeMetadata`: `settings.mcp.access` (`off`, `read`, `full`, `admin`) and `settings.runtime.name`.
 - The relay link starts when an account is signed in and Remote Access or MCP Control is on, and restarts when either changes.
 - The runtime verifies each call grant (issuer, audience, signature, expiry, runtime id, account id), checks the tool exists and that its access level is allowed by the local setting, and runs at most four calls at once.
 - Each tool runs the runtime's own `alera` binary with `--json` and a bounded timeout. The process inherits the runtime's environment, so it talks to the same runtime.
@@ -160,7 +160,7 @@ Host requests (local clients only; never forwarded by a satellite or accepted fr
 
 The catalog is defined in `rust/alera-cli/src/mcp_tools/`. `edge/src/mcp/tool_catalog.json` is generated from it and a Rust test fails when they differ. Regenerate it with `ALERA_UPDATE_MCP_CATALOG=1 cargo test -p alera-cli mcp_tool_catalog_matches_edge_copy`.
 
-Each entry has `name`, `title`, `description`, `access` (`read` or `execute`), `timeoutSeconds`, `inputSchema`, and `annotations`.
+Each entry has `name`, `title`, `description`, `access` (`read`, `execute`, or `admin`), `timeoutSeconds`, `inputSchema`, and `annotations`. The edge accepts catalog versions 1 and 2; version 2 is the one that may contain `admin` tools.
 
 Tools that read terminal output drop the `dataBase64` copy of the text before returning it.
 

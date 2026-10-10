@@ -11,8 +11,10 @@ use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 
 use crate::cli::{
-    AccountAction, AccountCommand, AccountLoginArgs, AccountProviderArg, McpAction, McpCommand,
+    AccountAction, AccountCommand, AccountLoginArgs, AccountProviderArg, McpAccessArg, McpAction,
+    McpCommand,
 };
+use crate::mcp_settings::McpAccess;
 use crate::mcp_tools::{catalog, catalog_json, serve_stdio, ToolExecution};
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::{print_error, print_value, runtime_dir};
@@ -35,7 +37,7 @@ pub(crate) async fn run_mcp(command: McpCommand) -> i32 {
     let result = match command.action {
         McpAction::Status => mcp_status(&runtime_dir).await,
         McpAction::Enable(args) => {
-            let access = if args.read_only { "read" } else { "full" };
+            let access = access_level(args.level()).as_str();
             update_settings(&runtime_dir, json!({ "access": access })).await
         }
         McpAction::Disable => update_settings(&runtime_dir, json!({ "access": "off" })).await,
@@ -51,7 +53,7 @@ pub(crate) async fn run_mcp(command: McpCommand) -> i32 {
         McpAction::Tools => Ok(catalog_json()),
         McpAction::Serve(args) => {
             return match ToolExecution::current(runtime_dir) {
-                Ok(execution) => match serve_stdio(execution, args.read_only).await {
+                Ok(execution) => match serve_stdio(execution, access_level(args.level())).await {
                     Ok(()) => 0,
                     Err(error) => print_error(error),
                 },
@@ -279,10 +281,19 @@ fn open_in_browser(url: &str) {
         .spawn();
 }
 
+fn access_level(access: McpAccessArg) -> McpAccess {
+    match access {
+        McpAccessArg::Read => McpAccess::Read,
+        McpAccessArg::Full => McpAccess::Full,
+        McpAccessArg::Admin => McpAccess::Admin,
+    }
+}
+
 fn settings_message(value: &Value) -> String {
     let access = value["access"].as_str().unwrap_or("off");
     let name = value["effectiveRuntimeName"].as_str().unwrap_or_default();
     let mut message = match access {
+        "admin" => format!("MCP Control is on for {name} (full control with administrative tools)"),
         "full" => format!("MCP Control is on for {name} (full control)"),
         "read" => format!("MCP Control is on for {name} (read only)"),
         _ => format!("MCP Control is off for {name}"),
