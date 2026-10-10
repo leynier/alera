@@ -219,6 +219,14 @@ jobs:
             alera-google-oauth-client-secret
             alera-tombstone-pepper
           )
+          # A web client id mounts its secret on the Cloud Run revision, so that
+          # secret must have a version before the image build starts.
+          for provider in google github; do
+            if grep -Eq "^web_${provider}_oauth_client_id[[:space:]]*=[[:space:]]*\"[^\"]+\"" \
+              infra/production/production.auto.tfvars; then
+              required_secrets+=("alera-web-${provider}-oauth-client-secret")
+            fi
+          done
           for secret in "${required_secrets[@]}"; do
             enabled_version="$(
               gcloud secrets versions list "$secret" \

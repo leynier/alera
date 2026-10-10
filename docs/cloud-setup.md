@@ -160,6 +160,14 @@ Record:
 - Client id: public configuration in `terraform.tfvars`
 - Client secret: secret value added to `alera-google-oauth-client-secret`
 
+MCP and device sign-in run in a browser and return to `https://api.alera.build/oauth/callback`, which a desktop client cannot accept. Create a second OAuth client for them:
+
+- Application type: Web application
+- Name: `Alera Web`
+- Authorized redirect URI: `https://api.alera.build/oauth/callback`
+
+Record its client id as `web_google_oauth_client_id` and add its secret to `alera-web-google-oauth-client-secret` before the id is applied.
+
 The backend verifies the Google ID token, including signature, issuer, audience, authorized presenter, expiry, and nonce. Provider tokens are discarded after identity resolution.
 
 ## GitHub OAuth Registration
@@ -171,9 +179,10 @@ Configuration:
 - Application name: `Alera`
 - Homepage URL: `https://alera.build`
 - Authorization callback URL: `http://127.0.0.1/callback`
+- Second redirect URI: `https://api.alera.build/oauth/callback`
 - Device Flow: disabled
 
-The runtime supplies the actual loopback port. GitHub permits a loopback redirect to vary the port while preserving the registered host and path.
+The runtime supplies the actual loopback port. GitHub permits a loopback redirect to vary the port while preserving the registered host and path. The second URI serves MCP and device sign-in, so production reuses this app for them and leaves `web_github_oauth_client_id` empty.
 
 The application requests only:
 
@@ -293,7 +302,7 @@ The value is public signing-key material and may appear in OpenTofu state. The p
 
 ## Secret Manager Values
 
-OpenTofu creates six secret containers. Five require initial values:
+OpenTofu creates eight secret containers. Five require initial values, and a web OAuth secret is required once its client id is set:
 
 | Secret | Value |
 | --- | --- |
@@ -303,6 +312,8 @@ OpenTofu creates six secret containers. Five require initial values:
 | `alera-google-oauth-client-secret` | Google desktop OAuth client secret |
 | `alera-tombstone-pepper` | Independent random value with at least 32 characters |
 | `alera-edge-previous-origin-token` | Leave without a version until an edge-token rotation |
+| `alera-web-google-oauth-client-secret` | Google web OAuth client secret, required while `web_google_oauth_client_id` is set |
+| `alera-web-github-oauth-client-secret` | Leave without a version while `web_github_oauth_client_id` is empty |
 
 Add values through standard input:
 
@@ -312,6 +323,7 @@ gcloud secrets versions add alera-edge-origin-token --data-file=-
 gcloud secrets versions add alera-github-oauth-client-secret --data-file=-
 gcloud secrets versions add alera-google-oauth-client-secret --data-file=-
 gcloud secrets versions add alera-tombstone-pepper --data-file=-
+gcloud secrets versions add alera-web-google-oauth-client-secret --data-file=-
 ```
 
 Use a password manager or secure random generator for the origin token and tombstone pepper. They must be unrelated values and must not reuse either OAuth secret.
