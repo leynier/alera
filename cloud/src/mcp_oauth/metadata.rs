@@ -6,7 +6,12 @@ use crate::{
     state::AppState,
 };
 
-use super::with_cors;
+use super::{
+    client_authentication::{
+        algorithm_name, ALLOWED_ASSERTION_ALGS, METHOD_NONE, METHOD_PRIVATE_KEY_JWT,
+    },
+    with_cors,
+};
 
 pub async fn authorization_server(State(state): State<AppState>) -> Response {
     with_cors(axum::response::IntoResponse::into_response(Json(
@@ -22,6 +27,10 @@ pub async fn protected_resource(State(state): State<AppState>) -> Response {
 
 pub fn authorization_server_document(state: &AppState) -> Value {
     let config = &state.config;
+    let signing_algs: Vec<&str> = ALLOWED_ASSERTION_ALGS
+        .iter()
+        .filter_map(|alg| algorithm_name(*alg))
+        .collect();
     json!({
         "issuer": config.issuer,
         "authorization_endpoint": config.public_url("/oauth/authorize"),
@@ -32,7 +41,8 @@ pub fn authorization_server_document(state: &AppState) -> Value {
         "response_types_supported": ["code"],
         "response_modes_supported": ["query"],
         "grant_types_supported": ["authorization_code", "refresh_token"],
-        "token_endpoint_auth_methods_supported": ["none"],
+        "token_endpoint_auth_methods_supported": [METHOD_NONE, METHOD_PRIVATE_KEY_JWT],
+        "token_endpoint_auth_signing_alg_values_supported": signing_algs,
         "revocation_endpoint_auth_methods_supported": ["none"],
         "code_challenge_methods_supported": ["S256"],
         "scopes_supported": [SCOPE_READ, SCOPE_EXECUTE],

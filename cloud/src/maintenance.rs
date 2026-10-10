@@ -38,6 +38,7 @@ pub async fn run_once(pool: &PgPool) -> Result<(), sqlx::Error> {
         "mcp_authorization_requests",
         "mcp_authorization_codes",
         "device_authorizations",
+        "mcp_client_assertions",
     ] {
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "DELETE FROM {table} WHERE expires_at < $1"

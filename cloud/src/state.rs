@@ -7,7 +7,10 @@ use crate::{
     config::{AppConfig, FcmConfig, SigningConfig},
     fcm::{DisabledFcmSender, FcmSender, HttpFcmSender},
     google_credentials::MetadataAccessTokenProvider,
-    mcp_oauth::cimd::{ClientMetadataFetcher, HttpClientMetadataFetcher},
+    mcp_oauth::{
+        cimd::{ClientMetadataFetcher, HttpClientMetadataFetcher},
+        client_jwks::ClientJwksCache,
+    },
     oauth::{HttpOAuthProvider, OAuthProvider, OAuthProviderRegistry},
     signing::{GoogleKmsSigner, LocalEd25519Signer, TokenSigner},
 };
@@ -24,6 +27,7 @@ pub struct AppState {
     pub tokens: TokenService,
     pub fcm: Arc<dyn FcmSender>,
     pub client_metadata: Arc<dyn ClientMetadataFetcher>,
+    pub client_jwks: Arc<ClientJwksCache>,
 }
 
 impl AppState {
@@ -44,6 +48,7 @@ impl AppState {
             tokens,
             fcm,
             client_metadata: Arc::new(HttpClientMetadataFetcher::default()),
+            client_jwks: Arc::new(ClientJwksCache::default()),
         }
     }
 

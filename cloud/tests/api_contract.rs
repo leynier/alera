@@ -27,6 +27,9 @@ mod mcp_contract;
 #[path = "contracts/mcp_gateway_contract.rs"]
 mod mcp_gateway_contract;
 
+#[path = "contracts/mcp_client_auth_contract.rs"]
+mod mcp_client_auth_contract;
+
 #[path = "contracts/device_contract.rs"]
 mod device_contract;
 
