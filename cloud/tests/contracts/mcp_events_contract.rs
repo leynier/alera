@@ -242,10 +242,9 @@ async fn mcp_events_subscriptions_follow_the_grant() -> anyhow::Result<()> {
         .await?;
     assert_eq!(left, 1);
 
-    // Revoking the grant stops queued deliveries and ends the subscription.
-    let queued = event("inbox.reply", json!({"threadId": "t1"}));
-    post_events(&app, &runtime_token, &runtime, vec![queued]).await?;
-    fan_out_pending(&state).await?;
+    // Revoking the grant stops queued deliveries and ends the subscription. The queued
+    // delivery is inserted after the revoke, so a concurrent test's worker cannot send it
+    // before the revoke lands.
     let grants = get(&app, "/v1/mcp/grants", Some(&runtime_token))
         .await?
         .json();
@@ -263,6 +262,23 @@ async fn mcp_events_subscriptions_follow_the_grant() -> anyhow::Result<()> {
     )
     .await?;
     assert_eq!(revoked.status, StatusCode::NO_CONTENT);
+    let queued = event("inbox.reply", json!({"threadId": "t1"}));
+    post_events(&app, &runtime_token, &runtime, vec![queued.clone()]).await?;
+    fan_out_pending(&state).await?;
+    sqlx::query(
+        r#"
+        INSERT INTO event_deliveries (
+            id, subscription_id, event_id, status, attempts, next_attempt_at, created_at
+        )
+        SELECT gen_random_uuid(), $2, e.id, 'pending', 0, now(), now()
+        FROM domain_events e WHERE e.event_id = $1
+        ON CONFLICT (subscription_id, event_id) DO NOTHING
+        "#,
+    )
+    .bind(queued["eventId"].as_str().unwrap_or_default())
+    .bind(&id)
+    .execute(&pool)
+    .await?;
     let before = receiver.events().len();
     deliver_all(&state).await?;
     post_events(

@@ -38,6 +38,7 @@ const ADMIN_TOOLS: &[&str] = &[
     "update_runtime_settings",
     "set_agent_integrations",
     "consume_codex_reset_credit",
+    "list_webhooks",
     "create_webhook",
     "delete_webhook",
     "test_webhook",
@@ -134,13 +135,6 @@ fn sample_variants(tool: &ToolSpec) -> Vec<Value> {
     variants
 }
 
-fn first_invocation(tool: &ToolSpec) -> super::Invocation {
-    sample_variants(tool)
-        .iter()
-        .find_map(|arguments| tool.invocation(arguments).ok())
-        .unwrap_or_else(|| panic!("{} builds no command from its samples", tool.name))
-}
-
 /// A tool may refuse a combination of arguments itself, but any command it
 /// does build must parse: the CLI never sees an argument list it rejects.
 #[test]
@@ -171,16 +165,27 @@ fn every_tool_builds_a_command_the_cli_accepts() {
 #[test]
 fn no_tool_reaches_an_excluded_command() {
     for tool in catalog() {
-        let invocation = first_invocation(&tool);
-        let action = invocation.args.first().map(String::as_str);
-        for (group, excluded_action) in EXCLUDED {
-            let hit = invocation.group == *group
-                && excluded_action.is_none_or(|excluded| action == Some(excluded));
-            assert!(
-                !hit,
-                "{} runs the excluded command {group} {action:?}",
-                tool.name
-            );
+        for arguments in sample_variants(&tool) {
+            let Ok(invocation) = tool.invocation(&arguments) else {
+                continue;
+            };
+            // The subcommand path is every word before the first flag, so a
+            // nested action (`ssh-target link`) is caught wherever it sits.
+            let path: Vec<&str> = invocation
+                .args
+                .iter()
+                .map(String::as_str)
+                .take_while(|word| !word.starts_with('-'))
+                .collect();
+            for (group, excluded_action) in EXCLUDED {
+                let hit = invocation.group == *group
+                    && excluded_action.is_none_or(|excluded| path.contains(&excluded));
+                assert!(
+                    !hit,
+                    "{} runs the excluded command {group} {path:?}",
+                    tool.name
+                );
+            }
         }
     }
 }

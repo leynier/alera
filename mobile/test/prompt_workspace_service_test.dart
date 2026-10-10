@@ -160,7 +160,6 @@ void main() {
       'parentWorkspaceId': 'parent-1',
       'section': 'auto',
       'requestId': 'req-1',
-      'origin': <String, Object?>{'surface': 'mobile'},
     });
     expect(client.types, <String>[
       'workspace.promptStart.start',

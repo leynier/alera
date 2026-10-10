@@ -2,7 +2,8 @@
 //! ported from the desktop's `azure_devops_forge_provider.dart`,
 //! `azure_devops_review_actions.dart`, `azure_devops_review_comments.dart`, and
 //! `azure_devops_cli_failures.dart`. Checks are the pull request's policy
-//! evaluations.
+//! evaluations. Titles, descriptions and comment bodies travel as REST bodies
+//! in a private `--in-file`, never on the command line.
 
 use std::sync::Arc;
 
@@ -11,7 +12,9 @@ use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::azure_requests::{branch_argument, completion_body, create_body, reject_file_expansion};
 use super::identity::{ForgeIdentity, ForgeKind};
+use super::input_file::json_input_file;
 use super::mappers::{
     azure_check, azure_comments, azure_reply_body, azure_review, azure_thread_body,
 };
@@ -62,6 +65,7 @@ impl AzureDevOpsForge {
     }
 
     async fn run(&self, args: Vec<String>, allow_not_found: bool) -> HostResult<Option<String>> {
+        reject_file_expansion(&args)?;
         let output = self.runner.run("az", &args, &[]).await?;
         if output.code == 0 {
             return Ok(Some(output.stdout));
@@ -113,7 +117,8 @@ impl AzureDevOpsForge {
     }
 
     /// `az devops invoke` against a pull request resource. The body travels
-    /// in a temporary file, as the desktop does, and is removed afterwards.
+    /// in a private temporary file, as the desktop does, removed when the
+    /// call ends however it ends.
     async fn invoke(
         &self,
         resource: &str,
@@ -121,37 +126,53 @@ impl AzureDevOpsForge {
         method: &str,
         body: Option<&Value>,
     ) -> HostResult<Value> {
-        let file = body.map(|body| {
-            let path = std::env::temp_dir().join(format!("alera-pr-{}.json", uuid::Uuid::new_v4()));
-            std::fs::write(&path, body.to_string()).map(|_| path)
-        });
-        let file = file
-            .transpose()
-            .map_err(|error| HostError::state(format!("Could not write the request: {error}")))?;
+        if body.is_some() && !self.runner.shares_local_files() {
+            return Err(HostError::state(
+                "Azure DevOps requests with a body need the checkout on this machine.",
+            ));
+        }
+        let file = body.map(json_input_file).transpose()?;
         let mut args = ["devops", "invoke", "--area", "git", "--resource", resource]
             .map(String::from)
             .to_vec();
         args.push("--route-parameters".into());
         args.extend(route.iter().cloned());
         args.extend(["--http-method", method, "--api-version", "7.1"].map(String::from));
-        if let Some(path) = &file {
-            args.extend(["--in-file".to_string(), path.to_string_lossy().into_owned()]);
+        if let Some(file) = &file {
+            args.extend([
+                "--in-file".to_string(),
+                file.path().to_string_lossy().into_owned(),
+            ]);
         }
         args.extend(["--organization".to_string(), self.org()]);
         args.extend(["--output", "json"].map(String::from));
         let result = self.run_json(args, false).await;
-        if let Some(path) = file {
-            let _ = std::fs::remove_file(path);
-        }
+        drop(file);
         result
     }
 
-    fn thread_route(&self, number: i64) -> HostResult<Vec<String>> {
+    fn repository_route(&self) -> HostResult<Vec<String>> {
         Ok(vec![
             format!("project={}", self.project()?),
             format!("repositoryId={}", self.identity.repo),
-            format!("pullRequestId={number}"),
         ])
+    }
+
+    fn thread_route(&self, number: i64) -> HostResult<Vec<String>> {
+        let mut route = self.repository_route()?;
+        route.push(format!("pullRequestId={number}"));
+        Ok(route)
+    }
+
+    /// The pull request as `az repos pr show` returns it; null when absent.
+    async fn pull_request(&self, number: i64) -> HostResult<Value> {
+        let number = number.to_string();
+        let org = self.org();
+        let args = self.pr_args(
+            "show",
+            &["--id", &number, "--organization", &org, "--output", "json"],
+        );
+        self.run_json(args, true).await
     }
 
     /// The thread that owns [locator]. Comment ids repeat across threads, so
@@ -193,13 +214,7 @@ impl ForgeProvider for AzureDevOpsForge {
     }
 
     async fn review_by_number(&self, number: i64) -> HostResult<Option<Review>> {
-        let number = number.to_string();
-        let org = self.org();
-        let args = self.pr_args(
-            "show",
-            &["--id", &number, "--organization", &org, "--output", "json"],
-        );
-        let value = self.run_json(args, true).await?;
+        let value = self.pull_request(number).await?;
         Ok(value
             .is_object()
             .then(|| azure_review(&self.identity, &value)))
@@ -208,6 +223,7 @@ impl ForgeProvider for AzureDevOpsForge {
     async fn review_for_branch(&self, branch: &str) -> HostResult<Option<Review>> {
         let org = self.org();
         let project = self.identity.project.clone().unwrap_or_default();
+        let branch = branch_argument(branch);
         let args = self.pr_args(
             "list",
             &[
@@ -218,7 +234,7 @@ impl ForgeProvider for AzureDevOpsForge {
                 "--repository",
                 &self.identity.repo,
                 "--source-branch",
-                branch,
+                &branch,
                 "--status",
                 "active",
                 "--top",
@@ -284,30 +300,13 @@ impl ForgeProvider for AzureDevOpsForge {
             .collect())
     }
 
+    /// `POST pullRequests`, the request `az repos pr create` makes.
     async fn create(&self, input: &CreateInput) -> HostResult<Created> {
-        let org = self.org();
-        let project = self.identity.project.clone().unwrap_or_default();
-        let mut extra = vec![
-            "--organization",
-            &org,
-            "--project",
-            &project,
-            "--repository",
-            &self.identity.repo,
-            "--source-branch",
-            &input.head,
-            "--target-branch",
-            &input.base,
-            "--title",
-            &input.title,
-            "--description",
-            &input.body,
-        ];
-        if input.draft {
-            extra.extend(["--draft", "true"]);
-        }
-        extra.extend(["--output", "json"]);
-        let value = self.run_json(self.pr_args("create", &extra), false).await?;
+        let route = self.repository_route()?;
+        let body = create_body(input);
+        let value = self
+            .invoke("pullRequests", &route, "POST", Some(&body))
+            .await?;
         if !value.is_object() {
             return Err(HostError::state(
                 "The pull request was created but could not be read back.",
@@ -368,8 +367,11 @@ impl ForgeProvider for AzureDevOpsForge {
             .map(|_| ())
     }
 
-    /// `az repos pr update` has no head guard, so the head is read again just
-    /// before completing; the window between the two calls is a few seconds.
+    /// With an expected head, completes through `PATCH pullRequests/{id}`
+    /// carrying `lastMergeSourceCommit`, so Azure DevOps itself refuses a head
+    /// that moved after it was read. A checkout on another host cannot take
+    /// the body file, so there (and without an expected head) it completes
+    /// through `az repos pr update`, after the same client-side head check.
     async fn merge(
         &self,
         number: i64,
@@ -382,11 +384,24 @@ impl ForgeProvider for AzureDevOpsForge {
             ));
         }
         if let Some(expected) = expected_head {
-            let current = self.review_by_number(number).await?;
-            if current.and_then(|review| review.head_sha).as_deref() != Some(expected) {
+            let current = self.pull_request(number).await?;
+            let current_head = current
+                .is_object()
+                .then(|| azure_review(&self.identity, &current).head_sha)
+                .flatten();
+            if current_head.as_deref() != Some(expected) {
                 return Err(HostError::state(
                     "The pull request head changed before it could be merged.",
                 ));
+            }
+            if self.runner.shares_local_files() {
+                let mut route = self.repository_route()?;
+                route.push(format!("pullRequestId={number}"));
+                let body = completion_body(&current, expected, method == MergeMethod::Squash);
+                return self
+                    .invoke("pullRequests", &route, "PATCH", Some(&body))
+                    .await
+                    .map(|_| ());
             }
         }
         let squash = if method == MergeMethod::Squash {

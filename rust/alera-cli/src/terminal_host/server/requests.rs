@@ -487,7 +487,8 @@ impl ServerActor {
             "workspace.promptStart.start" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.prompt_workspace_start_request(payload).await
+                self.prompt_workspace_start_request(client_id, payload)
+                    .await
             }
             "workspace.promptStart.get" => {
                 self.require_auth(client_id)?;

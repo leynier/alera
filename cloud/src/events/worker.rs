@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use axum::{extract::State, Json};
+use axum::{extract::State, http::HeaderMap, Json};
 use tokio::time::Instant;
 
 use crate::{error::ApiError, state::AppState};
@@ -43,7 +43,12 @@ pub fn spawn(state: AppState) -> tokio::task::JoinHandle<()> {
 }
 
 /// `POST /v1/internal/event-deliveries/pump`: one bounded drain. The edge never
-/// forwards this path from the internet; its cron calls the origin directly.
-pub async fn pump(State(state): State<AppState>) -> Result<Json<PassSummary>, ApiError> {
+/// forwards this path from the internet; its cron calls the origin directly with the
+/// origin token, which this handler requires even when direct origin access is allowed.
+pub async fn pump(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<PassSummary>, ApiError> {
+    crate::api::require_origin_token(&headers, &state)?;
     Ok(Json(drain(&state, PUMP_BUDGET).await?))
 }

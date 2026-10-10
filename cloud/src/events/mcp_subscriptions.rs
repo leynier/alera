@@ -1,5 +1,7 @@
 //! OpenAI MCP Events subscriptions, called by the edge with the MCP client's token.
 //! Each subscription is bound to the grant that created it and stops when it is revoked.
+//! It receives events only from runtimes whose MCP Control is not `off`; naming an `off`
+//! runtime is refused with `runtime_mcp_disabled`.
 
 use std::collections::BTreeMap;
 
@@ -17,7 +19,7 @@ use crate::{
     auth::{authenticate_mcp, validation::random_secret, McpAuthContext},
     error::ApiError,
     mcp_gateway::{reachable_runtimes, resolve_runtime},
-    mcp_models::SCOPE_READ,
+    mcp_models::{McpAccess, SCOPE_READ},
     state::AppState,
 };
 
@@ -169,6 +171,15 @@ pub async fn subscribe(
         Some(runtime) => {
             let runtimes = reachable_runtimes(&state, &auth).await?;
             let chosen = resolve_runtime(&runtimes, Some(runtime), now)?;
+            if chosen.mcp_access.parse().unwrap_or(McpAccess::Off) == McpAccess::Off {
+                return Err(ApiError::conflict(
+                    "runtime_mcp_disabled",
+                    format!(
+                        "MCP Control is off on runtime {}. Turn it on to subscribe to its events.",
+                        chosen.name
+                    ),
+                ));
+            }
             (vec![chosen.id.clone()], false)
         }
         None => (Vec::new(), true),

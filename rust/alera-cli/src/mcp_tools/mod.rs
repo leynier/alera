@@ -23,7 +23,7 @@ use serde_json::{json, Value};
 
 pub(crate) use arguments::{ToolArguments, ToolInputError};
 pub(crate) use executor::{run_tool, ToolExecution, ToolResult};
-pub(crate) use origin::CallOrigin;
+pub(crate) use origin::{CallOrigin, ORIGIN_VARIABLE};
 pub(crate) use stdio_server::serve_stdio;
 
 /// Version 2 added the `admin` access class and `idempotentHint`.

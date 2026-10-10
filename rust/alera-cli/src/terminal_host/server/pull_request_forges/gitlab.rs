@@ -1,12 +1,14 @@
 //! GitLab merge requests through `glab`, ported from the desktop's
 //! `gitlab_forge_provider.dart`, `gitlab_review_actions.dart`, and
-//! `gitlab_review_comments.dart`: the same argv, the same API endpoints, and
-//! the same failure classification.
+//! `gitlab_review_comments.dart`: the same API endpoints and the same failure
+//! classification. Titles, descriptions, branch names and comment bodies are
+//! request bodies piped to `glab api --input -`, never command-line arguments,
+//! so no shell or `glab` flag parsing ever reads free text.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -84,12 +86,13 @@ impl GitLabForge {
     }
 
     /// `glab api`. `glab api --hostname` rejects an authority with a port, so
-    /// such a host is addressed through `GITLAB_REPO` instead.
+    /// such a host is addressed through `GITLAB_REPO` instead. A [body] is
+    /// sent as JSON on standard input.
     async fn api(
         &self,
         endpoint: &str,
         method: Option<&str>,
-        fields: &[String],
+        body: Option<&Value>,
         paginate: bool,
         allow_not_found: bool,
     ) -> HostResult<Option<String>> {
@@ -104,24 +107,32 @@ impl GitLabForge {
         if let Some(method) = method {
             args.extend(["--method".to_string(), method.to_string()]);
         }
-        for field in fields {
-            args.extend(["--raw-field".to_string(), field.clone()]);
+        let stdin = body.map(Value::to_string);
+        if stdin.is_some() {
+            args.extend(
+                ["--header", "Content-Type: application/json", "--input", "-"].map(String::from),
+            );
         }
         let environment = if override_repo {
             vec![("GITLAB_REPO".to_string(), self.repo_url())]
         } else {
             Vec::new()
         };
-        self.run(args, &environment, allow_not_found).await
+        self.run(args, &environment, stdin.as_deref(), allow_not_found)
+            .await
     }
 
     async fn run(
         &self,
         args: Vec<String>,
         environment: &[(String, String)],
+        stdin: Option<&str>,
         allow_not_found: bool,
     ) -> HostResult<Option<String>> {
-        let output = self.runner.run("glab", &args, environment).await?;
+        let output = self
+            .runner
+            .run_with_stdin("glab", &args, environment, stdin)
+            .await?;
         if output.code == 0 {
             return Ok(Some(output.stdout));
         }
@@ -144,12 +155,12 @@ impl GitLabForge {
 
     async fn run_mr(&self, mut args: Vec<String>) -> HostResult<String> {
         args.splice(0..0, ["mr".to_string()]);
-        Ok(self.run(args, &[], false).await?.unwrap_or_default())
+        Ok(self.run(args, &[], None, false).await?.unwrap_or_default())
     }
 
     async fn merge_request(&self, number: i64) -> HostResult<Option<Value>> {
         let Some(output) = self
-            .api(&self.mr_endpoint(number), None, &[], false, true)
+            .api(&self.mr_endpoint(number), None, None, false, true)
             .await?
         else {
             return Ok(None);
@@ -197,6 +208,21 @@ pub(crate) fn decode_ndjson(raw: &str) -> HostResult<Vec<Value>> {
         .collect()
 }
 
+/// The `POST merge_requests` body for [input].
+pub(crate) fn create_body(input: &CreateInput) -> Value {
+    let title = if input.draft {
+        format!("Draft: {}", input.title)
+    } else {
+        input.title.clone()
+    };
+    json!({
+        "source_branch": input.head,
+        "target_branch": input.base,
+        "title": title,
+        "description": input.body,
+    })
+}
+
 pub(crate) fn merge_request_number(output: &str) -> Option<(i64, String)> {
     let start = output.find("http")?;
     let url = output[start..].split_whitespace().next()?.to_string();
@@ -239,7 +265,7 @@ impl ForgeProvider for GitLabForge {
             self.project_endpoint(),
             url::form_urlencoded::byte_serialize(branch.as_bytes()).collect::<String>()
         );
-        let output = self.api(&endpoint, None, &[], true, false).await?;
+        let output = self.api(&endpoint, None, None, true, false).await?;
         let records = decode_ndjson(&output.unwrap_or_default())?;
         Ok(newest(
             records
@@ -262,7 +288,7 @@ impl ForgeProvider for GitLabForge {
     /// mistakes an unreadable conversation for a clear one.
     async fn comments(&self, number: i64) -> (Vec<Value>, bool) {
         let endpoint = format!("{}/discussions?per_page=100", self.mr_endpoint(number));
-        match self.api(&endpoint, None, &[], true, false).await {
+        match self.api(&endpoint, None, None, true, false).await {
             Ok(output) => match decode_ndjson(&output.unwrap_or_default()) {
                 Ok(discussions) => (gitlab_comments(&discussions), false),
                 Err(_) => (Vec::new(), true),
@@ -272,7 +298,7 @@ impl ForgeProvider for GitLabForge {
     }
 
     async fn viewer(&self) -> Option<String> {
-        let output = self.api("user", None, &[], false, false).await.ok()??;
+        let output = self.api("user", None, None, false, false).await.ok()??;
         let user = decode(&output).ok()??;
         user["username"].as_str().map(ToOwned::to_owned)
     }
@@ -284,28 +310,22 @@ impl ForgeProvider for GitLabForge {
             .collect())
     }
 
+    /// `POST merge_requests`, as `glab mr create` sends it: a draft is the
+    /// `Draft: ` title prefix.
     async fn create(&self, input: &CreateInput) -> HostResult<Created> {
-        let mut args = vec![
-            "create",
-            "--repo",
-            &self.repo_url(),
-            "--source-branch",
-            &input.head,
-            "--target-branch",
-            &input.base,
-            "--title",
-            &input.title,
-            "--description",
-            &input.body,
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<_>>();
-        if input.draft {
-            args.push("--draft".into());
+        let endpoint = format!("{}/merge_requests", self.project_endpoint());
+        let body = create_body(input);
+        let stdout = self
+            .api(&endpoint, Some("POST"), Some(&body), false, false)
+            .await?
+            .unwrap_or_default();
+        let created = decode(&stdout).ok().flatten().unwrap_or(Value::Null);
+        if let Some(number) = created["iid"].as_i64() {
+            return Ok(Created {
+                number,
+                url: created["web_url"].as_str().map(ToOwned::to_owned),
+            });
         }
-        args.push("--yes".into());
-        let stdout = self.run_mr(args).await?;
         if let Some((number, url)) = merge_request_number(&stdout) {
             return Ok(Created {
                 number,
@@ -337,8 +357,8 @@ impl ForgeProvider for GitLabForge {
                 encode_component(&self.discussion_id(number, locator).await?)
             ),
         };
-        let fields = [format!("body={body}")];
-        self.api(&endpoint, Some("POST"), &fields, false, false)
+        let payload = json!({ "body": body });
+        self.api(&endpoint, Some("POST"), Some(&payload), false, false)
             .await
             .map(|_| ())
     }
@@ -363,8 +383,8 @@ impl ForgeProvider for GitLabForge {
             ),
             CommentSource::Conversation => format!("{}/notes/{note}", self.mr_endpoint(number)),
         };
-        let fields = [format!("body={body}")];
-        self.api(&endpoint, Some("PUT"), &fields, false, false)
+        let payload = json!({ "body": body });
+        self.api(&endpoint, Some("PUT"), Some(&payload), false, false)
             .await
             .map(|_| ())
     }

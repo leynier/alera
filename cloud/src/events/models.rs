@@ -37,6 +37,19 @@ pub struct DomainEventBatchResponse {
     /// Events already stored earlier (same runtime and event id) or repeated in the batch.
     pub duplicate: usize,
     pub active_subscriptions: usize,
+    /// Events refused by the payload policy. The rest of the batch is still stored, so
+    /// one bad event never blocks the runtime's journal. Omitted when empty.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rejected: Vec<RejectedEvent>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RejectedEvent {
+    /// As sent, cut to 64 characters.
+    pub event_id: String,
+    /// The error code the event would have produced on its own, such as `invalid_event_time`.
+    pub code: &'static str,
 }
 
 #[derive(Debug, Serialize)]

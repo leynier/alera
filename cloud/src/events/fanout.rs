@@ -9,7 +9,9 @@ pub const RETENTION: TimeDelta = TimeDelta::hours(24);
 const FAN_OUT_BATCH: i64 = 500;
 
 /// Matches event `m` to subscription `s`. `$1` is now, `$2` the MCP Events switch.
-/// MCP Events subscriptions also need a live grant that still reaches the runtime.
+/// MCP Events subscriptions also need MCP Control on the event's runtime (not `off`) and
+/// a live grant that still reaches it. Webhooks belong to the account owner and do not
+/// depend on MCP Control.
 const MATCH: &str = r#"
     s.account_id = m.account_id
     AND s.status = 'active'
@@ -29,6 +31,9 @@ const MATCH: &str = r#"
     AND (
         s.target_kind = 'webhook'
         OR ($2 AND EXISTS (
+            SELECT 1 FROM runtimes r
+            WHERE r.id = m.runtime_id AND r.mcp_access <> 'off'
+        ) AND EXISTS (
             SELECT 1 FROM mcp_grants g
             WHERE g.id = s.owner_grant_id
               AND g.revoked_at IS NULL

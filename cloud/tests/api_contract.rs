@@ -45,6 +45,9 @@ mod webhook_contract;
 #[path = "contracts/mcp_events_contract.rs"]
 mod mcp_events_contract;
 
+#[path = "contracts/events_access_contract.rs"]
+mod events_access_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
     config::{

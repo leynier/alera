@@ -7,6 +7,7 @@ use reqwest::Method;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use super::super::cloud_client::CloudRequestError;
 use super::AleraAccountService;
 
 #[derive(Debug, Deserialize)]
@@ -14,12 +15,32 @@ use super::AleraAccountService;
 struct ForwardResponse {
     #[serde(default)]
     active_subscriptions: usize,
+    #[serde(default)]
+    rejected: Vec<RejectedEvent>,
+}
+
+/// An event the cloud refused by its payload policy while it stored the rest.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct RejectedEvent {
+    #[serde(default)]
+    event_id: String,
+    #[serde(default)]
+    code: String,
 }
 
 impl AleraAccountService {
     /// Sends a batch of journal events and returns how many subscriptions
-    /// still want this runtime's events.
-    pub(crate) async fn forward_domain_events(&self, events: &[RuntimeEvent]) -> Result<usize> {
+    /// still want this runtime's events. Events the cloud rejected one by one
+    /// are logged. `Ok(None)` means the cloud refused the whole batch with a
+    /// client error that resending it cannot fix (an older cloud refuses every
+    /// batch with one bad event), so the caller should move past it. Transient,
+    /// authorization, and rate-limit failures stay errors, and the caller
+    /// retries the batch.
+    pub(crate) async fn forward_domain_events(
+        &self,
+        events: &[RuntimeEvent],
+    ) -> Result<Option<usize>> {
         let token = self.access_token().await?;
         let events = events
             .iter()
@@ -35,16 +56,37 @@ impl AleraAccountService {
                 })
             })
             .collect::<Vec<_>>();
-        let response: ForwardResponse = self
+        let response = self
             .cloud
-            .json(
+            .json::<ForwardResponse>(
                 Method::POST,
                 "/v1/runtime/domain-events",
                 Some(&token),
                 Some(json!({ "runtimeId": self.runtime_id, "events": events })),
             )
-            .await?;
-        Ok(response.active_subscriptions)
+            .await;
+        match response {
+            Ok(response) => {
+                for event in &response.rejected {
+                    tracing::warn!(
+                        event_id = %event.event_id,
+                        code = %event.code,
+                        "the cloud rejected a runtime event"
+                    );
+                }
+                Ok(Some(response.active_subscriptions))
+            }
+            Err(error) => match refusal(&error) {
+                Some(reason) => {
+                    tracing::warn!(
+                        events = events.len(),
+                        "the cloud refused a runtime event batch: {reason}"
+                    );
+                    Ok(None)
+                }
+                None => Err(error),
+            },
+        }
     }
 
     /// Webhook and MCP Events subscriptions that target this runtime.
@@ -116,6 +158,19 @@ impl AleraAccountService {
     }
 }
 
+/// A client error other than authorization, timeout, or rate limiting: the same
+/// batch would be refused again.
+fn refusal(error: &anyhow::Error) -> Option<String> {
+    let request = error.downcast_ref::<CloudRequestError>()?;
+    (request.is_permanent_failure() && !request.is_permanent_authorization_failure()).then(|| {
+        format!(
+            "{}: {}",
+            request.code().unwrap_or("rejected"),
+            request.message()
+        )
+    })
+}
+
 /// Webhook ids are cloud-issued; this keeps a pasted value from changing
 /// the path.
 fn encode_segment(id: &str) -> String {
@@ -126,11 +181,37 @@ fn encode_segment(id: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::encode_segment;
+    use super::{encode_segment, refusal, ForwardResponse, RejectedEvent};
 
     #[test]
     fn webhook_ids_cannot_change_the_path() {
         assert_eq!(encode_segment("wh_123-abc"), "wh_123-abc");
         assert_eq!(encode_segment("../admin?x=1"), "adminx1");
+    }
+
+    #[test]
+    fn runtime_event_forward_responses_carry_rejected_events() {
+        let older: ForwardResponse =
+            serde_json::from_value(serde_json::json!({ "activeSubscriptions": 2 })).unwrap();
+        assert_eq!(older.active_subscriptions, 2);
+        assert!(older.rejected.is_empty());
+        let newer: ForwardResponse = serde_json::from_value(serde_json::json!({
+            "accepted": 1,
+            "activeSubscriptions": 1,
+            "rejected": [{ "eventId": "e1", "code": "invalid_event_time" }],
+        }))
+        .unwrap();
+        assert_eq!(
+            newer.rejected,
+            [RejectedEvent {
+                event_id: "e1".to_owned(),
+                code: "invalid_event_time".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn runtime_event_batches_are_refused_only_by_cloud_client_errors() {
+        assert!(refusal(&anyhow::anyhow!("connection reset")).is_none());
     }
 }

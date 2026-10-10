@@ -53,10 +53,14 @@ impl ServerActor {
                     request_id,
                     AccountOperation::McpGrants,
                     async move {
-                        service
+                        let created = service
                             .create_webhook(&url, &kinds, runtime_ids.as_deref())
                             .await
-                            .map_err(cloud_error)
+                            .map_err(cloud_error)?;
+                        // The forwarder skips events while it believes nothing is
+                        // subscribed; let it see the new webhook right away.
+                        super::runtime_event_forwarder::request_subscription_refresh();
+                        Ok(created)
                     },
                 );
             }

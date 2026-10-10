@@ -1,7 +1,7 @@
 use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Request, State},
-    http::{HeaderValue, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post, put},
@@ -99,24 +99,32 @@ async fn require_edge_origin(
     if request.uri().path() == "/health" || state.config.allow_direct_origin {
         return Ok(next.run(request).await);
     }
-    let provided = request
-        .headers()
-        .get("x-alera-origin-auth")
-        .and_then(header_text);
-    let valid = provided.is_some_and(|provided| {
-        token_matches(
-            provided,
-            state.config.edge_origin_token.as_deref(),
-            state.config.edge_previous_origin_token.as_deref(),
-        )
-    });
-    if !valid {
-        return Err(ApiError::unauthorized(
-            "invalid_origin",
-            "The request did not arrive through the Alera edge.",
-        ));
-    }
+    require_origin_token(request.headers(), &state)?;
     Ok(next.run(request).await)
+}
+
+/// Requires the edge origin token (current or previous) on `headers`, whatever
+/// `ALLOW_DIRECT_ORIGIN` says. Internal routes call it themselves so they stay closed
+/// when direct origin access is allowed; with no token configured they are unreachable.
+pub(crate) fn require_origin_token(headers: &HeaderMap, state: &AppState) -> Result<(), ApiError> {
+    if origin_token_valid(
+        headers,
+        state.config.edge_origin_token.as_deref(),
+        state.config.edge_previous_origin_token.as_deref(),
+    ) {
+        return Ok(());
+    }
+    Err(ApiError::unauthorized(
+        "invalid_origin",
+        "The request did not arrive through the Alera edge.",
+    ))
+}
+
+fn origin_token_valid(headers: &HeaderMap, current: Option<&str>, previous: Option<&str>) -> bool {
+    headers
+        .get("x-alera-origin-auth")
+        .and_then(header_text)
+        .is_some_and(|provided| token_matches(provided, current, previous))
 }
 
 fn header_text(value: &HeaderValue) -> Option<&str> {
@@ -138,7 +146,9 @@ fn token_matches(provided: &str, current: Option<&str>, previous: Option<&str>) 
 
 #[cfg(test)]
 mod tests {
-    use super::{request_span, token_matches};
+    use axum::http::{HeaderMap, HeaderValue};
+
+    use super::{origin_token_valid, request_span, token_matches};
 
     #[derive(Clone, Default)]
     struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
@@ -189,5 +199,16 @@ mod tests {
         assert!(token_matches("new", Some("new"), Some("old")));
         assert!(token_matches("old", Some("new"), Some("old")));
         assert!(!token_matches("other", Some("new"), Some("old")));
+    }
+
+    #[test]
+    fn origin_token_is_required_and_never_matches_when_unset() {
+        let mut headers = HeaderMap::new();
+        assert!(!origin_token_valid(&headers, Some("new"), None));
+        headers.insert("x-alera-origin-auth", HeaderValue::from_static("new"));
+        assert!(origin_token_valid(&headers, Some("new"), None));
+        assert!(!origin_token_valid(&headers, None, None));
+        headers.insert("x-alera-origin-auth", HeaderValue::from_static(""));
+        assert!(!origin_token_valid(&headers, Some(""), None));
     }
 }

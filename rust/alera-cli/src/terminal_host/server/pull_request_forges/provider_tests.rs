@@ -48,6 +48,14 @@ fn input(draft: bool) -> CreateInput {
     }
 }
 
+fn stdin_json(call: &super::runner::fake::RecordedCall) -> serde_json::Value {
+    serde_json::from_str(call.stdin.as_deref().expect("a body on stdin")).unwrap()
+}
+
+fn in_file_json(runner: &FakeRunner, index: usize) -> serde_json::Value {
+    serde_json::from_str(&runner.in_file(index).expect("an --in-file body")).unwrap()
+}
+
 fn error_code(error: crate::terminal_host::host_error::HostError) -> String {
     error.wire_response(1)["errorCode"]
         .as_str()
@@ -58,7 +66,7 @@ fn error_code(error: crate::terminal_host::host_error::HostError) -> String {
 #[tokio::test]
 async fn gitlab_writes_run_the_desktop_glab_commands() {
     let (forge, runner) = gitlab(vec![
-        ok("https://gitlab.com/group/sub/app/-/merge_requests/12\n"),
+        ok(r#"{"iid":12,"web_url":"https://gitlab.com/group/sub/app/-/merge_requests/12"}"#),
         ok(""),
         ok(""),
         ok(""),
@@ -67,6 +75,10 @@ async fn gitlab_writes_run_the_desktop_glab_commands() {
     ]);
     let created = forge.create(&input(true)).await.unwrap();
     assert_eq!(created.number, 12);
+    assert_eq!(
+        created.url.as_deref(),
+        Some("https://gitlab.com/group/sub/app/-/merge_requests/12")
+    );
     forge
         .merge(12, MergeMethod::Squash, Some("abc"))
         .await
@@ -88,21 +100,26 @@ async fn gitlab_writes_run_the_desktop_glab_commands() {
     assert_eq!(
         calls[0].args,
         [
-            "mr",
-            "create",
-            "--repo",
-            repo,
-            "--source-branch",
-            "feat/x",
-            "--target-branch",
-            "main",
-            "--title",
-            "Add X",
-            "--description",
-            "Why",
-            "--draft",
-            "--yes"
+            "api",
+            "projects/group%2Fsub%2Fapp/merge_requests",
+            "--hostname",
+            "gitlab.com",
+            "--method",
+            "POST",
+            "--header",
+            "Content-Type: application/json",
+            "--input",
+            "-"
         ]
+    );
+    assert_eq!(
+        stdin_json(&calls[0]),
+        serde_json::json!({
+            "source_branch": "feat/x",
+            "target_branch": "main",
+            "title": "Draft: Add X",
+            "description": "Why",
+        })
     );
     assert_eq!(
         calls[1].args,
@@ -129,13 +146,21 @@ async fn gitlab_writes_run_the_desktop_glab_commands() {
         "projects/group%2Fsub%2Fapp/merge_requests/12/notes"
     );
     assert_eq!(calls[4].option("method"), Some("POST"));
-    assert_eq!(calls[4].option("raw-field"), Some("body=Ready"));
+    assert_eq!(calls[4].option("input"), Some("-"));
+    assert_eq!(
+        stdin_json(&calls[4]),
+        serde_json::json!({ "body": "Ready" })
+    );
     assert_eq!(calls[4].option("hostname"), Some("gitlab.com"));
     assert_eq!(
         calls[5].args[1],
         "projects/group%2Fsub%2Fapp/merge_requests/12/discussions/d1/notes/5"
     );
     assert_eq!(calls[5].option("method"), Some("PUT"));
+    assert_eq!(
+        stdin_json(&calls[5]),
+        serde_json::json!({ "body": "- [x] done" })
+    );
     assert!(forge.merge(12, MergeMethod::Rebase, None).await.is_err());
 }
 
@@ -145,7 +170,7 @@ async fn azure_writes_run_the_desktop_az_commands() {
     let (forge, runner) = azure(vec![
         ok(created),
         ok(r#"{"pullRequestId":43,"lastMergeSourceCommit":{"commitId":"abc"}}"#),
-        ok(""),
+        ok("{}"),
         ok(""),
         ok(""),
         ok("{}"),
@@ -164,12 +189,27 @@ async fn azure_writes_run_the_desktop_az_commands() {
     forge.close(43).await.unwrap();
     forge.comment(43, "Looks good", None).await.unwrap();
     let calls = runner.calls();
-    assert_eq!(calls[0].args[..3], ["repos", "pr", "create"]);
-    assert_eq!(calls[0].option("draft"), Some("true"));
-    assert_eq!(calls[0].option("source-branch"), Some("feat/x"));
+    assert_eq!(calls[0].args[..2], ["devops", "invoke"]);
+    assert_eq!(calls[0].option("resource"), Some("pullRequests"));
+    assert_eq!(calls[0].option("http-method"), Some("POST"));
+    assert_eq!(
+        in_file_json(&runner, 0),
+        serde_json::json!({
+            "sourceRefName": "refs/heads/feat/x",
+            "targetRefName": "refs/heads/main",
+            "title": "Add X",
+            "description": "Why",
+            "isDraft": true,
+        })
+    );
     assert_eq!(calls[1].args[..3], ["repos", "pr", "show"]);
-    assert_eq!(calls[2].option("status"), Some("completed"));
-    assert_eq!(calls[2].option("squash"), Some("false"));
+    assert_eq!(calls[2].option("resource"), Some("pullRequests"));
+    assert_eq!(calls[2].option("http-method"), Some("PATCH"));
+    assert!(calls[2].args.contains(&"pullRequestId=43".to_string()));
+    let completion = in_file_json(&runner, 2);
+    assert_eq!(completion["status"], "completed");
+    assert_eq!(completion["lastMergeSourceCommit"]["commitId"], "abc");
+    assert_eq!(completion["completionOptions"]["squashMerge"], false);
     assert_eq!(calls[3].option("draft"), Some("true"));
     assert_eq!(calls[4].option("status"), Some("abandoned"));
     assert_eq!(calls[5].option("resource"), Some("pullRequestThreads"));

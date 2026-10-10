@@ -194,16 +194,43 @@ async fn runtime_events_reach_signed_webhooks_with_retries() -> anyhow::Result<(
     )
     .await?;
     assert_eq!(foreign.status, StatusCode::FORBIDDEN);
-    let sensitive = post_events(
+    // One bad event is rejected on its own; the rest of the batch is stored.
+    let mut skewed = event("agent.status", json!({"state": "idle"}));
+    skewed["occurredAt"] = json!((chrono::Utc::now() + chrono::TimeDelta::hours(1)).to_rfc3339());
+    let fine = event("terminal.exit", json!({"tabId": "tab-2", "exitCode": 1}));
+    let mixed = post_events(
         &app,
         &token,
         &runtime,
-        vec![event("inbox.reply", json!({"replyText": "secret"}))],
+        vec![
+            event("inbox.reply", json!({"replyText": "secret"})),
+            event("alera.test", json!({})),
+            skewed.clone(),
+            fine,
+        ],
     )
     .await?;
-    assert_eq!(sensitive.error_code(), "sensitive_event_data");
-    let unknown = post_events(&app, &token, &runtime, vec![event("alera.test", json!({}))]).await?;
-    assert_eq!(unknown.error_code(), "unknown_event_kind");
+    assert_eq!(mixed.status, StatusCode::OK, "{}", mixed.text());
+    let mixed = mixed.json();
+    assert_eq!(mixed["accepted"], 1);
+    let codes: Vec<&str> = mixed["rejected"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item["code"].as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    assert_eq!(
+        codes,
+        [
+            "sensitive_event_data",
+            "unknown_event_kind",
+            "invalid_event_time"
+        ]
+    );
+    assert_eq!(mixed["rejected"][2]["eventId"], skewed["eventId"]);
     let too_many: Vec<Value> = (0..101).map(|_| event("agent.status", json!({}))).collect();
     let oversized = post_events(&app, &token, &runtime, too_many).await?;
     assert_eq!(oversized.error_code(), "invalid_event_batch");

@@ -80,13 +80,17 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 },
             )
         },
-        read(
-            "list_webhooks",
-            "List Webhooks",
-            "List the signed webhooks that receive runtime events through the Alera cloud for this account, with their kinds, status, and last delivery.",
-            no_arguments,
-            |_| Ok(Invocation::new("webhook", &["list"])),
-        ),
+        // Admin, not read: a callback URL often carries its receiver's token.
+        ToolSpec {
+            idempotent: true,
+            ..admin(
+                "list_webhooks",
+                "List Webhooks",
+                "List the signed webhooks that receive runtime events through the Alera cloud for this account, with their URLs, kinds, status, and last delivery.",
+                no_arguments,
+                |_| Ok(Invocation::new("webhook", &["list"])),
+            )
+        },
         admin(
             "create_webhook",
             "Create Webhook",

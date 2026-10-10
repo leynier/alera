@@ -160,7 +160,7 @@ pub(crate) async fn remove_like_app(
     .map_err(|error| match paused.is_empty() {
         true => error,
         false => anyhow!(
-            "{error} The dependent automations stay paused: {}.",
+            "{error} The workspace was kept, but its dependent automations were already paused and their active runs cancelled: {}.",
             paused
                 .iter()
                 .filter_map(|item| item["name"].as_str())

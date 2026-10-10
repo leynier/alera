@@ -77,6 +77,8 @@ struct Claimed {
     status: String,
     refresh_before: Option<DateTime<Utc>>,
     authorized: bool,
+    /// False for an MCP Events delivery whose runtime has MCP Control off.
+    runtime_allowed: bool,
     event_id: String,
     kind: String,
     runtime_id: String,
@@ -146,6 +148,10 @@ async fn claim(state: &AppState) -> Result<Vec<Claimed>, ApiError> {
         SELECT d.id, d.attempts, s.id AS subscription_id, s.target_kind, s.callback_url,
                s.secret_ciphertext, s.previous_secret_ciphertext, s.previous_secret_until,
                s.status, s.refresh_before,
+               (s.target_kind = 'webhook' OR EXISTS (
+                   SELECT 1 FROM runtimes r
+                   WHERE r.id = e.runtime_id AND r.mcp_access <> 'off'
+               )) AS runtime_allowed,
                (s.target_kind = 'webhook' OR ($2 AND EXISTS (
                    SELECT 1 FROM mcp_grants g
                    WHERE g.id = s.owner_grant_id AND g.revoked_at IS NULL
@@ -211,6 +217,20 @@ async fn deliver(state: &AppState, delivery: Claimed) -> Result<bool, ApiError> 
     } else {
         None
     };
+    if stop.is_none() && !delivery.runtime_allowed {
+        // MCP Control is off on this runtime: drop the event, keep the subscription,
+        // which may cover other runtimes or resume when MCP Control comes back on.
+        finish(
+            state,
+            &delivery,
+            "stopped",
+            None,
+            Some("runtime_mcp_disabled"),
+            None,
+        )
+        .await?;
+        return Ok(false);
+    }
     if let Some(new_status) = stop {
         if let Some(new_status) = new_status {
             stop_subscription(state, &delivery.subscription_id, new_status, None).await?;

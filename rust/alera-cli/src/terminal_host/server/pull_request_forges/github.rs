@@ -40,12 +40,16 @@ pub(crate) struct GhRunner {
 
 #[async_trait]
 impl ForgeRunner for GhRunner {
-    async fn run(
+    async fn run_with_stdin(
         &self,
         _program: &str,
         args: &[String],
         _environment: &[(String, String)],
+        stdin: Option<&str>,
     ) -> HostResult<ForgeOutput> {
+        if stdin.is_some() {
+            return Err(HostError::state("gh requests here take no standard input."));
+        }
         let args = args.iter().map(String::as_str).collect::<Vec<_>>();
         match run_gh(&self.cwd, &args).await {
             Ok((code, stdout, stderr)) => Ok(ForgeOutput {

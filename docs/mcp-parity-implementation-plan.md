@@ -224,7 +224,7 @@ Cubre GitHub, GitLab y Azure DevOps en todas las filas, a través de `ForgeProvi
 | Capacidad | CLI | Herramienta MCP | Nivel | Fase |
 |---|---|---|---|---|
 | Diario de eventos: listar y esperar con cursor | `events list/wait` (nuevo → `runtimeEvents.*` nuevo) | `list_events` / `wait_for_events` | R | 8 |
-| Webhooks genéricos: listar, crear, borrar, probar | `webhook list/add/remove/test` (nuevo → API de la nube) | `list_webhooks` / `create_webhook` / `delete_webhook` / `test_webhook` | R / A / A / A | 8 |
+| Webhooks genéricos: listar, crear, borrar, probar | `webhook list/add/remove/test` (nuevo → API de la nube) | `list_webhooks` / `create_webhook` / `delete_webhook` / `test_webhook` | A / A / A / A (listar es A: la URL suele llevar el token del receptor) | 8 |
 | Suscripción local stdio y MCP Events | Métodos de protocolo, no tools (sección 6.5) | — | — | 8 |
 
 ### 2.2 Cambios de nivel en herramientas existentes
@@ -892,7 +892,7 @@ No hay preguntas bloqueantes.
 
 Implementado y verificado:
 
-- **Catálogo:** 220 herramientas (87 Read, 112 Full, 21 Admin). Los tests de catálogo verifican tres cosas: que cada invocación la acepta el parser real del CLI, que ninguna herramienta llega a un comando excluido ni a una decisión humana, y que los niveles siguen F1 y F2.
+- **Catálogo:** 220 herramientas (86 Read, 112 Full, 22 Admin). Los tests de catálogo verifican tres cosas: que cada invocación la acepta el parser real del CLI, que ninguna herramienta llega a un comando excluido ni a una decisión humana, y que los niveles siguen F1 y F2.
 - **Fases 0-6, 7 y 8:** implementadas tal como describe este plan.
 - **Validación:**
   - Rust `alera-cli`: 2036 tests en verde; `alera-core` con la feature `runtime` también en verde.
@@ -925,3 +925,47 @@ Pendiente (requiere despliegue, cuentas reales o pruebas manuales):
   - Setup lanzado por el host;
   - inbox compartido entre dos clientes;
   - Windows y macOS.
+
+### 13.1 Revisión de seguridad
+
+Corregido en el runtime:
+
+- **Buffers sucios:** solo un cliente local puede pedir `save` o `discard` de editores, y solo al borrar un workspace. Un teléfono o un satélite no pueden resolver los editores de otro cliente.
+- **Satélites:** el hub rechaza `workspace.promptStart.*` (start, retryLaunch, cancel) y `workspace.wake` de un host remoto. Además, quita `externalOrigin`, `origin` y `resolution` de todo payload reenviado.
+- **Origen de New Workspace from Prompt:** la conexión decide la superficie (desktop, mobile, cli). Solo el CLI local que ejecuta una herramienta MCP puede nombrar al cliente MCP. El origen se normaliza con las mismas cotas que el buzón.
+- **`requestId` de New Workspace from Prompt:** limitado a 128 caracteres y separado por cliente MCP. Dos clientes que elijan la misma clave nunca comparten operación.
+- **`ALERA_MCP_ORIGIN`:** no pasa a un runtime arrancado por una llamada ni a sus terminales.
+- **`list_webhooks`:** pasa a Admin, porque la URL de callback suele llevar el token del receptor.
+- **Borrado bloqueado:** si un borrado se bloquea por editores, el mensaje ya no dice que no cambió nada cuando las automations dependientes ya se pausaron y sus ejecuciones se cancelaron.
+- **Test de exclusiones:** ahora recorre todas las variantes de argumentos de cada herramienta y toda la ruta de subcomandos.
+
+Corregido en las forjas de PR:
+
+- **Inyección en Windows:** `glab` y `az` ya no pasan texto libre por la línea de comandos.
+  - GitLab crea, comenta y edita con `glab api --input -` y el cuerpo JSON por stdin.
+  - Azure crea con `az devops invoke --in-file`.
+  - En Windows el runner local lanza la CLI directamente, resolviéndola con `PATH` y `PATHEXT`, sin pasar por `cmd.exe`. Nunca busca la CLI en el checkout.
+- **Expansión `@file` de `az`:** se rechaza cualquier argumento que empiece por `@`. Una rama así se pasa como `refs/heads/@…`.
+- **Carrera al mezclar en Azure:** con un checkout local, el merge envía `lastMergeSourceCommit` con la cabeza esperada para que Azure rechace una cabeza vieja. En un host SSH queda la comprobación previa del cliente.
+- **Archivo temporal de Azure:** se crea nuevo y solo para el dueño (0600), y se borra al terminar la llamada.
+
+Corregido en los eventos de la nube:
+
+- **MCP Events respetan MCP Control:** con el runtime en Off no hay fan-out ni replay, la entrega en cola se detiene con `runtime_mcp_disabled` y una suscripción nueva recibe `409`. Los webhooks no dependen de MCP Control.
+- **Bomba de entregas:** `/v1/internal/*` exige siempre el token de origen.
+- **Un evento rechazado ya no bloquea el reenvío:** la nube guarda el resto del lote y lista los rechazados en `rejected`.
+- **Eventos al crear una suscripción:** el forwarder refresca el conteo al crear un webhook. Mientras el conteo es cero, solo descarta eventos anteriores al último refresco.
+
+Decisión abierta (M6), sin cambios de nivel hasta que el usuario decida:
+
+- **El problema:** Full ya permite ejecutar comandos arbitrarios en la máquina del runtime por varias vías:
+  - `create_tab` con `command`;
+  - la entrada de `pulse`;
+  - `write_terminal`;
+  - la configuración del proyecto (setup) seguida de `run_workspace_setup`;
+  - el `precheck.command` de una automation.
+- **La consecuencia:** un cliente Full puede llegar por esas vías a cualquier comando del CLI, incluidos los excluidos (`orchestration gate-resolve`, `mcp`, `account`). La exclusión del catálogo impide que una herramienta los invoque directamente, pero no es una barrera frente a un cliente Full decidido.
+- **Opciones:**
+  - aceptarlo y documentarlo en la UI de MCP Control como hoy (`write_terminal`);
+  - subir a Admin las herramientas que aceptan comandos libres (`create_tab.command`, la configuración de setup y `precheck.command`), sin tocar `write_terminal` ni `pulse`, que son el uso principal de Full;
+  - restringir los comandos libres a una lista blanca por proyecto.

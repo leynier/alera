@@ -14,6 +14,7 @@ use super::orchestration_validation::{optional_string, parse_priority, require_s
 use super::ServerActor;
 
 mod origin;
+pub(super) use origin::external_origin;
 #[cfg(test)]
 mod origin_tests;
 

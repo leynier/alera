@@ -8326,15 +8326,15 @@
       "title": "Wait For Events"
     },
     {
-      "access": "read",
+      "access": "admin",
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
-        "readOnlyHint": true,
+        "readOnlyHint": false,
         "title": "List Webhooks"
       },
-      "description": "List the signed webhooks that receive runtime events through the Alera cloud for this account, with their kinds, status, and last delivery.",
+      "description": "List the signed webhooks that receive runtime events through the Alera cloud for this account, with their URLs, kinds, status, and last delivery.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {},

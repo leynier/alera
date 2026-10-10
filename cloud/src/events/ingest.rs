@@ -17,6 +17,7 @@ use super::{
     catalog::{self, DataViolation},
     models::{
         DomainEventBatch, DomainEventBatchResponse, DomainEventInput, EventSubscriptionCount,
+        RejectedEvent,
     },
 };
 
@@ -48,7 +49,7 @@ pub async fn post_domain_events(
     if auth.client_id != batch.runtime_id {
         return Err(not_owned());
     }
-    validate_batch(&batch)?;
+    let (valid, rejected) = validate_batch(&batch)?;
     let owned = sqlx::query_scalar::<_, bool>(
         r#"
         SELECT EXISTS(
@@ -65,12 +66,12 @@ pub async fn post_domain_events(
         return Err(not_owned());
     }
     let mut seen = HashSet::new();
-    let unique: Vec<&DomainEventInput> = batch
-        .events
+    let unique: Vec<&DomainEventInput> = valid
         .iter()
+        .copied()
         .filter(|event| seen.insert(event.event_id.to_ascii_lowercase()))
         .collect();
-    let repeated = batch.events.len() - unique.len();
+    let repeated = valid.len() - unique.len();
     let accepted = insert_events(&state, &auth, &batch.runtime_id, &unique).await?;
     if accepted > 0 {
         super::fanout::fan_out_pending(&state).await?;
@@ -82,6 +83,7 @@ pub async fn post_domain_events(
         accepted,
         duplicate: unique.len() - accepted + repeated,
         active_subscriptions,
+        rejected,
     }))
 }
 
@@ -169,7 +171,12 @@ async fn insert_events(
     Ok(inserted.len())
 }
 
-fn validate_batch(batch: &DomainEventBatch) -> Result<(), ApiError> {
+/// Splits a batch into the events that pass the payload policy and the ones that do not.
+/// Only a malformed batch as a whole (empty or oversized) fails the request: a runtime
+/// retries a failed request with the same batch, so one bad event must not fail it.
+fn validate_batch(
+    batch: &DomainEventBatch,
+) -> Result<(Vec<&DomainEventInput>, Vec<RejectedEvent>), ApiError> {
     if batch.events.is_empty() || batch.events.len() > MAX_BATCH_EVENTS {
         return Err(ApiError::bad_request(
             "invalid_event_batch",
@@ -177,10 +184,25 @@ fn validate_batch(batch: &DomainEventBatch) -> Result<(), ApiError> {
         ));
     }
     let latest = Utc::now() + TimeDelta::minutes(5);
+    let mut valid = Vec::with_capacity(batch.events.len());
+    let mut rejected = Vec::new();
     for event in &batch.events {
-        validate_event(event, latest)?;
+        match validate_event(event, latest) {
+            Ok(()) => valid.push(event),
+            Err(error) => rejected.push(RejectedEvent {
+                event_id: truncated(&event.event_id),
+                code: error_code(&error),
+            }),
+        }
     }
-    Ok(())
+    Ok((valid, rejected))
+}
+
+fn error_code(error: &ApiError) -> &'static str {
+    match error {
+        ApiError::Request { code, .. } => code,
+        _ => "invalid_event",
+    }
 }
 
 pub(crate) fn validate_event(
@@ -251,6 +273,7 @@ fn not_owned() -> ApiError {
 }
 
 /// Active webhooks and MCP Events subscriptions that would receive this runtime's events.
+/// MCP Events subscriptions count only while MCP Control on the runtime is not `off`.
 pub async fn active_subscription_count(
     state: &AppState,
     account_id: Uuid,
@@ -267,6 +290,8 @@ pub async fn active_subscription_count(
           AND (
               s.target_kind = 'webhook'
               OR ($4 AND EXISTS (
+                  SELECT 1 FROM runtimes r WHERE r.id = $2 AND r.mcp_access <> 'off'
+              ) AND EXISTS (
                   SELECT 1 FROM mcp_grants g
                   WHERE g.id = s.owner_grant_id
                     AND g.revoked_at IS NULL

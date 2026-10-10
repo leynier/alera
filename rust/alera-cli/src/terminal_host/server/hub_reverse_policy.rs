@@ -76,6 +76,12 @@ const DENIED_VERBS: &[&str] = &[
     "workspace.sshRelocationRecovery",
     "workspace.relocationRecovery",
     "workspace.focus",
+    // A From Prompt run and a wake start agents and terminals on the
+    // machine that answers; a satellite starts its own.
+    "workspace.promptStart.start",
+    "workspace.promptStart.retryLaunch",
+    "workspace.promptStart.cancel",
+    "workspace.wake",
 ];
 
 /// Hub-owned records and the actions on them. `workspace.bufferGuard.*` is
@@ -210,6 +216,11 @@ pub(super) fn apply_origin(request_type: &str, payload: Value, origin_host_id: &
         _ => serde_json::Map::new(),
     };
     payload.insert("originHostId".into(), json!(origin_host_id));
+    // The hub answers as a local client, so fields only a local caller may
+    // set (who asked, and resolving other clients' editors) never pass.
+    for local_only in ["externalOrigin", "origin", "resolution"] {
+        payload.remove(local_only);
+    }
     let host_id = payload.get("hostId");
     let named_origin = host_id.and_then(Value::as_str) == Some(ORIGIN_HOST_ALIAS);
     let absent = match host_id {

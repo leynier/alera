@@ -11,10 +11,13 @@
 mod actions;
 mod agent_dispatch;
 mod azure;
+mod azure_requests;
 mod github;
 mod gitlab;
 mod identity;
+mod input_file;
 mod links;
+mod local_command;
 mod mappers;
 mod model;
 mod provider;
@@ -26,6 +29,8 @@ mod summaries;
 
 #[cfg(test)]
 mod fixture_tests;
+#[cfg(test)]
+mod provider_security_tests;
 #[cfg(test)]
 mod provider_tests;
 

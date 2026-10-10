@@ -219,6 +219,19 @@ impl ServerActor {
         ) {
             return Err(HostError::format("Choose a supported workspace operation"));
         }
+        // Saving or discarding other clients' editors is part of removing a
+        // workspace on this machine only; a phone or a satellite never asks.
+        let local = self
+            .clients
+            .get(&client_id)
+            .is_some_and(|client| client.kind == super::ClientKind::Local);
+        if resolution.is_some()
+            && (!local || !matches!(operation.as_str(), "removeShared" | "removeManaged"))
+        {
+            return Err(HostError::format(
+                "Only a local workspace removal can save or discard open editors",
+            ));
+        }
         let workspace = self
             .runtime_store
             .find_workspace(&workspace_id)

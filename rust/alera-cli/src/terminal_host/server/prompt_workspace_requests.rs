@@ -22,10 +22,12 @@ use crate::terminal_host::protocol::event;
 
 const EVENT: &str = "promptWorkspaceOperationsChanged";
 const DEFAULT_LIST_LIMIT: i64 = 20;
+const MAX_REQUEST_ID_CHARS: usize = 128;
 
 impl ServerActor {
     pub(super) async fn prompt_workspace_start_request(
         &mut self,
+        client_id: u64,
         payload: &Value,
     ) -> HostResult<Value> {
         let prompt = payload
@@ -50,10 +52,14 @@ impl ServerActor {
         .map_err(|error| HostError::format(format!("invalid request: {error}")))?;
         request.section = SectionPolicy::parse(payload.get("section"))?;
         let request_id = text(payload, "requestId");
-        let origin = payload
-            .get("origin")
-            .filter(|origin| origin.is_object())
-            .cloned();
+        if request_id
+            .as_ref()
+            .is_some_and(|key| key.chars().count() > MAX_REQUEST_ID_CHARS)
+        {
+            return Err(HostError::format("requestId is too long"));
+        }
+        let origin = self.prompt_workspace_origin(client_id, payload)?;
+        let request_key = scoped_request_key(request_id.as_deref(), origin.as_ref());
         let operation = PromptWorkspaceOperation::new(
             Uuid::new_v4().to_string(),
             request_id.clone(),
@@ -65,7 +71,7 @@ impl ServerActor {
             .runtime_store
             .insert_prompt_workspace_operation(
                 &operation.id,
-                request_id.as_deref(),
+                request_key.as_deref(),
                 RUNNING,
                 &operation.to_value(),
             )
@@ -215,6 +221,39 @@ impl ServerActor {
     }
 }
 
+impl ServerActor {
+    /// Who started an operation. The connection decides the surface; only a
+    /// local connection, the CLI process an MCP tool runs, may name the MCP
+    /// client it acts for, so a phone or the hub cannot claim to be one.
+    fn prompt_workspace_origin(
+        &self,
+        client_id: u64,
+        payload: &Value,
+    ) -> HostResult<Option<Value>> {
+        let local = self
+            .clients
+            .get(&client_id)
+            .is_some_and(|client| client.kind == super::ClientKind::Local);
+        match payload.get("origin").filter(|origin| !origin.is_null()) {
+            Some(origin) if local => super::inbox_requests::external_origin(origin).map(Some),
+            _ => Ok(Some(self.inbox_origin(client_id))),
+        }
+    }
+}
+
+/// The stored retry key. Keys an MCP client chose are kept apart per client,
+/// so two clients that happen to pick the same key never share an operation.
+fn scoped_request_key(request_id: Option<&str>, origin: Option<&Value>) -> Option<String> {
+    let request_id = request_id?;
+    let client = origin
+        .and_then(|origin| origin.get("clientId"))
+        .and_then(Value::as_str);
+    Some(match client {
+        Some(client) => format!("mcp:{client}:{request_id}"),
+        None => request_id.to_owned(),
+    })
+}
+
 fn text(payload: &Value, key: &str) -> Option<String> {
     payload
         .get(key)
@@ -236,4 +275,31 @@ fn public(data: &Value) -> HostResult<Value> {
 
 fn store_error(error: impl std::fmt::Display) -> HostError {
     HostError::state(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::scoped_request_key;
+
+    #[test]
+    fn retry_keys_are_kept_apart_per_mcp_client() {
+        let codex = json!({"surface": "mcp", "transport": "local", "clientId": "codex"});
+        let chatgpt = json!({"surface": "mcp", "transport": "remote", "clientId": "chatgpt"});
+        let phone = json!({"surface": "mobile", "deviceId": "d-1"});
+        assert_eq!(
+            scoped_request_key(Some("key-0001"), Some(&codex)).as_deref(),
+            Some("mcp:codex:key-0001")
+        );
+        assert_ne!(
+            scoped_request_key(Some("key-0001"), Some(&codex)),
+            scoped_request_key(Some("key-0001"), Some(&chatgpt))
+        );
+        assert_eq!(
+            scoped_request_key(Some("key-0001"), Some(&phone)).as_deref(),
+            Some("key-0001")
+        );
+        assert_eq!(scoped_request_key(None, Some(&codex)), None);
+    }
 }
