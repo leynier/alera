@@ -85,6 +85,18 @@ void main() {
     expect(webhookDeliveryDetail(second), startsWith('No deliveries yet'));
   });
 
+  test('reads epoch seconds and milliseconds as UTC dates', () {
+    final seconds = RuntimeWebhook.fromJson(
+      _webhookJson(lastDeliveryAt: 1791201600),
+    );
+    final millis = RuntimeWebhook.fromJson(
+      _webhookJson(lastDeliveryAt: 1791201600000),
+    );
+
+    expect(seconds.lastDeliveryAt, DateTime.utc(2026, 10, 5, 12));
+    expect(millis.lastDeliveryAt, DateTime.utc(2026, 10, 5, 12));
+  });
+
   test('rejects a webhook without an id or url', () {
     expect(
       () => RuntimeWebhook.fromJson(const <String, Object?>{'id': 'wh'}),

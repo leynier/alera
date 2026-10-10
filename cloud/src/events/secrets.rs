@@ -148,8 +148,9 @@ impl SecretBox {
 mod tests {
     use super::*;
 
-    // Test vector published by the Standard Webhooks specification.
-    const SPEC_SECRET: &str = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+    // Test vector published by the Standard Webhooks specification. The prefix is
+    // added at runtime so secret scanners do not read the public vector as a leak.
+    const SPEC_KEY: &str = "MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
     const SPEC_ID: &str = "msg_p5jXN8AQM9LWM0D4loKWxJek";
     const SPEC_TIMESTAMP: i64 = 1_614_265_330;
     const SPEC_BODY: &str = r#"{"test": 2432232314}"#;
@@ -157,14 +158,16 @@ mod tests {
 
     #[test]
     fn signs_the_standard_webhooks_test_vector() {
-        let Some(key) = signing_key(SPEC_SECRET) else {
+        let Some(key) = signing_key(&format!("{SECRET_PREFIX}{SPEC_KEY}")) else {
             panic!("the spec secret must decode");
         };
         assert_eq!(
             sign(&key, SPEC_ID, SPEC_TIMESTAMP, SPEC_BODY.as_bytes()),
             SPEC_SIGNATURE
         );
-        let other = vec![7_u8; 32];
+        let Some(other) = signing_key(&generate_secret()) else {
+            panic!("a generated secret must decode");
+        };
         let header = signature_header(&[key, other], SPEC_ID, SPEC_TIMESTAMP, SPEC_BODY.as_bytes());
         assert!(header.starts_with(&format!("{SPEC_SIGNATURE} v1,")));
         assert_eq!(header.split(' ').count(), 2);

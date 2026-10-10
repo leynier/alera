@@ -638,6 +638,21 @@ impl ServerActor {
                 serde_json::to_value(workspaces)
                     .map_err(|error| HostError::state(error.to_string()))
             }
+            other => {
+                // Two halves keep each debug poll frame small enough for the
+                // nested lifecycle requests on the default test stack.
+                Box::pin(self.handle_more_authenticated_requests(client_id, other, payload)).await
+            }
+        }
+    }
+
+    async fn handle_more_authenticated_requests(
+        &mut self,
+        client_id: u64,
+        request_type: &str,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        match request_type {
             "workspace.show" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

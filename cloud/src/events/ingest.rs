@@ -184,7 +184,7 @@ fn validate_batch(
         ));
     }
     let latest = Utc::now() + TimeDelta::minutes(5);
-    let mut valid = Vec::with_capacity(batch.events.len());
+    let mut valid = Vec::new();
     let mut rejected = Vec::new();
     for event in &batch.events {
         match validate_event(event, latest) {

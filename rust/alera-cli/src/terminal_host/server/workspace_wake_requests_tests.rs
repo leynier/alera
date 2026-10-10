@@ -275,7 +275,7 @@ async fn waking_a_slept_agent_tab_resumes_its_reported_conversation() {
     let typed = wake_and_capture_startup(&mut actor).await;
 
     assert_eq!(typed.as_deref(), Some(app_line.as_str()));
-    assert!(app_line.contains("sess-1"), "{app_line}");
+    assert!(app_line.contains("sess-1"));
 }
 
 #[tokio::test]
