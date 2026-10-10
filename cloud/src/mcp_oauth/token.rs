@@ -21,7 +21,10 @@ use crate::{
     state::AppState,
 };
 
-use super::{forms::FormFields, grants::revoke_grant, no_store, with_cors, OAuthError};
+use super::{
+    client_assertion::authenticate_client, forms::FormFields, grants::revoke_grant, no_store,
+    with_cors, OAuthError,
+};
 
 #[derive(FromRow)]
 struct CodeRow {
@@ -84,8 +87,10 @@ async fn exchange(state: &AppState, form: &FormFields) -> Result<Value, OAuthErr
 async fn authorization_code(state: &AppState, form: &FormFields) -> Result<Value, OAuthError> {
     let code = required(form, "code")?;
     let verifier = required(form, "code_verifier")?;
-    let client_id = required(form, "client_id")?;
     let redirect_uri = field(form, "redirect_uri")?;
+    // Authenticating first keeps a caller without the client's key from consuming,
+    // and so revoking, a stolen code.
+    let client_id = authenticate_client(state, form, None).await?;
     let now = Utc::now();
     let mut transaction = state.pool.begin().await?;
     let row = sqlx::query_as::<_, CodeRow>(
@@ -105,6 +110,14 @@ async fn authorization_code(state: &AppState, form: &FormFields) -> Result<Value
     .fetch_optional(&mut *transaction)
     .await?
     .ok_or_else(|| OAuthError::invalid_grant("The authorization code is invalid."))?;
+    // Another client's code is refused before it is consumed or treated as a replay, so a
+    // registered public client cannot burn or revoke a confidential client's code.
+    if row.client_id != client_id {
+        transaction.rollback().await?;
+        return Err(OAuthError::invalid_grant(
+            "The authorization code was issued to another client.",
+        ));
+    }
     if row.used_at.is_some() {
         revoke_grant(
             &mut transaction,
@@ -133,8 +146,6 @@ async fn authorization_code(state: &AppState, form: &FormFields) -> Result<Value
         );
     let failure = if row.expires_at <= now {
         Some("The authorization code expired.")
-    } else if row.client_id != client_id {
-        Some("The authorization code was issued to another client.")
     } else if redirect_uri.is_some_and(|uri| uri != row.redirect_uri) {
         Some("The redirect_uri does not match the authorization request.")
     } else if !challenge_matches {
@@ -192,10 +203,13 @@ async fn refresh(state: &AppState, form: &FormFields) -> Result<Value, OAuthErro
     .fetch_optional(&state.pool)
     .await?
     .ok_or_else(invalid)?;
+    let issued_to_another_client =
+        || OAuthError::invalid_grant("The refresh token was issued to another client.");
     if field(form, "client_id")?.is_some_and(|client_id| client_id != grant.client_id) {
-        return Err(OAuthError::invalid_grant(
-            "The refresh token was issued to another client.",
-        ));
+        return Err(issued_to_another_client());
+    }
+    if authenticate_client(state, form, Some(&grant.client_id)).await? != grant.client_id {
+        return Err(issued_to_another_client());
     }
     // Rotation, the grant check, and signing share one transaction: a signing
     // failure must not spend the client's refresh token.

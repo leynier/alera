@@ -10,8 +10,8 @@ const MIGRATION_LOCK_KEY: i64 = 0x41_6c_65_72_61_53_78;
 const REQUIRED_MIGRATION_DEADLINE: Duration = Duration::from_secs(30);
 const MIGRATION_LOCK_DEADLINE: Duration = Duration::from_secs(30);
 const ONLINE_MIGRATION_STEP_DEADLINE: Duration = Duration::from_secs(15 * 60);
-const LATEST_MIGRATION_VERSION: i64 = 22;
-const REQUIRED_SCHEMA_MIGRATION_VERSIONS: &[i64] = &[1, 2, 3, 4, 21, 22];
+const LATEST_MIGRATION_VERSION: i64 = 23;
+const REQUIRED_SCHEMA_MIGRATION_VERSIONS: &[i64] = &[1, 2, 3, 4, 21, 22, 23];
 const ONLINE_MIGRATION_VERSIONS: &[i64] =
     &[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const ONLINE_INDEXES: &[(&str, &str)] = &[

@@ -1,5 +1,8 @@
 pub mod authorize;
 pub mod cimd;
+pub mod client_assertion;
+pub mod client_authentication;
+pub mod client_jwks;
 pub mod clients;
 pub mod consent;
 pub mod forms;
@@ -137,6 +140,10 @@ impl OAuthError {
 
     pub fn invalid_grant(description: impl Into<String>) -> Self {
         Self::bad_request("invalid_grant", description)
+    }
+
+    pub fn invalid_client(description: impl Into<String>) -> Self {
+        Self::new(StatusCode::UNAUTHORIZED, "invalid_client", description)
     }
 
     fn server_error() -> Self {

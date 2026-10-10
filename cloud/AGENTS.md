@@ -16,6 +16,7 @@ This file applies to the entire `cloud/` workspace in addition to the repository
 - Never commit or log OAuth secrets, signing material, refresh tokens, authorization codes, FCM registration tokens, or bearer tokens.
 - Access tokens MUST be short-lived and audience scoped. Refresh tokens MUST be random, stored only as hashes, rotated on use, and revoked as a family after replay.
 - Native sign-in redirects MUST be exact loopback HTTP URLs. MCP client redirects MUST exactly match a registered URI and follow the rules in `docs/remote-mcp.md` (HTTPS, loopback HTTP, or private-use schemes). OAuth state, PKCE, transaction expiry, and one-time use are mandatory.
+- Each MCP client has exactly one token endpoint authentication method (`none` or `private_key_jwt`) and `/oauth/token` MUST enforce that method, never accept either. `private_key_jwt` assertions are single-use by `jti`, and the client MUST be authenticated before an authorization code is consumed.
 - Pages served by the authorization server MUST escape every user or client string, send `frame-ancestors 'none'`, and carry the consent state in single-use form tokens, because the edge removes cookies.
 - Provider identities may auto-link only when both sides expose the same normalized email and both providers mark it verified.
 - Network integrations MUST sit behind injectable interfaces so tests never contact OAuth providers, Cloud KMS, metadata servers, or FCM.

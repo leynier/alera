@@ -13,7 +13,10 @@ use url::Url;
 
 use crate::{auth::validation::random_secret, state::AppState};
 
-use super::{no_store, with_cors, OAuthError};
+use super::{
+    client_authentication::{self, ClientAuthentication},
+    no_store, with_cors, OAuthError,
+};
 
 const MAX_REDIRECT_URIS: usize = 10;
 const MAX_REDIRECT_URI_LENGTH: usize = 2000;
@@ -49,6 +52,7 @@ pub struct ClientRecord {
     pub id: String,
     pub name: String,
     pub redirect_uris: Vec<String>,
+    pub authentication: ClientAuthentication,
 }
 
 #[derive(FromRow)]
@@ -56,6 +60,16 @@ struct ClientRow {
     id: String,
     client_name: String,
     redirect_uris: Vec<String>,
+    token_endpoint_auth_method: String,
+    jwks_uri: Option<String>,
+    token_endpoint_auth_signing_alg: Option<String>,
+}
+
+#[derive(FromRow)]
+struct AuthenticationRow {
+    token_endpoint_auth_method: String,
+    jwks_uri: Option<String>,
+    token_endpoint_auth_signing_alg: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -77,6 +91,10 @@ struct MetadataDocument {
     client_name: Option<String>,
     client_uri: Option<String>,
     token_endpoint_auth_method: Option<String>,
+    #[serde(default)]
+    token_endpoint_auth_methods_supported: Vec<String>,
+    jwks_uri: Option<String>,
+    token_endpoint_auth_signing_alg: Option<String>,
 }
 
 /// Checks a redirect URI against the allowed forms: `https`, loopback `http`, and
@@ -238,7 +256,8 @@ pub async fn load_client(state: &AppState, client_id: &str) -> Result<ClientReco
     }
     let cached = sqlx::query_as::<_, ClientRow>(
         r#"
-        SELECT id, client_name, redirect_uris
+        SELECT id, client_name, redirect_uris, token_endpoint_auth_method, jwks_uri,
+               token_endpoint_auth_signing_alg
         FROM mcp_clients
         WHERE id = $1
           AND (kind = 'dynamic' OR fetched_at > $2)
@@ -253,10 +272,17 @@ pub async fn load_client(state: &AppState, client_id: &str) -> Result<ClientReco
         "Alera could not load the client registration.".to_owned()
     })?;
     if let Some(row) = cached {
+        let authentication = ClientAuthentication::from_columns(
+            &row.token_endpoint_auth_method,
+            row.jwks_uri.as_deref(),
+            row.token_endpoint_auth_signing_alg.as_deref(),
+        )
+        .ok_or_else(|| "The client registration is invalid.".to_owned())?;
         return Ok(ClientRecord {
             id: row.id,
             name: row.client_name,
             redirect_uris: row.redirect_uris,
+            authentication,
         });
     }
     if !client_id.starts_with("https://") {
@@ -267,12 +293,16 @@ pub async fn load_client(state: &AppState, client_id: &str) -> Result<ClientReco
     sqlx::query(
         r#"
         INSERT INTO mcp_clients (
-            id, kind, client_name, client_uri, redirect_uris, created_at, updated_at, fetched_at
-        ) VALUES ($1, 'metadata_document', $2, $3, $4, $5, $5, $5)
+            id, kind, client_name, client_uri, redirect_uris, token_endpoint_auth_method,
+            jwks_uri, token_endpoint_auth_signing_alg, created_at, updated_at, fetched_at
+        ) VALUES ($1, 'metadata_document', $2, $3, $4, $5, $6, $7, $8, $8, $8)
         ON CONFLICT (id) DO UPDATE
         SET client_name = EXCLUDED.client_name, client_uri = EXCLUDED.client_uri,
-            redirect_uris = EXCLUDED.redirect_uris, updated_at = EXCLUDED.updated_at,
-            fetched_at = EXCLUDED.fetched_at
+            redirect_uris = EXCLUDED.redirect_uris,
+            token_endpoint_auth_method = EXCLUDED.token_endpoint_auth_method,
+            jwks_uri = EXCLUDED.jwks_uri,
+            token_endpoint_auth_signing_alg = EXCLUDED.token_endpoint_auth_signing_alg,
+            updated_at = EXCLUDED.updated_at, fetched_at = EXCLUDED.fetched_at
         WHERE mcp_clients.kind = 'metadata_document'
         "#,
     )
@@ -280,6 +310,9 @@ pub async fn load_client(state: &AppState, client_id: &str) -> Result<ClientReco
     .bind(&record.0.name)
     .bind(record.1)
     .bind(&record.0.redirect_uris)
+    .bind(record.0.authentication.method())
+    .bind(record.0.authentication.jwks_uri())
+    .bind(record.0.authentication.signing_alg())
     .bind(now)
     .execute(&state.pool)
     .await
@@ -288,6 +321,31 @@ pub async fn load_client(state: &AppState, client_id: &str) -> Result<ClientReco
         "Alera could not store the client registration.".to_owned()
     })?;
     Ok(record.0)
+}
+
+/// Reads the token endpoint method stored for a client, regardless of the metadata cache
+/// age. `None` means Alera has no usable registration for the client.
+pub async fn load_client_authentication(
+    state: &AppState,
+    client_id: &str,
+) -> Result<Option<ClientAuthentication>, OAuthError> {
+    let row = sqlx::query_as::<_, AuthenticationRow>(
+        r#"
+        SELECT token_endpoint_auth_method, jwks_uri, token_endpoint_auth_signing_alg
+        FROM mcp_clients
+        WHERE id = $1
+        "#,
+    )
+    .bind(client_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    Ok(row.and_then(|row| {
+        ClientAuthentication::from_columns(
+            &row.token_endpoint_auth_method,
+            row.jwks_uri.as_deref(),
+            row.token_endpoint_auth_signing_alg.as_deref(),
+        )
+    }))
 }
 
 async fn fetch_metadata_document(
@@ -326,18 +384,19 @@ pub fn parse_metadata_document(
     for uri in &document.redirect_uris {
         validate_redirect_uri(uri).map_err(ToOwned::to_owned)?;
     }
-    if document
-        .token_endpoint_auth_method
-        .as_deref()
-        .is_some_and(|method| method != "none")
-    {
-        return Err("Only public MCP clients are supported.".to_owned());
-    }
+    let authentication = client_authentication::select(
+        document.token_endpoint_auth_method.as_deref(),
+        &document.token_endpoint_auth_methods_supported,
+        document.jwks_uri.as_deref(),
+        document.token_endpoint_auth_signing_alg.as_deref(),
+    )
+    .map_err(ToOwned::to_owned)?;
     Ok((
         ClientRecord {
             id: client_id.to_owned(),
             name: sanitize_client_name(document.client_name.as_deref()),
             redirect_uris: document.redirect_uris,
+            authentication,
         },
         optional_text(document.client_uri, 2000),
     ))
