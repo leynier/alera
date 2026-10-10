@@ -234,11 +234,20 @@ impl ServerActor {
             .clients
             .get(&client_id)
             .is_some_and(|client| client.kind == super::ClientKind::Local);
-        match payload.get("origin").filter(|origin| !origin.is_null()) {
+        match mcp_origin(payload) {
             Some(origin) if local => super::inbox_requests::external_origin(origin).map(Some),
             _ => Ok(Some(self.inbox_origin(client_id))),
         }
     }
+}
+
+/// The `origin` that names an MCP client. An app may still describe its own
+/// surface there; only an origin with an MCP transport names a client, and
+/// the connection decides the rest.
+fn mcp_origin(payload: &Value) -> Option<&Value> {
+    payload
+        .get("origin")
+        .filter(|origin| origin.get("transport").is_some())
 }
 
 /// The stored retry key. Keys an MCP client chose are kept apart per client,
@@ -281,7 +290,16 @@ fn store_error(error: impl std::fmt::Display) -> HostError {
 mod tests {
     use serde_json::json;
 
-    use super::scoped_request_key;
+    use super::{mcp_origin, scoped_request_key};
+
+    #[test]
+    fn only_an_origin_with_an_mcp_transport_names_a_client() {
+        assert!(mcp_origin(&json!({"origin": {"surface": "desktop"}})).is_none());
+        assert!(mcp_origin(&json!({"origin": null})).is_none());
+        assert!(mcp_origin(&json!({})).is_none());
+        let named = json!({"origin": {"transport": "remote", "clientId": "chatgpt"}});
+        assert_eq!(mcp_origin(&named).unwrap()["clientId"], "chatgpt");
+    }
 
     #[test]
     fn retry_keys_are_kept_apart_per_mcp_client() {

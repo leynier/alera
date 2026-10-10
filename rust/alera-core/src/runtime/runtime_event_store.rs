@@ -43,7 +43,11 @@ fn trigger_statements() -> Vec<String> {
          ({SQL_EVENT_ID}, 'orchestration.task.state', NEW.workspace_id, \
          json_object('taskId', NEW.id, 'runId', NEW.run_id, 'state', NEW.status), {SQL_NOW});"
     );
+    // `inbox_queries::question_status` precedence: cancelled, answered,
+    // expired, delivered, received, pending.
     let question_status = "CASE WHEN NEW.state = 'obsolete' THEN 'cancelled' \
+         WHEN EXISTS (SELECT 1 FROM orchestrationMessages r WHERE r.reply_to_id = NEW.id \
+         AND r.from_handle = NEW.to_handle) THEN 'answered' \
          WHEN NEW.state = 'expired' AND NEW.delivered_at IS NULL THEN 'expired' \
          WHEN NEW.delivered_at IS NOT NULL THEN 'delivered' \
          WHEN NEW.read = 1 THEN 'received' ELSE 'pending' END";
@@ -64,6 +68,19 @@ fn trigger_statements() -> Vec<String> {
              ({SQL_EVENT_ID}, 'inbox.question.status', NEW.workspace_id, json_object('inbox', NEW.from_handle, \
              'threadId', COALESCE(NEW.thread_id, NEW.id), 'questionId', NEW.id, 'status', {question_status}), \
              {SQL_NOW}); END;"
+        ),
+        // A reply answers its question without updating it, so the answer is
+        // recorded when the correlated reply is inserted.
+        format!(
+            "CREATE TRIGGER IF NOT EXISTS runtimeEventsQuestionAnswered AFTER INSERT ON orchestrationMessages \
+             WHEN NEW.reply_to_id IS NOT NULL AND NEW.to_handle LIKE 'ext:%' BEGIN \
+             INSERT INTO runtimeEvents (id, kind, workspaceId, dataJson, occurredAt) \
+             SELECT {SQL_EVENT_ID}, 'inbox.question.status', q.workspace_id, json_object('inbox', q.from_handle, \
+             'threadId', COALESCE(q.thread_id, q.id), 'questionId', q.id, 'status', 'answered'), {SQL_NOW} \
+             FROM orchestrationMessages q WHERE q.id = NEW.reply_to_id AND q.from_handle = NEW.to_handle \
+             AND q.to_handle = NEW.from_handle AND q.state <> 'obsolete' \
+             AND NOT EXISTS (SELECT 1 FROM orchestrationMessages r WHERE r.reply_to_id = q.id \
+             AND r.from_handle = q.to_handle AND r.id <> NEW.id); END;"
         ),
     ]
 }
@@ -353,6 +370,37 @@ mod tests {
         assert_eq!(question.data["status"], "delivered");
         assert_eq!(question.data["questionId"], "q-1");
         assert_eq!(question.event_id.len(), 36);
+    }
+
+    #[tokio::test]
+    async fn the_first_answer_and_later_updates_journal_answered() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = RuntimeStore::open(directory.path()).await.unwrap();
+        for statement in [
+            "INSERT INTO orchestrationMessages (id, from_handle, to_handle, subject, workspace_id) \
+             VALUES ('q-1', 'ext:mcp', 'agent-1', 'Question', 'w-1')",
+            "INSERT INTO orchestrationMessages (id, from_handle, to_handle, subject, reply_to_id, thread_id, workspace_id) \
+             VALUES ('a-1', 'agent-1', 'ext:mcp', 'Re: Question', 'q-1', 'q-1', 'w-1')",
+            "INSERT INTO orchestrationMessages (id, from_handle, to_handle, subject, reply_to_id, thread_id) \
+             VALUES ('a-2', 'agent-1', 'ext:mcp', 'Re: Question', 'q-1', 'q-1')",
+            "UPDATE orchestrationMessages SET read = 1 WHERE id = 'q-1'",
+        ] {
+            sqlx::query(statement).execute(store.pool()).await.unwrap();
+        }
+        let page = store
+            .list_runtime_events(&RuntimeEventFilter::default())
+            .await
+            .unwrap();
+        let statuses = page
+            .events
+            .iter()
+            .filter(|event| event.kind == "inbox.question.status")
+            .map(|event| {
+                assert_eq!(event.workspace_id.as_deref(), Some("w-1"));
+                event.data["status"].as_str().unwrap().to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(statuses, ["answered", "answered"]);
     }
 
     #[tokio::test]

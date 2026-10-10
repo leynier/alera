@@ -175,7 +175,6 @@ void main() {
       'issueUrl': 'https://github.com/o/r/issues/1',
       'section': 'auto',
       'requestId': 'req-1',
-      'origin': <String, Object?>{'surface': 'desktop'},
     });
     final checkout = promptWorkspaceStartPayload(
       request(useProjectCheckout: true, autoAssignSection: false),

@@ -70,7 +70,6 @@ Map<String, Object?> promptWorkspaceStartPayload(
     'issueUrl': ?_nonEmpty(request.issueUrl),
     'section': request.autoAssignSection ? 'auto' : 'none',
     'requestId': requestId,
-    'origin': const <String, Object?>{'surface': 'desktop'},
   };
 }
 

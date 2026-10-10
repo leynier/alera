@@ -204,7 +204,8 @@ impl ServerActor {
             "questionId": message.reply_to_id,
             "messageId": message.id,
         });
-        self.record_event("inbox.reply", None, None, data).await;
+        self.record_event("inbox.reply", message.workspace_id.as_deref(), None, data)
+            .await;
     }
 
     pub(super) async fn journal_automation_run(
