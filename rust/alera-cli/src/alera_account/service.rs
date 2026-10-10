@@ -1,4 +1,5 @@
 mod configuration;
+mod events;
 mod mcp;
 
 pub(crate) use mcp::DevicePoll;

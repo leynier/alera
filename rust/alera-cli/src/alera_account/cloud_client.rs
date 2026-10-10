@@ -374,7 +374,7 @@ impl CloudAccountClient {
             .with_context(|| format!("invalid response from {path}"))
     }
 
-    async fn empty(
+    pub(super) async fn empty(
         &self,
         method: Method,
         path: &str,

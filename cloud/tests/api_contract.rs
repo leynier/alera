@@ -36,9 +36,21 @@ mod mcp_client_auth_contract;
 #[path = "contracts/device_contract.rs"]
 mod device_contract;
 
+#[path = "support/webhook_receiver.rs"]
+mod webhook_receiver;
+
+#[path = "contracts/webhook_contract.rs"]
+mod webhook_contract;
+
+#[path = "contracts/mcp_events_contract.rs"]
+mod mcp_events_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
-    config::{FcmConfig, LimitsConfig, McpConfig, OAuthProviderConfig, SigningConfig},
+    config::{
+        CallbackPolicy, EventsConfig, FcmConfig, LimitsConfig, McpConfig, OAuthProviderConfig,
+        SecretKey, SigningConfig,
+    },
     fcm::{FcmMessage, FcmReceipt, FcmSender},
     migrations,
     oauth::{
@@ -249,6 +261,17 @@ fn test_config(database_url: String) -> anyhow::Result<AppConfig> {
             push_burst: 10,
         },
         mcp,
+        events: EventsConfig {
+            secret_key: Some(SecretKey([29_u8; 32])),
+            previous_secret_key: None,
+            mcp_events_enabled: true,
+            worker_enabled: false,
+            // Contract tests deliver to a loopback HTTP receiver.
+            callbacks: CallbackPolicy {
+                allow_any_port: false,
+                allow_private_targets: true,
+            },
+        },
     })
 }
 

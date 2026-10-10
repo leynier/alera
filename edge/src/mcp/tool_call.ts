@@ -19,7 +19,7 @@ export type ToolCallOutcome =
 
 type CallOutcomeName = 'ok' | 'tool_error' | 'runtime_offline' | 'timeout' | 'failed';
 
-interface GatewayResponse {
+export interface GatewayResponse {
   status: number;
   body: Record<string, unknown> | null;
 }
@@ -33,9 +33,9 @@ interface CallGrant {
 
 const RELAY_CALL_URL = 'https://relay.internal/mcp/call';
 
-async function gateway(
+export async function gateway(
   context: GatewayContext,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   body?: unknown,
 ): Promise<GatewayResponse> {

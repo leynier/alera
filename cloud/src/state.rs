@@ -5,6 +5,10 @@ use sqlx::PgPool;
 use crate::{
     api_models::ProviderKind,
     config::{AppConfig, FcmConfig, SigningConfig},
+    events::{
+        callback::{CallbackClient, CallbackResolver},
+        EventsContext,
+    },
     fcm::{DisabledFcmSender, FcmSender, HttpFcmSender},
     google_credentials::MetadataAccessTokenProvider,
     mcp_oauth::{
@@ -28,6 +32,7 @@ pub struct AppState {
     pub fcm: Arc<dyn FcmSender>,
     pub client_metadata: Arc<dyn ClientMetadataFetcher>,
     pub client_jwks: Arc<ClientJwksCache>,
+    pub events: EventsContext,
 }
 
 impl AppState {
@@ -40,6 +45,7 @@ impl AppState {
     ) -> Self {
         let tokens = TokenService::new(signer, config.issuer.clone(), config.audience.clone())
             .with_mcp_resource(config.mcp.resource.clone());
+        let events = EventsContext::from_config(&config.events);
         Self {
             pool,
             config: Arc::new(config),
@@ -49,7 +55,19 @@ impl AppState {
             fcm,
             client_metadata: Arc::new(HttpClientMetadataFetcher::default()),
             client_jwks: Arc::new(ClientJwksCache::default()),
+            events,
         }
+    }
+
+    /// Replaces how callback hosts resolve, so tests never depend on real DNS.
+    pub fn with_callback_resolver(mut self, resolver: Arc<dyn CallbackResolver>) -> Self {
+        self.events.callbacks = self.events.callbacks.clone().with_resolver(resolver);
+        self
+    }
+
+    pub fn with_callback_client(mut self, client: CallbackClient) -> Self {
+        self.events.callbacks = client;
+        self
     }
 
     pub fn with_web_oauth(mut self, web_oauth: OAuthProviderRegistry) -> Self {

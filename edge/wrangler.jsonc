@@ -10,8 +10,13 @@
       "zone_name": "alera.build"
     }
   ],
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
   "vars": {
+    "EVENT_DELIVERY_PUMP": "false",
     "MCP_ENABLED": "true",
+    "MCP_EVENTS_ENABLED": "false",
     "MCP_RESOURCE": "https://api.alera.build/v1/mcp",
     "RELAY_ENABLED": "true",
     "RELAY_ISSUER": "https://api.alera.build",

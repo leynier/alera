@@ -66,6 +66,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/relay/grants", post(relay::create_grant))
         .route("/v1/mobile/runtimes", get(relay::discover_runtimes))
         .merge(crate::mcp_oauth::router(state.config.mcp.enabled))
+        .merge(crate::events::router())
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(TraceLayer::new_for_http().make_span_with(request_span))
         .layer(middleware::from_fn_with_state(

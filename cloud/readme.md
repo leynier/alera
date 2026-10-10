@@ -55,6 +55,15 @@ All JSON uses camelCase. Every route except `GET /health` requires the `x-alera-
 | `GET` | `/v1/mcp/runtimes` | Bearer MCP | Runtimes the MCP grant reaches |
 | `POST` | `/v1/mcp/calls` | Bearer MCP | Resolve a runtime, audit the call, and sign a 120-second call grant |
 | `POST` | `/v1/mcp/calls/{id}/outcome` | Bearer MCP | Record the call outcome once |
+| `POST` | `/v1/runtime/domain-events` | Bearer runtime (`events:send` or `push:send`) | Store up to 100 idempotent domain events for webhooks and MCP Events |
+| `GET` | `/v1/runtime/event-subscriptions` | Bearer runtime | Count active webhooks and MCP Events subscriptions for the runtime |
+| `GET`, `POST` | `/v1/webhooks` | Bearer runtime | List or create the account's webhooks; creation returns the `whsec_` secret once |
+| `DELETE` | `/v1/webhooks/{id}` | Bearer runtime | Delete a webhook |
+| `POST` | `/v1/webhooks/{id}/test` | Bearer runtime | Queue a signed `alera.test` delivery |
+| `POST` | `/v1/mcp/event-subscriptions` | Bearer MCP (edge only) | Verify a callback and store an MCP Events subscription bound to the grant |
+| `POST` | `/v1/mcp/event-subscriptions/unsubscribe` | Bearer MCP (edge only) | Remove a subscription by identity; idempotent |
+| `DELETE` | `/v1/mcp/event-subscriptions/{id}` | Bearer MCP (edge only) | Remove a subscription by id; idempotent |
+| `POST` | `/v1/internal/event-deliveries/pump` | Edge only | Run one bounded fan-out and delivery drain (edge cron) |
 
 The OAuth 2.1 authorization server for Remote MCP (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, `/oauth/*`, and the `/device` page) follows [`../docs/remote-mcp.md`](../docs/remote-mcp.md). Its endpoints use the standard snake_case OAuth field names. `ALERA_MCP_ENABLED=false` removes the authorization server and gateway routes; device sign-in and grant management stay available.
 
@@ -90,7 +99,7 @@ The relay sees connection metadata, frame sizes, and timing only. The runtime an
 
 Provider access tokens and authorization codes are used only during exchange and are never stored. PostgreSQL stores account emails and provider ids, hashed refresh tokens, runtime and device metadata, relay public keys, FCM tokens required for delivery, subscriptions, event payloads, and delivery outcomes. It does not store relay frames or private identity keys. Relay grants are short-lived JWTs and are not persisted.
 
-Cleanup removes expired OAuth transactions and enrollment codes after one day, runtime events and delivery attempts after 30 days, hourly and burst quota rows after seven days, daily quota rows after 90 days, expired or revoked sessions after their retention window, and tombstones when they expire. Cloud Run with zero minimum instances performs this work after service activity, so an entirely inactive database may retain expired operational rows until the next startup.
+Domain events and their webhook deliveries are kept for 24 hours; webhook and MCP Events signing secrets are encrypted with AES-256-GCM under `ALERA_WEBHOOK_SECRET_KEY` (see [`../docs/remote-mcp.md`](../docs/remote-mcp.md#events-and-webhooks)). Cleanup removes expired OAuth transactions and enrollment codes after one day, runtime events and delivery attempts after 30 days, hourly and burst quota rows after seven days, daily quota rows after 90 days, expired or revoked sessions after their retention window, and tombstones when they expire. Cloud Run with zero minimum instances performs this work after service activity, so an entirely inactive database may retain expired operational rows until the next startup.
 
 Account deletion removes active account data transactionally. It keeps only HMAC-protected provider-identity tombstones for 90 days to prevent immediate quota or ban reset.
 

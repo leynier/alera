@@ -37,7 +37,7 @@ async fn migrations_and_refresh_replay_contract() -> anyhow::Result<()> {
     blocker.close().await;
     migrations::run(&pool).await?;
     sqlx::query(
-        "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (25, 'future-schema', true, decode('00', 'hex'), 0)",
+        "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (26, 'future-schema', true, decode('00', 'hex'), 0)",
     )
     .execute(&pool)
     .await?;
@@ -46,7 +46,7 @@ async fn migrations_and_refresh_replay_contract() -> anyhow::Result<()> {
         Err(error) => error,
     };
     assert!(format!("{unclassified:#}").contains("not classified"));
-    sqlx::query("DELETE FROM _sqlx_migrations WHERE version = 25")
+    sqlx::query("DELETE FROM _sqlx_migrations WHERE version = 26")
         .execute(&pool)
         .await?;
     migrations::run_required(&pool).await?;

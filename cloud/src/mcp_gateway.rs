@@ -45,7 +45,7 @@ impl RuntimeCandidate {
 
 /// Runtimes this grant reaches: owned by the account, not transferred, and either named
 /// by the grant or covered by an all-runtimes grant.
-async fn reachable_runtimes(
+pub(crate) async fn reachable_runtimes(
     state: &AppState,
     auth: &McpAuthContext,
 ) -> Result<Vec<RuntimeCandidate>, ApiError> {

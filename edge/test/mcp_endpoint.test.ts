@@ -133,7 +133,7 @@ describe('MCP transport', () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get('access-control-allow-origin')).toBe('*');
     expect(preflight.headers.get('access-control-allow-headers')).toBe(
-      'authorization, content-type, mcp-protocol-version, mcp-session-id',
+      'authorization, content-type, mcp-protocol-version, mcp-session-id, mcp-method, mcp-name',
     );
     expect(preflight.headers.get('access-control-expose-headers')).toBe('www-authenticate, mcp-session-id');
     const disabled = await handleRequest(new Request(MCP_URL, { method: 'POST' }), {
