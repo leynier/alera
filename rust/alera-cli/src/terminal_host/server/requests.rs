@@ -638,6 +638,14 @@ impl ServerActor {
                 serde_json::to_value(workspaces)
                     .map_err(|error| HostError::state(error.to_string()))
             }
+            "workspace.show" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let id = require_string_key(payload, "id")?;
+                crate::workspace_show::show(&self.runtime_store, &id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))
+            }
             "workspace.find" => {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;

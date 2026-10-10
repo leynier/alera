@@ -181,6 +181,23 @@ impl PromptWorkspaceRun {
         }
     }
 
+    /// A request that must finish once sent. Creating a workspace runs on
+    /// past an abandoned call, so cancelling mid-way would leave the new
+    /// workspace outside the operation and its launch retry.
+    pub(super) async fn call_to_completion(
+        &mut self,
+        request_type: &str,
+        payload: Value,
+        deadline: Duration,
+    ) -> Step<Value> {
+        self.check_cancelled()?;
+        let key = format!("prompt-workspace:{}", self.operation.id);
+        self.clients
+            .request(&self.runtime_dir, &key, request_type, payload, deadline)
+            .await
+            .map_err(Stop::Failed)
+    }
+
     pub(super) async fn generate_identity(&mut self, payload: Value) -> Step<Value> {
         let operation_id = Uuid::new_v4().to_string();
         let mut payload = payload;

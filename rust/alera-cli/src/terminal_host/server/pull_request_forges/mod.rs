@@ -30,6 +30,8 @@ mod summaries;
 #[cfg(test)]
 mod fixture_tests;
 #[cfg(test)]
+mod forge_override_tests;
+#[cfg(test)]
 mod provider_security_tests;
 #[cfg(test)]
 mod provider_tests;
@@ -129,13 +131,16 @@ pub(crate) async fn read_workspace_remote(
     })
 }
 
-/// The provider a project forces in its settings (`gitHostingProvider`).
+/// The provider a project forces (`gitHostingProvider`): the Settings
+/// override, else the repository's `alera.toml`, as the app resolves it.
 pub(crate) async fn project_forge_override(
     store: &RuntimeStore,
     project_id: &str,
 ) -> Option<ForgeKind> {
-    let config = store.find_project_config(project_id).await.ok()??;
-    ForgeKind::from_wire(config.git_hosting_provider.as_deref()?)
+    let effective = crate::project_management::effective_project_config(store, project_id)
+        .await
+        .ok()?;
+    ForgeKind::from_wire(effective.config.git_hosting_provider.as_deref()?)
 }
 
 /// The forge of a workspace whose checkout is on this machine.

@@ -217,7 +217,9 @@ impl PromptWorkspaceRun {
                 }),
             )
         };
-        let created = self.call(request_type, payload, CREATE_DEADLINE).await?;
+        let created = self
+            .call_to_completion(request_type, payload, CREATE_DEADLINE)
+            .await?;
         let workspace = created
             .get("workspace")
             .cloned()
@@ -232,7 +234,9 @@ impl PromptWorkspaceRun {
             self.operation.setup = Some(json!({ "command": command }));
         }
         self.save().await;
-        Ok(())
+        // A cancel that arrived during creation stops here, with the
+        // workspace recorded so its launch can still be retried.
+        self.check_cancelled()
     }
 
     /// Joins the section AI Assist picked, or the one the request names.

@@ -1,6 +1,7 @@
 //! `alera workspace show`: one workspace with everything the sidebar and its
 //! context menu show about it. Read-only; it reads the runtime store, so it
-//! works with or without a running host.
+//! works with or without a running host. A satellite asks its hub instead
+//! (`workspace.show`), because its store holds only mirrored copies.
 
 use alera_core::runtime::RuntimeStore;
 use anyhow::{anyhow, Result};
@@ -11,7 +12,18 @@ use crate::cli::{IdArgs, RuntimeDirArgs};
 pub async fn run(runtime: RuntimeDirArgs, args: IdArgs, json_output: bool) -> i32 {
     let result = async {
         let store = RuntimeStore::open(&crate::runtime_dir(&runtime)).await?;
-        show(&store, args.id.trim()).await
+        let id = args.id.trim();
+        let forwarded = crate::hub_federation::read_from_hub(
+            &runtime,
+            &store,
+            "workspace.show",
+            json!({ "id": id }),
+        )
+        .await?;
+        match forwarded {
+            Some(value) => Ok(value),
+            None => show(&store, id).await,
+        }
     }
     .await;
     match result {
