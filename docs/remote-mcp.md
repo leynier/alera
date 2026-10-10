@@ -68,7 +68,7 @@ Rules:
 - OAuth endpoints use the standard snake_case field names and `{ error, error_description }` errors; every other route keeps camelCase and `{ error: { code, message } }`.
 - Unknown scopes such as `offline_access` are ignored, and `mcp:read` is always granted. A token request may omit `redirect_uri`; when present it must match.
 - `ALERA_MCP_ENABLED=false` removes the metadata, registration, authorize, token, revoke, and gateway routes. Device sign-in, grant listing, and runtime naming keep working.
-- The web login uses `{ALERA_PUBLIC_BASE_URL}/oauth/callback`. Production needs web OAuth clients for Google and GitHub that admit that redirect: `ALERA_WEB_GOOGLE_CLIENT_ID`, `ALERA_WEB_GOOGLE_CLIENT_SECRET`, `ALERA_WEB_GITHUB_CLIENT_ID`, and `ALERA_WEB_GITHUB_CLIENT_SECRET`. Without them the native client credentials are reused.
+- The web login uses `{ALERA_PUBLIC_BASE_URL}/oauth/callback`. Each provider needs a client that admits that redirect. Google desktop clients only accept loopback redirects, so production sets a separate Google web client (`ALERA_WEB_GOOGLE_CLIENT_ID` from `web_google_oauth_client_id`, `ALERA_WEB_GOOGLE_CLIENT_SECRET` from the `alera-web-google-oauth-client-secret` secret). A GitHub OAuth App accepts several redirect URIs, so production reuses the desktop app with that callback added and leaves `ALERA_WEB_GITHUB_CLIENT_ID` and `ALERA_WEB_GITHUB_CLIENT_SECRET` unset. Without web credentials a provider reuses the native client.
 
 ### Device Authorization
 

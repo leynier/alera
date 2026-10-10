@@ -104,6 +104,7 @@ gcloud secrets versions add alera-edge-origin-token --data-file=-
 gcloud secrets versions add alera-github-oauth-client-secret --data-file=-
 gcloud secrets versions add alera-google-oauth-client-secret --data-file=-
 gcloud secrets versions add alera-tombstone-pepper --data-file=-
+gcloud secrets versions add alera-web-google-oauth-client-secret --data-file=-
 ```
 
 Generate independent high-entropy values for the edge token and tombstone pepper. Do not reuse an OAuth client secret or copy local development values.
