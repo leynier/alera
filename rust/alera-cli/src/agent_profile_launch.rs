@@ -7,7 +7,10 @@ use crate::agent_profile_commands::{
 };
 use crate::cli::{AgentProfileLaunchArgs, RuntimeDirArgs};
 use crate::runtime_host_client::RuntimeHostRpcClient;
-use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY;
+use crate::terminal_host::agent_profile_capabilities::{
+    RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILE_SESSION_RESUME_CAPABILITY,
+};
 use crate::terminal_host::protocol::RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY;
 use crate::workspace_context::resolve_workspace_context;
 
@@ -42,11 +45,16 @@ pub async fn run(
 ) -> Result<()> {
     let prompt = args.prompt.read()?;
     let context = resolve_workspace_context(runtime, args.workspace.as_deref()).await?;
-    let envelope = launch_selected(
+    let profile = resolve_selected_profile(client, &args.selector).await?;
+    let envelope = launch_profile_request(
         client,
-        &args.selector,
-        &context.workspace_id,
-        &prompt,
+        LaunchRequest {
+            workspace_id: &context.workspace_id,
+            profile_id: &profile.id,
+            profile_name: &profile.name,
+            prompt: &prompt,
+            resume_session_id: args.prompt.resume_session_id.as_deref(),
+        },
         args.client_mutation_id,
     )
     .await?;
@@ -75,25 +83,6 @@ pub async fn resolve_selected_profile(
     Ok(profile)
 }
 
-pub async fn launch_selected(
-    client: &mut RuntimeHostRpcClient,
-    selector: &crate::cli::AgentProfileSelectorArgs,
-    workspace_id: &str,
-    prompt: &str,
-    client_mutation_id: Option<String>,
-) -> Result<AgentProfileLaunchEnvelope> {
-    let profile = resolve_selected_profile(client, selector).await?;
-    launch_profile(
-        client,
-        workspace_id,
-        &profile.id,
-        &profile.name,
-        prompt,
-        client_mutation_id,
-    )
-    .await
-}
-
 pub async fn launch_profile(
     client: &mut RuntimeHostRpcClient,
     workspace_id: &str,
@@ -102,11 +91,54 @@ pub async fn launch_profile(
     prompt: &str,
     client_mutation_id: Option<String>,
 ) -> Result<AgentProfileLaunchEnvelope> {
-    ensure_capabilities(
+    launch_profile_request(
         client,
-        &[RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY],
+        LaunchRequest {
+            workspace_id,
+            profile_id,
+            profile_name,
+            prompt,
+            resume_session_id: None,
+        },
+        client_mutation_id,
     )
-    .await?;
+    .await
+}
+
+/// One launch of a resolved profile. A resume carries no prompt.
+pub struct LaunchRequest<'a> {
+    pub workspace_id: &'a str,
+    pub profile_id: &'a str,
+    pub profile_name: &'a str,
+    pub prompt: &'a str,
+    pub resume_session_id: Option<&'a str>,
+}
+
+/// The launch payload. `resumeSessionId` is only sent when set, so a host
+/// without session resume sees the payload it always did.
+pub fn launch_payload(request: &LaunchRequest<'_>, mutation_id: &str) -> Value {
+    let mut payload = json!({
+        "workspaceId": request.workspace_id,
+        "profileId": request.profile_id,
+        "prompt": request.prompt,
+        "clientMutationId": mutation_id,
+    });
+    if let Some(id) = request.resume_session_id {
+        payload["resumeSessionId"] = json!(id);
+    }
+    payload
+}
+
+pub async fn launch_profile_request(
+    client: &mut RuntimeHostRpcClient,
+    request: LaunchRequest<'_>,
+    client_mutation_id: Option<String>,
+) -> Result<AgentProfileLaunchEnvelope> {
+    let mut required = vec![RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY];
+    if request.resume_session_id.is_some() {
+        required.push(RUNTIME_HOST_AGENT_PROFILE_SESSION_RESUME_CAPABILITY);
+    }
+    ensure_capabilities(client, &required).await?;
     let idempotent = host_has_capability(
         client,
         RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
@@ -122,15 +154,7 @@ pub async fn launch_profile(
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let payload = client
-        .request_value(
-            request_type,
-            &json!({
-                "workspaceId": workspace_id,
-                "profileId": profile_id,
-                "prompt": prompt,
-                "clientMutationId": mutation_id,
-            }),
-        )
+        .request_value(request_type, &launch_payload(&request, &mutation_id))
         .await?;
     let tab_id = payload
         .get("tab")
@@ -144,9 +168,9 @@ pub async fn launch_profile(
         .unwrap_or("")
         .to_string();
     Ok(AgentProfileLaunchEnvelope {
-        workspace_id: workspace_id.to_string(),
-        profile_id: profile_id.to_string(),
-        profile_name: profile_name.to_string(),
+        workspace_id: request.workspace_id.to_string(),
+        profile_id: request.profile_id.to_string(),
+        profile_name: request.profile_name.to_string(),
         agent_type,
         tab_id,
         payload,

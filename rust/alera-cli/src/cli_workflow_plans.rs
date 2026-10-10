@@ -1,5 +1,8 @@
 use clap::{Args, Subcommand};
 
+mod lifecycle;
+pub use lifecycle::*;
+
 #[derive(Debug, Args)]
 pub struct WorkflowPlansArgs {
     #[command(subcommand)]

@@ -45,6 +45,9 @@ impl RuntimeStore {
         if filter.workspace_id.is_some() {
             sql.push_str(" AND r.workspace_id = ?");
         }
+        if filter.origin_client_id.is_some() {
+            sql.push_str(" AND json_extract(r.external_meta, '$.origin.clientId') = ?");
+        }
         sql.push_str(") WHERE last_sequence < ? ORDER BY last_sequence DESC LIMIT ?");
         let mut items = Vec::new();
         let mut before = filter.before_sequence.unwrap_or(i64::MAX);
@@ -55,6 +58,9 @@ impl RuntimeStore {
             }
             if let Some(workspace_id) = &filter.workspace_id {
                 query = query.bind(workspace_id);
+            }
+            if let Some(client_id) = &filter.origin_client_id {
+                query = query.bind(client_id);
             }
             let rows = query
                 .bind(before)
@@ -88,6 +94,29 @@ impl RuntimeStore {
                 });
             }
         }
+    }
+
+    /// The question an inbox already asked with this retry key on behalf of
+    /// the same origin client, so a retried ask returns it instead of asking
+    /// twice. Keys live in `external_meta.requestKey`.
+    pub async fn inbox_question_by_request_key(
+        &self,
+        inbox: &str,
+        request_key: &str,
+        origin_client_id: Option<&str>,
+    ) -> Result<Option<OrchestrationMessage>> {
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
+            "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
+             WHERE from_handle = ? AND json_extract(external_meta, '$.requestKey') = ? \
+             AND json_extract(external_meta, '$.origin.clientId') IS ? \
+             ORDER BY sequence DESC LIMIT 1"
+        )))
+        .bind(inbox)
+        .bind(request_key)
+        .bind(origin_client_id)
+        .fetch_optional(self.pool())
+        .await?;
+        row.map(message_from_row).transpose()
     }
 
     /// Messages addressed to `inbox` after `after_sequence`, oldest first.

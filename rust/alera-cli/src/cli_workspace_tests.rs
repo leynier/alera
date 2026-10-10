@@ -60,21 +60,30 @@ fn shared_workspace_cli_defaults_and_explicit_worktree_options() {
 }
 #[test]
 fn workspace_pin_commands_parse_workspace_ids() {
+    use crate::cli::WorkspacePinArgs;
+
     let pin = Cli::try_parse_from(["alera", "workspace", "pin", "--id", "workspace-1"]).unwrap();
-    let unpin =
-        Cli::try_parse_from(["alera", "workspace", "unpin", "--id", "workspace-2"]).unwrap();
+    let unpin = Cli::try_parse_from([
+        "alera",
+        "workspace",
+        "unpin",
+        "--id",
+        "workspace-2",
+        "--tree",
+    ])
+    .unwrap();
 
     assert!(matches!(
         pin.command,
         Command::Workspace(WorkspaceCommand {
-            action: WorkspaceAction::Pin(IdArgs { id }),
+            action: WorkspaceAction::Pin(WorkspacePinArgs { id, tree: false }),
             ..
         }) if id == "workspace-1"
     ));
     assert!(matches!(
         unpin.command,
         Command::Workspace(WorkspaceCommand {
-            action: WorkspaceAction::Unpin(IdArgs { id }),
+            action: WorkspaceAction::Unpin(WorkspacePinArgs { id, tree: true }),
             ..
         }) if id == "workspace-2"
     ));

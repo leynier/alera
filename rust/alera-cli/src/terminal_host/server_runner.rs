@@ -41,6 +41,8 @@ pub async fn run_terminal_host_server(
     let (inbox, mut rx) = ServerInbox::channel();
     let shutdown_signal = spawn_termination_listener(inbox.clone());
     let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
+    let event_forwarder =
+        runtime_event_forwarder::spawn(runtime_store.clone(), account_push.service.clone());
     let presence_sweep = agent_presence_reconciliation::spawn(inbox.clone());
     let automation_wake = Arc::new(Notify::new());
     let automation_ticker = automation_scheduler::spawn(
@@ -80,6 +82,7 @@ pub async fn run_terminal_host_server(
             inbox.clone(),
         ),
         project_clone_jobs: HashMap::new(),
+        prompt_workspace_operations: HashMap::new(),
         agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
         workflow_execution: Default::default(),
@@ -132,6 +135,7 @@ pub async fn run_terminal_host_server(
     }
     actor.restart_remote_relay().await;
     actor.reconcile_interrupted_project_clones().await;
+    actor.reconcile_interrupted_prompt_workspaces().await;
     actor.runtime_store.recover_workflow_coordinators().await?;
     actor.start_workflow_workspace_recovery();
     actor.reconcile_workflow_launches().await;
@@ -192,6 +196,8 @@ pub async fn run_terminal_host_server(
     inbox.close();
     watch_ticker.abort();
     let _ = watch_ticker.await;
+    event_forwarder.abort();
+    let _ = event_forwarder.await;
     presence_sweep.abort();
     let _ = presence_sweep.await;
     automation_ticker.abort();

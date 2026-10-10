@@ -68,6 +68,7 @@ impl ServerActor {
             || !self.mutation_queue.pending_workspace_shutdowns.is_empty()
             || self.account_push.cloud_jobs > 0
             || !self.project_clone_jobs.is_empty()
+            || !self.prompt_workspace_operations.is_empty()
             || self.mobile_gateway.is_some()
             || self.account_push.relay_task.is_some()
             || !self.coordinators.is_empty()

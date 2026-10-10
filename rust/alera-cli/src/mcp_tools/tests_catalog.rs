@@ -70,7 +70,7 @@ const FULL_TOOLS: &[&str] = &[
 ];
 
 /// Properties whose CLI flag parses a specific format.
-const FORMATTED_SAMPLES: &[(&str, &str)] = &[("expiresIn", "30m")];
+const FORMATTED_SAMPLES: &[(&str, &str)] = &[("expiresIn", "30m"), ("numbers", "12,13")];
 
 /// Arguments for a tool: every property (`all`) or only the required ones,
 /// each filled with a valid placeholder.
@@ -87,6 +87,7 @@ fn sample_arguments(tool: &ToolSpec, all: bool) -> Value {
             // Some values require their flag, such as branch with worktree.
             Some("boolean") => json!(true),
             Some("array") => json!([property["items"]["enum"][0].as_str().unwrap_or("item")]),
+            Some("object") => json!({}),
             _ if name == CLIENT_REQUEST_ID => json!("request-0001"),
             _ => match FORMATTED_SAMPLES.iter().find(|(key, _)| key == name) {
                 Some((_, sample)) => json!(sample),
@@ -112,14 +113,42 @@ fn cli_argv(invocation: super::Invocation) -> Vec<String> {
     argv
 }
 
+/// Sample argument sets for a tool: every property, only the required ones,
+/// and every property but one, which covers properties that exclude each
+/// other, such as a path or a clone URL.
+fn sample_variants(tool: &ToolSpec) -> Vec<Value> {
+    let all = sample_arguments(tool, true);
+    let required = tool.schema()["required"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut variants = vec![all.clone(), sample_arguments(tool, false)];
+    for key in all.as_object().into_iter().flatten().map(|(key, _)| key) {
+        if required.iter().any(|value| value == key) {
+            continue;
+        }
+        let mut variant = all.clone();
+        variant.as_object_mut().unwrap().remove(key);
+        variants.push(variant);
+    }
+    variants
+}
+
+fn first_invocation(tool: &ToolSpec) -> super::Invocation {
+    sample_variants(tool)
+        .iter()
+        .find_map(|arguments| tool.invocation(arguments).ok())
+        .unwrap_or_else(|| panic!("{} builds no command from its samples", tool.name))
+}
+
 /// A tool may refuse a combination of arguments itself, but any command it
 /// does build must parse: the CLI never sees an argument list it rejects.
 #[test]
 fn every_tool_builds_a_command_the_cli_accepts() {
     for tool in catalog() {
         let mut built = 0;
-        for all in [true, false] {
-            let Ok(invocation) = tool.invocation(&sample_arguments(&tool, all)) else {
+        for arguments in sample_variants(&tool) {
+            let Ok(invocation) = tool.invocation(&arguments) else {
                 continue;
             };
             built += 1;
@@ -142,10 +171,7 @@ fn every_tool_builds_a_command_the_cli_accepts() {
 #[test]
 fn no_tool_reaches_an_excluded_command() {
     for tool in catalog() {
-        let invocation = tool
-            .invocation(&sample_arguments(&tool, false))
-            .or_else(|_| tool.invocation(&sample_arguments(&tool, true)))
-            .unwrap();
+        let invocation = first_invocation(&tool);
         let action = invocation.args.first().map(String::as_str);
         for (group, excluded_action) in EXCLUDED {
             let hit = invocation.group == *group
@@ -194,9 +220,13 @@ fn client_request_ids_reach_the_cli() {
         .into_iter()
         .filter(|tool| tool.client_request_flag.is_some())
     {
-        let mut arguments = sample_arguments(&tool, false);
-        arguments[CLIENT_REQUEST_ID] = json!("request-0001");
-        let invocation = tool.invocation(&arguments).unwrap();
+        let invocation = sample_variants(&tool)
+            .into_iter()
+            .find_map(|mut arguments| {
+                arguments[CLIENT_REQUEST_ID] = json!("request-0001");
+                tool.invocation(&arguments).ok()
+            })
+            .unwrap();
         let flag = tool.client_request_flag.unwrap();
         assert!(
             invocation.args.contains(&format!("{flag}=request-0001")),

@@ -45,6 +45,10 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
         AutomationAction::RunShow(args) => {
             request(&runtime, "automation.runShow", json!({"id": args.id})).await
         }
+        AutomationAction::Clone(args) => automation_run_commands::clone(&runtime, args).await,
+        AutomationAction::TakeOver(args) => {
+            automation_run_commands::take_over(&runtime, args).await
+        }
         AutomationAction::Cancel(args) => lifecycle(&runtime, "automation.cancel", &args).await,
         AutomationAction::Context(args) => lifecycle(&runtime, "automation.context", &args).await,
         AutomationAction::Heartbeat(args) => {
@@ -54,7 +58,7 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
         AutomationAction::Extend(args) => extend(&runtime, args).await,
         AutomationAction::Complete(args) => complete(&runtime, args).await,
         AutomationAction::Templates(args) => catalog(&runtime, "template", args).await,
-        AutomationAction::Tags(args) => catalog(&runtime, "tag", args).await,
+        AutomationAction::Tags(args) => automation_run_commands::tags(&runtime, args).await,
         AutomationAction::Import(args) => import_catalog(&runtime, args).await,
         AutomationAction::Export(args) => export_catalog(&runtime, args, json_output).await,
         AutomationAction::Policy(_) => Err(anyhow::anyhow!(
@@ -171,22 +175,36 @@ async fn lifecycle(
     request_type: &str,
     args: &AutomationRunIdArgs,
 ) -> Result<Value> {
+    let identity = automation_run_commands::identity(
+        runtime,
+        &args.run_id,
+        &args.target,
+        args.use_run_identity,
+    )
+    .await?;
     request(
         runtime,
         request_type,
-        json!({"run": args.run_id, "targetIdentity": target_identity(&args.target)}),
+        json!({"run": args.run_id, "targetIdentity": identity}),
     )
     .await
 }
 
 async fn wait(runtime: &RuntimeDirArgs, args: AutomationWaitArgs) -> Result<Value> {
+    let identity = automation_run_commands::identity(
+        runtime,
+        &args.run_id,
+        &args.target,
+        args.use_run_identity,
+    )
+    .await?;
     request(
         runtime,
         "automation.wait",
         json!({
             "run": args.run_id,
             "waiting": !args.resume,
-            "targetIdentity": target_identity(&args.target),
+            "targetIdentity": identity,
         }),
     )
     .await
@@ -196,6 +214,13 @@ async fn extend(runtime: &RuntimeDirArgs, args: AutomationExtendArgs) -> Result<
     if args.until.is_none() && args.seconds.is_none() {
         anyhow::bail!("waiting extension requires --until or --seconds");
     }
+    let identity = automation_run_commands::identity(
+        runtime,
+        &args.run_id,
+        &args.target,
+        args.use_run_identity,
+    )
+    .await?;
     request(
         runtime,
         "automation.extend",
@@ -203,7 +228,7 @@ async fn extend(runtime: &RuntimeDirArgs, args: AutomationExtendArgs) -> Result<
             "run": args.run_id,
             "until": args.until,
             "seconds": args.seconds,
-            "targetIdentity": target_identity(&args.target),
+            "targetIdentity": identity,
         }),
     )
     .await
@@ -385,3 +410,5 @@ mod tests {
 #[path = "automation_authoring_commands.rs"]
 mod automation_authoring_commands;
 use automation_authoring_commands::author;
+#[path = "automation_run_commands.rs"]
+mod automation_run_commands;

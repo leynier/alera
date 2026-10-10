@@ -76,6 +76,9 @@ impl ServerActor {
         if self.try_start_mcp_request(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
+        if self.try_start_webhook_request(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
         if self.try_start_deferred_workspace_setup(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
@@ -221,7 +224,14 @@ impl ServerActor {
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_assist_workspace_identity(client_id, request_id, payload)?;
+                let infer_project = payload.get("inferProject").and_then(Value::as_bool)
+                    == Some(true)
+                    && payload.get("projectId").and_then(Value::as_str).is_none();
+                if infer_project {
+                    self.start_ai_assist_project_identity(client_id, request_id, payload)?;
+                } else {
+                    self.start_ai_assist_workspace_identity(client_id, request_id, payload)?;
+                }
                 Ok(true)
             }
             "aiText.commitMessage.generate" => {
@@ -301,6 +311,10 @@ impl ServerActor {
             | "mobile.pullRequest.unlink"
             | "mobile.pullRequest.create"
             | "mobile.pullRequest.ship"
+            | "pullRequestStack.get"
+            | "pullRequestStack.create"
+            | "pullRequestStack.link"
+            | "pullRequestStack.merge"
             | "workspace.files.list"
             | "workspace.files.read"
             | "workspace.files.write"

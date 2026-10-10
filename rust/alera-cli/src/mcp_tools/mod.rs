@@ -10,6 +10,7 @@ mod executor;
 mod origin;
 mod schema;
 mod stdio_server;
+mod subscriptions;
 
 #[cfg(test)]
 mod tests;

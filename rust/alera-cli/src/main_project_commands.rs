@@ -1,9 +1,19 @@
 use super::*;
 
+#[path = "project_manage_commands.rs"]
+mod project_manage_commands;
+
 pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
     match command.action {
+        action @ (ProjectAction::Rename(_)
+        | ProjectAction::Clone(_)
+        | ProjectAction::RemovePreview(_)
+        | ProjectAction::Branches(_)
+        | ProjectAction::Config(_)) => {
+            return project_manage_commands::run(&runtime, action, json_output).await;
+        }
         ProjectAction::List => match open_store(&runtime).await {
             Ok(store) => match crate::hub_federation::read_from_hub(
                 &runtime,
@@ -222,7 +232,7 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
                     project_management::register_project_with_identity(
                         &store,
                         &args.repo_path,
-                        Some(&args.name),
+                        args.name.as_deref(),
                         args.id.as_deref(),
                         Some(kind),
                     )
@@ -242,22 +252,31 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
                     Ok(client) => client,
                     Err(error) => return print_error(error),
                 };
-                if let Err(error) =
-                    workspace_removal_dependencies::prepare_cli_project_removal_dependencies(
+                let paused =
+                    match workspace_removal_dependencies::prepare_cli_project_removal_dependencies(
                         &mut client,
                         &id,
                         true,
                     )
                     .await
-                {
-                    return print_error(error);
-                }
+                    {
+                        Ok(dependencies) => dependencies
+                            .into_iter()
+                            .filter(|dependency| dependency.requires_pause)
+                            .map(|dependency| json!({"id": dependency.id, "name": dependency.name}))
+                            .collect::<Vec<_>>(),
+                        Err(error) => return print_error(error),
+                    };
                 return match client
                     .request_value("project.remove", &json!({"id": id}))
                     .await
                 {
                     Ok(_) => {
-                        print_value(&json!({"id":id}), json_output, "project removed");
+                        print_value(
+                            &json!({"id": id, "removed": true, "pausedAutomations": paused}),
+                            json_output,
+                            "project removed",
+                        );
                         0
                     }
                     Err(error) => print_error(error),

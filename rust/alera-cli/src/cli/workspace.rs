@@ -2,6 +2,10 @@ use clap::{Args, Subcommand, ValueEnum};
 
 use super::{AgentProfileSelectorArgs, IdArgs, OutputArgs, PromptSourceArgs, RuntimeDirArgs};
 
+#[path = "workspace_manage.rs"]
+mod manage;
+pub use manage::*;
+
 #[derive(Debug, Args)]
 pub struct WorkspaceCommand {
     #[command(flatten)]
@@ -20,6 +24,8 @@ pub enum WorkspaceAction {
     Add(WorkspaceAddArgs),
     /// Create a task on the project folder and launch an agent profile. Use --worktree for isolation.
     Start(WorkspaceStartArgs),
+    /// New Workspace from Prompt as a runtime operation, like the app's form.
+    PromptStart(super::WorkspacePromptStartCommand),
     /// Remove task state and optionally its owned worktree. Shared project files are preserved.
     Remove(WorkspaceRemoveArgs),
     /// Apply the project's worktree setup to an existing workspace.
@@ -35,9 +41,15 @@ pub enum WorkspaceAction {
     /// Select and show an existing workspace in the running Alera desktop app.
     Focus(WorkspaceFocusArgs),
     /// Pin a workspace in the desktop sidebar.
-    Pin(IdArgs),
+    Pin(WorkspacePinArgs),
     /// Unpin a workspace from the desktop sidebar.
-    Unpin(IdArgs),
+    Unpin(WorkspacePinArgs),
+    /// Show a workspace with its section, tags, issue, pull request, watch, parent, and children.
+    Show(IdArgs),
+    /// Wake a slept workspace: start its stopped terminals again, as opening it in the app does.
+    Wake(IdArgs),
+    /// Preview a removal: storage, dependent automations, and linked workspaces. Changes nothing.
+    RemovePreview(IdArgs),
     /// Sleep a workspace: stop its terminal sessions while it stays visible in
     /// the sidebar, preserving tabs, branch, and files. Opening it wakes it.
     Sleep(IdArgs),
@@ -69,17 +81,6 @@ pub enum WorkspaceAction {
     PrWatch(WorkspacePrWatchCommand),
     /// List, create, assign, and remove workspace sections.
     Section(WorkspaceSectionCommand),
-}
-
-#[derive(Debug, Args)]
-pub struct WorkspaceListArgs {
-    #[arg(long = "project-id")]
-    pub project_id: Option<String>,
-    #[arg(long)]
-    pub all: bool,
-    /// Only workspaces on this host: an SSH target id, or `local`.
-    #[arg(long = "host-id")]
-    pub host_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -173,22 +174,6 @@ pub struct WorkspaceStartArgs {
     /// Assign the new workspace to this section by id.
     #[arg(long = "section-id", conflicts_with = "section")]
     pub section_id: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct WorkspaceRemoveArgs {
-    #[arg(long)]
-    pub id: String,
-    #[arg(long = "delete-branch", conflicts_with = "keep_branch")]
-    pub delete_branch: bool,
-    #[arg(long = "keep-branch", conflicts_with = "delete_branch")]
-    pub keep_branch: bool,
-    /// Stop only this workspace's processes before removal; otherwise active sessions block removal.
-    #[arg(long = "close-sessions")]
-    pub close_sessions: bool,
-    /// Pause dependent automations and cancel all their active runs before removing the workspace.
-    #[arg(long = "pause-automations-and-cancel-runs")]
-    pub pause_automations_and_cancel_runs: bool,
 }
 
 #[derive(Debug, Args)]
@@ -427,58 +412,4 @@ pub struct WorkspacePrWatchStartArgs {
     /// Unique agent profile name. Alias for looking up --profile-id.
     #[arg(long = "profile", value_name = "name", conflicts_with = "profile_id")]
     pub profile: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct WorkspaceSectionCommand {
-    #[command(subcommand)]
-    pub action: WorkspaceSectionAction,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum WorkspaceSectionAction {
-    /// List workspace sections.
-    List,
-    /// Create a section and assign its first workspace.
-    Create(WorkspaceSectionCreateArgs),
-    /// Assign a workspace to an existing section.
-    Set(WorkspaceSectionSetArgs),
-    /// Move a workspace to Others (no section).
-    Clear(WorkspaceSectionWorkspaceArgs),
-    /// Delete a section. Workspaces are kept and moved to Others.
-    Remove(IdArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct WorkspaceSectionCreateArgs {
-    #[arg(long)]
-    pub name: String,
-    #[arg(long = "workspace-id")]
-    pub workspace_id: String,
-}
-
-#[derive(Debug, Args)]
-pub struct WorkspaceSectionSetArgs {
-    #[arg(long = "workspace-id")]
-    pub workspace_id: String,
-    /// Unique section name, matched case-insensitively.
-    #[arg(
-        long = "section",
-        required_unless_present = "section_id",
-        conflicts_with = "section_id"
-    )]
-    pub section: Option<String>,
-    /// Section id.
-    #[arg(
-        long = "section-id",
-        required_unless_present = "section",
-        conflicts_with = "section"
-    )]
-    pub section_id: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct WorkspaceSectionWorkspaceArgs {
-    #[arg(long = "workspace-id")]
-    pub workspace_id: String,
 }

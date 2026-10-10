@@ -334,6 +334,12 @@ pub enum ServerCommand {
     ProjectCloneFinished {
         job_id: String,
     },
+    PromptWorkspaceOperationChanged {
+        operation_id: String,
+    },
+    PromptWorkspaceOperationFinished {
+        operation_id: String,
+    },
     /// One coordinator loop iteration, enqueued by the ticker task.
     CoordinatorTick {
         run_id: String,

@@ -205,8 +205,50 @@ pub struct AgentProfileLaunchArgs {
     #[arg(long = "workspace", value_name = "workspace_id")]
     pub workspace: Option<String>,
     #[command(flatten)]
-    pub prompt: PromptSourceArgs,
+    pub prompt: AgentProfileLaunchInputArgs,
     /// Stable mutation id used to retry an identical launch.
     #[arg(long = "client-mutation-id", value_name = "id")]
     pub client_mutation_id: Option<String>,
+}
+
+/// A launch starts a conversation with a prompt, resumes an existing one, or
+/// starts the agent without a prompt when neither is given.
+#[derive(Debug, Args)]
+#[command(group(
+    ArgGroup::new("launch-input")
+        .required(false)
+        .multiple(false)
+        .args(["prompt", "prompt_file", "prompt_stdin", "resume_session_id"])
+))]
+pub struct AgentProfileLaunchInputArgs {
+    /// Prompt text delivered to the agent profile.
+    #[arg(long, value_name = "text")]
+    pub prompt: Option<String>,
+    /// Read the prompt from a file.
+    #[arg(long = "prompt-file", value_name = "path")]
+    pub prompt_file: Option<String>,
+    /// Read the prompt from standard input.
+    #[arg(long = "prompt-stdin")]
+    pub prompt_stdin: bool,
+    /// Resume this agent conversation instead of starting one with a prompt.
+    #[arg(long = "resume-session-id", value_name = "id")]
+    pub resume_session_id: Option<String>,
+}
+
+impl AgentProfileLaunchInputArgs {
+    /// The prompt to deliver, empty when the launch resumes a session or
+    /// names no prompt.
+    pub fn read(&self) -> anyhow::Result<String> {
+        if self.resume_session_id.is_some()
+            || (self.prompt.is_none() && self.prompt_file.is_none() && !self.prompt_stdin)
+        {
+            return Ok(String::new());
+        }
+        PromptSourceArgs {
+            prompt: self.prompt.clone(),
+            prompt_file: self.prompt_file.clone(),
+            prompt_stdin: self.prompt_stdin,
+        }
+        .read()
+    }
 }

@@ -28,6 +28,8 @@ const CONTEXT_VARIABLES: &[&str] = &[
     "ALERA_AGENT_CONVERSATION_ID",
     "ALERA_EXTERNAL_INBOX",
     "ALERA_RUNTIME_DIR",
+    "ALERA_AUTOMATION_RUN_ID",
+    "ALERA_AUTOMATION_ATTEMPT_ID",
 ];
 
 #[derive(Debug, Clone)]
@@ -80,8 +82,19 @@ impl ToolResult {
 /// of parsing messages.
 pub(crate) fn error_code(message: &str) -> (&'static str, bool) {
     let lower = message.to_lowercase();
-    if lower.contains("unknown terminal host request") || lower.contains("update alera") {
+    // The app's own refusals, such as Cleanup Unavailable or unsaved editors.
+    if lower.starts_with("blocked:") {
+        ("blocked", false)
+    } else if lower.contains("unknown terminal host request") || lower.contains("update alera") {
         ("capability_missing", false)
+    // A forge CLI (gh, glab, az) or its sign-in is missing on the checkout's host.
+    } else if lower.contains("install and authenticate")
+        || lower.contains("auth login on")
+        || lower.contains("sign in with az login")
+    {
+        ("provider_unavailable", false)
+    } else if lower.contains("only available for github") {
+        ("provider_unsupported", false)
     } else if lower.contains("did not finish within") {
         ("timeout_pending", true)
     } else if lower.contains("not running") || lower.contains("could not connect") {

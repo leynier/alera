@@ -43,6 +43,10 @@ pub enum AutomationAction {
     Runs(AutomationRunsArgs),
     /// Show one run and its automation definition.
     RunShow(IdArgs),
+    /// Create a new automation from an existing one, as the Clone action does.
+    Clone(AutomationCloneArgs),
+    /// Take over the terminal of a run so the automation stops driving it.
+    TakeOver(AutomationTakeOverArgs),
     /// Cancel one non-final run.
     Cancel(AutomationRunIdArgs),
     /// Show the context and lifecycle contract for a run.
@@ -57,8 +61,8 @@ pub enum AutomationAction {
     Complete(AutomationCompleteArgs),
     /// List prompt templates, or upsert from JSON. updatedAt is optional on upsert.
     Templates(AutomationCatalogFileArgs),
-    /// List or upsert tags and assignments.
-    Tags(AutomationCatalogFileArgs),
+    /// List tags, upsert one, or set the tags of an automation.
+    Tags(AutomationTagsArgs),
     /// Import a runtime-local automation catalog.
     Import(AutomationImportArgs),
     /// Export a runtime-local automation catalog.
@@ -200,6 +204,9 @@ pub struct AutomationRunsArgs {
 pub struct AutomationRunIdArgs {
     #[arg(long = "run")]
     pub run_id: String,
+    /// Use the target identity the run recorded, as the Alera app does.
+    #[arg(long = "use-run-identity")]
+    pub use_run_identity: bool,
     #[command(flatten)]
     pub target: AutomationTargetArgs,
 }
@@ -228,6 +235,9 @@ pub struct AutomationWaitArgs {
     pub run_id: String,
     #[arg(long)]
     pub resume: bool,
+    /// Use the target identity the run recorded, as the Alera app does.
+    #[arg(long = "use-run-identity")]
+    pub use_run_identity: bool,
     #[command(flatten)]
     pub target: AutomationTargetArgs,
 }
@@ -240,6 +250,9 @@ pub struct AutomationExtendArgs {
     pub until: Option<String>,
     #[arg(long, conflicts_with = "until")]
     pub seconds: Option<i64>,
+    /// Use the target identity the run recorded, as the Alera app does.
+    #[arg(long = "use-run-identity")]
+    pub use_run_identity: bool,
     #[command(flatten)]
     pub target: AutomationTargetArgs,
 }
@@ -263,6 +276,47 @@ pub struct AutomationCatalogFileArgs {
     /// Optional JSON file containing a template/tag object to upsert.
     #[arg(long = "file", alias = "object-file")]
     pub file: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct AutomationTagsArgs {
+    /// Optional JSON file (or - for stdin) with a tag object to upsert.
+    #[arg(long = "file", alias = "object-file", conflicts_with = "name")]
+    pub file: Option<String>,
+    /// Name of a tag to create, or to rename when --id is given.
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long, requires = "name")]
+    pub id: Option<String>,
+    /// Automation whose tags --assign or --clear replaces.
+    #[arg(long = "automation-id")]
+    pub automation_id: Option<String>,
+    /// Tag id to assign, repeatable. Requires --automation-id.
+    #[arg(long = "assign", value_name = "tag_id", requires = "automation_id")]
+    pub assign: Vec<String>,
+    /// With --automation-id, remove every tag from the automation.
+    #[arg(long = "clear", requires = "automation_id", conflicts_with = "assign")]
+    pub clear: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct AutomationCloneArgs {
+    #[arg(long)]
+    pub id: String,
+    /// Name of the copy (default: the original name followed by Copy).
+    #[arg(long)]
+    pub name: Option<String>,
+    /// Save the copy as a draft instead of activating it.
+    #[arg(long)]
+    pub draft: bool,
+    #[arg(long)]
+    pub request_key: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct AutomationTakeOverArgs {
+    #[arg(long = "run")]
+    pub run_id: String,
 }
 
 #[derive(Debug, Args)]

@@ -121,6 +121,8 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         | ServerCommand::LinkedIssuesChanged { workspace_id: id }
         | ServerCommand::ProjectCloneChanged { job_id: id }
         | ServerCommand::ProjectCloneFinished { job_id: id }
+        | ServerCommand::PromptWorkspaceOperationChanged { operation_id: id }
+        | ServerCommand::PromptWorkspaceOperationFinished { operation_id: id }
         | ServerCommand::HubReverseRequestExpired { reverse_id: id }
         | ServerCommand::HostLinkStateChanged { host_id: id }
         | ServerCommand::HostLinkClosed { host_id: id, .. }
@@ -457,6 +459,7 @@ fn is_completion_command(command: &ServerCommand) -> bool {
             | ServerCommand::AutomationSharedCleanupFinished { .. }
             | ServerCommand::WorkflowWorkspaceRecoveryFinished
             | ServerCommand::ProjectCloneFinished { .. }
+            | ServerCommand::PromptWorkspaceOperationFinished { .. }
             | ServerCommand::OrchestrationCompletionFinished(_)
             | ServerCommand::Account(_)
             | ServerCommand::Push(

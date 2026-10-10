@@ -5,23 +5,35 @@ use crate::terminal_host::protocol::{
 };
 mod agent_profile;
 mod automation;
+mod events;
 mod issue;
 mod mcp;
 mod mobile;
 mod project;
+mod pull_request;
+mod runtime_manage;
+mod terminal_lifecycle;
 mod text_source;
 mod voice;
+mod webhook;
 mod workspace;
+mod workspace_prompt_start;
 
 pub use agent_profile::*;
 pub use automation::*;
+pub use events::*;
 pub use issue::*;
 pub use mcp::*;
 pub use mobile::*;
 pub use project::*;
+pub use pull_request::*;
+pub use runtime_manage::*;
+pub use terminal_lifecycle::*;
 pub use text_source::*;
 pub use voice::*;
+pub use webhook::*;
 pub use workspace::*;
+pub use workspace_prompt_start::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 /// Top-level CLI, mirroring the Dart `AleraCliCommandRunner`.
@@ -64,6 +76,10 @@ pub enum Command {
     /// Read issues from GitHub, GitLab, or Azure DevOps through their CLIs.
     Issue(IssueCommand),
 
+    /// Pull requests on GitHub, GitLab, and Azure DevOps: show, create, comment, merge, ship, restack, fix checks, and stacks.
+    #[command(name = "pr")]
+    Pr(PullRequestCommand),
+
     /// Manage global workspace tags.
     Tag(TagCommand),
 
@@ -87,11 +103,21 @@ pub enum Command {
     #[command(name = "agent-profile")]
     AgentProfile(AgentProfileCommand),
 
+    /// Show agent usage limits, refresh Claude usage, and spend a Codex reset.
+    #[command(name = "agent-quota")]
+    AgentQuota(AgentQuotaCommand),
+
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
 
     /// Ask agents questions from outside a terminal and read their replies.
     Inbox(crate::cli_inbox::InboxCommand),
+
+    /// Read the runtime event journal: replies, agent states, tasks, runs, and workspace starts.
+    Events(EventsCommand),
+
+    /// Signed webhooks that receive this runtime's events through the Alera cloud.
+    Webhook(WebhookCommand),
 
     /// Global voice home agent: speak, status, and the runtime home folder.
     Voice(VoiceCommand),
@@ -127,6 +153,12 @@ pub enum TerminalAction {
     Read(TerminalReadArgs),
     /// Write text, a file, or stdin to a terminal.
     Write(TerminalWriteArgs),
+    /// Replace a terminal's process, keeping its tab and scrollback.
+    Restart(TerminalHandleArgs),
+    /// End a terminal session and close its tab, as the Resource Manager does.
+    Terminate(TerminalHandleArgs),
+    /// Show or change the input typed into a terminal after files change.
+    Pulse(TerminalPulseCommand),
 }
 
 #[derive(Debug, Args)]
@@ -289,6 +321,10 @@ pub enum RuntimeAction {
     Agents(RuntimeAgentsCommand),
     /// Name this runtime so MCP clients and phones can tell it apart.
     Rename(RuntimeRenameArgs),
+    /// Show or change the runtime settings open to the CLI and MCP clients.
+    Settings(RuntimeSettingsCommand),
+    /// Show CPU and memory use of the host and its terminal sessions.
+    Resources,
 }
 
 #[derive(Debug, Args)]
@@ -379,7 +415,11 @@ pub struct TabCommand {
 pub enum TabAction {
     List(WorkspaceIdArgs),
     Create(TabCreateArgs),
-    Remove(IdArgs),
+    Remove(TabRemoveArgs),
+    /// Rename a tab.
+    Rename(TabRenameArgs),
+    /// Name an agent tab from its conversation with AI Assist.
+    GenerateTitle(TabGenerateTitleArgs),
     /// Bind a running agent to a tab again so its hooks update that tab's
     /// status. Inside Claude Code or Codex every option is detected.
     LinkAgent(TabLinkAgentArgs),

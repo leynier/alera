@@ -66,6 +66,10 @@ impl ServerActor {
                 .get("checkoutBufferGuardsV1")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            client.checkout_buffer_save = payload
+                .get(crate::terminal_host::protocol::RUNTIME_HOST_CHECKOUT_BUFFER_SAVE_CAPABILITY)
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             client.binary_frames = binary_frames;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
@@ -320,6 +324,7 @@ mod tests {
                 inbox.clone(),
             ),
             project_clone_jobs: HashMap::new(),
+            prompt_workspace_operations: HashMap::new(),
             agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             workflow_execution: Default::default(),
@@ -340,6 +345,7 @@ mod tests {
                     authenticated: true,
                     shared_checkout_workspaces: true,
                     checkout_buffer_guards: true,
+                    checkout_buffer_save: true,
                     workspace_focus: false,
                     binary_frames: false,
                     kind: ClientKind::Local,

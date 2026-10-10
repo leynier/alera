@@ -92,6 +92,10 @@ final class SocketTerminalHostClient._(
   final Map<int, _PendingHostRequest> _pending = <int, _PendingHostRequest>{};
   final Map<String, Set<_TerminalHostConnection>> _heldBufferGuards = {};
 
+  /// Guards whose editors are being saved or discarded before they lock. A
+  /// release that arrives meanwhile removes the id so the late lock is undone.
+  final Set<String> _resolvingBufferGuards = {};
+
   Future<_TerminalHostConnection>? _terminalConnectionFuture;
   @override
   _TerminalHostConnection? _terminalConnection;
@@ -491,10 +495,15 @@ final class SocketTerminalHostClient._(
     final decoded = line is String ? jsonDecode(line) : line;
     final message = asTerminalHostMap(decoded, 'Terminal host message');
     if (message['event'] case final String event) {
-      if (event == 'checkoutBuffersLock') {
+      if (event == 'checkoutBuffersLock' ||
+          event == 'checkoutBuffersSaveRequested') {
+        final payload = asTerminalHostMap(message['payload'], 'buffer guard');
         _lockCheckoutBuffers(
           connection,
-          asTerminalHostMap(message['payload'], 'buffer guard'),
+          payload,
+          resolution: event == 'checkoutBuffersSaveRequested'
+              ? 'save'
+              : payload['resolution'] as String?,
         );
         return;
       }

@@ -10,9 +10,12 @@ use serde_json::{json, Value};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::event;
 
-use super::client_delivery::LocalClientRole;
 use super::orchestration_validation::{optional_string, parse_priority, require_string};
-use super::{ClientKind, ServerActor};
+use super::ServerActor;
+
+mod origin;
+#[cfg(test)]
+mod origin_tests;
 
 /// Where questions asked from the desktop and phone UIs live, so both show
 /// the same conversations.
@@ -147,6 +150,7 @@ impl ServerActor {
             inbox: optional_string(payload, "inbox"),
             workspace_id: optional_string(payload, "workspaceId"),
             status,
+            origin_client_id: optional_string(payload, "originClientId"),
             before_sequence: payload.get("before").and_then(Value::as_i64),
             limit: payload.get("limit").and_then(Value::as_i64).unwrap_or(50),
         };
@@ -163,6 +167,7 @@ impl ServerActor {
                 "inbox": filter.inbox,
                 "workspaceId": filter.workspace_id,
                 "status": filter.status,
+                "originClientId": filter.origin_client_id,
             },
             "revision": self.inbox_revision().await?,
         }))
@@ -346,26 +351,10 @@ impl ServerActor {
         }
     }
 
-    /// The surface a request came from, decided by the connection.
-    pub(super) fn inbox_origin(&self, client_id: u64) -> Value {
-        let Some(client) = self.clients.get(&client_id) else {
-            return json!({ "surface": "cli" });
-        };
-        match client.kind {
-            ClientKind::Mobile => json!({
-                "surface": "mobile",
-                "deviceId": client.mobile_device_id,
-                "deviceName": client.mobile_device_name,
-            }),
-            ClientKind::Local if client.local_role == LocalClientRole::App => {
-                json!({ "surface": "desktop" })
-            }
-            ClientKind::Local => json!({ "surface": "cli" }),
-        }
-    }
-
     async fn inbox_ask(&mut self, client_id: u64, payload: &Value) -> HostResult<Value> {
         let body = require_string(payload, "body")?;
+        let origin = self.inbox_ask_origin(client_id, payload)?;
+        let request_key = origin::request_key(payload)?;
         // A follow-up names any question of its thread and inherits the
         // thread's inbox and recipient unless they are given explicitly; a
         // workspace only narrows the recipient of a new thread.
@@ -382,6 +371,12 @@ impl ServerActor {
         let inbox = optional_string(payload, "inbox")
             .or_else(|| thread_root.as_ref().map(|root| root.from_handle.clone()))
             .unwrap_or_else(|| UI_INBOX.to_string());
+        if let Some(earlier) = self
+            .repeated_inbox_ask(&inbox, request_key.as_deref(), &origin)
+            .await?
+        {
+            return Ok(earlier);
+        }
         let recipient = match &thread_root {
             Some(root) if optional_string(payload, "to").is_none() => {
                 if !self.sessions.contains_key(&root.to_handle) {
@@ -430,15 +425,18 @@ impl ServerActor {
                 .map(|workspace| workspace.name),
             None => None,
         };
-        let external_meta = json!({
+        let mut external_meta = json!({
             "version": 1,
-            "origin": self.inbox_origin(client_id),
+            "origin": origin.clone(),
             "target": {
                 "agent": self.agent_presence.get(&recipient).map(|entry| entry.agent_type.clone()),
                 "tabTitle": self.inbox_tab_title(&recipient).await,
                 "workspaceName": workspace_name,
             },
         });
+        if let Some(key) = request_key {
+            external_meta["requestKey"] = json!(key);
+        }
         let message = self
             .runtime_store
             .insert_inbox_question(NewInboxQuestion {
@@ -462,13 +460,7 @@ impl ServerActor {
         // Wakes a coordinator parked on `check --wait`.
         self.notify_message_arrived(&recipient, OrchestrationMessageType::DecisionGate)
             .await;
-        Ok(json!({
-            "questionId": message.id,
-            "threadId": message.thread_id.clone().unwrap_or_else(|| message.id.clone()),
-            "message": message,
-            "recipient": self.inbox_recipient(&recipient),
-            "revision": self.inbox_revision().await?,
-        }))
+        self.inbox_ask_result(message, origin, false).await
     }
 }
 

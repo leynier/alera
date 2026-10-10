@@ -44,6 +44,7 @@ void _registerTerminalHostBufferGuardTests() {
         }
         await acknowledged.future.timeout(const Duration(seconds: 5));
         expect(server.payloadFor('hello')['checkoutBufferGuardsV1'], isTrue);
+        expect(server.payloadFor('hello')['checkoutBufferSaveV1'], isFalse);
         expect(handler.tabIds, {'editor'});
         expect(handler.workspacePaths, {'/repo'});
         expect(server.payloadFor('workspace.bufferGuard.ack'), {
@@ -60,6 +61,81 @@ void _registerTerminalHostBufferGuardTests() {
         );
       },
     );
+  }
+
+  for (final resolution in ['save', 'discard']) {
+    test('settles dirty editors before acknowledging a $resolution', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'alera-buffer-resolution-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final acknowledged = Completer<void>();
+      final server = await _TerminalHostTestServer.start(
+        beforeResponse: (type) async {
+          if (type == 'workspace.bufferGuard.ack' &&
+              !acknowledged.isCompleted) {
+            acknowledged.complete();
+          }
+        },
+      );
+      addTearDown(server.dispose);
+      final handler = _ResolvingBufferGuardHandler();
+      final client = SocketTerminalHostClient(
+        launcher: _FakeTerminalHostLauncher(server: server),
+        applicationSupportDirectory: () async => directory,
+        bufferGuardHandler: handler,
+      );
+      addTearDown(client.dispose);
+      await client.ensureStarted(config: TerminalHostConfig.defaults);
+      const scope = {
+        'tabIds': ['editor'],
+        'workspacePaths': ['/repo'],
+      };
+      server.send(
+        resolution == 'save'
+            ? {
+                'event': 'checkoutBuffersSaveRequested',
+                'payload': {'guardId': 'guard', 'scope': scope},
+              }
+            : {
+                'event': 'checkoutBuffersLock',
+                'payload': {
+                  'guardId': 'guard',
+                  'scope': scope,
+                  'resolution': 'discard',
+                },
+              },
+      );
+      await acknowledged.future.timeout(const Duration(seconds: 5));
+      expect(server.payloadFor('hello')['checkoutBufferSaveV1'], isTrue);
+      expect(handler.discard, resolution == 'discard');
+      expect(handler.tabIds, {'editor'});
+      expect(server.payloadFor('workspace.bufferGuard.ack'), {
+        'guardId': 'guard',
+        'blockers': [
+          {'tabId': 'editor', 'path': 'notes.md', 'reason': 'busy'},
+        ],
+      });
+    });
+  }
+}
+
+class _ResolvingBufferGuardHandler extends _RecordingBufferGuardHandler
+    implements RuntimeBufferGuardResolver {
+  bool? discard;
+
+  @override
+  Future<List<Map<String, Object?>>> resolveAndLock({
+    required String guardId,
+    required Set<String> tabIds,
+    required Set<String> workspacePaths,
+    required bool discard,
+  }) async {
+    this.discard = discard;
+    lock(guardId: guardId, tabIds: tabIds, workspacePaths: workspacePaths);
+    return [
+      {'tabId': 'editor', 'path': 'notes.md', 'reason': 'busy'},
+    ];
   }
 }
 

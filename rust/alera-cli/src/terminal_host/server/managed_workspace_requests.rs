@@ -18,6 +18,9 @@ use super::requests::json_result;
 use super::runtime_change_broadcasts::string_scope;
 use super::{ServerActor, ServerCommand};
 
+#[path = "remote_storage_impact.rs"]
+mod remote_storage_impact;
+
 impl ServerActor {
     pub(super) fn start_shared_workspace_create(
         &mut self,
@@ -85,6 +88,7 @@ impl ServerActor {
         self.managed_workspace_jobs += 1;
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
+        let host_links = self.host_links.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             match workspace_has_active_automation_owner(&store, &workspace_id).await {
@@ -92,8 +96,21 @@ impl ServerActor {
                 Err(error) => blockers.push(format!("Could not verify automations: {error}")),
                 _ => {}
             }
-            let result =
-                json_result(measure_workspace_storage(&store, &workspace_id, blockers).await);
+            let result = match remote_storage_impact::measure_on_owner(
+                &store,
+                &host_links,
+                &workspace_id,
+                close_sessions,
+                &blockers,
+            )
+            .await
+            {
+                Ok(Some(impact)) => Ok(impact),
+                Ok(None) => {
+                    json_result(measure_workspace_storage(&store, &workspace_id, blockers).await)
+                }
+                Err(error) => Err(error),
+            };
             let _ = inbox
                 .send_wait(ServerCommand::WorkspaceStorageMeasured {
                     client_id,

@@ -255,6 +255,7 @@ impl ServerActor {
     }
 
     pub(super) async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {
+        self.record_workspace_lifecycle(&effect).await;
         match effect {
             RuntimeMutationEffect::SetupFinished => {}
             RuntimeMutationEffect::ProjectRemoved {

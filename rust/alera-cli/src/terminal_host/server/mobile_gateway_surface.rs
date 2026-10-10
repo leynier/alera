@@ -68,9 +68,13 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
     RUNTIME_HOST_WORKSPACE_ARCHIVE_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_PROMPT_WORKSPACE_SERVICE_CAPABILITY,
     RUNTIME_HOST_LINKED_ISSUES_CAPABILITY,
     RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY,
     RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_V2_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_PULL_REQUEST_FORGES_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_PULL_REQUEST_AGENT_DISPATCH_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -169,6 +173,11 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.repositoryWebUrl"
             | "workspace.createManaged"
             | "workspace.createShared"
+            | "workspace.promptStart.start"
+            | "workspace.promptStart.get"
+            | "workspace.promptStart.list"
+            | "workspace.promptStart.cancel"
+            | "workspace.promptStart.retryLaunch"
             | "checkout.list"
             | "workspace.bufferGuard.acquire"
             | "workspace.bufferGuard.status"
@@ -177,6 +186,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.checkout"
             | "workspace.relocationRecovery"
             | "workspace.sshRelocationRecovery"
+            | "workspace.runSetup"
             | "workspace.prepareRelocationSetup"
             | "workspace.recoverRelocationSetup"
             | "workspace.cancelRelocationSetup"
@@ -236,6 +246,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.pullRequest.unlink"
             | "mobile.pullRequest.create"
             | "mobile.pullRequest.ship"
+            | "pullRequest.agentDispatch"
             | "mobile.promptFile.start"
             | "mobile.promptFile.chunk"
             | "mobile.promptFile.complete"
@@ -360,6 +371,28 @@ mod workflow_lifecycle_mobile_tests;
 #[cfg(test)]
 #[path = "mobile_gateway_surface_codex_tests.rs"]
 mod mobile_codex_file_surface_tests;
+#[cfg(test)]
+#[path = "mobile_gateway_surface_setup_tests.rs"]
+mod mobile_setup_surface_tests;
+#[cfg(test)]
+mod prompt_workspace_surface_tests {
+    /// The phone's New Workspace from Prompt delegates to the runtime service
+    /// once the hello list names it.
+    #[test]
+    fn mobile_may_run_new_workspace_from_prompt_on_the_runtime() {
+        assert!(super::MOBILE_HELLO_CAPABILITIES.contains(&"promptWorkspaceServiceV1"));
+        for request in [
+            "workspace.promptStart.start",
+            "workspace.promptStart.get",
+            "workspace.promptStart.list",
+            "workspace.promptStart.cancel",
+            "workspace.promptStart.retryLaunch",
+        ] {
+            assert!(super::mobile_request_allowed(request), "{request}");
+        }
+    }
+}
+
 #[cfg(test)]
 mod relay_renewal_tests {
     #[test]

@@ -1,4 +1,4 @@
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 use crate::cli::{OutputArgs, RuntimeDirArgs};
 
@@ -109,6 +109,18 @@ pub struct InboxAskArgs {
     /// Drop the question if it has not reached the agent in time, such as 30m or 2h (default 5h, at most 7d).
     #[arg(long = "expires-in", value_name = "duration", value_parser = parse_duration_ms)]
     pub expires_in_ms: Option<u64>,
+    /// Retry key (8 to 128 characters): asking again with it returns the first question.
+    #[arg(long = "request-key", value_name = "key")]
+    pub request_key: Option<String>,
+}
+
+/// Whose threads an MCP client sees in the shared inbox.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum InboxScope {
+    /// Only threads the calling MCP client started.
+    Own,
+    /// Every thread of the inbox.
+    All,
 }
 
 #[derive(Debug, Args)]
@@ -130,6 +142,12 @@ pub struct InboxThreadsArgs {
     /// Continue a listing from the `nextBefore` value it returned.
     #[arg(long = "before", value_name = "sequence")]
     pub before: Option<i64>,
+    /// Only threads started by this MCP client id.
+    #[arg(long = "origin-client-id", value_name = "id", conflicts_with = "scope")]
+    pub origin_client_id: Option<String>,
+    /// own: only threads the calling MCP client started (default all).
+    #[arg(long = "scope", value_enum)]
+    pub scope: Option<InboxScope>,
 }
 
 #[derive(Debug, Args)]
@@ -152,6 +170,9 @@ pub struct InboxWaitArgs {
     /// How long to wait, such as 90s, 30m or 2h (default 10m).
     #[arg(long = "timeout", value_name = "duration", value_parser = parse_duration_ms)]
     pub timeout_ms: Option<u64>,
+    /// Inbox waits only. own: only replies in threads the calling MCP client started.
+    #[arg(long = "scope", value_enum, conflicts_with = "question")]
+    pub scope: Option<InboxScope>,
 }
 
 #[derive(Debug, Args)]

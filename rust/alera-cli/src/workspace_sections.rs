@@ -39,32 +39,63 @@ async fn execute(runtime_dir: &Path, action: WorkspaceSectionAction) -> Result<(
                 "workspace sections listed".to_string(),
             ))
         }
-        WorkspaceSectionAction::Create(WorkspaceSectionCreateArgs { name, workspace_id }) => {
+        WorkspaceSectionAction::Create(WorkspaceSectionCreateArgs {
+            name,
+            workspace_id,
+            tree,
+        }) => {
             let section = backend.create(&name, &workspace_id).await?;
-            Ok((json!(section), "workspace section created".to_string()))
+            let descendants = tree_rest(runtime_dir, &workspace_id, tree).await?;
+            for descendant in &descendants {
+                backend.set(descendant, Some(&section.id)).await?;
+            }
+            let mut value = json!(section);
+            value["treeWorkspaceIds"] = json!(descendants);
+            Ok((value, "workspace section created".to_string()))
         }
         WorkspaceSectionAction::Set(args) => {
-            let payload = assign(
+            let mut payload = assign(
                 &mut backend,
                 &args.workspace_id,
                 args.section,
                 args.section_id,
             )
             .await?;
+            let section_id = payload["sectionId"].as_str().map(str::to_string);
+            let descendants = tree_rest(runtime_dir, &args.workspace_id, args.tree).await?;
+            for descendant in &descendants {
+                backend.set(descendant, section_id.as_deref()).await?;
+            }
+            payload["treeWorkspaceIds"] = json!(descendants);
             Ok((payload, "workspace section assigned".to_string()))
         }
-        WorkspaceSectionAction::Clear(WorkspaceSectionWorkspaceArgs { workspace_id }) => {
+        WorkspaceSectionAction::Clear(WorkspaceSectionWorkspaceArgs { workspace_id, tree }) => {
             backend.set(&workspace_id, None).await?;
-            Ok((
-                set_for_workspace_payload(&workspace_id, None),
-                "workspace section cleared".to_string(),
-            ))
+            let descendants = tree_rest(runtime_dir, &workspace_id, tree).await?;
+            for descendant in &descendants {
+                backend.set(descendant, None).await?;
+            }
+            let mut payload = set_for_workspace_payload(&workspace_id, None);
+            payload["treeWorkspaceIds"] = json!(descendants);
+            Ok((payload, "workspace section cleared".to_string()))
         }
         WorkspaceSectionAction::Remove(IdArgs { id }) => {
             backend.remove(&id).await?;
             Ok((json!({ "id": id }), "workspace section removed".to_string()))
         }
     }
+}
+
+/// The descendants a Tree action also applies to, without the workspace.
+async fn tree_rest(runtime_dir: &Path, workspace_id: &str, tree: bool) -> Result<Vec<String>> {
+    if !tree {
+        return Ok(Vec::new());
+    }
+    let workspaces = crate::workspace_tree::all_workspaces(runtime_dir).await?;
+    Ok(crate::workspace_tree::tree_ids(&workspaces, workspace_id)
+        .into_iter()
+        .skip(1)
+        .collect())
 }
 
 async fn assign(

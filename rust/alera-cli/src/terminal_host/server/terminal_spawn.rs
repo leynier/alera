@@ -19,6 +19,7 @@ use super::ServerActor;
 const DEFAULT_TERMINAL_COLS: u16 = 80;
 const DEFAULT_TERMINAL_ROWS: u16 = 24;
 
+mod headless_restart;
 mod tab_spawn;
 
 impl ServerActor {
@@ -172,48 +173,65 @@ impl ServerActor {
             permit,
         )
         .await?;
-        let command = match resolve_spawn_command(tab, &default_launch.interactive_shell)? {
+        if let Some(spent) = self
+            .deliver_tab_startup_command(tab, &session_id, default_launch.interactive_shell, permit)
+            .await?
+        {
+            return Ok(spent);
+        }
+        Ok(rearmed)
+    }
+
+    /// Types the tab's startup command into its new PTY. Returns `Some` when
+    /// a one-shot command or prompt was spent, holding the tab as saved
+    /// without it (`None` inside when that save failed).
+    pub(super) async fn deliver_tab_startup_command(
+        &mut self,
+        tab: &WorkspaceTabRecord,
+        session_id: &str,
+        interactive_shell: String,
+        permit: Option<&WorkflowLaunchPermit>,
+    ) -> HostResult<Option<Option<WorkspaceTabRecord>>> {
+        let command = match resolve_spawn_command(tab, &interactive_shell)? {
             Some(SpawnCommand::Stdin { command, prompt }) => Some(if permit.is_some() {
                 let directory = self
                     .setup_script_directory()
                     .ok_or_else(|| HostError::state("workflow prompt directory is unavailable"))?;
                 crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
-                    &directory,
-                    &session_id,
-                    &command,
-                    &prompt,
+                    &directory, session_id, &command, &prompt,
                 )
                 .map_err(|error| HostError::state(error.to_string()))?
                 .command
             } else {
-                self.stdin_prompt_command(&session_id, &command, &prompt)
+                self.stdin_prompt_command(session_id, &command, &prompt)
             }),
             Some(SpawnCommand::Line(command)) => Some(command),
             None => None,
         };
-        if let Some(command) = command {
-            let instance_id = self
-                .sessions
-                .get(&session_id)
-                .map(Session::instance_id)
-                .expect("spawned terminal was inserted");
-            self.schedule_terminal_startup_input(
-                session_id,
-                instance_id,
-                default_launch.interactive_shell,
-                command,
-            );
-            // A one-shot command is spent as soon as it is on its way. Agent
-            // tabs deliberately do not set the flag: they re-mint their command
-            // on every new PTY, including after host recovery.
-            if delivers_initial_command_once(tab) {
-                return Ok(self.clear_initial_command(tab).await);
-            }
-            if delivers_initial_prompt_once(tab) {
-                return Ok(self.clear_initial_prompt(tab).await);
-            }
+        let Some(command) = command else {
+            return Ok(None);
+        };
+        let instance_id = self
+            .sessions
+            .get(session_id)
+            .map(Session::instance_id)
+            .expect("spawned terminal was inserted");
+        self.schedule_terminal_startup_input(
+            session_id.to_string(),
+            instance_id,
+            interactive_shell,
+            command,
+        );
+        // A one-shot command is spent as soon as it is on its way. Agent
+        // tabs deliberately do not set the flag: they re-mint their command
+        // on every new PTY, including after host recovery.
+        if delivers_initial_command_once(tab) {
+            return Ok(Some(self.clear_initial_command(tab).await));
         }
-        Ok(rearmed)
+        if delivers_initial_prompt_once(tab) {
+            return Ok(Some(self.clear_initial_prompt(tab).await));
+        }
+        Ok(None)
     }
 
     #[allow(clippy::too_many_arguments)]

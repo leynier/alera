@@ -167,18 +167,25 @@ fn mutations() -> Vec<ToolSpec> {
                         ("type", one_of("Message type.", &["status", "dispatch", "merge_ready", "escalation", "handoff", "decision_gate"])),
                         ("priority", one_of("Priority.", &["normal", "high", "urgent"])),
                         ("threadId", string("Thread to attach the message to.")),
+                        ("taskId", string("Task the message is about, recorded in its payload.")),
+                        ("payload", text("Raw JSON payload text, instead of taskId.", 16_384)),
                     ],
                     &["from", "to", "subject"],
                 )
             },
             |arguments| {
+                if arguments.string("taskId").is_some() && arguments.string("payload").is_some() {
+                    return Err(ToolInputError("Pass taskId or payload, not both.".into()));
+                }
                 let invocation = Invocation::new("orchestration", &["send"])
                     .option("--from", arguments.required("from")?)
                     .option("--to", arguments.required("to")?)
                     .option("--subject", arguments.required("subject")?)
                     .option_if("--type", arguments.string("type"))
                     .option_if("--priority", arguments.string("priority"))
-                    .option_if("--thread-id", arguments.string("threadId"));
+                    .option_if("--thread-id", arguments.string("threadId"))
+                    .option_if("--task-id", arguments.string("taskId"))
+                    .option_if("--payload", arguments.string("payload"));
                 Ok(match arguments.string("body") {
                     Some(body) => invocation.flag("--body-stdin").stdin(body),
                     None => invocation,

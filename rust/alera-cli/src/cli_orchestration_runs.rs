@@ -37,9 +37,9 @@ pub struct OrchestrationRunPolicyRejectArgs {
 
 #[derive(Debug, Args)]
 pub struct OrchestrationRunArgs {
-    /// Run objective recorded on the coordinator run.
-    #[arg(long = "spec", value_name = "text")]
-    pub spec: String,
+    /// Run objective recorded on the coordinator run (--spec, --spec-file or --spec-stdin).
+    #[command(flatten)]
+    pub spec: SpecSourceArgs,
 
     /// Coordinator handle. Defaults to ALERA_TERMINAL_HANDLE.
     #[arg(long = "from", value_name = "handle")]
@@ -141,4 +141,52 @@ pub struct OrchestrationDelegateArgs {
         value_parser = parse_agent_spawn_timeout_ms
     )]
     pub timeout_ms: u64,
+}
+
+/// `orchestration board`: one page of the run board the desktop shows.
+#[derive(Debug, Args)]
+pub struct OrchestrationBoardArgs {
+    #[arg(long = "project-id", value_name = "project_id")]
+    pub project_id: Option<String>,
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: Option<String>,
+    /// Text to search for in run objectives.
+    #[arg(long = "search", value_name = "text")]
+    pub search: Option<String>,
+    #[arg(long = "bucket", value_parser = ["attention", "active", "history"])]
+    pub bucket: Option<String>,
+    /// The `nextCursor` JSON object of a previous page.
+    #[arg(long = "cursor", value_name = "json")]
+    pub cursor: Option<String>,
+    #[arg(long = "limit", value_name = "n")]
+    pub limit: Option<u32>,
+}
+
+/// `orchestration run-snapshot`: a run with a page of its tasks.
+#[derive(Debug, Args)]
+pub struct OrchestrationRunSnapshotArgs {
+    #[arg(long = "run", value_name = "run_id")]
+    pub run: String,
+    /// Continue after this task id from a previous page.
+    #[arg(long = "after-task", value_name = "task_id")]
+    pub after_task: Option<String>,
+    /// Board revision of the previous page, so pages stay consistent.
+    #[arg(long = "revision", value_name = "n")]
+    pub revision: Option<i64>,
+    #[arg(long = "limit", value_name = "n")]
+    pub limit: Option<u32>,
+}
+
+/// `orchestration task-inspect`: one task of a run with its history.
+#[derive(Debug, Args)]
+pub struct OrchestrationTaskInspectArgs {
+    #[arg(long = "run", value_name = "run_id")]
+    pub run: String,
+    #[arg(long = "task", value_name = "task_id")]
+    pub task: String,
+    /// The history cursor JSON object of a previous page.
+    #[arg(long = "cursor", value_name = "json")]
+    pub cursor: Option<String>,
+    #[arg(long = "limit", value_name = "n")]
+    pub limit: Option<u32>,
 }

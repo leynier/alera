@@ -27,6 +27,12 @@ pub enum OrchestrationAction {
     Plans(crate::cli_workflow_plans::WorkflowPlansArgs),
     /// Prepare and inspect isolated workflow workspaces and attempts.
     Workspaces(crate::cli_workflow_workspaces::WorkflowWorkspacesArgs),
+    /// Create, inspect, cancel, and start workflow proposals; never approves plans.
+    Proposals(crate::cli_workflow_plans::WorkflowProposalsArgs),
+    /// Inspect, start, pause, or correct the execution of a workflow run.
+    Execution(crate::cli_workflow_plans::WorkflowExecutionArgs),
+    /// Preview and run the cleanup of a workflow's retained workspaces.
+    Cleanup(crate::cli_workflow_plans::WorkflowCleanupArgs),
     /// Create or select a worker terminal and dispatch once the agent is ready.
     #[command(name = "agent-spawn")]
     AgentSpawn(OrchestrationAgentSpawnArgs),
@@ -43,22 +49,16 @@ pub enum OrchestrationAction {
     /// Ask another agent a question and block until it answers.
     Ask(OrchestrationAskArgs),
     /// Create a task in the orchestration DAG.
-    #[command(name = "task-create")]
     TaskCreate(OrchestrationTaskCreateArgs),
     /// List tasks, optionally filtered by status.
-    #[command(name = "task-list")]
     TaskList(OrchestrationTaskListArgs),
     /// Show one task with its active dispatch.
-    #[command(name = "task-show")]
     TaskShow(OrchestrationTaskIdArgs),
     /// Wait until a task reaches one of the requested states.
-    #[command(name = "task-wait")]
     TaskWait(OrchestrationTaskWaitArgs),
     /// Cancel a task and its not-yet-started descendants.
-    #[command(name = "task-cancel")]
     TaskCancel(OrchestrationTaskCancelArgs),
     /// Resolve a stalled task through an audited administrative action.
-    #[command(name = "task-recover")]
     TaskRecover(OrchestrationTaskRecoverArgs),
     /// Transfer task or run coordinator ownership.
     #[command(name = "transfer-coordinator")]
@@ -66,13 +66,10 @@ pub enum OrchestrationAction {
     /// Dispatch a ready task to a terminal.
     Dispatch(OrchestrationDispatchArgs),
     /// Show the dispatch state and preamble for a task.
-    #[command(name = "dispatch-show")]
     DispatchShow(OrchestrationDispatchShowArgs),
     /// Accept the active dispatch installed for this worker terminal.
-    #[command(name = "dispatch-accept")]
     DispatchAccept,
     /// Interrupt an active worker turn without terminating the terminal.
-    #[command(name = "dispatch-interrupt")]
     DispatchInterrupt(OrchestrationDispatchInterruptArgs),
     /// Inspect the active dispatch context for this terminal.
     Context,
@@ -115,16 +112,19 @@ pub enum OrchestrationAction {
     /// Start the background coordinator loop.
     Run(OrchestrationRunArgs),
     /// List durable coordinator runs.
-    #[command(name = "run-list")]
     RunList(OrchestrationRunListArgs),
     /// Show a coordinator run.
-    #[command(name = "run-show")]
     RunShow(OrchestrationRunIdArgs),
     /// Aggregate run, task, worker, and escalation state.
     Status(OrchestrationRunIdArgs),
     /// Stop the active coordinator loop.
-    #[command(name = "run-stop")]
     RunStop(OrchestrationRunStopArgs),
+    /// Read one page of the run board, with runs grouped by attention, active, or history.
+    Board(OrchestrationBoardArgs),
+    /// Read a coordinator run with a page of its tasks.
+    RunSnapshot(OrchestrationRunSnapshotArgs),
+    /// Read one task of a run with its dispatch history.
+    TaskInspect(OrchestrationTaskInspectArgs),
     /// List live terminals with agent presence.
     #[command(name = "terminal-list")]
     TerminalList(OrchestrationTerminalListArgs),
@@ -294,9 +294,8 @@ pub struct OrchestrationAskArgs {
 
 #[derive(Debug, Args)]
 pub struct OrchestrationTaskCreateArgs {
-    /// The task brief the dispatched worker receives.
-    #[arg(long = "spec", value_name = "text")]
-    pub spec: String,
+    #[command(flatten)]
+    pub spec: crate::cli::SpecSourceArgs,
 
     /// Short title for listings.
     #[arg(long = "task-title", value_name = "text")]

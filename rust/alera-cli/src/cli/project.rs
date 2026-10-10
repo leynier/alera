@@ -68,6 +68,16 @@ pub enum ProjectAction {
     AddRemote(ProjectAddRemoteArgs),
     /// Remove a project and runtime-owned child records.
     Remove(ProjectRemoveArgs),
+    /// Change a project's display name. Its folder is not touched.
+    Rename(ProjectRenameArgs),
+    /// Clone a repository into a new folder on this machine and register it.
+    Clone(ProjectCloneCommand),
+    /// Preview a project removal: workspaces, tabs, sessions, and dependent automations.
+    RemovePreview(ProjectIdArgs),
+    /// List the branches of a project's checkout on a host, for a worktree's source branch.
+    Branches(ProjectBranchesArgs),
+    /// Show, set, or reset the project's settings (New Workspace, copies, setup, pull request provider).
+    Config(ProjectConfigCommand),
 }
 
 #[derive(Debug, Args)]
@@ -155,8 +165,9 @@ pub struct ProjectCheckoutInspectArgs {
 pub struct ProjectAddArgs {
     #[arg(long)]
     pub id: Option<String>,
+    /// Display name. Defaults to the folder name.
     #[arg(long)]
-    pub name: String,
+    pub name: Option<String>,
     #[arg(long = "repo-path")]
     pub repo_path: String,
     #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
@@ -183,4 +194,101 @@ pub struct ProjectAddRemoteArgs {
 pub enum ProjectKindArg {
     GitRepository,
     Folder,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectIdArgs {
+    #[arg(long)]
+    pub id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectRenameArgs {
+    #[arg(long)]
+    pub id: String,
+    #[arg(long)]
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectCloneCommand {
+    #[command(subcommand)]
+    pub action: ProjectCloneAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProjectCloneAction {
+    /// Start cloning in the background and print the clone job.
+    Start(ProjectCloneStartArgs),
+    /// List clone jobs, newest first.
+    List,
+    /// Show one clone job with its progress.
+    Show(ProjectIdArgs),
+    /// Cancel a running clone and delete its partial folder.
+    Cancel(ProjectIdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectCloneStartArgs {
+    /// Repository URL or path that `git clone` accepts.
+    #[arg(long)]
+    pub url: String,
+    /// Existing folder to clone into.
+    #[arg(long)]
+    pub parent_path: String,
+    /// New folder name. Defaults to the repository name.
+    #[arg(long)]
+    pub directory_name: Option<String>,
+    /// Project display name. Defaults to the folder name.
+    #[arg(long)]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectBranchesArgs {
+    #[arg(long)]
+    pub project_id: String,
+    /// SSH target id, or `local` (the default).
+    #[arg(long)]
+    pub host_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectConfigCommand {
+    #[command(subcommand)]
+    pub action: ProjectConfigAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProjectConfigAction {
+    /// Show the effective settings and where they come from.
+    Show(ProjectConfigTargetArgs),
+    /// Save settings that override the repository's alera.toml. The JSON may
+    /// carry `worktree`, `newWorkspace`, and `gitHostingProvider`; each one
+    /// given replaces that part of the current settings.
+    Set(ProjectConfigSetArgs),
+    /// Remove the override so the repository's alera.toml applies again.
+    Remove(ProjectConfigTargetArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectConfigTargetArgs {
+    #[arg(long)]
+    pub project_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectConfigSetArgs {
+    #[arg(long)]
+    pub project_id: String,
+    /// Settings as JSON.
+    #[arg(
+        long,
+        conflicts_with = "config_stdin",
+        required_unless_present = "config_stdin"
+    )]
+    pub config: Option<String>,
+    /// Read the settings JSON from standard input.
+    #[arg(long)]
+    pub config_stdin: bool,
 }

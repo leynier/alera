@@ -67,7 +67,6 @@ impl CallOrigin {
     }
 
     /// The origin of the current process, when an MCP tool started it.
-    #[allow(dead_code)]
     pub(crate) fn from_env() -> Option<Self> {
         let text = std::env::var(ORIGIN_VARIABLE).ok()?;
         serde_json::from_str::<Self>(&text)

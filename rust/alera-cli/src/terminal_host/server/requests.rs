@@ -313,6 +313,8 @@ impl ServerActor {
                 }
                 if self.is_mobile_client(client_id) {
                     self.restart_mobile_terminal(client_id, payload).await
+                } else if payload["headless"] == true {
+                    self.restart_terminal_headless(client_id, payload).await
                 } else {
                     self.restart_terminal(client_id, payload).await
                 }
@@ -401,6 +403,10 @@ impl ServerActor {
                 self.pull_request_watch_request(client_id, request_type, payload)
                     .await
             }
+            "pullRequest.agentDispatch" => {
+                self.require_request_allowed(client_id, request_type)?;
+                self.pull_request_agent_dispatch(client_id, payload).await
+            }
             "workspaceSection.list"
             | "workspaceSection.create"
             | "workspaceSection.setForWorkspace"
@@ -415,6 +421,7 @@ impl ServerActor {
             }
             "workspaceActivity.list" => self.workspace_activity(client_id).await,
             "workspace.sleptTabs" => self.slept_workspace_tabs(client_id).await,
+            "workspace.wake" => self.wake_workspace_request(client_id, payload).await,
             "workspaceActivity.upsertAll" => {
                 self.upsert_workspace_activity(client_id, payload).await
             }
@@ -471,6 +478,36 @@ impl ServerActor {
             "project.clone.cancel" => {
                 self.require_auth(client_id)?;
                 self.project_clone_cancel_request(payload).await
+            }
+            "runtimeEvents.list" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.runtime_events_list_request(payload).await
+            }
+            "workspace.promptStart.start" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.prompt_workspace_start_request(payload).await
+            }
+            "workspace.promptStart.get" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.prompt_workspace_get_request(payload).await
+            }
+            "workspace.promptStart.list" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.prompt_workspace_list_request(payload).await
+            }
+            "workspace.promptStart.cancel" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.prompt_workspace_cancel_request(payload)
+            }
+            "workspace.promptStart.retryLaunch" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.prompt_workspace_retry_launch_request(payload).await
             }
 
             "project.upsert" => {

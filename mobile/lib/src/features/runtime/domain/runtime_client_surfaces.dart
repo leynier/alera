@@ -67,6 +67,24 @@ const String mobilePromptFileUploadCapability = 'mobilePromptFileUploadV1';
 const String mobilePromptAttachmentReadCapability =
     'mobilePromptAttachmentReadV1';
 
+/// The runtime runs New Workspace from Prompt as an operation
+/// (`workspace.promptStart.*`) and announces each change with
+/// [promptWorkspaceOperationsChangedEvent]. Additive.
+const String promptWorkspaceServiceCapability = 'promptWorkspaceServiceV1';
+const String promptWorkspaceOperationsChangedEvent =
+    'promptWorkspaceOperationsChanged';
+
+/// What New Workspace from Prompt needs to follow a runtime operation.
+abstract interface class MobilePromptWorkspaceServiceClient {
+  Stream<MobileRuntimeEvent> get events;
+  Set<String> get runtimeCapabilities;
+  Future<Map<String, Object?>> requestMap(
+    String type, [
+    Map<String, Object?> payload,
+    Duration? timeout,
+  ]);
+}
+
 class const MobileRuntimeEvent(
   final String name,
   final Map<String, Object?> payload,

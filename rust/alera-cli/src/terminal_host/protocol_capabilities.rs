@@ -44,6 +44,11 @@ pub const RUNTIME_HOST_MOBILE_REMOTE_WORKSPACES_CAPABILITY: &str = "mobileRemote
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 pub const RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY: &str = "workspaceSectionsV1";
+/// The host runs New Workspace from Prompt as a persisted operation
+/// (`workspace.promptStart.*`).
+pub const RUNTIME_HOST_PROMPT_WORKSPACE_SERVICE_CAPABILITY: &str = "promptWorkspaceServiceV1";
+/// The host keeps a cursor-ordered journal of domain events (`runtimeEvents.list`).
+pub const RUNTIME_HOST_RUNTIME_EVENTS_CAPABILITY: &str = "runtimeEventsV1";
 /// The host archives workspaces (`workspace.archive` / `workspace.unarchive`)
 /// instead of deleting them: live sessions stop, but tab records, layout,
 /// branch, and files are preserved so agent sessions can resume on unarchive.
@@ -62,6 +67,17 @@ pub const TERMINAL_SESSION_REMOVED_BY_SLEEP: &str = "workspaceSleep";
 /// the connected desktop apps that announced `workspaceFocusV1` in `hello`.
 /// Additive: an older host rejects the verb, so the CLI feature-checks this.
 pub const RUNTIME_HOST_WORKSPACE_FOCUS_CAPABILITY: &str = "workspaceFocusV1";
+/// The host answers `workspace.wake` by starting a session again for every
+/// terminal tab a workspace sleep stopped, as opening it in an app does.
+/// Additive: an older host rejects the verb, so the CLI feature-checks this.
+pub const RUNTIME_HOST_WORKSPACE_WAKE_CAPABILITY: &str = "workspaceWakeV1";
+/// `workspace.bufferGuard.acquire` accepts `resolution: save | discard`. With
+/// `save`, desktop apps that announced this same name in `hello` receive
+/// `checkoutBuffersSaveRequested` and save their dirty editors in scope before
+/// they acknowledge; with `discard` their lock event carries the resolution
+/// and they discard those editors first. Other apps get the plain lock and
+/// report dirty editors as blockers. Additive.
+pub const RUNTIME_HOST_CHECKOUT_BUFFER_SAVE_CAPABILITY: &str = "checkoutBufferSaveV1";
 /// The host stores one linked issue per workspace (`linkedIssue.*`), fetches
 /// issues through `issue.fetch`, and links one from `workspace.createManaged`
 /// when it carries `issueUrl`. Additive: an older host rejects the verbs and
@@ -74,6 +90,20 @@ pub const RUNTIME_HOST_LINKED_ISSUES_CAPABILITY: &str = "linkedIssuesV1";
 pub const RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_CAPABILITY: &str =
     "pullRequestWatchExecutionV1";
 pub const RUNTIME_HOST_PULL_REQUEST_WATCH_CAPABILITY: &str = "pullRequestWatchV1";
+/// The runtime runs Watch and Fix (evaluation, dispatch, and the fixAndMerge
+/// merge) for GitHub, GitLab, and Azure DevOps, so clients stop watching those
+/// forges themselves. Additive to `pullRequestWatchExecutionV1`, which keeps
+/// meaning GitHub.
+pub const RUNTIME_HOST_PULL_REQUEST_WATCH_EXECUTION_V2_CAPABILITY: &str =
+    "pullRequestWatchExecutionV2";
+/// `mobile.pullRequest.*` (snapshot, summaries, writes, and Ship) work on
+/// GitHub, GitLab, and Azure DevOps through the runtime's forge providers.
+pub const RUNTIME_HOST_PULL_REQUEST_FORGES_CAPABILITY: &str = "pullRequestForgesV1";
+/// `pullRequest.agentDispatch` answers or delivers the Restack and Fix Failed
+/// Checks prompts, which the runtime owns.
+pub const RUNTIME_HOST_PULL_REQUEST_AGENT_DISPATCH_CAPABILITY: &str = "pullRequestAgentDispatchV1";
+/// `pullRequestStack.get|create|link|merge` for GitHub-native stacks.
+pub const RUNTIME_HOST_PULL_REQUEST_STACKS_CAPABILITY: &str = "pullRequestStacksV1";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead
 // of the strict-equality mobile protocol version.
@@ -164,6 +194,9 @@ pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV
 // Advertised once the host answers `inbox.*` for questions from addresses
 // outside Alera (`ext:`), on desktop, CLI and paired phones alike.
 pub const RUNTIME_HOST_INBOX_CAPABILITY: &str = "inboxV1";
+// Advertised once `inbox.ask` records an MCP client's `externalOrigin` from
+// local clients and `inbox.threads`/`inbox.wait` filter by `originClientId`.
+pub const RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY: &str = "inboxOriginV1";
 // Advertised once dispatch honors the explicit agent adapter override. Older
 // hosts ignore assumeAgent, so callers must negotiate this capability first.
 pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrationAssumeAgentV1";
@@ -196,6 +229,9 @@ pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresenc
 // preserving its handle and scrollback. Older hosts remain attachable.
 pub const RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY: &str = "terminalRestartV1";
 pub const RUNTIME_HOST_TERMINAL_PULSE_CAPABILITY: &str = "terminalPulseV1";
+// Advertised once `terminal.restart` with `headless: true` picks the launch
+// and types the tab's startup command for a caller that renders nothing.
+pub const RUNTIME_HOST_TERMINAL_HEADLESS_RESTART_CAPABILITY: &str = "terminalHeadlessRestartV1";
 /// The client may ask, in its `hello`, to switch this connection to
 /// length-prefixed binary frames. Negotiated per client, so an older app and
 /// the `alera` CLI keep getting newline-delimited JSON from the same host.

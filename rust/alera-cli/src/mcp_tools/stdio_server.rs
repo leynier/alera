@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
+use super::subscriptions::{listed_resources, resolve, Subscriptions};
 use super::{catalog, find_tool, run_tool, CallOrigin, ToolExecution, ToolSpec};
 use crate::mcp_settings::McpAccess;
 
@@ -39,6 +40,7 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
         }
     });
     let permits = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_CALLS));
+    let mut subscriptions = Subscriptions::new(execution.runtime_dir.clone(), output.clone());
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
         if output.is_closed() {
@@ -72,6 +74,49 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
                 let _ = output.send(success(id, initialize_result(&params))).await;
             }
             "ping" => {
+                let _ = output.send(success(id, json!({}))).await;
+            }
+            "resources/list" => {
+                let resources = json!({ "resources": listed_resources() });
+                let _ = output.send(success(id, resources)).await;
+            }
+            "resources/read" => {
+                let uri = params["uri"].as_str().unwrap_or_default().to_owned();
+                let response = match resolve(&uri) {
+                    Some((resource, arguments)) => match find_tool(resource.tool) {
+                        Some(tool) => {
+                            let result =
+                                run_tool(&execution, &tool, &arguments, &origin, None).await;
+                            if result.is_error {
+                                error(id, -32603, &result.text)
+                            } else {
+                                success(
+                                    id,
+                                    json!({ "contents": [{
+                                        "uri": uri,
+                                        "mimeType": "application/json",
+                                        "text": result.text,
+                                    }]}),
+                                )
+                            }
+                        }
+                        None => error(id, -32002, &format!("Resource not found: {uri}")),
+                    },
+                    None => error(id, -32002, &format!("Resource not found: {uri}")),
+                };
+                let _ = output.send(response).await;
+            }
+            "resources/subscribe" => {
+                let uri = params["uri"].as_str().unwrap_or_default();
+                let response = if subscriptions.subscribe(uri) {
+                    success(id, json!({}))
+                } else {
+                    error(id, -32002, &format!("Resource not found: {uri}"))
+                };
+                let _ = output.send(response).await;
+            }
+            "resources/unsubscribe" => {
+                subscriptions.unsubscribe(params["uri"].as_str().unwrap_or_default());
                 let _ = output.send(success(id, json!({}))).await;
             }
             "tools/list" => {
@@ -133,6 +178,7 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
     // The client is gone: stop running calls and keep queued ones from
     // starting, since nobody can receive their results.
     cancel_all(&pending);
+    drop(subscriptions);
     drop(output);
     let _ = writer.await;
     Ok(())
@@ -167,7 +213,10 @@ pub(crate) fn negotiate_version(requested: Option<&str>) -> &'static str {
 fn initialize_result(params: &Value) -> Value {
     json!({
         "protocolVersion": negotiate_version(params["protocolVersion"].as_str()),
-        "capabilities": { "tools": { "listChanged": false } },
+        "capabilities": {
+            "tools": { "listChanged": false },
+            "resources": { "subscribe": true, "listChanged": false },
+        },
         "serverInfo": {
             "name": "alera",
             "title": "Alera",

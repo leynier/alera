@@ -133,6 +133,9 @@ pub struct InboxThreadFilter {
     pub inbox: Option<String>,
     pub workspace_id: Option<String>,
     pub status: Option<InboxQuestionStatus>,
+    /// Only threads whose recorded `origin.clientId` equals this value, such
+    /// as the questions one MCP client asked in a shared inbox.
+    pub origin_client_id: Option<String>,
     pub before_sequence: Option<i64>,
     pub limit: i64,
 }

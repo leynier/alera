@@ -103,7 +103,6 @@ pub(super) fn execute(
 
 /// A tool reserved for runtime administration, agent configuration, and
 /// internal maintenance. It needs the `mcp:admin` scope and the `admin` level.
-#[allow(dead_code)]
 pub(super) fn admin(
     name: &'static str,
     title: &'static str,

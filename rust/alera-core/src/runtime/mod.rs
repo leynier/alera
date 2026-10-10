@@ -114,6 +114,7 @@ mod orchestration_task_recovery_store;
 mod orchestration_task_store;
 mod project_clone_job_store;
 mod project_clone_models;
+mod prompt_workspace_operation_store;
 mod pull_request_watch_store;
 #[cfg(test)]
 mod pull_request_watch_store_tests;
@@ -122,6 +123,7 @@ mod relocation_setup_descendant_store;
 mod relocation_setup_process_store;
 mod relocation_setup_recovery_store;
 mod relocation_setup_store;
+mod runtime_event_store;
 mod terminal_lifecycle_store;
 mod workspace_record_write;
 mod workspace_retirement_store;
@@ -325,7 +327,11 @@ pub use orchestration_run_snapshot::*;
 pub use orchestration_task_inspection::*;
 pub use orchestration_task_store::NewOrchestrationTask;
 pub use project_clone_models::*;
+pub use prompt_workspace_operation_store::PromptWorkspaceOperationRecord;
 pub use pull_request_watch_store::{PullRequestWatch, PullRequestWatchDispatchMark};
+pub use runtime_event_store::{
+    RuntimeEvent, RuntimeEventFilter, RuntimeEventPage, RUNTIME_EVENT_RETENTION_DAYS,
+};
 pub use runtime_file_security::*;
 pub use settings_models::*;
 pub use ssh_target_store::SshTargetBootstrapStateUpdate;
