@@ -887,3 +887,41 @@ No hay preguntas bloqueantes.
 - Código citado con rutas y líneas a partir de `c8b3d3984`.
 - Referencia de eventos: `~/Projects/educup/educup-automations/docs/mcp-events.md`.
 - Externas: [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events) y [MCP 2026-07-28](https://blog.modelcontextprotocol.io/posts/2026-07-28/).
+
+## 13. Estado de implementación (rama `feat/mcp-parity`)
+
+Implementado y verificado:
+
+- **Catálogo:** 220 herramientas (87 Read, 112 Full, 21 Admin). Los tests de catálogo verifican tres cosas: que cada invocación la acepta el parser real del CLI, que ninguna herramienta llega a un comando excluido ni a una decisión humana, y que los niveles siguen F1 y F2.
+- **Fases 0-6, 7 y 8:** implementadas tal como describe este plan.
+- **Validación:**
+  - Rust `alera-cli`: 2036 tests en verde; `alera-core` con la feature `runtime` también en verde.
+  - Cloud: 86 tests unitarios y 13 contratos con Postgres.
+  - Edge: 106 tests.
+  - Flutter: 4505 tests en desktop y 937 en mobile.
+  - `flutter analyze`, clippy, fmt, el ratchet de líneas y la consistencia de codegen sin incidencias.
+- **Aceptación de extremo a extremo** con `tool/ci/mcp_parity_acceptance.py`: 10 de 10 escenarios. Se ejecuta con un cliente MCP real (`alera mcp serve`) sobre un runtime aislado y cubre:
+  - New Workspace from Prompt: inferencia, sección y "Others", idempotencia, candidatos, modo carpeta del proyecto y colisiones;
+  - el diario de eventos;
+  - las suscripciones a recursos.
+
+Diferencias con el plan:
+
+- **Idempotencia:** no se creó la tabla genérica `mcpMutationReceipts`. Usan las claves nativas existentes (`--client-mutation-id`, `--request-key`, `requestId`) donde las hay.
+- **Ship:** sigue siendo síncrono y puede superar los 58 s del cliente. El ship continúa en el runtime y se consulta luego con `get_pull_request`.
+- **Merge en Azure DevOps:** solo `mergeCommit` y `squash`, como en el desktop.
+- **Stacks:** el desktop sigue usando su implementación Dart de stacks.
+
+Pendiente (requiere despliegue, cuentas reales o pruebas manuales):
+
+- **MCP Events (8.0 y 8f):** la verificación de requisitos y la prueba real en ChatGPT necesitan desplegar edge y nube, con estos ajustes:
+  - `ALERA_WEBHOOK_SECRET_KEY`;
+  - `MCP_EVENTS_ENABLED` / `ALERA_MCP_EVENTS_ENABLED`;
+  - `EVENT_DELIVERY_PUMP=true`, o `cpu_idle = false` en Cloud Run.
+- **PR en forjas reales:** pruebas de extremo a extremo con cuentas y repos reales de GitLab y Azure DevOps (`glab`, `az`).
+- **Pruebas manuales en máquina real:**
+  - borrado con buffers sucios (save y discard);
+  - wake;
+  - Setup lanzado por el host;
+  - inbox compartido entre dos clientes;
+  - Windows y macOS.

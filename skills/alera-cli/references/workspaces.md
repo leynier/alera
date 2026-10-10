@@ -124,6 +124,15 @@ alera workspace --json start --profile "Codex Sol" --prompt "Add dark mode"
 alera workspace --json start --profile "Codex Sol" --prompt "Add dark mode" --project-id <project-id> --source-branch main --branch feat/dark-mode --name "Dark Mode" --no-parent
 ```
 
+Start a workspace exactly like the app's New Workspace from Prompt form, as one runtime operation. Without `--project-id`, AI Assist recognizes the project from the prompt; an unclear prompt ends with status `needsInput` and a list of candidates instead of guessing. AI Assist also names the workspace and branch and picks a section, or none (Others). `--mode auto` (default) uses a new worktree for Git projects; the profile defaults to the runtime's default. `--request-id` makes a retry return the first operation instead of creating a second workspace:
+
+```bash
+alera workspace --json prompt-start run --prompt "Fix the login screen" --wait 60
+alera workspace --json prompt-start run --prompt-stdin --project-id <project-id> --mode project-checkout --section none --request-id <key>
+alera workspace --json prompt-start wait --id <operation-id> --timeout-seconds 60
+alera workspace --json prompt-start retry-launch --id <operation-id>
+```
+
 Move the main worktree's current work into a new child workspace (hand off). From an Alera terminal this defaults to `ALERA_WORKSPACE_ID`:
 
 This command is the same from Bash, PowerShell, and CMD:
