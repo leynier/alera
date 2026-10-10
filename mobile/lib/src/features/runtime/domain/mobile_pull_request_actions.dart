@@ -81,6 +81,7 @@ abstract interface class MobilePullRequestActionsClient {
     required int number,
     required String body,
     int? replyToCommentId,
+    String? replyToThreadId,
   });
 
   Future<MobilePullRequestSnapshot> editPullRequestComment({

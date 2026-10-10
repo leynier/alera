@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,4 +51,30 @@ void main() {
       });
     },
   );
+
+  test('replies and edits name their thread, as Azure DevOps needs', () async {
+    final requests = _RecordingRequests();
+
+    await requests.commentOnPullRequest(
+      workspaceId: 'workspace-1',
+      number: 12,
+      body: 'Done',
+      replyToCommentId: 1,
+      replyToThreadId: '7',
+    );
+    await requests.editPullRequestComment(
+      workspaceId: 'workspace-1',
+      number: 12,
+      comment: const MobilePullRequestComment(
+        id: 1,
+        source: 'reviewThread',
+        threadId: '8',
+      ),
+      body: 'Edited',
+    );
+
+    expect(requests.requests[0].$2['replyToThreadId'], '7');
+    expect(requests.requests[0].$2['replyToCommentId'], 1);
+    expect(requests.requests[1].$2['threadId'], '8');
+  });
 }

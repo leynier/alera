@@ -141,7 +141,10 @@ void _registerPullRequestActionsWidgetTests() {
     await tester.enterText(find.byType(TextField).last, 'Done');
     await tester.tap(find.widgetWithText(FilledButton, 'Reply'));
     await tester.pumpAndSettle();
-    expect(client.calls, contains('commentOnPullRequest 700 Done reply:21'));
+    expect(
+      client.calls,
+      contains('commentOnPullRequest 700 Done reply:21 thread:T1'),
+    );
 
     await tester.scrollUntilVisible(find.byTooltip('Edit Comment'), -200);
     await tester.tap(find.byTooltip('Edit Comment'));
