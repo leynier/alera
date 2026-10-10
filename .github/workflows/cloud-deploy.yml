@@ -81,10 +81,25 @@ jobs:
           fi
 
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            pulls="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls")"
-            if ! jq -e --arg sha "$GITHUB_SHA" \
-              'any(.[]; .merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)' \
-              <<<"$pulls" >/dev/null; then
+            # GitHub links a merge commit to its pull request a few seconds
+            # after the push, so a lookup right away can find no pull request
+            # for a legitimate merge. Ask again for about a minute before
+            # treating the push as direct.
+            merged=false
+            for attempt in 1 2 3 4 5 6 7; do
+              pulls="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls")"
+              if jq -e --arg sha "$GITHUB_SHA" \
+                'any(.[]; .merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)' \
+                <<<"$pulls" >/dev/null; then
+                merged=true
+                break
+              fi
+              if [[ "$attempt" -lt 7 ]]; then
+                echo "No merged pull request found for $GITHUB_SHA yet (attempt $attempt); retrying in 10 seconds."
+                sleep 10
+              fi
+            done
+            if [[ "$merged" != true ]]; then
               echo "Refusing a direct push: $GITHUB_SHA is not the merge commit of a PR merged into main." >&2
               exit 1
             fi
