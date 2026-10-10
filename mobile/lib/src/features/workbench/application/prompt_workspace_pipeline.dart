@@ -42,6 +42,7 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
   required String clientMutationId,
   void Function(String phase)? onPhase,
   void Function(String? operationId)? onOperationId,
+  void Function(String? operationId)? onServiceOperationId,
   void Function(WorkspaceCreationResult creation)? onWorkspaceCreated,
   String? serviceRequestId,
 }) async {
@@ -75,6 +76,7 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
       requestId:
           serviceRequestId ?? 'mobile-prompt-workspace:$clientMutationId',
       onPhase: onPhase,
+      onOperationId: onServiceOperationId,
       onWorkspaceCreated: onWorkspaceCreated,
     );
   }
@@ -232,20 +234,29 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
 }
 
 /// The runtime runs every step, including the Setup tab, so the phone never
-/// launches the deferred setup on this path.
+/// launches the deferred setup on this path. [onOperationId] receives the
+/// running `workspace.promptStart` operation, cleared once it ends, so a
+/// cancel reaches that operation rather than the client-side identity call.
 Future<PromptWorkspaceCreateOutcome> _runOnService(
   MobilePromptWorkspaceServiceClient service, {
   required PromptWorkspaceCreateRequest request,
   required String requestId,
   void Function(String phase)? onPhase,
+  void Function(String? operationId)? onOperationId,
   void Function(WorkspaceCreationResult creation)? onWorkspaceCreated,
 }) async {
-  final operation = await runPromptWorkspaceOperation(
-    service,
-    request: request,
-    requestId: requestId,
-    onPhase: onPhase,
-  );
+  late final PromptWorkspaceOperation operation;
+  try {
+    operation = await runPromptWorkspaceOperation(
+      service,
+      request: request,
+      requestId: requestId,
+      onPhase: onPhase,
+      onStarted: onOperationId,
+    );
+  } finally {
+    onOperationId?.call(null);
+  }
   final creation = operation.creation;
   if (creation == null) {
     throw PromptWorkspaceServiceFailure(operation);

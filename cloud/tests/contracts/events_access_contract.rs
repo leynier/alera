@@ -1,4 +1,4 @@
-use alera_cloud::events::fanout::fan_out_pending;
+use alera_cloud::events::{delivery::run_pass, fanout::fan_out_pending};
 
 use super::mcp_contract::delete_account;
 use super::mcp_http::*;
@@ -195,6 +195,122 @@ async fn mcp_events_follow_the_runtime_mcp_control_but_webhooks_do_not() -> anyh
             .count(),
         2
     );
+    delete_account(&pool, session["account"]["id"].as_str()).await?;
+    pool.close().await;
+    Ok(())
+}
+
+/// The status, attempts, and error of the delivery of `event_id` to `subscription_id`.
+async fn delivery_row(
+    pool: &sqlx::PgPool,
+    event_id: &str,
+    subscription_id: &str,
+) -> anyhow::Result<(String, i32, Option<String>)> {
+    Ok(sqlx::query_as(
+        r#"
+        SELECT d.status, d.attempts, d.last_error
+        FROM event_deliveries d JOIN domain_events e ON e.id = d.event_id
+        WHERE e.event_id = $1 AND d.subscription_id = $2
+        "#,
+    )
+    .bind(event_id)
+    .bind(subscription_id)
+    .fetch_one(pool)
+    .await?)
+}
+
+#[tokio::test]
+#[ignore = "requires TEST_DATABASE_URL pointing to an isolated PostgreSQL database"]
+async fn the_mcp_events_switch_pauses_deliveries_without_revoking() -> anyhow::Result<()> {
+    let url = std::env::var("TEST_DATABASE_URL")?;
+    let pool = PgPoolOptions::new()
+        .max_connections(6)
+        .connect(&url)
+        .await?;
+    migrations::run(&pool).await?;
+    let email = format!("{}@example.test", Uuid::now_v7());
+    let state = test_state(
+        pool.clone(),
+        url.clone(),
+        email,
+        true,
+        Arc::new(AtomicUsize::new(0)),
+    )?;
+    let app = router(state.clone());
+    let runtime = format!("runtime-{}", Uuid::now_v7());
+    let session = sign_in(&app, "google", &runtime).await?;
+    let token = session["accessToken"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    report_runtime(&app, &token, &runtime, "full", true).await?;
+    let client_id = register_client(&app, "Events Pause Client").await?;
+    let (access, _, _) = authorize_runtimes(&app, &client_id, &[&runtime], false).await?;
+    let receiver = Receiver::start().await?;
+    let subscribed = post_json(
+        &app,
+        "/v1/mcp/event-subscriptions",
+        Some(&access),
+        mcp_subscription(&receiver.url("/echo"), json!({})),
+    )
+    .await?;
+    assert_eq!(subscribed.status, StatusCode::OK, "{}", subscribed.text());
+    let subscription_id = subscribed.json()["id"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+
+    // Switch off: a delivery queued for a valid grant is neither attempted nor stopped,
+    // and the subscription is not revoked.
+    let mut config = test_config(url.clone())?;
+    config.events.mcp_events_enabled = false;
+    let paused = AppState::from_dependencies(
+        pool.clone(),
+        config,
+        state.oauth.clone(),
+        Arc::new(LocalEd25519Signer::from_seed_b64url(
+            "api-contract".to_owned(),
+            &URL_SAFE_NO_PAD.encode([23_u8; 32]),
+        )?),
+        state.fcm.clone(),
+    );
+    let paused_app = router(paused.clone());
+    let queued = event("agent.status", json!({"state": "waiting"}));
+    let queued_id = queued["eventId"].as_str().unwrap_or_default().to_owned();
+    post_events(&paused_app, &token, &runtime, vec![queued]).await?;
+    fan_out_pending(&paused).await?;
+    sqlx::query(
+        r#"
+        INSERT INTO event_deliveries (
+            id, subscription_id, event_id, status, attempts, next_attempt_at, created_at
+        )
+        SELECT gen_random_uuid(), $2, e.id, 'pending', 0, now(), now()
+        FROM domain_events e WHERE e.event_id = $1
+        "#,
+    )
+    .bind(&queued_id)
+    .bind(&subscription_id)
+    .execute(&pool)
+    .await?;
+    for _ in 0..3 {
+        run_pass(&paused).await?;
+    }
+    let row = delivery_row(&pool, &queued_id, &subscription_id).await?;
+    assert_eq!((row.0.as_str(), row.1, row.2), ("pending", 0, None));
+    let status: String = sqlx::query_scalar("SELECT status FROM event_subscriptions WHERE id = $1")
+        .bind(&subscription_id)
+        .fetch_one(&pool)
+        .await?;
+    assert_eq!(status, "active");
+    assert!(paths(&receiver).is_empty(), "nothing is sent while paused");
+
+    // Switch back on: the queued delivery goes out.
+    deliver_all(&state).await?;
+    let row = delivery_row(&pool, &queued_id, &subscription_id).await?;
+    assert_eq!(row.0, "delivered");
+    let delivered = receiver.events();
+    assert_eq!(delivered.len(), 1);
+    assert_eq!(delivered[0].json()["eventId"], queued_id.as_str());
     delete_account(&pool, session["account"]["id"].as_str()).await?;
     pool.close().await;
     Ok(())

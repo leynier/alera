@@ -162,8 +162,20 @@ Map<String, Object?> promptWorkspaceStartPayload(
   };
 }
 
+/// Asks the runtime to stop operation [id]. The host keeps a workspace it
+/// already created, and the operation can later retry its agent launch.
+Future<void> cancelPromptWorkspaceOperation(
+  MobilePromptWorkspaceServiceClient service,
+  String id,
+) => service.requestMap('workspace.promptStart.cancel', <String, Object?>{
+  'id': id,
+});
+
 /// Starts [request] on the runtime, or relaunches the agent of the operation
 /// that created its workspace, and follows it until it leaves `running`.
+///
+/// [onStarted] receives the operation id as soon as the runtime accepts the
+/// request, so a caller can cancel it while it runs.
 ///
 /// Each `promptWorkspaceOperationsChanged` for the operation triggers a read;
 /// until one arrives the operation is polled every [pollInterval], since an
@@ -173,6 +185,7 @@ Future<PromptWorkspaceOperation> runPromptWorkspaceOperation(
   required PromptWorkspaceCreateRequest request,
   required String requestId,
   void Function(String phase)? onPhase,
+  void Function(String operationId)? onStarted,
   Duration pollInterval = const Duration(seconds: 1),
   Duration eventSafetyInterval = const Duration(seconds: 10),
   int maxConsecutiveReadFailures = 3,
@@ -194,6 +207,7 @@ Future<PromptWorkspaceOperation> runPromptWorkspaceOperation(
   if (!current.isRunning) {
     return current;
   }
+  onStarted?.call(current.id);
   onPhase?.call(promptWorkspacePhaseLabel(current.phase));
   var wake = Completer<void>();
   var eventsSeen = false;

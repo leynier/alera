@@ -118,16 +118,22 @@ pub async fn run_pass(state: &AppState) -> Result<PassSummary, ApiError> {
     Ok(summary)
 }
 
+/// Claims due deliveries. While the MCP Events switch is off (`$4`), MCP Events deliveries
+/// are not claimed at all: they stay queued, untouched, until the switch comes back on.
 async fn claim(state: &AppState) -> Result<Vec<Claimed>, ApiError> {
     let now = Utc::now();
     let ids = sqlx::query_scalar::<_, Uuid>(
         r#"
         WITH due AS (
-            SELECT id FROM event_deliveries
-            WHERE status IN ('pending', 'sending') AND next_attempt_at <= $1
-            ORDER BY next_attempt_at
+            SELECT d.id FROM event_deliveries d
+            WHERE d.status IN ('pending', 'sending') AND d.next_attempt_at <= $1
+              AND ($4 OR NOT EXISTS (
+                  SELECT 1 FROM event_subscriptions s
+                  WHERE s.id = d.subscription_id AND s.target_kind = 'mcp_events'
+              ))
+            ORDER BY d.next_attempt_at
             LIMIT $2
-            FOR UPDATE SKIP LOCKED
+            FOR UPDATE OF d SKIP LOCKED
         )
         UPDATE event_deliveries d
         SET status = 'sending', attempts = d.attempts + 1, lease_until = $3, next_attempt_at = $3
@@ -138,6 +144,7 @@ async fn claim(state: &AppState) -> Result<Vec<Claimed>, ApiError> {
     .bind(now)
     .bind(CLAIM_BATCH)
     .bind(now + LEASE)
+    .bind(state.config.events.mcp_events_enabled)
     .fetch_all(&state.pool)
     .await?;
     if ids.is_empty() {
@@ -152,14 +159,14 @@ async fn claim(state: &AppState) -> Result<Vec<Claimed>, ApiError> {
                    SELECT 1 FROM runtimes r
                    WHERE r.id = e.runtime_id AND r.mcp_access <> 'off'
                )) AS runtime_allowed,
-               (s.target_kind = 'webhook' OR ($2 AND EXISTS (
+               (s.target_kind = 'webhook' OR EXISTS (
                    SELECT 1 FROM mcp_grants g
                    WHERE g.id = s.owner_grant_id AND g.revoked_at IS NULL
                      AND (g.all_runtimes OR EXISTS (
                          SELECT 1 FROM mcp_grant_runtimes gr
                          WHERE gr.grant_id = g.id AND gr.runtime_id = e.runtime_id
                      ))
-               ))) AS authorized,
+               )) AS authorized,
                e.event_id, e.kind, e.runtime_id, e.workspace_id, e.project_id, e.seq, e.data,
                e.occurred_at, e.received_at,
                (SELECT MIN(e2.received_at)
@@ -173,7 +180,6 @@ async fn claim(state: &AppState) -> Result<Vec<Claimed>, ApiError> {
         "#,
     )
     .bind(&ids)
-    .bind(state.config.events.mcp_events_enabled)
     .fetch_all(&state.pool)
     .await?)
 }

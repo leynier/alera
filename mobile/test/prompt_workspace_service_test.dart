@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/background_setup_jobs.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_pipeline.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_service.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -26,6 +27,9 @@ class _ServiceClient extends FakeTerminalClient
       <(String, Map<String, Object?>)>[];
   final List<Map<String, Object?>> reads = <Map<String, Object?>>[];
   Map<String, Object?> started = _operation('running', 'resolvingProject');
+
+  /// Holds the start answer back until completed, when set.
+  Completer<void>? startGate;
   final StreamController<MobileRuntimeEvent> serviceEvents =
       StreamController<MobileRuntimeEvent>.broadcast();
 
@@ -39,10 +43,17 @@ class _ServiceClient extends FakeTerminalClient
     Duration? timeout,
   ]) async {
     requests.add((type, payload));
+    if (type == 'workspace.promptStart.start') {
+      await startGate?.future;
+    }
     return switch (type) {
       'workspace.promptStart.start' ||
       'workspace.promptStart.retryLaunch' => started,
       'workspace.promptStart.get' => reads.removeAt(0),
+      'workspace.promptStart.cancel' => <String, Object?>{
+        'id': payload['id'],
+        'cancelling': true,
+      },
       _ => throw StateError('unexpected $type'),
     };
   }
@@ -55,6 +66,12 @@ class _ServiceClient extends FakeTerminalClient
 
   List<String> get types => <String>[
     for (final request in requests) request.$1,
+  ];
+
+  /// The payloads of every [type] request, in order.
+  List<Map<String, Object?>> payloadsOf(String type) => <Map<String, Object?>>[
+    for (final request in requests)
+      if (request.$1 == type) request.$2,
   ];
 }
 
@@ -305,5 +322,149 @@ void main() {
       container.read(backgroundSetupJobsProvider).jobById('job-1'),
       isNull,
     );
+  });
+
+  test('reports the running operation so a caller can cancel it', () async {
+    final client = _ServiceClient()
+      ..started = _operation('running', 'generatingIdentity')
+      ..reads.add(_operation('cancelled', 'generatingIdentity'));
+    addTearDown(client.dispose);
+    final ids = <String?>[];
+
+    final future = runPromptWorkspaceCreate(
+      client: client,
+      loadTerminalClient: () async => client,
+      request: _request,
+      clientMutationId: 'mutation-1',
+      serviceRequestId: 'req-1',
+      onServiceOperationId: ids.add,
+    );
+    await pumpEventQueue();
+    expect(ids, <String?>['op-1']);
+    await cancelPromptWorkspaceOperation(client, ids.single!);
+    client.changed();
+
+    await expectLater(
+      future,
+      throwsA(
+        isA<PromptWorkspaceServiceFailure>().having(
+          (failure) => failure.toString(),
+          'message',
+          'Workspace creation was cancelled.',
+        ),
+      ),
+    );
+    expect(ids, <String?>['op-1', null]);
+    expect(client.types[1], 'workspace.promptStart.cancel');
+    expect(client.payloadsOf('workspace.promptStart.cancel'), [
+      {'id': 'op-1'},
+    ]);
+  });
+
+  group('prompt workspace controller on the runtime service', () {
+    Future<PromptWorkspaceController> controllerFor(
+      _ServiceClient client,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          workspaceClientProvider('host').overrideWith((ref) async => client),
+          terminalClientProvider('host').overrideWith((ref) async => client),
+        ],
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        promptWorkspaceControllerProvider('host'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      final controller = container.read(
+        promptWorkspaceControllerProvider('host').notifier,
+      );
+      await controller.selectProject('project');
+      return controller;
+    }
+
+    test('cancel stops the operation and Retry Agent relaunches it', () async {
+      final client = _ServiceClient()
+        ..projectBranches = const <String>['main']
+        ..started = _operation('running', 'generatingIdentity')
+        ..reads.add(_operation('cancelled', 'launchingAgent', workspace: true));
+      addTearDown(client.dispose);
+      final controller = await controllerFor(client);
+
+      final created = controller.create(
+        prompt: 'Build the feature',
+        workspaceBranches: const <String>{},
+      );
+      final failure = expectLater(
+        created,
+        throwsA(isA<PromptWorkspaceLaunchException>()),
+      );
+      await pumpEventQueue();
+      expect(controller.state.phase, 'Generating workspace identity');
+      await controller.cancelGeneration();
+      client.changed();
+      await failure;
+
+      expect(client.payloadsOf('workspace.promptStart.cancel'), [
+        {'id': 'op-1'},
+      ]);
+      expect(
+        client.calls.where((call) => call.startsWith('cancelWorkspace')),
+        isEmpty,
+      );
+      expect(controller.state.creation?.workspace.id, 'ws-1');
+
+      // The host kept the workspace; Retry Agent relaunches the operation
+      // there rather than launching a second agent from the phone.
+      client.started = _operation(
+        'completed',
+        'done',
+        workspace: true,
+        agentTabId: 'agent-tab',
+      );
+      await controller.retryAgent('Build the feature');
+
+      expect(client.requests.last.$1, 'workspace.promptStart.retryLaunch');
+      expect(client.requests.last.$2, <String, Object?>{'id': 'op-1'});
+      expect(controller.state.agentTabId, 'agent-tab');
+      expect(controller.state.error, isNull);
+      expect(
+        client.calls.where((call) => call.startsWith('launchAgentProfile')),
+        isEmpty,
+      );
+    });
+
+    test('cancel before the runtime answers reaches the operation', () async {
+      final gate = Completer<void>();
+      final client = _ServiceClient()
+        ..projectBranches = const <String>['main']
+        ..startGate = gate
+        ..started = _operation('running', 'generatingIdentity')
+        ..reads.add(_operation('cancelled', 'generatingIdentity'));
+      addTearDown(client.dispose);
+      final controller = await controllerFor(client);
+
+      final failure = expectLater(
+        controller.create(
+          prompt: 'Build the feature',
+          workspaceBranches: const <String>{},
+        ),
+        throwsA(isA<PromptWorkspaceServiceFailure>()),
+      );
+      await pumpEventQueue();
+      await controller.cancelGeneration();
+      expect(client.types, <String>['workspace.promptStart.start']);
+
+      gate.complete();
+      await pumpEventQueue();
+      expect(client.types[1], 'workspace.promptStart.cancel');
+      expect(client.payloadsOf('workspace.promptStart.cancel'), [
+        {'id': 'op-1'},
+      ]);
+      client.changed();
+      await failure;
+      expect(controller.state.error, 'Workspace creation was cancelled.');
+    });
   });
 }

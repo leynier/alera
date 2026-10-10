@@ -5,12 +5,18 @@
 //! without a terminal view (the CLI, an MCP tool) asks the host to do the same
 //! attach for every slept tab, the way a phone attaches one tab: the host
 //! resolves each tab's command and native agent session from its record.
+//! An app types a command or agent launch tab's startup line itself on attach,
+//! so for a caller that types nothing the host delivers it, the way
+//! `terminal.restart` does for a headless caller.
 
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::requests::{require_string_key, terminal_session_id_from_tab};
 use crate::terminal_host::server::terminal_launch_defaults::default_terminal_launch;
+use crate::terminal_host::server::terminal_startup_commands::{
+    initial_command, initial_managed_agent_launch,
+};
 use crate::terminal_host::server::ServerActor;
 
 impl ServerActor {
@@ -65,15 +71,26 @@ impl ServerActor {
                 "cols": 80,
                 "rows": 24,
             });
-            match self.create_or_attach(client_id, &attachment).await {
-                Ok(_) => {
+            let started = match self.create_or_attach(client_id, &attachment).await {
+                Ok(attached) => {
                     // The caller only asked for the wake; it does not view
                     // the terminal, so an app that opens it later drives it.
                     if let Some(session) = self.sessions.get_mut(&session_id) {
                         session.detach(client_id);
                     }
-                    woken.push(json!({ "tabId": tab.id, "sessionId": session_id }));
+                    // Only a new PTY needs its startup line; a terminal still
+                    // running already has its command.
+                    if attached["created"] == true {
+                        self.deliver_woken_tab_startup(&tab, &session_id, launch.interactive_shell)
+                            .await
+                    } else {
+                        Ok(())
+                    }
                 }
+                Err(error) => Err(error),
+            };
+            match started {
+                Ok(()) => woken.push(json!({ "tabId": tab.id, "sessionId": session_id })),
                 Err(error) => failed.push(json!({ "tabId": tab.id, "error": error.to_string() })),
             }
         }
@@ -98,6 +115,31 @@ impl ServerActor {
             "woken": woken,
             "failed": failed,
         }))
+    }
+}
+
+impl ServerActor {
+    /// The attach typed a discovered resume line for a plain shell tab. A
+    /// command or managed agent launch is the attaching client's to type, so
+    /// type it here, in its resume form once the agent reported a session.
+    async fn deliver_woken_tab_startup(
+        &mut self,
+        tab: &alera_core::runtime::WorkspaceTabRecord,
+        session_id: &str,
+        interactive_shell: String,
+    ) -> HostResult<()> {
+        if initial_managed_agent_launch(tab)?.is_none() && initial_command(tab)?.is_none() {
+            return Ok(());
+        }
+        if self
+            .deliver_tab_startup_command(tab, session_id, interactive_shell, None)
+            .await?
+            .is_some()
+        {
+            // A one-shot command or prompt was spent with this delivery.
+            self.broadcast_workspace_tabs_changed(Some(&tab.workspace_id));
+        }
+        Ok(())
     }
 }
 

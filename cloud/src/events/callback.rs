@@ -1,5 +1,6 @@
 //! Outbound webhook egress: HTTPS only, public addresses only, the checked address pinned
-//! for the connection, no redirects, 10 seconds per attempt, and a 16 KiB response cap.
+//! for the connection, no proxy, no redirects, 10 seconds per attempt, and a 16 KiB
+//! response cap.
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
@@ -149,7 +150,10 @@ impl CallbackClient {
         body: Vec<u8>,
     ) -> Result<Reply, CallbackError> {
         let address = self.destination(&url).await?;
+        // No proxy: a proxy would resolve the hostname itself (CONNECT host:port) and
+        // could reach a private address, bypassing the check and the pinned address.
         let mut builder = Client::builder()
+            .no_proxy()
             .timeout(self.timeout)
             .redirect(Policy::none());
         if let Some(Host::Domain(host)) = url.host() {

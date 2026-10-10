@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_pipeline.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_service.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -63,6 +67,15 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
   String? _checkoutHostId;
   int _selectionGeneration = 0;
   String? _activeOperationId;
+
+  /// The running `workspace.promptStart` operation on a runtime that owns
+  /// New Workspace from Prompt; cancel goes to it instead of the identity.
+  String? _activeServiceOperationId;
+  bool _cancelRequested = false;
+
+  /// The request and runtime operation behind a workspace the runtime kept
+  /// after a failed or cancelled launch, so Retry Agent relaunches there.
+  PromptWorkspaceCreateRequest? _serviceRetryRequest;
   String? _agentLaunchMutationId;
   bool? _originalAgentLaunchWasIdempotent;
   String? _defaultAgentProfileId;
@@ -213,32 +226,43 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     );
     _agentLaunchMutationId = null;
     _originalAgentLaunchWasIdempotent = null;
+    _serviceRetryRequest = null;
+    _cancelRequested = false;
+    late final PromptWorkspaceCreateRequest request;
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
       _originalAgentLaunchWasIdempotent =
           client.supportsIdempotentAgentProfileLaunch;
       final clientMutationId = _agentLaunchMutationId ??=
           'mobile-agent-launch-${DateTime.now().microsecondsSinceEpoch}';
+      request = PromptWorkspaceCreateRequest(
+        hostId: hostId,
+        checkoutHostId: _checkoutHostId,
+        prompt: prompt,
+        projectId: resolvedProjectId,
+        sourceBranch: resolvedSourceBranch,
+        profileId: resolvedProfileId,
+        workspaceBranches: workspaceBranches,
+        parentWorkspaceId: parentWorkspaceId,
+      );
       final outcome = await runPromptWorkspaceCreate(
         client: client,
         loadTerminalClient: () =>
             ref.read(terminalClientProvider(hostId).future),
-        request: PromptWorkspaceCreateRequest(
-          hostId: hostId,
-          checkoutHostId: _checkoutHostId,
-          prompt: prompt,
-          projectId: resolvedProjectId,
-          sourceBranch: resolvedSourceBranch,
-          profileId: resolvedProfileId,
-          workspaceBranches: workspaceBranches,
-          parentWorkspaceId: parentWorkspaceId,
-        ),
+        request: request,
         clientMutationId: clientMutationId,
         onPhase: (phase) {
           state = state.copyWith(phase: phase);
         },
         onOperationId: (operationId) {
           _activeOperationId = operationId;
+        },
+        onServiceOperationId: (operationId) {
+          _activeServiceOperationId = operationId;
+          if (operationId != null && _cancelRequested) {
+            _cancelRequested = false;
+            unawaited(_cancelServiceOperation(operationId));
+          }
         },
         onWorkspaceCreated: (creation) {
           state = state.copyWith(creation: creation, phase: 'Starting agent');
@@ -252,12 +276,23 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       );
       return outcome.creation;
     } on Object catch (error) {
+      if (error case PromptWorkspaceLaunchException(
+        :final serviceOperationId?,
+        :final creation,
+      )) {
+        _serviceRetryRequest = request.withCreated(
+          creation,
+          serviceOperationId: serviceOperationId,
+        );
+      }
       state = state.copyWith(
         loading: false,
         clearPhase: true,
         error: error.toString(),
       );
       rethrow;
+    } finally {
+      _cancelRequested = false;
     }
   }
 
@@ -274,6 +309,11 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     );
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
+      final serviceRetry = _serviceRetryRequest;
+      if (serviceRetry != null) {
+        await _retryAgentOnService(client, serviceRetry);
+        return;
+      }
       if (_originalAgentLaunchWasIdempotent != true ||
           !client.supportsIdempotentAgentProfileLaunch) {
         throw UnsupportedError(
@@ -316,7 +356,38 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     }
   }
 
+  /// Relaunches the agent through the runtime operation that kept the
+  /// workspace, which owns both the launch and its Setup tab.
+  Future<void> _retryAgentOnService(
+    MobileWorkspaceClient client,
+    PromptWorkspaceCreateRequest request,
+  ) async {
+    try {
+      final outcome = await runPromptWorkspaceCreate(
+        client: client,
+        loadTerminalClient: () =>
+            ref.read(terminalClientProvider(hostId).future),
+        request: request,
+        clientMutationId: _agentLaunchMutationId ?? request.serviceOperationId!,
+      );
+      _serviceRetryRequest = null;
+      state = state.copyWith(
+        creation: outcome.creation,
+        loading: false,
+        agentTabId: outcome.agentTabId,
+        clearPhase: true,
+      );
+    } on PromptWorkspaceLaunchException catch (failure) {
+      _serviceRetryRequest = request.withCreated(
+        failure.creation,
+        serviceOperationId: failure.serviceOperationId,
+      );
+      rethrow;
+    }
+  }
+
   void resetForAnother() {
+    _serviceRetryRequest = null;
     _agentLaunchMutationId = null;
     _originalAgentLaunchWasIdempotent = null;
     state = state.copyWith(
@@ -329,12 +400,31 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
   }
 
   Future<void> cancelGeneration() async {
+    final serviceOperationId = _activeServiceOperationId;
+    if (serviceOperationId != null) {
+      await _cancelServiceOperation(serviceOperationId);
+      return;
+    }
     final operationId = _activeOperationId;
     if (operationId == null) {
+      // The runtime has not answered the start yet; cancel the operation as
+      // soon as it names one.
+      if (_creating) {
+        _cancelRequested = true;
+      }
       return;
     }
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.cancelWorkspaceIdentity(operationId);
+  }
+
+  Future<void> _cancelServiceOperation(String operationId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    final service = promptWorkspaceServiceOf(client);
+    if (service == null) {
+      return;
+    }
+    await cancelPromptWorkspaceOperation(service, operationId);
   }
 
   Future<String?> _preferredSourceFor(String projectId) async {

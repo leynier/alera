@@ -60,7 +60,7 @@ final class PromptWorkspaceControllerProvider
 }
 
 String _$promptWorkspaceControllerHash() =>
-    r'c4df4e1d058f8215dc748c38b38a90d670a573e4';
+    r'e46bd5e6f5dd3b08fc378c2ac513167bc9edb531';
 
 final class PromptWorkspaceControllerFamily extends $Family
     with
