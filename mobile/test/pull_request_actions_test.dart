@@ -144,6 +144,41 @@ void main() {
       );
     });
 
+    test('a GitLab merge request offers its project settings merge', () {
+      final snapshot = _snapshot(
+        mergeMethods: <String>['providerDefault', 'squash'],
+      );
+      expect(labels(snapshot), <String>[
+        'Merge Using Project Settings',
+        'Squash and Merge',
+        'Convert To Draft',
+        'Close Pull Request',
+        'Unlink Pull Request',
+      ]);
+      expect(
+        availablePullRequestReviewActions(snapshot).first,
+        const MobilePullRequestReviewAction(
+          kind: .merge,
+          method: MobilePullRequestMergeMethod.providerDefault,
+        ),
+      );
+      expect(
+        MobilePullRequestMergeMethod.providerDefault.wireName,
+        'providerDefault',
+      );
+    });
+
+    test('prefers provider-default wherever the runtime lists it', () {
+      expect(
+        preferredMobilePullRequestMergeMethod(const <String>[
+          'squash',
+          'providerDefault',
+        ]),
+        MobilePullRequestMergeMethod.providerDefault,
+      );
+      expect(preferredMobilePullRequestMergeMethod(const <String>[]), isNull);
+    });
+
     test('unknown merge methods are ignored', () {
       expect(
         labels(_snapshot(mergeMethods: <String>['octopus', 'mergeCommit'])),
@@ -164,6 +199,14 @@ void main() {
     expect(
       pullRequestActionConfirmation(squash, 7).title,
       'Squash and Merge PR #7?',
+    );
+    const projectSettings = MobilePullRequestReviewAction(
+      kind: .merge,
+      method: MobilePullRequestMergeMethod.providerDefault,
+    );
+    expect(
+      pullRequestActionConfirmation(projectSettings, 7).title,
+      'Merge Using Project Settings PR #7?',
     );
   });
 

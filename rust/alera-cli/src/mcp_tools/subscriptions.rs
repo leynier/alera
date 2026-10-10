@@ -109,8 +109,11 @@ impl Subscriptions {
         if resolve(uri).is_none() {
             return false;
         }
+        // The exact URI is kept: a notification names the resource the
+        // client subscribed to, cursor included, and each one unsubscribes
+        // on its own.
         if let Ok(mut uris) = self.uris.lock() {
-            uris.insert(uri.split('?').next().unwrap_or(uri).to_owned());
+            uris.insert(uri.to_owned());
         }
         if self.listener.as_ref().is_none_or(JoinHandle::is_finished) {
             self.listener = Some(tokio::spawn(listen(
@@ -124,7 +127,7 @@ impl Subscriptions {
 
     pub(crate) fn unsubscribe(&mut self, uri: &str) {
         let empty = self.uris.lock().map_or(true, |mut uris| {
-            uris.remove(uri.split('?').next().unwrap_or(uri));
+            uris.remove(uri);
             uris.is_empty()
         });
         if empty {
@@ -143,13 +146,15 @@ impl Drop for Subscriptions {
     }
 }
 
-/// The URIs a runtime event updates among those subscribed.
-pub(crate) fn updated_uris(event: &str, subscribed: &HashSet<String>) -> Vec<&'static str> {
-    RESOURCES
+/// The subscribed URIs a runtime event updates, as they were subscribed.
+pub(crate) fn updated_uris(event: &str, subscribed: &HashSet<String>) -> Vec<String> {
+    let mut updated: Vec<String> = subscribed
         .iter()
-        .filter(|resource| resource.events.contains(&event) && subscribed.contains(resource.uri))
-        .map(|resource| resource.uri)
-        .collect()
+        .filter(|uri| resolve(uri).is_some_and(|(resource, _)| resource.events.contains(&event)))
+        .cloned()
+        .collect();
+    updated.sort();
+    updated
 }
 
 async fn listen(
@@ -227,5 +232,30 @@ mod tests {
             vec!["alera://inbox"]
         );
         assert!(updated_uris("promptWorkspaceOperationsChanged", &subscribed).is_empty());
+    }
+
+    #[test]
+    fn a_cursor_subscription_is_notified_and_removed_by_its_exact_uri() {
+        let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+        let mut subscriptions =
+            super::Subscriptions::new(std::path::PathBuf::from("/nonexistent"), sender);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let _guard = runtime.enter();
+        assert!(subscriptions.subscribe("alera://events?after=42"));
+        assert!(subscriptions.subscribe("alera://events?after=7"));
+        let subscribed = subscriptions.uris.lock().unwrap().clone();
+        assert_eq!(
+            updated_uris("runtimeEventsAppended", &subscribed),
+            vec!["alera://events?after=42", "alera://events?after=7"]
+        );
+        subscriptions.unsubscribe("alera://events?after=42");
+        let subscribed = subscriptions.uris.lock().unwrap().clone();
+        assert_eq!(
+            updated_uris("runtimeEventsAppended", &subscribed),
+            vec!["alera://events?after=7"]
+        );
     }
 }

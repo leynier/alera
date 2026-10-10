@@ -4,6 +4,8 @@ use chrono::{DateTime, TimeDelta, Utc};
 
 use crate::{error::ApiError, state::AppState};
 
+use super::delivery::SUBSCRIPTION_EXPIRED;
+
 /// Events and their deliveries live for 24 hours after the cloud receives them.
 pub const RETENTION: TimeDelta = TimeDelta::hours(24);
 const FAN_OUT_BATCH: i64 = 500;
@@ -87,7 +89,10 @@ pub async fn fan_out_pending(state: &AppState) -> Result<u64, ApiError> {
 }
 
 /// Queues every retained event since `since` for one subscription (MCP Events replay).
-/// Deliveries that already exist are kept, so acknowledged events are not sent again.
+/// Deliveries that already exist are kept, so acknowledged events are not sent again,
+/// except those stopped because the subscription expired: the refresh queues them again
+/// with a fresh retry budget. Deliveries stopped for other reasons (revoked grant,
+/// MCP Control off, `410 Gone`) stay stopped.
 pub async fn backfill(
     state: &AppState,
     subscription_id: &str,
@@ -104,13 +109,17 @@ pub async fn backfill(
         FROM domain_events m
         JOIN event_subscriptions s ON s.id = $3 AND {MATCH}
         WHERE m.received_at >= $4
-        ON CONFLICT (subscription_id, event_id) DO NOTHING
+        ON CONFLICT (subscription_id, event_id) DO UPDATE SET
+            status = 'pending', attempts = 0, next_attempt_at = $1, lease_until = NULL,
+            last_status = NULL, last_error = NULL
+        WHERE event_deliveries.status = 'stopped' AND event_deliveries.last_error = $5
         "#
     )))
     .bind(now)
     .bind(state.config.events.mcp_events_enabled)
     .bind(subscription_id)
     .bind(since)
+    .bind(SUBSCRIPTION_EXPIRED)
     .execute(&state.pool)
     .await?
     .rows_affected();

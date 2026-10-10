@@ -167,7 +167,7 @@ pub(crate) fn url_segments(input: &str, host: &str) -> HostResult<Vec<String>> {
     }
     Ok(url
         .path_segments()
-        .map(|segments| segments.map(ToOwned::to_owned).collect())
+        .map(|segments| segments.map(super::identity::decode_segment).collect())
         .unwrap_or_default())
 }
 

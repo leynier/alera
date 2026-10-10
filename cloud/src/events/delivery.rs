@@ -19,6 +19,10 @@ use super::{
 pub use super::wire::{event_body, signed_headers};
 
 pub const LEASE: TimeDelta = TimeDelta::seconds(45);
+/// Why a delivery stopped when its subscription passed `refreshBefore`. A refresh with a
+/// cursor queues these again; deliveries stopped for any other reason stay stopped.
+pub const SUBSCRIPTION_EXPIRED: &str = "subscription_expired";
+const SUBSCRIPTION_INACTIVE: &str = "subscription_inactive";
 pub const MAX_ATTEMPTS: i32 = 12;
 const CLAIM_BATCH: i64 = 16;
 const FIRST_RETRY: Duration = Duration::from_secs(5);
@@ -214,12 +218,14 @@ async fn deliver(state: &AppState, delivery: Claimed) -> Result<bool, ApiError> 
         settle(state, &delivery, Outcome::Dead("expired".to_owned())).await?;
         return Ok(false);
     }
-    let stop = if delivery.status != "active" {
-        Some(None)
+    let stop = if delivery.status == "expired" {
+        Some((None, SUBSCRIPTION_EXPIRED))
+    } else if delivery.status != "active" {
+        Some((None, SUBSCRIPTION_INACTIVE))
     } else if delivery.refresh_before.is_some_and(|at| at <= now) {
-        Some(Some("expired"))
+        Some((Some("expired"), SUBSCRIPTION_EXPIRED))
     } else if !delivery.authorized {
-        Some(Some("revoked"))
+        Some((Some("revoked"), SUBSCRIPTION_INACTIVE))
     } else {
         None
     };
@@ -237,19 +243,11 @@ async fn deliver(state: &AppState, delivery: Claimed) -> Result<bool, ApiError> 
         .await?;
         return Ok(false);
     }
-    if let Some(new_status) = stop {
+    if let Some((new_status, reason)) = stop {
         if let Some(new_status) = new_status {
             stop_subscription(state, &delivery.subscription_id, new_status, None).await?;
         }
-        finish(
-            state,
-            &delivery,
-            "stopped",
-            None,
-            Some("subscription_inactive"),
-            None,
-        )
-        .await?;
+        finish(state, &delivery, "stopped", None, Some(reason), None).await?;
         return Ok(false);
     }
     let Some(keys) = signing_keys(state, &delivery, now) else {
@@ -436,7 +434,8 @@ async fn record_error(
     Ok(())
 }
 
-/// Ends a subscription and drops the deliveries still waiting for it.
+/// Ends a subscription and drops the deliveries still waiting for it. Deliveries of an
+/// expired subscription are marked `subscription_expired` so a refresh can resume them.
 pub async fn stop_subscription(
     state: &AppState,
     subscription_id: &str,
@@ -455,9 +454,19 @@ pub async fn stop_subscription(
     .execute(&mut *transaction)
     .await?;
     sqlx::query(
-        "UPDATE event_deliveries SET status = 'stopped', lease_until = NULL WHERE subscription_id = $1 AND status = 'pending'",
+        r#"
+        UPDATE event_deliveries
+        SET status = 'stopped', lease_until = NULL,
+            last_error = CASE
+                WHEN (SELECT status FROM event_subscriptions WHERE id = $1) = 'expired' THEN $2
+                ELSE $3
+            END
+        WHERE subscription_id = $1 AND status = 'pending'
+        "#,
     )
     .bind(subscription_id)
+    .bind(SUBSCRIPTION_EXPIRED)
+    .bind(SUBSCRIPTION_INACTIVE)
     .execute(&mut *transaction)
     .await?;
     transaction.commit().await?;

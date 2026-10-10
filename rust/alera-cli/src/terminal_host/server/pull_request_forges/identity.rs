@@ -199,10 +199,12 @@ fn parse_remote_url(raw: &str) -> Option<ParsedRemote> {
         let host = authority.to_ascii_lowercase();
         (host.clone(), host, path.to_string())
     };
+    // Forge CLIs encode names themselves, so `My%20Project` must reach them
+    // as `My Project` or they ask for `My%2520Project`.
     let mut segments = path
         .split('/')
         .filter(|segment| !segment.is_empty())
-        .map(ToOwned::to_owned)
+        .map(decode_segment)
         .collect::<Vec<_>>();
     let last = segments.last_mut()?;
     if let Some(stripped) = last.strip_suffix(".git") {
@@ -218,9 +220,47 @@ fn parse_remote_url(raw: &str) -> Option<ParsedRemote> {
     })
 }
 
+/// A URL path segment with its `%XX` escapes decoded. One that does not
+/// decode to UTF-8 is kept as it was.
+pub(crate) fn decode_segment(segment: &str) -> String {
+    let bytes = segment.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        let escaped = (bytes[index] == b'%')
+            .then(|| segment.get(index + 1..index + 3))
+            .flatten()
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        match escaped {
+            Some(byte) => {
+                decoded.push(byte);
+                index += 3;
+            }
+            None => {
+                decoded.push(bytes[index]);
+                index += 1;
+            }
+        }
+    }
+    String::from_utf8(decoded).unwrap_or_else(|_| segment.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn escaped_azure_names_are_decoded() {
+        let azure = parse("https://dev.azure.com/org/My%20Project/_git/My%20Repo");
+        assert_eq!(azure.project.as_deref(), Some("My Project"));
+        assert_eq!(azure.repo, "My Repo");
+        assert_eq!(
+            super::super::mappers::azure_web_url(&azure, 7),
+            "https://dev.azure.com/org/My%20Project/_git/My%20Repo/pullrequest/7"
+        );
+        assert_eq!(decode_segment("100%"), "100%");
+        assert_eq!(decode_segment("a%zzb"), "a%zzb");
+    }
 
     fn parse(url: &str) -> ForgeIdentity {
         resolve_identity(url, None).unwrap()

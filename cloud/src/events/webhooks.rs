@@ -141,11 +141,18 @@ pub async fn create_webhook(
                 ),
             )
         })?;
+    let mut transaction = state.pool.begin().await?;
+    // Locking the account row serializes creations so concurrent requests cannot pass
+    // the limit together.
+    sqlx::query("SELECT id FROM accounts WHERE id = $1 FOR UPDATE")
+        .bind(auth.account_id)
+        .fetch_optional(&mut *transaction)
+        .await?;
     let count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM event_subscriptions WHERE account_id = $1 AND target_kind = 'webhook'",
     )
     .bind(auth.account_id)
-    .fetch_one(&state.pool)
+    .fetch_one(&mut *transaction)
     .await?;
     if count >= MAX_WEBHOOKS_PER_ACCOUNT {
         return Err(ApiError::conflict(
@@ -175,8 +182,9 @@ pub async fn create_webhook(
     .bind(request.all_runtimes)
     .bind(&auth.client_id)
     .bind(now)
-    .fetch_one(&state.pool)
+    .fetch_one(&mut *transaction)
     .await?;
+    transaction.commit().await?;
     Ok(Json(CreatedWebhook {
         webhook: row.into(),
         secret,

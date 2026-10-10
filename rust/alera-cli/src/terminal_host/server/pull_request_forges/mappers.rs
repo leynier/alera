@@ -120,12 +120,22 @@ pub(crate) fn gitlab_comments(discussions: &[Value]) -> Vec<Value> {
 }
 
 pub(crate) fn azure_web_url(identity: &ForgeIdentity, number: i64) -> String {
-    format!(
-        "{}/{}/_git/{}/pullrequest/{number}",
-        identity.azure_org_url(),
-        identity.project.as_deref().unwrap_or(""),
-        identity.repo
-    )
+    let project = identity.project.as_deref().unwrap_or("");
+    let number = number.to_string();
+    let segments = [
+        project,
+        "_git",
+        identity.repo.as_str(),
+        "pullrequest",
+        &number,
+    ];
+    let Ok(mut url) = url::Url::parse(&identity.azure_org_url()) else {
+        return format!("{}/{}", identity.azure_org_url(), segments.join("/"));
+    };
+    if let Ok(mut path) = url.path_segments_mut() {
+        path.pop_if_empty().extend(segments);
+    }
+    url.to_string()
 }
 
 pub(crate) fn short_azure_ref(reference: Option<&str>) -> Option<String> {

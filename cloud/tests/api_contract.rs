@@ -48,6 +48,9 @@ mod mcp_events_contract;
 #[path = "contracts/events_access_contract.rs"]
 mod events_access_contract;
 
+#[path = "contracts/events_resume_contract.rs"]
+mod events_resume_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
     config::{
