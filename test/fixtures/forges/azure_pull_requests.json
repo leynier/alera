@@ -1,0 +1,23 @@
+{
+  "description": "az repos pr list --status active --output json; the newest pull request wins",
+  "identity": {
+    "host": "dev.azure.com",
+    "owner": "myorg",
+    "repo": "myrepo",
+    "project": "myproject"
+  },
+  "stdout": "[{\"pullRequestId\": 42, \"title\": \"feat: older\", \"status\": \"active\", \"creationDate\": \"2026-07-10T00:00:00Z\", \"isDraft\": false, \"sourceRefName\": \"refs/heads/feature\", \"targetRefName\": \"refs/heads/main\", \"mergeStatus\": \"succeeded\", \"createdBy\": {\"displayName\": \"Ley\"}, \"lastMergeSourceCommit\": {\"commitId\": \"abc\"}}, {\"pullRequestId\": 43, \"title\": \"feat: newest\", \"status\": \"active\", \"creationDate\": \"2026-07-11T00:00:00Z\", \"isDraft\": false, \"sourceRefName\": \"refs/heads/feature\", \"targetRefName\": \"refs/heads/main\", \"mergeStatus\": \"succeeded\", \"createdBy\": {\"displayName\": \"Ley\"}, \"lastMergeSourceCommit\": {\"commitId\": \"def\"}, \"lastMergeTargetCommit\": {\"commitId\": \"base-def\"}}]",
+  "expected": {
+    "review": {
+      "number": 43,
+      "title": "feat: newest",
+      "state": "open",
+      "author": "Ley",
+      "baseBranch": "main",
+      "headBranch": "feature",
+      "headSha": "def",
+      "mergeable": "mergeable",
+      "url": "https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/43"
+    }
+  }
+}

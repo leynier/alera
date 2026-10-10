@@ -9,7 +9,9 @@ use crate::cli_workflow_recipes::{
     WorkflowRecipeDocumentArgs, WorkflowRecipesAction, WorkflowRecipesArgs,
 };
 use crate::orchestration_commands::request_value_with_capability;
-use crate::terminal_host::protocol::RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY;
+use crate::terminal_host::protocol::{
+    RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY, RUNTIME_HOST_WORKFLOW_EXPORT_CAPABILITY,
+};
 
 pub(crate) async fn run_workflow_recipes(
     runtime: &RuntimeDirArgs,
@@ -23,15 +25,12 @@ pub(crate) async fn run_workflow_recipes(
             return 64;
         }
     };
-    match request_value_with_capability(
-        runtime,
-        RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY,
-        verb,
-        payload,
-        Some(30_000),
-    )
-    .await
-    {
+    let capability = if verb.ends_with("RecipeExport") {
+        RUNTIME_HOST_WORKFLOW_EXPORT_CAPABILITY
+    } else {
+        RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY
+    };
+    match request_value_with_capability(runtime, capability, verb, payload, Some(30_000)).await {
         Ok(value) => {
             if json_output {
                 println!(
@@ -93,6 +92,25 @@ fn request_payload(action: WorkflowRecipesAction) -> Result<(&'static str, Value
                 json!({"document": document(input)?, "expectedRevision": expected_revision}),
             )
         }
+        WorkflowRecipesAction::Export {
+            input,
+            workspace_id,
+            filename,
+            expected_digest,
+            apply,
+        } => (
+            if apply {
+                "workflows.applyRecipeExport"
+            } else {
+                "workflows.previewRecipeExport"
+            },
+            json!({
+                "workspaceId": workspace_id,
+                "filename": filename,
+                "document": document(input)?,
+                "expectedDigest": expected_digest,
+            }),
+        ),
     })
 }
 
@@ -164,6 +182,32 @@ mod tests {
         assert!(request_payload(WorkflowRecipesAction::Show {
             source: r#"{"id":"quick-fix"}"#.into()
         })
+        .is_err());
+        let (verb, payload) = request_payload(WorkflowRecipesAction::Export {
+            input: WorkflowRecipeDocumentArgs {
+                document: Some("name: x".into()),
+                stdin: false,
+            },
+            workspace_id: "ws".into(),
+            filename: "x.yaml".into(),
+            expected_digest: None,
+            apply: false,
+        })
+        .unwrap();
+        assert_eq!(verb, "workflows.previewRecipeExport");
+        assert_eq!(payload["filename"], "x.yaml");
+        assert!(crate::cli::Cli::try_parse_from([
+            "alera",
+            "orchestration",
+            "recipes",
+            "export",
+            "--stdin",
+            "--workspace-id",
+            "ws",
+            "--filename",
+            "x.yaml",
+            "--apply",
+        ])
         .is_err());
         assert!(document(WorkflowRecipeDocumentArgs {
             document: Some("x".repeat(WORKFLOW_DOCUMENT_MAX_BYTES + 1)),

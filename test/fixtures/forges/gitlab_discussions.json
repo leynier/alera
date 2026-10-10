@@ -1,0 +1,38 @@
+{
+  "description": "glab api merge_requests/:iid/discussions --paginate --output ndjson",
+  "stdout": "{\"id\": \"d1\", \"notes\": [{\"id\": 1, \"system\": false, \"resolvable\": true, \"resolved\": true, \"body\": \"Inline\", \"created_at\": \"2026-07-20T11:00:00Z\", \"author\": {\"username\": \"bob\"}, \"position\": {\"new_path\": \"lib/a.dart\", \"new_line\": 17}}]}\n{\"id\": \"d2\", \"notes\": [{\"id\": 2, \"system\": false, \"body\": \"General\", \"created_at\": \"2026-07-20T12:00:00Z\", \"author\": {\"name\": \"Carol\"}}]}\n{\"id\": \"general\", \"notes\": [{\"id\": 3, \"body\": \"Fix this\", \"resolvable\": true, \"resolved\": false, \"created_at\": \"2026-07-20T13:00:00Z\", \"author\": {\"username\": \"dave\"}}, {\"id\": 4, \"system\": true, \"body\": \"changed the description\", \"created_at\": \"2026-07-20T14:00:00Z\"}]}\n",
+  "expected": {
+    "comments": [
+      {
+        "id": 1,
+        "author": "bob",
+        "body": "Inline",
+        "kind": "review",
+        "path": "lib/a.dart",
+        "line": 17,
+        "resolved": true,
+        "threadId": "d1"
+      },
+      {
+        "id": 2,
+        "author": "Carol",
+        "body": "General",
+        "kind": "conversation",
+        "path": null,
+        "line": null,
+        "resolved": false,
+        "threadId": null
+      },
+      {
+        "id": 3,
+        "author": "dave",
+        "body": "Fix this",
+        "kind": "conversation",
+        "path": null,
+        "line": null,
+        "resolved": false,
+        "threadId": "general"
+      }
+    ]
+  }
+}

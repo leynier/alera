@@ -1,0 +1,25 @@
+{
+  "description": "glab api merge request that is a draft with conflicts and a manual pipeline",
+  "stdout": "{\"iid\": 7, \"title\": \"Draft: wip\", \"state\": \"opened\", \"work_in_progress\": true, \"web_url\": \"https://gitlab.com/g/p/-/merge_requests/7\", \"created_at\": \"2026-07-21T08:00:00Z\", \"author\": {\"name\": \"Carol\"}, \"target_branch\": \"develop\", \"source_branch\": \"wip\", \"sha\": \"def\", \"detailed_merge_status\": \"broken_status\", \"has_conflicts\": true, \"head_pipeline\": {\"id\": 5, \"status\": \"manual\"}}",
+  "expected": {
+    "review": {
+      "number": 7,
+      "title": "Draft: wip",
+      "state": "draft",
+      "author": "Carol",
+      "baseBranch": "develop",
+      "headBranch": "wip",
+      "headSha": "def",
+      "mergeable": "conflicting",
+      "url": "https://gitlab.com/g/p/-/merge_requests/7"
+    },
+    "checks": [
+      {
+        "name": "Pipeline #5",
+        "conclusion": "actionRequired",
+        "bucket": "fail",
+        "url": null
+      }
+    ]
+  }
+}

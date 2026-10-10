@@ -70,16 +70,29 @@ pub fn format_message_banner(message: &OrchestrationMessage) -> String {
     lines.join("\n")
 }
 
-fn external_origin_suffix(message: &OrchestrationMessage) -> &'static str {
-    let surface = message
+/// Longest MCP client name shown in a banner; the name is self-asserted.
+const ORIGIN_CLIENT_NAME_MAX_CHARS: usize = 64;
+
+fn external_origin_suffix(message: &OrchestrationMessage) -> String {
+    let origin = message
         .external_meta
         .as_ref()
-        .and_then(|meta| meta.pointer("/origin/surface"))
-        .and_then(|surface| surface.as_str());
-    match surface {
-        Some("desktop") => " via Alera desktop",
-        Some("mobile") => " via Alera mobile",
-        _ => "",
+        .and_then(|meta| meta.get("origin"));
+    let field = |name: &str| origin.and_then(|origin| origin.get(name)?.as_str());
+    match field("surface") {
+        Some("desktop") => " via Alera desktop".to_string(),
+        Some("mobile") => " via Alera mobile".to_string(),
+        Some("mcp") => {
+            let name: String = field("clientName")
+                .or_else(|| field("clientId"))
+                .unwrap_or("an MCP client")
+                .chars()
+                .filter(|character| !character.is_control())
+                .take(ORIGIN_CLIENT_NAME_MAX_CHARS)
+                .collect();
+            format!(" via {} (MCP)", name.trim())
+        }
+        _ => String::new(),
     }
 }
 
@@ -250,6 +263,20 @@ mod tests {
         assert!(banner.contains("--body-file <path>"));
         assert!(!banner.contains("<<'EOF'"));
         assert!(!banner.contains("From: EXT:USER"));
+    }
+
+    #[test]
+    fn mcp_questions_name_the_client_that_asked() {
+        let mut question = message(OrchestrationMessagePriority::High);
+        question.from_handle = "ext:mcp".to_string();
+        question.external_meta = Some(serde_json::json!({
+            "origin": {"surface": "mcp", "transport": "remote", "clientId": "c-1", "clientName": "Chat\u{7}GPT"},
+        }));
+        let banner = format_message_banner(&question);
+        assert!(banner.starts_with("──── External question from ext:mcp via ChatGPT (MCP) [HIGH]"));
+        question.external_meta = Some(serde_json::json!({"origin": {"surface": "mcp"}}));
+        let banner = format_message_banner(&question);
+        assert!(banner.starts_with("──── External question from ext:mcp via an MCP client (MCP)"));
     }
 
     #[test]

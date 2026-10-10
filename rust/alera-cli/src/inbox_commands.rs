@@ -4,10 +4,14 @@ use serde_json::{json, Map, Value};
 
 use crate::cli::RuntimeDirArgs;
 use crate::cli_inbox::{InboxAction, InboxCommand, InboxWaitArgs};
+use crate::mcp_tools::CallOrigin;
 use crate::orchestration_commands::{read_body, request_value_with_capability};
 use crate::terminal_host::protocol::{
     ORCHESTRATION_MAX_WAIT_TIMEOUT_MS, RUNTIME_HOST_INBOX_CAPABILITY,
+    RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY,
 };
+
+mod origin;
 
 const DEFAULT_INBOX: &str = "ext:user";
 const DEFAULT_WAIT_MS: u64 = 10 * 60 * 1000;
@@ -18,6 +22,7 @@ const RECONNECT_BACKOFF: Duration = Duration::from_secs(2);
 pub(crate) async fn run(command: InboxCommand) -> i32 {
     let json_output = command.output.json;
     let runtime = command.runtime;
+    let caller = CallOrigin::from_env();
     let result = match command.action {
         InboxAction::Targets(args) => {
             call(
@@ -50,6 +55,12 @@ pub(crate) async fn run(command: InboxCommand) -> i32 {
             insert(&mut payload, "subject", args.subject);
             insert(&mut payload, "priority", args.priority);
             insert(&mut payload, "expiresInMs", args.expires_in_ms);
+            insert(&mut payload, "requestKey", args.request_key);
+            insert(
+                &mut payload,
+                "externalOrigin",
+                caller.as_ref().map(origin::external_origin),
+            );
             payload.insert("body".into(), json!(body));
             call(&runtime, "inbox.ask", Value::Object(payload)).await
         }
@@ -63,6 +74,10 @@ pub(crate) async fn run(command: InboxCommand) -> i32 {
             insert(&mut payload, "status", args.status);
             insert(&mut payload, "limit", args.limit);
             insert(&mut payload, "before", args.before);
+            match origin::client_filter(args.origin_client_id, args.scope, caller.as_ref()) {
+                Ok(filter) => insert(&mut payload, "originClientId", filter),
+                Err(message) => return usage(&message),
+            }
             call(&runtime, "inbox.threads", Value::Object(payload)).await
         }
         InboxAction::Show(args) => {
@@ -98,7 +113,10 @@ pub(crate) async fn run(command: InboxCommand) -> i32 {
             let inbox = inbox_address(args.address.inbox);
             call(&runtime, "inbox.purge", json!({ "inbox": inbox })).await
         }
-        InboxAction::Wait(args) => wait(&runtime, args).await,
+        InboxAction::Wait(args) => match origin::client_filter(None, args.scope, caller.as_ref()) {
+            Ok(filter) => wait(&runtime, args, filter).await,
+            Err(message) => return usage(&message),
+        },
         InboxAction::Conversations(args) => {
             let mut payload = Map::new();
             insert(&mut payload, "workspaceId", args.workspace);
@@ -117,7 +135,8 @@ pub(crate) async fn run(command: InboxCommand) -> i32 {
         }
     };
     match result {
-        Ok(value) => {
+        Ok(mut value) => {
+            origin::annotate(&mut value, caller.as_ref());
             print(&value, json_output);
             exit_code(&value)
         }
@@ -152,7 +171,7 @@ async fn call(
 ) -> anyhow::Result<Value> {
     request_value_with_capability(
         runtime,
-        RUNTIME_HOST_INBOX_CAPABILITY,
+        capability_for(&payload),
         request_type,
         payload,
         None,
@@ -160,10 +179,27 @@ async fn call(
     .await
 }
 
+/// Attribution, retry keys, and origin filters need a host that honors
+/// them; anything else works with any inbox host.
+fn capability_for(payload: &Value) -> &'static str {
+    let needs_origin = ["externalOrigin", "requestKey", "originClientId"]
+        .iter()
+        .any(|key| payload.get(*key).is_some());
+    if needs_origin {
+        RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY
+    } else {
+        RUNTIME_HOST_INBOX_CAPABILITY
+    }
+}
+
 /// Chains host waits, each at most the host's ceiling, until there is news or
 /// the overall deadline passes. A dropped connection is retried, so a host
 /// restart in the middle of a long wait does not end it.
-async fn wait(runtime: &RuntimeDirArgs, args: InboxWaitArgs) -> anyhow::Result<Value> {
+async fn wait(
+    runtime: &RuntimeDirArgs,
+    args: InboxWaitArgs,
+    origin_client_id: Option<String>,
+) -> anyhow::Result<Value> {
     let total = Duration::from_millis(args.timeout_ms.unwrap_or(DEFAULT_WAIT_MS));
     let started = Instant::now();
     let mut payload = Map::new();
@@ -172,6 +208,8 @@ async fn wait(runtime: &RuntimeDirArgs, args: InboxWaitArgs) -> anyhow::Result<V
         None => payload.insert("inbox".into(), json!(inbox_address(args.address.inbox))),
     };
     payload.insert("after".into(), json!(args.after));
+    insert(&mut payload, "originClientId", origin_client_id);
+    let capability = capability_for(&Value::Object(payload.clone()));
     loop {
         let remaining = total.saturating_sub(started.elapsed());
         // Never 0: the host treats 0 as a poll and answers `pending`.
@@ -179,7 +217,7 @@ async fn wait(runtime: &RuntimeDirArgs, args: InboxWaitArgs) -> anyhow::Result<V
         payload.insert("timeoutMs".into(), json!(slice_ms));
         let result = request_value_with_capability(
             runtime,
-            RUNTIME_HOST_INBOX_CAPABILITY,
+            capability,
             "inbox.wait",
             Value::Object(payload.clone()),
             Some(slice_ms.saturating_add(WAIT_CLIENT_GRACE_MS)),
@@ -187,7 +225,12 @@ async fn wait(runtime: &RuntimeDirArgs, args: InboxWaitArgs) -> anyhow::Result<V
         .await;
         let still_time = started.elapsed() + RECONNECT_BACKOFF < total;
         match result {
-            Ok(value) if value["outcome"] == "timeout" && still_time => {}
+            // An origin-filtered wait moves its cursor past other clients' news.
+            Ok(value) if value["outcome"] == "timeout" && still_time => {
+                if let Some(cursor) = value["cursor"].as_i64() {
+                    payload.insert("after".into(), json!(cursor));
+                }
+            }
             Ok(mut value) => {
                 if value["outcome"] == "pending" {
                     value["outcome"] = json!("timeout");

@@ -100,7 +100,8 @@ class MobileRuntimeClient._(
         MobileLinkedIssueClient,
         MobilePullRequestWatchClient,
         MobilePullRequestActionsClient,
-        MobileWorkspacePullRequestSummariesClient {
+        MobileWorkspacePullRequestSummariesClient,
+        MobilePromptWorkspaceServiceClient {
   this {
     _subscription = _channel.stream.listen(
       _handleMessage,

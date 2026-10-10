@@ -1,0 +1,771 @@
+{
+  "events": [
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "An agent replied to a question in an Alera inbox. Read the thread with show_inbox_thread or wait_for_reply.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "questionId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "threadId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "inbox.reply",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "inbox": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "originClientId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "A question in an Alera inbox changed status (delivered, answered, expired, cancelled).",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "questionId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "threadId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "inbox.question.status",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "An agent in a workspace tab is waiting, blocked, or done.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "agent.status",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "tabId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "A terminal session exited.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "terminal.exit",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "exitCode": {
+            "type": "integer"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "tabId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "An orchestration task changed state.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "orchestration.task.state",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "An orchestration decision gate was created and waits for a person in Alera.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "orchestration.gate.created",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "gateId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "An orchestration task escalated.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "orchestration.escalation",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "An automation run changed status.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "automation.run.state",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "A New Workspace from Prompt operation changed phase or status.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "operationId": {
+            "description": "Only events whose data carries this value.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "workspace.start.state",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "operationId": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "A workspace was created, archived, unarchived, slept, woken, or removed.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "workspace.lifecycle",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "delivery": [
+        "webhook"
+      ],
+      "description": "Watch and Fix dispatched a fix, merged, or stopped for a pull request.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runtime": {
+            "description": "Runtime name or id. Omit to follow every runtime this connection reaches.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Only events for this workspace.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "pullRequest.watch",
+      "payloadSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeId",
+          "seq"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "version": 1
+}

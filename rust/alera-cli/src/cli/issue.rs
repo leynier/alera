@@ -1,9 +1,13 @@
 use clap::{Args, Subcommand};
 
-use super::OutputArgs;
+use super::{OutputArgs, RuntimeDirArgs};
 
 #[derive(Debug, Args)]
 pub struct IssueCommand {
+    /// Accepted for symmetry with the other groups; issues are read through
+    /// the forge CLIs and never touch the runtime.
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
     #[command(flatten)]
     pub output: OutputArgs,
     #[command(subcommand)]

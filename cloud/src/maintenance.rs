@@ -65,6 +65,22 @@ pub async fn run_once(pool: &PgPool) -> Result<(), sqlx::Error> {
     .bind(now - TimeDelta::days(90))
     .execute(&mut *transaction)
     .await?;
+    // Deliveries go with their events; inactive subscriptions are kept a week for listing.
+    sqlx::query("DELETE FROM domain_events WHERE received_at < $1")
+        .bind(now - TimeDelta::hours(24))
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query(
+        r#"
+        DELETE FROM event_subscriptions
+        WHERE (target_kind = 'mcp_events' AND (status <> 'active' OR refresh_before < $1))
+           AND updated_at < $2
+        "#,
+    )
+    .bind(now)
+    .bind(now - TimeDelta::days(7))
+    .execute(&mut *transaction)
+    .await?;
     sqlx::query("DELETE FROM runtime_events WHERE created_at < $1")
         .bind(now - TimeDelta::days(30))
         .execute(&mut *transaction)

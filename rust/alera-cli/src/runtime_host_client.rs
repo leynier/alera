@@ -148,7 +148,10 @@ impl RuntimeHostRpcClient {
             .arg(DEFAULT_SCROLLBACK_BYTES.to_string())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stderr(Stdio::null())
+            // A host started by an MCP tool call outlives that call, and its
+            // terminals must not claim the call's origin.
+            .env_remove(crate::mcp_tools::ORIGIN_VARIABLE);
         if persistent {
             command.arg("--persistent");
         }

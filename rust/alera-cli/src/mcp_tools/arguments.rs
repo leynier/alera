@@ -61,8 +61,18 @@ impl ToolArguments {
             .unwrap_or(false)
     }
 
+    /// A boolean the caller may leave out, so `false` and absent differ.
+    pub(crate) fn optional_flag(&self, name: &str) -> Option<bool> {
+        self.values.get(name).and_then(Value::as_bool)
+    }
+
     pub(crate) fn integer(&self, name: &str) -> Option<u64> {
         self.values.get(name).and_then(Value::as_u64)
+    }
+
+    /// A JSON object argument, such as a definition sent to the CLI on stdin.
+    pub(crate) fn object(&self, name: &str) -> Option<&Map<String, Value>> {
+        self.values.get(name).and_then(Value::as_object)
     }
 
     pub(crate) fn list(&self, name: &str) -> Option<Vec<String>> {
@@ -105,6 +115,7 @@ fn check_property(name: &str, value: &Value, schema: &Value) -> Result<(), ToolI
             }
         }
         Some("boolean") if !value.is_boolean() => return invalid("must be a boolean"),
+        Some("object") if !value.is_object() => return invalid("must be an object"),
         Some("integer") => {
             let Some(number) = value.as_u64() else {
                 return invalid("must be a non-negative integer");

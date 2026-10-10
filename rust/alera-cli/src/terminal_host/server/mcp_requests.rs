@@ -65,13 +65,12 @@ impl ServerActor {
             }
             "mcp.settings.update" => {
                 let update: McpSettingsUpdate = parse_payload(payload)?;
-                let access =
-                    match update.access.as_deref() {
-                        Some(value) => Some(McpAccess::parse(value).ok_or_else(|| {
-                            HostError::format("access must be off, read, or full")
-                        })?),
-                        None => None,
-                    };
+                let access = match update.access.as_deref() {
+                    Some(value) => Some(McpAccess::parse(value).ok_or_else(|| {
+                        HostError::format("access must be off, read, full, or admin")
+                    })?),
+                    None => None,
+                };
                 let name = update
                     .runtime_name
                     .as_deref()

@@ -15,13 +15,14 @@ import {
   MAX_MCP_BODY_BYTES,
   MCP_INSTRUCTIONS,
   MCP_PATH,
-  MCP_PROTOCOL_VERSIONS,
   MCP_SCOPES,
   MCP_SERVER_VERSION,
   mcpHeaders,
   negotiateProtocolVersion,
   type JsonRpcId,
 } from './protocol';
+import { eventsEnabled, listEvents, subscribeEvent, unsubscribeEvent, type EventOutcome } from './events';
+import { discoverResult, requestEra, type RequestEra } from './modern';
 import { callTool, type GatewayContext } from './tool_call';
 import { listedTools } from './tools';
 
@@ -106,14 +107,25 @@ function validId(value: unknown): value is JsonRpcId {
   return typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value));
 }
 
+function eventResponse(id: JsonRpcId, outcome: EventOutcome, era: RequestEra, publicUrl: URL): Response {
+  if (outcome.kind === 'unauthorized') return unauthorized(publicUrl, true);
+  if (outcome.kind === 'error') return jsonRpcError(id, outcome.code, outcome.message, 200, {}, outcome.data);
+  return jsonRpcResult(id, era.modern ? { resultType: 'complete', ...outcome.result } : outcome.result);
+}
+
 async function dispatch(
   message: Record<string, unknown>,
   id: JsonRpcId,
   access: McpAccess,
   gateway: GatewayContext,
+  era: RequestEra,
 ): Promise<Response> {
   const params = message.params === undefined ? {} : message.params;
   if (!isJsonObject(params)) return jsonRpcError(id, JSON_RPC_INVALID_PARAMS, 'Params must be an object.');
+  // Modern (2026-07-28) results carry resultType; legacy results keep their exact shape.
+  const respond = (result: object): Response =>
+    jsonRpcResult(id, era.modern ? { resultType: 'complete', ...result } : result);
+  const events = eventsEnabled(gateway.env);
   switch (message.method) {
     case 'initialize':
       return jsonRpcResult(id, {
@@ -122,19 +134,35 @@ async function dispatch(
         serverInfo: { name: 'alera', title: 'Alera', version: MCP_SERVER_VERSION },
         instructions: MCP_INSTRUCTIONS,
       });
+    case 'server/discover':
+      return jsonRpcResult(id, discoverResult(gateway.env));
     case 'ping':
-      return jsonRpcResult(id, {});
+      return respond({});
     case 'tools/list':
-      return jsonRpcResult(id, { tools: listedTools() });
+      return respond({ tools: listedTools() });
     case 'tools/call': {
       const outcome = await callTool(gateway, access, params);
       if (outcome.kind === 'unauthorized') return unauthorized(gateway.publicUrl, true);
       if (outcome.kind === 'invalid') return jsonRpcError(id, JSON_RPC_INVALID_PARAMS, outcome.message);
-      return jsonRpcResult(id, outcome.result);
+      return respond(outcome.result);
     }
-    default:
-      return jsonRpcError(id, JSON_RPC_METHOD_NOT_FOUND, `Method not found: ${String(message.method)}`);
+    case 'events/list':
+      if (events) return eventResponse(id, listEvents(params), era, gateway.publicUrl);
+      break;
+    case 'events/subscribe':
+      if (events) return eventResponse(id, await subscribeEvent(gateway, params), era, gateway.publicUrl);
+      break;
+    case 'events/unsubscribe':
+      if (events) return eventResponse(id, await unsubscribeEvent(gateway, params), era, gateway.publicUrl);
+      break;
   }
+  // Modern clients tell an unknown method from a missing endpoint by the 404 status.
+  return jsonRpcError(
+    id,
+    JSON_RPC_METHOD_NOT_FOUND,
+    `Method not found: ${String(message.method)}`,
+    era.modern ? 404 : 200,
+  );
 }
 
 export async function handleMcpRequest(request: Request, context: McpRequestContext): Promise<Response> {
@@ -196,14 +224,8 @@ export async function handleMcpRequest(request: Request, context: McpRequestCont
   if (!validId(message.id)) {
     return jsonRpcError(null, JSON_RPC_INVALID_REQUEST, 'The request id must be a string or number.', 400);
   }
-  const version = request.headers.get('mcp-protocol-version');
-  if (
-    message.method !== 'initialize' &&
-    version !== null &&
-    !(MCP_PROTOCOL_VERSIONS as readonly string[]).includes(version)
-  ) {
-    return jsonRpcError(message.id, JSON_RPC_INVALID_REQUEST, `Unsupported MCP protocol version: ${version}`, 400);
-  }
+  const era = requestEra(message, message.id, request.headers);
+  if (era instanceof Response) return era;
   const gateway: GatewayContext = {
     env,
     fetchOrigin: context.fetchOrigin,
@@ -212,5 +234,5 @@ export async function handleMcpRequest(request: Request, context: McpRequestCont
     signal: request.signal,
     waitUntil: context.waitUntil,
   };
-  return dispatch(message, message.id, access, gateway);
+  return dispatch(message, message.id, access, gateway, era);
 }

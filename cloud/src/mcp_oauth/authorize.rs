@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     auth::validation::validate_code_challenge,
-    mcp_models::{SCOPE_EXECUTE, SCOPE_READ},
+    mcp_models::{SCOPE_ADMIN, SCOPE_EXECUTE, SCOPE_READ},
     state::AppState,
 };
 
@@ -50,17 +50,24 @@ impl ClientRedirect<'_> {
 }
 
 /// Normalizes the requested scope. Unknown scopes are ignored, `mcp:read` is always
-/// included, and an absent or empty scope requests both MCP scopes.
+/// included, and an absent or empty scope requests `mcp:read` and `mcp:execute`.
+/// `mcp:admin` is kept only when the client names it, and then also implies
+/// `mcp:execute`; it is never added on its own, and consent still has to grant it.
 pub fn requested_scopes(scope: Option<&str>) -> Vec<&'static str> {
     let requested: Vec<&str> = scope.unwrap_or_default().split_whitespace().collect();
-    let known = requested
-        .iter()
-        .any(|value| *value == SCOPE_READ || *value == SCOPE_EXECUTE);
-    if !known || requested.contains(&SCOPE_EXECUTE) {
-        vec![SCOPE_READ, SCOPE_EXECUTE]
-    } else {
-        vec![SCOPE_READ]
+    let admin = requested.contains(&SCOPE_ADMIN);
+    let known = admin
+        || requested
+            .iter()
+            .any(|value| *value == SCOPE_READ || *value == SCOPE_EXECUTE);
+    let mut scopes = vec![SCOPE_READ];
+    if !known || admin || requested.contains(&SCOPE_EXECUTE) {
+        scopes.push(SCOPE_EXECUTE);
     }
+    if admin {
+        scopes.push(SCOPE_ADMIN);
+    }
+    scopes
 }
 
 pub async fn authorize(State(state): State<AppState>, RawQuery(query): RawQuery) -> Response {
@@ -196,6 +203,32 @@ mod tests {
         assert_eq!(
             requested_scopes(Some("openid profile")),
             vec!["mcp:read", "mcp:execute"]
+        );
+    }
+
+    #[test]
+    fn admin_is_kept_only_when_requested() {
+        for scope in [
+            None,
+            Some(""),
+            Some("mcp:read"),
+            Some("mcp:execute"),
+            Some("mcp:read mcp:execute"),
+            Some("admin mcp:admins openid"),
+        ] {
+            assert!(!requested_scopes(scope).contains(&"mcp:admin"), "{scope:?}");
+        }
+        assert_eq!(
+            requested_scopes(Some("mcp:admin")),
+            vec!["mcp:read", "mcp:execute", "mcp:admin"]
+        );
+        assert_eq!(
+            requested_scopes(Some("mcp:read mcp:admin")),
+            vec!["mcp:read", "mcp:execute", "mcp:admin"]
+        );
+        assert_eq!(
+            requested_scopes(Some("mcp:read mcp:execute mcp:admin")),
+            vec!["mcp:read", "mcp:execute", "mcp:admin"]
         );
     }
 

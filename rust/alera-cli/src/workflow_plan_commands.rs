@@ -1,5 +1,8 @@
 use std::io::Read;
 
+mod lifecycle;
+pub(crate) use lifecycle::{run_cleanup, run_execution, run_proposals};
+
 use alera_core::runtime::{PrepareWorkflowPlan, WORKFLOW_PLAN_MAX_BYTES};
 use anyhow::{bail, Result};
 use serde_json::{json, Value};

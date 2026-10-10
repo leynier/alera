@@ -42,12 +42,17 @@ class const PromptWorkspaceCreateRequest({
   final String? clientMutationId,
   final bool? originalLaunchWasIdempotent,
   final bool setupStarted = false,
+
+  /// The runtime's `workspace.promptStart` operation that created [created],
+  /// so a retry relaunches its agent there instead of on the phone.
+  final String? serviceOperationId,
 }) {
   PromptWorkspaceCreateRequest withCreated(
     WorkspaceCreationResult created, {
     String? clientMutationId,
     bool? originalLaunchWasIdempotent,
     bool? setupStarted,
+    String? serviceOperationId,
   }) {
     return PromptWorkspaceCreateRequest(
       hostId: hostId,
@@ -67,6 +72,7 @@ class const PromptWorkspaceCreateRequest({
       originalLaunchWasIdempotent:
           originalLaunchWasIdempotent ?? this.originalLaunchWasIdempotent,
       setupStarted: setupStarted ?? this.setupStarted,
+      serviceOperationId: serviceOperationId ?? this.serviceOperationId,
     );
   }
 

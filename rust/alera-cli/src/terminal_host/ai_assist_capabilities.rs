@@ -11,6 +11,13 @@ pub const RUNTIME_HOST_AI_ASSIST_COMMIT_MESSAGE_CAPABILITY: &str = "aiTextCommit
 /// `aiText.pullRequestDetails.generate`.
 pub const RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY: &str =
     "aiTextPullRequestDetailsV1";
+/// `aiText.pullRequestDetails.generate` accepts `waitMs`: the runtime keeps the
+/// generation running past the caller, answers `status: running` when the wait
+/// ends first, and a request with the same `operationId` attaches to it or
+/// reads its result for 15 minutes. Additive: do not bump
+/// `aleraTerminalHostProtocolVersion`.
+pub const RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_RESUME_CAPABILITY: &str =
+    "aiTextPullRequestDetailsResumeV1";
 /// Direct OpenCode Go HTTP completion and model discovery for AI Assist.
 /// Additive: do not bump `aleraTerminalHostProtocolVersion`.
 pub const RUNTIME_HOST_AI_ASSIST_OPENCODE_GO_CAPABILITY: &str = "aiAssistOpenCodeGoV1";

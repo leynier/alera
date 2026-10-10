@@ -218,6 +218,9 @@ async fn handle_mobile_workspace_file_request(
             )
             .await
         }
+        verb if super::pull_request_forges::is_stack_verb(verb) => {
+            super::pull_request_forges::handle_stack_request(&runtime_store, verb, payload).await
+        }
         _ => Err(HostError::state(
             "Unsupported mobile workspace file operation.",
         )),

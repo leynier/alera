@@ -11,7 +11,7 @@ use serde_json::json;
 use sqlx::FromRow;
 use url::Url;
 
-use crate::{auth::validation::random_secret, state::AppState};
+use crate::{auth::validation::random_secret, mcp_models::SCOPES_SUPPORTED, state::AppState};
 
 use super::{
     client_authentication::{self, ClientAuthentication},
@@ -241,7 +241,7 @@ async fn register_client(state: &AppState, body: &[u8]) -> Result<Response, OAut
         "grant_types": grant_types,
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
-        "scope": "mcp:read mcp:execute",
+        "scope": SCOPES_SUPPORTED.join(" "),
     });
     Ok(no_store(with_cors(
         (StatusCode::CREATED, Json(body)).into_response(),

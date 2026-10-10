@@ -15,7 +15,7 @@ export interface RelayClaims {
   keyVersion: number;
   clientPublicKey: string;
   runtimePublicKey: string;
-  mcpAccess?: 'off' | 'read' | 'full';
+  mcpAccess?: 'off' | 'read' | 'full' | 'admin';
   mobileAccess?: boolean;
 }
 
@@ -258,7 +258,7 @@ export async function verifyRelayGrant(
     claims.keyVersion <= 0 ||
     publicKeyBytes.byteLength !== 32 ||
     runtimeKeyBytes.byteLength !== 32 ||
-    (claims.mcpAccess !== undefined && !['off', 'read', 'full'].includes(claims.mcpAccess)) ||
+    (claims.mcpAccess !== undefined && !['off', 'read', 'full', 'admin'].includes(claims.mcpAccess)) ||
     (claims.mobileAccess !== undefined && typeof claims.mobileAccess !== 'boolean')
   ) {
     return null;

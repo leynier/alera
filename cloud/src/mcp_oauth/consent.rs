@@ -14,7 +14,7 @@ use crate::{
     api_models::AccountSummary,
     auth::validation::{hash_secret, random_secret},
     device_auth,
-    mcp_models::{McpAccess, SCOPE_EXECUTE, SCOPE_READ},
+    mcp_models::{McpAccess, SCOPE_ADMIN, SCOPE_EXECUTE, SCOPE_READ},
     state::AppState,
 };
 
@@ -121,6 +121,7 @@ async fn render(
             McpAccess::Off => "MCP Control off",
             McpAccess::Read => "MCP read only",
             McpAccess::Full => "MCP full access",
+            McpAccess::Admin => "MCP admin access",
         };
         runtime_rows.push_str(&format!(
             "<label><input type=\"checkbox\" name=\"runtime\" value=\"{}\"{}><span>{}<span class=\"muted\">Last seen {}, {}</span></span></label>",
@@ -134,15 +135,7 @@ async fn render(
     if runtimes.is_empty() {
         runtime_rows.push_str("<p class=\"muted\">No runtimes are signed in to this account yet. Choose all runtimes to include the ones you add later.</p>");
     }
-    let execute = if view
-        .scope
-        .split_whitespace()
-        .any(|scope| scope == SCOPE_EXECUTE)
-    {
-        "<fieldset><legend>Permissions</legend><label><input type=\"checkbox\" name=\"execute\" value=\"1\" checked><span>Run commands and change workspaces (mcp:execute). Without it the client can only read.</span></label></fieldset>"
-    } else {
-        ""
-    };
+    let permissions = permission_fields(view.scope);
     let error = error
         .map(|message| format!("<p class=\"error\">{}</p>", escape(message)))
         .unwrap_or_default();
@@ -152,7 +145,7 @@ async fn render(
 <form method=\"post\" action=\"/oauth/consent\">{request}{token}\
 <fieldset><legend>Runtimes</legend>\
 <label><input type=\"checkbox\" name=\"all_runtimes\" value=\"1\"><span>All runtimes, including ones added later</span></label>\
-{runtime_rows}</fieldset>{execute}\
+{runtime_rows}</fieldset>{permissions}\
 <p class=\"muted\">MCP Control must also be on in each runtime. You will return to {host}.</p>\
 <div class=\"row\"><button class=\"button\" type=\"submit\" name=\"action\" value=\"deny\">Deny</button>\
 <button class=\"button primary\" type=\"submit\" name=\"action\" value=\"approve\">Allow</button></div></form>",
@@ -248,6 +241,7 @@ async fn submit_consent(state: &AppState, form: &FormFields) -> Result<Response,
         .collect();
     runtime_ids.sort();
     runtime_ids.dedup();
+    let scopes = consent_scopes(&request.scope, form.flag("execute"), form.flag("admin"));
     let selection_error = if !all_runtimes && runtime_ids.is_empty() {
         Some("Choose at least one runtime, or all runtimes.")
     } else {
@@ -264,29 +258,22 @@ async fn submit_consent(state: &AppState, form: &FormFields) -> Result<Response,
         (owned != runtime_ids.len() as i64)
             .then_some("A selected runtime is no longer available. Choose again.")
     };
-    if let Some(message) = selection_error {
-        transaction.rollback().await?;
-        let account = load_account_summary(&state.pool, account_id).await?;
-        let view = ConsentView {
-            request_id,
-            consent_token,
-            client_id: &request.client_id,
-            client_name: &request.client_name,
-            redirect_uri: &request.redirect_uri,
-            scope: &request.scope,
-            account: &account,
-        };
-        return render(state, &view, Some(message)).await;
-    }
-
-    let execute_requested = request
-        .scope
-        .split_whitespace()
-        .any(|scope| scope == SCOPE_EXECUTE);
-    let scopes = if execute_requested && form.flag("execute") {
-        format!("{SCOPE_READ} {SCOPE_EXECUTE}")
-    } else {
-        SCOPE_READ.to_owned()
+    let scopes = match (scopes, selection_error) {
+        (Ok(scopes), None) => scopes,
+        (Err(message), _) | (Ok(_), Some(message)) => {
+            transaction.rollback().await?;
+            let account = load_account_summary(&state.pool, account_id).await?;
+            let view = ConsentView {
+                request_id,
+                consent_token,
+                client_id: &request.client_id,
+                client_name: &request.client_name,
+                redirect_uri: &request.redirect_uri,
+                scope: &request.scope,
+                account: &account,
+            };
+            return render(state, &view, Some(message)).await;
+        }
     };
     let runtime_ids = if all_runtimes {
         Vec::new()
@@ -311,6 +298,39 @@ async fn submit_consent(state: &AppState, form: &FormFields) -> Result<Response,
     mark_completed(&mut transaction, request_id, now).await?;
     transaction.commit().await?;
     Ok(redirect.send(&[("code", &code)]))
+}
+
+/// The optional permission boxes for the requested scope. Execute starts checked, as it
+/// always has; administrative tools start unchecked and need an explicit tick.
+fn permission_fields(scope: &str) -> String {
+    let requested = |wanted: &str| scope.split_whitespace().any(|value| value == wanted);
+    if !requested(SCOPE_EXECUTE) {
+        return String::new();
+    }
+    let admin = if requested(SCOPE_ADMIN) {
+        "<label><input type=\"checkbox\" name=\"admin\" value=\"1\"><span>Allow administrative tools: change agent profiles, runtime settings, webhooks, and internal maintenance (mcp:admin). Each runtime must also set MCP Control to Admin.</span></label>"
+    } else {
+        ""
+    };
+    format!(
+        "<fieldset><legend>Permissions</legend><label><input type=\"checkbox\" name=\"execute\" value=\"1\" checked><span>Run commands and change workspaces (mcp:execute). Without it the client can only read.</span></label>{admin}</fieldset>"
+    )
+}
+
+/// The scopes a consent grants: only what the client requested and the person ticked.
+/// `mcp:admin` never comes from a default, and it builds on `mcp:execute`.
+fn consent_scopes(requested: &str, execute: bool, admin: bool) -> Result<String, &'static str> {
+    let requested = |wanted: &str| requested.split_whitespace().any(|value| value == wanted);
+    let execute = execute && requested(SCOPE_EXECUTE);
+    let admin = admin && requested(SCOPE_ADMIN);
+    match (execute, admin) {
+        (false, true) => Err(
+            "Administrative tools also need permission to run commands. Allow both, or clear administrative tools.",
+        ),
+        (true, true) => Ok(format!("{SCOPE_READ} {SCOPE_EXECUTE} {SCOPE_ADMIN}")),
+        (true, false) => Ok(format!("{SCOPE_READ} {SCOPE_EXECUTE}")),
+        (false, false) => Ok(SCOPE_READ.to_owned()),
+    }
 }
 
 async fn mark_completed(
@@ -350,5 +370,41 @@ fn client_origin_notice(client_id: &str, redirect_uri: &str) -> String {
             "<p class=\"muted\">This client registered itself, so Alera has not verified its name. It returns to {}.</p>",
             escape(&redirect)
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{consent_scopes, permission_fields};
+
+    #[test]
+    fn admin_needs_the_request_and_an_explicit_tick() {
+        let full = "mcp:read mcp:execute";
+        let admin = "mcp:read mcp:execute mcp:admin";
+        assert_eq!(consent_scopes(full, true, false).as_deref(), Ok(full));
+        assert_eq!(consent_scopes(full, true, true).as_deref(), Ok(full));
+        assert_eq!(consent_scopes(admin, true, false).as_deref(), Ok(full));
+        assert_eq!(consent_scopes(admin, true, true).as_deref(), Ok(admin));
+        assert_eq!(
+            consent_scopes(admin, false, false).as_deref(),
+            Ok("mcp:read")
+        );
+        assert!(consent_scopes(admin, false, true).is_err());
+        assert_eq!(
+            consent_scopes("mcp:read", true, true).as_deref(),
+            Ok("mcp:read")
+        );
+    }
+
+    #[test]
+    fn the_admin_box_is_offered_unchecked_only_when_requested() {
+        assert!(permission_fields("mcp:read").is_empty());
+        let full = permission_fields("mcp:read mcp:execute");
+        assert!(full.contains("name=\"execute\" value=\"1\" checked"));
+        assert!(!full.contains("name=\"admin\""));
+        let admin = permission_fields("mcp:read mcp:execute mcp:admin");
+        assert!(admin.contains("<input type=\"checkbox\" name=\"admin\" value=\"1\">"));
+        assert!(!admin.contains("name=\"admin\" value=\"1\" checked"));
+        assert!(admin.contains("Allow administrative tools"));
     }
 }

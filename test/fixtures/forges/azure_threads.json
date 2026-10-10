@@ -1,0 +1,44 @@
+{
+  "description": "az devops invoke --resource pullRequestThreads --http-method GET",
+  "identity": {
+    "host": "dev.azure.com",
+    "owner": "myorg",
+    "repo": "myrepo",
+    "project": "myproject"
+  },
+  "stdout": "{\"value\": [{\"id\": 11, \"status\": \"active\", \"threadContext\": {\"filePath\": \"/lib/a.dart\", \"rightFileStart\": {\"line\": 17}}, \"comments\": [{\"id\": 1, \"content\": \"Change this\", \"publishedDate\": \"2026-07-20T11:00:00Z\", \"author\": {\"displayName\": \"Bob\", \"uniqueName\": \"bob@example.com\"}, \"commentType\": \"text\"}, {\"id\": 2, \"content\": \"Done\", \"publishedDate\": \"2026-07-20T11:30:00Z\", \"author\": {\"uniqueName\": \"ley@example.com\"}, \"commentType\": 1}]}, {\"id\": 12, \"status\": \"fixed\", \"comments\": [{\"id\": 1, \"content\": \"General note\", \"publishedDate\": \"2026-07-20T10:00:00Z\", \"author\": {\"displayName\": \"Carol\"}, \"commentType\": 1}]}, {\"id\": 13, \"comments\": [{\"id\": 1, \"content\": \"Ley updated the pull request\", \"publishedDate\": \"2026-07-20T09:00:00Z\", \"commentType\": \"system\"}]}, {\"id\": 14, \"isDeleted\": true, \"comments\": [{\"id\": 1, \"content\": \"gone\", \"publishedDate\": \"2026-07-20T08:00:00Z\"}]}]}",
+  "expected": {
+    "comments": [
+      {
+        "id": 1,
+        "author": "Carol",
+        "body": "General note",
+        "kind": "conversation",
+        "path": null,
+        "line": null,
+        "resolved": true,
+        "threadId": "12"
+      },
+      {
+        "id": 1,
+        "author": "Bob",
+        "body": "Change this",
+        "kind": "review",
+        "path": "/lib/a.dart",
+        "line": 17,
+        "resolved": false,
+        "threadId": "11"
+      },
+      {
+        "id": 2,
+        "author": "ley@example.com",
+        "body": "Done",
+        "kind": "review",
+        "path": "/lib/a.dart",
+        "line": 17,
+        "resolved": false,
+        "threadId": "11"
+      }
+    ]
+  }
+}

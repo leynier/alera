@@ -28,14 +28,24 @@ Future<void> dispatchPullRequestFailedChecks({
   required String hostId,
   required String workspaceId,
   required MobilePullRequestReview review,
-}) {
-  return _showAndComplete(
+}) async {
+  final prompt =
+      await _runtimePrompt(
+        ref,
+        hostId: hostId,
+        workspaceId: workspaceId,
+        kind: 'fixFailedChecks',
+        reviewNumber: review.number,
+      ) ??
+      pullRequestFailedChecksPrompt(review.number);
+  if (!context.mounted) return;
+  await _showAndComplete(
     context,
     ref,
     request: AgentTaskDispatchRequest(
       hostId: hostId,
       workspaceId: workspaceId,
-      prompt: pullRequestFailedChecksPrompt(review.number),
+      prompt: prompt,
       message: _agentDispatchMessage,
     ),
   );
@@ -46,18 +56,52 @@ Future<void> dispatchPullRequestRestack({
   required WidgetRef ref,
   required String hostId,
   required String workspaceId,
-}) {
-  return _showAndComplete(
+}) async {
+  final prompt =
+      await _runtimePrompt(
+        ref,
+        hostId: hostId,
+        workspaceId: workspaceId,
+        kind: 'restack',
+      ) ??
+      pullRequestRestackPrompt;
+  if (!context.mounted) return;
+  await _showAndComplete(
     context,
     ref,
     request: AgentTaskDispatchRequest(
       hostId: hostId,
       workspaceId: workspaceId,
-      prompt: pullRequestRestackPrompt,
+      prompt: prompt,
       title: 'Restack Changes',
       message: _agentDispatchMessage,
     ),
   );
+}
+
+/// The runtime's prompt when it owns them (`pullRequestAgentDispatchV1`);
+/// null keeps the bundled copy for an older runtime.
+Future<String?> _runtimePrompt(
+  WidgetRef ref, {
+  required String hostId,
+  required String workspaceId,
+  required String kind,
+  int? reviewNumber,
+}) async {
+  try {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    if (client is! MobilePullRequestAgentDispatchClient) {
+      return null;
+    }
+    return await (client as MobilePullRequestAgentDispatchClient)
+        .pullRequestAgentPrompt(
+          workspaceId: workspaceId,
+          kind: kind,
+          reviewNumber: reviewNumber,
+        );
+  } on Object {
+    return null;
+  }
 }
 
 Future<void> startPullRequestAgentWatch({

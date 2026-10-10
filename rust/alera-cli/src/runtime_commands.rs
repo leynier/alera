@@ -100,6 +100,18 @@ pub(crate) async fn run_runtime_command(command: RuntimeCommand) -> i32 {
         RuntimeAction::Agents(agents) => {
             run_runtime_agents_command(&command.runtime, command.output.json, agents.action).await
         }
+        RuntimeAction::Settings(settings) => {
+            crate::runtime_settings_commands::run_settings(
+                &command.runtime,
+                settings,
+                command.output.json,
+            )
+            .await
+        }
+        RuntimeAction::Resources => {
+            crate::runtime_settings_commands::run_resources(&command.runtime, command.output.json)
+                .await
+        }
     }
 }
 

@@ -16,7 +16,7 @@ use tokio_tungstenite::tungstenite::Message;
 use super::relay_runtime_auth::{CallGrantClaims, GrantVerifier};
 use super::relay_wire;
 use crate::mcp_settings::McpAccess;
-use crate::mcp_tools::{find_tool, run_tool, ToolAccess, ToolExecution, ToolResult};
+use crate::mcp_tools::{find_tool, run_tool, CallOrigin, ToolAccess, ToolExecution, ToolResult};
 
 pub(super) const MCP_CLIENT_ID: &str = "~mcp";
 const MAX_CONCURRENT_CALLS: usize = 4;
@@ -186,12 +186,16 @@ impl McpLink {
             _ = &mut cancelled => return Err(cancelled_error()),
             prepared = self.prepare(id, grant, tool_name, account_id, runtime_id) => prepared?,
         };
-        let (tool, _permit, client_name) = permit;
+        let (tool, _permit, origin) = permit;
         if cancelled.try_recv().is_ok() {
             return Err(cancelled_error());
         }
-        tracing::info!(tool = tool_name, client = %client_name, "running MCP tool");
-        Ok(run_tool(&self.execution, &tool, arguments, Some(cancelled)).await)
+        tracing::info!(
+            tool = tool_name,
+            client = origin.client_name.as_deref().unwrap_or_default(),
+            "running MCP tool"
+        );
+        Ok(run_tool(&self.execution, &tool, arguments, &origin, Some(cancelled)).await)
     }
 
     async fn prepare(
@@ -205,7 +209,7 @@ impl McpLink {
         (
             crate::mcp_tools::ToolSpec,
             tokio::sync::SemaphorePermit<'_>,
-            String,
+            CallOrigin,
         ),
         (&'static str, String),
     > {
@@ -221,17 +225,26 @@ impl McpLink {
                 format!("This runtime does not provide {tool_name}. Update Alera on it."),
             )
         })?;
-        if tool.access != ToolAccess::Read && claims.access != "execute" {
+        let granted = ToolAccess::from_grant(&claims.access).unwrap_or(ToolAccess::Read);
+        if tool.access > granted {
             return Err((
                 "access_denied",
-                "The call grant only allows reading.".into(),
+                format!("The call grant only allows {} tools.", granted.as_str()),
             ));
         }
         if !self.access.allows(tool.access) {
-            return Err((
-                "runtime_read_only",
-                "MCP Control on this runtime only allows reading.".into(),
-            ));
+            let (code, message) = if tool.access == ToolAccess::Admin {
+                (
+                    "runtime_not_admin",
+                    "MCP Control on this runtime does not allow administrative tools.",
+                )
+            } else {
+                (
+                    "runtime_read_only",
+                    "MCP Control on this runtime only allows reading.",
+                )
+            };
+            return Err((code, message.into()));
         }
         let permit = self.permits.acquire().await.map_err(|_| {
             (
@@ -239,7 +252,13 @@ impl McpLink {
                 "The runtime is shutting down.".to_owned(),
             )
         })?;
-        Ok((tool, permit, claims.client_name))
+        let origin = CallOrigin::remote(
+            &claims.client_id,
+            &claims.client_name,
+            &claims.grant_id,
+            &claims.jti,
+        );
+        Ok((tool, permit, origin))
     }
 
     fn authorize(

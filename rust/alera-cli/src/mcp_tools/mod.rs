@@ -5,14 +5,17 @@
 //! edge serves a generated copy of this catalog (`edge/src/mcp/tool_catalog.json`).
 
 mod arguments;
-mod catalog_execute;
-mod catalog_read;
+mod catalog;
 mod executor;
+mod origin;
 mod schema;
 mod stdio_server;
+mod subscriptions;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_catalog;
 
 use std::time::Duration;
 
@@ -20,17 +23,25 @@ use serde_json::{json, Value};
 
 pub(crate) use arguments::{ToolArguments, ToolInputError};
 pub(crate) use executor::{run_tool, ToolExecution, ToolResult};
+pub(crate) use origin::{CallOrigin, ORIGIN_VARIABLE};
 pub(crate) use stdio_server::serve_stdio;
 
-pub(crate) const CATALOG_VERSION: u64 = 1;
+/// Version 2 added the `admin` access class and `idempotentHint`.
+pub(crate) const CATALOG_VERSION: u64 = 2;
 /// Hosted MCP clients abandon a call after about a minute, so every wait stays
 /// below that and the agent polls again.
 pub(crate) const MAX_WAIT_SECONDS: u64 = 50;
+/// Optional retry key of every tool that changes state through a CLI flag
+/// that deduplicates repeated requests.
+pub(crate) const CLIENT_REQUEST_ID: &str = "clientRequestId";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The class of a tool, ordered from least to most privileged. A grant or a
+/// runtime level that allows one class also allows every class below it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ToolAccess {
     Read,
     Execute,
+    Admin,
 }
 
 impl ToolAccess {
@@ -38,6 +49,17 @@ impl ToolAccess {
         match self {
             Self::Read => "read",
             Self::Execute => "execute",
+            Self::Admin => "admin",
+        }
+    }
+
+    /// The class a cloud call grant allows (`read`, `execute`, or `admin`).
+    pub(crate) fn from_grant(value: &str) -> Option<Self> {
+        match value {
+            "read" => Some(Self::Read),
+            "execute" => Some(Self::Execute),
+            "admin" => Some(Self::Admin),
+            _ => None,
         }
     }
 }
@@ -100,6 +122,11 @@ pub(crate) struct ToolSpec {
     /// Upper bound for the whole CLI process, including any wait it performs.
     pub(crate) timeout_seconds: u64,
     pub(crate) destructive: bool,
+    /// Repeating the call with the same arguments has no further effect.
+    pub(crate) idempotent: bool,
+    /// CLI flag that receives `clientRequestId`, for tools whose command
+    /// deduplicates retries. The argument is added to the schema for them.
+    pub(crate) client_request_flag: Option<&'static str>,
     /// Top-level result fields dropped before returning, such as a base64 copy
     /// of text the result already carries.
     pub(crate) omit_fields: &'static [&'static str],
@@ -112,9 +139,22 @@ impl ToolSpec {
         Duration::from_secs(self.timeout_seconds)
     }
 
+    /// The tool's input schema, including `clientRequestId` when it applies.
+    pub(crate) fn schema(&self) -> Value {
+        let mut schema = (self.input_schema)();
+        if self.client_request_flag.is_some() {
+            schema["properties"][CLIENT_REQUEST_ID] = schema::client_request_id();
+        }
+        schema
+    }
+
     pub(crate) fn invocation(&self, arguments: &Value) -> Result<Invocation, ToolInputError> {
-        let arguments = ToolArguments::parse(arguments, &(self.input_schema)())?;
-        (self.build)(&arguments)
+        let arguments = ToolArguments::parse(arguments, &self.schema())?;
+        let invocation = (self.build)(&arguments)?;
+        Ok(match self.client_request_flag {
+            Some(flag) => invocation.option_if(flag, arguments.string(CLIENT_REQUEST_ID)),
+            None => invocation,
+        })
     }
 
     pub(crate) fn to_json(&self) -> Value {
@@ -124,11 +164,12 @@ impl ToolSpec {
             "description": self.description,
             "access": self.access.as_str(),
             "timeoutSeconds": self.timeout_seconds,
-            "inputSchema": (self.input_schema)(),
+            "inputSchema": self.schema(),
             "annotations": {
                 "title": self.title,
                 "readOnlyHint": self.access == ToolAccess::Read,
                 "destructiveHint": self.destructive,
+                "idempotentHint": self.idempotent || self.access == ToolAccess::Read,
                 "openWorldHint": false,
             },
         })
@@ -136,9 +177,7 @@ impl ToolSpec {
 }
 
 pub(crate) fn catalog() -> Vec<ToolSpec> {
-    let mut tools = catalog_read::tools();
-    tools.extend(catalog_execute::tools());
-    tools
+    catalog::tools()
 }
 
 pub(crate) fn find_tool(name: &str) -> Option<ToolSpec> {

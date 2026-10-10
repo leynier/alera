@@ -219,6 +219,8 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
           'clientKind': 'app',
           'sharedCheckoutWorkspacesV1': true,
           'checkoutBufferGuardsV1': _bufferGuardHandler != null,
+          'checkoutBufferSaveV1':
+              _bufferGuardHandler is RuntimeBufferGuardResolver,
           aleraWorkspaceFocusHelloFlag: true,
           'supportedTabKinds': const <String>[],
           if (control.supportsBinaryFrames) 'binaryFrames': true,

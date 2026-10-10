@@ -12,6 +12,7 @@ const ALLOWED: &[&str] = &[
     "project.removalDependencies",
     "workspace.list",
     "workspace.find",
+    "workspace.show",
     "workspace.createShared",
     "workspace.createManaged",
     "workspace.removeShared",

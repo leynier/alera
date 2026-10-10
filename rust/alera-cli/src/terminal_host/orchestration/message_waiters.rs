@@ -27,6 +27,8 @@ pub enum WaitKind {
     Inbox {
         question_id: Option<String>,
         after_sequence: i64,
+        /// Inbox waits only: count only threads this MCP client started.
+        origin_client_id: Option<String>,
     },
 }
 

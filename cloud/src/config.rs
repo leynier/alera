@@ -23,6 +23,73 @@ pub struct AppConfig {
     pub http_timeout: Duration,
     pub limits: LimitsConfig,
     pub mcp: McpConfig,
+    pub events: EventsConfig,
+}
+
+/// Runtime domain events, generic webhooks, and MCP Events.
+#[derive(Clone, Debug)]
+pub struct EventsConfig {
+    /// Encrypts webhook signing secrets at rest (`ALERA_WEBHOOK_SECRET_KEY`). Without it
+    /// webhooks and MCP Events subscriptions cannot be created and nothing is delivered.
+    pub secret_key: Option<SecretKey>,
+    /// The key being rotated out (`ALERA_WEBHOOK_PREVIOUS_SECRET_KEY`); only decrypts.
+    pub previous_secret_key: Option<SecretKey>,
+    /// OpenAI MCP Events subscriptions (`ALERA_MCP_EVENTS_ENABLED`, default off).
+    pub mcp_events_enabled: bool,
+    /// Runs the background fan-out and delivery loop (`ALERA_EVENT_WORKER_ENABLED`).
+    pub worker_enabled: bool,
+    pub callbacks: CallbackPolicy,
+}
+
+impl Default for EventsConfig {
+    fn default() -> Self {
+        Self {
+            secret_key: None,
+            previous_secret_key: None,
+            mcp_events_enabled: false,
+            worker_enabled: true,
+            callbacks: CallbackPolicy::default(),
+        }
+    }
+}
+
+/// Which callback URLs webhooks and MCP Events may target. Production keeps both off:
+/// HTTPS on port 443 to public addresses only.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CallbackPolicy {
+    /// Development only (`ALERA_WEBHOOK_ALLOW_ANY_PORT`): HTTPS on any port.
+    pub allow_any_port: bool,
+    /// Tests only, never read from the environment: plain HTTP and private addresses.
+    pub allow_private_targets: bool,
+}
+
+/// A 32-byte AES-256-GCM key whose bytes never appear in `Debug` output.
+#[derive(Clone)]
+pub struct SecretKey(pub [u8; 32]);
+
+impl std::fmt::Debug for SecretKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SecretKey(redacted)")
+    }
+}
+
+impl SecretKey {
+    /// Parses standard or URL-safe base64, padded or not, that decodes to exactly 32 bytes.
+    pub fn parse(value: &str) -> anyhow::Result<Self> {
+        use base64::{
+            engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+            Engine,
+        };
+        let trimmed = value.trim();
+        let bytes = STANDARD
+            .decode(trimmed)
+            .or_else(|_| URL_SAFE_NO_PAD.decode(trimmed.trim_end_matches('=')))
+            .context("the key is not base64")?;
+        let key: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("the key must decode to 32 bytes"))?;
+        Ok(Self(key))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -146,6 +213,7 @@ impl AppConfig {
                 push_burst: env_number("ALERA_PUSH_BURST_LIMIT", 10)?,
             },
             mcp,
+            events: events_config()?,
         };
         config.validate()?;
         Ok(config)
@@ -272,6 +340,24 @@ fn web_credentials(
         _ => bail!("{prefix}_CLIENT_ID and {prefix}_CLIENT_SECRET must be set together"),
     }
     Ok(config)
+}
+
+fn events_config() -> anyhow::Result<EventsConfig> {
+    let key = |name: &str| {
+        optional(name)
+            .map(|value| SecretKey::parse(&value).with_context(|| format!("invalid {name}")))
+            .transpose()
+    };
+    Ok(EventsConfig {
+        secret_key: key("ALERA_WEBHOOK_SECRET_KEY")?,
+        previous_secret_key: key("ALERA_WEBHOOK_PREVIOUS_SECRET_KEY")?,
+        mcp_events_enabled: optional_bool("ALERA_MCP_EVENTS_ENABLED", false)?,
+        worker_enabled: optional_bool("ALERA_EVENT_WORKER_ENABLED", true)?,
+        callbacks: CallbackPolicy {
+            allow_any_port: optional_bool("ALERA_WEBHOOK_ALLOW_ANY_PORT", false)?,
+            allow_private_targets: false,
+        },
+    })
 }
 
 fn fcm_config() -> anyhow::Result<FcmConfig> {

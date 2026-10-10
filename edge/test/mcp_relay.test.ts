@@ -4,7 +4,7 @@ import { McpRelayCalls, mcpFrame } from '../src/mcp/relay_calls';
 import { verifyRelayGrant } from '../src/relay_authorization';
 import { base64Url, environment, relayAttachment, relayJwks, signedRelayGrant, TestSocket } from './relay_fixture';
 
-function mcpRuntime(mcpAccess?: 'off' | 'read' | 'full', expiresIn = 120) {
+function mcpRuntime(mcpAccess?: 'off' | 'read' | 'full' | 'admin', expiresIn = 120) {
   return new TestSocket({ ...relayAttachment('runtime', 'runtime-1', expiresIn), mcpAccess });
 }
 
@@ -96,6 +96,20 @@ describe('MCP relay calls', () => {
     object.webSocketMessage(runtime as unknown as WebSocket, frame.buffer as ArrayBuffer);
     expect((await settled(pending)).code).toBe('invalid_result');
     expect(runtime.closed).toBeNull();
+  });
+
+  test('routes calls to a runtime socket with admin MCP Control', async () => {
+    const runtime = mcpRuntime('admin');
+    const object = relay([runtime]);
+    const pending = object.fetch(callRequest({ tool: 'update_runtime_settings' }));
+    await Bun.sleep(0);
+    expect(sent(runtime).map(({ payload }) => payload.tool)).toEqual(['update_runtime_settings']);
+    const result = { content: [{ type: 'text', text: 'saved' }] };
+    object.webSocketMessage(
+      runtime as unknown as WebSocket,
+      mcpFrame({ type: 'mcp.result', id: 'call-1', result }).buffer as ArrayBuffer,
+    );
+    expect(await settled(pending)).toEqual({ ok: true, result });
   });
 
   for (const access of [undefined, 'off'] as const) {
@@ -214,7 +228,9 @@ describe('MCP relay admission', () => {
     const claims = await verifyRelayGrant(valid.grant, env, relayJwks(valid.publicJwk));
     expect(claims?.mcpAccess).toBe('read');
     expect(claims?.mobileAccess).toBe(false);
-    for (const overrides of [{ mcpAccess: 'admin' }, { mobileAccess: 'no' }]) {
+    const admin = await signedRelayGrant(120, { mcpAccess: 'admin' } as never);
+    expect((await verifyRelayGrant(admin.grant, { ...env }, relayJwks(admin.publicJwk)))?.mcpAccess).toBe('admin');
+    for (const overrides of [{ mcpAccess: 'owner' }, { mobileAccess: 'no' }]) {
       const invalid = await signedRelayGrant(120, overrides as never);
       expect(await verifyRelayGrant(invalid.grant, env, relayJwks(invalid.publicJwk))).toBeNull();
     }

@@ -80,7 +80,7 @@ export class McpRelayCalls {
         attachment.role === 'runtime' &&
         !attachment.suppressDisconnect &&
         attachment.exp > now &&
-        (attachment.mcpAccess === 'read' || attachment.mcpAccess === 'full')
+        (attachment.mcpAccess === 'read' || attachment.mcpAccess === 'full' || attachment.mcpAccess === 'admin')
       ) {
         return socket;
       }

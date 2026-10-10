@@ -19,6 +19,7 @@ pub(crate) enum McpAccess {
     Off,
     Read,
     Full,
+    Admin,
 }
 
 impl McpAccess {
@@ -27,6 +28,7 @@ impl McpAccess {
             Self::Off => "off",
             Self::Read => "read",
             Self::Full => "full",
+            Self::Admin => "admin",
         }
     }
 
@@ -35,15 +37,18 @@ impl McpAccess {
             "off" => Some(Self::Off),
             "read" => Some(Self::Read),
             "full" => Some(Self::Full),
+            "admin" => Some(Self::Admin),
             _ => None,
         }
     }
 
+    /// Each level allows its own tool class and every class below it.
     pub(crate) fn allows(self, access: ToolAccess) -> bool {
         match self {
             Self::Off => false,
             Self::Read => access == ToolAccess::Read,
-            Self::Full => true,
+            Self::Full => access != ToolAccess::Admin,
+            Self::Admin => true,
         }
     }
 }
@@ -106,6 +111,10 @@ mod tests {
         assert!(McpAccess::Read.allows(ToolAccess::Read));
         assert!(!McpAccess::Read.allows(ToolAccess::Execute));
         assert!(McpAccess::Full.allows(ToolAccess::Execute));
+        assert!(!McpAccess::Full.allows(ToolAccess::Admin));
+        assert!(McpAccess::Admin.allows(ToolAccess::Admin));
+        assert!(McpAccess::Admin.allows(ToolAccess::Read));
+        assert_eq!(McpAccess::parse("admin"), Some(McpAccess::Admin));
         assert_eq!(McpAccess::parse("full"), Some(McpAccess::Full));
         assert_eq!(McpAccess::parse("all"), None);
     }

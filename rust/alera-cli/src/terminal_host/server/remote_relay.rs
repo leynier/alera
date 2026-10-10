@@ -61,6 +61,7 @@ impl ServerActor {
                 authenticated: false,
                 shared_checkout_workspaces: false,
                 checkout_buffer_guards: false,
+                checkout_buffer_save: false,
                 workspace_focus: false,
                 binary_frames: false,
                 kind: ClientKind::Mobile,

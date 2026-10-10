@@ -1,9 +1,10 @@
-//! Ship for a paired phone: the desktop's one-tap path from local changes to a
-//! pull request (`workspace_pull_request_ship_actions.dart`). It stages, writes
-//! the commit message with AI Assist, moves the work off a shared base branch,
-//! commits, pushes, and opens the pull request. It runs on the runtime rather
-//! than as a sequence of phone requests, so a phone that sleeps halfway cannot
-//! leave a commit without its pull request.
+//! Ship for a paired phone, the CLI, and MCP: the desktop's one-tap path from
+//! local changes to a pull request (`workspace_pull_request_ship_actions.dart`)
+//! on any forge. It stages, writes the commit message with AI Assist, moves the
+//! work off a shared base branch, commits, pushes, and opens the pull request;
+//! only that last create-and-link step depends on the forge. It runs on the
+//! runtime rather than as a sequence of client requests, so a phone that
+//! sleeps halfway cannot leave a commit without its pull request.
 
 use alera_core::git as core_git;
 use alera_core::runtime::{RuntimeAiAssistSettings, RuntimeStore, Workspace};
@@ -18,11 +19,10 @@ use super::ai_assist_commit_message::generate_commit_message;
 use super::ai_assist_pull_request_details::{
     generate_pull_request_details, parse_pull_request_details,
 };
-use super::mobile_pull_request_actions::create_and_link;
-use super::mobile_pull_request_identity::GitHubIdentity;
 use super::mobile_source_control_snapshot::git_host_error;
 use super::mobile_source_control_write_requests::WorkspaceWriteGuard;
 use super::mobile_workspace_file_requests::spawn_blocking_workspace;
+use super::pull_request_forges::{CreateInput, ForgeProvider};
 use super::remote_ai_assist_requests::effective_ai_assist_settings;
 
 const MAX_BRANCH_CANDIDATES: usize = 100;
@@ -56,7 +56,7 @@ pub(super) struct ShipPlan {
 pub(super) async fn ship_pull_request(
     store: &RuntimeStore,
     workspace: &Workspace,
-    identity: &GitHubIdentity,
+    forge: &dyn ForgeProvider,
     request: ShipRequest,
     hub_settings: Option<RuntimeAiAssistSettings>,
 ) -> HostResult<()> {
@@ -147,17 +147,16 @@ pub(super) async fn ship_pull_request(
             move || source_control::git_push(root).map_err(git_host_error)
         })
         .await?;
-        create_and_link(
-            store,
-            workspace,
-            identity,
-            &request.base,
-            &head,
-            &details.title,
-            details.body.as_deref().unwrap_or_default(),
-            request.draft,
-        )
-        .await
+        let input = CreateInput {
+            base: request.base.clone(),
+            head: head.clone(),
+            title: details.title.clone(),
+            body: details.body.clone().unwrap_or_default(),
+            draft: request.draft,
+        };
+        super::pull_request_forges::create_and_link(store, workspace, forge, &input)
+            .await
+            .map(|_| ())
     }
     .await;
     finish.map_err(|error| {

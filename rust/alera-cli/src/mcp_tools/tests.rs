@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
-use super::{catalog, catalog_json, find_tool, run_tool, ToolAccess, ToolExecution};
+use super::{catalog, catalog_json, find_tool, run_tool, CallOrigin, ToolAccess, ToolExecution};
 
 fn invocation_args(tool: &str, arguments: Value) -> (Vec<String>, Option<String>) {
     let tool = find_tool(tool).expect("tool exists");
@@ -23,7 +23,7 @@ fn tool_names_are_unique_short_and_snake_case() {
             .name
             .bytes()
             .all(|byte| byte.is_ascii_lowercase() || byte == b'_'));
-        let schema = (tool.input_schema)();
+        let schema = tool.schema();
         assert_eq!(schema["type"], "object");
         assert_eq!(schema["additionalProperties"], false);
         assert!(
@@ -90,6 +90,20 @@ fn profiles_are_addressed_by_id_or_name() {
 }
 
 #[test]
+fn pull_request_details_answer_within_the_deadline_and_resume_by_retry_key() {
+    let tool = find_tool("generate_pull_request_details").unwrap();
+    assert!(tool.timeout_seconds <= super::MAX_WAIT_SECONDS + 8);
+    let arguments = json!({ "workspaceId": "ws", "baseBranch": "main" });
+    let (args, _) = invocation_args("generate_pull_request_details", arguments.clone());
+    assert!(args.contains(&"--wait-seconds=45".to_owned()));
+    assert!(!args.iter().any(|arg| arg.starts_with("--operation-id")));
+    let mut resumed = arguments;
+    resumed["clientRequestId"] = json!("cli-0001-retry");
+    let (args, _) = invocation_args("generate_pull_request_details", resumed);
+    assert!(args.contains(&"--operation-id=cli-0001-retry".to_owned()));
+}
+
+#[test]
 fn waits_are_clamped_below_the_client_deadline() {
     let tool = find_tool("wait_for_task").unwrap();
     assert!(tool
@@ -142,9 +156,14 @@ async fn reports_invalid_arguments_without_spawning() {
         runtime_dir: PathBuf::from("/nonexistent"),
     };
     let tool = find_tool("show_task").unwrap();
-    let result = run_tool(&execution, &tool, &json!({}), None).await;
+    let result = run_tool(&execution, &tool, &json!({}), &CallOrigin::default(), None).await;
     assert!(result.is_error);
     assert!(result.text.contains("taskId"));
+    let mcp = result.to_mcp();
+    assert_eq!(
+        mcp["structuredContent"]["error"]["code"],
+        "invalid_argument"
+    );
 }
 
 /// The edge serves a copy of the catalog. Set `ALERA_UPDATE_MCP_CATALOG=1` to

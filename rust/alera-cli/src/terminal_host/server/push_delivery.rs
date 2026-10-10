@@ -42,6 +42,10 @@ impl ServerActor {
         state_started_at: DateTime<Utc>,
         transitioned: bool,
     ) {
+        if transitioned {
+            self.journal_agent_status(session_id, agent_type, state.as_str())
+                .await;
+        }
         let settings = match self.runtime_store.mobile_push_settings().await {
             Ok(settings) if settings.enabled => settings,
             _ => return,
@@ -77,6 +81,7 @@ impl ServerActor {
         session_id: &str,
         exit_code: Option<i32>,
     ) {
+        self.journal_terminal_exit(session_id, exit_code).await;
         let settings = match self.runtime_store.mobile_push_settings().await {
             Ok(settings) if settings.enabled && settings.terminal_exit => settings,
             _ => return,
@@ -96,6 +101,8 @@ impl ServerActor {
     }
 
     pub(super) async fn queue_gate_push(&mut self, task_id: &str, question: &str) {
+        self.journal_task_attention("orchestration.gate.created", task_id)
+            .await;
         let settings = match self.runtime_store.mobile_push_settings().await {
             Ok(settings) if settings.enabled && settings.attention => settings,
             _ => return,
@@ -110,6 +117,7 @@ impl ServerActor {
     /// One push per message an agent sends to an inbox, in the attention
     /// category so the cloud contract stays unchanged.
     pub(super) async fn queue_inbox_reply_push(&mut self, message: &OrchestrationMessage) {
+        self.journal_inbox_reply(message).await;
         if !alera_core::runtime::is_external_inbox(&message.to_handle) {
             return;
         }
@@ -125,6 +133,8 @@ impl ServerActor {
     }
 
     pub(super) async fn queue_escalation_push(&mut self, task_id: &str, subject: &str) {
+        self.journal_task_attention("orchestration.escalation", task_id)
+            .await;
         let settings = match self.runtime_store.mobile_push_settings().await {
             Ok(settings) if settings.enabled && settings.attention => settings,
             _ => return,
@@ -143,6 +153,7 @@ impl ServerActor {
         status: AutomationRunStatus,
         summary: Option<&str>,
     ) {
+        self.journal_automation_run(run, status).await;
         let settings = match self.runtime_store.mobile_push_settings().await {
             Ok(settings) if settings.enabled => settings,
             _ => return,

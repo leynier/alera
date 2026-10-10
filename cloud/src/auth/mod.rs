@@ -52,6 +52,16 @@ pub async fn authenticate(
     state: &AppState,
     scope: &str,
 ) -> Result<AuthContext, ApiError> {
+    authenticate_any(headers, state, &[scope]).await
+}
+
+/// Authenticates a session that holds at least one of `scopes`, so a route can accept a
+/// new scope while tokens issued before it existed keep working.
+pub async fn authenticate_any(
+    headers: &HeaderMap,
+    state: &AppState,
+    scopes: &[&str],
+) -> Result<AuthContext, ApiError> {
     let token = bearer_token(headers)?;
     let claims = state.tokens.verify(token)?;
     let account_id = Uuid::parse_str(&claims.sub).map_err(|_| {
@@ -106,7 +116,15 @@ pub async fn authenticate(
             .map(ToOwned::to_owned)
             .collect(),
     };
-    context.require_scope(scope)?;
+    if !scopes
+        .iter()
+        .any(|scope| context.scopes.iter().any(|held| held == scope))
+    {
+        return Err(ApiError::forbidden(
+            "insufficient_scope",
+            "The session is not allowed to perform this action.",
+        ));
+    }
     Ok(context)
 }
 

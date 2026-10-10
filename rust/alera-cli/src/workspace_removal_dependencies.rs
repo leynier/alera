@@ -19,7 +19,7 @@ pub async fn prepare_cli_removal_dependencies(
     client: &mut crate::runtime_host_client::RuntimeHostRpcClient,
     workspace_id: &str,
     approved: bool,
-) -> Result<()> {
+) -> Result<Vec<WorkspaceRemovalDependency>> {
     prepare_cli_dependencies(
         client,
         workspace_id,
@@ -34,7 +34,7 @@ pub async fn prepare_cli_project_removal_dependencies(
     client: &mut crate::runtime_host_client::RuntimeHostRpcClient,
     project_id: &str,
     approved: bool,
-) -> Result<()> {
+) -> Result<Vec<WorkspaceRemovalDependency>> {
     prepare_cli_dependencies(
         client,
         project_id,
@@ -51,12 +51,12 @@ async fn prepare_cli_dependencies(
     approved: bool,
     request_type: &str,
     owner_kind: &str,
-) -> Result<()> {
+) -> Result<Vec<WorkspaceRemovalDependency>> {
     let dependencies: Vec<WorkspaceRemovalDependency> = client
         .request(request_type, &serde_json::json!({"id": workspace_id}))
         .await?;
     if dependencies.is_empty() {
-        return Ok(());
+        return Ok(dependencies);
     }
     if !approved {
         bail!("{owner_kind} removal affects these automations: {}. Review this impact and pass --pause-automations-and-cancel-runs to pause them and cancel all their active runs. Their history is preserved; their targets must be updated before resuming.", dependencies.iter().map(|dependency| format!("{} ({} active runs)", dependency.name, dependency.active_runs)).collect::<Vec<_>>().join(", "));
@@ -76,7 +76,8 @@ async fn prepare_cli_dependencies(
             if pending.iter().any(|dependency| !approved_ids.contains(&dependency.id)) { bail!("Automation dependencies changed; review their impact again before removing the workspace"); }
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
-    }).await.map_err(|_| anyhow::anyhow!("Automation shutdown has not completed. The target was preserved; retry after its runs stop."))?
+    }).await.map_err(|_| anyhow::anyhow!("Automation shutdown has not completed. The target was preserved; retry after its runs stop."))??;
+    Ok(dependencies)
 }
 
 pub async fn workspace_removal_dependencies(

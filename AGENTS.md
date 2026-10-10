@@ -226,7 +226,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 
 ## Pull Request Watch
 
-- GitHub Watch and Fix execution belongs to the runtime when `pullRequestWatchExecutionV1` is advertised. Clients use the shared persisted watch and `pullRequestWatchChanged`; they MUST NOT also dispatch or merge locally. Keep the capability in the control file, `status.get`, and `mobile.hello`. See `docs/pull-request-watch.md` for execution and compatibility boundaries.
+- Watch and Fix execution belongs to the runtime for GitHub when `pullRequestWatchExecutionV1` is advertised, and for GitHub, GitLab, and Azure DevOps when `pullRequestWatchExecutionV2` is. Clients use the shared persisted watch and `pullRequestWatchChanged`; they MUST NOT also dispatch or merge locally for a forge the runtime owns. Keep both capabilities, `pullRequestForgesV1`, `pullRequestAgentDispatchV1`, and `pullRequestStacksV1` in the control file and `status.get` (and the first three in `mobile.hello`). Forge work in the runtime goes through `ForgeProvider` (`rust/alera-cli/src/terminal_host/server/pull_request_forges/`), ported from the desktop providers; keep the shared fixtures in `test/fixtures/forges/` passing in both `forge_shared_fixtures_test.dart` and the Rust `fixture_tests.rs` when either side changes. See `docs/pull-request-watch.md` for execution and compatibility boundaries.
 
 ## Cloud Accounts And Mobile Push
 
@@ -278,9 +278,52 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 
 ## Documentation Maintenance
 
-- After every feature, refactor, fix, or infrastructure change, explicitly consider whether `AGENTS.md`, nested `AGENTS.md` files, `readme.md`, `docs/`, `.github/CONTRIBUTING.md`, `SECURITY.md`, or release documentation need updates.
+- After every feature, refactor, fix, or infrastructure change, explicitly consider whether `AGENTS.md`, nested `AGENTS.md` files, `readme.md`, `docs/`, the agent skills in `skills/` and `edge/skills/`, `.github/CONTRIBUTING.md`, `SECURITY.md`, or release documentation need updates.
 - If documentation does not need updates, mention that decision in the final summary or PR notes when the change is user-visible, architectural, process-related, release-related, or contributor-facing.
 - Keep documentation aligned with implemented behavior. Do not document planned behavior as active behavior.
+
+## Agent And MCP Skills
+
+Alera ships two sets of skills that teach agents how to use it.
+
+- **CLI skills:**
+  - They live in `skills/`: `alera-cli`, `alera-orchestration`, `alera-automations`, and `alera-agent-profiles`.
+  - They are for coding agents running in Alera terminals, and they name `alera` commands.
+  - `skills add` installs them at the runtime's build commit.
+- **MCP sister skills:**
+  - They live in `edge/skills/`: `alera-mcp`, `alera-mcp-orchestration`, `alera-mcp-automations`, and `alera-mcp-agent-profiles`.
+  - They are for MCP clients, and they name MCP tools instead of commands.
+  - Only the edge serves them, through `list_skills` and `read_skill`. Runtimes MUST NOT bundle or serve them.
+
+### When To Update Them
+
+- Review both sets in the same change whenever a change touches a CLI command, runtime verb, or MCP tool. That means adding, removing, or renaming one, or changing its behavior, arguments, defaults, limits, or errors. Update every skill and reference the change makes stale.
+- When a capability exists as both a CLI command and an MCP tool, update the CLI skill and its MCP sister together, so the two do not drift apart.
+
+### Regenerating The MCP Catalog
+
+- After editing `edge/skills/`, regenerate `edge/src/mcp/skill_catalog.json` by running `bun tool/skill_catalog.ts` from `edge/`.
+- `edge/test/mcp_skills.test.ts` fails in any of these cases:
+  - the generated catalog is stale;
+  - a tool in the MCP catalog is not explained by any MCP skill;
+  - a skill names a tool that does not exist;
+  - a link inside a skill does not resolve.
+- Adding an MCP tool therefore requires documenting it in an MCP skill.
+
+### Bumping Versions
+
+- **CLI skills:** changing any file under `skills/<name>/` MUST bump three things together:
+  1. the `metadata.version` in that skill's `SKILL.md`;
+  2. the matching constant in `rust/alera-cli/src/terminal_host/protocol.rs` (`CLI_SKILL_VERSION`, `ORCHESTRATION_SKILL_VERSION`, `AUTOMATIONS_SKILL_VERSION`, or `AGENT_PROFILES_SKILL_VERSION`);
+  3. the version and digest in `rust/alera-cli/tests/skill_version_matches_binary.rs`. The test prints the digest it expects.
+- **Why it matters for CLI skills:** `alera skill status` and `check_agent_skills` decide whether an installed copy is current by its version.
+- **MCP skills:** bump an MCP skill's `metadata.version` when its guidance changes in substance.
+
+### Writing Them
+
+- Skills describe implemented behavior only.
+- Keep `SKILL.md` short and route to references, one workflow per reference, so agents load only what they need.
+- Say in the PR summary which skills were reviewed and whether they changed.
 
 ## Nested Instructions
 

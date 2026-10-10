@@ -1,6 +1,7 @@
 import { originRequest, type EdgeEnvironment, type OriginFetch } from '../index';
 import type { McpAccess } from './access_token';
 import { isJsonObject, toolError, toolJson, validToolResult, type ToolResult } from './protocol';
+import { callSkillTool, isSkillTool } from './skills';
 import { LIST_RUNTIMES_TOOL, RUNTIME_TOOLS, type CatalogTool } from './tools';
 
 export interface GatewayContext {
@@ -19,7 +20,7 @@ export type ToolCallOutcome =
 
 type CallOutcomeName = 'ok' | 'tool_error' | 'runtime_offline' | 'timeout' | 'failed';
 
-interface GatewayResponse {
+export interface GatewayResponse {
   status: number;
   body: Record<string, unknown> | null;
 }
@@ -33,9 +34,9 @@ interface CallGrant {
 
 const RELAY_CALL_URL = 'https://relay.internal/mcp/call';
 
-async function gateway(
+export async function gateway(
   context: GatewayContext,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   body?: unknown,
 ): Promise<GatewayResponse> {
@@ -185,6 +186,8 @@ export async function callTool(
     return { kind: 'invalid', message: 'Tool arguments must be an object.' };
   }
   if (params.name === LIST_RUNTIMES_TOOL) return listRuntimes(context);
+  // Skills live in this service, so they answer without a runtime.
+  if (isSkillTool(params.name)) return { kind: 'result', result: callSkillTool(params.name, params.arguments) };
   const tool = RUNTIME_TOOLS.get(params.name);
   if (!tool) return { kind: 'invalid', message: `Unknown tool: ${params.name}` };
   if (tool.access === 'execute' && !access.scopes.has('mcp:execute')) {
@@ -192,6 +195,14 @@ export async function callTool(
       kind: 'result',
       result: toolError(
         `insufficient_scope: ${tool.name} needs the mcp:execute scope, but this connection was granted read access only. Reconnect Alera and allow execute access.`,
+      ),
+    };
+  }
+  if (tool.access === 'admin' && !access.scopes.has('mcp:admin')) {
+    return {
+      kind: 'result',
+      result: toolError(
+        `insufficient_scope: ${tool.name} needs the mcp:admin scope, but this connection was not granted administrative tools. Reconnect Alera and allow administrative tools.`,
       ),
     };
   }

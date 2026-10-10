@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 
 /// Merge methods a phone can offer, with the runtime's wire names and the
-/// desktop's labels (`review_merge_method.dart`).
+/// desktop's labels (`review_merge_method.dart`). [providerDefault] is how a
+/// GitLab project merges with its own settings (merge commit, fast-forward or
+/// semi-linear) rather than a method Alera chooses.
 enum MobilePullRequestMergeMethod(final String wireName, final String label) {
+  providerDefault('providerDefault', 'Merge Using Project Settings'),
   mergeCommit('mergeCommit', 'Create Merge Commit'),
   squash('squash', 'Squash and Merge'),
   rebase('rebase', 'Rebase and Merge');
@@ -19,12 +22,17 @@ enum MobilePullRequestMergeMethod(final String wireName, final String label) {
   }
 }
 
-/// First method the runtime listed, matching desktop `preferredReviewMergeMethod`
-/// once provider-default has already been dropped.
+/// The method an unselected or automatic merge uses, matching desktop
+/// `preferredReviewMergeMethod`: provider-default when the runtime lists it,
+/// otherwise the first method the phone recognizes.
 MobilePullRequestMergeMethod? preferredMobilePullRequestMergeMethod(
   Iterable<String> wireNames,
 ) {
-  for (final name in wireNames) {
+  final names = List<String>.of(wireNames);
+  if (names.contains(MobilePullRequestMergeMethod.providerDefault.wireName)) {
+    return MobilePullRequestMergeMethod.providerDefault;
+  }
+  for (final name in names) {
     final method = MobilePullRequestMergeMethod.fromWireName(name);
     if (method != null) {
       return method;
@@ -73,6 +81,7 @@ abstract interface class MobilePullRequestActionsClient {
     required int number,
     required String body,
     int? replyToCommentId,
+    String? replyToThreadId,
   });
 
   Future<MobilePullRequestSnapshot> editPullRequestComment({

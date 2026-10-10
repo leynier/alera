@@ -3,6 +3,8 @@ mod agent_profile_input;
 mod agent_profile_launch;
 mod agent_prompt_stdin_script;
 mod agent_quota;
+mod agent_quota_commands;
+mod agent_skills;
 mod agent_status;
 mod automation_autostart;
 mod automation_commands;
@@ -24,6 +26,7 @@ mod cli_tests;
 mod cli_workflow_plans;
 mod cli_workflow_recipes;
 mod cli_workflow_workspaces;
+mod events_commands;
 mod host_tools;
 mod hosted_review_retention;
 mod hub_federation;
@@ -61,6 +64,7 @@ mod project_hosts;
 mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
+mod pull_request_commands;
 mod relocation_owned_worktree;
 mod relocation_setup_process;
 mod remote_managed_workspace;
@@ -90,20 +94,25 @@ mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
 mod runtime_host_command;
+mod runtime_settings_commands;
 mod setup_process_cancellation;
 mod shared_workspace;
 mod shared_workspace_removal;
+mod skill_commands;
 mod ssh_bootstrap;
 mod ssh_remote;
 mod ssh_target_status;
 mod ssh_windows_command;
 mod tab_agent_link_command;
+mod tab_commands;
 mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
+mod terminal_lifecycle_commands;
 mod terminal_stdio_mode;
 mod voice_commands;
+mod webhook_commands;
 mod windows_path_form;
 mod workflow_plan_commands;
 mod workflow_recipe_commands;
@@ -115,17 +124,24 @@ mod workspace_context;
 mod workspace_focus;
 mod workspace_handoff;
 mod workspace_issue_commands;
+mod workspace_list;
 mod workspace_pinning;
 mod workspace_pr_watch_commands;
+mod workspace_prompt_start;
 mod workspace_registration;
 mod workspace_relocation_recovery;
 mod workspace_relocation_setup;
 mod workspace_removal_dependencies;
+mod workspace_remove;
+mod workspace_remove_preview;
 mod workspace_rename;
 mod workspace_sections;
 mod workspace_setup_command;
+mod workspace_show;
 mod workspace_sleep;
 mod workspace_start;
+mod workspace_tree;
+mod workspace_wake;
 mod worktree_copy;
 mod worktree_include;
 mod worktree_setup;
@@ -151,7 +167,7 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectCommand, ProjectKindArg,
     RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
     SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetStatusArgs,
-    TabAction, TabCommand, WorkspaceAction, WorkspaceCommand,
+    WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -167,7 +183,6 @@ use crate::ssh_bootstrap::{
     run_ssh_bootstrap, SshTargetBootstrapRequest,
 };
 use crate::ssh_target_status::{collect_ssh_target_status, LiveSshTargetProbe};
-use crate::tab_record_factory::tab_from_args;
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
 const USAGE_EXIT_CODE: i32 = 64;
@@ -213,19 +228,24 @@ async fn run(cli: Cli) -> i32 {
         Command::Project(command) => run_project_command(command).await,
         Command::Workspace(command) => run_workspace_command(command).await,
         Command::Issue(command) => issue_commands::run(command).await,
+        Command::Pr(command) => pull_request_commands::run(command).await,
         Command::Tag(command) => run_tag_command(command).await,
-        Command::Tab(command) => run_tab_command(command).await,
+        Command::Tab(command) => tab_commands::run(command).await,
         Command::Terminal(command) => run_terminal_command(command).await,
         Command::SshTarget(command) => run_ssh_target_command(command).await,
         Command::Mobile(command) => run_mobile_command(command).await,
 
         Command::Automation(command) => automation_commands::run(command).await,
         Command::AgentProfile(command) => agent_profile_commands::run(command).await,
+        Command::AgentQuota(command) => agent_quota_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
         Command::Voice(command) => voice_commands::run(command).await,
         Command::Inbox(command) => inbox_commands::run(command).await,
+        Command::Events(command) => events_commands::run(command).await,
+        Command::Webhook(command) => webhook_commands::run(command).await,
+        Command::Skill(command) => skill_commands::run(command).await,
         Command::Account(command) => mcp_commands::run_account(command).await,
         Command::Mcp(command) => mcp_commands::run_mcp(command).await,
     }
@@ -253,6 +273,12 @@ async fn run_terminal_command(command: TerminalCommand) -> i32 {
         | TerminalAction::Wait(_)
         | TerminalAction::Prune(_)) => {
             terminal_alias_commands::run(&mut client, action, command.output.json).await
+        }
+        action @ (TerminalAction::Restart(_)
+        | TerminalAction::Terminate(_)
+        | TerminalAction::Pulse(_)) => {
+            terminal_lifecycle_commands::run_terminal(&mut client, action, command.output.json)
+                .await
         }
         TerminalAction::Read(args) => match client
             .request_value(
@@ -353,71 +379,13 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
     let json_output = command.output.json;
     match command.action {
         WorkspaceAction::List(args) => {
-            let store = match open_store(&runtime).await {
-                Ok(store) => store,
-                Err(error) => return print_error(error),
-            };
-            if !args.all && args.project_id.is_none() {
-                eprintln!("Missing --project-id or --all.");
-                return USAGE_EXIT_CODE;
-            }
-            match crate::hub_federation::read_from_hub(
-                &runtime,
-                &store,
-                "workspace.list",
-                json!({ "projectId": args.project_id, "hostId": args.host_id }),
-            )
-            .await
-            {
-                Ok(Some(answer)) => {
-                    print_value(
-                        &json!({
-                            "kind": "workspaces",
-                            "items": answer["items"],
-                            "filters": { "hostId": args.host_id },
-                            "source": "hub",
-                            "originHostId": answer["originHostId"],
-                        }),
-                        json_output,
-                        "workspaces listed",
-                    );
-                    return 0;
-                }
-                Err(error) => return print_error(error),
-                Ok(None) => {}
-            }
-            let result = if args.all {
-                store.list_all_workspaces().await
-            } else if let Some(project_id) = args.project_id {
-                store.list_workspaces(&project_id).await
-            } else {
-                eprintln!("Missing --project-id or --all.");
-                return USAGE_EXIT_CODE;
-            };
-            let host_id = args
-                .host_id
-                .as_deref()
-                .map(|host_id| crate::ssh_remote::normalized_host_id(Some(host_id)));
-            match result {
-                Ok(mut workspaces) => {
-                    if let Some(host_id) = &host_id {
-                        workspaces.retain(|workspace| &workspace.host_id == host_id);
-                    }
-                    print_value(
-                        &json!({
-                            "kind": "workspaces",
-                            "items": workspaces,
-                            "filters": { "hostId": host_id },
-                        }),
-                        json_output,
-                        "workspaces listed",
-                    )
-                }
-                Err(error) => return print_error(error),
-            }
+            return workspace_list::run(runtime, args, json_output).await;
         }
         WorkspaceAction::Start(args) => {
             return workspace_start::run(runtime, args, json_output).await;
+        }
+        WorkspaceAction::PromptStart(command) => {
+            return workspace_prompt_start::run(runtime, command, json_output).await;
         }
         WorkspaceAction::HandOff(args) => {
             return workspace_handoff::run_hand_off(runtime, args, json_output).await;
@@ -478,61 +446,16 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             }
         }
         WorkspaceAction::Remove(args) => {
-            let delete_branch = if args.delete_branch {
-                Some(true)
-            } else if args.keep_branch {
-                Some(false)
-            } else {
-                None
-            };
-            let payload = json!({
-                "id": args.id,
-                "deleteBranch": delete_branch,
-                "closeSessions": args.close_sessions,
-            });
-            let value: Value = match runtime_host_required(&runtime).await {
-                Ok(mut client) => {
-                    let workspace: Value = match client
-                        .request_value("workspace.find", &json!({"id": args.id}))
-                        .await
-                    {
-                        Ok(workspace) => workspace,
-                        Err(error) => return print_error(error),
-                    };
-                    if let Err(error) =
-                        workspace_removal_dependencies::prepare_cli_removal_dependencies(
-                            &mut client,
-                            &args.id,
-                            args.pause_automations_and_cancel_runs,
-                        )
-                        .await
-                    {
-                        return print_error(error);
-                    }
-                    let operation = if workspace.get("kind").and_then(Value::as_str) == Some("main")
-                    {
-                        "workspace.removeShared"
-                    } else {
-                        "workspace.removeManaged"
-                    };
-                    let removed = if operation == "workspace.removeShared" {
-                        workspace_buffer_guard_request::request_with_workspace_buffer_guard(
-                            &mut client,
-                            "removeShared",
-                            &payload,
-                        )
-                        .await
-                    } else {
-                        client.request_value(operation, &payload).await
-                    };
-                    match removed {
-                        Ok(value) => value,
-                        Err(error) => return print_error(error),
-                    }
-                }
-                Err(error) => return print_error(error),
-            };
-            print_value(&value, json_output, "workspace removed");
+            return workspace_remove::run(runtime, args, json_output).await;
+        }
+        WorkspaceAction::RemovePreview(args) => {
+            return workspace_remove_preview::run(runtime, args, json_output).await;
+        }
+        WorkspaceAction::Show(args) => {
+            return workspace_show::run(runtime, args, json_output).await;
+        }
+        WorkspaceAction::Wake(args) => {
+            return workspace_wake::run(runtime, args, json_output).await;
         }
         WorkspaceAction::Register(args) => {
             let workspace = match workspace_registration::from_args(args) {
@@ -577,11 +500,11 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
         WorkspaceAction::Focus(args) => {
             return workspace_focus::run(&runtime, args, json_output).await;
         }
-        WorkspaceAction::Pin(IdArgs { id }) => {
-            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await;
+        WorkspaceAction::Pin(args) => {
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, args, true).await;
         }
-        WorkspaceAction::Unpin(IdArgs { id }) => {
-            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await;
+        WorkspaceAction::Unpin(args) => {
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, args, false).await;
         }
         WorkspaceAction::Sleep(args) => {
             return workspace_sleep::run(&runtime_dir(&runtime), args, json_output).await;
@@ -737,70 +660,6 @@ async fn run_tag_command(command: crate::cli::TagCommand) -> i32 {
             .await
             {
                 Ok(()) => print_value(&json!({ "id": removed_id }), json_output, "tag removed"),
-                Err(error) => return print_error(error),
-            }
-        }
-    }
-    0
-}
-
-async fn run_tab_command(command: TabCommand) -> i32 {
-    let runtime = command.runtime;
-    let json_output = command.output.json;
-    match command.action {
-        TabAction::LinkAgent(args) => {
-            return tab_agent_link_command::run(&runtime, args, json_output).await;
-        }
-        TabAction::List(args) => match open_store(&runtime).await {
-            Ok(store) => match store.list_workspace_tabs(&args.workspace_id).await {
-                Ok(tabs) => print_value(
-                    &json!({ "kind": "tabs", "items": tabs, "filters": { "workspaceId": args.workspace_id } }),
-                    json_output,
-                    "tabs listed",
-                ),
-                Err(error) => return print_error(error),
-            },
-            Err(error) => return print_error(error),
-        },
-        TabAction::Create(args) => {
-            let tab = match tab_from_args(args) {
-                Ok(tab) => tab,
-                Err(error) => {
-                    eprintln!("{error}");
-                    return USAGE_EXIT_CODE;
-                }
-            };
-            let fallback_tab = tab.clone();
-            match runtime_host_or_store(&runtime, "tab.upsert", &tab, |store| async move {
-                store.upsert_workspace_tab(fallback_tab).await
-            })
-            .await
-            {
-                Ok(tab) => print_value(&tab, json_output, "tab saved"),
-                Err(error) => return print_error(error),
-            }
-        }
-        TabAction::Remove(IdArgs { id }) => {
-            let payload = json!({ "id": id });
-            let removed_id = id.clone();
-            match runtime_host_or_store_unit(&runtime, "tab.remove", &payload, |store| async move {
-                if let Some(tab) = store.find_workspace_tab(&id).await? {
-                    if tab.kind == "terminal" {
-                        if let Some(workspace) = store.find_workspace(&tab.workspace_id).await? {
-                            if workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
-                                anyhow::bail!("The Home runtime must be available to verify SSH terminal closure before removing this tab");
-                            }
-                        }
-                    }
-                }
-                let retentions = hosted_review_retention::for_tab(&store, &id).await;
-                store.remove_workspace_tab(&id).await?;
-                hosted_review_retention::release(retentions);
-                Ok(())
-            })
-            .await
-            {
-                Ok(()) => print_value(&json!({ "id": removed_id }), json_output, "tab removed"),
                 Err(error) => return print_error(error),
             }
         }

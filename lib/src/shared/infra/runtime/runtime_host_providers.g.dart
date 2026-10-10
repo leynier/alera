@@ -54,7 +54,7 @@ final class RuntimeHostClientProvider
   }
 }
 
-String _$runtimeHostClientHash() => r'47750f0f5dff565eaded135aab0be6eddae4b545';
+String _$runtimeHostClientHash() => r'e22c4dac594eaa9bfdd25e59d9f942c9a42235f9';
 
 /// One coalescer for every runtime watcher, keyed by namespaced strings
 /// (`tabs:<id>`, `workspaces:<id>`, `projects`, ...), so there is a single

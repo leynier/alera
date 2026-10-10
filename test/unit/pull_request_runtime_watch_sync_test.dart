@@ -68,10 +68,15 @@ class _Runtime implements RuntimeHostClient, RuntimeHostCapabilityClient {
   final events = StreamController<RuntimeHostEvent>.broadcast();
   Map<String, Object?>? watch;
   int starts = 0;
+
+  /// A runtime with `pullRequestWatchExecutionV2` also owns GitLab and Azure
+  /// DevOps watches; with only V1 the desktop keeps evaluating those.
+  bool executionV2 = true;
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => events.stream;
   @override
-  Future<bool> supportsRuntimeCapability(String capability) async => true;
+  Future<bool> supportsRuntimeCapability(String capability) async =>
+      executionV2 || capability != 'pullRequestWatchExecutionV2';
   void changed() =>
       events.add(const RuntimeHostEvent('pullRequestWatchChanged', {}));
   @override
@@ -172,41 +177,51 @@ void main() {
       container.read(workbenchControllerProvider).activeWorkspaceId,
       'other',
     );
-    for (final provider in GitHostingProvider.values) {
-      container
-          .read(watchProvider.notifier)
-          .onPanelState(
-            'w',
-            WorkspacePullRequestState(
-              identity: GitRemoteIdentity(
-                provider: provider,
-                host: 'forge.example',
-                owner: 'owner',
-                repo: 'repo',
-              ),
-            ),
-          );
-      await settle();
-      if (provider == GitHostingProvider.github) {
-        expect(container.read(watchProvider)['w'], isNotNull);
-      } else {
-        expect(
-          container.read(watchProvider),
-          isEmpty,
-          reason: '${provider.name} must stop when its review disappears',
-        );
-        expect(runtime.watch, isNull);
-        await container
+    Future<void> panelForEveryForge() async {
+      for (final provider in GitHostingProvider.values) {
+        container
             .read(watchProvider.notifier)
-            .start(
-              scope: _scope,
-              reviewNumber: 42,
-              mode: .fixAndMerge,
-              binding: const AgentTaskDispatchBinding(tabId: 'desktop-agent'),
+            .onPanelState(
+              'w',
+              WorkspacePullRequestState(
+                identity: GitRemoteIdentity(
+                  provider: provider,
+                  host: 'forge.example',
+                  owner: 'owner',
+                  repo: 'repo',
+                ),
+              ),
             );
         await settle();
+        if (provider == GitHostingProvider.github || runtime.executionV2) {
+          expect(
+            container.read(watchProvider)['w'],
+            isNotNull,
+            reason: '${provider.name} is evaluated by the runtime',
+          );
+        } else {
+          expect(
+            container.read(watchProvider),
+            isEmpty,
+            reason: '${provider.name} must stop when its review disappears',
+          );
+          expect(runtime.watch, isNull);
+          await container
+              .read(watchProvider.notifier)
+              .start(
+                scope: _scope,
+                reviewNumber: 42,
+                mode: .fixAndMerge,
+                binding: const AgentTaskDispatchBinding(tabId: 'desktop-agent'),
+              );
+          await settle();
+        }
       }
     }
+
+    await panelForEveryForge();
+    runtime.executionV2 = false;
+    await panelForEveryForge();
     runtime.watch = null;
     runtime.changed();
     await settle();

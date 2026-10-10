@@ -12,7 +12,7 @@ describe('MCP authorization', () => {
     const response = await harness.send({ jsonrpc: '2.0', id: 1, method: 'ping' }, { token: null });
     expect(response.status).toBe(401);
     expect(response.headers.get('www-authenticate')).toBe(
-      `Bearer resource_metadata="${METADATA}", scope="mcp:read mcp:execute"`,
+      `Bearer resource_metadata="${METADATA}", scope="mcp:read mcp:execute mcp:admin"`,
     );
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(response.headers.get('access-control-expose-headers')).toContain('www-authenticate');
@@ -133,7 +133,7 @@ describe('MCP transport', () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get('access-control-allow-origin')).toBe('*');
     expect(preflight.headers.get('access-control-allow-headers')).toBe(
-      'authorization, content-type, mcp-protocol-version, mcp-session-id',
+      'authorization, content-type, mcp-protocol-version, mcp-session-id, mcp-method, mcp-name',
     );
     expect(preflight.headers.get('access-control-expose-headers')).toBe('www-authenticate, mcp-session-id');
     const disabled = await handleRequest(new Request(MCP_URL, { method: 'POST' }), {
@@ -147,7 +147,7 @@ describe('MCP transport', () => {
 describe('MCP tools', () => {
   test('the bundled catalog loads and invalid catalogs are rejected', () => {
     expect(RUNTIME_TOOLS.size).toBeGreaterThan(0);
-    expect(() => loadCatalog({ version: 2, tools: [] })).toThrow();
+    expect(() => loadCatalog({ version: 3, tools: [] })).toThrow();
     expect(() => loadCatalog({ version: 1, tools: [{ name: 'x' }] })).toThrow();
   });
 
@@ -156,7 +156,8 @@ describe('MCP tools', () => {
     const { result } = await harness.rpc('tools/list');
     const names = result.tools.map((tool: { name: string }) => tool.name);
     expect(names[0]).toBe('list_runtimes');
-    for (const tool of result.tools.slice(1)) {
+    // list_skills and read_skill follow it and answer without a runtime.
+    for (const tool of result.tools.slice(3)) {
       expect(Object.keys(tool).sort()).toEqual(['annotations', 'description', 'inputSchema', 'name', 'title']);
       expect(tool.inputSchema.properties.runtime.type).toBe('string');
       expect(tool.inputSchema.required ?? []).not.toContain('runtime');

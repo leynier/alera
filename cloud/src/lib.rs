@@ -6,6 +6,7 @@ pub mod config;
 pub mod configuration;
 pub mod device_auth;
 pub mod error;
+pub mod events;
 pub mod fcm;
 pub mod google_credentials;
 pub mod google_oidc;

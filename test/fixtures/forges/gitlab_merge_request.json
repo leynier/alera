@@ -1,0 +1,25 @@
+{
+  "description": "glab api projects/:id/merge_requests/:iid for an open, mergeable MR",
+  "stdout": "{\"iid\": 42, \"title\": \"feat: gitlab\", \"state\": \"opened\", \"draft\": false, \"web_url\": \"https://gitlab.acme.test:8443/platform/mobile/alera/-/merge_requests/42\", \"created_at\": \"2026-07-20T12:00:00Z\", \"author\": {\"username\": \"alice\"}, \"target_branch\": \"main\", \"source_branch\": \"feature\", \"sha\": \"abc\", \"diff_refs\": {\"base_sha\": \"base-abc\"}, \"detailed_merge_status\": \"mergeable\", \"has_conflicts\": false, \"head_pipeline\": {\"id\": 99, \"status\": \"failed\", \"ref\": \"refs/merge-requests/42/head\", \"sha\": \"abc\", \"web_url\": \"https://gitlab.acme.test:8443/pipelines/99\"}}",
+  "expected": {
+    "review": {
+      "number": 42,
+      "title": "feat: gitlab",
+      "state": "open",
+      "author": "alice",
+      "baseBranch": "main",
+      "headBranch": "feature",
+      "headSha": "abc",
+      "mergeable": "mergeable",
+      "url": "https://gitlab.acme.test:8443/platform/mobile/alera/-/merge_requests/42"
+    },
+    "checks": [
+      {
+        "name": "Pipeline #99",
+        "conclusion": "failure",
+        "bucket": "fail",
+        "url": "https://gitlab.acme.test:8443/pipelines/99"
+      }
+    ]
+  }
+}

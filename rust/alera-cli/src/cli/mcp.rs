@@ -30,11 +30,40 @@ pub enum McpAction {
     Serve(McpServeArgs),
 }
 
+/// How much of the MCP catalog a client may use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum McpAccessArg {
+    /// Only tools that read runtime state.
+    Read,
+    /// Reading and running tools, including deletions, merges, and automations.
+    Full,
+    /// Everything in full, plus agent profile changes, runtime settings, and
+    /// internal maintenance.
+    Admin,
+}
+
 #[derive(Debug, Args)]
 pub struct McpEnableArgs {
-    /// Allow only tools that read runtime state.
+    /// Tools MCP clients may use. Defaults to full.
+    #[arg(long, value_enum, conflicts_with = "read_only")]
+    pub access: Option<McpAccessArg>,
+    /// Allow only tools that read runtime state. Same as `--access read`.
     #[arg(long)]
     pub read_only: bool,
+}
+
+impl McpEnableArgs {
+    pub fn level(&self) -> McpAccessArg {
+        effective_access(self.access, self.read_only)
+    }
+}
+
+fn effective_access(access: Option<McpAccessArg>, read_only: bool) -> McpAccessArg {
+    if read_only {
+        McpAccessArg::Read
+    } else {
+        access.unwrap_or(McpAccessArg::Full)
+    }
 }
 
 #[derive(Debug, Args)]
@@ -46,9 +75,19 @@ pub struct McpRevokeArgs {
 
 #[derive(Debug, Args)]
 pub struct McpServeArgs {
-    /// Expose only tools that read runtime state.
+    /// Tools to expose to the local client. Defaults to full; administrative
+    /// tools need `--access admin`. MCP Control applies to remote clients only.
+    #[arg(long, value_enum, conflicts_with = "read_only")]
+    pub access: Option<McpAccessArg>,
+    /// Expose only tools that read runtime state. Same as `--access read`.
     #[arg(long)]
     pub read_only: bool,
+}
+
+impl McpServeArgs {
+    pub fn level(&self) -> McpAccessArg {
+        effective_access(self.access, self.read_only)
+    }
 }
 
 #[derive(Debug, Args)]

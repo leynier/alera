@@ -68,6 +68,7 @@ impl ClientKind {
                 "configuration:read".to_owned(),
                 "configuration:write".to_owned(),
                 "enrollment:write".to_owned(),
+                "events:send".to_owned(),
                 "push:send".to_owned(),
                 "runtime:write".to_owned(),
                 "relay:identity".to_owned(),

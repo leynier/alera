@@ -130,6 +130,18 @@ mixin _WorkbenchControllerWorkspaceCreation
     }
   }
 
+  /// Adds a workspace the runtime created on its own, as the From Prompt
+  /// service does, without waiting for the next workspace list refresh.
+  void reconcileRuntimeCreatedWorkspace(Workspace workspace) {
+    final project = state.projects
+        .where((candidate) => candidate.id == workspace.projectId)
+        .firstOrNull;
+    if (project == null) {
+      throw StateError('Workspace project not found: ${workspace.projectId}');
+    }
+    _reconcileCreatedWorkspace(project, workspace);
+  }
+
   /// Finishes a From Prompt workspace after the host has persisted the agent
   /// tab: seeds the panel, appends Setup, and records the agent as that
   /// workspace's active tab without changing the visible workspace.

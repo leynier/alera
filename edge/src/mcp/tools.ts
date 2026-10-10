@@ -1,7 +1,12 @@
 import catalog from './tool_catalog.json';
 import { isJsonObject } from './protocol';
+import { isSkillTool, SKILL_TOOL_DEFINITIONS, withSkillsReminder } from './skills';
 
-export type ToolAccess = 'read' | 'execute';
+export type ToolAccess = 'read' | 'execute' | 'admin';
+
+/** Catalog versions this edge understands. Version 2 adds the admin access class. */
+const CATALOG_VERSIONS: readonly unknown[] = [1, 2];
+const TOOL_ACCESS: readonly unknown[] = ['read', 'execute', 'admin'];
 
 export interface CatalogTool {
   name: string;
@@ -28,7 +33,7 @@ function validCatalogTool(value: unknown): value is CatalogTool {
     value.name.length > 0 &&
     typeof value.title === 'string' &&
     typeof value.description === 'string' &&
-    (value.access === 'read' || value.access === 'execute') &&
+    TOOL_ACCESS.includes(value.access) &&
     Number.isInteger(value.timeoutSeconds) &&
     (value.timeoutSeconds as number) > 0 &&
     isJsonObject(value.inputSchema) &&
@@ -37,12 +42,12 @@ function validCatalogTool(value: unknown): value is CatalogTool {
 }
 
 export function loadCatalog(source: unknown): Map<string, CatalogTool> {
-  if (!isJsonObject(source) || source.version !== 1 || !Array.isArray(source.tools)) {
+  if (!isJsonObject(source) || !CATALOG_VERSIONS.includes(source.version) || !Array.isArray(source.tools)) {
     throw new Error('Invalid MCP tool catalog');
   }
   const tools = new Map<string, CatalogTool>();
   for (const tool of source.tools) {
-    if (!validCatalogTool(tool) || tool.name === LIST_RUNTIMES_TOOL || tools.has(tool.name)) {
+    if (!validCatalogTool(tool) || tool.name === LIST_RUNTIMES_TOOL || isSkillTool(tool.name) || tools.has(tool.name)) {
       throw new Error('Invalid MCP tool catalog entry');
     }
     tools.set(tool.name, tool);
@@ -70,8 +75,9 @@ function withRuntimeArgument(schema: Record<string, unknown>): Record<string, un
 const LIST_RUNTIMES_DEFINITION = {
   name: LIST_RUNTIMES_TOOL,
   title: 'List Runtimes',
-  description:
+  description: withSkillsReminder(
     'List the Alera runtimes this connection may use, with their names, ids, online state, and MCP access level.',
+  ),
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   annotations: {
     readOnlyHint: true,
@@ -84,10 +90,11 @@ const LIST_RUNTIMES_DEFINITION = {
 export function listedTools(tools: Map<string, CatalogTool> = RUNTIME_TOOLS): Array<Record<string, unknown>> {
   return [
     LIST_RUNTIMES_DEFINITION,
+    ...SKILL_TOOL_DEFINITIONS,
     ...Array.from(tools.values(), (tool) => ({
       name: tool.name,
       title: tool.title,
-      description: tool.description,
+      description: withSkillsReminder(tool.description),
       inputSchema: withRuntimeArgument(tool.inputSchema),
       annotations: tool.annotations,
     })),

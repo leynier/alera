@@ -12,7 +12,7 @@ use crate::{
     error::ApiError,
     mcp_models::{
         CreateMcpCallRequest, CreateMcpCallResponse, McpAccess, McpCallOutcomeRequest,
-        McpRuntimeList, McpRuntimeSummary, ToolAccess, SCOPE_EXECUTE, SCOPE_READ,
+        McpRuntimeList, McpRuntimeSummary, ToolAccess, SCOPE_ADMIN, SCOPE_READ,
     },
     relay::ACTIVE_RUNTIME_SECONDS,
     state::AppState,
@@ -45,7 +45,7 @@ impl RuntimeCandidate {
 
 /// Runtimes this grant reaches: owned by the account, not transferred, and either named
 /// by the grant or covered by an all-runtimes grant.
-async fn reachable_runtimes(
+pub(crate) async fn reachable_runtimes(
     state: &AppState,
     auth: &McpAuthContext,
 ) -> Result<Vec<RuntimeCandidate>, ApiError> {
@@ -189,21 +189,42 @@ fn validate_tool(tool: &str) -> Result<(), ApiError> {
     }
 }
 
+/// The grant must hold the scope of the tool's class. Read is checked for every call.
+fn check_tool_scope(auth: &McpAuthContext, access: ToolAccess) -> Result<(), ApiError> {
+    match access {
+        ToolAccess::Read => Ok(()),
+        ToolAccess::Execute => auth.require_scope(access.scope()),
+        ToolAccess::Admin if auth.has_scope(SCOPE_ADMIN) => Ok(()),
+        ToolAccess::Admin => Err(ApiError::forbidden(
+            "insufficient_scope",
+            "This connection was not granted administrative tools (mcp:admin). Reconnect Alera and allow administrative tools.",
+        )),
+    }
+}
+
 fn check_runtime_access(runtime: &RuntimeCandidate, access: ToolAccess) -> Result<(), ApiError> {
-    match (runtime.access(), access) {
-        (McpAccess::Off, _) => Err(ApiError::conflict(
+    let level = runtime.access();
+    if level == McpAccess::Off {
+        return Err(ApiError::conflict(
             "runtime_mcp_disabled",
             format!("MCP Control is off on runtime {}.", runtime.name),
-        )),
-        (McpAccess::Read, ToolAccess::Execute) => {
-            let message = format!(
-                "Runtime {} allows only read tools. Turn on full MCP Control to run this tool.",
-                runtime.name
-            );
-            Err(ApiError::forbidden("runtime_read_only", message))
-        }
-        _ => Ok(()),
+        ));
     }
+    if level >= access.minimum_runtime_access() {
+        return Ok(());
+    }
+    if access == ToolAccess::Admin {
+        let message = format!(
+            "MCP Control on this runtime does not allow administrative tools. Set MCP Control on {} to Admin to run this tool.",
+            runtime.name
+        );
+        return Err(ApiError::forbidden("runtime_not_admin", message));
+    }
+    let message = format!(
+        "Runtime {} allows only read tools. Turn on full MCP Control to run this tool.",
+        runtime.name
+    );
+    Err(ApiError::forbidden("runtime_read_only", message))
 }
 
 pub async fn create_call(
@@ -214,9 +235,7 @@ pub async fn create_call(
     let auth = authenticate_mcp(&headers, &state).await?;
     auth.require_scope(SCOPE_READ)?;
     validate_tool(&request.tool)?;
-    if request.access == ToolAccess::Execute {
-        auth.require_scope(SCOPE_EXECUTE)?;
-    }
+    check_tool_scope(&auth, request.access)?;
     let now = Utc::now();
     let runtimes = reachable_runtimes(&state, &auth).await?;
     let runtime = resolve_runtime(&runtimes, request.runtime.as_deref(), now)?;
@@ -317,77 +336,5 @@ pub async fn complete_call(
 }
 
 #[cfg(test)]
-mod tests {
-    use chrono::{Duration, Utc};
-
-    use super::{resolve_runtime, RuntimeCandidate};
-
-    fn runtime(id: &str, name: &str, access: &str, online: bool) -> RuntimeCandidate {
-        let now = Utc::now();
-        RuntimeCandidate {
-            id: id.to_owned(),
-            name: name.to_owned(),
-            mcp_access: access.to_owned(),
-            last_seen_at: now,
-            relay_granted_at: Some(if online {
-                now
-            } else {
-                now - Duration::hours(1)
-            }),
-        }
-    }
-
-    fn code(result: Result<&RuntimeCandidate, crate::error::ApiError>) -> String {
-        match result {
-            Ok(runtime) => runtime.id.clone(),
-            Err(crate::error::ApiError::Request { code, .. }) => code.to_owned(),
-            Err(other) => other.to_string(),
-        }
-    }
-
-    #[test]
-    fn resolves_by_id_then_case_insensitive_name() {
-        let runtimes = vec![
-            runtime("r1", "Laptop", "full", true),
-            runtime("r2", "laptop", "read", false),
-            runtime("r3", "Server", "full", true),
-        ];
-        let now = Utc::now();
-        assert_eq!(code(resolve_runtime(&runtimes, Some("r2"), now)), "r2");
-        assert_eq!(code(resolve_runtime(&runtimes, Some("SERVER"), now)), "r3");
-        assert_eq!(
-            code(resolve_runtime(&runtimes, Some("LAPTOP"), now)),
-            "runtime_ambiguous"
-        );
-        assert_eq!(
-            code(resolve_runtime(&runtimes, Some("missing"), now)),
-            "runtime_not_found"
-        );
-        assert_eq!(
-            code(resolve_runtime(&runtimes, None, now)),
-            "runtime_required"
-        );
-    }
-
-    #[test]
-    fn omitted_runtime_needs_exactly_one_connected() {
-        let now = Utc::now();
-        let one = vec![
-            runtime("r1", "Laptop", "full", true),
-            runtime("r2", "Server", "off", true),
-            runtime("r3", "Old", "full", false),
-        ];
-        assert_eq!(code(resolve_runtime(&one, None, now)), "r1");
-        let none = vec![runtime("r3", "Old", "full", false)];
-        let error = resolve_runtime(&none, None, now);
-        assert!(matches!(
-            error,
-            Err(crate::error::ApiError::Request { ref message, .. }) if message.contains("Old")
-        ));
-        assert_eq!(code(error), "no_runtime_available");
-        assert_eq!(
-            code(resolve_runtime(&[], None, now)),
-            "no_runtime_available"
-        );
-    }
-}
+#[path = "mcp_gateway_tests.rs"]
+mod tests;

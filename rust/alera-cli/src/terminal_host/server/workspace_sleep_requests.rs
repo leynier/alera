@@ -8,6 +8,9 @@ use crate::terminal_host::protocol::{event, TERMINAL_SESSION_REMOVED_BY_SLEEP};
 
 use super::ServerActor;
 
+#[path = "workspace_wake_requests.rs"]
+mod wake;
+
 impl ServerActor {
     /// Terminal tabs a workspace sleep stopped, by workspace. Clients show them
     /// as closed until the workspace wakes.

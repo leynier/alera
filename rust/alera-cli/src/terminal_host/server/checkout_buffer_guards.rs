@@ -212,11 +212,25 @@ impl ServerActor {
     ) -> HostResult<Value> {
         let workspace_id = super::requests::require_string_key(payload, "id")?;
         let operation = super::requests::require_string_key(payload, "operation")?;
+        let resolution = buffer_guard_resolution(payload)?;
         if !matches!(
             operation.as_str(),
             "removeShared" | "removeManaged" | "handOff" | "handOn"
         ) {
             return Err(HostError::format("Choose a supported workspace operation"));
+        }
+        // Saving or discarding other clients' editors is part of removing a
+        // workspace on this machine only; a phone or a satellite never asks.
+        let local = self
+            .clients
+            .get(&client_id)
+            .is_some_and(|client| client.kind == super::ClientKind::Local);
+        if resolution.is_some()
+            && (!local || !matches!(operation.as_str(), "removeShared" | "removeManaged"))
+        {
+            return Err(HostError::format(
+                "Only a local workspace removal can save or discard open editors",
+            ));
         }
         let workspace = self
             .runtime_store
@@ -240,9 +254,11 @@ impl ServerActor {
                 "Another workspace operation is awaiting buffer verification on this project and host",
             ));
         }
+        let mut resolving = HashSet::new();
         let participants: HashMap<_, _> = self.clients.iter().filter(|(_, client)| client.authenticated && client.kind == ClientKind::Local && client.local_role == LocalClientRole::App)
             .map(|(id, client)| {
                 if !client.checkout_buffer_guards { return Err(HostError::state(format!("Desktop client {id} must update or disconnect before buffer safety can be verified"))); }
+                if client.checkout_buffer_save { resolving.insert(*id); }
                 Ok((*id, None))
             }).collect::<HostResult<_>>()?;
         let scope = self.checkout_buffer_scope(&workspace, &operation).await?;
@@ -276,13 +292,12 @@ impl ServerActor {
         };
         let status = guard.status(&id);
         for participant in guard.participants.keys() {
-            self.client_write(
-                *participant,
-                event(
-                    "checkoutBuffersLock",
-                    json!({"guardId": id, "scope": guard.scope}),
-                ),
+            let (name, payload) = lock_event(
+                &id,
+                &guard.scope,
+                resolution.filter(|_| resolving.contains(participant)),
             );
+            self.client_write(*participant, event(name, payload));
         }
         self.checkout_buffer_guards.insert(id.clone(), guard);
         let inbox = self.inbox.clone();
@@ -373,3 +388,51 @@ impl ServerActor {
 fn state_error(error: anyhow::Error) -> HostError {
     HostError::state(error.to_string())
 }
+
+/// What a guard asks the desktop apps to do with dirty editors in its scope
+/// before they acknowledge. Without one they only report them as blockers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum BufferGuardResolution {
+    Save,
+    Discard,
+}
+
+fn buffer_guard_resolution(payload: &Value) -> HostResult<Option<BufferGuardResolution>> {
+    match payload.get("resolution") {
+        None | Some(Value::Null) => Ok(None),
+        Some(value) => match value.as_str() {
+            Some("save") => Ok(Some(BufferGuardResolution::Save)),
+            Some("discard") => Ok(Some(BufferGuardResolution::Discard)),
+            _ => Err(HostError::format(
+                "Buffer guard resolution must be save or discard",
+            )),
+        },
+    }
+}
+
+/// The event one participant receives. Only an app that announced
+/// `checkoutBufferSaveV1` gets a resolution; any other app locks as before.
+pub(super) fn lock_event(
+    id: &str,
+    scope: &BufferGuardScope,
+    resolution: Option<BufferGuardResolution>,
+) -> (&'static str, Value) {
+    match resolution {
+        Some(BufferGuardResolution::Save) => (
+            "checkoutBuffersSaveRequested",
+            json!({"guardId": id, "scope": scope}),
+        ),
+        Some(BufferGuardResolution::Discard) => (
+            "checkoutBuffersLock",
+            json!({"guardId": id, "scope": scope, "resolution": "discard"}),
+        ),
+        None => (
+            "checkoutBuffersLock",
+            json!({"guardId": id, "scope": scope}),
+        ),
+    }
+}
+
+#[cfg(test)]
+#[path = "checkout_buffer_save_tests.rs"]
+mod save_tests;

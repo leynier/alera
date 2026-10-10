@@ -141,6 +141,7 @@ class const PullRequestPanelActions({
           number: number,
           body: body,
           replyToCommentId: root.id,
+          replyToThreadId: root.threadId,
         ),
       ),
     );

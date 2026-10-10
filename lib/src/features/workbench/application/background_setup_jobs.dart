@@ -6,11 +6,13 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/features/workbench/application/prompt_workspace_pipeline.dart';
 import 'package:alera/src/features/workbench/application/prompt_workspace_branch_checks.dart';
+import 'package:alera/src/features/workbench/application/prompt_workspace_service_run.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
+import 'package:alera/src/features/workbench/infra/prompt_workspace_service_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -20,10 +22,14 @@ import 'package:uuid/uuid.dart';
 
 part 'background_setup_jobs.g.dart';
 part 'background_setup_jobs_clone.dart';
+part 'background_setup_jobs_prompt_service.dart';
 
 @Riverpod(keepAlive: true)
 class BackgroundSetupJobs extends _$BackgroundSetupJobs
-    with _BackgroundSetupJobsInternals, _BackgroundSetupJobsClone {
+    with
+        _BackgroundSetupJobsInternals,
+        _BackgroundSetupJobsClone,
+        _BackgroundSetupJobsPromptService {
   @override
   BackgroundSetupJobsState build() {
     _disposed = false;
@@ -116,6 +122,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
             originalLaunchWasIdempotent:
                 existingSnapshot.originalLaunchWasIdempotent,
             setupStarted: existingSnapshot.setupStarted,
+            serviceOperationId: existingSnapshot.serviceOperationId,
           )
         : request;
     _upsert(
@@ -133,6 +140,9 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
       ),
     );
     return _run(id, () async {
+      if (await _runPromptWorkspaceOnService(id, requestToRun)) {
+        return;
+      }
       final controller = ref.read(workbenchControllerProvider.notifier);
       final runtime = PromptWorkspaceRuntimeClient(
         ref.read(runtimeHostClientProvider),

@@ -27,6 +27,22 @@ pub enum WorkflowRecipesAction {
         #[arg(long)]
         expected_revision: Option<i64>,
     },
+    /// Preview, or with --apply write, a recipe file into a workspace's project catalog.
+    Export {
+        #[command(flatten)]
+        input: WorkflowRecipeDocumentArgs,
+        #[arg(long)]
+        workspace_id: String,
+        /// File name inside the project's recipe directory.
+        #[arg(long)]
+        filename: String,
+        /// Digest from the preview. Required with --apply.
+        #[arg(long)]
+        expected_digest: Option<String>,
+        /// Write the previewed file. Without it the command only previews.
+        #[arg(long, requires = "expected_digest")]
+        apply: bool,
+    },
 }
 
 #[derive(Debug, Args)]

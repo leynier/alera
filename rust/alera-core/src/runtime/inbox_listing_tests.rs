@@ -239,3 +239,71 @@ async fn threads_page_by_latest_activity_and_filter_before_the_limit() {
     assert_eq!(rest.items.len(), 1);
     assert_eq!(rest.next_before, None);
 }
+
+#[tokio::test]
+async fn listing_filters_by_the_origin_client() {
+    let (_dir, store) = store().await;
+    let mut chatgpt = question("ext:mcp", "agent");
+    chatgpt.external_meta = serde_json::json!({
+        "version": 1,
+        "origin": {"surface": "mcp", "transport": "remote", "clientId": "chatgpt", "clientName": "ChatGPT"},
+    });
+    let own = store.insert_inbox_question(chatgpt).await.unwrap();
+    store
+        .insert_inbox_question(question("ext:mcp", "agent"))
+        .await
+        .unwrap();
+    let filtered = store
+        .inbox_threads(InboxThreadFilter {
+            inbox: Some("ext:mcp".to_string()),
+            origin_client_id: Some("chatgpt".to_string()),
+            limit: 50,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(filtered.items.len(), 1);
+    assert_eq!(filtered.items[0].thread_id, own.id);
+    assert_eq!(
+        filtered.items[0].origin.as_ref().unwrap()["clientName"],
+        "ChatGPT"
+    );
+    let other = store
+        .inbox_threads(InboxThreadFilter {
+            origin_client_id: Some("claude".to_string()),
+            limit: 50,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(other.items.is_empty());
+}
+
+#[tokio::test]
+async fn request_keys_find_the_same_clients_question() {
+    let (_dir, store) = store().await;
+    let mut keyed = question("ext:mcp", "agent");
+    keyed.external_meta = serde_json::json!({
+        "version": 1,
+        "requestKey": "request-0001",
+        "origin": {"surface": "mcp", "transport": "local", "clientId": "codex"},
+    });
+    let asked = store.insert_inbox_question(keyed).await.unwrap();
+    let found = store
+        .inbox_question_by_request_key("ext:mcp", "request-0001", Some("codex"))
+        .await
+        .unwrap();
+    assert_eq!(found.unwrap().id, asked.id);
+    let lookups = [
+        ("ext:mcp", Some("other-client")),
+        ("ext:mcp", None),
+        ("ext:ci", Some("codex")),
+    ];
+    for (inbox, client) in lookups {
+        let missing = store
+            .inbox_question_by_request_key(inbox, "request-0001", client)
+            .await
+            .unwrap();
+        assert!(missing.is_none(), "{inbox} {client:?}");
+    }
+}

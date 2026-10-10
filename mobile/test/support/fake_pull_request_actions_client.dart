@@ -68,9 +68,11 @@ mixin FakePullRequestActionsClient implements MobilePullRequestActionsClient {
     required int number,
     required String body,
     int? replyToCommentId,
+    String? replyToThreadId,
   }) => _answer(
     'commentOnPullRequest $number $body'
-    '${replyToCommentId == null ? '' : ' reply:$replyToCommentId'}',
+    '${replyToCommentId == null ? '' : ' reply:$replyToCommentId'}'
+    '${replyToThreadId == null ? '' : ' thread:$replyToThreadId'}',
   );
 
   @override

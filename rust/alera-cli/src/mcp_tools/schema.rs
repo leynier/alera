@@ -58,3 +58,14 @@ pub(super) fn string_list(description: &str, values: &[&str]) -> Value {
         "description": description,
     })
 }
+
+/// `clientRequestId`: the same key on a retry returns the first call's result
+/// instead of repeating its effect.
+pub(super) fn client_request_id() -> Value {
+    json!({
+        "type": "string",
+        "minLength": 8,
+        "maxLength": 128,
+        "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+    })
+}

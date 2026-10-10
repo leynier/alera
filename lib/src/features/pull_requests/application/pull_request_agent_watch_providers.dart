@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
-
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_providers.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
@@ -92,14 +90,13 @@ class PullRequestAgentWatchController extends _$PullRequestAgentWatchController
     PullRequestAgentWatchDispatchMark? lastDispatch,
   }) async {
     final repository = ref.read(pullRequestAgentWatchRepositoryProvider);
-    if (await repository.supportsExecution() &&
-        ref
-                .read(workspacePullRequestControllerProvider(scope))
-                .asData
-                ?.value
-                .review
-                ?.provider ==
-            GitHostingProvider.github) {
+    final panel = ref
+        .read(workspacePullRequestControllerProvider(scope))
+        .asData
+        ?.value;
+    if (await repository.ownsExecutionFor(
+      panel?.review?.provider ?? panel?.identity?.provider,
+    )) {
       await repository.upsert(
         PullRequestAgentWatchRecord.fromSession(
           PullRequestAgentWatchSession(
@@ -214,10 +211,9 @@ class PullRequestAgentWatchController extends _$PullRequestAgentWatchController
                       ?.value)
               ?.identity
               ?.provider;
-      if (provider == GitHostingProvider.github &&
-          await ref
-              .read(pullRequestAgentWatchRepositoryProvider)
-              .supportsExecution()) {
+      if (await ref
+          .read(pullRequestAgentWatchRepositoryProvider)
+          .ownsExecutionFor(provider)) {
         return;
       }
       final evaluation = evaluatePullRequestAgentWatch(

@@ -68,6 +68,7 @@ impl ServerActor {
             || !self.mutation_queue.pending_workspace_shutdowns.is_empty()
             || self.account_push.cloud_jobs > 0
             || !self.project_clone_jobs.is_empty()
+            || !self.prompt_workspace_operations.is_empty()
             || self.mobile_gateway.is_some()
             || self.account_push.relay_task.is_some()
             || !self.coordinators.is_empty()
@@ -165,6 +166,17 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_shutdown_tick(&mut self, generation: u64) {
+        if generation == self.shutdown_gen
+            && (super::ai_assist_pull_request_details_jobs::pull_request_details_jobs()
+                .has_running()
+                || super::agent_skill_installs::install_running())
+        {
+            // A resumable generation or a skill install outlives the caller
+            // that started it, so the runtime waits for it and checks again a
+            // delay later.
+            self.schedule_shutdown_if_idle();
+            return;
+        }
         if generation == self.shutdown_gen
             && !self.disposed
             && !self.has_authenticated_clients()

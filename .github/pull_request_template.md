@@ -18,6 +18,7 @@ Describe the user-visible change.
 - [ ] Relevant desktop build: `flutter build macos`, `flutter build windows`, or `flutter build linux`
 - [ ] Landing checks, if applicable: `cd landing && bun run check`
 - [ ] Added or updated tests that would catch regressions, or explained why tests were not needed
+- [ ] CLI skills (`skills/`) and MCP skills (`edge/skills/`) reviewed for any changed command, runtime verb, or MCP tool, with versions bumped and `bun tool/skill_catalog.ts` rerun when they changed (see `AGENTS.md`, Agent And MCP Skills)
 
 ## AI Review Report
 

@@ -1,3 +1,6 @@
+/// OAuth scope that unlocks administrative MCP tools.
+const String mcpAdminScope = 'mcp:admin';
+
 /// An MCP client the user authorized through the consent page, as returned by
 /// `mcp.grants.list`.
 final class const McpGrant({
@@ -34,6 +37,9 @@ final class const McpGrant({
 
   /// Whether the grant may run execute tools, not only read ones.
   bool get canExecute => scopes.contains('mcp:execute');
+
+  /// Whether the user allowed this app's administrative tools at consent.
+  bool get canAdmin => scopes.contains(mcpAdminScope);
 }
 
 String? _optionalString(Object? value) {

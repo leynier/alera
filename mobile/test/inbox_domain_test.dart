@@ -28,6 +28,14 @@ void main() {
     expect(thread.unreadReplyCount, 2);
     expect(thread.recipientLabel, 'claude · Fix Login');
     expect(thread.origin!.label, 'Alera mobile on Pixel');
+    expect(
+      InboxOrigin.fromJson(const <String, Object?>{
+        'surface': 'mcp',
+        'clientId': 'claude-code',
+      }).label,
+      'claude-code (MCP)',
+    );
+    expect(const InboxOrigin(surface: 'mcp').label, 'MCP client');
     expect(thread.target.workspaceName, 'auth');
 
     final detail = InboxThreadDetail.fromJson(<String, Object?>{

@@ -20,6 +20,10 @@ export interface EdgeEnvironment {
   EDGE_BURST_LIMITER: RateLimitBinding;
   EDGE_ORIGIN_TOKEN: string;
   MCP_ENABLED?: string;
+  /** OpenAI MCP Events (`events/*` and `capabilities.events`). Off unless "true". */
+  MCP_EVENTS_ENABLED?: string;
+  /** When "true", the cron trigger asks the origin to deliver due webhooks. */
+  EVENT_DELIVERY_PUMP?: string;
   MCP_LIMITER?: RateLimitBinding;
   OAUTH_LIMITER?: RateLimitBinding;
   BROWSER_LIMITER?: RateLimitBinding;
@@ -55,8 +59,11 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/device',
 ]);
 const PUBLIC_PREFIXES = ['/v1/'];
-// Gateway calls mint runtime call grants; only the edge may reach them, through the origin directly.
-const EDGE_ONLY_PREFIX = '/v1/mcp/calls';
+// Gateway calls mint runtime call grants, MCP Events subscriptions must pass the edge's
+// protocol checks, and the delivery pump is internal: only the edge reaches them, through
+// the origin directly.
+const EDGE_ONLY_PREFIXES = ['/v1/mcp/calls', '/v1/mcp/event-subscriptions', '/v1/internal'];
+const EVENT_PUMP_PATH = '/v1/internal/event-deliveries/pump';
 const CORS_EXACT_PATHS = new Set(['/oauth/token', '/oauth/register', '/oauth/revoke', MCP_PATH]);
 // Machine-to-machine sign-in calls carry no bearer, so the burst limiter would key
 // them by address alone: a device poll every five seconds, or a hosted client
@@ -81,7 +88,7 @@ export function jsonError(status: number, code: string, message: string): Respon
 }
 
 function isPublicPath(pathname: string): boolean {
-  if (pathname === EDGE_ONLY_PREFIX || pathname.startsWith(`${EDGE_ONLY_PREFIX}/`)) return false;
+  if (EDGE_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return false;
   return PUBLIC_EXACT_PATHS.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -338,8 +345,27 @@ export async function handleRequest(
 
 export { RuntimeRelayDurableObject } from './runtime_relay';
 
+/** Cron: asks the origin to fan out and deliver due webhooks while Cloud Run idles. */
+export async function pumpEventDeliveries(
+  env: EdgeEnvironment,
+  fetchOrigin: OriginFetch = (originRequest) => fetch(originRequest),
+): Promise<boolean> {
+  if (env.EVENT_DELIVERY_PUMP !== 'true' || validateEnvironment(env)) return false;
+  const url = new URL(EVENT_PUMP_PATH, env.ORIGIN_BASE_URL);
+  const request = new Request(url, { method: 'POST', signal: AbortSignal.timeout(25000) });
+  try {
+    const response = await fetchOrigin(originRequest(request, env, url));
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export default {
   fetch(request: Request, env: EdgeEnvironment, ctx: ExecutionContext): Promise<Response> {
     return handleRequest(request, env, undefined, undefined, ctx);
+  },
+  scheduled(_controller: ScheduledController, env: EdgeEnvironment, ctx: ExecutionContext): void {
+    ctx.waitUntil(pumpEventDeliveries(env));
   },
 };

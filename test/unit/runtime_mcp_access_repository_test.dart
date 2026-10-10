@@ -48,6 +48,35 @@ void main() {
     );
   });
 
+  test('reads every access level and orders admin last', () {
+    for (final (wire, level) in <(String, McpAccessLevel)>[
+      ('off', .off),
+      ('read', .read),
+      ('full', .full),
+      ('admin', .admin),
+    ]) {
+      expect(McpAccessLevel.fromWire(wire), level);
+      expect(level.wireName, wire);
+    }
+    expect(McpAccessLevel.values, <McpAccessLevel>[.off, .read, .full, .admin]);
+    expect(McpAccessLevel.fromWire('ADMIN'), McpAccessLevel.off);
+    expect(
+      McpAccessSettings.fromJson(_settings(access: 'admin')).access,
+      McpAccessLevel.admin,
+    );
+  });
+
+  test('update sends the admin access level', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['mcp.settings.update'] = _settings(access: 'admin');
+    final repository = RuntimeMcpAccessRepository(client);
+
+    final updated = await repository.updateSettings(access: .admin);
+
+    expect(updated.access, McpAccessLevel.admin);
+    expect(client.calls.single.payload, <String, Object?>{'access': 'admin'});
+  });
+
   test('update sends only the fields that are set', () async {
     final client = _FakeRuntimeHostClient()
       ..responses['mcp.settings.update'] = _settings(access: 'full');
@@ -91,11 +120,22 @@ void main() {
     final grant = grants.single;
     expect(grant.clientName, 'Claude');
     expect(grant.canExecute, isTrue);
+    expect(grant.canAdmin, isFalse);
     expect(grant.createdAt, DateTime.utc(2026, 10, 1, 10));
     expect(grant.lastUsedAt, isNull);
     expect(mcpGrantDetail(grant), 'claude.ai · 2 runtimes · Never used');
     expect(client.calls.last.type, 'mcp.grants.revoke');
     expect(client.calls.last.payload, <String, Object?>{'grantId': 'grant-1'});
+  });
+
+  test('reads the admin scope of a grant', () {
+    final grant = McpGrant.fromJson(<String, Object?>{
+      'id': 'grant-3',
+      'clientId': 'admin-client',
+      'scopes': <String>['mcp:read', 'mcp:execute', 'mcp:admin'],
+    });
+    expect(grant.canExecute, isTrue);
+    expect(grant.canAdmin, isTrue);
   });
 
   test('describes a grant that reaches every runtime', () {
@@ -107,6 +147,7 @@ void main() {
     });
     expect(grant.clientName, 'chatgpt');
     expect(grant.canExecute, isFalse);
+    expect(grant.canAdmin, isFalse);
     expect(mcpGrantDetail(grant), 'All runtimes · Never used');
   });
 

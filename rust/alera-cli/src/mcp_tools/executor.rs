@@ -9,7 +9,8 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
 
-use super::ToolSpec;
+use super::origin::ORIGIN_VARIABLE;
+use super::{CallOrigin, ToolSpec};
 
 /// One relay frame is capped at 1 MiB, and the result travels inside JSON.
 pub(crate) const MAX_STDOUT_BYTES: usize = 768 * 1024;
@@ -27,6 +28,8 @@ const CONTEXT_VARIABLES: &[&str] = &[
     "ALERA_AGENT_CONVERSATION_ID",
     "ALERA_EXTERNAL_INBOX",
     "ALERA_RUNTIME_DIR",
+    "ALERA_AUTOMATION_RUN_ID",
+    "ALERA_AUTOMATION_ATTEMPT_ID",
 ];
 
 #[derive(Debug, Clone)]
@@ -44,32 +47,88 @@ impl ToolExecution {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ToolResult {
     pub(crate) text: String,
     pub(crate) is_error: bool,
+    /// The result object for clients that read `structuredContent`; errors
+    /// carry `{ error: { code, message, retryable } }`.
+    pub(crate) structured: Option<Value>,
 }
 
 impl ToolResult {
     pub(crate) fn error(text: impl Into<String>) -> Self {
+        let text = text.into();
         Self {
-            text: text.into(),
+            structured: Some(error_object(&text)),
+            text,
             is_error: true,
         }
     }
 
     pub(crate) fn to_mcp(&self) -> Value {
-        json!({
+        let mut value = json!({
             "content": [{ "type": "text", "text": self.text }],
             "isError": self.is_error,
-        })
+        });
+        if let Some(structured) = self.structured.as_ref().filter(|value| value.is_object()) {
+            value["structuredContent"] = structured.clone();
+        }
+        value
     }
+}
+
+/// Error codes shared by every tool, so a client can branch on them instead
+/// of parsing messages.
+pub(crate) fn error_code(message: &str) -> (&'static str, bool) {
+    let lower = message.to_lowercase();
+    // The app's own refusals, such as Cleanup Unavailable or unsaved editors.
+    if lower.starts_with("blocked:") {
+        ("blocked", false)
+    } else if lower.contains("unknown terminal host request") || lower.contains("update alera") {
+        ("capability_missing", false)
+    // A forge CLI (gh, glab, az) or its sign-in is missing on the checkout's host.
+    } else if lower.contains("install and authenticate")
+        || lower.contains("auth login on")
+        || lower.contains("sign in with az login")
+    {
+        ("provider_unavailable", false)
+    } else if lower.contains("only available for github") {
+        ("provider_unsupported", false)
+    } else if lower.contains("did not finish within") {
+        ("timeout_pending", true)
+    } else if lower.contains("not running") || lower.contains("could not connect") {
+        ("runtime_unavailable", true)
+    } else if lower.contains("not found")
+        || lower.contains("no such")
+        || lower.contains("does not exist")
+    {
+        ("not_found", false)
+    } else if lower.contains("already exists") || lower.contains("conflict") {
+        ("conflict", false)
+    } else if lower.contains("required")
+        || lower.contains("invalid")
+        || lower.contains("argument")
+        || lower.contains("must be")
+    {
+        ("invalid_argument", false)
+    } else if lower.contains("cancelled") {
+        ("cancelled", false)
+    } else {
+        ("failed", false)
+    }
+}
+
+fn error_object(message: &str) -> Value {
+    let (code, retryable) = error_code(message);
+    json!({ "error": { "code": code, "message": message, "retryable": retryable } })
 }
 
 pub(crate) async fn run_tool(
     execution: &ToolExecution,
     tool: &ToolSpec,
     arguments: &Value,
+    origin: &CallOrigin,
     cancelled: Option<oneshot::Receiver<()>>,
 ) -> ToolResult {
     let invocation = match tool.invocation(arguments) {
@@ -93,6 +152,7 @@ pub(crate) async fn run_tool(
     for variable in CONTEXT_VARIABLES {
         command.env_remove(variable);
     }
+    command.env(ORIGIN_VARIABLE, origin.to_env_value());
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => return ToolResult::error(format!("Could not start the Alera CLI: {error}")),
@@ -154,12 +214,22 @@ pub(crate) async fn run_tool(
             detail
         }
     };
+    let structured = if !succeeded {
+        Some(error_object(&text))
+    } else if stdout_truncated {
+        None
+    } else {
+        serde_json::from_str::<Value>(&text)
+            .ok()
+            .filter(Value::is_object)
+    };
     if stdout_truncated {
         text.push_str("\n[output truncated; narrow the request or read in smaller pages]");
     }
     ToolResult {
         text,
         is_error: !succeeded,
+        structured,
     }
 }
 

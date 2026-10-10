@@ -18,6 +18,15 @@ void main() {
     expect(const InboxOrigin(surface: 'desktop').label, 'Alera desktop');
     expect(const InboxOrigin(surface: 'mobile').label, 'Alera mobile');
     expect(const InboxOrigin(surface: 'cli').label, 'CLI');
+    expect(
+      InboxOrigin.fromJson(const <String, Object?>{
+        'surface': 'mcp',
+        'clientId': 'chatgpt',
+        'clientName': 'ChatGPT',
+      }).label,
+      'ChatGPT (MCP)',
+    );
+    expect(const InboxOrigin(surface: 'mcp').label, 'MCP client');
     expect(InboxQuestionStatus.delivered.open, isTrue);
     expect(InboxQuestionStatus.answered.open, isFalse);
   });

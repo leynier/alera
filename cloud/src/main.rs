@@ -1,4 +1,4 @@
-use alera_cloud::{maintenance, migrations, router, AppConfig, AppState};
+use alera_cloud::{events, maintenance, migrations, router, AppConfig, AppState};
 use anyhow::Context;
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
@@ -23,6 +23,11 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("bind {bind}"))?;
     let online_migrations_task = migrations::spawn_online(pool.clone());
     let maintenance_task = maintenance::spawn(pool.clone());
+    let event_worker = state
+        .config
+        .events
+        .worker_enabled
+        .then(|| events::worker::spawn(state.clone()));
     tracing::info!(address = %bind, "Alera cloud backend listening");
     let serve_result = axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())
@@ -30,6 +35,9 @@ async fn main() -> anyhow::Result<()> {
         .context("serve HTTP");
     online_migrations_task.abort();
     maintenance_task.abort();
+    if let Some(worker) = event_worker {
+        worker.abort();
+    }
     pool.close().await;
     serve_result?;
     Ok(())

@@ -61,6 +61,7 @@ mod agent_presence_reconciliation;
 mod agent_profile_launch_requests;
 mod agent_profile_session_resume;
 mod agent_prompt_composition;
+mod agent_skill_installs;
 mod agent_title_context;
 mod agent_title_events;
 mod agent_title_generation;
@@ -81,7 +82,10 @@ mod ai_assist_opencode_go;
 mod ai_assist_opencode_go_requests;
 mod ai_assist_operation_registry;
 mod ai_assist_process_journal;
+mod ai_assist_project_inference;
 mod ai_assist_pull_request_details;
+mod ai_assist_pull_request_details_jobs;
+mod ai_assist_pull_request_details_resume;
 mod ai_assist_requests;
 mod ai_assist_speech_message;
 mod ai_assist_workspace_identity;
@@ -246,9 +250,15 @@ mod prompt_file_requests;
 mod prompt_file_store;
 mod prompt_image_requests;
 mod prompt_image_store;
+mod prompt_workspace_creation;
+mod prompt_workspace_operation;
+mod prompt_workspace_pipeline;
+mod prompt_workspace_requests;
+mod prompt_workspace_setup;
 mod pty_event_forwarder;
 mod pty_events;
 mod pty_exit_deferral;
+mod pull_request_forges;
 mod pull_request_watch_evaluation;
 mod pull_request_watch_requests;
 #[cfg(test)]
@@ -260,6 +270,8 @@ mod request_payloads;
 mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
+mod runtime_event_forwarder;
+mod runtime_event_requests;
 mod runtime_mutation_barrier;
 #[path = "server/runtime_mutation_completion.rs"]
 mod runtime_mutation_completion;
@@ -311,6 +323,7 @@ mod voice_stt;
 mod voice_transcript;
 mod voice_tts;
 mod voice_turn_jobs;
+mod webhook_requests;
 mod workflow_catalog_requests;
 #[cfg(test)]
 mod workflow_catalog_tests;
@@ -373,6 +386,9 @@ struct ClientState {
     authenticated: bool,
     shared_checkout_workspaces: bool,
     checkout_buffer_guards: bool,
+    /// The desktop app said in `hello` that it saves or discards its editor
+    /// buffers when a buffer guard asks it to (`checkoutBufferSaveV1`).
+    checkout_buffer_save: bool,
     /// The desktop app said in `hello` that it handles `workspaceFocusRequested`.
     workspace_focus: bool,
     binary_frames: bool,
@@ -407,6 +423,8 @@ struct ServerActor {
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     host_links: crate::terminal_host::host_link_registry::HostLinkRegistry,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
+    /// Cancel handles of running New Workspace from Prompt operations.
+    prompt_workspace_operations: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
     workflow_execution: workflow_launch_requests::execution::ExecutionPump,
@@ -668,6 +686,7 @@ impl ServerActor {
                         authenticated: false,
                         shared_checkout_workspaces: false,
                         checkout_buffer_guards: false,
+                        checkout_buffer_save: false,
                         workspace_focus: false,
                         binary_frames: false,
                         kind,
@@ -1010,6 +1029,12 @@ impl ServerActor {
             }
             ServerCommand::ProjectCloneFinished { job_id } => {
                 self.handle_project_clone_finished(job_id).await
+            }
+            ServerCommand::PromptWorkspaceOperationChanged { operation_id } => {
+                self.handle_prompt_workspace_operation_changed(operation_id)
+            }
+            ServerCommand::PromptWorkspaceOperationFinished { operation_id } => {
+                self.handle_prompt_workspace_operation_finished(operation_id)
             }
             ServerCommand::CoordinatorTick { run_id } => {
                 self.handle_board_coordinator_tick(run_id).await

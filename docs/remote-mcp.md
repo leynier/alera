@@ -6,15 +6,16 @@ The same tool catalog is also served locally by `alera mcp serve` over stdio, wi
 
 ## Decisions
 
-- MCP Control is a per-runtime opt-in with three levels: `off` (default), `read`, and `full`. Remote Access for the phone stays a separate setting. Either one keeps the cloud link open.
+- MCP Control is a per-runtime opt-in with four ordered levels: `off` (default), `read`, `full`, and `admin`. Each level allows everything the previous one does: read tools need `read`, execute tools need `full`, and administrative tools need `admin`. A runtime never moves to `admin` on its own; the user has to choose it. Remote Access for the phone stays a separate setting. Either one keeps the cloud link open.
 - The privacy boundary differs from the mobile relay. An MCP client sends tool arguments over TLS to the edge, so the edge and the cloud gateway handle tool arguments and results in plaintext while forwarding them. Neither stores them. The audit log keeps metadata only: tool name, runtime, client, time, outcome, and duration. Terminal traffic between a phone and a runtime remains end-to-end encrypted and unchanged.
 - The Rust cloud service is the only authorization server. It adds standard OAuth endpoints, Dynamic Client Registration, Client ID Metadata Documents, a consent page, and a device authorization flow for headless runtimes. Google and GitHub remain the identity providers.
 - The MCP endpoint lives in the edge Worker, because Cloud Run requests time out after 30 seconds and the runtime socket already lives in the relay Durable Object. The edge is stateless: it builds no MCP session and keeps nothing between requests.
 - The runtime is the source of the tool catalog. Each tool maps to one typed `alera` CLI invocation with `--json`, so the MCP tools keep the CLI's exact semantics. The edge serves a generated copy of the catalog and adds the `runtime` argument.
 - Every routed call carries a short-lived call grant signed by the cloud for one runtime, account, tool, and call id. The runtime verifies it against the published JWKS and refuses replays before running anything, so a frame without such a grant cannot drive a runtime. The edge stays inside the trust boundary: it serves the JWKS and forwards the arguments, which the grant does not cover.
 - A call names its runtime with `runtime` (name or id). When the grant reaches exactly one connected runtime, `runtime` may be omitted. Nothing is remembered between calls, so concurrent conversations cannot move each other.
-- The consent page grants a list of runtimes, or every runtime including future ones, plus the `mcp:read` and `mcp:execute` scopes.
+- The consent page grants a list of runtimes, or every runtime including future ones, plus scopes. `mcp:read` is always granted and `mcp:execute` is checked by default. `mcp:admin` is offered only when the client requests it, behind an "Allow administrative tools" box that starts unchecked, and it is granted only together with `mcp:execute`. A tool needs both barriers: the scope of its class on the grant and a high enough MCP Control level on the runtime. Existing grants keep the scopes they were given.
 - Runtime names are chosen by the user, unique per account (case-insensitive) when set explicitly, and sent again on every sign-in so the cloud never reverts to the host name. Renaming needs a signed-in account so the cloud can reserve the name. Host-name defaults, or a name carried into another account, can still repeat; name-based calls then fail with `runtime_ambiguous` and list the ids.
+- `full` is not a sandbox. Execute tools can type into terminals (`write_terminal`, `pulse`), open a tab that runs a command, change a project's setup and run it, or give an automation a precheck command, so a `full` client can run any command the runtime's user can, including the CLI commands no tool exposes. The excluded commands are kept out of the catalog, not out of reach. Grant `full` only to clients trusted with a shell.
 - Long operations are bounded. Waiting tools accept at most 50 seconds because hosted MCP clients abandon HTTP calls after about a minute; the agent polls again.
 
 ## Architecture
@@ -61,7 +62,7 @@ Rules:
 - A `private_key_jwt` client sends an RFC 7523 assertion (`client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer`) on both the code and the refresh grant. It must be signed with `RS256`, `PS256`, or `ES256` by a key from the client's `jwks_uri` (named by `kid`, or the only key published), carry `iss` and `sub` equal to the `client_id`, an `aud` that includes the issuer or the token endpoint URL, an `exp` at most five minutes ahead, and a `jti`. Each `jti` is accepted once per client (`mcp_client_assertions`, purged after expiry). The client is authenticated, and must be the client the code was issued to, before the code is consumed or treated as a replay, so a caller without the key cannot spend or revoke a stolen code. The `client_id` form field may be omitted; the assertion subject then names the client.
 - Client JWKS are fetched with the same guards as metadata documents and cached per instance for ten minutes. Each JWKS is fetched by one request at a time and at most once a minute, failed attempts included, and requests that miss during a fetch wait for its result, so an unknown `kid` or an unreachable host cannot amplify unauthenticated token requests into fetches. The cache holds up to 1,024 URIs; when every entry is still inside its rate window, a new URI is refused until one frees up rather than evicting another URI's guard.
 - Invalid `client_id` or `redirect_uri` renders an error page instead of redirecting.
-- `resource` is optional; when present it must equal the MCP resource. `scope` defaults to `mcp:read mcp:execute`.
+- `resource` is optional; when present it must equal the MCP resource. `scope` defaults to `mcp:read mcp:execute` and never includes `mcp:admin` by default. A request that names `mcp:admin` also requests `mcp:execute`, and consent still decides whether to grant it. The metadata `scopes_supported` and the registration response `scope` list `mcp:read`, `mcp:execute`, and `mcp:admin`.
 - The sign-in, consent, and device pages send `Content-Security-Policy` with `frame-ancestors 'none'` and a `form-action` that admits the client's redirect origin, because the consent form's response redirects there. The edge removes cookies, so the flow carries a single-use consent token in the form instead.
 - Access tokens are Ed25519 JWTs (`typ: at+jwt`) valid for 15 minutes with `aud` equal to the MCP resource, `client_kind: mcp`, `client_id` equal to the OAuth client id, `gid` equal to the grant id, `sid` equal to the refresh family, and `scope` from the grant. They are rejected by every other cloud route because the audience differs.
 - Refresh tokens reuse the rotating refresh families (`client_kind = 'mcp'`, `client_id = grant id`). Revoking a grant revokes its families, and `POST /oauth/revoke` with any token of a grant revokes the whole grant, because each grant has one session.
@@ -89,7 +90,7 @@ These use the existing runtime and mobile access tokens.
 | `DELETE /v1/mcp/grants/{id}` | runtime or mobile | Revokes the grant and its refresh families; `204` |
 | `PUT /v1/runtime/name` | the runtime itself | `{ name }` (1-64 characters, unique per account ignoring case) returns `{ id, name }`; `409 runtime_name_taken` |
 | `PUT /v1/runtime/capabilities` | the runtime itself | `{ mcpAccess, mobileAccess }` returns `204`. Sent when MCP Control changes, because a runtime that turns both features off stops requesting relay grants |
-| `POST /v1/relay/grants` | runtime | Adds optional `mcpAccess` (`off`, `read`, `full`; absent means `off`) and `mobileAccess` (absent means `true`). The cloud stores both on the runtime row and copies them into the runtime's relay grant claims |
+| `POST /v1/relay/grants` | runtime | Adds optional `mcpAccess` (`off`, `read`, `full`, `admin`; absent means `off`) and `mobileAccess` (absent means `true`). The cloud stores both on the runtime row and copies them into the runtime's relay grant claims |
 | `GET /v1/mobile/runtimes` | mobile | Excludes runtimes whose last grant reported `mobileAccess: false` |
 
 ## Gateway APIs
@@ -102,8 +103,8 @@ The edge returns `404` for `/v1/mcp/calls` and everything under it on the public
 - `POST /v1/mcp/calls` with `{ runtime?, tool, access }` resolves the runtime and records the call:
   - `runtime` matches an id exactly or a name ignoring case. Unknown, ungranted, and transferred runtimes all fail with `404 runtime_not_found`. A name shared by several runtimes fails with `409 runtime_ambiguous`.
   - Without `runtime`, exactly one connected runtime is chosen; none fails with `404 no_runtime_available`, several with `409 runtime_required`. The error message lists the candidate names.
-  - `access: execute` needs the `mcp:execute` scope (`403 insufficient_scope`). A runtime reporting `off` fails with `409 runtime_mcp_disabled`; `read` refuses execute tools with `403 runtime_read_only`.
-  - The response is `{ callId, runtimeId, runtimeName, grant, expiresIn }`. `grant` is an Ed25519 JWT with `typ: mcp-call+jwt`, `aud: alera-runtime-mcp`, a 120-second lifetime, `jti` equal to the call id, and claims `accountId`, `runtimeId`, `grantId`, `clientId`, `clientName`, `tool`, and `access`.
+  - `access` is `read`, `execute`, or `admin`. `execute` needs the `mcp:execute` scope and `admin` needs the `mcp:admin` scope (`403 insufficient_scope`; for `admin` the message asks the user to reconnect and allow administrative tools). A runtime reporting `off` fails with `409 runtime_mcp_disabled`; `read` refuses execute tools with `403 runtime_read_only`; any level below `admin` refuses administrative tools with `403 runtime_not_admin`.
+  - The response is `{ callId, runtimeId, runtimeName, grant, expiresIn }`. `grant` is an Ed25519 JWT with `typ: mcp-call+jwt`, `aud: alera-runtime-mcp`, a 120-second lifetime, `jti` equal to the call id, and claims `accountId`, `runtimeId`, `grantId`, `clientId`, `clientName`, `tool`, and `access` (`read`, `execute`, or `admin`).
 - `POST /v1/mcp/calls/{id}/outcome` with `{ outcome, durationMs }` completes the audit row once and returns `204`; a second outcome returns `409 call_already_completed`. Outcomes are `ok`, `tool_error`, `runtime_offline`, `timeout`, and `failed`.
 - Missing or invalid bearers return `401` (`missing_bearer`, `invalid_token`); a revoked grant or session returns `401 session_revoked` or `invalid_session`, which the edge turns into a `401` with `WWW-Authenticate`.
 
@@ -114,10 +115,13 @@ The audit row (`mcp_calls`) is written before the runtime is contacted. A missin
 `/v1/mcp` implements stateless Streamable HTTP:
 
 - `POST` accepts one JSON-RPC message and answers with `application/json`. Notifications return `202`. `GET` and `DELETE` return `405` because the server keeps no sessions or streams. `OPTIONS` answers CORS preflight.
-- Supported protocol versions: `2025-11-25`, `2025-06-18`, and `2025-03-26`. An unknown requested version gets the newest supported one.
-- Methods: `initialize`, `ping`, `tools/list`, and `tools/call`. Anything else returns `-32601`.
-- A missing or invalid bearer returns `401` with `WWW-Authenticate: Bearer resource_metadata="<resource metadata URL>", scope="mcp:read mcp:execute"`. A read-only token calling an execute tool returns a tool error naming the missing scope.
-- `tools/list` serves `edge/src/mcp/tool_catalog.json` plus the gateway tool `list_runtimes`. Each runtime tool gains an optional `runtime` string argument.
+- Supported protocol versions: `2026-07-28`, `2025-11-25`, `2025-06-18`, and `2025-03-26`. Handshake clients keep using `initialize`, which negotiates among the three older versions (an unknown requested version gets `2025-11-25`) and answers exactly as before.
+- A `2026-07-28` request carries its version in `params._meta["io.modelcontextprotocol/protocolVersion"]` and the `MCP-Protocol-Version` header. A header that disagrees with `_meta`, or an `Mcp-Method` or `Mcp-Name` header (base64 sentinel form accepted) that disagrees with the body, gets `400` with `-32020` (HeaderMismatch). A version the edge does not serve gets `400` with `-32022` and `data: { supported, requested }`. Modern results add `resultType: "complete"`, and an unknown method answers `404` with `-32601`.
+- Methods: `initialize`, `server/discover`, `ping`, `tools/list`, and `tools/call`, plus `events/list`, `events/subscribe`, and `events/unsubscribe` while MCP Events is on. Anything else returns `-32601`.
+- `server/discover` returns `{ resultType, supportedVersions, capabilities, serverInfo, _meta["io.modelcontextprotocol/serverInfo"], instructions }`; `capabilities` is `{ tools: { listChanged: false } }` and gains `events: {}` only while `MCP_EVENTS_ENABLED=true`.
+- A missing or invalid bearer returns `401` with `WWW-Authenticate: Bearer resource_metadata="<resource metadata URL>", scope="mcp:read mcp:execute mcp:admin"`. A token without `mcp:execute` calling an execute tool, or without `mcp:admin` calling an administrative tool, gets a tool error naming the missing scope without contacting the cloud.
+- `tools/list` serves `edge/src/mcp/tool_catalog.json` plus the gateway tool `list_runtimes` and the skill tools `list_skills` and `read_skill`. Each runtime tool gains an optional `runtime` string argument.
+- Every tool other than the two skill tools ends its description with a reminder to read the matching Alera skill first, and the server instructions say the same.
 - Calls are limited per token by the `MCP_LIMITER` binding.
 - `tools/call` asks the cloud for a call grant, then calls the runtime's Durable Object at `/mcp/call` with `{ callId, grant, tool, arguments, timeoutMs }`. The object answers `{ ok: true, result }` or `{ ok: false, code, message }`. The edge records the outcome with `waitUntil`.
 
@@ -128,12 +132,12 @@ MCP traffic shares the runtime's existing relay WebSocket. A frame uses the norm
 - Durable Object to runtime: `{ "type": "mcp.call", "id", "grant", "tool", "arguments", "timeoutMs" }` and `{ "type": "mcp.cancel", "id" }`.
 - Runtime to Durable Object: `{ "type": "mcp.result", "id", "result": { "content", "structuredContent"?, "isError" } }` or `{ "type": "mcp.result", "id", "error": { "code", "message" } }`.
 - A single frame is at most 1 MiB; the runtime truncates command output to stay under it, and answers a call frame it cannot read with an `invalid_call` error instead of leaving the caller waiting.
-- The object only routes to a runtime socket whose relay grant carries `mcpAccess` `read` or `full`, rejects pending calls when that socket closes, and never forwards `~mcp` frames to phones.
+- The object only routes to a runtime socket whose relay grant carries `mcpAccess` `read`, `full`, or `admin`, rejects pending calls when that socket closes, and never forwards `~mcp` frames to phones.
 - The relay grant's `mobileAccess: false` makes the object refuse phones with `relay_runtime_unavailable`, and the runtime ignores phone handshakes while Remote Access is off.
 
 ## Runtime
 
-- Settings live in `runtimeMetadata`: `settings.mcp.access` (`off`, `read`, `full`) and `settings.runtime.name`.
+- Settings live in `runtimeMetadata`: `settings.mcp.access` (`off`, `read`, `full`, `admin`) and `settings.runtime.name`.
 - The relay link starts when an account is signed in and Remote Access or MCP Control is on, and restarts when either changes.
 - The runtime verifies each call grant (issuer, audience, signature, expiry, runtime id, account id), checks the tool exists and that its access level is allowed by the local setting, and runs at most four calls at once.
 - Each tool runs the runtime's own `alera` binary with `--json` and a bounded timeout. The process inherits the runtime's environment, so it talks to the same runtime.
@@ -160,13 +164,127 @@ Host requests (local clients only; never forwarded by a satellite or accepted fr
 
 The catalog is defined in `rust/alera-cli/src/mcp_tools/`. `edge/src/mcp/tool_catalog.json` is generated from it and a Rust test fails when they differ. Regenerate it with `ALERA_UPDATE_MCP_CATALOG=1 cargo test -p alera-cli mcp_tool_catalog_matches_edge_copy`.
 
-Each entry has `name`, `title`, `description`, `access` (`read` or `execute`), `timeoutSeconds`, `inputSchema`, and `annotations`.
+Each entry has `name`, `title`, `description`, `access` (`read`, `execute`, or `admin`), `timeoutSeconds`, `inputSchema`, and `annotations`. The edge accepts catalog versions 1 and 2; version 2 is the one that may contain `admin` tools.
 
 Tools that read terminal output drop the `dataBase64` copy of the text before returning it.
 
+## Skills
+
+MCP clients get Alera skills written for them: sisters of the CLI skills in `skills/`, but naming MCP tools instead of `alera` commands. They live only in the edge, so runtimes neither ship nor serve them:
+
+- **Sources:** `edge/skills/<name>/SKILL.md` and `references/*.md`. `bun tool/skill_catalog.ts` builds `edge/src/mcp/skill_catalog.json` from them, after checking that each `name` matches its folder, `description` and `metadata.version` are present, and file names and sizes are allowed.
+- **Tools:** `list_skills` returns each skill's name, description, version, and files. `read_skill { name, file? }` returns one file with its SHA-256 digest. Both are read-only and answered by the edge without a runtime or a call grant.
+- **Tests:** `edge/test/mcp_skills.test.ts` fails when any of the following holds:
+  - the generated JSON is stale;
+  - a skill names a tool that does not exist;
+  - a catalog tool is not explained by any skill;
+  - a link does not resolve.
+
+A local `alera mcp serve` does not serve these skills.
+
+The skills coding agents use in Alera terminals (`skills/`) are a separate concern, handled by the runtime tools `check_agent_skills` and `install_agent_skills` (`alera skill status|install`):
+- Installs run `skills add https://github.com/leynier/alera/tree/<build commit> --skill ... --agent codex --global --yes`, so they match the runtime's release.
+- Status compares each installed SKILL.md's `metadata.version` with the runtime's constant. `skill_version_matches_binary.rs` keeps the versions and a content digest in step.
+
+## Events And Webhooks
+
+Runtime domain events reach two kinds of subscribers through the cloud: generic webhooks that a signed-in runtime creates for its account, and OpenAI MCP Events subscriptions that an MCP client creates through the edge. The runtime forwards events only while the cloud reports active subscriptions for it, so turning MCP Control on does not by itself open a new data flow.
+
+### Payload Policy
+
+Events carry ids and states only, as mobile push does: never prompts, message or reply text, commands, terminal input or output, code, or repository contents. The cloud enforces it twice:
+
+- Ingest refuses `data` that is not a flat object of at most 20 scalar fields (strings at most 512 characters), whose keys are not short identifiers (`[A-Za-z0-9_.]`, at most 64 characters), or whose keys contain `prompt`, `body`, `text`, `output`, `command`, `subject`, `content`, `scrollback`, or `terminalbytes` (case-insensitive): `400 sensitive_event_data`, `invalid_event_data`, or `event_data_too_large`.
+- It then keeps only the keys the catalog lists for the event kind, plus `workspaceName` and `projectName`, and drops everything else before storage.
+
+| `kind` | `data` keys | MCP Events filters besides `runtime` and `workspaceId` |
+| --- | --- | --- |
+| `inbox.reply` | `inbox`, `threadId`, `questionId`, `messageId`, `originClientId` | `threadId`, `questionId` |
+| `inbox.question.status` | `questionId`, `threadId`, `status` | `threadId`, `questionId` |
+| `agent.status` | `workspaceId`, `tabId`, `sessionId`, `state` | `tabId` |
+| `terminal.exit` | `workspaceId`, `tabId`, `sessionId`, `exitCode` | `tabId` |
+| `orchestration.task.state` | `taskId`, `runId`, `state` | `taskId`, `runId` |
+| `orchestration.gate.created` | `gateId`, `taskId`, `runId` | `taskId`, `runId` |
+| `orchestration.escalation` | `taskId`, `runId` | `taskId`, `runId` |
+| `automation.run.state` | `automationId`, `runId`, `status` | `automationId`, `runId` |
+| `workspace.start.state` | `operationId`, `status`, `phase`, `workspaceId` | `operationId` |
+| `workspace.lifecycle` | `workspaceId`, `action` | none |
+| `pullRequest.watch` | `workspaceId`, `number`, `action` | none |
+
+The catalog lives in `cloud/src/events/catalog.rs`. `edge/src/mcp/event_catalog.json` is generated from it and a cloud test fails when they differ; regenerate it with `ALERA_UPDATE_EVENT_CATALOG=1 cargo test --lib event_catalog_matches_edge_copy` in `cloud/`.
+
+### Runtime API
+
+These use the runtime's own access token. Runtime tokens now carry the scope `events:send`; tokens issued before it keep working with `push:send`.
+
+| Endpoint | Body | Result |
+| --- | --- | --- |
+| `POST /v1/runtime/domain-events` | `{ runtimeId, events: [{ eventId, seq, kind, workspaceId?, projectId?, data, occurredAt }] }`, 1 to 100 events, at most 512 KiB | `{ accepted, duplicate, activeSubscriptions, rejected? }`. `accepted` counts newly stored events; `duplicate` counts events already stored for `(runtimeId, eventId)` or repeated in the batch; `rejected` (omitted when empty) lists `[{ eventId, code }]` for events refused by the rules below while the rest of the batch is stored |
+| `GET /v1/runtime/event-subscriptions` | none | `{ activeSubscriptions }` |
+| `GET /v1/webhooks` | none | `{ webhooks: [{ id, url, kinds, runtimeIds, allRuntimes, status, createdAt, lastDeliveryAt?, lastError? }] }` for the account |
+| `POST /v1/webhooks` | `{ url, kinds, runtimeIds?, allRuntimes? }` | `{ webhook, secret }`. `runtimeIds` defaults to the calling runtime; `secret` (`whsec_` + base64 of 32 random bytes) is returned only here |
+| `DELETE /v1/webhooks/{id}` | none | `204`; `404 webhook_not_found` |
+| `POST /v1/webhooks/{id}/test` | none | `{ deliveryId }` after queueing a signed `alera.test` event (`data: { runtimeId, seq: 0 }`); `409 webhook_inactive` for a stopped webhook |
+
+Rules:
+
+- `runtimeId` must be the calling runtime, still owned by the account (`403 runtime_event_not_owned`). `eventId` is a UUID and events are idempotent by `(runtimeId, eventId)`. `seq` is a non-negative integer, `kind` one of the catalog (`400 unknown_event_kind`), `workspaceId` and `projectId` at most 128 characters, and `occurredAt` RFC 3339 no more than five minutes ahead. An event that breaks one of these rules or the payload policy is listed in `rejected` with its code (`invalid_event_field`, `unknown_event_kind`, `invalid_event_time`, `sensitive_event_data`, `event_data_too_large`, `invalid_event_data`) and the others are still stored, so one bad event, including one from a runtime with a skewed clock, never blocks a runtime's journal. Only a malformed batch (`400 invalid_event_batch`) or an ownership failure refuses the whole request. A `workspaceId` that only appears in `data` also fills the envelope, so workspace filters match it.
+- `activeSubscriptions` counts active webhooks that name the runtime (or all runtimes) and, while MCP Events is on, active MCP Events subscriptions whose grant is live and reaches the runtime, while MCP Control on the runtime is not `off`. The runtime should forward only while it is above zero and poll `GET /v1/runtime/event-subscriptions` otherwise. Non-GET requests through the edge share the runtime token's burst limit (10 per minute), so forward in batches.
+- The runtime forwarder polls the count every minute, and right away after `webhook.create` succeeds. While the count is zero it marks as handled, without sending, only the events that occurred before the last refresh that reported zero; newer events wait for the next refresh. A subscription created between two refreshes therefore receives the events since the earlier refresh, which can include up to a minute of events from before it was created. A batch the cloud refuses as a whole with a client error other than `401`, `403`, `408`, or `429` (an older cloud refuses every batch with one bad event) is logged and skipped; other failures retry the same batch with backoff. Events the cloud lists in `rejected` are logged.
+- Webhook kinds are one or more catalog kinds. A webhook names 1 to 20 runtimes of the account or sets `allRuntimes`; an account keeps at most 20 webhooks (`409 webhook_limit_reached`).
+- Without `ALERA_WEBHOOK_SECRET_KEY` the cloud refuses webhook and MCP Events creation with `503 webhooks_not_configured` and delivers nothing; ingest and counts keep working.
+- Webhooks are not challenged on creation, because generic receivers such as automation tools cannot echo a challenge; the cloud generates their secret, and the test endpoint confirms the receiver. Their URL is checked like an MCP Events callback before it is stored.
+
+### Callback Rules
+
+Webhook and MCP Events callbacks use the same egress:
+
+- HTTPS on port 443, without credentials or a fragment, at most 2048 bytes. `ALERA_WEBHOOK_ALLOW_ANY_PORT=true` admits other HTTPS ports for development. Plain HTTP and private addresses exist only in a test-only policy that the environment cannot enable.
+- The host is resolved and refused when any answer is private, loopback, link-local, multicast, unspecified, shared, documentation, or otherwise non-public (`non_public_destination`), and the connection is pinned to the checked address so a second DNS answer cannot redirect it. Proxy environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`) are ignored, because a proxy would resolve the host itself. Redirects are never followed.
+- Each attempt has a ten-second wall-clock limit, response bodies are capped at 16 KiB, and request bodies at 256 KiB. The worker logs neither URLs nor bodies.
+
+### Delivery
+
+- Each event becomes one `POST` per matching subscription: same account, active, not past `refreshBefore`, kind listed, runtime listed or all runtimes, every filter equal to the event's `workspaceId`, `projectId`, or `data` value, and for MCP Events MCP Control on the event's runtime not `off` plus a grant that is not revoked and still reaches the runtime. Webhooks belong to the account owner and do not depend on MCP Control.
+- Body: `{ eventId, name, timestamp, data, cursor }`. `name` is the kind, `timestamp` is `occurredAt`, and `data` is the stored data plus `runtimeId`, `seq`, and the envelope `workspaceId` and `projectId`.
+- Headers: `content-type: application/json`, `webhook-id` (the `eventId`), `webhook-timestamp` (Unix seconds, new on every attempt), `webhook-signature` (Standard Webhooks `v1,` HMAC-SHA256 of `{id}.{timestamp}.{body}`; while a refreshed MCP Events secret rotates, the old key signs too for five minutes, space-separated), and `X-MCP-Subscription-Id` for MCP Events or `X-Alera-Webhook-Id` for webhooks.
+- Outcomes: `2xx` delivers. `410` stops the subscription and its queued deliveries. `413`, `3xx`, and other `4xx` except `408`, `425`, and `429` mark the delivery dead. `5xx`, `408`, `425`, `429`, timeouts, and connection or DNS failures retry after 5 s, doubling to at most 15 minutes, up to 12 attempts inside the 24-hour retention; then the delivery is dead. The subscription keeps the last error code (`http_503`, `timeout`, ...) but never a response body.
+- The worker claims due deliveries with `FOR UPDATE SKIP LOCKED` and a 45-second lease, so several Cloud Run instances share the work and an interrupted attempt is retried after the lease. It rechecks the subscription, the grant, and for MCP Events the runtime's MCP Control before each send; a delivery whose runtime has MCP Control `off` is stopped (`runtime_mcp_disabled`) while the subscription stays active.
+- The worker runs as a background loop in each instance (`ALERA_EVENT_WORKER_ENABLED`, default on), woken by ingest. Cloud Run with `cpu_idle = true` throttles it between requests; production either keeps CPU allocated, or sets the edge variable `EVENT_DELIVERY_PUMP=true` so the edge's one-minute cron calls `POST /v1/internal/event-deliveries/pump`, which runs one drain of at most 20 seconds. The pump requires the edge origin token (`x-alera-origin-auth`, current or previous) itself, even with `ALERA_ALLOW_DIRECT_ORIGIN=true`, and answers `401 invalid_origin` without it or when no token is configured. The edge never forwards `/v1/internal/*` or `/v1/mcp/event-subscriptions*` from the internet.
+
+### OpenAI MCP Events
+
+MCP Events follows the [OpenAI contract](https://developers.openai.com/plugins/build/mcp-events) behind two switches that default to off: `MCP_EVENTS_ENABLED` on the edge (advertises the capability and serves the methods) and `ALERA_MCP_EVENTS_ENABLED` on the cloud (accepts subscriptions, counts them, and delivers). Turning the cloud switch off pauses MCP Events deliveries without touching webhooks: queued deliveries stay pending (not attempted, not stopped) and their subscriptions stay active, so they resume when the switch comes back on, while they are still inside the 24-hour retention. Events that arrive while the switch is off are not queued for MCP Events.
+
+- `events/list` returns the catalog above, each entry with `name`, `description`, `delivery: ["webhook"]`, `inputSchema` (optional string filters, `runtime` included), and `payloadSchema`. It has one page; a `cursor` is refused.
+- `events/subscribe` with `{ name, arguments, delivery: { mode: "webhook", url, secret }, cursor, ttlMs? }` needs `mcp:read`. The secret is `whsec_` plus base64 of 24 to 64 bytes. `runtime` resolves like a tool call among the runtimes the grant reaches (`runtime_not_found`, `runtime_ambiguous`), and a runtime with MCP Control `off` is refused with `409 runtime_mcp_disabled`; without it the subscription follows every runtime the grant reaches, and receives events only from those whose MCP Control is not `off`. The cloud checks the callback URL, then posts a signed `{ "type": "verification", "challenge" }` with `X-MCP-Subscription-Id` and requires a `2xx` JSON echo of the challenge, compared in constant time. A failure is JSON-RPC `-32015` (`CallbackEndpointError`) with `data.reason` (`challenge_failed`, `timeout`, `invalid_url`, `dns_failed`, `non_public_destination`, `connection_failed`, `response_too_large`). A refresh within five minutes with the same secret skips the challenge; a new secret is always challenged.
+- The subscription id is `sub_` plus a SHA-256 of the account, grant, callback URL, event name, and canonical arguments, so a refresh updates the same row. The row stores `target_kind = 'mcp_events'`, `owner_grant_id`, the filters, and the encrypted secret. The result is `{ id, refreshBefore, cursor, truncated }`. `ttlMs` is honored between one minute and 24 hours; absent or `null` grants 24 hours. Deliveries stop after `refreshBefore` until the client refreshes.
+- Cursors are opaque retention anchors: the receive time of the oldest event that may still be undelivered. Subscribing with a cursor queues every retained matching event since it; deliveries already recorded for the same subscription are not sent again, except those the worker stopped because the subscription passed `refreshBefore` (`subscription_expired`), which a refresh queues again with a fresh retry budget. Deliveries stopped for a revoked grant, MCP Control `off`, or `410 Gone` stay stopped. A cursor older than the 24-hour retention returns `truncated: true` and replays what is retained.
+- `events/unsubscribe` with `{ name, arguments, delivery: { mode, url } }` deletes the subscription for that identity and always answers `{}`.
+- Revoking the grant (from Alera, `POST /oauth/revoke`, or a detected code or token replay) stops delivery: fan-out skips the subscription, and the worker marks queued deliveries stopped and the subscription `revoked` before sending.
+- The edge maps cloud refusals to JSON-RPC: invalid input, unknown runtimes, and conflicts to `-32602`, a revoked token to HTTP `401` with `WWW-Authenticate`, and unavailability to `-32603`.
+
+### Storage
+
+Migration `0025_domain_events.sql` adds `domain_events` (unique by `(runtime_id, event_id)`, deleted 24 hours after `received_at`), `event_subscriptions` (`target_kind` `webhook` or `mcp_events`, `kinds[]`, `runtime_ids[]`, `all_runtimes`, `status` `active`, `stopped`, `revoked`, or `expired`, `refresh_before`, `owner_grant_id`, `filter`, encrypted secrets), and `event_deliveries` (unique by subscription and event, with `status`, `attempts`, `next_attempt_at`, `lease_until`, `last_status`, `last_error`, and `delivered_at`). Inactive MCP Events subscriptions are deleted after seven days; webhooks stay until the user deletes them. Secrets are encrypted with AES-256-GCM bound to the subscription id; `ALERA_WEBHOOK_PREVIOUS_SECRET_KEY` keeps decrypting older rows during a key rotation.
+
+### Production Settings
+
+| Setting | Where | Default | Purpose |
+| --- | --- | --- | --- |
+| `ALERA_WEBHOOK_SECRET_KEY` | cloud (secret) | unset | Base64 of 32 random bytes; required for webhooks and MCP Events |
+| `ALERA_WEBHOOK_PREVIOUS_SECRET_KEY` | cloud (secret) | unset | Only during a key rotation |
+| `ALERA_MCP_EVENTS_ENABLED` | cloud | `false` | Accept and deliver MCP Events subscriptions |
+| `ALERA_EVENT_WORKER_ENABLED` | cloud | `true` | Background delivery loop |
+| `ALERA_WEBHOOK_ALLOW_ANY_PORT` | cloud | `false` | Development only |
+| `MCP_EVENTS_ENABLED` | edge var | `false` | Advertise and serve MCP Events |
+| `EVENT_DELIVERY_PUMP` | edge var | `false` | Let the one-minute cron drive deliveries when Cloud Run throttles idle CPU |
+
+Rollout order: deploy the cloud (migration 0025) with the secret key, then the edge; turn on `ALERA_MCP_EVENTS_ENABLED` and `MCP_EVENTS_ENABLED` together only after the 8.0 requirements check, and keep polling with cursors (`wait_for_reply`, `list_events`) as the primary path until a real ChatGPT continuation is observed.
+
 ## Testing
 
-- `cloud`: `cargo test --workspace`; with `TEST_DATABASE_URL` pointing at an isolated PostgreSQL, `-- --include-ignored` also runs the OAuth, device, and gateway contracts.
-- `edge`: `bun run check` and `bun test` cover the MCP endpoint, scope checks, OAuth proxying, and the Durable Object call routing.
+- `cloud`: `cargo test --workspace`; with `TEST_DATABASE_URL` pointing at an isolated PostgreSQL, `-- --include-ignored` also runs the OAuth, device, gateway, webhook, and MCP Events contracts (the latter deliver to a loopback receiver through the test-only callback policy).
+- `edge`: `bun run check` and `bun test` cover the MCP endpoint, `2026-07-28` negotiation, MCP Events with the switch off and on, scope checks, OAuth proxying, and the Durable Object call routing.
 - `rust`: `cargo test -p alera-cli -- mcp_tools mcp_settings relay_mcp` covers the catalog, argument checks, the edge catalog copy, and call grant verification on the link.
 - Local acceptance: run PostgreSQL, the cloud with GitHub endpoints pointed at a stub provider, the edge with `wrangler dev --local` and the `--var` overrides for `ORIGIN_BASE_URL`, `EDGE_ORIGIN_TOKEN`, `RELAY_ISSUER`, `RELAY_JWKS_URL`, and `MCP_RESOURCE`, and an isolated runtime with `ALERA_CLOUD_URL` at the edge. Sign the runtime in with `alera account login --device`, enable MCP Control, then drive registration, authorization, consent, token, refresh, and tool calls from any MCP client. Production still needs the web OAuth clients described above before the hosted flow can sign in.

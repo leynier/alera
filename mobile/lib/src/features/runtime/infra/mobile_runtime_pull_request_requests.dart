@@ -123,12 +123,16 @@ mixin MobileRuntimePullRequestRequests
     required int number,
     required String body,
     int? replyToCommentId,
+    String? replyToThreadId,
   }) {
+    // Azure DevOps comment ids repeat across threads, so a reply names its
+    // thread too.
     return _pullRequestWrite('comment', <String, Object?>{
       'workspaceId': workspaceId,
       'number': number,
       'body': body,
       'replyToCommentId': ?replyToCommentId,
+      'replyToThreadId': ?replyToThreadId,
     });
   }
 
@@ -143,6 +147,7 @@ mixin MobileRuntimePullRequestRequests
       'workspaceId': workspaceId,
       'number': number,
       'commentId': comment.id,
+      'threadId': ?comment.threadId,
       'source': comment.source,
       'body': body,
     });

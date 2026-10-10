@@ -107,7 +107,14 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
-        if !is_workspace_generation_verb(request_type) {
+        // A resumable generation is a runtime-owned job that forwards on its
+        // own (`ai_assist_pull_request_details_resume.rs`).
+        if !is_workspace_generation_verb(request_type)
+            || super::ai_assist_pull_request_details_resume::is_resumable_pull_request_details(
+                request_type,
+                payload,
+            )
+        {
             return Ok(false);
         }
         let Some(workspace_id) = payload.get("workspaceId").and_then(Value::as_str) else {
@@ -185,7 +192,7 @@ impl ServerActor {
     }
 }
 
-async fn forward_generation(
+pub(super) async fn forward_generation(
     store: &RuntimeStore,
     links: &HostLinkRegistry,
     request_type: &str,

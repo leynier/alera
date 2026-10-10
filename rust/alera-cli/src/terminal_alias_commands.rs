@@ -18,6 +18,12 @@ pub(crate) fn required_capability(action: &TerminalAction) -> Option<&'static st
                 crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
             )
         }
+        TerminalAction::Restart(_) => {
+            Some(crate::terminal_host::protocol::RUNTIME_HOST_TERMINAL_HEADLESS_RESTART_CAPABILITY)
+        }
+        TerminalAction::Pulse(_) => {
+            Some(crate::terminal_host::protocol::RUNTIME_HOST_TERMINAL_PULSE_CAPABILITY)
+        }
         _ => None,
     }
 }
@@ -91,7 +97,11 @@ pub async fn run(
             }
             Err(error) => print_error(error),
         },
-        TerminalAction::Read(_) | TerminalAction::Write(_) => unreachable!(),
+        TerminalAction::Read(_)
+        | TerminalAction::Write(_)
+        | TerminalAction::Restart(_)
+        | TerminalAction::Terminate(_)
+        | TerminalAction::Pulse(_) => unreachable!(),
     }
 }
 

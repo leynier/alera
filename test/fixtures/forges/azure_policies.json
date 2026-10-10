@@ -1,0 +1,38 @@
+{
+  "description": "az repos pr policy list --output json",
+  "identity": {
+    "host": "dev.azure.com",
+    "owner": "myorg",
+    "repo": "myrepo",
+    "project": "myproject"
+  },
+  "stdout": "[{\"status\": \"approved\", \"configuration\": {\"type\": {\"displayName\": \"Build\"}}, \"context\": {\"buildId\": 991}}, {\"status\": \"rejected\", \"configuration\": {\"type\": {\"displayName\": \"Required reviewers\"}}}, {\"status\": \"running\", \"configuration\": {\"type\": {\"displayName\": \"Status\"}}}, {\"status\": \"notApplicable\", \"configuration\": {}}]",
+  "expected": {
+    "checks": [
+      {
+        "name": "Build",
+        "conclusion": "success",
+        "bucket": "pass",
+        "url": "https://dev.azure.com/myorg/myproject/_build/results?buildId=991"
+      },
+      {
+        "name": "Required reviewers",
+        "conclusion": "failure",
+        "bucket": "fail",
+        "url": null
+      },
+      {
+        "name": "Status",
+        "conclusion": "pending",
+        "bucket": "pending",
+        "url": null
+      },
+      {
+        "name": "Policy",
+        "conclusion": "skipped",
+        "bucket": "skipping",
+        "url": null
+      }
+    ]
+  }
+}

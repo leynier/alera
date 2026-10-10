@@ -1,7 +1,9 @@
 part of 'workspace_file_service.dart';
 
-class EditorBufferGuardRuntimeHandler(final EditorSessionRegistry registry)
-    implements RuntimeBufferGuardHandler {
+class EditorBufferGuardRuntimeHandler(
+  final EditorSessionRegistry registry, {
+  final WorkspaceFileService Function()? files,
+}) implements RuntimeBufferGuardResolver {
   @override
   List<Map<String, Object?>> lock({
     required String guardId,
@@ -20,6 +22,36 @@ class EditorBufferGuardRuntimeHandler(final EditorSessionRegistry registry)
         },
       )
       .toList();
+
+  @override
+  Future<List<Map<String, Object?>>> resolveAndLock({
+    required String guardId,
+    required Set<String> tabIds,
+    required Set<String> workspacePaths,
+    required bool discard,
+  }) async {
+    final scope = EditorBufferGuardScope(
+      tabIds: tabIds,
+      workspacePaths: workspacePaths,
+    );
+    final failures = await registry.resolveDirtyBuffers(
+      scope,
+      discard: discard,
+      files: files?.call() ?? const WorkspaceFileService(),
+    );
+    final failedTabIds = {for (final failure in failures) failure.tabId};
+    final blockers = registry
+        .acquireBufferGuard(guardId, scope)
+        .where((blocker) => !failedTabIds.contains(blocker.tabId));
+    return [
+      for (final blocker in [...failures, ...blockers])
+        <String, Object?>{
+          'tabId': blocker.tabId,
+          'path': blocker.path,
+          'reason': blocker.reason,
+        },
+    ];
+  }
 
   @override
   void release(String guardId, {bool retired = false}) =>
@@ -78,6 +110,48 @@ extension EditorBufferGuards on EditorSessionRegistry {
     }
     _notifyBufferGuardsChanged();
     return blockers;
+  }
+
+  /// Saves, or discards when [discard] is true, every dirty editor in
+  /// [scope] before a guard freezes it, as the Remove dialog's Save and
+  /// Discard buttons do. Returns the editors that could not be settled.
+  Future<List<EditorBufferGuardBlocker>> resolveDirtyBuffers(
+    EditorBufferGuardScope scope, {
+    required bool discard,
+    required WorkspaceFileService files,
+  }) async {
+    final failures = <EditorBufferGuardBlocker>[];
+    for (final tabId in {..._documents.keys, ..._sessions.keys}.toList()) {
+      if (!_scopeContains(scope, tabId) || !isDirty(tabId)) continue;
+      final path = _documents[tabId]?.relativePath ?? tabId;
+      try {
+        if (discard) {
+          await this.discard(tabId);
+        } else {
+          await saveDocument(tabId, files);
+        }
+        if (isDirty(tabId)) {
+          failures.add(
+            EditorBufferGuardBlocker(
+              tabId: tabId,
+              path: path,
+              reason: 'The editor still has unsaved changes.',
+            ),
+          );
+        }
+      } catch (error) {
+        failures.add(
+          EditorBufferGuardBlocker(
+            tabId: tabId,
+            path: path,
+            reason: discard
+                ? 'Could not discard the changes: $error'
+                : 'Could not save the changes: $error',
+          ),
+        );
+      }
+    }
+    return failures;
   }
 
   bool isBufferGuarded(String tabId) =>

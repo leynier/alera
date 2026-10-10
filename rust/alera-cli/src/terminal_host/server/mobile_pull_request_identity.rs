@@ -34,21 +34,6 @@ pub(super) fn parse_github_identity(url: &str) -> Option<GitHubIdentity> {
     })
 }
 
-pub(super) fn detect_provider(url: Option<&str>) -> Option<&'static str> {
-    let url = url?;
-    let parsed = parse_remote_url(url)?;
-    if parsed.hostname == "gitlab.com" || parsed.hostname.contains("gitlab") {
-        return Some("gitlab");
-    }
-    if parsed.hostname == "dev.azure.com"
-        || parsed.hostname.ends_with(".visualstudio.com")
-        || parsed.hostname.contains("azure")
-    {
-        return Some("azureDevops");
-    }
-    None
-}
-
 pub(super) fn remote_identity_json(url: Option<&str>, provider: Option<&str>) -> Value {
     let parsed = url.and_then(parse_remote_url);
     json!({
@@ -115,10 +100,6 @@ mod tests {
         assert_eq!(ssh.owner, "leynier");
         assert_eq!(ssh.repo, "alera");
         assert!(parse_github_identity("https://gitlab.com/group/project.git").is_none());
-        assert_eq!(
-            detect_provider(Some("https://gitlab.com/group/project.git")),
-            Some("gitlab")
-        );
     }
 
     #[test]

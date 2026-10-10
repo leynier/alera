@@ -85,7 +85,8 @@ void main() {
   for (final (level, description) in <(McpAccessLevel, String)>[
     (.off, 'MCP clients cannot reach this runtime.'),
     (.read, 'MCP clients can run read-only tools.'),
-    (.full, 'MCP clients can run every Alera tool'),
+    (.full, 'MCP clients can also run tools that start agents'),
+    (.admin, 'Connected apps can also change agent profiles'),
   ]) {
     testWidgets('shows the ${level.name} access level', (tester) async {
       await pumpPane(
@@ -101,6 +102,7 @@ void main() {
       expect(find.text('Off'), findsWidgets);
       expect(find.text('Read Only'), findsOneWidget);
       expect(find.text('Full Control'), findsOneWidget);
+      expect(find.text('Admin'), findsOneWidget);
       expect(find.textContaining('not stored'), findsOneWidget);
       expect(find.text('https://api.alera.build/v1/mcp'), findsOneWidget);
       expect(find.text('Connected'), findsOneWidget);
@@ -123,6 +125,22 @@ void main() {
     expect(button.selected, <McpAccessLevel>{McpAccessLevel.full});
   });
 
+  testWidgets('selecting Admin sends the admin access level', (tester) async {
+    final repository = await pumpPane(
+      tester,
+      _FakeMcpAccessRepository(_settings(access: .full)),
+    );
+
+    await tester.tap(find.text('Admin'));
+    await tester.pumpAndSettle();
+
+    expect(repository.updates, <(McpAccessLevel?, String?)>[(.admin, null)]);
+    expect(
+      find.textContaining('allowed administrative tools when you connect it'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('requires an Alera account before turning access on', (
     tester,
   ) async {
@@ -139,6 +157,7 @@ void main() {
     expect(segmentEnabled(tester, 'Off'), isTrue);
     expect(segmentEnabled(tester, 'Read Only'), isFalse);
     expect(segmentEnabled(tester, 'Full Control'), isFalse);
+    expect(segmentEnabled(tester, 'Admin'), isFalse);
     expect(
       find.textContaining('Sign in to an Alera account in Settings > Account'),
       findsOneWidget,
@@ -205,6 +224,27 @@ void main() {
     );
     expect(find.text('chatgpt.com · 1 runtime · Never used'), findsOneWidget);
     expect(repository.grantReads, 1);
+  });
+
+  testWidgets('marks an app allowed administrative tools', (tester) async {
+    final repository = _FakeMcpAccessRepository(_settings())
+      ..grants = <McpGrant>[
+        const McpGrant(
+          id: 'grant-admin',
+          clientId: 'admin-client',
+          clientName: 'Admin Client',
+          scopes: <String>['mcp:read', 'mcp:execute', 'mcp:admin'],
+          allRuntimes: true,
+          runtimeIds: <String>[],
+        ),
+        _chatGptGrant,
+      ];
+    await pumpPane(tester, repository);
+
+    expect(find.text('Admin'), findsNWidgets(2));
+    expect(find.byTooltip('mcp:admin'), findsOneWidget);
+    expect(find.text('mcp:admin'), findsNothing);
+    expect(find.text('mcp:execute'), findsOneWidget);
   });
 
   testWidgets('shows an empty state without connected apps', (tester) async {

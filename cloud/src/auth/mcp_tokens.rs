@@ -118,6 +118,7 @@ mod tests {
     use crate::{
         api_models::ClientKind,
         auth::tokens::tests::{decode_claims, test_service},
+        mcp_models::ToolAccess,
     };
 
     use super::{McpAccessInput, McpCallGrantInput};
@@ -172,8 +173,8 @@ mod tests {
                 grant_id: Uuid::now_v7(),
                 client_id: "mcp_client",
                 client_name: "Claude",
-                tool: "workspace_list",
-                access: "read",
+                tool: "update_runtime_settings",
+                access: ToolAccess::Admin.as_str(),
             })
             .await
             .unwrap_or_default();
@@ -189,6 +190,7 @@ mod tests {
         assert_eq!(claims["jti"], call_id.to_string());
         assert_eq!(claims["clientName"], "Claude");
         assert_eq!(claims["runtimeId"], "runtime-1");
+        assert_eq!(claims["access"], "admin");
         let lifetime =
             claims["exp"].as_i64().unwrap_or_default() - claims["iat"].as_i64().unwrap_or_default();
         assert_eq!(lifetime, 120);

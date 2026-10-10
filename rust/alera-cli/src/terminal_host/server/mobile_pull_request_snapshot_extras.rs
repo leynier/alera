@@ -1,16 +1,12 @@
-//! Additive snapshot fields a phone needs to offer pull request actions:
-//! who is signed in (to allow editing only their own comments), which merge
-//! methods apply, which base branches a new pull request can target, and
-//! whether AI Assist can write its details. An older phone ignores all of
+//! Additive snapshot fields a client needs to offer pull request actions on
+//! any forge: who is signed in (to allow editing only their own comments),
+//! which merge methods apply, which base branches a new pull request can
+//! target, and whether AI Assist can write its details. An older phone ignores all of
 //! them; none of this bumps `aleraMobileProtocolVersion`.
 
 use alera_core::runtime::{RuntimeStore, Workspace};
 use git2::{BranchType, Repository};
 use serde_json::{json, Value};
-
-use super::mobile_pull_request_identity::parse_github_identity;
-use super::mobile_pull_request_merge_methods::allowed_merge_methods;
-use super::mobile_pull_request_requests::run_gh;
 
 pub(super) async fn decorate_snapshot(
     store: &RuntimeStore,
@@ -47,13 +43,11 @@ pub(super) async fn decorate_snapshot(
     if snapshot["authStatus"].as_str() != Some("authenticated") || !snapshot["review"].is_object() {
         return;
     }
-    let Some(identity) = snapshot["remoteUrl"]
-        .as_str()
-        .and_then(parse_github_identity)
+    let Some(forge) = super::pull_request_forges::snapshot_forge(snapshot, &workspace.path, None)
     else {
         return;
     };
-    let viewer = viewer_login(&workspace.path, &identity.host).await;
+    let viewer = forge.viewer().await;
     mark_editable_comments(snapshot, viewer.as_deref());
     snapshot["viewerLogin"] = json!(viewer);
     if !open {
@@ -62,24 +56,13 @@ pub(super) async fn decorate_snapshot(
     let base = snapshot["review"]["baseRefName"]
         .as_str()
         .map(ToOwned::to_owned);
-    match allowed_merge_methods(&workspace.path, &identity, base.as_deref()).await {
+    match forge.merge_methods(base.as_deref()).await {
         Ok(methods) => snapshot["mergeMethods"] = json!(methods),
         Err(error) => {
             snapshot["mergeMethods"] = json!([]);
             snapshot["mergeMethodsError"] = json!(error);
         }
     }
-}
-
-async fn viewer_login(repo_path: &str, host: &str) -> Option<String> {
-    let (code, stdout, _) = run_gh(
-        repo_path,
-        &["api", "--hostname", host, "user", "--jq", ".login"],
-    )
-    .await
-    .ok()?;
-    let login = stdout.trim();
-    (code == 0 && !login.is_empty()).then(|| login.to_string())
 }
 
 /// Only the author may edit a comment from the phone.

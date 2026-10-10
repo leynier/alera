@@ -1,26 +1,42 @@
 export const MCP_PATH = '/v1/mcp';
 export const MCP_SERVER_VERSION = '0.1.0';
+/** Versions that open with an `initialize` handshake, newest first. */
 export const MCP_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'] as const;
-export const MCP_SCOPES = 'mcp:read mcp:execute';
+/** The first protocol revision without a handshake: every request carries its version. */
+export const MCP_MODERN_PROTOCOL_VERSION = '2026-07-28';
+/** Every version this endpoint serves, newest first, as `server/discover` lists them. */
+export const MCP_SUPPORTED_VERSIONS: readonly string[] = [MCP_MODERN_PROTOCOL_VERSION, ...MCP_PROTOCOL_VERSIONS];
+export const MCP_SCOPES = 'mcp:read mcp:execute mcp:admin';
 export const MAX_MCP_BODY_BYTES = 1024 * 1024;
 
 export const MCP_INSTRUCTIONS =
   'Alera controls coding workspaces, terminals, and agents on the runtimes this connection was granted. ' +
   'Call list_runtimes first to see which runtimes are online. Every other tool accepts an optional ' +
   '`runtime` argument (runtime name or id); pass it whenever more than one runtime is online. ' +
-  'Nothing is remembered between calls, so name the runtime on each call.';
+  'Nothing is remembered between calls, so name the runtime on each call. ' +
+  'Alera skills explain how to use these tools for each kind of task: before the first Alera task of a conversation, ' +
+  'call list_skills and read the matching skill with read_skill, then follow it.';
 
 export const JSON_RPC_PARSE_ERROR = -32700;
 export const JSON_RPC_INVALID_REQUEST = -32600;
 export const JSON_RPC_METHOD_NOT_FOUND = -32601;
 export const JSON_RPC_INVALID_PARAMS = -32602;
+export const JSON_RPC_INTERNAL_ERROR = -32603;
 export const JSON_RPC_SERVER_ERROR = -32000;
+export const JSON_RPC_FORBIDDEN = -32001;
+/** OpenAI MCP Events: the callback failed verification. */
+export const JSON_RPC_CALLBACK_ENDPOINT_ERROR = -32015;
+/** MCP 2026-07-28: HTTP headers disagree with the body. */
+export const JSON_RPC_HEADER_MISMATCH = -32020;
+/** MCP 2026-07-28: the requested protocol version is not served. */
+export const JSON_RPC_UNSUPPORTED_VERSION = -32022;
 
 export type JsonRpcId = string | number;
 
 export const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type, mcp-protocol-version, mcp-session-id',
+  'access-control-allow-headers':
+    'authorization, content-type, mcp-protocol-version, mcp-session-id, mcp-method, mcp-name',
   'access-control-expose-headers': 'www-authenticate, mcp-session-id',
   'access-control-max-age': '86400',
 };
@@ -58,8 +74,10 @@ export function jsonRpcError(
   message: string,
   status = 200,
   extra: Record<string, string> = {},
+  data?: Record<string, unknown>,
 ): Response {
-  return jsonRpcResponse({ jsonrpc: '2.0', id, error: { code, message } }, status, extra);
+  const error = data === undefined ? { code, message } : { code, message, data };
+  return jsonRpcResponse({ jsonrpc: '2.0', id, error }, status, extra);
 }
 
 export function emptyMcpResponse(status: number, extra: Record<string, string> = {}): Response {

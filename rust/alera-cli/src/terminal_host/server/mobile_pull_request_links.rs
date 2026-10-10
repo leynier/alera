@@ -1,18 +1,14 @@
-//! The workspace-to-review link a phone can change. Writes the same
-//! `LinkedReview` records the desktop keeps (`linked_review.dart`): a link
-//! names the review to show, and unlinking stores a dismissal of that exact
-//! review so auto-detection stops surfacing it while a different review on the
-//! branch can still appear.
+//! Reading the workspace-to-review link the desktop keeps
+//! (`linked_review.dart`): a link names the review to show, and unlinking
+//! stores a dismissal of that exact review so auto-detection stops surfacing it
+//! while a different review on the branch can still appear. The writes live in
+//! `pull_request_forges::links`.
 
-use alera_core::runtime::{LinkedReview, RuntimeStore};
-use chrono::Utc;
-use serde_json::{json, Value};
+use alera_core::runtime::LinkedReview;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::mobile_pull_request_identity::GitHubIdentity;
-
-pub(super) const PROVIDER: &str = "github";
 
 /// Parses `123`, `#123`, or a review URL into a number, like the desktop's
 /// `parseReviewReference`.
@@ -87,46 +83,16 @@ pub(super) fn dismissed_number(linked: Option<&LinkedReview>) -> Option<i64> {
         .and_then(|review| review.number)
 }
 
-pub(super) async fn save_link(
-    store: &RuntimeStore,
-    workspace_id: &str,
-    number: i64,
-    url: Option<String>,
-    dismissed: bool,
-) -> HostResult<()> {
-    store
-        .upsert_linked_review(LinkedReview {
-            workspace_id: workspace_id.to_string(),
-            dismissed,
-            provider: Some(PROVIDER.to_string()),
-            number: Some(number),
-            url,
-            linked_at: Utc::now(),
-        })
-        .await
-        .map(|_| ())
-        .map_err(|error| HostError::state(error.to_string()))
-}
-
-/// Shown in place of a review the user unlinked, so the phone can offer to
-/// link it again.
-pub(super) fn suggested_review_json(review: &Value) -> Value {
-    json!({
-        "number": review.get("number"),
-        "title": review.get("title"),
-        "url": review.get("url"),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     fn record(dismissed: bool, number: Option<i64>) -> LinkedReview {
         LinkedReview {
             workspace_id: "w".into(),
             dismissed,
-            provider: Some(PROVIDER.into()),
+            provider: Some("github".into()),
             number,
             url: None,
             linked_at: Utc::now(),

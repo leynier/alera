@@ -82,6 +82,7 @@ impl RuntimeStore {
         store.migrate_orchestration_board().await?;
         store.migrate_inbox().await?;
         store.migrate_conversations().await?;
+        store.install_runtime_event_triggers().await?;
         harden_sqlite_files(&path)?;
         Ok(store)
     }
@@ -98,6 +99,13 @@ impl RuntimeStore {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
         for statement in super::project_clone_job_store::PROJECT_CLONE_JOB_SCHEMA {
+            sqlx::query(*statement).execute(&self.pool).await?;
+        }
+        for statement in super::prompt_workspace_operation_store::PROMPT_WORKSPACE_OPERATION_SCHEMA
+        {
+            sqlx::query(*statement).execute(&self.pool).await?;
+        }
+        for statement in super::runtime_event_store::RUNTIME_EVENT_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
         self.migrate_legacy_orchestration_schema().await?;

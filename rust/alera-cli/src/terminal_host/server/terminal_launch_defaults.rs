@@ -87,6 +87,8 @@ fn default_terminal_launch_for(
 
 async fn terminal_environment() -> BTreeMap<String, String> {
     let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
+    // Only the CLI an MCP call runs carries its origin, never a terminal.
+    environment.remove(crate::mcp_tools::ORIGIN_VARIABLE);
     if !cfg!(windows) {
         if let Some(path) = crate::login_shell_environment::login_shell_merged_path(
             environment.get("PATH").map(String::as_str),

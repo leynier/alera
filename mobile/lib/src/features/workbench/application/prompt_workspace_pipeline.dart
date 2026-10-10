@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_service.dart';
 import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
 import 'package:logging/logging.dart';
 
@@ -12,6 +13,7 @@ class PromptWorkspaceLaunchException implements Exception {
     this.clientMutationId,
     this.setupStarted = false,
     this.originalLaunchWasIdempotent,
+    this.serviceOperationId,
   });
 
   final WorkspaceCreationResult creation;
@@ -19,6 +21,10 @@ class PromptWorkspaceLaunchException implements Exception {
   final String? clientMutationId;
   final bool setupStarted;
   final bool? originalLaunchWasIdempotent;
+
+  /// Set when the runtime service created [creation]; its retry relaunches
+  /// the agent through that operation.
+  final String? serviceOperationId;
 
   @override
   String toString() => cause.toString();
@@ -36,7 +42,9 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
   required String clientMutationId,
   void Function(String phase)? onPhase,
   void Function(String? operationId)? onOperationId,
+  void Function(String? operationId)? onServiceOperationId,
   void Function(WorkspaceCreationResult creation)? onWorkspaceCreated,
+  String? serviceRequestId,
 }) async {
   if (request.useProjectCheckout && request.created == null) {
     if (!requireSharedCheckoutClient(client).supportsSharedCheckoutWorkspaces) {
@@ -57,6 +65,19 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
   if (prompt.isEmpty) {
     throw StateError(
       'Complete the prompt, project, branch, and agent profile.',
+    );
+  }
+  final service = promptWorkspaceServiceOf(client);
+  if (service != null &&
+      (request.created == null || request.serviceOperationId != null)) {
+    return _runOnService(
+      service,
+      request: request,
+      requestId:
+          serviceRequestId ?? 'mobile-prompt-workspace:$clientMutationId',
+      onPhase: onPhase,
+      onOperationId: onServiceOperationId,
+      onWorkspaceCreated: onWorkspaceCreated,
     );
   }
   WorkspaceCreationResult? creation = request.created;
@@ -210,6 +231,53 @@ Future<PromptWorkspaceCreateOutcome> runPromptWorkspaceCreate({
       originalLaunchWasIdempotent: originalLaunchWasIdempotent,
     );
   }
+}
+
+/// The runtime runs every step, including the Setup tab, so the phone never
+/// launches the deferred setup on this path. [onOperationId] receives the
+/// running `workspace.promptStart` operation, cleared once it ends, so a
+/// cancel reaches that operation rather than the client-side identity call.
+Future<PromptWorkspaceCreateOutcome> _runOnService(
+  MobilePromptWorkspaceServiceClient service, {
+  required PromptWorkspaceCreateRequest request,
+  required String requestId,
+  void Function(String phase)? onPhase,
+  void Function(String? operationId)? onOperationId,
+  void Function(WorkspaceCreationResult creation)? onWorkspaceCreated,
+}) async {
+  late final PromptWorkspaceOperation operation;
+  try {
+    operation = await runPromptWorkspaceOperation(
+      service,
+      request: request,
+      requestId: requestId,
+      onPhase: onPhase,
+      onStarted: onOperationId,
+    );
+  } finally {
+    onOperationId?.call(null);
+  }
+  final creation = operation.creation;
+  if (creation == null) {
+    throw PromptWorkspaceServiceFailure(operation);
+  }
+  onWorkspaceCreated?.call(creation);
+  final agentTabId = operation.agentTabId;
+  if (operation.status == PromptWorkspaceOperationStatus.completed &&
+      agentTabId != null) {
+    return PromptWorkspaceCreateOutcome(
+      creation: creation,
+      agentTabId: agentTabId,
+    );
+  }
+  throw PromptWorkspaceLaunchException(
+    creation: creation,
+    cause: PromptWorkspaceServiceFailure(operation),
+    clientMutationId: request.clientMutationId,
+    setupStarted: true,
+    originalLaunchWasIdempotent: true,
+    serviceOperationId: operation.id,
+  );
 }
 
 bool _looksLikeCollision(Object error) {

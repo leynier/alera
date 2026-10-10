@@ -21,6 +21,26 @@ void _registerPullRequestActionsWidgetTests() {
     expect(find.text('Merged'), findsOneWidget);
   });
 
+  testWidgets('a GitLab merge request merges with its project settings', (
+    tester,
+  ) async {
+    final client = _client(
+      _snapshot(mergeMethods: <String>['providerDefault', 'squash']),
+    )..nextSnapshot = _snapshot(state: 'MERGED');
+    addTearDown(client.dispose);
+    await _openPullRequest(tester, client);
+
+    await tester.tap(find.text('Merge Using Project Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Merge Using Project Settings PR #700?'), findsOneWidget);
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Merge Using Project Settings').last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(client.calls, contains('mergePullRequest 700 providerDefault'));
+  });
+
   testWidgets('other actions live in the overflow sheet', (tester) async {
     final client = _client(_snapshot());
     addTearDown(client.dispose);
@@ -121,7 +141,10 @@ void _registerPullRequestActionsWidgetTests() {
     await tester.enterText(find.byType(TextField).last, 'Done');
     await tester.tap(find.widgetWithText(FilledButton, 'Reply'));
     await tester.pumpAndSettle();
-    expect(client.calls, contains('commentOnPullRequest 700 Done reply:21'));
+    expect(
+      client.calls,
+      contains('commentOnPullRequest 700 Done reply:21 thread:T1'),
+    );
 
     await tester.scrollUntilVisible(find.byTooltip('Edit Comment'), -200);
     await tester.tap(find.byTooltip('Edit Comment'));

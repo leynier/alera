@@ -111,6 +111,70 @@ void main() {
     registry.releaseBufferGuard('relocate');
     registry.dispose();
   });
+
+  test(
+    'a save resolution saves dirty editors in scope before locking',
+    () async {
+      final registry = EditorSessionRegistry();
+      final target = document(registry, 'target', '/repo')
+        ..updateCurrentText('edited');
+      final outside = document(registry, 'outside', '/other')
+        ..updateCurrentText('unrelated');
+      final handler = EditorBufferGuardRuntimeHandler(
+        registry,
+        files: () => SavingFileService(),
+      );
+      final blockers = await handler.resolveAndLock(
+        guardId: 'remove',
+        tabIds: const {},
+        workspacePaths: const {'/repo'},
+        discard: false,
+      );
+      expect(blockers, isEmpty);
+      expect(target.isDirty, isFalse);
+      expect(target.loadedText, 'edited');
+      expect(registry.isBufferGuarded('target'), isTrue);
+      expect(outside.isDirty, isTrue);
+      registry.releaseBufferGuard('remove');
+      registry.dispose();
+    },
+  );
+
+  test('a discard resolution drops edits and a failed save blocks', () async {
+    final registry = EditorSessionRegistry();
+    final discarded = document(registry, 'discarded', '/repo')
+      ..updateCurrentText('throw away');
+    final handler = EditorBufferGuardRuntimeHandler(registry);
+    expect(
+      await handler.resolveAndLock(
+        guardId: 'discard',
+        tabIds: const {'discarded'},
+        workspacePaths: const {},
+        discard: true,
+      ),
+      isEmpty,
+    );
+    expect(discarded.currentText, 'saved');
+    registry.releaseBufferGuard('discard');
+
+    discarded.updateCurrentText('cannot save');
+    final failing = EditorBufferGuardRuntimeHandler(
+      registry,
+      files: () => FailingFileService(),
+    );
+    final blockers = await failing.resolveAndLock(
+      guardId: 'save',
+      tabIds: const {'discarded'},
+      workspacePaths: const {},
+      discard: false,
+    );
+    expect(blockers, hasLength(1));
+    expect(blockers.single['tabId'], 'discarded');
+    expect(blockers.single['reason'], contains('Could not save'));
+    expect(discarded.isDirty, isTrue);
+    registry.releaseBufferGuard('save');
+    registry.dispose();
+  });
 }
 
 EditorDocumentSession document(
@@ -144,4 +208,32 @@ class DelayedFileService extends WorkspaceFileService {
     required bool overwriteIfChanged,
     required int tabSize,
   }) => completion.future;
+}
+
+class SavingFileService extends WorkspaceFileService {
+  @override
+  Future<native.WorkspaceEditorTextFile> writeEditorTextFile({
+    required String workspacePath,
+    required String relativePath,
+    required String currentDisplayContent,
+    required String? originalRawContent,
+    required String? originalDisplayContent,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+    required int tabSize,
+  }) async => file(currentDisplayContent);
+}
+
+class FailingFileService extends WorkspaceFileService {
+  @override
+  Future<native.WorkspaceEditorTextFile> writeEditorTextFile({
+    required String workspacePath,
+    required String relativePath,
+    required String currentDisplayContent,
+    required String? originalRawContent,
+    required String? originalDisplayContent,
+    required String? expectedContentToken,
+    required bool overwriteIfChanged,
+    required int tabSize,
+  }) async => throw StateError('disk full');
 }

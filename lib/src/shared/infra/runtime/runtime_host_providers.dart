@@ -14,6 +14,8 @@ SocketTerminalHostClient runtimeHostClient(Ref ref) {
   final client = SocketTerminalHostClient(
     bufferGuardHandler: EditorBufferGuardRuntimeHandler(
       ref.watch(editorSessionRegistryProvider),
+      // Read on demand: the file service itself talks to this client.
+      files: () => ref.read(workspaceFileServiceProvider),
     ),
   );
   final changes = watchRuntimeEditorFileChanges(

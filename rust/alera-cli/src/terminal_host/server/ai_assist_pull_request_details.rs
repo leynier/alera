@@ -15,6 +15,7 @@ use super::ai_assist_commit_message::{
 };
 use super::ai_assist_generation::generate_ai_assist_output;
 use super::ai_assist_operation_registry::active_generations;
+use super::ai_assist_pull_request_details_resume::is_resumable_pull_request_details;
 use super::host_service_requests::required_non_blank;
 use super::mobile_source_control_snapshot::git_host_error;
 use super::mobile_workspace_file_requests::spawn_blocking_workspace;
@@ -22,6 +23,7 @@ use super::remote_ai_assist_requests::{effective_ai_assist_settings, hub_ai_assi
 use super::{ServerActor, ServerCommand};
 
 const OPERATION: &str = "pullRequestDetails";
+const VERB: &str = "aiText.pullRequestDetails.generate";
 const COMMITS_BUDGET: usize = 8000;
 const FILES_BUDGET: usize = 6000;
 const INSTRUCTIONS_BUDGET: usize = 4000;
@@ -39,6 +41,9 @@ impl ServerActor {
         request_id: i64,
         payload: &Value,
     ) -> HostResult<()> {
+        if is_resumable_pull_request_details(VERB, payload) {
+            return self.start_resumable_pull_request_details(client_id, request_id, payload);
+        }
         let operation_id = required_non_blank(payload, "operationId")?;
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let base_branch = required_non_blank(payload, "baseBranch")?;
@@ -55,13 +60,7 @@ impl ServerActor {
                 cancel_rx,
             )
             .await
-            .map(|(details, agent_label)| {
-                json!({
-                    "title": details.title,
-                    "body": details.body,
-                    "agentLabel": agent_label,
-                })
-            });
+            .map(|(details, agent_label)| details_value(&details, &agent_label));
             drop(registration);
             let _ = inbox
                 .send_wait(ServerCommand::AiAssistFinished {
@@ -73,6 +72,15 @@ impl ServerActor {
         });
         Ok(())
     }
+}
+
+/// The verb's answer: the details and the label of the agent that wrote them.
+pub(super) fn details_value(details: &PullRequestDetails, agent_label: &str) -> Value {
+    json!({
+        "title": details.title,
+        "body": details.body,
+        "agentLabel": agent_label,
+    })
 }
 
 /// Generates the details for the range between `base_branch` and HEAD, and

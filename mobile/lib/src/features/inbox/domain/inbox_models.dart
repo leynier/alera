@@ -93,16 +93,20 @@ class const InboxSummaryEntry({
 class const InboxOrigin({
   required final String surface,
   final String? deviceName,
+  final String? clientName,
 }) {
   factory fromJson(Map<String, Object?> json) => InboxOrigin(
     surface: json.optionalString('surface') ?? 'cli',
     deviceName: json.optionalString('deviceName'),
+    clientName:
+        json.optionalString('clientName') ?? json.optionalString('clientId'),
   );
 
   String get label => switch (surface) {
     'mobile' =>
       deviceName == null ? 'Alera mobile' : 'Alera mobile on $deviceName',
     'desktop' => 'Alera desktop',
+    'mcp' => clientName == null ? 'MCP client' : '$clientName (MCP)',
     _ => 'Command line',
   };
 }

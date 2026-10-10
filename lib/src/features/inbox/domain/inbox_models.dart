@@ -79,16 +79,21 @@ DateTime? parseInboxTimestamp(Object? value) {
 class const InboxOrigin({
   required final String surface,
   final String? deviceName,
+  final String? clientName,
 }) {
   factory InboxOrigin.fromJson(Map<String, Object?> json) => InboxOrigin(
     surface: _optionalString(json['surface']) ?? 'cli',
     deviceName: _optionalString(json['deviceName']),
+    clientName:
+        _optionalString(json['clientName']) ??
+        _optionalString(json['clientId']),
   );
 
   String get label => switch (surface) {
     'desktop' => 'Alera desktop',
     'mobile' =>
       deviceName == null ? 'Alera mobile' : 'Alera mobile, $deviceName',
+    'mcp' => clientName == null ? 'MCP client' : '$clientName (MCP)',
     _ => 'CLI',
   };
 }
