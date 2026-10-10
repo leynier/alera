@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/mcp_access/application/mcp_access_providers.dart';
 import 'package:alera/src/features/mcp_access/domain/mcp_access_repository.dart';
@@ -10,6 +12,7 @@ import 'package:alera/src/features/webhooks/domain/webhook_repository.dart';
 import 'package:alera/src/features/webhooks/presentation/add_webhook_dialog.dart';
 import 'package:alera/src/features/webhooks/presentation/webhooks_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -181,6 +184,28 @@ void main() {
     expect(repository.listCalls, 2);
   });
 
+  testWidgets('keeps the dialog open until a slow creation answers', (
+    tester,
+  ) async {
+    final repository = _FakeWebhookRepository()..createGate = Completer<void>();
+    await pump(tester, repository);
+    await tester.tap(find.text('Add Webhook'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'https://example.com/hooks');
+    await tester.tap(_dialogAddButton);
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pump();
+    expect(find.text('Webhook URL'), findsOneWidget);
+
+    repository.createGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('whsec_once'), findsOneWidget);
+  });
+
   testWidgets('sends every kind as the default when all are selected', (
     tester,
   ) async {
@@ -296,6 +321,9 @@ final class _FakeWebhookRepository implements WebhookRepository {
   final Object? createError;
   final Object? testError;
   int listCalls = 0;
+
+  /// When set, creation waits for it, like a slow cloud answer.
+  Completer<void>? createGate;
   final List<(String, List<String>?)> created = <(String, List<String>?)>[];
   final List<String> deleted = <String>[];
   final List<String> tested = <String>[];
@@ -318,6 +346,7 @@ final class _FakeWebhookRepository implements WebhookRepository {
     List<String>? kinds,
   }) async {
     created.add((url, kinds));
+    await createGate?.future;
     if (createError case final Object error) {
       throw error;
     }

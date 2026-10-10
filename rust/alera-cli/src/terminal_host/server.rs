@@ -83,6 +83,8 @@ mod ai_assist_operation_registry;
 mod ai_assist_process_journal;
 mod ai_assist_project_inference;
 mod ai_assist_pull_request_details;
+mod ai_assist_pull_request_details_jobs;
+mod ai_assist_pull_request_details_resume;
 mod ai_assist_requests;
 mod ai_assist_speech_message;
 mod ai_assist_workspace_identity;

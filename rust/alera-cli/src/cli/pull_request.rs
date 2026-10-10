@@ -22,7 +22,7 @@ pub enum PullRequestAction {
     Summaries(PrTargetArgs),
     /// Write a title and description for the branch with AI Assist.
     #[command(name = "generate-details")]
-    GenerateDetails(PrBaseArgs),
+    GenerateDetails(PrGenerateDetailsArgs),
     /// Open a pull request from the current branch and link it to the workspace.
     Create(PrCreateArgs),
     /// Link a pull request by number or URL to the workspace.
@@ -74,6 +74,24 @@ pub struct PrBaseArgs {
     /// Base branch the pull request targets.
     #[arg(long = "base", value_name = "branch")]
     pub base: String,
+}
+
+#[derive(Debug, Args)]
+pub struct PrGenerateDetailsArgs {
+    #[command(flatten)]
+    pub base: PrBaseArgs,
+    /// Retry key. Running the command again with it attaches to the same
+    /// generation, or reads its result for 15 minutes, instead of starting over.
+    #[arg(long = "operation-id", value_name = "id")]
+    pub operation_id: Option<String>,
+    /// Wait at most this long, then print status running and the operation id
+    /// to run again with. By default the command waits for the result.
+    #[arg(
+        long = "wait-seconds",
+        value_name = "n",
+        value_parser = clap::value_parser!(u64).range(0..=900)
+    )]
+    pub wait_seconds: Option<u64>,
 }
 
 #[derive(Debug, Args)]

@@ -7350,13 +7350,19 @@
         "readOnlyHint": false,
         "title": "Generate Pull Request Details"
       },
-      "description": "Write a pull request title and description for the workspace branch against a base branch with AI Assist, the same generator the apps use. It changes nothing on the forge; AI Assist must be enabled.",
+      "description": "Write a pull request title and description for the workspace branch against a base branch with AI Assist, the same generator the apps use. It changes nothing on the forge; AI Assist must be enabled. Generation can take minutes: after about 45 seconds the result is status running with an operationId, and the runtime keeps generating. Call again with that operationId as clientRequestId (or the clientRequestId you passed) and the same workspace and base branch to wait again or read the finished result, which is kept for 15 minutes. A completed result has status completed, title, and body; a failure is reported once, and the next call with the same key generates again.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
           "baseBranch": {
             "description": "Base branch the pull request targets, such as main.",
             "minLength": 1,
+            "type": "string"
+          },
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
             "type": "string"
           },
           "workspaceId": {
@@ -7372,7 +7378,7 @@
         "type": "object"
       },
       "name": "generate_pull_request_details",
-      "timeoutSeconds": 58,
+      "timeoutSeconds": 55,
       "title": "Generate Pull Request Details"
     },
     {

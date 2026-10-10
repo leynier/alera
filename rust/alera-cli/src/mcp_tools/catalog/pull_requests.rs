@@ -14,6 +14,11 @@ mod flow;
 
 /// Forge CLIs answer in seconds, but a write also reads the pull request back.
 const FORGE_TIMEOUT: u64 = LAUNCH_TIMEOUT;
+/// AI Assist may take minutes, so the CLI answers `running` after this long
+/// and the client resumes with the same retry key; process start-up fits in
+/// the rest of the client's deadline.
+const DETAILS_WAIT_SECONDS: u64 = 45;
+const _: () = assert!(DETAILS_WAIT_SECONDS < crate::mcp_tools::MAX_WAIT_SECONDS);
 pub(super) const NUMBER_MAX: u64 = 1 << 31;
 pub(super) const MERGE_METHODS: &[&str] = &["mergeCommit", "squash", "rebase", "providerDefault"];
 
@@ -36,16 +41,21 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option_if("--workspace-id", arguments.string("workspaceId")))
             },
         )),
-        slow(execute(
-            "generate_pull_request_details",
-            "Generate Pull Request Details",
-            "Write a pull request title and description for the workspace branch against a base branch with AI Assist, the same generator the apps use. It changes nothing on the forge; AI Assist must be enabled.",
-            || object(&[workspace(), base_branch()], &["workspaceId", "baseBranch"]),
-            |arguments| {
-                Ok(pr(arguments, &["generate-details"])?
-                    .option("--base", arguments.required("baseBranch")?))
-            },
-        )),
+        ToolSpec {
+            timeout_seconds: DETAILS_WAIT_SECONDS + 10,
+            client_request_flag: Some("--operation-id"),
+            ..execute(
+                "generate_pull_request_details",
+                "Generate Pull Request Details",
+                "Write a pull request title and description for the workspace branch against a base branch with AI Assist, the same generator the apps use. It changes nothing on the forge; AI Assist must be enabled. Generation can take minutes: after about 45 seconds the result is status running with an operationId, and the runtime keeps generating. Call again with that operationId as clientRequestId (or the clientRequestId you passed) and the same workspace and base branch to wait again or read the finished result, which is kept for 15 minutes. A completed result has status completed, title, and body; a failure is reported once, and the next call with the same key generates again.",
+                || object(&[workspace(), base_branch()], &["workspaceId", "baseBranch"]),
+                |arguments| {
+                    Ok(pr(arguments, &["generate-details"])?
+                        .option("--base", arguments.required("baseBranch")?)
+                        .option("--wait-seconds", DETAILS_WAIT_SECONDS.to_string()))
+                },
+            )
+        },
         slow(execute(
             "create_pull_request",
             "Create Pull Request",

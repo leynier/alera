@@ -10,8 +10,8 @@ use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 
 use crate::cli::{
-    PrAgentTargetArgs, PrBodyArgs, PrDispatchArgs, PrNumberArgs, PrShipArgs, PrTargetArgs,
-    PrWatchMode, PullRequestAction, PullRequestCommand, RuntimeDirArgs,
+    PrAgentTargetArgs, PrBodyArgs, PrDispatchArgs, PrGenerateDetailsArgs, PrNumberArgs, PrShipArgs,
+    PrTargetArgs, PrWatchMode, PullRequestAction, PullRequestCommand, RuntimeDirArgs,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::terminal_host::protocol::{
@@ -23,6 +23,10 @@ use crate::{print_error, print_value, runtime_dir};
 
 #[path = "pull_request_stack_commands.rs"]
 mod stack;
+
+/// The host never waits longer than this, which outlasts AI Assist's longest
+/// timeout, so the default still waits for the result.
+const DETAILS_MAX_WAIT_SECONDS: u64 = 900;
 
 pub async fn run(command: PullRequestCommand) -> i32 {
     let json_output = command.output.json;
@@ -56,26 +60,7 @@ async fn execute(runtime: &RuntimeDirArgs, action: PullRequestAction) -> Result<
             let count = value["summaries"].as_array().map_or(0, Vec::len);
             Ok((value, format!("{count} pull request summary(ies)")))
         }
-        PullRequestAction::GenerateDetails(args) => {
-            let session = Session::open(runtime, &args.target).await?;
-            let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
-                &runtime_dir(runtime),
-                crate::terminal_host::ai_assist_capabilities::RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_CAPABILITY,
-            )
-            .await?;
-            let value = client
-                .request_value(
-                    "aiText.pullRequestDetails.generate",
-                    &json!({
-                        "operationId": format!("cli-{}", uuid::Uuid::new_v4()),
-                        "workspaceId": session.workspace_id,
-                        "baseBranch": args.base.trim(),
-                    }),
-                )
-                .await?;
-            let message = value["title"].as_str().unwrap_or_default().to_string();
-            Ok((value, message))
-        }
+        PullRequestAction::GenerateDetails(args) => generate_details(runtime, args).await,
         PullRequestAction::Create(args) => {
             let mut session = Session::open(runtime, &args.base.target).await?;
             let payload = json!({
@@ -174,6 +159,44 @@ async fn execute(runtime: &RuntimeDirArgs, action: PullRequestAction) -> Result<
         PullRequestAction::FixChecks(args) => dispatch(runtime, "fixFailedChecks", args).await,
         PullRequestAction::Stack(command) => stack::run(runtime, command.action).await,
     }
+}
+
+/// `aiText.pullRequestDetails.generate` as a resumable job: the runtime keeps
+/// generating after the wait ends, and the same `--operation-id` resumes it.
+async fn generate_details(
+    runtime: &RuntimeDirArgs,
+    args: PrGenerateDetailsArgs,
+) -> Result<(Value, String)> {
+    let session = Session::open(runtime, &args.base.target).await?;
+    let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
+        &runtime_dir(runtime),
+        crate::terminal_host::ai_assist_capabilities::RUNTIME_HOST_AI_ASSIST_PULL_REQUEST_DETAILS_RESUME_CAPABILITY,
+    )
+    .await?;
+    let operation_id = args
+        .operation_id
+        .map(|id| id.trim().to_owned())
+        .filter(|id| !id.is_empty())
+        .unwrap_or_else(|| format!("cli-{}", uuid::Uuid::new_v4()));
+    let wait_seconds = args.wait_seconds.unwrap_or(DETAILS_MAX_WAIT_SECONDS);
+    let value = client
+        .request_value(
+            "aiText.pullRequestDetails.generate",
+            &json!({
+                "operationId": operation_id,
+                "workspaceId": session.workspace_id,
+                "baseBranch": args.base.base.trim(),
+                "waitMs": wait_seconds * 1000,
+                "origin": crate::mcp_tools::CallOrigin::from_env(),
+            }),
+        )
+        .await?;
+    let message = if value["status"] == "running" {
+        format!("Still generating; run again with --operation-id {operation_id}")
+    } else {
+        value["title"].as_str().unwrap_or_default().to_string()
+    };
+    Ok((value, message))
 }
 
 /// One workspace's pull request verbs over one runtime connection.

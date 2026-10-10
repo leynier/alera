@@ -167,6 +167,14 @@ impl ServerActor {
 
     pub(super) async fn handle_shutdown_tick(&mut self, generation: u64) {
         if generation == self.shutdown_gen
+            && super::ai_assist_pull_request_details_jobs::pull_request_details_jobs().has_running()
+        {
+            // A resumable generation outlives the caller that started it, so
+            // the runtime waits for it and checks again a delay later.
+            self.schedule_shutdown_if_idle();
+            return;
+        }
+        if generation == self.shutdown_gen
             && !self.disposed
             && !self.has_authenticated_clients()
             && self.automation_checkout_jobs.is_empty()

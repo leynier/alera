@@ -96,95 +96,100 @@ class _AddWebhookDialogState extends State<AddWebhookDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AleraDialog(
-      maxWidth: 520,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          mainAxisSize: .min,
-          crossAxisAlignment: .stretch,
-          children: <Widget>[
-            AleraDialogHeader(
-              title: 'Add Webhook',
-              onClose: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: AleraTokens.space12),
-            AleraTextField(
-              controller: _url,
-              autofocus: true,
-              enabled: !_creating,
-              labelText: 'Webhook URL',
-              hintText: 'https://example.com/hooks/alera',
-              errorText: _urlError,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              enableSuggestions: false,
-              onChanged: (_) {
-                if (_urlError != null) {
-                  setState(() => _urlError = null);
-                }
-              },
-              onSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            Text(
-              'Events',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AleraTokens.foreground,
-                fontWeight: .w500,
+    // The cloud returns the signing secret once, in the creation answer, so
+    // nothing may close the dialog while that answer is on its way.
+    return PopScope(
+      canPop: !_creating,
+      child: AleraDialog(
+        maxWidth: 520,
+        child: Padding(
+          padding: const EdgeInsets.all(AleraTokens.space20),
+          child: Column(
+            mainAxisSize: .min,
+            crossAxisAlignment: .stretch,
+            children: <Widget>[
+              AleraDialogHeader(
+                title: 'Add Webhook',
+                onClose: () => Navigator.of(context).maybePop(),
               ),
-            ),
-            const SizedBox(height: AleraTokens.space4),
-            AleraCheckbox(
-              label: 'All Events',
-              value: _allKinds,
-              enabled: !_creating,
-              onChanged: _toggleAll,
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: AleraTokens.space16),
-                  child: Wrap(
-                    spacing: AleraTokens.space8,
-                    children: <Widget>[
-                      for (final kind in RuntimeEventKind.values)
-                        Tooltip(
-                          message: kind.wireName,
-                          child: AleraCheckbox(
-                            label: kind.label,
-                            value: _kinds.contains(kind),
-                            enabled: !_creating,
-                            onChanged: (selected) => _toggle(kind, selected),
+              const SizedBox(height: AleraTokens.space12),
+              AleraTextField(
+                controller: _url,
+                autofocus: true,
+                enabled: !_creating,
+                labelText: 'Webhook URL',
+                hintText: 'https://example.com/hooks/alera',
+                errorText: _urlError,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                enableSuggestions: false,
+                onChanged: (_) {
+                  if (_urlError != null) {
+                    setState(() => _urlError = null);
+                  }
+                },
+                onSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: AleraTokens.space16),
+              Text(
+                'Events',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AleraTokens.foreground,
+                  fontWeight: .w500,
+                ),
+              ),
+              const SizedBox(height: AleraTokens.space4),
+              AleraCheckbox(
+                label: 'All Events',
+                value: _allKinds,
+                enabled: !_creating,
+                onChanged: _toggleAll,
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: AleraTokens.space16),
+                    child: Wrap(
+                      spacing: AleraTokens.space8,
+                      children: <Widget>[
+                        for (final kind in RuntimeEventKind.values)
+                          Tooltip(
+                            message: kind.wireName,
+                            child: AleraCheckbox(
+                              label: kind.label,
+                              value: _kinds.contains(kind),
+                              enabled: !_creating,
+                              onChanged: (selected) => _toggle(kind, selected),
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (_error case final String message) ...<Widget>[
-              const SizedBox(height: AleraTokens.space12),
-              AleraInlineNotice(tone: .error, message: message),
-            ],
-            const SizedBox(height: AleraTokens.space20),
-            Row(
-              mainAxisAlignment: .end,
-              children: <Widget>[
-                TextButton(
-                  onPressed: _creating
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: AleraTokens.space8),
-                FilledButton(
-                  onPressed: _creating ? null : _submit,
-                  child: Text(_creating ? 'Adding…' : 'Add Webhook'),
-                ),
+              if (_error case final String message) ...<Widget>[
+                const SizedBox(height: AleraTokens.space12),
+                AleraInlineNotice(tone: .error, message: message),
               ],
-            ),
-          ],
+              const SizedBox(height: AleraTokens.space20),
+              Row(
+                mainAxisAlignment: .end,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: _creating
+                        ? null
+                        : () => Navigator.of(context).maybePop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: AleraTokens.space8),
+                  FilledButton(
+                    onPressed: _creating ? null : _submit,
+                    child: Text(_creating ? 'Adding…' : 'Add Webhook'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
