@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_resu
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_pipeline.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_service.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/background_setup_job.dart';
@@ -13,6 +14,10 @@ part 'background_setup_jobs.g.dart';
 @Riverpod(keepAlive: true)
 class BackgroundSetupJobs extends _$BackgroundSetupJobs {
   final Set<String> _inFlightIds = <String>{};
+
+  /// Runtime operations of each prompt job that ended without completing;
+  /// the next submission needs a fresh one.
+  final Map<String, int> _promptServiceAttempts = <String, int>{};
   var _retryOpening = false;
 
   @override
@@ -111,6 +116,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
             originalLaunchWasIdempotent:
                 existingSnapshot.originalLaunchWasIdempotent,
             setupStarted: existingSnapshot.setupStarted,
+            serviceOperationId: existingSnapshot.serviceOperationId,
           )
         : request;
     final clientMutationId =
@@ -151,6 +157,11 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
                 ref.read(terminalClientProvider(request.hostId).future),
             request: requestToRun,
             clientMutationId: clientMutationId,
+            serviceRequestId: promptWorkspaceServiceRequestId(
+              jobId: id,
+              attempt: _promptServiceAttempts[id] ?? 0,
+              request: requestToRun,
+            ),
             onPhase: (phase) {
               final job = state.jobById(id);
               if (job == null) {
@@ -172,8 +183,15 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
             },
           );
           result = outcome;
+          _promptServiceAttempts.remove(id);
           _publishWorkspaceCreatedIfDetached(outcome.creation);
+        } on PromptWorkspaceServiceFailure {
+          _promptServiceAttempts[id] = (_promptServiceAttempts[id] ?? 0) + 1;
+          rethrow;
         } on PromptWorkspaceLaunchException catch (failure) {
+          if (failure.serviceOperationId != null) {
+            _promptServiceAttempts[id] = (_promptServiceAttempts[id] ?? 0) + 1;
+          }
           final job = state.jobById(id);
           if (job != null) {
             state = state.withJob(
@@ -188,6 +206,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
                   originalLaunchWasIdempotent:
                       failure.originalLaunchWasIdempotent,
                   setupStarted: failure.setupStarted,
+                  serviceOperationId: failure.serviceOperationId,
                 ),
                 phase: job.phase,
                 error: job.error,
