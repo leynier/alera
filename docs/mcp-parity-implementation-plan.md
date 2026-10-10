@@ -892,7 +892,7 @@ No hay preguntas bloqueantes.
 
 Implementado y verificado:
 
-- **Catálogo:** 220 herramientas (86 Read, 112 Full, 22 Admin). Los tests de catálogo verifican tres cosas: que cada invocación la acepta el parser real del CLI, que ninguna herramienta llega a un comando excluido ni a una decisión humana, y que los niveles siguen F1 y F2.
+- **Catálogo:** 222 herramientas del runtime (87 Read, 112 Full, 23 Admin), más `list_runtimes`, `list_skills` y `read_skill`, que responde el edge. Los tests de catálogo verifican tres cosas: que cada invocación la acepta el parser real del CLI, que ninguna herramienta llega a un comando excluido ni a una decisión humana, y que los niveles siguen F1 y F2.
 - **Fases 0-6, 7 y 8:** implementadas tal como describe este plan.
 - **Validación:**
   - Rust `alera-cli`: 2036 tests en verde; `alera-core` con la feature `runtime` también en verde.
@@ -970,3 +970,28 @@ Decisión abierta (M6), sin cambios de nivel hasta que el usuario decida:
   - aceptarlo y documentarlo en la UI de MCP Control como hoy (`write_terminal`);
   - subir a Admin las herramientas que aceptan comandos libres (`create_tab.command`, la configuración de setup y `precheck.command`), sin tocar `write_terminal` ni `pulse`, que son el uso principal de Full;
   - restringir los comandos libres a una lista blanca por proyecto.
+
+### 13.2 Skills
+
+Decisiones del usuario (2026-10-10):
+- S1: solo skills de Alera.
+- S2: la instalación queda fijada a la versión del runtime.
+- S3: no se exponen las skills personales.
+- S4: entra en este mismo PR.
+
+Además, el usuario pidió dos cosas: que las skills del MCP sean hermanas de las del CLI, escritas para clientes MCP, y que vivan solo en el MCP de la nube, no en los runtimes.
+
+- **Skills hermanas en el edge:**
+  - Son cuatro, en `edge/skills/`: `alera-mcp`, `alera-mcp-orchestration`, `alera-mcp-automations` y `alera-mcp-agent-profiles`.
+  - `bun tool/skill_catalog.ts` genera `edge/src/mcp/skill_catalog.json`.
+  - `list_skills` y `read_skill` las responde el edge sin contactar al runtime.
+  - Un test falla en cualquiera de estos casos: el JSON está desactualizado, una skill nombra una herramienta que no existe, una herramienta del catálogo no aparece en ninguna skill, o un enlace no resuelve.
+- **Leer primero:** las instrucciones del servidor y la descripción de cada herramienta del edge (excepto las dos de skills) piden leer la skill correspondiente antes de la tarea. `alera mcp serve` no sirve estas skills.
+- **Skills de los agentes en terminales:**
+  - `check_agent_skills` (Read) y `install_agent_skills` (Admin) usan `alera skill status|install`.
+  - La instalación usa `skills add` con el repositorio en el commit con el que se compiló el runtime. Una release se compila desde el commit de su tag.
+  - El estado compara `metadata.version` de cada SKILL.md instalada con la constante del runtime. Un test de digest obliga a subir la versión cuando cambia el contenido de una skill.
+- **Fallos corregidos de paso:**
+  - `agentSkill.install`, que usa el móvil, no pasaba `--agent codex --yes`, y sin terminal el instalador no instalaba nada.
+  - Tampoco aceptaba `agentProfiles`.
+- **Pendiente:** el comando que muestra el escritorio en Settings todavía instala desde la rama por defecto, sin fijar el commit.

@@ -1,5 +1,6 @@
 import catalog from './tool_catalog.json';
 import { isJsonObject } from './protocol';
+import { isSkillTool, SKILL_TOOL_DEFINITIONS, withSkillsReminder } from './skills';
 
 export type ToolAccess = 'read' | 'execute' | 'admin';
 
@@ -46,7 +47,7 @@ export function loadCatalog(source: unknown): Map<string, CatalogTool> {
   }
   const tools = new Map<string, CatalogTool>();
   for (const tool of source.tools) {
-    if (!validCatalogTool(tool) || tool.name === LIST_RUNTIMES_TOOL || tools.has(tool.name)) {
+    if (!validCatalogTool(tool) || tool.name === LIST_RUNTIMES_TOOL || isSkillTool(tool.name) || tools.has(tool.name)) {
       throw new Error('Invalid MCP tool catalog entry');
     }
     tools.set(tool.name, tool);
@@ -74,8 +75,9 @@ function withRuntimeArgument(schema: Record<string, unknown>): Record<string, un
 const LIST_RUNTIMES_DEFINITION = {
   name: LIST_RUNTIMES_TOOL,
   title: 'List Runtimes',
-  description:
+  description: withSkillsReminder(
     'List the Alera runtimes this connection may use, with their names, ids, online state, and MCP access level.',
+  ),
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   annotations: {
     readOnlyHint: true,
@@ -88,10 +90,11 @@ const LIST_RUNTIMES_DEFINITION = {
 export function listedTools(tools: Map<string, CatalogTool> = RUNTIME_TOOLS): Array<Record<string, unknown>> {
   return [
     LIST_RUNTIMES_DEFINITION,
+    ...SKILL_TOOL_DEFINITIONS,
     ...Array.from(tools.values(), (tool) => ({
       name: tool.name,
       title: tool.title,
-      description: tool.description,
+      description: withSkillsReminder(tool.description),
       inputSchema: withRuntimeArgument(tool.inputSchema),
       annotations: tool.annotations,
     })),

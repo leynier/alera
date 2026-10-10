@@ -8455,6 +8455,69 @@
       "name": "test_webhook",
       "timeoutSeconds": 30,
       "title": "Test Webhook"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Check Agent Skills"
+      },
+      "description": "Show whether the Alera skills that coding agents use in Alera terminals (alera-cli, alera-orchestration, alera-automations, alera-agent-profiles) are installed on this runtime's machine, and whether each matches this runtime's version.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "check_agent_skills",
+      "timeoutSeconds": 30,
+      "title": "Check Agent Skills"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Install Agent Skills"
+      },
+      "description": "Install or update the Alera skills that coding agents use, at this runtime's own version, through the skills installer (npx or bunx) on its machine. Installs every skill unless skills is given. Returns the outcome and the new status.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runner": {
+            "description": "Package runner: auto (default) tries npx, then bunx.",
+            "enum": [
+              "auto",
+              "npx",
+              "bunx"
+            ],
+            "type": "string"
+          },
+          "skills": {
+            "description": "Skills to install (default all).",
+            "items": {
+              "enum": [
+                "cli",
+                "orchestration",
+                "automations",
+                "agent-profiles"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "type": "object"
+      },
+      "name": "install_agent_skills",
+      "timeoutSeconds": 58,
+      "title": "Install Agent Skills"
     }
   ],
   "version": 2

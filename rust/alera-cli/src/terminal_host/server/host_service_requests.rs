@@ -229,8 +229,9 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let skill_name = required_non_blank(payload, "skill")?;
         let runner_name = required_non_blank(payload, "runner")?;
-        let skill = SkillKind::parse(&skill_name)
-            .ok_or_else(|| HostError::format("skill must be cli or orchestration."))?;
+        let skill = SkillKind::parse(&skill_name).ok_or_else(|| {
+            HostError::format("skill must be cli, orchestration, automations, or agentProfiles.")
+        })?;
         let runner = SkillRunner::parse(&runner_name)
             .ok_or_else(|| HostError::format("runner must be auto, npx, or bunx."))?;
         self.broadcast_authenticated(event(

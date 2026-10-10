@@ -120,7 +120,8 @@ The audit row (`mcp_calls`) is written before the runtime is contacted. A missin
 - Methods: `initialize`, `server/discover`, `ping`, `tools/list`, and `tools/call`, plus `events/list`, `events/subscribe`, and `events/unsubscribe` while MCP Events is on. Anything else returns `-32601`.
 - `server/discover` returns `{ resultType, supportedVersions, capabilities, serverInfo, _meta["io.modelcontextprotocol/serverInfo"], instructions }`; `capabilities` is `{ tools: { listChanged: false } }` and gains `events: {}` only while `MCP_EVENTS_ENABLED=true`.
 - A missing or invalid bearer returns `401` with `WWW-Authenticate: Bearer resource_metadata="<resource metadata URL>", scope="mcp:read mcp:execute mcp:admin"`. A token without `mcp:execute` calling an execute tool, or without `mcp:admin` calling an administrative tool, gets a tool error naming the missing scope without contacting the cloud.
-- `tools/list` serves `edge/src/mcp/tool_catalog.json` plus the gateway tool `list_runtimes`. Each runtime tool gains an optional `runtime` string argument.
+- `tools/list` serves `edge/src/mcp/tool_catalog.json` plus the gateway tool `list_runtimes` and the skill tools `list_skills` and `read_skill`. Each runtime tool gains an optional `runtime` string argument.
+- Every tool other than the two skill tools ends its description with a reminder to read the matching Alera skill first, and the server instructions say the same.
 - Calls are limited per token by the `MCP_LIMITER` binding.
 - `tools/call` asks the cloud for a call grant, then calls the runtime's Durable Object at `/mcp/call` with `{ callId, grant, tool, arguments, timeoutMs }`. The object answers `{ ok: true, result }` or `{ ok: false, code, message }`. The edge records the outcome with `waitUntil`.
 
@@ -166,6 +167,24 @@ The catalog is defined in `rust/alera-cli/src/mcp_tools/`. `edge/src/mcp/tool_ca
 Each entry has `name`, `title`, `description`, `access` (`read`, `execute`, or `admin`), `timeoutSeconds`, `inputSchema`, and `annotations`. The edge accepts catalog versions 1 and 2; version 2 is the one that may contain `admin` tools.
 
 Tools that read terminal output drop the `dataBase64` copy of the text before returning it.
+
+## Skills
+
+MCP clients get Alera skills written for them: sisters of the CLI skills in `skills/`, but naming MCP tools instead of `alera` commands. They live only in the edge, so runtimes neither ship nor serve them:
+
+- **Sources:** `edge/skills/<name>/SKILL.md` and `references/*.md`. `bun tool/skill_catalog.ts` builds `edge/src/mcp/skill_catalog.json` from them, after checking that each `name` matches its folder, `description` and `metadata.version` are present, and file names and sizes are allowed.
+- **Tools:** `list_skills` returns each skill's name, description, version, and files. `read_skill { name, file? }` returns one file with its SHA-256 digest. Both are read-only and answered by the edge without a runtime or a call grant.
+- **Tests:** `edge/test/mcp_skills.test.ts` fails when any of the following holds:
+  - the generated JSON is stale;
+  - a skill names a tool that does not exist;
+  - a catalog tool is not explained by any skill;
+  - a link does not resolve.
+
+A local `alera mcp serve` does not serve these skills.
+
+The skills coding agents use in Alera terminals (`skills/`) are a separate concern, handled by the runtime tools `check_agent_skills` and `install_agent_skills` (`alera skill status|install`):
+- Installs run `skills add https://github.com/leynier/alera/tree/<build commit> --skill ... --agent codex --global --yes`, so they match the runtime's release.
+- Status compares each installed SKILL.md's `metadata.version` with the runtime's constant. `skill_version_matches_binary.rs` keeps the versions and a content digest in step.
 
 ## Events And Webhooks
 

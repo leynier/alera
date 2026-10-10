@@ -35,6 +35,7 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
 
 /// Tools that need the `admin` class (F1 option B and F2).
 const ADMIN_TOOLS: &[&str] = &[
+    "install_agent_skills",
     "update_runtime_settings",
     "set_agent_integrations",
     "consume_codex_reset_credit",

@@ -1,6 +1,7 @@
 import { originRequest, type EdgeEnvironment, type OriginFetch } from '../index';
 import type { McpAccess } from './access_token';
 import { isJsonObject, toolError, toolJson, validToolResult, type ToolResult } from './protocol';
+import { callSkillTool, isSkillTool } from './skills';
 import { LIST_RUNTIMES_TOOL, RUNTIME_TOOLS, type CatalogTool } from './tools';
 
 export interface GatewayContext {
@@ -185,6 +186,8 @@ export async function callTool(
     return { kind: 'invalid', message: 'Tool arguments must be an object.' };
   }
   if (params.name === LIST_RUNTIMES_TOOL) return listRuntimes(context);
+  // Skills live in this service, so they answer without a runtime.
+  if (isSkillTool(params.name)) return { kind: 'result', result: callSkillTool(params.name, params.arguments) };
   const tool = RUNTIME_TOOLS.get(params.name);
   if (!tool) return { kind: 'invalid', message: `Unknown tool: ${params.name}` };
   if (tool.access === 'execute' && !access.scopes.has('mcp:execute')) {

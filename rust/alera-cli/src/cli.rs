@@ -12,6 +12,7 @@ mod mobile;
 mod project;
 mod pull_request;
 mod runtime_manage;
+mod skill;
 mod terminal_lifecycle;
 mod text_source;
 mod voice;
@@ -28,6 +29,7 @@ pub use mobile::*;
 pub use project::*;
 pub use pull_request::*;
 pub use runtime_manage::*;
+pub use skill::*;
 pub use terminal_lifecycle::*;
 pub use text_source::*;
 pub use voice::*;
@@ -127,6 +129,9 @@ pub enum Command {
 
     /// Let MCP clients run Alera tools on this runtime, locally or through the Alera cloud.
     Mcp(McpCommand),
+
+    /// Check and install the Alera skills coding agents use on this machine.
+    Skill(SkillCommand),
 }
 
 #[derive(Debug, Args)]

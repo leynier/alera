@@ -193,7 +193,7 @@ Estas capacidades no tienen comando CLI. Exponerlas por MCP exige primero un com
 | Layout, splits, paneles, vista | Dividir, mover tabs, paneles de contexto | `layout.upsert`, `workbenchViewPrefs.*` | Por diseño: estado de UI | — |
 | Settings | AI Assist, Terminal, Editor, Keyboard, Voice, Dictation, Text Actions | `configuration.settings.*`, `runtimeSettings.*` | Por diseño: preferencias del usuario | — |
 | Configuration Sync | Revisar y aplicar sincronización en la nube | `configuration.cloud.*`, `configuration.transfer.*` | Por diseño | — |
-| Updater, skills, registro del CLI | Actualizar app, instalar skills | `cliRegistration.*`, `agentSkill.install` | Por diseño | — |
+| Updater, skills, registro del CLI | Actualizar app, instalar skills | `cliRegistration.*`, `agentSkill.install` | Por diseño, salvo las skills: cubiertas desde la rama `feat/mcp-parity` por `check_agent_skills` e `install_agent_skills` (plan §13.2) | — |
 | Reading Diff, dictado, text actions | — | FRB local | Por diseño / no aplica | — |
 
 ### 4.9 Seguridad, cuentas y conectividad (por diseño fuera del MCP)

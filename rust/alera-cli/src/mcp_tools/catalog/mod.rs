@@ -2,6 +2,7 @@
 //! access class and its default timeout; every domain module lists its tools
 //! in the order clients see them.
 
+mod agent_skills;
 mod agents;
 mod agents_manage;
 mod automations;
@@ -122,7 +123,7 @@ pub(super) fn admin(
 }
 
 pub(super) fn tools() -> Vec<ToolSpec> {
-    let groups: [fn() -> Vec<ToolSpec>; 20] = [
+    let groups: [fn() -> Vec<ToolSpec>; 21] = [
         runtime::tools,
         runtime_manage::tools,
         projects::tools,
@@ -143,6 +144,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         automations_manage::tools,
         pull_requests::tools,
         events::tools,
+        agent_skills::tools,
     ];
     groups.iter().flat_map(|group| group()).collect()
 }

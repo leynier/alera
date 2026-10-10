@@ -8,7 +8,6 @@ use serde::Serialize;
 use crate::login_shell_environment::setup_command_environment;
 
 const WRAPPER_MARKER: &str = "alera-managed-cli-wrapper-v1";
-const SKILL_REPOSITORY: &str = "https://github.com/leynier/alera";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,28 +115,47 @@ pub(crate) async fn install_cli_registration(runtime_dir: &Path) -> Result<CliRe
     Ok(cli_registration_status(runtime_dir).await)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SkillKind {
     Cli,
     Orchestration,
     Automations,
+    AgentProfiles,
 }
 
 impl SkillKind {
+    pub(crate) const ALL: [Self; 4] = [
+        Self::Cli,
+        Self::Orchestration,
+        Self::Automations,
+        Self::AgentProfiles,
+    ];
+
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
             "cli" => Some(Self::Cli),
             "orchestration" => Some(Self::Orchestration),
             "automations" => Some(Self::Automations),
+            "agentProfiles" => Some(Self::AgentProfiles),
             _ => None,
         }
     }
 
-    fn package_name(self) -> &'static str {
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Cli => "cli",
+            Self::Orchestration => "orchestration",
+            Self::Automations => "automations",
+            Self::AgentProfiles => "agentProfiles",
+        }
+    }
+
+    pub(crate) fn package_name(self) -> &'static str {
         match self {
             Self::Cli => "alera-cli",
             Self::Orchestration => "alera-orchestration",
             Self::Automations => "alera-automations",
+            Self::AgentProfiles => "alera-agent-profiles",
         }
     }
 }
@@ -179,6 +197,11 @@ pub(crate) struct SkillInstallAttempt {
 }
 
 pub(crate) async fn install_skill(kind: SkillKind, runner: SkillRunner) -> SkillInstallResult {
+    install_skills(&[kind], runner).await
+}
+
+/// Installs the skills in one `skills add` run, from this build's commit.
+pub(crate) async fn install_skills(kinds: &[SkillKind], runner: SkillRunner) -> SkillInstallResult {
     let environment = setup_command_environment().await;
     let runners = match runner {
         SkillRunner::Auto => vec![SkillRunner::Npx, SkillRunner::Bunx],
@@ -186,7 +209,7 @@ pub(crate) async fn install_skill(kind: SkillKind, runner: SkillRunner) -> Skill
     };
     let mut attempts = Vec::new();
     for candidate in runners {
-        let attempt = run_skill_install(kind, candidate, &environment).await;
+        let attempt = run_skill_install(kinds, candidate, &environment).await;
         let done = attempt.exit_code == 0 || !attempt.runner_missing;
         attempts.push(attempt);
         if done {
@@ -196,19 +219,24 @@ pub(crate) async fn install_skill(kind: SkillKind, runner: SkillRunner) -> Skill
     let succeeded = attempts
         .last()
         .is_some_and(|attempt| attempt.exit_code == 0);
+    let names = kinds
+        .iter()
+        .map(|kind| kind.package_name())
+        .collect::<Vec<_>>()
+        .join(", ");
     let summary = if succeeded {
-        format!("{} Installed", kind.package_name())
+        format!("{names} Installed")
     } else {
         attempts
             .last()
             .map(|attempt| {
                 if attempt.output.is_empty() {
-                    format!("{} Install Failed", kind.package_name())
+                    format!("{names} Install Failed")
                 } else {
-                    format!("{} Install Failed: {}", kind.package_name(), attempt.output)
+                    format!("{names} Install Failed: {}", attempt.output)
                 }
             })
-            .unwrap_or_else(|| format!("{} Install Failed", kind.package_name()))
+            .unwrap_or_else(|| format!("{names} Install Failed"))
     };
     SkillInstallResult {
         succeeded,
@@ -217,8 +245,26 @@ pub(crate) async fn install_skill(kind: SkillKind, runner: SkillRunner) -> Skill
     }
 }
 
+/// `skills add` arguments. `--agent codex` and `--yes` keep it from asking
+/// which agents to install for: without a terminal it would install nothing.
+/// Codex is named explicitly so a global install is not expanded to
+/// project-only universal agents, as in the desktop command.
+pub(crate) fn skill_install_arguments(kinds: &[SkillKind]) -> Vec<String> {
+    let mut arguments = vec![
+        "skills".to_owned(),
+        "add".to_owned(),
+        crate::agent_skills::install_source(),
+    ];
+    for kind in kinds {
+        arguments.push("--skill".to_owned());
+        arguments.push(kind.package_name().to_owned());
+    }
+    arguments.extend(["--agent", "codex", "--global", "--yes"].map(str::to_owned));
+    arguments
+}
+
 async fn run_skill_install(
-    kind: SkillKind,
+    kinds: &[SkillKind],
     runner: SkillRunner,
     environment: &[(String, String)],
 ) -> SkillInstallAttempt {
@@ -229,14 +275,7 @@ async fn run_skill_install(
         (_, SkillRunner::Auto) => unreachable!(),
     };
     let result = windowless_async_command(executable)
-        .args([
-            "skills",
-            "add",
-            SKILL_REPOSITORY,
-            "--skill",
-            kind.package_name(),
-            "--global",
-        ])
+        .args(skill_install_arguments(kinds))
         .envs(environment.iter().cloned())
         .output()
         .await;

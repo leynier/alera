@@ -13,7 +13,9 @@ export const MCP_INSTRUCTIONS =
   'Alera controls coding workspaces, terminals, and agents on the runtimes this connection was granted. ' +
   'Call list_runtimes first to see which runtimes are online. Every other tool accepts an optional ' +
   '`runtime` argument (runtime name or id); pass it whenever more than one runtime is online. ' +
-  'Nothing is remembered between calls, so name the runtime on each call.';
+  'Nothing is remembered between calls, so name the runtime on each call. ' +
+  'Alera skills explain how to use these tools for each kind of task: before the first Alera task of a conversation, ' +
+  'call list_skills and read the matching skill with read_skill, then follow it.';
 
 export const JSON_RPC_PARSE_ERROR = -32700;
 export const JSON_RPC_INVALID_REQUEST = -32600;

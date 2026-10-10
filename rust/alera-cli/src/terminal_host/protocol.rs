@@ -11,6 +11,12 @@ pub const PROTOCOL_VERSION: i64 = 4;
 pub const ORCHESTRATION_PROTOCOL_VERSION: i64 = 2;
 pub const DISPATCH_PREAMBLE_VERSION: i64 = 2;
 pub const ORCHESTRATION_SKILL_VERSION: i64 = 3;
+/// Versions of the other agent skills in `skills/`, kept in step with each
+/// SKILL.md's `metadata.version` so `alera skill status` can tell whether an
+/// installed copy matches this runtime.
+pub const CLI_SKILL_VERSION: i64 = 1;
+pub const AUTOMATIONS_SKILL_VERSION: i64 = 1;
+pub const AGENT_PROFILES_SKILL_VERSION: i64 = 1;
 pub const ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS: u64 = 90_000;
 /// Longest wait the host will hold a parked orchestration request for. Shared
 /// with the CLI so `--timeout-ms` can refuse a budget the host would silently

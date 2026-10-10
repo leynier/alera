@@ -4,6 +4,7 @@ mod agent_profile_launch;
 mod agent_prompt_stdin_script;
 mod agent_quota;
 mod agent_quota_commands;
+mod agent_skills;
 mod agent_status;
 mod automation_autostart;
 mod automation_commands;
@@ -97,6 +98,7 @@ mod runtime_settings_commands;
 mod setup_process_cancellation;
 mod shared_workspace;
 mod shared_workspace_removal;
+mod skill_commands;
 mod ssh_bootstrap;
 mod ssh_remote;
 mod ssh_target_status;
@@ -243,6 +245,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Inbox(command) => inbox_commands::run(command).await,
         Command::Events(command) => events_commands::run(command).await,
         Command::Webhook(command) => webhook_commands::run(command).await,
+        Command::Skill(command) => skill_commands::run(command).await,
         Command::Account(command) => mcp_commands::run_account(command).await,
         Command::Mcp(command) => mcp_commands::run_mcp(command).await,
     }

@@ -156,7 +156,8 @@ describe('MCP tools', () => {
     const { result } = await harness.rpc('tools/list');
     const names = result.tools.map((tool: { name: string }) => tool.name);
     expect(names[0]).toBe('list_runtimes');
-    for (const tool of result.tools.slice(1)) {
+    // list_skills and read_skill follow it and answer without a runtime.
+    for (const tool of result.tools.slice(3)) {
       expect(Object.keys(tool).sort()).toEqual(['annotations', 'description', 'inputSchema', 'name', 'title']);
       expect(tool.inputSchema.properties.runtime.type).toBe('string');
       expect(tool.inputSchema.required ?? []).not.toContain('runtime');
