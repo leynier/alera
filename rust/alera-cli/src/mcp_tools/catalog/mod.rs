@@ -3,13 +3,25 @@
 //! in the order clients see them.
 
 mod agents;
+mod agents_manage;
 mod automations;
+mod automations_manage;
+mod events;
 mod inbox;
+mod inbox_manage;
 mod orchestration;
+mod orchestration_manage;
 mod projects;
+mod projects_manage;
+mod prompt_workspace;
+mod pull_requests;
 mod runtime;
+mod runtime_manage;
 mod terminals;
+mod terminals_manage;
+mod workflows;
 mod workspaces;
+mod workspaces_manage;
 
 use serde_json::Value;
 
@@ -111,15 +123,29 @@ pub(super) fn admin(
 }
 
 pub(super) fn tools() -> Vec<ToolSpec> {
-    let mut tools = runtime::tools();
-    tools.extend(projects::tools());
-    tools.extend(workspaces::tools());
-    tools.extend(terminals::tools());
-    tools.extend(agents::tools());
-    tools.extend(inbox::tools());
-    tools.extend(orchestration::tools());
-    tools.extend(automations::tools());
-    tools
+    let groups: [fn() -> Vec<ToolSpec>; 20] = [
+        runtime::tools,
+        runtime_manage::tools,
+        projects::tools,
+        projects_manage::tools,
+        workspaces::tools,
+        prompt_workspace::tools,
+        workspaces_manage::tools,
+        terminals::tools,
+        terminals_manage::tools,
+        agents::tools,
+        agents_manage::tools,
+        inbox::tools,
+        inbox_manage::tools,
+        orchestration::tools,
+        orchestration_manage::tools,
+        workflows::tools,
+        automations::tools,
+        automations_manage::tools,
+        pull_requests::tools,
+        events::tools,
+    ];
+    groups.iter().flat_map(|group| group()).collect()
 }
 
 pub(super) fn no_arguments() -> Value {
