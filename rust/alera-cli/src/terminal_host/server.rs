@@ -61,6 +61,7 @@ mod agent_presence_reconciliation;
 mod agent_profile_launch_requests;
 mod agent_profile_session_resume;
 mod agent_prompt_composition;
+mod agent_skill_installs;
 mod agent_title_context;
 mod agent_title_events;
 mod agent_title_generation;

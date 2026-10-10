@@ -8465,7 +8465,7 @@
         "readOnlyHint": true,
         "title": "Check Agent Skills"
       },
-      "description": "Show whether the Alera skills that coding agents use in Alera terminals (alera-cli, alera-orchestration, alera-automations, alera-agent-profiles) are installed on this runtime's machine, and whether each matches this runtime's version.",
+      "description": "Show whether the Alera skills that coding agents use in Alera terminals (alera-cli, alera-orchestration, alera-automations, alera-agent-profiles) are installed on this runtime's machine and whether each matches this runtime's version, plus the running install (install.running) and the last finished one (install.last).",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {},
@@ -8484,7 +8484,7 @@
         "readOnlyHint": false,
         "title": "Install Agent Skills"
       },
-      "description": "Install or update the Alera skills that coding agents use, at this runtime's own version, through the skills installer (npx or bunx) on its machine. Installs every skill unless skills is given. Returns the outcome and the new status.",
+      "description": "Install or update the Alera skills that coding agents use, at this runtime's own version, through the skills installer (npx or bunx) on its machine. Installs every skill unless skills is given. The runtime runs the install as a job and this call waits up to 45 seconds: state completed or failed carries the outcome and the new status; state running means it is still installing, so read check_agent_skills later instead of calling again. Only one install runs at a time.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {

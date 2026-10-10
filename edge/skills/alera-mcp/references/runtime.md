@@ -25,7 +25,8 @@ Status hooks let agents report their state to Alera. `get_agent_integrations` sh
 ## Skills For Coding Agents
 
 Coding agents that run in Alera terminals use their own Alera skills, installed on the runtime's machine. These are separate from the skills this server serves.
-- `check_agent_skills` shows whether those skills are installed and whether they match the runtime's version.
+- `check_agent_skills` shows whether those skills are installed and whether they match the runtime's version. It also shows an install in progress (`install.running`) and the last finished one (`install.last`).
 - `install_agent_skills` installs or updates them at the runtime's own version. It needs administrative access.
+- The runtime runs the install as a job, and only one at a time. The call waits up to 45 seconds. State `running` means the install is still going: read `check_agent_skills` later rather than calling again.
 
 Suggest an install when a skill is missing or outdated and agents misuse the `alera` CLI.

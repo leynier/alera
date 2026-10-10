@@ -110,6 +110,7 @@ impl ServerActor {
                         RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
                         RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+                        crate::terminal_host::protocol::RUNTIME_HOST_AGENT_SKILL_INSTALL_JOBS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                         RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,

@@ -28,6 +28,10 @@ pub struct SkillInstallArgs {
     /// Package runner: auto tries npx, then bunx when npx is missing.
     #[arg(long, value_enum, default_value_t = SkillRunnerName::Auto)]
     pub runner: SkillRunnerName,
+    /// Seconds to wait for the install. The runtime keeps installing after
+    /// that, and `alera skill status` shows the result.
+    #[arg(long = "wait-seconds", default_value_t = 45, value_parser = clap::value_parser!(u64).range(1..=600))]
+    pub wait_seconds: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

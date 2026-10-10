@@ -196,10 +196,6 @@ pub(crate) struct SkillInstallAttempt {
     pub runner_missing: bool,
 }
 
-pub(crate) async fn install_skill(kind: SkillKind, runner: SkillRunner) -> SkillInstallResult {
-    install_skills(&[kind], runner).await
-}
-
 /// Installs the skills in one `skills add` run, from this build's commit.
 pub(crate) async fn install_skills(kinds: &[SkillKind], runner: SkillRunner) -> SkillInstallResult {
     let environment = setup_command_environment().await;

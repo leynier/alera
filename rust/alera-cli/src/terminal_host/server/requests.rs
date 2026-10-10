@@ -653,6 +653,11 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         match request_type {
+            "agentSkill.state" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                Ok(super::agent_skill_installs::install_state())
+            }
             "workspace.show" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
