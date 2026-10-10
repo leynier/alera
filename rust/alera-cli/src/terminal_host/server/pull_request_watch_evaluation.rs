@@ -1,4 +1,6 @@
-//! Runtime policy shared by every client that activates a GitHub watch.
+//! Runtime policy shared by every client that activates a watch, on GitHub,
+//! GitLab, and Azure DevOps alike: every forge's snapshot carries the same
+//! review, `checks[]`, and comment shape.
 use std::collections::{BTreeMap, BTreeSet};
 
 use alera_core::runtime::{PullRequestWatch, PullRequestWatchDispatchMark};
@@ -20,7 +22,11 @@ pub(super) enum Evaluation {
 
 pub(super) fn evaluate(watch: &PullRequestWatch, snapshot: &Value) -> Evaluation {
     // Missing authentication or partial network results are not evidence that a PR disappeared.
-    if snapshot["authStatus"] != "authenticated" || snapshot["provider"] != "github" {
+    let supported = snapshot["provider"]
+        .as_str()
+        .and_then(super::pull_request_forges::ForgeKind::from_wire)
+        .is_some();
+    if snapshot["authStatus"] != "authenticated" || !supported {
         return Evaluation::Wait;
     }
     let review = &snapshot["review"];
@@ -154,15 +160,16 @@ pub(super) fn evaluate(watch: &PullRequestWatch, snapshot: &Value) -> Evaluation
         && thread_ids.is_empty()
     {
         if let Some(head) = head.filter(|head| Some(head) != watch.last_merged_head_sha.as_ref()) {
-            if let Some(method) = snapshot["mergeMethods"].as_array().and_then(|methods| {
-                methods
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .find(|method| matches!(*method, "mergeCommit" | "squash" | "rebase"))
-            }) {
+            let methods = snapshot["mergeMethods"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>();
+            if let Some(method) = super::pull_request_forges::preferred_merge_method(&methods) {
                 return Evaluation::Merge {
                     head,
-                    method: method.into(),
+                    method: method.wire().into(),
                 };
             }
         }
@@ -289,6 +296,36 @@ mod tests {
         watch.last_dispatch = Some(mark);
         assert_eq!(evaluate(&watch, &snapshot), Evaluation::Wait);
     }
+    #[test]
+    fn gitlab_and_azure_snapshots_merge_with_their_own_methods() {
+        for (provider, methods, expected) in [
+            (
+                "gitlab",
+                json!(["providerDefault", "squash"]),
+                "providerDefault",
+            ),
+            (
+                "azureDevops",
+                json!(["mergeCommit", "squash"]),
+                "mergeCommit",
+            ),
+        ] {
+            let mut snapshot = snapshot();
+            snapshot["provider"] = json!(provider);
+            snapshot["mergeMethods"] = methods;
+            assert_eq!(
+                evaluate(&watch(), &snapshot),
+                Evaluation::Merge {
+                    head: "abc".into(),
+                    method: expected.into()
+                }
+            );
+        }
+        let mut snapshot = snapshot();
+        snapshot["provider"] = json!("bitbucket");
+        assert_eq!(evaluate(&watch(), &snapshot), Evaluation::Wait);
+    }
+
     #[test]
     fn scope_and_fix_mode_are_preserved() {
         let mut watch = watch();

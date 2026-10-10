@@ -1,6 +1,12 @@
 use serde_json::json;
 
+use super::super::mobile_pull_request_busy::BusyGuard;
+use super::super::mobile_pull_request_links::workspace_review_reference;
+use super::super::pull_request_forges::{
+    parse_forge_action, ForgeAction, ForgeCommentSource, ForgeMergeMethod,
+};
 use super::*;
+use crate::terminal_host::host_error::HostError;
 
 fn identity() -> GitHubIdentity {
     GitHubIdentity {
@@ -11,9 +17,56 @@ fn identity() -> GitHubIdentity {
     }
 }
 
+/// The GitHub command a parsed request becomes, as `GitHubForge` builds it.
+fn github_action(action: ForgeAction) -> Action {
+    match action {
+        ForgeAction::Comment {
+            number,
+            body,
+            reply_to,
+        } => Action::Comment {
+            number,
+            body,
+            reply_to: reply_to.map(|locator| locator.comment_id),
+        },
+        ForgeAction::CommentUpdate {
+            number,
+            locator,
+            body,
+        } => Action::CommentUpdate {
+            number,
+            comment_id: locator.comment_id,
+            source: match locator.source {
+                ForgeCommentSource::Conversation => CommentSource::Conversation,
+                ForgeCommentSource::ReviewSummary => CommentSource::ReviewSummary,
+                ForgeCommentSource::ReviewThread => CommentSource::ReviewThread,
+            },
+            body,
+        },
+        ForgeAction::Merge { number, method, .. } => Action::Merge {
+            number,
+            method: match method {
+                ForgeMergeMethod::MergeCommit => MergeMethod::MergeCommit,
+                ForgeMergeMethod::Squash => MergeMethod::Squash,
+                ForgeMergeMethod::Rebase => MergeMethod::Rebase,
+                ForgeMergeMethod::ProviderDefault => panic!("GitHub has no provider default"),
+            },
+        },
+        ForgeAction::DraftStatus { number, draft } => Action::DraftStatus { number, draft },
+        ForgeAction::Close { number } => Action::Close { number },
+        ForgeAction::Create(input) => Action::Create {
+            base: input.base,
+            title: input.title,
+            body: input.body,
+            draft: input.draft,
+        },
+        other => panic!("not a gh command: {other:?}"),
+    }
+}
+
 fn args(request_type: &str, payload: Value) -> Vec<String> {
-    let action = parse_action(request_type, &payload).unwrap();
-    gh_args(&action, &identity(), "feat/x")
+    let action = parse_forge_action(request_type, &payload).unwrap();
+    gh_args(&github_action(action), &identity(), "feat/x")
 }
 
 #[test]
@@ -129,7 +182,8 @@ fn creates_from_the_current_branch() {
 
 #[test]
 fn rejects_malformed_payloads() {
-    let fails = |request_type: &str, payload: Value| parse_action(request_type, &payload).is_err();
+    let fails =
+        |request_type: &str, payload: Value| parse_forge_action(request_type, &payload).is_err();
     assert!(fails(
         "mobile.pullRequest.comment",
         json!({"number": 7, "body": "  "})
@@ -137,10 +191,6 @@ fn rejects_malformed_payloads() {
     assert!(fails(
         "mobile.pullRequest.comment",
         json!({"number": 0, "body": "x"})
-    ));
-    assert!(fails(
-        "mobile.pullRequest.merge",
-        json!({"number": 7, "method": "providerDefault"})
     ));
     assert!(fails(
         "mobile.pullRequest.merge",
@@ -169,20 +219,36 @@ fn rejects_malformed_payloads() {
 #[test]
 fn parses_link_and_unlink() {
     assert_eq!(
-        parse_action("mobile.pullRequest.link", &json!({"reference": "#12"})).unwrap(),
-        Action::Link {
+        parse_forge_action("mobile.pullRequest.link", &json!({"reference": "#12"})).unwrap(),
+        ForgeAction::Link {
             reference: "#12".into()
         }
     );
     assert_eq!(
-        parse_action(
+        parse_forge_action(
             "mobile.pullRequest.unlink",
             &json!({"number": 12, "url": "u"})
         )
         .unwrap(),
-        Action::Unlink {
+        ForgeAction::Unlink {
             number: 12,
             url: Some("u".into())
+        }
+    );
+}
+
+#[test]
+fn merges_carry_the_expected_head_and_any_forge_method() {
+    assert_eq!(
+        parse_forge_action(
+            "mobile.pullRequest.merge",
+            &json!({"number": 7, "method": "providerDefault", "expectedHeadSha": "abc"})
+        )
+        .unwrap(),
+        ForgeAction::Merge {
+            number: 7,
+            method: ForgeMergeMethod::ProviderDefault,
+            expected_head: Some("abc".into()),
         }
     );
 }

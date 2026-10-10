@@ -1,7 +1,8 @@
 //! Pull request work for a workspace whose checkout lives on another host.
 //!
-//! `gh` has to run where the checkout and its credentials are, so the hub
-//! forwards the `mobile.pullRequest.*` verbs to the satellite. The one piece of
+//! The forge CLI (`gh`, `glab`, `az`) has to run where the checkout and its
+//! credentials are, so the hub forwards the `mobile.pullRequest.*` and
+//! single-checkout `pullRequestStack.*` verbs to the satellite. The one piece of
 //! hub-owned state those verbs read and write is the workspace's linked
 //! review, and the satellite's copy is disposable: every forwarded request
 //! carries the hub's record (`hubLinkedReview`, an object or an explicit null),
@@ -9,7 +10,7 @@
 //! changes the link the hub adopts what the satellite answered. The record
 //! therefore never has two owners.
 
-use alera_core::runtime::{LinkedReview, RuntimeStore, Workspace};
+use alera_core::runtime::{LinkedReview, RuntimeStore};
 use chrono::Utc;
 use serde_json::{json, Value};
 
@@ -21,10 +22,16 @@ use super::mobile_pull_request_actions::LINK_CHANGING_ACTIONS;
 pub(super) const HUB_LINKED_REVIEW_KEY: &str = "hubLinkedReview";
 
 /// `summaries` spans every workspace of a project and has no `workspaceId`,
-/// so it is answered where it is asked.
+/// so it is answered where it is asked, and so is a stack create, whose
+/// layers are workspaces of this runtime. The other stack verbs act on one
+/// checkout and follow it.
 pub(super) fn is_forwarded_pull_request_verb(request_type: &str) -> bool {
-    request_type.starts_with("mobile.pullRequest.")
-        && request_type != "mobile.pullRequest.summaries"
+    (request_type.starts_with("mobile.pullRequest.")
+        && request_type != "mobile.pullRequest.summaries")
+        || matches!(
+            request_type,
+            "pullRequestStack.get" | "pullRequestStack.link" | "pullRequestStack.merge"
+        )
 }
 
 /// Hub side: the payload to send to the satellite, carrying the hub's link and
@@ -150,46 +157,6 @@ pub(super) async fn snapshot_for_workspace(
             super::mobile_pull_request_requests::snapshot_mobile_pull_request(store, &payload).await
         }
     }
-}
-
-/// Runs `gh` in the workspace's checkout, locally or over the host link.
-pub(super) async fn run_gh_for_workspace(
-    store: &RuntimeStore,
-    links: &HostLinkRegistry,
-    workspace: &Workspace,
-    args: &[&str],
-) -> HostResult<(i32, String, String)> {
-    let payload = json!({
-        "workspaceId": workspace.id,
-        "executable": "gh",
-        "arguments": args,
-    });
-    let Some(output) = super::host_link_routing::forward_workspace_scoped_request(
-        store,
-        links,
-        super::host_process_requests::HOST_PROCESS_RUN,
-        &payload,
-    )
-    .await?
-    else {
-        return super::mobile_pull_request_requests::run_gh(&workspace.path, args).await;
-    };
-    let text = |key: &str| {
-        output
-            .get(key)
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string()
-    };
-    Ok((
-        output
-            .get("exitCode")
-            .and_then(Value::as_i64)
-            .and_then(|code| i32::try_from(code).ok())
-            .unwrap_or(1),
-        text("stdout"),
-        text("stderr"),
-    ))
 }
 
 #[cfg(test)]

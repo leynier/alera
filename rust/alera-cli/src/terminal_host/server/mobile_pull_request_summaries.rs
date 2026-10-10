@@ -4,8 +4,9 @@
 //! branch lookups, linked numbers, and the check rollup. Project batches run
 //! concurrently so a slow `gh` in one repo cannot starve the rest of the list
 //! past the phone's two-minute timeout. A failed batch stays out of
-//! `evaluatedWorkspaceIds` so the phone keeps last-known icons. Non-GitHub
-//! remotes are a quiet empty group. A project whose folder lives on another
+//! `evaluatedWorkspaceIds` so the phone keeps last-known icons. GitLab and
+//! Azure DevOps projects are read one workspace at a time through their forge
+//! (`pull_request_forges::summaries`); other remotes are a quiet empty group. A project whose folder lives on another
 //! host is answered by that host (`mobile_pull_request_summaries_remote`).
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -22,7 +23,7 @@ use crate::terminal_host::host_link_registry::HostLinkRegistry;
 use super::mobile_pull_request_check_counts::{
     count_check_contexts, status_rollup_contexts, CheckCounts,
 };
-use super::mobile_pull_request_identity::{parse_github_identity, GitHubIdentity};
+use super::mobile_pull_request_identity::GitHubIdentity;
 use super::mobile_pull_request_requests::run_gh;
 
 /// What one project contributed to the batch: its summaries and the
@@ -135,7 +136,7 @@ fn summaries_envelope(
     })
 }
 
-async fn workspace_lookup_branch(workspace: &Workspace) -> Option<String> {
+pub(super) async fn workspace_lookup_branch(workspace: &Workspace) -> Option<String> {
     if let Some(branch) = resolved_workspace_branch(workspace.branch.as_deref(), None) {
         return Some(branch);
     }
@@ -170,10 +171,32 @@ async fn pull_request_summaries_for_project(
             .ok()
             .flatten()
     };
-    let identity = remote_url.as_deref().and_then(parse_github_identity);
-    let Some(identity) = identity else {
+    let forced = match group.first() {
+        Some(workspace) => {
+            super::pull_request_forges::project_forge_override(runtime_store, &workspace.project_id)
+                .await
+        }
+        None => None,
+    };
+    let (Some(url), Some(forge)) = (
+        remote_url.as_deref(),
+        remote_url
+            .as_deref()
+            .and_then(|url| super::pull_request_forges::resolve_identity(url, forced)),
+    ) else {
         return Ok(Vec::new());
     };
+    if forge.kind != super::pull_request_forges::ForgeKind::GitHub {
+        return super::pull_request_forges::forge_project_summaries(
+            runtime_store,
+            repo_path,
+            forge,
+            url,
+            group,
+        )
+        .await;
+    }
+    let identity = forge.github(url);
 
     let mut linked_numbers = BTreeMap::<&str, Option<i64>>::new();
     let mut dismissed_numbers = BTreeMap::<&str, Option<i64>>::new();

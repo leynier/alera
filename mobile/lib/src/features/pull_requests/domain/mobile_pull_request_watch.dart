@@ -55,3 +55,15 @@ abstract interface class MobilePullRequestWatchExecutionClient
   Future<void> startPullRequestWatch(Map<String, Object?> watch);
   Future<void> stopPullRequestWatch(String workspaceId);
 }
+
+/// The runtime's Restack and Fix Failed Checks prompts
+/// (`pullRequest.agentDispatch`), the single source the apps share.
+abstract interface class MobilePullRequestAgentDispatchClient {
+  /// Null when the runtime does not own the prompts or the read failed, so
+  /// the caller uses its bundled prompt.
+  Future<String?> pullRequestAgentPrompt({
+    required String workspaceId,
+    required String kind,
+    int? reviewNumber,
+  });
+}

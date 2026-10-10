@@ -1,0 +1,23 @@
+{
+  "description": "az repos pr show for a completed pull request with conflicts reported",
+  "identity": {
+    "host": "dev.azure.com",
+    "owner": "myorg",
+    "repo": "myrepo",
+    "project": "myproject"
+  },
+  "stdout": "{\"pullRequestId\": 9, \"title\": \"fix: done\", \"status\": \"completed\", \"creationDate\": \"2026-07-12T00:00:00Z\", \"isDraft\": false, \"sourceRefName\": \"refs/heads/fix\", \"targetRefName\": \"refs/heads/main\", \"mergeStatus\": \"conflicts\", \"createdBy\": {\"displayName\": \"Ana\"}, \"lastMergeSourceCommit\": {\"commitId\": \"f00\"}}",
+  "expected": {
+    "review": {
+      "number": 9,
+      "title": "fix: done",
+      "state": "merged",
+      "author": "Ana",
+      "baseBranch": "main",
+      "headBranch": "fix",
+      "headSha": "f00",
+      "mergeable": "conflicting",
+      "url": "https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/9"
+    }
+  }
+}

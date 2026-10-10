@@ -226,7 +226,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 
 ## Pull Request Watch
 
-- GitHub Watch and Fix execution belongs to the runtime when `pullRequestWatchExecutionV1` is advertised. Clients use the shared persisted watch and `pullRequestWatchChanged`; they MUST NOT also dispatch or merge locally. Keep the capability in the control file, `status.get`, and `mobile.hello`. See `docs/pull-request-watch.md` for execution and compatibility boundaries.
+- Watch and Fix execution belongs to the runtime for GitHub when `pullRequestWatchExecutionV1` is advertised, and for GitHub, GitLab, and Azure DevOps when `pullRequestWatchExecutionV2` is. Clients use the shared persisted watch and `pullRequestWatchChanged`; they MUST NOT also dispatch or merge locally for a forge the runtime owns. Keep both capabilities, `pullRequestForgesV1`, `pullRequestAgentDispatchV1`, and `pullRequestStacksV1` in the control file and `status.get` (and the first three in `mobile.hello`). Forge work in the runtime goes through `ForgeProvider` (`rust/alera-cli/src/terminal_host/server/pull_request_forges/`), ported from the desktop providers; keep the shared fixtures in `test/fixtures/forges/` passing in both `forge_shared_fixtures_test.dart` and the Rust `fixture_tests.rs` when either side changes. See `docs/pull-request-watch.md` for execution and compatibility boundaries.
 
 ## Cloud Accounts And Mobile Push
 

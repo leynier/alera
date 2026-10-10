@@ -158,12 +158,14 @@ impl ServerActor {
                     .is_ok()
                 {
                     self.broadcast_pull_request_watch_changed(Some(&watch.workspace_id));
+                    record_watch_event(&self.runtime_store, &watch, "stopped").await;
                 }
             }
             Evaluation::Dispatch { mark, prompt } => {
                 match self.dispatch_pull_request_watch(&mut watch, &prompt).await {
                     Ok(true) => {
                         watch.last_dispatch = Some(mark);
+                        record_watch_event(&self.runtime_store, &watch, "dispatched").await;
                         self.save_runtime_watch(watch).await;
                     }
                     Ok(false) => {}
@@ -210,8 +212,9 @@ impl ServerActor {
                     .await
                     .is_ok_and(|current| current.as_ref() == Some(&watch))
                 {
-                    // GitHub may only have queued the merge. Keep watching until a snapshot confirms it.
+                    // The forge may only have queued the merge. Keep watching until a snapshot confirms it.
                     watch.last_merged_head_sha = Some(head);
+                    record_watch_event(&self.runtime_store, &watch, "merged").await;
                     self.broadcast_authenticated(crate::terminal_host::protocol::event(
                         "linkedReviewsChanged",
                         json!({"workspaceId": watch.workspace_id}),
@@ -291,6 +294,26 @@ impl ServerActor {
     }
 }
 
+/// Appends a `pullRequest.watch` journal entry; the journal never fails the
+/// watch.
+async fn record_watch_event(
+    store: &alera_core::runtime::RuntimeStore,
+    watch: &PullRequestWatch,
+    action: &str,
+) {
+    super::runtime_event_requests::record_runtime_event(
+        store,
+        "pullRequest.watch",
+        Some(&watch.workspace_id),
+        None,
+        &json!({ "number": watch.review_number, "action": action }),
+    )
+    .await;
+}
+
+/// Merges through the watched review's forge on the host that owns the
+/// checkout, bound to the evaluated head so a newer push is never merged
+/// unseen.
 async fn merge(
     store: &alera_core::runtime::RuntimeStore,
     links: &crate::terminal_host::host_link_registry::HostLinkRegistry,
@@ -299,40 +322,23 @@ async fn merge(
     head: &str,
     method: &str,
 ) -> HostResult<String> {
+    use super::pull_request_forges::{snapshot_forge, MergeMethod, WorkspaceRunner};
     let _guard = super::mobile_pull_request_busy::BusyGuard::acquire(&watch.workspace_id)?;
     let workspace = store
         .find_workspace(&watch.workspace_id)
         .await
         .map_err(|e| HostError::state(e.to_string()))?
         .ok_or_else(|| HostError::state("Workspace disappeared."))?;
-    let identity = snapshot["remoteUrl"]
-        .as_str()
-        .and_then(super::mobile_pull_request_identity::parse_github_identity)
-        .ok_or_else(|| HostError::state("GitHub remote unavailable."))?;
-    let flag = match method {
-        "squash" => "--squash",
-        "rebase" => "--rebase",
-        _ => "--merge",
-    };
-    let (code, _, stderr) = super::remote_pull_request_routing::run_gh_for_workspace(
-        store,
-        links,
-        &workspace,
-        &[
-            "pr",
-            "merge",
-            &watch.review_number.to_string(),
-            "--repo",
-            &identity.slug,
-            flag,
-            "--match-head-commit",
-            head,
-        ],
-    )
-    .await?;
-    if code != 0 {
-        return Err(HostError::state(stderr));
-    }
+    let method = MergeMethod::parse(method)
+        .ok_or_else(|| HostError::state(format!("Unknown merge method: {method}")))?;
+    let runner = Arc::new(WorkspaceRunner {
+        store: store.clone(),
+        links: links.clone(),
+        workspace: workspace.clone(),
+    });
+    let forge = snapshot_forge(snapshot, &workspace.path, Some(runner))
+        .ok_or_else(|| HostError::state("The pull request remote is unavailable."))?;
+    forge.merge(watch.review_number, method, Some(head)).await?;
     Ok(head.to_string())
 }
 

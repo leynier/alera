@@ -11,7 +11,6 @@ import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,12 +23,22 @@ Future<void> dispatchPullRequestFailedChecks({
   required String workspaceId,
   required HostedReview review,
 }) async {
+  final prompt =
+      await ref
+          .read(pullRequestAgentWatchRepositoryProvider)
+          .agentDispatchPrompt(
+            workspaceId: workspaceId,
+            kind: 'fixFailedChecks',
+            reviewNumber: review.number,
+          ) ??
+      pullRequestFailedChecksPrompt(review.number);
+  if (!context.mounted) return;
   await showAgentTaskDispatchFlow(
     context,
     ref,
     request: AgentTaskDispatchRequest(
       workspaceId: workspaceId,
-      prompt: pullRequestFailedChecksPrompt(review.number),
+      prompt: prompt,
       message: _agentDispatchMessage,
     ),
   );
@@ -40,12 +49,18 @@ Future<void> dispatchPullRequestRestack({
   required WidgetRef ref,
   required String workspaceId,
 }) async {
+  final prompt =
+      await ref
+          .read(pullRequestAgentWatchRepositoryProvider)
+          .agentDispatchPrompt(workspaceId: workspaceId, kind: 'restack') ??
+      pullRequestRestackPrompt;
+  if (!context.mounted) return;
   await showAgentTaskDispatchFlow(
     context,
     ref,
     request: AgentTaskDispatchRequest(
       workspaceId: workspaceId,
-      prompt: pullRequestRestackPrompt,
+      prompt: prompt,
       title: 'Restack Changes',
       message: _agentDispatchMessage,
     ),
@@ -92,11 +107,9 @@ Future<void> startPullRequestAgentWatch({
   }
   var binding = choice.binding;
   PullRequestAgentWatchDispatchMark? dispatched;
-  final runtimeOwned =
-      review.provider == GitHostingProvider.github &&
-      await ref
-          .read(pullRequestAgentWatchRepositoryProvider)
-          .supportsExecution();
+  final runtimeOwned = await ref
+      .read(pullRequestAgentWatchRepositoryProvider)
+      .ownsExecutionFor(review.provider);
   if (!context.mounted) return;
   if (!runtimeOwned && pullRequestAgentWatchInjectsOnStart(concerns)) {
     final result = await completeAgentTaskDispatch(
