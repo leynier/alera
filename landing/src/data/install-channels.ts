@@ -1,6 +1,7 @@
 import releases from './releases.json';
 
 export { PLUGIN_ARCHIVE, PLUGIN_DOWNLOAD_URL } from './plugin';
+export { CLAUDE_PLUGIN_ARCHIVE, CLAUDE_PLUGIN_ALIAS, CLAUDE_PLUGIN_DOWNLOAD_URL, CLAUDE_PLUGIN_ALIAS_URL } from './claude-plugin';
 
 /**
  * Every install command, asset name and repository detail the site shows,

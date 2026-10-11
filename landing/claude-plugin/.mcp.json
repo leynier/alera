@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "alera": {
+      "type": "http",
+      "url": "https://api.alera.build/v1/mcp"
+    }
+  }
+}

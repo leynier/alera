@@ -85,6 +85,18 @@ jobs:
             landing/test-results
           retention-days: 7
 
+      - name: Upload Claude web plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-claude-plugin
+          path: |
+            landing/dist/downloads/alera-claude-plugin.zip
+            landing/dist/downloads/alera-claude-plugin.zip.sha256
+            landing/dist/downloads/alera-claude.plugin
+            landing/dist/downloads/alera-claude.plugin.sha256
+          if-no-files-found: error
+          retention-days: 30
+
   landing-ready:
     name: landing-ready
     if: always()

@@ -59,6 +59,8 @@ This document defines governance only. It does not change runtime APIs, schemas,
 
 ## Bun Usage
 
+- `claude-plugin/` owns the separate Claude web upload manifest, remote connector, README, and setup skill. `config/claude-plugin-download.ts` publishes deterministic ZIP and `.plugin` aliases with separate checksums. Adapt MCP skills in the Claude builder only; preserve the ChatGPT sources and archive when changing only the Claude package. Bump the Claude manifest version on subsequent Claude releases. Document web OAuth separately from CLI validation and do not add credentials or unsupported web scope overrides.
+
 - Use Bun for landing dependency and script commands.
 - Use `bun install` instead of `npm install`, `yarn install`, or `pnpm install`.
 - Use `bun run dev` for local development.
