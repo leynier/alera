@@ -36,7 +36,7 @@ The remote connector uses standard OAuth discovery with the existing Alera servi
 Claude web chooses requested scopes from the server's OAuth challenge and metadata. Alera's resource metadata currently advertises read, execute, and administrative scopes. This package does not pin the web scope request to read and execute. Review the actual consent screen and the selected runtimes. Runtime Read access is enough for inspection; Full access permits commands and changes. Administrative access is a deliberate separate choice. The package does not change grants or MCP Control settings.
 </Callout>
 
-If a tool returns `insufficient_scope`, setup explains the permission needed for that action. It does not bypass the failure or automatically upgrade access. Read more about [remote access and the cloud path](/docs/remote-access): requests pass through Alera's cloud service, which sees MCP arguments and results.
+If a tool returns `insufficient_scope`, setup explains the permission needed for that action. It does not bypass the failure or automatically upgrade access. Remote MCP arguments and results pass through Alera's cloud over TLS and are not end-to-end encrypted. The cloud can read these payloads while forwarding them but does not store them. See the [Privacy Policy](/privacy) for general data handling.
 
 ## Included Skills
 

@@ -13,7 +13,9 @@ Use `landing/claude-plugin/` for Claude-only manifest, MCP configuration, README
 - [x] Verify official web, manifest, upload, and OAuth documentation and inspect PR #932 and its existing watch.
 - [x] Implement the independent package and web downloads.
 - [x] Verify archive constraints, skill adaptations, original ZIP preservation, and desktop/mobile downloads.
-- [ ] Ship changes through the current open PR or a continuation if it merges, and follow the existing watch through checks and merge.
+- [x] Ship changes through PR #932 and retain its existing Watch, Fix and Merge session.
+
+Delivery-time CI, review fixes, and merge verification are tracked by the runtime watch and `build/claude-plugin/delivery-tracker.md`; real Claude account authorization is outside package validation.
 
 ## Tests And Assumptions
 
