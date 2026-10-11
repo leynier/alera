@@ -294,6 +294,7 @@ Alera ships two sets of skills that teach agents how to use it.
   - They live in `edge/skills/`: `alera-mcp`, `alera-mcp-orchestration`, `alera-mcp-automations`, and `alera-mcp-agent-profiles`.
   - They are for MCP clients, and they name MCP tools instead of commands.
   - Only the edge serves them, through `list_skills` and `read_skill`. Runtimes MUST NOT bundle or serve them.
+  - The website's downloadable plugin packages these same source files at build time, plus a plugin-only setup skill from `landing/plugin/`. Runtime binaries still do not bundle them. See `docs/plugin-bundle.md` for packaging and versioning.
 
 ### When To Update Them
 
@@ -318,6 +319,7 @@ Alera ships two sets of skills that teach agents how to use it.
   3. the version and digest in `rust/alera-cli/tests/skill_version_matches_binary.rs`. The test prints the digest it expects.
 - **Why it matters for CLI skills:** `alera skill status` and `check_agent_skills` decide whether an installed copy is current by its version.
 - **MCP skills:** bump an MCP skill's `metadata.version` when its guidance changes in substance.
+- **Downloadable plugin:** bump `landing/plugin/plugin.json`'s version when a change affects its bundled skills, metadata, onboarding, or assets.
 
 ### Writing Them
 

@@ -1,4 +1,6 @@
 import { fileURLToPath } from 'node:url';
+// Astro closes its config module runner before build:done, so load this eagerly.
+import * as pagefind from 'pagefind';
 
 // Builds the Pagefind index for /docs inside `astro:build:done`, so the index
 // exists whether the host runs `astro build` directly (Vercel) or through
@@ -9,7 +11,6 @@ export function docsSearchIndex() {
     name: 'alera-docs-search-index',
     hooks: {
       'astro:build:done': async ({ dir, logger }) => {
-        const pagefind = await import('pagefind');
         try {
           const { index, errors: createErrors } = await pagefind.createIndex({});
           if (!index) {

@@ -1,0 +1,59 @@
+---
+title: Alera For Claude Web
+description: Upload the independent Alera plugin in Claude web, connect its remote MCP connector through OAuth, and use the bundled workflow skills.
+updatedDate: 2026-10-10
+---
+
+import { CLAUDE_PLUGIN_ALIAS_URL, CLAUDE_PLUGIN_DOWNLOAD_URL, CLAUDE_PLUGIN_MCP_URL, CLAUDE_PLUGIN_VERSION } from '../../data/claude-plugin';
+
+This independent package is for **Claude web chat**. It includes guided setup, four Alera workflow skills with their references, a remote MCP connector, the Alera logo, and the MIT license. The [ChatGPT and Codex package](/docs/plugin) remains a separate download.
+
+<DocLinkButton href={CLAUDE_PLUGIN_DOWNLOAD_URL}>Download Claude Plugin ZIP</DocLinkButton>
+<DocLinkButton href={CLAUDE_PLUGIN_ALIAS_URL} variant="secondary">Download .plugin</DocLinkButton>
+<DocLinkButton href={`${CLAUDE_PLUGIN_DOWNLOAD_URL}.sha256`} variant="secondary">ZIP Checksum</DocLinkButton>
+<DocLinkButton href={`${CLAUDE_PLUGIN_ALIAS_URL}.sha256`} variant="secondary">.plugin Checksum</DocLinkButton>
+
+Version: **{CLAUDE_PLUGIN_VERSION}**. Both downloads contain the same ZIP archive bytes; Claude accepts either extension.
+
+## Install In Claude Web
+
+<Steps>
+
+1. Sign in to Claude on a paid Pro, Max, Team, or Enterprise plan. Open **Customize → Plugins → Add → Upload plugin** and select the ZIP or `.plugin` download directly.
+2. Open the installed Alera plugin and its **Connectors** tab. Add Alera if it shows **Not added**, then connect it and sign in to Alera through OAuth. On Team or Enterprise, an Owner may need to add the connector first.
+3. [Install Alera](/download) on the machine you want to use, open it, and sign in under **Settings → Account**. Under **Settings → MCP Access → MCP Control**, choose access for the intended work. Keep the app or standalone runtime running.
+4. In a Claude web chat, type `/`, select the Alera setup skill, and ask: “Show my Alera runtimes and projects.” Setup uses read-only calls; an empty project list is a valid result.
+
+</Steps>
+
+Uploading the plugin loads its skills but does not add or connect the connector, authorize access, or start Alera. If a connector is already connected on your account, Claude can reuse it. The fixed MCP URL is **{CLAUDE_PLUGIN_MCP_URL}**. If your organization's policies block installation or adding the connector, an Owner must decide whether to allow it.
+
+## OAuth And Runtime Access
+
+The remote connector uses standard OAuth discovery with the existing Alera service. No credentials are bundled. Do not paste tokens into chat or edit authentication headers into the plugin.
+
+<Callout type="caution">
+Claude web chooses requested scopes from the server's OAuth challenge and metadata. Alera's resource metadata currently advertises read, execute, and administrative scopes. This package does not pin the web scope request to read and execute. Review the actual consent screen and the selected runtimes. Runtime Read access is enough for inspection; Full access permits commands and changes. Administrative access is a deliberate separate choice. The package does not change grants or MCP Control settings.
+</Callout>
+
+If a tool returns `insufficient_scope`, setup explains the permission needed for that action. It does not bypass the failure or automatically upgrade access. Remote MCP arguments and results pass through Alera's cloud over TLS and are not end-to-end encrypted. The cloud can read these payloads while forwarding them but does not store them. See the [Privacy Policy](/privacy) for general data handling.
+
+## Included Skills
+
+| Skill | Purpose |
+| --- | --- |
+| Alera Setup | Connect Alera and verify the chosen runtime with read-only calls |
+| Alera Workspaces | Projects, workspaces, agent terminals, pull requests, and runtime state |
+| Alera Orchestration | Delegate to agents in Alera and follow tasks, coordinator runs, and gates |
+| Alera Automations | Scheduled agent work and automation runs |
+| Alera Agent Profiles | Agent launch profiles and their configuration |
+
+Orchestration uses agents running on your Alera runtime. Claude web chat does not run plugin subagents or hooks. This package contains no local MCP server or CLI installer. Its references are bundled for Claude to read; no OpenAI dependency metadata is used.
+
+## Compatibility And Verification
+
+The package follows Anthropic's documented web upload format, remote HTTP connector configuration, skill format, and upload limits. The logo and support, privacy, terms, and documentation URLs use documented directory listing fields; they do not guarantee a particular icon display for a custom upload or publish Alera in Anthropic's directory.
+
+Automated checks verify package structure, both downloads, checksums, skills, and desktop/mobile website behavior. A Claude Code validation checks the package format only. Neither those checks nor a CLI installation verifies a real Claude web upload, connector sign-in, token exchange, refresh, or access to your runtime. Those remain account-level checks after installation. Installing from Claude Code does not add a plugin to your Claude web account.
+
+See Anthropic's [web plugin instructions](https://support.claude.com/en/articles/13837440-use-plugins-in-claude), [plugin structure and testing](https://claude.com/docs/plugins/build), and [connector authentication](https://claude.com/docs/connectors/building/authentication). Enterprise pipeline publishing through the [Plugins API](https://platform.claude.com/docs/en/manage-claude/plugins-api) is separate and requires scoped administrator credentials; no API upload or organization permission change is part of this download.

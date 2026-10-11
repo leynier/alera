@@ -1,0 +1,16 @@
+{
+  "name": "alera",
+  "displayName": "Alera",
+  "version": "1.0.0",
+  "description": "Manage Alera runtimes, workspaces, coding agents, pull requests, and automations from Claude web through the remote Alera connector.",
+  "author": { "name": "Leynier Gutiérrez González", "url": "https://leynier.dev" },
+  "homepage": "https://alera.build/docs/claude-plugin",
+  "repository": "https://github.com/leynier/alera",
+  "license": "MIT",
+  "keywords": ["alera", "mcp", "workspaces", "coding-agents", "automations"],
+  "icon": "./assets/logo.png",
+  "documentationUrl": "https://alera.build/docs/claude-plugin",
+  "supportUrl": "https://github.com/leynier/alera/issues",
+  "privacyPolicyUrl": "https://alera.build/privacy",
+  "termsOfServiceUrl": "https://alera.build/terms"
+}

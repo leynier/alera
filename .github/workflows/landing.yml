@@ -8,6 +8,10 @@ on:
       - reopened
     paths:
       - 'landing/**'
+      - 'edge/skills/**'
+      - 'edge/tool/skill_catalog.ts'
+      - 'assets/logo/alera-logo.png'
+      - 'LICENSE'
       - '.github/workflows/landing.yml'
   workflow_dispatch:
 
@@ -61,6 +65,16 @@ jobs:
       - name: End-to-end tests
         run: bunx playwright test
 
+      - name: Upload plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-plugin
+          path: |
+            landing/dist/downloads/alera-plugin.zip
+            landing/dist/downloads/alera-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v7
@@ -70,6 +84,48 @@ jobs:
             landing/playwright-report
             landing/test-results
           retention-days: 7
+
+      - name: Upload Claude web plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-claude-plugin
+          path: |
+            landing/dist/downloads/alera-claude-plugin.zip
+            landing/dist/downloads/alera-claude-plugin.zip.sha256
+            landing/dist/downloads/alera-claude.plugin
+            landing/dist/downloads/alera-claude.plugin.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload GrokBot Cursor plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-grokbot-cursor-plugin
+          path: |
+            landing/dist/downloads/alera-grokbot-cursor-plugin.zip
+            landing/dist/downloads/alera-grokbot-cursor-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload pure Agent Plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-agent-plugin
+          path: |
+            landing/dist/downloads/alera-agent-plugin.zip
+            landing/dist/downloads/alera-agent-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload GitHub Copilot plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-copilot-plugin
+          path: |
+            landing/dist/downloads/alera-copilot-plugin.zip
+            landing/dist/downloads/alera-copilot-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
 
   landing-ready:
     name: landing-ready

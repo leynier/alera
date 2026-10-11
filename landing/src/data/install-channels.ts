@@ -1,5 +1,11 @@
 import releases from './releases.json';
 
+export { PLUGIN_ARCHIVE, PLUGIN_DOWNLOAD_URL } from './plugin';
+export { CLAUDE_PLUGIN_ARCHIVE, CLAUDE_PLUGIN_ALIAS, CLAUDE_PLUGIN_DOWNLOAD_URL, CLAUDE_PLUGIN_ALIAS_URL } from './claude-plugin';
+export { CURSOR_PLUGIN_ARCHIVE, CURSOR_PLUGIN_DOWNLOAD_URL } from './cursor-plugin';
+export { AGENT_PLUGIN_ARCHIVE, AGENT_PLUGIN_DOWNLOAD_URL } from './agent-plugin';
+export { COPILOT_PLUGIN_ARCHIVE, COPILOT_PLUGIN_DOWNLOAD_URL } from './copilot-plugin';
+
 /**
  * Every install command, asset name and repository detail the site shows,
  * in one place: the download page, the home Install section and the docs all

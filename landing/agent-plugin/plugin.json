@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "alera-agent",
+  "version": "1.0.0",
+  "description": "Portable Alera workflow skills and remote MCP access for Agent Plugins 1.0 clients.",
+  "author": { "name": "Leynier Gutiérrez González", "url": "https://leynier.dev" },
+  "homepage": "https://alera.build/docs/agent-plugin",
+  "repository": "https://github.com/leynier/alera",
+  "license": "MIT",
+  "keywords": ["alera", "mcp", "workspaces", "coding-agents", "automations"]
+}
