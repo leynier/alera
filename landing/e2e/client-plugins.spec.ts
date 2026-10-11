@@ -47,6 +47,46 @@ test('serves all five independent plugin downloads with valid checksums and exis
 });
 
 for (const width of [1440, 390]) {
+  test(`shows all five compatibility notices before download actions at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/download');
+    const cards = [
+      { id: 'plugin', terms: [/desktop.only/i, /remote HTTPS/i, /without registering the MCP URL manually/i, /OAuth/i] },
+      { id: 'claude-plugin', terms: [/paid Claude plan/i, /Connectors Tab/i, /unidentified experimental ZIP/i, /does not verify every package/i] },
+      { id: 'grokbot-cursor-plugin', terms: [/Cursor:/i, /plugins\/local\//i, /Grok Bot:/i, /arbitrary ZIP import/i] },
+      { id: 'agent-plugin', terms: [/Agent Plugins 1\.0/i, /does not define a universal ZIP installer/i, /authorization flow/i] },
+      { id: 'copilot-plugin', terms: [/Copilot CLI:/i, /VS Code:/i, /GitHub Copilot App:/i, /shared OAuth grant/i] },
+    ];
+    for (const { id, terms } of cards) {
+      const card = page.locator(`#${id}`);
+      const notice = card.locator('[data-plugin-installation]');
+      await expect(notice).toBeVisible();
+      for (const term of terms) await expect(notice).toContainText(term);
+      const actions = card.locator('a[download]');
+      for (const action of await actions.all()) {
+        expect(await notice.evaluate((node, link) => Boolean(node.compareDocumentPosition(link as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await action.elementHandle())).toBe(true);
+        const noticeBox = await notice.boundingBox();
+        const actionBox = await action.boundingBox();
+        expect(noticeBox!.y + noticeBox!.height).toBeLessThanOrEqual(actionBox!.y);
+      }
+      await card.scrollIntoViewIfNeeded();
+      if (!process.env.CI) await card.screenshot({ path: `../build/plugin-distributions/before-download-${id}-${width}.png` });
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const violations = (await new AxeBuilder({ page }).analyze()).violations.filter(({ impact }) => ['serious', 'critical'].includes(impact ?? ''));
+    expect(violations.map(({ id, help }) => `${id}: ${help}`)).toEqual([]);
+    await page.goto('/#install');
+    const compatibility = page.getByRole('link', { name: 'Compare Plugin Compatibility And Installation', exact: true });
+    await expect(compatibility).toBeVisible();
+    await expect(compatibility).toHaveAttribute('href', '/download#plugin');
+    await compatibility.scrollIntoViewIfNeeded();
+    const summaryBox = await compatibility.locator('..').boundingBox();
+    const homeActionBox = await page.locator('#install [role="tabpanel"]:not([hidden]) a').first().boundingBox();
+    expect(summaryBox!.y + summaryBox!.height).toBeLessThanOrEqual(homeActionBox!.y);
+    if (!process.env.CI) await page.locator('#install').screenshot({ path: `../build/plugin-distributions/before-download-home-${width}.png` });
+  });
+
   test(`shows three new setup guides with honest compatibility limits at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -5,9 +5,20 @@ import { COPILOT_PLUGIN_ARCHIVE, COPILOT_PLUGIN_DOWNLOAD_URL, COPILOT_PLUGIN_LAB
 import { CURSOR_PLUGIN_ARCHIVE, CURSOR_PLUGIN_DOWNLOAD_URL, CURSOR_PLUGIN_LABEL, CURSOR_PLUGIN_VERSION } from '../../data/cursor-plugin';
 
 const distributions = [
-  { id: 'grokbot-cursor-plugin', label: CURSOR_PLUGIN_LABEL, version: CURSOR_PLUGIN_VERSION, archive: CURSOR_PLUGIN_ARCHIVE, url: CURSOR_PLUGIN_DOWNLOAD_URL, button: 'Download GrokBot Cursor ZIP', description: 'Includes Cursor Local Plugin Setup, Workflow Skills, And Remote MCP. Grok Bot Requires A Separately Available Marketplace Connection; ZIP Import There Is Not Documented.' },
-  { id: 'agent-plugin', label: AGENT_PLUGIN_LABEL, version: AGENT_PLUGIN_VERSION, archive: AGENT_PLUGIN_ARCHIVE, url: AGENT_PLUGIN_DOWNLOAD_URL, button: 'Download Agent Plugin ZIP', description: 'A Pure Agent Plugins 1.0 Package With Portable Skills And Streamable HTTP MCP. Installation And OAuth Depend On Your Client; No Provider Extensions Are Included.' },
-  { id: 'copilot-plugin', label: COPILOT_PLUGIN_LABEL, version: COPILOT_PLUGIN_VERSION, archive: COPILOT_PLUGIN_ARCHIVE, url: COPILOT_PLUGIN_DOWNLOAD_URL, button: 'Download Copilot Plugin ZIP', description: 'Includes GitHub Copilot CLI, VS Code, And App Guidance. Local CLI And VS Code Loading Are Documented; App Installation Depends On Marketplace Availability.' },
+  { id: 'grokbot-cursor-plugin', label: CURSOR_PLUGIN_LABEL, version: CURSOR_PLUGIN_VERSION, archive: CURSOR_PLUGIN_ARCHIVE, url: CURSOR_PLUGIN_DOWNLOAD_URL, button: 'Download GrokBot Cursor ZIP', description: 'Includes Cursor Local Plugin Setup, Workflow Skills, And Remote MCP.', installation: [
+    'Cursor: Extract The ZIP And Copy Its Complete Folder Into ~/.cursor/plugins/local/. Reload Cursor, Check Customize, And Connect Alera Through OAuth. Local Imports Must Be Allowed By Your Organization.',
+    'Grok Bot: Install Alera Only If Offered Under Plugins, Then Authorize It. Arbitrary ZIP Import And Cursor Account Synchronization Are Not Documented; This Download Does Not Publish A Marketplace Listing.',
+  ] },
+  { id: 'agent-plugin', label: AGENT_PLUGIN_LABEL, version: AGENT_PLUGIN_VERSION, archive: AGENT_PLUGIN_ARCHIVE, url: AGENT_PLUGIN_DOWNLOAD_URL, button: 'Download Agent Plugin ZIP', description: 'A Pure Agent Plugins 1.0 Package With Portable Skills And Streamable HTTP MCP. No Provider Extensions Are Included.', installation: [
+    'Use A Client That Supports Agent Plugins 1.0 Skills And Remote MCP. Extract The ZIP And Import The Folder According To That Client\'s Instructions.',
+    'The Standard Does Not Define A Universal ZIP Installer Or OAuth Setup. Complete Your Client\'s Authorization Flow And Choose Runtime Access; Compatibility Depends On The Client.',
+  ] },
+  { id: 'copilot-plugin', label: COPILOT_PLUGIN_LABEL, version: COPILOT_PLUGIN_VERSION, archive: COPILOT_PLUGIN_ARCHIVE, url: COPILOT_PLUGIN_DOWNLOAD_URL, button: 'Download Copilot Plugin ZIP', description: 'An Independent Package For GitHub Copilot CLI, VS Code, And The GitHub Copilot App.', installation: [
+    'Copilot CLI: Extract The ZIP And Run copilot plugin install ./alera-copilot. Current CLI Validation Recognizes Skills And MCP; Direct Install Is Deprecated For A Future Marketplace-only Release.',
+    'VS Code: Register The Extracted Folder In chat.pluginLocations With Plugin Support Enabled. Organization Policies Apply.',
+    'GitHub Copilot App: Browse Customize > Plugins For Available Marketplace Plugins. CLI-configured Skills And MCP Are Documented As Available In The App; Check Your Actual Inventory. App ZIP Upload And A Shared OAuth Grant Are Not Established.',
+    'Sign In Through The Chosen Client\'s MCP Authorization Flow When Required. This Is GitHub Copilot, Not Microsoft 365 Copilot.',
+  ] },
 ];
 ---
 
@@ -19,6 +30,10 @@ const distributions = [
       <span class="ml-auto rounded-pill border border-border px-2.5 py-1 text-label-md text-foreground-faint">v{distribution.version}</span>
     </div>
     <p class="mb-5 text-body-md leading-relaxed text-foreground-muted">{distribution.description}</p>
+    <div data-plugin-installation class="mb-5 space-y-3 text-body-md leading-relaxed text-foreground-muted">
+      <h3 class="text-title-md text-foreground">Compatibility And Installation</h3>
+      {distribution.installation.map((instruction) => <p class="break-words">{instruction}</p>)}
+    </div>
     <div class="flex flex-wrap items-center gap-3">
       <a href={distribution.url} download={distribution.archive} class="inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90"><Download size={16} aria-hidden="true" />{distribution.button}</a>
       <a href={`/docs/${distribution.id}`} class="text-body-md text-foreground-faint underline underline-offset-4 transition-colors duration-fast hover:text-foreground">{distribution.label} Setup</a>

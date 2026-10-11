@@ -10,10 +10,14 @@ import { CLAUDE_PLUGIN_ALIAS_URL, CLAUDE_PLUGIN_ARCHIVE, CLAUDE_PLUGIN_DOWNLOAD_
     <span class="ml-auto rounded-pill border border-border px-2.5 py-1 text-label-md text-foreground-faint">v{CLAUDE_PLUGIN_VERSION}</span>
   </div>
   <p class="mb-5 text-body-md leading-relaxed text-foreground-muted">Upload To Customize &gt; Plugins In Claude Web. Includes Guided Setup, Workflow Skills, References, And The Remote Alera Connector.</p>
+  <div data-plugin-installation class="mb-5 space-y-3 text-body-md leading-relaxed text-foreground-muted">
+    <h3 class="text-title-md text-foreground">Compatibility And Installation</h3>
+    <p>Requires A Paid Claude Plan. Upload The ZIP Or .plugin Through Customize &gt; Plugins. In The Plugin's Connectors Tab, Add And Connect Alera, Then Sign In Through OAuth.</p>
+    <p>One User Reported Preliminary Claude Web Success With An Unidentified Experimental ZIP. This Does Not Verify Every Package Or A Complete OAuth Flow.</p>
+  </div>
   <div class="flex flex-wrap items-center gap-3">
     <a href={CLAUDE_PLUGIN_DOWNLOAD_URL} download={CLAUDE_PLUGIN_ARCHIVE} class="inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90"><Download size={16} aria-hidden="true" />Download Claude Plugin ZIP</a>
     <a href={CLAUDE_PLUGIN_ALIAS_URL} download class="text-body-md text-foreground-faint underline underline-offset-4 transition-colors duration-fast hover:text-foreground">Download .plugin</a>
     <a href="/docs/claude-plugin" class="text-body-md text-foreground-faint underline underline-offset-4 transition-colors duration-fast hover:text-foreground">Claude Web Setup</a>
   </div>
-  <p class="mt-4 text-body-md leading-relaxed text-foreground-faint">Requires A Paid Claude Plan. After Upload, Add And Connect Alera From The Plugin's Connectors Tab, Then Sign In Through OAuth.</p>
 </section>
