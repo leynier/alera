@@ -1,0 +1,63 @@
+---
+title: GitHub Copilot
+description: Download the independent Alera GitHub Copilot plugin and follow separate installation guidance for Copilot CLI, VS Code, and the GitHub Copilot app.
+updatedDate: 2026-10-10
+---
+
+import { COPILOT_PLUGIN_DOWNLOAD_URL, COPILOT_PLUGIN_VERSION } from '../../data/copilot-plugin';
+
+This fifth distribution targets **GitHub Copilot**, including Copilot CLI, VS Code, and the GitHub Copilot app. It is not a Microsoft 365 Copilot package. Its identifier is `alera-copilot`; it uses the officially recommended Agent Plugins 1.0.0 format with five skills, their references, and root `mcp.json` for the remote Alera service. [ChatGPT](/docs/plugin), [Claude web](/docs/claude-plugin), [GrokBot Cursor](/docs/grokbot-cursor-plugin), and the pure [Agent Plugin](/docs/agent-plugin) remain separate downloads.
+
+<DocLinkButton href={COPILOT_PLUGIN_DOWNLOAD_URL}>Download Copilot Plugin ZIP</DocLinkButton>
+<DocLinkButton href={`${COPILOT_PLUGIN_DOWNLOAD_URL}.sha256`} variant="secondary">ZIP Checksum</DocLinkButton>
+
+Version: **{COPILOT_PLUGIN_VERSION}**.
+
+## Copilot CLI
+
+Extract the complete `alera-copilot` directory, then install from its parent folder:
+
+```sh
+copilot plugin install ./alera-copilot
+copilot plugin list
+```
+
+For a session-only mount, use `copilot --plugin-dir ./alera-copilot` instead. In a session, invoke `/alera-setup` and check actual Alera tools. Copilot CLI documents local-directory installation; it does not accept this ZIP as a documented install specification. Keep the hidden and reference files intact when extracting. See [finding and installing plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing) and the [CLI reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference). Organization policy can restrict CLI or plugins.
+
+Copilot CLI 1.0.95 successfully loads this format in an isolated local installation, including five skills and the Alera MCP configuration. It warns that direct installs are deprecated for a future marketplace-only release, while the current reference still documents local paths. This local check did not connect or authenticate the server; it does not verify the app or VS Code.
+
+## VS Code
+
+Current VS Code documents Agent Plugins 1.0. With plugin support enabled, register the extracted folder by its actual absolute path in `chat.pluginLocations`:
+
+```json
+{
+  "chat.pluginLocations": {
+    "/absolute/path/to/alera-copilot": true
+  }
+}
+```
+
+Inspect Agent Customizations and **MCP: List Servers**. The documented `chat.plugins.enabled` setting controls plugin support; choose enablement in your own settings if permitted by policy. VS Code also documents discovering CLI-installed plugins under `~/.copilot/installed-plugins/`; confirm what appears in your actual inventory. Agent Host `/plugin` operations and the Agent Customizations editor currently use separate inventories. These instructions do not imply shared OAuth grants. No user settings or persistent permissions are changed by this download. See [VS Code's plugin guide](https://code.visualstudio.com/docs/agent-customization/agent-plugins).
+
+## GitHub Copilot App
+
+The app's documented route is **Customize → Plugins** to browse marketplaces and install available plugins. If Alera is separately offered in a configured marketplace, install it there and verify the resulting skills and MCP tools. This change does not publish Alera in a marketplace or establish a direct app ZIP-upload route. CLI loading or VS Code discovery is not proof of app installation or sign-in. GitHub's [plugin overview](https://docs.github.com/en/copilot/concepts/agents/about-plugins) documents these different client installation paths; cloud-agent repository configuration is another separate deployment path, not a claim of app availability.
+
+## Image And Logo Support
+
+<Callout type="note">
+The reviewed GitHub CLI reference and VS Code plugin guide document no `logo`, `icon`, or `interface` field, and no supported image field inside `com.github.copilot`. That namespace is documented for client components, not as an arbitrary UI metadata contract. This package therefore contains no invented logo field or decorative image. The website card uses Alera's existing logo; displaying an image inside Copilot is not established by the reviewed documentation and has not been tested.
+</Callout>
+
+The package needs only portable skills and MCP, so no `com.github.copilot` extension is necessary. The independent Agent Plugin remains free of all provider extensions as well.
+
+## MCP, OAuth, And Runtime Access
+
+The standard remote configuration declares `type: "streamable-http"` at `https://api.alera.build/v1/mcp`. Connect through the chosen surface's MCP authorization interface when requested. GitHub documents [CLI MCP setup](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#using-copilot-mcp), and VS Code documents [MCP authorization](https://code.visualstudio.com/api/extension-guides/ai/mcp). Those capabilities do not prove a successful Alera login in each surface. No static client identifier, secret, bearer header, or scope override is included.
+
+Start Alera on the intended runtime and sign in under **Settings → Account**. Its owner chooses access under **Settings → MCP Access → MCP Control**. Review actual consent and selected runtimes: Alera currently advertises read, execute, and administrative scopes, and this package does not constrain them. Read access is sufficient for setup. Stop on `insufficient_scope` without bypassing it, automatically reconnecting, or upgrading access to test connectivity. Remote MCP payloads pass through Alera's cloud over TLS, readable during forwarding and not stored by the forwarding service. See the [Privacy Policy](/privacy) for general handling.
+
+## Verification Limits
+
+Tests validate the official 1.0.0 schemas, explicit remote transport, five skills, authorization rules, archive contents, deterministic checksum, and website downloads at mobile and desktop widths. They preserve the previous distributions and reject invented image fields. Format or session-only CLI discovery is not a persisted installation and does not verify the app, VS Code, OAuth exchange, token refresh, or runtime access. Those require real-client and real-account checks after installation.

@@ -1,0 +1,47 @@
+---
+title: Agent Plugin
+description: Install the pure Alera Agent Plugins 1.0 package in a compatible client, with portable skills and remote MCP and no vendor extensions.
+updatedDate: 2026-10-10
+---
+
+import { AGENT_PLUGIN_DOWNLOAD_URL, AGENT_PLUGIN_VERSION } from '../../data/agent-plugin';
+
+**Agent Plugin** is the pure portable distribution of Alera, targeting **Agent Plugins 1.0.0**. It contains root `plugin.json`, root `mcp.json`, five immediate skill directories with references, a generic README, and the MIT license. The identifier is `alera-agent`. There are no provider extensions, client manifests, client-specific metadata, hooks, agents, installers, or authentication headers. The standard defines no display-name or logo field; neither is invented.
+
+<DocLinkButton href={AGENT_PLUGIN_DOWNLOAD_URL}>Download Agent Plugin ZIP</DocLinkButton>
+<DocLinkButton href={`${AGENT_PLUGIN_DOWNLOAD_URL}.sha256`} variant="secondary">ZIP Checksum</DocLinkButton>
+
+Package version: **{AGENT_PLUGIN_VERSION}**. This is separate from [ChatGPT](/docs/plugin), [Claude web](/docs/claude-plugin), [GrokBot Cursor](/docs/grokbot-cursor-plugin), and [GitHub Copilot](/docs/copilot-plugin).
+
+## Generic Installation
+
+<Steps>
+
+1. Choose a client that explicitly supports Agent Plugins 1.0.0, Agent Skills, and Streamable HTTP MCP. Check its current documentation for supported components and authorization.
+2. Download the ZIP and checksum, verify the archive bytes, and extract the complete `alera-agent` folder. Follow the client's own plugin import or folder-loading procedure, selecting the directory containing root `plugin.json`.
+3. Confirm five discovered skills and the `alera` MCP server. Connect through the client's authorization interface when requested. Keep credentials in the client's storage, never in chat or package files.
+4. Start Alera on the intended machine, sign in under **Settings → Account**, and let the owner choose runtime access under **Settings → MCP Access → MCP Control**. Load `alera-setup` through the client's skill interface and ask to inspect runtimes and projects. Read access is enough; no workspace or agent is created as a setup test.
+
+</Steps>
+
+The standard does not define a universal installation command, folder, ZIP-upload UI, marketplace, enabled state, or update mechanism. See the [authoring guide](https://agent-plugins.org/plugin-authors/build-an-agent-plugin) and the [compatible-client catalog](https://agent-plugins.org/compatible-clients), then verify the chosen client's actual capabilities. Schema conformance does not mean every client supports this server or its authorization.
+
+## Portable Skills And Remote MCP
+
+The two JSON documents declare the canonical **1.0.0** schema URLs. MCP uses the explicit standard transport `streamable-http` at `https://api.alera.build/v1/mcp`. Skills follow [Agent Skills](https://agentskills.io/specification), including string-valued metadata, and are discovered from immediate children of `skills/`. References are read through client file-reading facilities; if unavailable, the exposed remote `read_skill` tool is an optional fallback whose version can differ.
+
+Authorization, preview-before-removal, explicit merge scope, idempotent retries, administrative access, and explicit permission for reduced protections remain in the skills. Examples of agent profiles describe programs launched on Alera runtimes, not requirements for the plugin client. Orchestration uses those Alera agents rather than native client subagents.
+
+## OAuth And Interoperability Limits
+
+<Callout type="caution">
+Agent Plugins 1.0 defines no OAuth settings, scope configuration, or portable credential references. Authorization discovery, consent, and storage belong to each client. A client may load skills while lacking remote MCP or the authorization support needed by Alera. An authentication failure is separate from package validity.
+</Callout>
+
+Alera exposes public discovery and dynamic registration. This package does not constrain the advertised read, execute, or administrative scope request. Review the actual consent and selected runtimes. Setup does not reconnect automatically, bypass `insufficient_scope`, or upgrade permissions as a connectivity test. Remote MCP payloads travel through Alera's cloud over TLS, readable during forwarding and not stored by the forwarding service. See the [Privacy Policy](/privacy) for general handling.
+
+## Validation
+
+Build and tests validate `plugin.json` and `mcp.json` against pinned copies of the [official JSON Schemas](https://agent-plugins.org/schemas), using draft 2020-12. Additional checks cover HTTPS URL semantics, contained regular archive files, absence of extension data and client-specific files, Agent Skills frontmatter, authorization instructions, deterministic ZIPs, checksums, all five downloads, and website behavior. Schemas and validator dependencies are build inputs and are not bundled.
+
+These checks do not prove real installation, OAuth exchange, refresh, runtime access, or interoperability in any particular client. The [normative specification](https://agent-plugins.org/specification) governs the package; each client's implementation and policy determine which components can be used.

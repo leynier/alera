@@ -97,6 +97,36 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Upload GrokBot Cursor plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-grokbot-cursor-plugin
+          path: |
+            landing/dist/downloads/alera-grokbot-cursor-plugin.zip
+            landing/dist/downloads/alera-grokbot-cursor-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload pure Agent Plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-agent-plugin
+          path: |
+            landing/dist/downloads/alera-agent-plugin.zip
+            landing/dist/downloads/alera-agent-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload GitHub Copilot plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-copilot-plugin
+          path: |
+            landing/dist/downloads/alera-copilot-plugin.zip
+            landing/dist/downloads/alera-copilot-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
   landing-ready:
     name: landing-ready
     if: always()

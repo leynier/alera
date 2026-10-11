@@ -6,6 +6,7 @@ import { aleraCodeTheme } from './config/alera-code-theme.mjs';
 import { docsSearchIndex } from './config/docs-search-index.mjs';
 import { pluginDownload } from './config/plugin-download.ts';
 import { claudePluginDownload } from './config/claude-plugin-download.ts';
+import { clientPluginDownloads } from './config/client-plugin-downloads.ts';
 
 const unlistedPaths = new Set(['/404', '/signed-in']);
 
@@ -39,6 +40,7 @@ export default defineConfig({
     docsSearchIndex(),
     pluginDownload(),
     claudePluginDownload(),
+    clientPluginDownloads(),
   ],
   vite: {
     plugins: [tailwindcss()],

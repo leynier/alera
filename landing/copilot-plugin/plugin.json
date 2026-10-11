@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "alera-copilot",
+  "version": "1.0.0",
+  "description": "Alera workflow skills and remote MCP access with GitHub Copilot setup guidance.",
+  "author": { "name": "Leynier Gutiérrez González", "url": "https://leynier.dev" },
+  "homepage": "https://alera.build/docs/copilot-plugin",
+  "repository": "https://github.com/leynier/alera",
+  "license": "MIT",
+  "keywords": ["alera", "mcp", "copilot", "workspaces", "coding-agents"]
+}

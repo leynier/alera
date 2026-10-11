@@ -1,0 +1,11 @@
+{
+  "name": "alera-grokbot-cursor",
+  "version": "1.0.0",
+  "description": "GrokBot Cursor: Alera workflow skills and remote MCP access. Cursor local import; Grok Bot requires a separately available marketplace connection.",
+  "author": { "name": "Leynier Gutiérrez González" },
+  "homepage": "https://alera.build/docs/grokbot-cursor-plugin",
+  "repository": "https://github.com/leynier/alera",
+  "license": "MIT",
+  "keywords": ["alera", "mcp", "workspaces", "coding-agents"],
+  "logo": "assets/logo.png"
+}

@@ -59,6 +59,8 @@ This document defines governance only. It does not change runtime APIs, schemas,
 
 ## Bun Usage
 
+- `cursor-plugin/`, `agent-plugin/`, and `copilot-plugin/` own independent distributions. The exact public channel labels are `GrokBot Cursor`, `Agent Plugin`, and `GitHub Copilot`. Keep the Agent Plugin pure, with no vendor extensions or client-specific files. Its manifest and MCP documents must pass the pinned official 1.0.0 schemas, which are validation inputs only. Preserve the existing ChatGPT and Claude archives byte for byte for changes confined to these new distributions. Do not invent Copilot image metadata, a Grok Bot ZIP import, app installation, or OAuth proof from package checks. Packaging scripts and the static site produce ZIPs and SHA-256 files without installing or authorizing clients.
+
 - `claude-plugin/` owns the separate Claude web upload manifest, remote connector, README, and setup skill. `config/claude-plugin-download.ts` publishes deterministic ZIP and `.plugin` aliases with separate checksums. Adapt MCP skills in the Claude builder only; preserve the ChatGPT sources and archive when changing only the Claude package. Bump the Claude manifest version on subsequent Claude releases. Document web OAuth separately from CLI validation and do not add credentials or unsupported web scope overrides.
 
 - Use Bun for landing dependency and script commands.

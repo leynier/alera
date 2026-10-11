@@ -15,7 +15,11 @@
     "media:demo": "bun scripts/render-demo-media.ts",
     "package:plugin": "bun scripts/package-plugin.ts",
     "package:claude-plugin": "bun scripts/package-claude-plugin.ts",
-    "typecheck": "astro sync && tsc --noEmit"
+    "typecheck": "astro sync && tsc --noEmit",
+    "package:cursor-plugin": "bun scripts/package-client-plugin.ts cursor",
+    "package:agent-plugin": "bun scripts/package-client-plugin.ts agent",
+    "package:copilot-plugin": "bun scripts/package-client-plugin.ts copilot",
+    "package:experimental-plugin": "bun scripts/package-experimental-plugin.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.8",
@@ -32,6 +36,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.3.14",
     "@types/node": "^26.1.2",
+    "ajv": "8.20.0",
     "harfbuzzjs": "1.6.2",
     "pagefind": "^1.5.2",
     "sharp": "0.35.5",

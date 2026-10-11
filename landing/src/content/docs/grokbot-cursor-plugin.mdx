@@ -1,0 +1,49 @@
+---
+title: GrokBot Cursor
+description: Download the independent Alera Cursor plugin, install its local folder, and understand the separate Grok Bot marketplace and authentication requirements.
+updatedDate: 2026-10-10
+---
+
+import { CURSOR_PLUGIN_DOWNLOAD_URL, CURSOR_PLUGIN_VERSION } from '../../data/cursor-plugin';
+
+**GrokBot Cursor** is the exact name of this distribution. Its native Cursor manifest identifier is `alera-grokbot-cursor`; the manifest requires a lowercase identifier and does not document a `displayName` field. The ZIP includes guided setup, four Alera workflow skills with bundled references, remote MCP configuration, the Alera logo, and the MIT license. [ChatGPT](/docs/plugin), [Claude web](/docs/claude-plugin), [Agent Plugin](/docs/agent-plugin), and [GitHub Copilot](/docs/copilot-plugin) remain independent downloads.
+
+<DocLinkButton href={CURSOR_PLUGIN_DOWNLOAD_URL}>Download GrokBot Cursor ZIP</DocLinkButton>
+<DocLinkButton href={`${CURSOR_PLUGIN_DOWNLOAD_URL}.sha256`} variant="secondary">ZIP Checksum</DocLinkButton>
+
+Version: **{CURSOR_PLUGIN_VERSION}**.
+
+## Install In Cursor
+
+<Steps>
+
+1. Download and extract the ZIP. Copy the complete `alera-grokbot-cursor` folder, including hidden `.cursor-plugin`, into `~/.cursor/plugins/local/`. The resulting manifest path must be `~/.cursor/plugins/local/alera-grokbot-cursor/.cursor-plugin/plugin.json`; avoid an extra nested folder.
+2. Restart Cursor or run **Developer: Reload Window**. Open **Customize** and confirm five skills plus the Alera MCP server. Connect through Cursor's MCP sign-in interface when prompted.
+3. Start Alera on the intended machine, sign in under **Settings → Account**, and let the runtime owner choose access under **Settings → MCP Access → MCP Control**. Read access is enough for inspection.
+4. Invoke `/alera-setup` and ask: “Show my Alera runtimes and projects.” Setup only reads data. Choose the runtime if more than one is available.
+
+</Steps>
+
+Local plugin imports must be allowed. Teams and Enterprise administrators control **Allow Local Plugin Imports**; Enterprise defaults to off. A marketplace installation with the same identifier takes precedence over a local folder. This download does not change settings, policy, or permissions, and copying it does not authorize the MCP connection. See [Cursor's local plugin instructions](https://cursor.com/docs/plugins#test-plugins-locally).
+
+## Connect In Grok Bot
+
+<Callout type="caution">
+Grok Bot's official connection guide does not document importing arbitrary ZIPs, importing Cursor local folders, or loading this archive's bundled skills. This change does not publish Alera in a marketplace. If Alera is not offered in your account, this ZIP does not provide a documented Grok Bot installation route. Using the same account does not establish synchronization or compatibility.
+</Callout>
+
+If an Alera plugin is separately available to your account, open **Plugins** in Grok Bot's sidebar, search for it, add it, finish **Authorize** or **Authenticate** in the browser, and confirm **Installed**. On mobile, open your avatar and **Plugins**. If it shows **Waiting for authorization**, use **Reopen**. Added does not mean signed in; inspect **Needs auth** or **Disconnected** and complete authorization. Team administrators can restrict plugin availability. Verify actual Alera tools before asking the Bot to inspect runtimes. See [Grok Bot's connection guide](https://cursor.com/help/grok-bot/connect-plugins).
+
+That guide does not establish custom MCP registration, a Grok Bot OAuth callback, or bundled-skill compatibility for this package. Those require additional platform documentation and real-account verification; the Cursor instructions are not proof of them.
+
+## MCP, OAuth, And Assets
+
+The native Cursor `mcp.json` contains only the fixed URL `https://api.alera.build/v1/mcp`; Cursor infers the remote transport. Its [MCP documentation](https://cursor.com/docs/mcp) describes OAuth and default dynamic client registration. Alera exposes public OAuth discovery and dynamic registration, but no real client grant or refresh is verified here. No secrets, authentication headers, or static client identifiers are bundled.
+
+Review actual consent and selected runtimes: Alera currently advertises read, execute, and administrative scopes, and the package does not constrain the client's request. Runtime Read is sufficient for inspection; Full permits changes; Admin is a deliberate separate choice. Setup stops on `insufficient_scope` without bypassing it or upgrading access. Remote MCP payloads pass through Alera's cloud over TLS, readable during forwarding and not stored by the forwarding service. See the [Privacy Policy](/privacy) for general handling.
+
+Cursor documents the relative `logo` field. The declared `assets/logo.png` is both committed in this plugin's source folder and bundled. Actual logo rendering for local installs and Grok Bot is unverified. No Cursor or Grok brand logo is supplied. The [plugin reference](https://cursor.com/docs/reference/plugins) defines manifest fields, default skill discovery, MCP configuration, and repository-based logo resolution.
+
+## Verification Limits
+
+Tests validate the native Cursor package, contained files, five skills, bundled references, deterministic ZIP, checksum, and desktop/mobile website behavior. They also ensure the previous ChatGPT and Claude ZIP bytes remain unchanged. They do not verify installation in Cursor or Grok Bot, OAuth exchange, token refresh, runtime access, marketplace publication, or account synchronization. Alera agents run on the selected Alera runtime, not as native plugin subagents.
