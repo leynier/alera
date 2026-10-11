@@ -39,6 +39,10 @@ for (const width of [1440, 390]) {
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://alera.build/docs/plugin');
     await expect(page.getByRole('link', { name: 'Download Plugin ZIP' })).toHaveAttribute('href', PLUGIN_DOWNLOAD_URL);
     await expect(page.getByRole('link', { name: 'SHA-256 Checksum' })).toHaveAttribute('href', PLUGIN_CHECKSUM_URL);
+    await expect(page.getByRole('heading', { name: /^Public Installation/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /OpenAI.s desktop-only rule/ })).toHaveAttribute('href', 'https://learn.chatgpt.com/docs/enterprise/plugin-management#desktop-only-plugins');
+    await expect(page.getByRole('link', { name: 'OpenAI submission portal' })).toHaveAttribute('href', 'https://developers.openai.com/plugins/deploy/submission');
+    await expect(page.getByText('this is not the public installation workflow:', { exact: false })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const violations = (await new AxeBuilder({ page }).analyze()).violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? ''));
     expect(violations.map((item) => `${item.id}: ${item.help}`)).toEqual([]);

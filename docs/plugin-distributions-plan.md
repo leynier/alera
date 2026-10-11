@@ -19,6 +19,10 @@ Keep client manifests and setup skills separate. Build the third package with `.
 - [x] Generate and hand off one local-only experimental ZIP with checksum and per-client limits; preserve separate downloads.
 - [x] Verify experimental manifest selection and extra-file handling with available local validators, without claiming web/OAuth acceptance.
 
+- [x] Compare the actual Telegram ZIP and standalone OpenAI archive with official desktop-only policy; preserve both MCP packages.
+- [x] Document the public ChatGPT web publication workflow, existing-app boundary, preparation blockers, and preliminary user-reported Claude web success.
+- [x] Validate the updated web guide; continue scoped shipping through the existing PR/watch in the delivery tracker.
+
 ## Tests
 
 Assert supported manifest fields, explicit standard transport versus native Cursor URL inference, contained paths, exact skill discovery, string skill metadata, bundled references, authorization rules, absence of credentials and vendor extensions from the portable package, deterministic archives across time zones, all five download endpoints and checksums, accessibility and responsive guides. Pin the original ChatGPT and Claude archive hashes. Validate positive and negative standard manifests and MCP configurations against official draft 2020-12 schemas.

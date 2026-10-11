@@ -32,6 +32,10 @@ Full access allows the client to run commands on your machine. Choose runtimes a
 
 The downloaded package works as a local plugin source for Codex and Codex in the ChatGPT desktop app. Client and workspace policies determine which plugin controls are available.
 
+<Callout type="caution">
+ChatGPT marks imported plugins with `mcp.json`, `.mcp.json`, or inline MCP declarations **Desktop only**, including remote HTTPS servers. This ZIP contains MCP configuration. Changing its transport or removing competing manifests does not provide web availability. See [OpenAI's desktop-only rule](https://learn.chatgpt.com/docs/enterprise/plugin-management#desktop-only-plugins).
+</Callout>
+
 <Steps>
 
 1. Download **{PLUGIN_ARCHIVE}** and extract it. Keep the resulting **alera** folder intact, including its hidden `.agents` and `.codex-plugin` directories.
@@ -47,7 +51,21 @@ The ZIP carries both the portable Agent Plugins format and a Codex compatibility
 
 ## Connect From ChatGPT On The Web
 
-You can connect the existing MCP server directly on the web:
+### Public Installation
+
+Public users should install a published Alera listing and authorize their own account, without entering the MCP URL. This download is a package source; it is not an approved directory release or a web-install shortcut. Alera's public listing has not been verified by this packaging work.
+
+The publisher must upload the MCP-and-skills ZIP to the [OpenAI submission portal](https://developers.openai.com/plugins/deploy/submission), verify the publishing identity and server domain, connect OAuth, resolve metadata, skill, and tool scans, provide review materials, submit for review, then publish after approval. Only the publisher performs server registration. Users still authenticate and choose their own runtime access. Publishing requires separate authorization; merging this repository does not publish the plugin.
+
+OpenAI documents [directory search and direct listing links](https://developers.openai.com/plugins/deploy/app-review#discovery) after publication. The reviewed sources do not establish an unreviewed public or unlisted ZIP/link route for remote MCP plugins.
+
+### Existing App References
+
+For an app already available to the intended audience, OpenAI supports root `.app.json` references through `extensions.com.openai.apps` in `plugin.json`, or `apps` in the Codex compatibility manifest. Accepted IDs begin with `asdk_app_`, `connector_`, or `templated_apps_`. References create no app or permissions. A privately registered connection is not a public distribution solution. No app ID is embedded or invented here. See [existing-app references](https://learn.chatgpt.com/docs/enterprise/plugin-management#reference-an-existing-app-with-appjson) and [the package format](https://developers.openai.com/plugins/build/plugins#add-openai-specific-metadata).
+
+### Developer Testing
+
+You can connect the existing MCP server directly for a personal development test; this is not the public installation workflow:
 
 <Steps>
 
@@ -59,7 +77,7 @@ You can connect the existing MCP server directly on the web:
 
 <CommandBlock command={PLUGIN_MCP_URL} />
 
-This direct connection gives you the MCP tools; it does not install the skills in the ZIP. The complete bundle can be submitted to OpenAI's public Plugins Directory by its publisher. Public listing requires OpenAI review and publication, and downloading this ZIP does not imply that approval. See [OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt).
+This direct connection gives you the MCP tools; it does not install the skills in the ZIP or publish a listing. See [OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt).
 
 ## Included Skills
 
@@ -75,6 +93,7 @@ For example, ask **"Show the workspaces and coding agents running in Alera"** or
 
 | What You See | What To Check |
 | --- | --- |
+| Desktop only after ZIP import | Imported MCP declarations trigger this classification even with remote HTTPS. Web distribution requires the publisher's reviewed release, or references to apps already available to that audience. |
 | No Alera plugin in the desktop directory | Check that the marketplace command points at the extracted `alera` folder, then restart the client. |
 | No Alera tools | Install and enable the plugin, then complete its OAuth connection. |
 | No reachable runtime | Open Alera, sign in to the same account, enable MCP Control, and check that the connection grants that runtime. |
