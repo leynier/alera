@@ -1,0 +1,40 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "alera",
+  "version": "1.0.0",
+  "description": "Manage Alera runtimes, workspaces, coding agents, and automations through MCP.",
+  "author": {
+    "name": "Leynier Gutiérrez González",
+    "url": "https://leynier.dev"
+  },
+  "homepage": "https://alera.build/docs/plugin",
+  "repository": "https://github.com/leynier/alera",
+  "license": "MIT",
+  "keywords": ["alera", "mcp", "coding-agents", "workspaces", "automations"],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/alera-setup/SKILL.md",
+      "interface": {
+        "displayName": "Alera",
+        "shortDescription": "Run Coding Agents And Manage Workspaces",
+        "longDescription": "Connect to your Alera runtimes to inspect projects and workspaces, launch coding agents, follow their progress, work with pull requests, and manage scheduled automations. Includes guided setup and the maintained Alera MCP workflow skills. Access is controlled by your account connection and each runtime's MCP Control setting.",
+        "developerName": "Leynier Gutiérrez González",
+        "category": "Developer Tools",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://alera.build",
+        "supportURL": "https://github.com/leynier/alera/issues",
+        "privacyPolicyURL": "https://alera.build/privacy",
+        "termsOfServiceURL": "https://alera.build/terms",
+        "defaultPrompt": [
+          "Help me connect Alera and show my available runtimes.",
+          "Show the workspaces and coding agents running in Alera.",
+          "Start an Alera workspace for my next coding task."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      }
+    }
+  }
+}

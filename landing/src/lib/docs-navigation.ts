@@ -65,6 +65,7 @@ export const DOC_SECTIONS: readonly DocSection[] = [
       { id: 'mobile', label: 'Mobile Companion' },
       { id: 'remote-access', label: 'Remote Access' },
       { id: 'remote-hosts', label: 'Remote Hosts' },
+      { id: 'plugin', label: 'Alera Plugin' },
       { id: 'accounts', label: 'Accounts, Push, And Sync' },
     ],
   },

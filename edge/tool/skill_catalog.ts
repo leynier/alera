@@ -5,9 +5,11 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 
-export const SKILLS_DIRECTORY = join(import.meta.dir, '..', 'skills');
-export const SKILL_CATALOG_PATH = join(import.meta.dir, '..', 'src', 'mcp', 'skill_catalog.json');
+const toolDirectory = fileURLToPath(new NodeURL('.', import.meta.url));
+export const SKILLS_DIRECTORY = join(toolDirectory, '..', 'skills');
+export const SKILL_CATALOG_PATH = join(toolDirectory, '..', 'src', 'mcp', 'skill_catalog.json');
 
 const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const FILE = /^(SKILL\.md|references\/[a-z0-9-]+\.md)$/;

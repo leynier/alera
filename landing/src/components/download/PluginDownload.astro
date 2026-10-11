@@ -1,0 +1,21 @@
+---
+import Download from '@lucide/astro/icons/download';
+import { PLUGIN_ARCHIVE, PLUGIN_DOWNLOAD_URL, PLUGIN_SKILLS, PLUGIN_VERSION } from '../../data/plugin';
+---
+
+<section id="plugin" class="mb-12 scroll-mt-20 rounded-lg border border-border bg-surface-variant p-6">
+  <div class="mb-3 flex items-center gap-3">
+    <img src="/logo.png" alt="" width="32" height="32" class="size-8" />
+    <h2 class="text-headline-sm text-foreground">Alera Plugin</h2>
+    <span class="ml-auto rounded-pill border border-border px-2.5 py-1 text-label-md text-foreground-faint">v{PLUGIN_VERSION}</span>
+  </div>
+  <p class="mb-5 text-body-md leading-relaxed text-foreground-muted">Connect Your AI Client To Alera. One ZIP Includes The MCP Connection, {PLUGIN_SKILLS.length + 1} Skills With Their References, Guided Setup, And The Alera Logo.</p>
+  <div class="flex flex-wrap items-center gap-3">
+    <a href={PLUGIN_DOWNLOAD_URL} download={PLUGIN_ARCHIVE} class="inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-1.5 text-body-md font-medium text-on-accent transition-opacity duration-fast hover:opacity-90">
+      <Download size={16} aria-hidden="true" />
+      Download Plugin ZIP
+    </a>
+    <a href="/docs/plugin" class="text-body-md text-foreground-faint underline underline-offset-4 transition-colors duration-fast hover:text-foreground">Installation Guide</a>
+  </div>
+  <p class="mt-4 text-body-md leading-relaxed text-foreground-faint">Install From A Local Marketplace In Codex Or The ChatGPT Desktop App. Sign In To Alera And Choose Which Runtimes To Connect.</p>
+</section>

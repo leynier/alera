@@ -1,0 +1,84 @@
+---
+title: Alera Plugin
+description: Download the Alera plugin with its MCP connection, bundled workflow skills, logo, and guided setup, then connect your AI client to your runtimes.
+updatedDate: 2026-10-10
+---
+
+import CommandBlock from '../../components/CommandBlock.astro';
+import { PLUGIN_ARCHIVE, PLUGIN_CHECKSUM_URL, PLUGIN_DOWNLOAD_URL, PLUGIN_INSTALL_COMMAND, PLUGIN_MARKETPLACE_COMMAND, PLUGIN_MCP_URL, PLUGIN_SKILLS, PLUGIN_VERSION } from '../../data/plugin';
+
+The Alera plugin connects your AI client to the runtimes on your machines. One ZIP contains the MCP configuration, workflow skills with their references, the Alera logo, and a guided setup skill. You can inspect workspaces, launch coding agents, follow their progress, work with pull requests, and manage automations through the same MCP tools.
+
+<DocLinkButton href={PLUGIN_DOWNLOAD_URL}>Download Plugin ZIP</DocLinkButton>
+<DocLinkButton href={PLUGIN_CHECKSUM_URL} variant="secondary">SHA-256 Checksum</DocLinkButton>
+
+Package version: **{PLUGIN_VERSION}**. The download is generated from the maintained MCP skill sources whenever this website builds.
+
+## Prepare Your Runtime
+
+<Steps>
+
+1. [Install Alera](/download) and open it on the machine you want to connect.
+2. Sign in under **Settings → Account**.
+3. Open **Settings → MCP Access → MCP Control** and choose an access level. Read access is enough to inspect projects and agents. Full access lets the client launch agents and change workspaces. Keep Alera or its standalone runtime running while you use the plugin.
+
+</Steps>
+
+<Callout type="caution">
+Full access allows the client to run commands on your machine. Choose runtimes and permissions in the OAuth connection flow. Administrative access is a separate choice; the plugin does not enable it automatically.
+</Callout>
+
+## Install The ZIP
+
+The downloaded package works as a local plugin source for Codex and Codex in the ChatGPT desktop app. Client and workspace policies determine which plugin controls are available.
+
+<Steps>
+
+1. Download **{PLUGIN_ARCHIVE}** and extract it. Keep the resulting **alera** folder intact, including its hidden `.agents` and `.codex-plugin` directories.
+2. Register the extracted folder with the command below. Replace `/path/to/alera` with its actual path and quote paths containing spaces.
+3. Run the second command to install and enable the plugin in Codex. Or restart the ChatGPT desktop app, open the **Plugins Directory**, choose the **Alera** source, and install the **Alera** plugin there.
+4. Complete the Alera OAuth connection. Sign in to the same account as your runtime and choose the runtimes to grant. Run the plugin's setup workflow, or ask: **"Help me connect Alera and show my available runtimes."**
+
+</Steps>
+
+<CommandBlock command={`${PLUGIN_MARKETPLACE_COMMAND}\n${PLUGIN_INSTALL_COMMAND}`} />
+
+The ZIP carries both the portable Agent Plugins format and a Codex compatibility manifest. You do not need to copy individual skills or edit the MCP configuration by hand. [OpenAI's package guide](https://developers.openai.com/plugins/build/plugins) describes local marketplace installation.
+
+## Connect From ChatGPT On The Web
+
+You can connect the existing MCP server directly on the web:
+
+<Steps>
+
+1. Open [ChatGPT Plugins](https://chatgpt.com/plugins) and select **Add custom MCP server** from the plus menu.
+2. Enter **Alera** as the name and use the endpoint below. Choose **OAuth** and complete the connection.
+3. Select the resulting Alera plugin in a conversation and ask it to list your runtimes.
+
+</Steps>
+
+<CommandBlock command={PLUGIN_MCP_URL} />
+
+This direct connection gives you the MCP tools; it does not install the skills in the ZIP. The complete bundle can be submitted to OpenAI's public Plugins Directory by its publisher. Public listing requires OpenAI review and publication, and downloading this ZIP does not imply that approval. See [OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt).
+
+## Included Skills
+
+- **Set Up Alera:** connect the plugin, choose a runtime, and verify access without changing projects.
+
+<ul>
+  {PLUGIN_SKILLS.map((skill) => <li><strong>{skill.label}:</strong> {skill.description}.</li>)}
+</ul>
+
+For example, ask **"Show the workspaces and coding agents running in Alera"** or **"Start an Alera workspace for my next coding task."** When several machines are connected, name the runtime you want to use.
+
+## Troubleshooting
+
+| What You See | What To Check |
+| --- | --- |
+| No Alera plugin in the desktop directory | Check that the marketplace command points at the extracted `alera` folder, then restart the client. |
+| No Alera tools | Install and enable the plugin, then complete its OAuth connection. |
+| No reachable runtime | Open Alera, sign in to the same account, enable MCP Control, and check that the connection grants that runtime. |
+| Insufficient scope | The connection grant and the runtime's MCP Control setting must both permit the requested action. Reconnect or change the runtime setting yourself if you want to grant it. |
+| Multiple runtimes | Choose the returned runtime name or id. Each call targets one runtime. |
+
+The plugin contains no account tokens or client secrets. Remote MCP arguments and results pass through Alera's cloud over TLS; they are not end-to-end encrypted. The service does not store those payloads. See the [Privacy Policy](/privacy) for data handling.

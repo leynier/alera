@@ -4,6 +4,8 @@ Alera exposes one remote Model Context Protocol endpoint, `https://api.alera.bui
 
 The same tool catalog is also served locally by `alera mcp serve` over stdio, without the cloud.
 
+The website also distributes this remote connection and the four MCP workflow skills as one [downloadable plugin](https://alera.build/docs/plugin), with a setup skill, listing metadata, and the Alera logo. Its package is generated from `edge/skills/` during the landing build; see [Plugin Bundle](plugin-bundle.md) for packaging and versioning. Installing it does not enable MCP Control or change a runtime's permissions.
+
 ## Decisions
 
 - MCP Control is a per-runtime opt-in with four ordered levels: `off` (default), `read`, `full`, and `admin`. Each level allows everything the previous one does: read tools need `read`, execute tools need `full`, and administrative tools need `admin`. A runtime never moves to `admin` on its own; the user has to choose it. Remote Access for the phone stays a separate setting. Either one keeps the cloud link open.

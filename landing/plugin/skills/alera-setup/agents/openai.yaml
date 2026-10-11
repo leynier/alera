@@ -1,0 +1,11 @@
+interface:
+  display_name: "Set Up Alera"
+  short_description: "Connect Alera and verify runtime access"
+  default_prompt: "Use $alera-setup to connect Alera and show my available runtimes."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "alera"
+      description: "Connect to your Alera runtimes"
+      transport: "streamable_http"
+      url: "https://api.alera.build/v1/mcp"

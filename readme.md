@@ -46,6 +46,8 @@ brew tap leynier/tap && brew install --cask alera       # macOS 14+ on Apple Sil
 
 On Windows, `scoop install leynier/alera` after `scoop bucket add leynier https://github.com/leynier/scoop-bucket`, or `choco install alera`. Every channel, the manual downloads, and the Android APK are on the [download page](https://alera.build/download).
 
+To connect an external AI client, download the [Alera plugin](https://alera.build/docs/plugin): one ZIP with the remote MCP connection, workflow skills, logo, and guided setup. Contributor packaging instructions are in [docs/plugin-bundle.md](docs/plugin-bundle.md).
+
 **Contents:** [Why Alera](#why-alera) · [See It Work](#see-it-work) · [How It Works](#how-it-works) · [Supported Agents](#supported-agents) · [What You Get](#what-you-get) · [Install](#install) · [Documentation](#documentation) · [Developing](#developing) · [Releases And Updates](#releases-and-updates) · [Community](#community)
 
 ---

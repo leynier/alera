@@ -8,6 +8,10 @@ on:
       - reopened
     paths:
       - 'landing/**'
+      - 'edge/skills/**'
+      - 'edge/tool/skill_catalog.ts'
+      - 'assets/logo/alera-logo.png'
+      - 'LICENSE'
       - '.github/workflows/landing.yml'
   workflow_dispatch:
 
@@ -60,6 +64,16 @@ jobs:
 
       - name: End-to-end tests
         run: bunx playwright test
+
+      - name: Upload plugin bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alera-plugin
+          path: |
+            landing/dist/downloads/alera-plugin.zip
+            landing/dist/downloads/alera-plugin.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload Playwright report
         if: failure()

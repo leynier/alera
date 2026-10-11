@@ -4,6 +4,7 @@ import Footer from '../components/Footer.astro';
 import Navbar from '../components/Navbar.astro';
 import ManualLinuxSetup from '../components/download/ManualLinuxSetup.astro';
 import PlatformChooser from '../components/download/PlatformChooser.astro';
+import PluginDownload from '../components/download/PluginDownload.astro';
 import {
   ANDROID_ASSET,
   ANDROID_URL,
@@ -49,6 +50,8 @@ const note = 'mb-4 text-body-md leading-relaxed text-foreground-faint';
       </p>
 
       <PlatformChooser />
+
+      <PluginDownload />
 
       <h2 id="macos" class={sectionTitle}>macOS</h2>
       <p class={body}>Install with Homebrew. Requires Apple Silicon and macOS 14 or newer.</p>

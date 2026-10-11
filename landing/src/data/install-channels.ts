@@ -1,5 +1,7 @@
 import releases from './releases.json';
 
+export { PLUGIN_ARCHIVE, PLUGIN_DOWNLOAD_URL } from './plugin';
+
 /**
  * Every install command, asset name and repository detail the site shows,
  * in one place: the download page, the home Install section and the docs all
