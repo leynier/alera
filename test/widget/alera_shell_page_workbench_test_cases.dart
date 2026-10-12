@@ -186,11 +186,14 @@ void _registerAleraShellWorkbenchTests() {
       tester,
       state: _populatedWorkbenchState().copyWith(activeWorkspaceId: null),
     );
+    // The shell paints the home on its delayed frame, so the empty profile
+    // list resolves after that frame. One more pump shows the empty state.
+    await tester.pump();
 
-    expect(find.text('Welcome to Alera'), findsOneWidget);
-    expect(find.text('Quick Start'), findsOneWidget);
-    expect(find.text('Keyboard Shortcuts'), findsOneWidget);
-    expect(find.text('Projects & Workspaces'), findsNothing);
+    expect(find.text('What should we build in '), findsOneWidget);
+    expect(find.text('No agent profiles'), findsOneWidget);
+    expect(find.text('Quick Start'), findsNothing);
+    expect(find.text('Keyboard Shortcuts'), findsNothing);
     expect(find.byTooltip('Add Tab'), findsNothing);
   });
 
@@ -230,7 +233,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(harness.runtime.closedTabIds, <String>['tab-1']);
     expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
     expect(harness.controller.state.activeWorkspace, isNull);
-    expect(find.text('Welcome to Alera'), findsOneWidget);
+    expect(find.text('What should we build in '), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsNothing,
@@ -251,7 +254,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(harness.runtime.closedTabIds, <String>['tab-1']);
     expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
     expect(harness.controller.state.activeWorkspace, isNull);
-    expect(find.text('Welcome to Alera'), findsOneWidget);
+    expect(find.text('What should we build in '), findsOneWidget);
   });
 
   testWidgets('clicking new-terminal button focuses the new session', (
