@@ -2,7 +2,7 @@
 name: alera-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through the CLI, and report the lifecycle of an automation run. Use for recurring or one-time agent work in an Alera runtime.
 metadata:
-  version: 1
+  version: 2
 ---
 
 # Alera Automations
@@ -28,7 +28,7 @@ Use a stable `--request-key` when retrying creation after an ambiguous response.
 
 ## Execution
 
-A runtime must be running for schedules to fire. Creating an automation does not enable login autostart or change keep-runtime settings. The default skips occurrences missed while offline. Already admitted runs recover separately: reconcile their owner, resume the native conversation when possible, then retry with context in the preserved workspace. Recovery has three total launches, 60/120 second backoff, and the original 24-hour deadline. Unreachable SSH owners remain reserved until closure can be verified; do not launch a replacement manually into the same target while ownership is unknown.
+A runtime must be running for schedules to fire. Creating an automation does not enable login autostart or change keep-runtime settings. The default skips occurrences missed while offline. Already admitted runs recover separately: reconcile their owner, resume the native conversation when possible, then retry with context in the preserved workspace. Recovery has three total launches, 60/120 second backoff, and the original 24-hour deadline. A run on an unreachable remote host stays reserved until its closure can be verified; do not launch a replacement manually into the same target while ownership is unknown.
 
 Watching a terminal is read-only. Take Over stops automatic recovery and preserves the workspace. Use it only when the user intends to operate that agent.
 

@@ -45,10 +45,20 @@ async fn list(runtime: &RuntimeDirArgs, args: &WorkspaceListArgs) -> anyhow::Res
         _ => store.list_all_workspaces().await?,
     };
     if let Some(host_id) = &args.host_id {
-        let host_id = crate::ssh_remote::normalized_host_id(Some(host_id));
+        let host_id = own_host_filter(host_id);
         workspaces.retain(|workspace| workspace.host_id == host_id);
     }
     Ok(json!({ "kind": "workspaces", "items": workspaces }))
+}
+
+/// The host filter when this runtime answers itself. `origin` names the host
+/// the terminal runs on: a hub resolves it for a forwarded list, and a
+/// runtime that answers its own list is that host, which it calls `local`.
+fn own_host_filter(host_id: &str) -> String {
+    match crate::ssh_remote::normalized_host_id(Some(host_id)) {
+        host_id if host_id == "origin" => alera_core::runtime::LOCAL_HOST_ID.to_string(),
+        host_id => host_id,
+    }
 }
 
 fn filters(args: &WorkspaceListArgs) -> Value {
@@ -119,5 +129,12 @@ mod tests {
         by_parent.parent_workspace_id = Some("p".into());
         assert!(matches(&item, &by_parent));
         assert!(!matches(&others, &by_parent));
+    }
+
+    #[test]
+    fn origin_is_this_runtime_when_it_answers_its_own_list() {
+        assert_eq!(own_host_filter(" origin "), "local");
+        assert_eq!(own_host_filter(""), "local");
+        assert_eq!(own_host_filter("build-mac"), "build-mac");
     }
 }
