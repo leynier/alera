@@ -1,3 +1,5 @@
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -9,6 +11,7 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'fake_git_backend_defaults.dart';
+part 'fake_git_backend_workspace_details.dart';
 part 'fake_git_backend_diffs.dart';
 part 'fake_git_backend_hosted_review.dart';
 part 'fake_git_backend_status.dart';
@@ -22,7 +25,8 @@ class FakeGitBackend
         _FakeGitBackendStatus,
         _FakeGitBackendDiffs,
         _FakeGitBackendHostedReview,
-        _FakeGitBackendWorkspaceState
+        _FakeGitBackendWorkspaceState,
+        _FakeGitBackendWorkspaceDetails
     implements GitBackend {
   @override
   final List<GitBackendCall> calls = <GitBackendCall>[];

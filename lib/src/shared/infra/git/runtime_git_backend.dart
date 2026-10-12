@@ -1,3 +1,9 @@
+import 'dart:async';
+
+import 'package:uuid/uuid.dart';
+import 'package:alera/src/shared/infra/git/git_network_progress.dart';
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -10,6 +16,8 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'runtime_git_wire_decoders.dart';
+part 'runtime_git_workspace_details.dart';
+part 'runtime_git_network_progress.dart';
 
 /// The `errorCode` the runtime puts on a git failure; `errorDetails.kind`
 /// carries the `GitErrorKind` name so the same [GitException] is thrown here
@@ -27,15 +35,19 @@ const Duration _gitNetworkTimeout = Duration(minutes: 5);
 ///
 /// Worktree lifecycle and clone are not part of this surface: remote
 /// worktrees are created and removed through the managed workspace verbs.
-class RuntimeGitBackend implements GitBackend {
+class RuntimeGitBackend
+    with _RuntimeGitWorkspaceDetails, _RuntimeGitNetworkProgress
+    implements GitBackend {
   RuntimeGitBackend(
     this._client, {
     required this.workspaceId,
     this.beforeAccess,
   });
 
+  @override
   final RuntimeHostClient _client;
   final String workspaceId;
+  @override
   final Future<void> Function()? beforeAccess;
 
   @override
@@ -432,6 +444,7 @@ class RuntimeGitBackend implements GitBackend {
   Future<void> stashPop({required String path, required int stashIndex}) =>
       _request('git.stashPop', path, {'stashIndex': stashIndex});
 
+  @override
   Future<Object?> _request(
     String type,
     String? path, [

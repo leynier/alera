@@ -160,6 +160,33 @@ extension _WorkspacePanelTabs on _AleraShellPageBodyState {
     required bool hasProjects,
     required WorkbenchLayout? layout,
     required Widget Function(WorkbenchContextPanelTab tab) toolFor,
+  }) => WorkspaceDetailsOverlay(
+    key: ValueKey('details-${workspace.id}'),
+    workspace: workspace,
+    sourceControlScope: sourceControlScope,
+    child: _buildWorkspaceCenterContent(
+      workspace: workspace,
+      project: project,
+      panel: panel,
+      sourceControlScope: sourceControlScope,
+      tabs: tabs,
+      bootstrapped: bootstrapped,
+      hasProjects: hasProjects,
+      layout: layout,
+      toolFor: toolFor,
+    ),
+  );
+
+  Widget _buildWorkspaceCenterContent({
+    required Workspace workspace,
+    required Project? project,
+    required WorkspacePanel panel,
+    required WorkspaceSourceControlScope? sourceControlScope,
+    required List<WorkspaceTabRecord> tabs,
+    required bool bootstrapped,
+    required bool hasProjects,
+    required WorkbenchLayout? layout,
+    required Widget Function(WorkbenchContextPanelTab tab) toolFor,
   }) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     if (panel.showsMainChrome) {

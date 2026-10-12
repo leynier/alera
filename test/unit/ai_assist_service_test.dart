@@ -29,9 +29,11 @@ part 'ai_assist_opencode_go_test_cases.dart';
 part 'ai_assist_chatgpt_test_cases.dart';
 part 'ai_assist_chatgpt_thinking_context_test_cases.dart';
 part 'ai_assist_test_harness.dart';
+part 'ai_assist_reviewed_commit_test_cases.dart';
 
 void main() {
   group('AI Assist', () {
+    _registerReviewedCommitTests();
     _registerGrokAiAssistTests();
     _registerFxAiAssistTests();
     _registerAgyAiAssistTests();

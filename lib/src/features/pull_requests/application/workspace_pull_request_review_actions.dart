@@ -6,14 +6,23 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
 
   /// Merges the linked review and keeps it linked so the terminal state remains
   /// visible after the provider no longer returns it as an open branch review.
-  Future<bool> mergeReview(ReviewMergeMethod method) async {
-    final current = state.value;
-    final review = current?.review;
-    if (current?.stack != null) {
-      return _controller.mergeCurrentReviewStack(method);
+  Future<bool> mergeReview(
+    ReviewMergeMethod method, {
+    String? expectedFingerprint,
+  }) async {
+    final before = state.value;
+    if (before == null) return false;
+    final current = await _controller._validateReviewAction(
+      expectedFingerprint ?? reviewActionFingerprint(before),
+      .merge,
+      method: method,
+    );
+    if (current == null) return false;
+    final review = current.review;
+    if (current.stack != null) {
+      return _controller.mergeCurrentReviewStack(method, validated: current);
     }
-    if (current == null ||
-        review == null ||
+    if (review == null ||
         review.state != HostedReviewState.open ||
         !current.mergeMethods.contains(method)) {
       _surfaceActionError('This pull request cannot be merged.');
@@ -54,12 +63,19 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
   }
 
   /// Converts the linked review between draft and ready-for-review states.
-  Future<void> setReviewDraft(bool draft) async {
-    final current = state.value;
-    final review = current?.review;
+  Future<void> setReviewDraft(bool draft, {String? expectedFingerprint}) async {
+    final before = state.value;
+    if (before == null) return;
+    final current = draft
+        ? before
+        : await _controller._validateReviewAction(
+            expectedFingerprint ?? reviewActionFingerprint(before),
+            .ready,
+          );
+    if (current == null) return;
+    final review = current.review;
     final alreadyDraft = review?.state == HostedReviewState.draft;
-    if (current == null ||
-        review == null ||
+    if (review == null ||
         !review.isOpen ||
         !current.canChangeDraftStatus ||
         alreadyDraft == draft) {

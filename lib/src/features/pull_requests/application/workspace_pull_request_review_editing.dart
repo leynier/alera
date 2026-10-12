@@ -6,12 +6,15 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
 
   /// Creates a review from [input]: pushes the branch, calls the forge, and
   /// links the result on success.
-  Future<CreateReviewResult> createReview(CreateReviewInput input) =>
-      _createReview(input, action: .create);
+  Future<CreateReviewResult> createReview(
+    CreateReviewInput input, {
+    bool pushBranch = true,
+  }) => _createReview(input, action: .create, pushBranch: pushBranch);
 
   Future<CreateReviewResult> _createReview(
     CreateReviewInput input, {
     required PullRequestAction action,
+    bool pushBranch = true,
   }) async {
     final controller = _editingController;
     final identity = state.value?.identity;
@@ -32,7 +35,9 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       ),
     );
     try {
-      await controller._gitBackend.push(controller.scope.repoPath);
+      if (pushBranch) {
+        await controller._gitBackend.push(controller.scope.repoPath);
+      }
     } on GitException catch (error) {
       final result = CreateReviewFailure(
         code: .pushFailed,
@@ -65,21 +70,45 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;
     }
+    String? persistenceWarning;
     if (result is CreateReviewSuccess) {
-      await controller._linkedReviews.save(
-        .linked(
-          workspaceId: controller.scope.workspaceId,
-          provider: identity.provider,
-          number: result.review.number,
-          url: result.review.url,
-        ),
-      );
+      if (!controller._disposed) {
+        state = AsyncData(
+          (state.value ?? const WorkspacePullRequestState()).copyWith(
+            review: result.review,
+            clearStack: true,
+            linkedManually: true,
+            checksLoaded: false,
+            clearChecksError: true,
+            clearError: true,
+          ),
+        );
+      }
+      try {
+        await controller._linkedReviews.save(
+          .linked(
+            workspaceId: controller.scope.workspaceId,
+            provider: identity.provider,
+            number: result.review.number,
+            url: result.review.url,
+          ),
+        );
+      } catch (error) {
+        // The provider has already created the PR. A local linking failure
+        // must never turn into another Create PR request on continuation.
+        persistenceWarning =
+            'PR #${result.review.number} was created, but its workspace link could not be saved. $error';
+      }
       controller._refreshWorkspacePullRequestMonitor();
     }
     controller._applyActionOutcome(
-      failureMessage: result is CreateReviewFailure ? result.message : null,
+      failureMessage: result is CreateReviewFailure
+          ? result.message
+          : persistenceWarning,
     );
-    if (!controller._disposed && controller._visible) {
+    if (persistenceWarning == null &&
+        !controller._disposed &&
+        controller._visible) {
       await controller.refresh();
     }
     return result;

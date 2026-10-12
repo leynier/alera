@@ -191,6 +191,8 @@ fn forwarded_request_timeout(request_type: &str) -> std::time::Duration {
         "git.fetch"
         | "git.pull"
         | "git.push"
+        | "git.pushWithProgress"
+        | "git.pullWithProgress"
         | "git.fetchHostedReviewRange"
         | "mobile.git.fetch"
         | "mobile.git.pull"

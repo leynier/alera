@@ -9,6 +9,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_git_backend.dart';
 
 void main() {
+  test(
+    'a bound selective commit remains on its original host after navigation',
+    () async {
+      final local = FakeGitBackend()..gitCommitOid = 'local';
+      final remote = FakeGitBackend()..gitCommitOid = 'remote';
+      var routedRemote = true;
+      final router = HostRoutedGitBackend(
+        local: local,
+        remoteFor: (_) => routedRemote ? remote : null,
+      );
+      final bound = router.forPath('/srv/repo');
+      final snapshot = await bound.workspaceComparison('/srv/repo');
+      routedRemote = false;
+      expect(
+        await bound.commitSelected('/srv/repo', snapshot, ['file'], 'reviewed'),
+        'remote',
+      );
+      expect(local.calls, isEmpty);
+      expect(remote.calls.single.method, 'commit');
+    },
+  );
   group('RemoteCheckoutIndex', () {
     test('routes a path inside a remote checkout to its workspace', () {
       final index = RemoteCheckoutIndex(

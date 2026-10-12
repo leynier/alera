@@ -16,7 +16,7 @@ use super::{
 #[path = "git_diff_combined.rs"]
 mod git_diff_combined;
 #[path = "git_diff_render.rs"]
-mod git_diff_render;
+pub(crate) mod git_diff_render;
 #[path = "git_diff_untracked.rs"]
 mod git_diff_untracked;
 #[path = "git_reading_diff_patch.rs"]

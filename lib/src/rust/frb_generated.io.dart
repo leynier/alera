@@ -9,6 +9,8 @@ import 'api/clipboard.dart';
 import 'api/git.dart';
 import 'api/git/git_branch.dart';
 import 'api/git/git_hosted_review.dart';
+import 'api/git/network_progress.dart';
+import 'api/git/workspace_comparison.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/keep_alive.dart';
@@ -40,6 +42,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, String> dco_decode_Map_String_String_None(dynamic raw);
+
+  @protected
+  RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
 
   @protected
   RustStreamSink<AgentHookEventBatchDto>
@@ -104,6 +109,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitSubmoduleStatus dco_decode_box_autoadd_git_submodule_status(dynamic raw);
+
+  @protected
+  GitWorkspaceComparison dco_decode_box_autoadd_git_workspace_comparison(
+    dynamic raw,
+  );
 
   @protected
   int dco_decode_box_autoadd_i_32(dynamic raw);
@@ -257,6 +267,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitSubmoduleStatus dco_decode_git_submodule_status(dynamic raw);
+
+  @protected
+  GitWorkspaceComparison dco_decode_git_workspace_comparison(dynamic raw);
 
   @protected
   GitWorktreeEntry dco_decode_git_worktree_entry(dynamic raw);
@@ -604,6 +617,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<String> sse_decode_StreamSink_String_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<AgentHookEventBatchDto>
   sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
     SseDeserializer deserializer,
@@ -692,6 +710,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitSubmoduleStatus sse_decode_box_autoadd_git_submodule_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitWorkspaceComparison sse_decode_box_autoadd_git_workspace_comparison(
     SseDeserializer deserializer,
   );
 
@@ -877,6 +900,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitSubmoduleStatus sse_decode_git_submodule_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitWorkspaceComparison sse_decode_git_workspace_comparison(
     SseDeserializer deserializer,
   );
 
@@ -1328,6 +1356,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_String_Sse(
+    RustStreamSink<String> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
     RustStreamSink<AgentHookEventBatchDto> self,
     SseSerializer serializer,
@@ -1432,6 +1466,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_git_submodule_status(
     GitSubmoduleStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_git_workspace_comparison(
+    GitWorkspaceComparison self,
     SseSerializer serializer,
   );
 
@@ -1672,6 +1712,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_git_submodule_status(
     GitSubmoduleStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_workspace_comparison(
+    GitWorkspaceComparison self,
     SseSerializer serializer,
   );
 

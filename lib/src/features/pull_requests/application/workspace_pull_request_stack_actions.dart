@@ -289,20 +289,31 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
 
   /// Merges every unmerged member at or below the current pull request using
   /// GitHub's atomic stack merge operation.
-  Future<bool> mergeCurrentReviewStack(ReviewMergeMethod method) async {
+  Future<bool> mergeCurrentReviewStack(
+    ReviewMergeMethod method, {
+    WorkspacePullRequestState? validated,
+  }) async {
     final controller = _stackController;
-    final current = state.value;
-    final identity = current?.identity;
-    final review = current?.review;
-    final stack = current?.stack;
+    final before = state.value;
+    if (before == null) return false;
+    final current =
+        validated ??
+        await controller._validateReviewAction(
+          reviewActionFingerprint(before),
+          .merge,
+          method: method,
+        );
+    if (current == null) return false;
+    final identity = current.identity;
+    final review = current.review;
+    final stack = current.stack;
     final forge = identity == null
         ? null
         : controller._registry.forProvider(identity.provider);
     final stackProvider = forge is ForgeStackProvider
         ? forge as ForgeStackProvider
         : null;
-    if (current == null ||
-        identity == null ||
+    if (identity == null ||
         review == null ||
         stack == null ||
         stackProvider == null) {

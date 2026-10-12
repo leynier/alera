@@ -147,7 +147,7 @@ pub(super) fn truncate_diff_lines_to_bytes(lines: &mut Vec<GitDiffLine>, max_byt
     false
 }
 
-pub(super) fn diff_lines_from_patch(patch: &str) -> (Vec<GitDiffLine>, bool) {
+pub(crate) fn diff_lines_from_patch(patch: &str) -> (Vec<GitDiffLine>, bool) {
     let mut lines = Vec::new();
     let mut truncated = false;
     for text in patch.lines() {

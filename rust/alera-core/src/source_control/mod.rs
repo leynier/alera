@@ -29,6 +29,10 @@ mod working_tree_paths;
 mod working_tree_remote;
 mod working_tree_stage;
 mod working_tree_stash;
+mod workspace_comparison;
+#[cfg(test)]
+mod workspace_comparison_tests;
+mod workspace_selected_commit;
 
 use git_commit_state_impl::{commit_parent_commits, current_head_commit, repository_has_conflicts};
 
@@ -51,11 +55,18 @@ use working_tree_paths::{
     pathspec_string, relative_path, repo_path_is_in_scope, repo_relative_path, scoped_pathspecs,
     workspace_repo_relative_path,
 };
-pub use working_tree_remote::{git_fetch, git_pull, git_push};
+pub use working_tree_remote::{
+    git_fetch, git_pull, git_pull_with_progress, git_push, git_push_with_progress,
+};
 pub use working_tree_stage::{
     git_discard, git_discard_area, git_stage, git_stage_area, git_unstage, git_unstage_area,
 };
 pub use working_tree_stash::{git_list_stashes, git_stash, git_stash_pop};
+pub use workspace_comparison::{
+    git_workspace_comparison, git_workspace_comparison_diff, git_workspace_default_branch,
+    GitWorkspaceComparison,
+};
+pub use workspace_selected_commit::git_commit_selected;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

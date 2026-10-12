@@ -31,6 +31,7 @@ HostedReview _review(
 }) {
   return HostedReview(
     provider: .github,
+    mergeable: .mergeable,
     number: number,
     title: 'feat: layer $number',
     state: state,

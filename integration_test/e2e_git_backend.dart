@@ -1,3 +1,5 @@
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'dart:typed_data';
 
 import 'package:alera/src/shared/infra/git/git_backend.dart';
@@ -8,6 +10,37 @@ import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 /// Inert [GitBackend] so the smoke flow never touches a real repository.
 class const E2eGitBackend() implements GitBackend {
+  @override
+  Future<String> workspaceDefaultBranch(String path) => defaultBranch(path);
+
+  @override
+  Future<GitWorkspaceComparison> workspaceComparison(
+    String path, {
+    String? baseRef,
+  }) async => const GitWorkspaceComparison(
+    baseRef: null,
+    baseOid: '',
+    headOid: null,
+    headRef: 'HEAD',
+    treeOid: '',
+    indexOid: '',
+    entries: [],
+    added: 0,
+    removed: 0,
+  );
+  @override
+  Future<GitDiffResult> workspaceComparisonDiff(
+    String path,
+    GitWorkspaceComparison snapshot,
+    String filePath,
+  ) async => const GitDiffResult(files: [], truncated: false);
+  @override
+  Future<String> commitSelected(
+    String path,
+    GitWorkspaceComparison snapshot,
+    List<String> filePaths,
+    String message,
+  ) async => '';
   @override
   Future<bool> isGitRepository(String path) async => false;
 

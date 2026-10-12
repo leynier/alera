@@ -87,3 +87,42 @@ fn error_renders_as_its_message() {
 
     assert_eq!(error.to_string(), "git fetch failed: boom");
 }
+
+#[test]
+fn streaming_git_emits_bounded_actual_output_and_failure() {
+    let lines = std::sync::Mutex::new(Vec::new());
+    let collect = |line| lines.lock().unwrap().push(line);
+    let result =
+        super::git_in_dir_with_progress(std::path::Path::new("."), &["--version"], &collect)
+            .unwrap();
+    assert!(result.starts_with("git version"));
+    assert!(lines
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|line| line.starts_with("git version")));
+    assert!(super::git_in_dir_with_progress(
+        std::path::Path::new("."),
+        &["--alera-invalid"],
+        &collect
+    )
+    .is_err());
+    assert!(lines
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|line| line.chars().count() <= 512));
+}
+
+#[test]
+fn progress_redacts_credentials_and_bounds_output() {
+    assert_eq!(
+        super::redact_progress_line("To https://user:password@example.org/repo"),
+        "To https://[redacted]@example.org/repo"
+    );
+    assert_eq!(
+        super::redact_progress_line("Authorization: Bearer secret"),
+        "[redacted authentication output]"
+    );
+    assert_eq!(super::redact_progress_line(&"x".repeat(5000)).len(), 512);
+}

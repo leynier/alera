@@ -6,6 +6,7 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
 
 /// Why the pull-request panel has no provider to work with.
 enum PullRequestUnavailableReason { noRemote, undetectable, unsupported }
@@ -38,6 +39,11 @@ class const WorkspacePullRequestState({
   this.stackSupported = false,
   this.stackErrorMessage,
   this.mergeMethodsErrorMessage,
+  this.checksLoaded = false,
+  this.checksErrorMessage,
+  this.actionAccess = const ReviewActionAccess(),
+  this.stackChecksLoaded = false,
+  this.stackMergeBlocker,
   final List<ReviewCheck> checks = const <ReviewCheck>[],
   final List<ReviewComment> comments = const <ReviewComment>[],
   final bool commentsComplete = true,
@@ -70,6 +76,11 @@ class const WorkspacePullRequestState({
 
   /// A merge-method discovery failure that does not hide the pull request.
   final String? mergeMethodsErrorMessage;
+  final bool checksLoaded;
+  final String? checksErrorMessage;
+  final ReviewActionAccess actionAccess;
+  final bool stackChecksLoaded;
+  final String? stackMergeBlocker;
 
   /// Whether the workspace currently carries a dismissal record that applies
   /// to the active branch review or no active review exists yet.
@@ -114,6 +125,13 @@ class const WorkspacePullRequestState({
     bool clearStackError = false,
     String? mergeMethodsErrorMessage,
     bool clearMergeMethodsError = false,
+    bool? checksLoaded,
+    String? checksErrorMessage,
+    bool clearChecksError = false,
+    ReviewActionAccess? actionAccess,
+    bool? stackChecksLoaded,
+    String? stackMergeBlocker,
+    bool clearStackMergeBlocker = false,
     List<ReviewCheck>? checks,
     List<ReviewComment>? comments,
     bool? commentsComplete,
@@ -147,6 +165,15 @@ class const WorkspacePullRequestState({
       mergeMethodsErrorMessage: clearMergeMethodsError
           ? null
           : (mergeMethodsErrorMessage ?? this.mergeMethodsErrorMessage),
+      checksLoaded: checksLoaded ?? this.checksLoaded,
+      checksErrorMessage: clearChecksError
+          ? null
+          : checksErrorMessage ?? this.checksErrorMessage,
+      actionAccess: actionAccess ?? this.actionAccess,
+      stackChecksLoaded: stackChecksLoaded ?? this.stackChecksLoaded,
+      stackMergeBlocker: clearStackMergeBlocker
+          ? null
+          : stackMergeBlocker ?? this.stackMergeBlocker,
       checks: checks ?? this.checks,
       comments: comments ?? this.comments,
       commentsComplete:
@@ -186,7 +213,9 @@ class const WorkspacePullRequestState({
         ? ''
         : '${stack!.number}:${stack!.open}:'
               '${stack!.entries.map((entry) => '${entry.review.number}:${entry.review.state.name}:${entry.review.baseBranch}').join('|')}';
-    return '${review?.number}:${review?.state.name}:${review?.title}:'
+    return '$checksLoaded:$checksErrorMessage:$stackChecksLoaded:$stackMergeBlocker:'
+        '${actionAccess.canMerge}:${actionAccess.canMarkReady}:'
+        '${review?.number}:${review?.state.name}:${review?.title}:'
         '${review?.mergeable.name}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'
         '${review?.baseBranch}:$stackPart:$checkPart:$commentsComplete:$commentPart';

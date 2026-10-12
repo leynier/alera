@@ -1,3 +1,5 @@
+import 'package:alera/src/features/workbench/presentation/workspace_details_overlay.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/features/automations/presentation/automation_attention_control.dart';

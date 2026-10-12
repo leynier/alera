@@ -71,6 +71,9 @@ class const _PullRequestBody({
     if (review != null) {
       return PullRequestReviewView(
         review: review,
+        highlightedReviewNumber: ref.watch(
+          workspaceReviewRevealProvider(controller.scope.workspaceId),
+        ),
         stack: state.stack,
         stackSupported: state.stackSupported,
         stackErrorMessage: state.stackErrorMessage,
@@ -82,6 +85,13 @@ class const _PullRequestBody({
         baseBranches: state.baseBranches,
         mergeMethods: state.mergeMethods,
         canCloseReview: state.canCloseReview,
+        actionHint: resolveWorkspaceReviewAction(state).hint,
+        mergeAllowed:
+            resolveWorkspaceReviewAction(state).action ==
+            WorkspaceReviewAction.merge,
+        readyAllowed:
+            resolveWorkspaceReviewAction(state).action ==
+            WorkspaceReviewAction.ready,
         canChangeDraftStatus: state.canChangeDraftStatus,
         canComment: state.canComment,
         canEditComments: state.canEditComments,
@@ -95,9 +105,17 @@ class const _PullRequestBody({
         onRemoveWorkspace: onRemoveWorkspace,
         onLinkStack: controller.linkReviewStack,
         onCreateStackFromWorkspaces: controller.createReviewStackFromWorkspaces,
-        onMerge: controller.mergeReview,
+        onMerge: (method) async {
+          await controller.mergeReview(
+            method,
+            expectedFingerprint: reviewActionFingerprint(state),
+          );
+        },
         onClose: controller.closeReview,
-        onDraftStatusChanged: controller.setReviewDraft,
+        onDraftStatusChanged: (draft) => controller.setReviewDraft(
+          draft,
+          expectedFingerprint: reviewActionFingerprint(state),
+        ),
         onAddComment: controller.addReviewComment,
         onToggleTask: controller.toggleReviewCommentTask,
         onUpdate: controller.updateReview,

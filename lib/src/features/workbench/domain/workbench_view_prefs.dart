@@ -131,6 +131,8 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
 
 @MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
+  this.workspaceDetailsHiddenIds = const <String>{},
+  this.workspaceComparisonBases = const <String, String>{},
   this.workspacePanels = const <String, WorkspacePanel>{},
   this.sectionSort = WorkbenchSortBy.name,
   this.collapsedSectionIds = const <String>{},
@@ -164,6 +166,8 @@ class const WorkbenchViewPrefs({
   this.showArchivedWorkspaces = false,
   this.newWorkspaceTools = const <WorkspaceTool>[],
 }) with WorkbenchViewPrefsMappable {
+  final Set<String> workspaceDetailsHiddenIds;
+  final Map<String, String> workspaceComparisonBases;
   final Map<String, WorkspacePanel> workspacePanels;
   final WorkbenchGroupBy groupBy;
   final WorkbenchSortBy sectionSort;
