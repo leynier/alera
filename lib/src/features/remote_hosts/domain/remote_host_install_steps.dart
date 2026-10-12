@@ -152,13 +152,7 @@ class const RemoteHostInstallProgress({
 
   RemoteHostInstallStep _step(int index) {
     final label = remoteHostInstallStages[index].$2;
-    if (status == SshBootstrapStatus.installed) {
-      return RemoteHostInstallStep(
-        label: label,
-        state: RemoteHostInstallStepState.done,
-      );
-    }
-    if (index < stageIndex) {
+    if (status == SshBootstrapStatus.installed || index < stageIndex) {
       return RemoteHostInstallStep(
         label: label,
         state: RemoteHostInstallStepState.done,
@@ -188,9 +182,7 @@ class const RemoteHostInstallProgress({
           detail: index == stageIndex ? remoteHostInstallCancelledDetail : null,
           state: RemoteHostInstallStepState.skipped,
         );
-      case SshBootstrapStatus.notInstalled ||
-          SshBootstrapStatus.planned ||
-          SshBootstrapStatus.installed:
+      case _:
         return RemoteHostInstallStep(label: label);
     }
   }
