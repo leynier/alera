@@ -24,7 +24,7 @@ class const WorkspaceSummary({
   final DateTime? updatedAt,
 }) {
   bool get isMain => kind == 'main';
-  bool get isRemote => hostId.trim().isNotEmpty && hostId != 'local';
+  bool get isOnRemoteHost => hostId.trim().isNotEmpty && hostId != 'local';
   bool get hasParent => parentWorkspaceId != null;
 
   factory fromJson(Map<String, Object?> json) {

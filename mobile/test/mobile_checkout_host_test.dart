@@ -1,3 +1,7 @@
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_host_os_icon.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_checkout_selection.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_checkout_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
@@ -14,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_terminal_client.dart';
+import 'support/fake_workspace_hosts_client.dart';
 
 void main() {
   test(
@@ -172,6 +177,87 @@ void main() {
     },
   );
 
+  testWidgets('host picker marks each checkout with its glyph and state', (
+    tester,
+  ) async {
+    final client = _HostStatusCheckoutClient();
+    addTearDown(client.dispose);
+    await _pumpManualCreate(tester, client);
+    expect(find.byIcon(AleraIcons.pairedDevices), findsOneWidget);
+    await tester.tap(find.text('Paired Device'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(AleraIcons.pairedDevices), findsNWidgets(2));
+    final expected = <String, (HostOs, bool)>{
+      'Studio Mac (Update Available)': (HostOs.macos, true),
+      'Build Box (Offline)': (HostOs.windows, true),
+      'Rack (Needs Setup)': (HostOs.linux, false),
+      'Attic (Installing…)': (HostOs.unknown, false),
+      'Lab (Error)': (HostOs.linux, false),
+    };
+    for (final MapEntry(key: label, value: (os, enabled)) in expected.entries) {
+      final entry = tester.widget<AleraDropdownEntry<String>>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AleraDropdownEntry<String> && widget.label == label,
+        ),
+      );
+      expect(entry.enabled, enabled, reason: label);
+      expect((entry.leading! as AleraHostOsIcon).os, os, reason: label);
+    }
+  });
+
+  testWidgets('a host without a runtime explains itself and blocks Create', (
+    tester,
+  ) async {
+    final client = _HostStatusCheckoutClient();
+    addTearDown(client.dispose);
+    await _pumpManualCreate(tester, client, initialCheckoutHostId: 'ssh-tux');
+    final blocked = tester.widget<Text>(
+      find.text(
+        'The Alera runtime is not installed on Rack. Set it up from the desktop.',
+      ),
+    );
+    expect(blocked.style?.color, AleraTokens.error);
+    expect(_createButton(tester).onPressed, isNull);
+
+    await tester.tap(find.text('Rack (Needs Setup)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Build Box (Offline)').last);
+    await tester.pumpAndSettle();
+    final neutral = tester.widget<Text>(
+      find.text('Alera connects to Build Box when the workspace needs it.'),
+    );
+    expect(neutral.style?.color, AleraTokens.foregroundMuted);
+    expect(_createButton(tester).onPressed, isNotNull);
+    await tester.tap(find.text('Create Workspace'));
+    await tester.pumpAndSettle();
+    expect(client.sharedHost, 'ssh-win');
+  });
+
+  testWidgets('an older runtime without host status enables every host', (
+    tester,
+  ) async {
+    final client = _HostStatusCheckoutClient()
+      ..workspaceHosts = legacyWorkspaceHosts;
+    addTearDown(client.dispose);
+    await _pumpManualCreate(tester, client, initialCheckoutHostId: 'ssh-tux');
+    expect(find.byKey(const Key('checkout-host-notice')), findsNothing);
+    expect(_createButton(tester).onPressed, isNotNull);
+    await tester.tap(find.text('Rack'));
+    await tester.pumpAndSettle();
+    final entries = tester.widgetList<AleraDropdownEntry<String>>(
+      find.byType(AleraDropdownEntry<String>),
+    );
+    expect(entries.map((entry) => entry.label), [
+      'Paired Device',
+      'Studio Mac',
+      'Build Box',
+      'Rack',
+      'Attic',
+    ]);
+    expect(entries.every((entry) => entry.enabled), isTrue);
+  });
+
   test(
     'prompt branches, creation and retry identity use the checkout host',
     () async {
@@ -302,6 +388,83 @@ class _CheckoutClient extends FakeTerminalClient
       reuseExistingBranch: reuseExistingBranch,
       name: name,
       parentWorkspaceId: parentWorkspaceId,
+    );
+  }
+}
+
+Future<void> _pumpManualCreate(
+  WidgetTester tester,
+  FakeTerminalClient client, {
+  String? initialCheckoutHostId,
+}) async {
+  tester.view.physicalSize = const Size(800, 2000);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        workspaceClientProvider('paired').overrideWith((ref) async => client),
+        terminalClientProvider('paired').overrideWith((ref) async => client),
+      ],
+      child: MaterialApp(
+        home: CreateWorkspaceScreen(
+          supportsSharedCheckoutWorkspaces: true,
+          hostId: 'paired',
+          initialFromPrompt: false,
+          initialCheckoutHostId: initialCheckoutHostId,
+          projects: const [
+            ProjectSummary(id: 'project', name: 'Project', repoPath: '/local'),
+          ],
+          workspaces: const [],
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+ButtonStyleButton _createButton(WidgetTester tester) =>
+    tester.widget<ButtonStyleButton>(
+      find.ancestor(
+        of: find.text('Create Workspace'),
+        matching: find.bySubtype<ButtonStyleButton>(),
+      ),
+    );
+
+/// Lists a checkout on the paired device and on every host the runtime names.
+class _HostStatusCheckoutClient extends FakeRemoteWorkspacesClient
+    implements MobileCheckoutCatalogClient {
+  _HostStatusCheckoutClient() {
+    workspaceHosts = statusWorkspaceHosts;
+  }
+
+  String? sharedHost;
+
+  @override
+  Future<List<ProjectCheckoutSummary>> listProjectCheckouts(
+    String projectId,
+  ) async => [
+    const ProjectCheckoutSummary(hostId: 'local', path: '/local'),
+    for (final host in workspaceHosts)
+      ProjectCheckoutSummary(
+        hostId: host.id,
+        path: '/remote/${host.id}',
+        hostName: host.alias,
+      ),
+  ];
+
+  @override
+  Future<WorkspaceCreationResult> createSharedWorkspace({
+    required String projectId,
+    String? name,
+    String? checkoutHostId,
+    String? issueUrl,
+  }) {
+    sharedHost = checkoutHostId;
+    return super.createSharedWorkspace(
+      projectId: projectId,
+      name: name,
+      checkoutHostId: checkoutHostId,
     );
   }
 }
