@@ -103,17 +103,7 @@ impl ServerActor {
                 AutomationOverlapPolicy::ForceParallel => {}
             }
         }
-        if let Err(error) = self
-            .ensure_dispatch_policy(
-                definition,
-                &alera_core::runtime::AutomationActor {
-                    kind: AutomationActorKind::ManagedAgent,
-                    id: run.actor_id.clone(),
-                    label: Some("Alera Automation Scheduler".to_string()),
-                },
-            )
-            .await
-        {
+        if let Err(error) = self.ensure_target_valid(definition).await {
             self.block_run(&run, &error.wire_message()).await;
             return;
         }
@@ -289,7 +279,7 @@ impl ServerActor {
             Some(workspace_values),
             Some(project_values),
         );
-        let rendered = match render_prompt_template(definition, &run, &values) {
+        let rendered = match render_prompt_template(definition, &values) {
             Ok(value) => value,
             Err(error) => {
                 self.block_run(&run, &error).await;

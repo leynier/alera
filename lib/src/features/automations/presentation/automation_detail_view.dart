@@ -11,14 +11,13 @@ import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_dialog.dart';
 import 'package:alera/src/features/automations/presentation/automation_actions.dart';
-import 'package:alera/src/features/automations/presentation/automation_catalog_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_tabs.dart';
 import 'package:alera/src/features/automations/presentation/automation_list_tile.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum _MoreAction { clone, saveTemplate, pauseAndCancel, trash }
+enum _MoreAction { clone, pauseAndCancel, trash }
 
 enum _RunNowOption { withoutPrecheck, queue, parallel }
 
@@ -156,7 +155,6 @@ class const _AutomationHeaderActions({
               ref,
               request: AutomationAuthoringRequest(cloneId: automation.id),
             ),
-            _MoreAction.saveTemplate => saveAutomationTemplate(ref, automation),
             _MoreAction.pauseAndCancel => actions.pause(
               automation,
               cancelRuns: true,
@@ -168,11 +166,6 @@ class const _AutomationHeaderActions({
               value: _MoreAction.clone,
               leading: Icon(AleraIcons.copy, size: AleraTokens.iconMd),
               label: 'Clone',
-            ),
-            const AleraDropdownEntry(
-              value: _MoreAction.saveTemplate,
-              leading: Icon(AleraIcons.file, size: AleraTokens.iconMd),
-              label: 'Save As Template',
             ),
             if (state == 'active')
               const AleraDropdownEntry(

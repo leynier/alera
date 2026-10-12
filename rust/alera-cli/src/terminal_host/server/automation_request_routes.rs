@@ -67,18 +67,14 @@ impl ServerActor {
             "automation.list" => self.automation_list_request(payload).await,
             "automation.show" => self.automation_show_request(payload).await,
             "automation.upsert" => {
-                self.automation_upsert_request(
-                    client_id,
-                    payload,
-                    self.automation_actor(client_id, payload),
-                )
-                .await
+                self.automation_upsert_request(client_id, payload, self.automation_actor(client_id))
+                    .await
             }
             "automation.approve" => {
                 self.automation_approve_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                 )
                 .await
             }
@@ -86,7 +82,7 @@ impl ServerActor {
                 self.automation_state_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                     alera_core::runtime::AutomationState::Paused,
                 )
                 .await
@@ -95,7 +91,7 @@ impl ServerActor {
                 self.automation_state_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                     alera_core::runtime::AutomationState::Active,
                 )
                 .await
@@ -104,7 +100,7 @@ impl ServerActor {
                 self.automation_state_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                     alera_core::runtime::AutomationState::Trashed,
                 )
                 .await
@@ -113,7 +109,7 @@ impl ServerActor {
                 self.automation_state_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                     alera_core::runtime::AutomationState::Draft,
                 )
                 .await
@@ -134,12 +130,8 @@ impl ServerActor {
                 Ok(json!({ "purged": purged }))
             }
             "automation.runNow" => {
-                self.run_automation_now(
-                    client_id,
-                    payload,
-                    self.automation_actor(client_id, payload),
-                )
-                .await
+                self.run_automation_now(client_id, payload, self.automation_actor(client_id))
+                    .await
             }
             "automation.runs" => self.automation_runs_request(payload).await,
             "automation.runShow" => self.automation_run_show_request(payload).await,
@@ -147,7 +139,7 @@ impl ServerActor {
                 self.automation_context_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                 )
                 .await
             }
@@ -155,78 +147,29 @@ impl ServerActor {
                 self.automation_heartbeat_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                 )
                 .await
             }
             "automation.wait" => {
-                self.automation_wait_request(
-                    client_id,
-                    payload,
-                    self.automation_actor(client_id, payload),
-                )
-                .await
+                self.automation_wait_request(client_id, payload, self.automation_actor(client_id))
+                    .await
             }
             "automation.extend" => {
-                self.automation_extend_request(
-                    client_id,
-                    payload,
-                    self.automation_actor(client_id, payload),
-                )
-                .await
+                self.automation_extend_request(client_id, payload, self.automation_actor(client_id))
+                    .await
             }
             "automation.complete" => {
                 self.automation_complete_request(
                     client_id,
                     payload,
-                    self.automation_actor(client_id, payload),
+                    self.automation_actor(client_id),
                 )
                 .await
             }
             "automation.cancel" => {
-                self.automation_cancel_request(
-                    client_id,
-                    payload,
-                    self.automation_actor(client_id, payload),
-                )
-                .await
-            }
-            "automation.templates" => self.automation_templates_request(payload).await,
-            "automation.tags" => {
-                self.automation_tags_request(
-                    client_id,
-                    payload,
-                    self.automation_actor(client_id, payload),
-                )
-                .await
-            }
-            "automation.export" => {
-                let actor = self
-                    .resolve_policy_actor(
-                        client_id,
-                        payload,
-                        self.automation_actor(client_id, payload),
-                    )
-                    .await?;
-                self.automation_export_request(actor).await
-            }
-            "automation.import" => {
-                let actor = self
-                    .resolve_policy_actor(
-                        client_id,
-                        payload,
-                        self.automation_actor(client_id, payload),
-                    )
-                    .await?;
-                self.automation_import_request(payload, actor).await
-            }
-            "automation.policy" => {
-                self.automation_policy_request(
-                    client_id,
-                    payload,
-                    &self.automation_actor(client_id, payload),
-                )
-                .await
+                self.automation_cancel_request(client_id, payload, self.automation_actor(client_id))
+                    .await
             }
             _ => Err(HostError::state(format!(
                 "Unknown terminal host request: {request_type}"

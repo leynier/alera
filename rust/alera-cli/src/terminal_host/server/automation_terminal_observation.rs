@@ -115,11 +115,7 @@ impl ServerActor {
     ) -> HostResult<Value> {
         let run_id = super::requests::require_string_key(payload, "runId")?;
         let actor = self
-            .resolve_policy_actor(
-                client_id,
-                payload,
-                self.automation_actor(client_id, payload),
-            )
+            .resolve_request_actor(client_id, payload, self.automation_actor(client_id))
             .await?;
         let run = self
             .runtime_store

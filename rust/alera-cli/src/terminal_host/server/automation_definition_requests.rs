@@ -21,7 +21,6 @@ impl ServerActor {
         let state = payload.get("state").and_then(Value::as_str);
         let project_id = payload.get("projectId").and_then(Value::as_str);
         let profile_id = payload.get("profileId").and_then(Value::as_str);
-        let tag = payload.get("tag").and_then(Value::as_str);
         let search = payload
             .get("search")
             .and_then(Value::as_str)
@@ -33,9 +32,6 @@ impl ServerActor {
             }
             let definition_project_id = self.automation_definition_project(&definition).await?;
             if project_id.is_some_and(|value| definition_project_id.as_deref() != Some(value)) {
-                continue;
-            }
-            if tag.is_some_and(|value| !definition.tag_ids.iter().any(|tag_id| tag_id == value)) {
                 continue;
             }
             let target_profile = self.target_profile_id(&definition).await.ok().flatten();
@@ -89,12 +85,10 @@ impl ServerActor {
         Ok(json!({
             "kind": "automations",
             "items": items,
-            "effectivePolicies": [],
             "filters": {
                 "state": payload.get("state"),
                 "projectId": payload.get("projectId"),
                 "profileId": payload.get("profileId"),
-                "tag": payload.get("tag"),
                 "search": payload.get("search"),
             },
         }))
@@ -126,7 +120,6 @@ impl ServerActor {
             "runs": runs,
             "audit": audit,
             "occurrences": preview,
-            "effectivePolicies": [],
         }))
     }
 
@@ -136,7 +129,9 @@ impl ServerActor {
         payload: &Value,
         actor: AutomationActor,
     ) -> HostResult<Value> {
-        let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
+        let actor = self
+            .resolve_request_actor(client_id, payload, actor)
+            .await?;
         let value = payload.get("automation").unwrap_or(payload);
         let definition: AutomationDefinition = serde_json::from_value(value.clone())
             .map_err(|error| HostError::format(format!("invalid automation: {error}")))?;
@@ -181,7 +176,9 @@ impl ServerActor {
         actor: AutomationActor,
         state: AutomationState,
     ) -> HostResult<Value> {
-        let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
+        let actor = self
+            .resolve_request_actor(client_id, payload, actor)
+            .await?;
         let id = require_string_key(payload, "id")?;
         let reason = payload.get("reason").and_then(Value::as_str);
         let definition = self

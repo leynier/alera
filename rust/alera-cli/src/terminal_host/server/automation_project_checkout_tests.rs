@@ -38,17 +38,6 @@ async fn empty_project() -> (Harness, AutomationDefinition) {
         .upsert_project(project)
         .await
         .unwrap();
-    fixture
-        .actor
-        .runtime_store
-        .set_automation_agent_policy(AutomationAgentPolicy {
-            profile_id: "profile-1".into(),
-            may_execute: true,
-            may_activate_or_edit_active: false,
-            updated_at: Utc::now(),
-        })
-        .await
-        .unwrap();
     let mut definition = draft_definition();
     definition.target = AutomationTarget::ProjectCheckout {
         project_id: "project-1".into(),
@@ -87,13 +76,7 @@ async fn project_checkout_target_resolves_without_workspace_or_declaration() {
     );
     fixture
         .actor
-        .ensure_agent_policy(&definition, &definition.created_by, true)
-        .await
-        .unwrap();
-    declare(&fixture.repo_path);
-    fixture
-        .actor
-        .ensure_agent_policy(&definition, &definition.created_by, true)
+        .ensure_target_valid(&definition)
         .await
         .unwrap();
     assert!(fixture
@@ -108,7 +91,6 @@ async fn project_checkout_target_resolves_without_workspace_or_declaration() {
 #[tokio::test]
 async fn project_checkout_run_allocation_preserves_files_and_default_task_history() {
     let (mut fixture, definition) = empty_project().await;
-    declare(&fixture.repo_path);
     std::fs::write(fixture.repo_path.join("shared.txt"), "uncommitted content").unwrap();
     let mut ids = Vec::new();
     for index in 0..2 {
@@ -228,10 +210,11 @@ async fn runtime_reports_project_dependencies_and_rejects_removal_without_tasks(
     fixture
         .actor
         .runtime_store
-        .approve_automation(
+        .set_automation_state(
             &definition.id,
-            definition.revision,
+            alera_core::runtime::AutomationState::Active,
             definition.created_by.clone(),
+            None,
         )
         .await
         .unwrap();
@@ -294,7 +277,6 @@ async fn deferred_checkout_preparation_timeout_releases_pending_job_without_allo
 
 async fn deferred_preparation_rejection(scenario: &'static str) {
     let (mut fixture, definition) = empty_project().await;
-    declare(&fixture.repo_path);
     let occurrence = AutomationOccurrence {
         automation_id: definition.id.clone(),
         key: "deferred-cancel".into(),

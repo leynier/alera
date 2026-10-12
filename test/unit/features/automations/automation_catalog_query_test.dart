@@ -106,7 +106,6 @@ void main() {
       'state': 'active',
       'projectId': 'p-1',
       'targetHostId': 'ssh-1',
-      'tagIds': <Object?>['ops'],
       'target': <String, Object?>{
         'freshTab': <String, Object?>{'agentProfileId': 'codex'},
       },
@@ -121,8 +120,6 @@ void main() {
       (const AutomationCatalogFilters(hostId: 'local'), false),
       (const AutomationCatalogFilters(profileId: 'codex'), true),
       (const AutomationCatalogFilters(profileId: 'claude'), false),
-      (const AutomationCatalogFilters(tagId: 'ops'), true),
-      (const AutomationCatalogFilters(tagId: 'docs'), false),
       (const AutomationCatalogFilters(search: 'REVIEW'), true),
       (const AutomationCatalogFilters(search: 'flaky'), true),
       (const AutomationCatalogFilters(search: 'pull requests'), true),

@@ -213,40 +213,6 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
     });
   }
 
-  Future<List<JsonMap>> templates() async {
-    final payload = await _client.runtimeRequest('automation.templates');
-    return automationJsonList(automationJsonMap(payload)['items'])
-        .map(automationJsonMap)
-        .toList(growable: false);
-  }
-
-  Future<JsonMap> saveTemplate(JsonMap template) async {
-    final payload = await _client.runtimeRequest(
-      'automation.templates',
-      <String, Object?>{'template': template},
-    );
-    return automationJsonMap(payload);
-  }
-
-  Future<List<JsonMap>> tags() async {
-    final payload = await _client.runtimeRequest('automation.tags');
-    return automationJsonList(automationJsonMap(payload)['items'])
-        .map(automationJsonMap)
-        .toList(growable: false);
-  }
-
-  Future<JsonMap> exportCatalog() async {
-    final payload = await _client.runtimeRequest('automation.export');
-    return automationJsonMap(payload);
-  }
-
-  Future<void> importCatalog(JsonMap bundle, Map<String, String> remap) async {
-    await _client.runtimeRequest('automation.import', <String, Object?>{
-      'bundle': bundle,
-      'remap': remap,
-    });
-  }
-
   Future<Object?> _validated(Future<Object?> Function() request) async {
     final payload = await request();
     final map = automationJsonMap(payload);

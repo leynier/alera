@@ -2,7 +2,7 @@
 name: alera-mcp-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through this MCP server, and follow their runs. Use for recurring or one-time agent work.
 metadata:
-  version: 2
+  version: 3
 ---
 
 # Alera Automations Through MCP
@@ -11,7 +11,7 @@ An automation is a definition: a prompt, a schedule, a target, and an agent prof
 
 ## Authoring
 
-Choose the execution target explicitly; never infer its type. A valid prompt, schedule, target, and launchable profile are enough. There is no approval or repository declaration step. Read [definitions](references/definitions.md) for the definition JSON and the five targets.
+Choose the execution target explicitly; never infer its type. A valid prompt, schedule, target, and launchable profile are enough. Read [definitions](references/definitions.md) for the definition JSON and the five targets.
 
 1. `check_automation_readiness` validates a full or partial definition without saving it and lists the fields to fix. Run it before creating.
 2. `preview_automation_schedule` lists the next occurrences of a cron expression or a one-time date in a time zone.
@@ -36,9 +36,3 @@ Choose the execution target explicitly; never infer its type. A valid prompt, sc
 - `take_over_automation_run` hands the run's terminal to a person; the automation stops driving the agent. Use it only when the user intends to operate that agent.
 
 The runtime must be running for schedules to fire. Occurrences missed while it was offline are skipped by default. An interrupted run recovers on its own in its preserved workspace, a bounded number of times. Do not launch a replacement into the same target while that is happening.
-
-## Catalog
-
-- `list_automation_templates` and `upsert_automation_template` manage prompt templates.
-- `list_automation_tags` lists tags, and `upsert_automation_tags` creates or renames a tag and sets an automation's tags.
-- `export_automations` exports automations, templates, and tags as a portable catalog. `import_automations` imports one.

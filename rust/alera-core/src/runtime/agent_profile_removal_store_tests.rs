@@ -283,15 +283,6 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
         .set_default_agent_profile_id(Some("prof_a"))
         .await
         .is_err());
-    assert!(store
-        .set_automation_agent_policy(crate::runtime::AutomationAgentPolicy {
-            profile_id: "prof_a".into(),
-            may_activate_or_edit_active: false,
-            may_execute: false,
-            updated_at: now,
-        })
-        .await
-        .is_err());
     let run = store
         .create_orchestration_coordinator_run("run", Some("coord"), 2_000)
         .await

@@ -13,7 +13,6 @@ import 'package:alera/src/features/automations/application/automations_navigatio
 import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_dialog.dart';
-import 'package:alera/src/features/automations/presentation/automation_catalog_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_catalog_filters.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_view.dart';
 import 'package:alera/src/features/automations/presentation/automation_list_tile.dart';
@@ -123,7 +122,6 @@ class _AutomationsPageState extends ConsumerState<AutomationsPage> {
                   icon: const Icon(AleraIcons.back),
                   label: const Text('Return To Workspace'),
                 ),
-                const AutomationCatalogMenu(),
                 IconButton(
                   tooltip: 'Refresh Automations',
                   icon: const Icon(AleraIcons.refresh),
@@ -208,14 +206,12 @@ class const _AutomationCatalogPane({
     final groupBy = ref.watch(
       workbenchControllerProvider.select((state) => state.viewPrefs.groupBy),
     );
-    final tags = ref.watch(automationTagNamesProvider).value ?? const {};
     final filtersBar = AutomationCatalogFiltersBar(
       scope: location.scope,
       filters: location.filters,
       counts: automationBucketCounts(automations, location.scope),
       automations: automations,
       context: names,
-      tags: tags,
       onScope: navigation.setScope,
       onFilters: navigation.setFilters,
       onClear: () {

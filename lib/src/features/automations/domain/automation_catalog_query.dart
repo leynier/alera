@@ -50,7 +50,6 @@ class const AutomationCatalogFilters({
   final String? projectId,
   final String? hostId,
   final String? profileId,
-  final String? tagId,
   final AutomationBucket? bucket,
 }) {
   bool get isFiltered =>
@@ -58,7 +57,6 @@ class const AutomationCatalogFilters({
       projectId != null ||
       hostId != null ||
       profileId != null ||
-      tagId != null ||
       bucket != null;
 
   bool matches(AutomationRecord automation) {
@@ -73,7 +71,6 @@ class const AutomationCatalogFilters({
     if (profileId != null && automation.agentProfileId != profileId) {
       return false;
     }
-    if (tagId != null && !automation.tagIds.contains(tagId)) return false;
     final query = search.trim().toLowerCase();
     return query.isEmpty ||
         automation.name.toLowerCase().contains(query) ||

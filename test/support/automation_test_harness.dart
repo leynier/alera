@@ -98,8 +98,6 @@ class FakeAutomationRuntime
       'automation.patch' => <String, Object?>{
         'automation': automationJson(id: '${payload['id']}'),
       },
-      'automation.tags' ||
-      'automation.templates' => <String, Object?>{'items': <Object?>[]},
       _ => automationJson(id: '${payload['id'] ?? 'automation'}'),
     };
   }

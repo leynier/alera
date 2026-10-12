@@ -3,8 +3,8 @@ use chrono::Utc;
 use sqlx::{sqlite::SqliteRow, Row};
 
 use super::{
-    format_timestamp, parse_timestamp, validate_prompt_template, validate_schedule,
-    AutomationActor, AutomationDefinition, AutomationState, RuntimeStore, RuntimeStoreError,
+    format_timestamp, validate_prompt_template, validate_schedule, AutomationActor,
+    AutomationDefinition, AutomationState, RuntimeStore, RuntimeStoreError,
 };
 
 fn decode_definition(row: SqliteRow) -> Result<AutomationDefinition> {
@@ -193,9 +193,6 @@ impl RuntimeStore {
                 definition.project_id = Some(project_id.to_string());
             }
         }
-        definition
-            .tag_ids
-            .retain(|tag_id| !tag_id.trim().is_empty());
         let existing = self.find_automation(&definition.id).await?;
         if let Some(conflict) = sqlx::query(
             "SELECT id FROM automations WHERE slug = ? COLLATE NOCASE AND id <> ? LIMIT 1",
@@ -258,8 +255,6 @@ impl RuntimeStore {
         .bind(format_timestamp(definition.updated_at))
         .execute(self.pool())
         .await?;
-        self.set_automation_tags(&definition.id, &definition.tag_ids)
-            .await?;
         self.insert_automation_audit_event(
             Some(&definition.id),
             None,
@@ -339,43 +334,6 @@ impl RuntimeStore {
         Ok(definition)
     }
 
-    pub async fn approve_automation(
-        &self,
-        id: &str,
-        revision: i64,
-        actor: AutomationActor,
-    ) -> Result<AutomationDefinition> {
-        let mut definition = self
-            .find_automation(id)
-            .await?
-            .ok_or_else(|| anyhow!("automation not found: {id}"))?;
-        if definition.revision != revision {
-            bail!("automation revision is stale; refresh before approving");
-        }
-        definition.approved_revision = Some(revision);
-        definition.state = AutomationState::Active;
-        definition.updated_at = Utc::now();
-        definition.modified_by = actor.clone();
-        sqlx::query(
-            "UPDATE automations SET state = 'active', dataJson = ?, updatedAt = ? WHERE id = ?",
-        )
-        .bind(serde_json::to_string(&definition)?)
-        .bind(format_timestamp(definition.updated_at))
-        .bind(id)
-        .execute(self.pool())
-        .await?;
-        self.insert_automation_audit_event(
-            Some(id),
-            None,
-            "approve",
-            actor,
-            Some(revision),
-            serde_json::json!({}),
-        )
-        .await?;
-        Ok(definition)
-    }
-
     pub async fn purge_trashed_automations(&self, before: chrono::DateTime<Utc>) -> Result<u64> {
         let result =
             sqlx::query("DELETE FROM automations WHERE state = 'trashed' AND trashedAt < ?")
@@ -438,11 +396,6 @@ impl RuntimeStore {
         .await?;
         Ok(true)
     }
-}
-
-#[allow(dead_code)]
-fn _timestamp_round_trip(value: &str) -> String {
-    format_timestamp(parse_timestamp(value))
 }
 
 #[cfg(test)]

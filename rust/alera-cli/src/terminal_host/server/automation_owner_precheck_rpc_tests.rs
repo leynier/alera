@@ -119,7 +119,6 @@ async fn owner_precheck_rpc_requires_no_declaration_and_runs_once() {
 #[tokio::test]
 async fn owner_precheck_rpc_keeps_running_after_disconnect_and_cancels_with_verified_closure() {
     let (mut fixture, _) = empty_project().await;
-    declare(&fixture.repo_path);
     let marker = fixture.repo_path.join("rpc-child");
     let request = request(
         &fixture,
@@ -271,7 +270,6 @@ async fn linked_owner_rpc_retains_storage_until_verified_command_closure() {
         .insert_workspace_with_repository(task.clone(), origin.to_str().unwrap())
         .await
         .unwrap();
-    declare(&linked);
     let marker = linked.join("count");
     let release = linked.join("release");
     let mut request = request(

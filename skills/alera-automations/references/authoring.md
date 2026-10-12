@@ -12,7 +12,7 @@
 
 Flag creation can use `--at <RFC3339>` instead of `--cron`, and `--prompt-file` instead of `--prompt`. `--origin-workspace-id` controls where the definition appears contextually, independently of the execution target. The CLI uses the current workspace as the origin when available. Section membership follows that workspace dynamically.
 
-Partial JSON input needs no IDs, revision, timestamps, actors, slug, or approval fields:
+Partial JSON input needs no IDs, revision, timestamps, actors, or slug:
 
 ```json
 {
@@ -26,4 +26,4 @@ Partial JSON input needs no IDs, revision, timestamps, actors, slug, or approval
 
 Advanced fields include `precheck`, `overlapPolicy`, `misfirePolicy`, `cleanupPolicy`, `retryMaxAttempts`, `retryBackoffSeconds`, and schedule bounds. Omit them for server defaults. `edit --id <id> --file changes.json` accepts only changed fields and supports `--expected-revision` to detect a stale edit.
 
-`run-now` uses the configured precheck and overlap behavior; overrides are optional. It runs once without changing the schedule. `--continue-from-run <run-id>` creates a new linked run in the prior run's preserved workspace with its summary and context. Omit it to start fresh. Completed definitions are read-only but can run again, be cloned through creation, or trashed. Restoring returns a completed definition to Completed; other restored definitions are Paused.
+`run-now` uses the configured precheck and overlap behavior; overrides are optional. It runs once without changing the schedule. `--continue-from-run <run-id>` creates a new linked run in the prior run's preserved workspace with its summary and context. Omit it to start fresh. Completed definitions are read-only but can run again, be copied with `clone`, or trashed. Restoring returns a completed definition to Completed; other restored definitions are Paused.

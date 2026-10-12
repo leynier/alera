@@ -18,7 +18,6 @@ class AutomationCatalogFiltersBar extends StatefulWidget {
     required this.counts,
     required this.automations,
     required this.context,
-    required this.tags,
     required this.onScope,
     required this.onFilters,
     required this.onClear,
@@ -29,7 +28,6 @@ class AutomationCatalogFiltersBar extends StatefulWidget {
   final Map<AutomationBucket, int> counts;
   final List<AutomationRecord> automations;
   final AutomationWorkbenchContext context;
-  final Map<String, String> tags;
   final ValueChanged<AutomationScope> onScope;
   final ValueChanged<AutomationCatalogFilters> onFilters;
   final VoidCallback onClear;
@@ -67,7 +65,6 @@ class _AutomationCatalogFiltersBarState
     String? Function()? projectId,
     String? Function()? hostId,
     String? Function()? profileId,
-    String? Function()? tagId,
     AutomationBucket? Function()? bucket,
   }) {
     final current = widget.filters;
@@ -76,7 +73,6 @@ class _AutomationCatalogFiltersBarState
       projectId: projectId == null ? current.projectId : projectId(),
       hostId: hostId == null ? current.hostId : hostId(),
       profileId: profileId == null ? current.profileId : profileId(),
-      tagId: tagId == null ? current.tagId : tagId(),
       bucket: bucket == null ? current.bucket : bucket(),
     );
   }
@@ -130,9 +126,6 @@ class _AutomationCatalogFiltersBarState
     };
     final profileIds = <String>{
       for (final automation in widget.automations) ?automation.agentProfileId,
-    };
-    final tagIds = <String>{
-      for (final automation in widget.automations) ...automation.tagIds,
     };
     final filters = widget.filters;
     final theme = Theme.of(context);
@@ -215,22 +208,6 @@ class _AutomationCatalogFiltersBarState
             onChanged: (value) =>
                 widget.onFilters(_with(profileId: () => value)),
           ),
-          if (tagIds.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AleraTokens.space8),
-            AleraDropdownField<String?>(
-              labelText: 'Tag',
-              value: filters.tagId,
-              entries: <AleraDropdownFieldEntry<String?>>[
-                const AleraDropdownFieldEntry(value: null, label: 'All Tags'),
-                for (final tag in tagIds)
-                  AleraDropdownFieldEntry(
-                    value: tag,
-                    label: widget.tags[tag] ?? tag,
-                  ),
-              ],
-              onChanged: (value) => widget.onFilters(_with(tagId: () => value)),
-            ),
-          ],
           if (filters.isFiltered || widget.scope != AutomationScope.all)
             Align(
               alignment: Alignment.centerLeft,

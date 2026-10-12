@@ -293,35 +293,6 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         createdAt TEXT NOT NULL
     );",
     "CREATE INDEX IF NOT EXISTS automationAuditCreatedIdx ON automationAuditEvents(createdAt DESC);",
-    "CREATE TABLE IF NOT EXISTS automationTemplates (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        dataJson TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS automationTemplatesNameIdx ON automationTemplates(name COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS automationTags (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        createdAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS automationTagsNameIdx ON automationTags(name COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS automationTagAssignments (
-        automationId TEXT NOT NULL,
-        tagId TEXT NOT NULL,
-        PRIMARY KEY(automationId, tagId)
-    );",
-    "CREATE TABLE IF NOT EXISTS automationAgentPolicies (
-        profileId TEXT PRIMARY KEY,
-        dataJson TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS automationProjectPolicies (
-        projectId TEXT PRIMARY KEY,
-        dataJson TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
 ];
 
 /// Prevents a writer that was validated before a concurrent profile removal
@@ -411,14 +382,6 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
          )
        )
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS automationAgentPoliciesProfileInsertGuard
-     BEFORE INSERT ON automationAgentPolicies
-     WHEN NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.profileId)
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS automationAgentPoliciesProfileUpdateGuard
-     BEFORE UPDATE OF profileId ON automationAgentPolicies
-     WHEN NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.profileId)
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
     "CREATE TRIGGER IF NOT EXISTS defaultAgentProfileInsertGuard
      BEFORE INSERT ON runtimeMetadata

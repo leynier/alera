@@ -136,7 +136,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Automations system | 4 | 4 | Shipped | Cron-style scheduled agent workflows with templates, run history, desktop/mobile/CLI surfaces, and host scheduler |
+| Automations system | 4 | 4 | Shipped | Cron-style scheduled agent workflows with run history, desktop/mobile/CLI surfaces, and host scheduler |
 
 ---
 

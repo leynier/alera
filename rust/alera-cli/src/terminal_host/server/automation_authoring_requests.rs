@@ -31,11 +31,7 @@ impl ServerActor {
             return Ok(json!({"occurrences":occurrences,"timezone":schedule.timezone()}));
         }
         let actor = self
-            .resolve_policy_actor(
-                client_id,
-                payload,
-                self.automation_actor(client_id, payload),
-            )
+            .resolve_request_actor(client_id, payload, self.automation_actor(client_id))
             .await?;
         let definition = if let Some(id) = payload["id"].as_str() {
             let saved = self
@@ -213,10 +209,7 @@ impl ServerActor {
                         "ChooseTarget",
                     ));
                 }
-                if let Err(error) = self
-                    .ensure_dispatch_policy(definition, &definition.modified_by)
-                    .await
-                {
+                if let Err(error) = self.ensure_target_valid(definition).await {
                     issues.push(issue(
                         "invalidTarget",
                         &error.wire_message(),

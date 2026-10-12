@@ -118,30 +118,6 @@ impl RuntimeStore {
         }
         Ok(candidates)
     }
-
-    pub async fn clear_automation_origin(&self, workspace_id: &str) -> Result<()> {
-        for mut definition in self.list_automations(true).await? {
-            if definition.origin_workspace_id.as_deref() != Some(workspace_id) {
-                continue;
-            }
-            definition.origin_workspace_id = None;
-            sqlx::query("UPDATE automations SET dataJson = ? WHERE id = ?")
-                .bind(serde_json::to_string(&definition)?)
-                .bind(&definition.id)
-                .execute(self.pool())
-                .await?;
-            self.insert_automation_audit_event(
-                Some(&definition.id),
-                None,
-                "originRemoved",
-                definition.modified_by.clone(),
-                Some(definition.revision),
-                json!({"workspaceId":workspace_id}),
-            )
-            .await?;
-        }
-        Ok(())
-    }
 }
 
 pub fn automation_cursor(

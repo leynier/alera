@@ -38,7 +38,7 @@ When a run is interrupted, the runtime first reconciles its owner. It resumes th
 
 **Run Now** runs once without changing the schedule and is available for technically valid Draft, Paused, Active, Blocked, and Completed definitions. It uses the configured precheck and overlap behavior unless overridden. **Run Again** creates a new linked run; choose previous context in its preserved workspace or start fresh. Final runs remain unchanged.
 
-**Pause** stops future scheduling while admitted runs can continue. **Resume** restarts scheduling from now. **Trash** is recoverable; **Restore** returns other definitions Paused and previously Completed definitions to Completed. Export and import move the catalog as JSON; imported definitions remain drafts.
+**Pause** stops future scheduling while admitted runs can continue. **Resume** restarts scheduling from now. **Trash** is recoverable; **Restore** returns other definitions Paused and previously Completed definitions to Completed.
 
 An optional precheck runs in the target folder; a non-zero result skips execution. The agent reports progress through `alera automation heartbeat` and finishes with `alera automation complete`, including a summary and success, failure, or blocked status. Inactivity defaults to two hours and the absolute deadline to 24 hours. Repeated scheduled failures temporarily open the circuit breaker. History and audit retention remain in application settings.
 

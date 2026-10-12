@@ -40,8 +40,4 @@ impl AutomationDefinition {
         ]))
         .unwrap_or_default()
     }
-
-    pub fn is_approved(&self) -> bool {
-        self.approved_revision == Some(self.revision)
-    }
 }

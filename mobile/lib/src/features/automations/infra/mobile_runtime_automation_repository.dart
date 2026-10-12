@@ -202,21 +202,6 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
   Future<void> takeOver(String runId) =>
       _client.request('automation.takeOver', <String, Object?>{'runId': runId});
 
-  Future<List<JsonMap>> templates() async {
-    final payload = await _client.requestMap('automation.templates');
-    return automationJsonList(payload['items'])
-        .map(automationJsonMap)
-        .toList(growable: false);
-  }
-
-  Future<JsonMap> exportCatalog() => _client.requestMap('automation.export');
-
-  Future<void> importCatalog(JsonMap bundle, Map<String, String> remap) =>
-      _client.request('automation.import', <String, Object?>{
-        'bundle': bundle,
-        'remap': remap,
-      });
-
   Future<void> _state(String request, String id, {String? activeRuns}) async {
     try {
       await _client.request(request, <String, Object?>{

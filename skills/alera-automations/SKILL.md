@@ -2,7 +2,7 @@
 name: alera-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through the CLI, and report the lifecycle of an automation run. Use for recurring or one-time agent work in an Alera runtime.
 metadata:
-  version: 1
+  version: 2
 ---
 
 # Alera Automations
@@ -11,7 +11,7 @@ Use `alera automation` for scheduled agent work. Automations are definitions; ru
 
 ## Authoring
 
-Choose the execution target explicitly. Never infer a target type. Once chosen, `--workspace-id`, `--profile-id`, and origin can come from the current Alera terminal environment. A profile, prompt, schedule, and valid target are enough; no repository declaration, profile permission, or approval step is required. Creation is Active unless `--draft` is supplied. Editing an Active automation keeps it Active and affects future runs.
+Choose the execution target explicitly. Never infer a target type. Once chosen, `--workspace-id`, `--profile-id`, and origin can come from the current Alera terminal environment. A profile, prompt, schedule, and valid target are enough. Creation is Active unless `--draft` is supplied. Editing an Active automation keeps it Active and affects future runs.
 
 ```bash
 alera automation --json create --name 'Daily Review' --prompt 'Review changed files and report findings' --cron '0 9 * * 1-5' --timezone America/Mexico_City --target fresh-tab --request-key daily-review
@@ -22,9 +22,10 @@ alera automation --json show --id <id>
 alera automation run-now --id <id>
 alera automation pause --id <id> --active-runs continue-active
 alera automation resume --id <id>
+alera automation --json clone --id <id> --name 'Weekly Review' --draft
 ```
 
-Use a stable `--request-key` when retrying creation after an ambiguous response. `--dry-run` checks readiness without saving. `preview-schedule --cron '0 9 * * *' --timezone UTC` previews dates. Read [targets and JSON](references/authoring.md) for other targets and advanced settings. Use `alera automation <command> --help` for optional flags.
+Use a stable `--request-key` when retrying creation after an ambiguous response. `--dry-run` checks readiness without saving. `preview-schedule --cron '0 9 * * *' --timezone UTC` previews dates. `clone` copies a definition's settings and target into a new automation. Read [targets and JSON](references/authoring.md) for other targets and advanced settings. Use `alera automation <command> --help` for optional flags.
 
 ## Execution
 

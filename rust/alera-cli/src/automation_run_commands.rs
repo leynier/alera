@@ -1,12 +1,11 @@
 //! Automation commands an operator outside the run uses: clone, take over,
-//! tag upkeep, and run lifecycle calls bound to the identity the run recorded.
+//! and run lifecycle calls bound to the identity the run recorded.
 
 use anyhow::{anyhow, bail, Result};
-use chrono::Utc;
 use serde_json::{json, Map, Value};
 
 use super::{AutomationTargetArgs, RuntimeDirArgs};
-use crate::cli::{AutomationCloneArgs, AutomationTagsArgs, AutomationTakeOverArgs};
+use crate::cli::{AutomationCloneArgs, AutomationTakeOverArgs};
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY;
 
@@ -28,6 +27,7 @@ const RECORD_FIELDS: &[&str] = &[
     "stateBeforeTrash",
     "circuitOpened",
     "circuitOpenedAt",
+    "tagIds",
 ];
 
 /// The target identity for a run lifecycle call. With `use_run_identity` it
@@ -114,59 +114,6 @@ pub(super) async fn take_over(
         .await
 }
 
-/// Lists tags, or upserts one and then sets an automation's tags.
-pub(super) async fn tags(runtime: &RuntimeDirArgs, args: AutomationTagsArgs) -> Result<Value> {
-    let tag = match (args.file, args.name) {
-        (Some(file), _) => Some(super::read_json(&file)?),
-        (None, Some(name)) => Some(named_tag(runtime, args.id, name).await?),
-        (None, None) => None,
-    };
-    if args.automation_id.is_some() && !args.clear && args.assign.is_empty() {
-        bail!("--automation-id needs --assign <tag_id> or --clear");
-    }
-    let assignment = args.automation_id.map(|id| (id, args.assign));
-    if tag.is_none() && assignment.is_none() {
-        let mut payload = json!({});
-        super::add_automation_context(&mut payload);
-        return super::request(runtime, "automation.tags", payload).await;
-    }
-    let mut result = json!({});
-    if let Some(tag) = tag {
-        let mut payload = json!({"tag": tag});
-        super::add_automation_context(&mut payload);
-        result["tag"] = super::request(runtime, "automation.tags", payload).await?;
-    }
-    if let Some((automation_id, tag_ids)) = assignment {
-        let mut payload = json!({"automationId": automation_id, "tagIds": tag_ids});
-        super::add_automation_context(&mut payload);
-        result["assignment"] = super::request(runtime, "automation.tags", payload).await?;
-    }
-    Ok(result)
-}
-
-/// A tag keeps its creation time when renamed; a new tag gets a fresh id.
-async fn named_tag(runtime: &RuntimeDirArgs, id: Option<String>, name: String) -> Result<Value> {
-    if name.trim().is_empty() {
-        bail!("tag name cannot be empty");
-    }
-    let Some(id) = id else {
-        return Ok(json!({
-            "id": uuid::Uuid::new_v4().to_string(),
-            "name": name.trim(),
-            "createdAt": Utc::now(),
-        }));
-    };
-    let listing = super::request(runtime, "automation.tags", json!({})).await?;
-    let created_at = listing["items"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .find(|tag| tag["id"] == json!(id))
-        .map(|tag| tag["createdAt"].clone())
-        .ok_or_else(|| anyhow!("automation tag not found: {id}"))?;
-    Ok(json!({"id": id, "name": name.trim(), "createdAt": created_at}))
-}
-
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -183,8 +130,14 @@ mod tests {
         let copy = copy_definition(&saved, None, false).unwrap();
         assert_eq!(copy["name"], "Nightly Copy");
         assert_eq!(copy["promptTemplate"], "Run");
-        assert_eq!(copy["tagIds"], json!(["t1"]));
-        for field in ["id", "slug", "state", "revision", "creationRequestKey"] {
+        for field in [
+            "id",
+            "slug",
+            "state",
+            "revision",
+            "creationRequestKey",
+            "tagIds",
+        ] {
             assert!(copy.get(field).is_none(), "{field} was copied");
         }
         let draft = copy_definition(&saved, Some("Other".into()), true).unwrap();

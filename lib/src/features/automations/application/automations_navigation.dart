@@ -12,7 +12,6 @@ class const AutomationAuthoringRequest({
   final String? projectId,
   final String? editId,
   final String? cloneId,
-  final Map<String, Object?>? template,
 });
 
 class const AutomationsLocation({

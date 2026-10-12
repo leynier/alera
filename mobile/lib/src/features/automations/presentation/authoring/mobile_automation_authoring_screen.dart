@@ -4,7 +4,6 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_authoring_controller.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/domain/automation_draft.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
 import 'package:alera_mobile/src/features/automations/presentation/authoring/mobile_automation_authoring_steps.dart';
 import 'package:alera_mobile/src/features/automations/presentation/authoring/mobile_automation_where_step.dart';
@@ -20,19 +19,12 @@ Future<AutomationRecord?> showMobileAutomationAuthoring(
   String? originWorkspaceId,
   AutomationRecord? editing,
   AutomationRecord? cloneOf,
-  JsonMap? template,
 }) {
   final draft = editing != null
       ? AutomationDraft.fromRecord(editing)
       : cloneOf != null
       ? AutomationDraft.fromRecord(cloneOf).cloned()
-      : AutomationDraft(
-          originWorkspaceId: originWorkspaceId,
-          name: automationJsonString(template?['name']),
-          description: automationJsonString(template?['description']),
-          promptTemplate: automationJsonString(template?['promptTemplate']),
-          tagIds: automationJsonStringList(template?['tagIds']),
-        );
+      : AutomationDraft(originWorkspaceId: originWorkspaceId);
   return Navigator.of(context).push<AutomationRecord>(
     MaterialPageRoute<AutomationRecord>(
       fullscreenDialog: true,

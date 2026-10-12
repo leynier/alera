@@ -55,22 +55,6 @@ impl AutomationState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum AutomationScheduleKind {
-    OneTime,
-    Recurring,
-}
-
-impl AutomationScheduleKind {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::OneTime => "oneTime",
-            Self::Recurring => "recurring",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AutomationSchedule {
@@ -91,13 +75,6 @@ pub enum AutomationSchedule {
 }
 
 impl AutomationSchedule {
-    pub fn kind(&self) -> AutomationScheduleKind {
-        match self {
-            Self::OneTime { .. } => AutomationScheduleKind::OneTime,
-            Self::Recurring { .. } => AutomationScheduleKind::Recurring,
-        }
-    }
-
     pub fn timezone(&self) -> &str {
         match self {
             Self::OneTime { timezone, .. } | Self::Recurring { timezone, .. } => timezone,

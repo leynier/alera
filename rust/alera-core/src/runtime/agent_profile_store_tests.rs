@@ -417,36 +417,6 @@ async fn default_profile_reference_is_reported_and_cleared_atomically() {
 }
 
 #[tokio::test]
-async fn automation_policy_reference_is_reported_and_cleared_atomically() {
-    let (_dir, store) = store().await;
-    store
-        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
-        .await
-        .unwrap();
-    store
-        .set_automation_agent_policy(crate::runtime::AutomationAgentPolicy {
-            profile_id: "prof_a".into(),
-            may_activate_or_edit_active: false,
-            may_execute: false,
-            updated_at: Utc::now(),
-        })
-        .await
-        .unwrap();
-
-    let impact = store
-        .agent_profile_removal_impact("prof_a", 0)
-        .await
-        .unwrap();
-    assert!(impact.has_automation_policy);
-    assert!(store.remove_agent_profile("prof_a", 0).await.unwrap());
-    let impact = store
-        .agent_profile_removal_impact("prof_a", 0)
-        .await
-        .unwrap();
-    assert!(!impact.has_automation_policy);
-}
-
-#[tokio::test]
 async fn tab_reference_exposes_safe_ids_and_blocks_removal() {
     let (_dir, store) = store().await;
     store

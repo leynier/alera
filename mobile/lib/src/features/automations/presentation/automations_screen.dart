@@ -14,7 +14,6 @@ import 'package:alera_mobile/src/features/automations/domain/automation_catalog_
 import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
 import 'package:alera_mobile/src/features/automations/domain/automation_status_labels.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automation_detail_screen.dart';
-import 'package:alera_mobile/src/features/automations/presentation/automations_screen_catalog.dart';
 import 'package:alera_mobile/src/features/automations/presentation/authoring/mobile_automation_authoring_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_filters_sheet.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_lines.dart';
@@ -114,7 +113,6 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
               ),
             ),
           ),
-          AutomationsCatalogMenu(hostId: widget.hostId),
         ],
       ),
       floatingActionButton: catalog.hasError && catalog.value == null
@@ -126,7 +124,7 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
             ),
       body: SafeArea(
         child: catalog.value == null && catalog.hasError
-            ? AutomationsErrorState(error: catalog.error!)
+            ? _AutomationsErrorState(error: catalog.error!)
             : catalog.value == null
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
@@ -228,7 +226,6 @@ AutomationCatalogFilters _withSearch(
   projectId: filters.projectId,
   hostId: filters.hostId,
   profileId: filters.profileId,
-  tagId: filters.tagId,
   bucket: filters.bucket,
 );
 
@@ -240,7 +237,6 @@ AutomationCatalogFilters _withBucket(
   projectId: filters.projectId,
   hostId: filters.hostId,
   profileId: filters.profileId,
-  tagId: filters.tagId,
   bucket: bucket,
 );
 
@@ -399,4 +395,20 @@ class const _WorkspaceRuns({
       ],
     );
   }
+}
+
+class const _AutomationsErrorState({required final Object error})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: AleraTokens.pagePadding,
+      child: Text(
+        error is UnsupportedError
+            ? 'Update the runtime to manage automations from mobile.'
+            : 'Automations are unavailable: $error',
+        textAlign: .center,
+      ),
+    ),
+  );
 }

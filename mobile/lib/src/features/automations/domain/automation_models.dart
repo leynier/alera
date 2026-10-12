@@ -1,6 +1,3 @@
-// The automation domain is a copy of the desktop one in
-// lib/src/features/automations/domain: alera_mobile has no dependency on the
-// root package. Keep both copies in sync.
 import 'package:alera_mobile/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera_mobile/src/features/automations/domain/automation_readiness.dart';
 import 'package:alera_mobile/src/features/automations/domain/automation_run_models.dart';
@@ -46,7 +43,6 @@ class const AutomationRecord({
   required final DateTime? updatedAt,
   final String? projectId,
   final String? originWorkspaceId,
-  final List<String> tagIds = const <String>[],
   final String setupPolicy = 'wait',
   final String? cleanupPolicy,
   final String overlapPolicy = 'skip',
@@ -88,7 +84,6 @@ class const AutomationRecord({
       updatedAt: automationJsonDate(map['updatedAt']),
       projectId: automationJsonOptionalString(map['projectId']),
       originWorkspaceId: automationJsonOptionalString(map['originWorkspaceId']),
-      tagIds: automationJsonStringList(map['tagIds']),
       setupPolicy: text('setupPolicy', 'wait'),
       cleanupPolicy: automationJsonOptionalString(map['cleanupPolicy']),
       overlapPolicy: text('overlapPolicy', 'skip'),

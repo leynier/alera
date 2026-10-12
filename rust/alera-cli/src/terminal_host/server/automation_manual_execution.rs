@@ -18,7 +18,9 @@ impl ServerActor {
         payload: &Value,
         actor: AutomationActor,
     ) -> HostResult<Value> {
-        let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
+        let actor = self
+            .resolve_request_actor(client_id, payload, actor)
+            .await?;
         let id = optional_string_key(payload, "id")
             .ok_or_else(|| HostError::format("automation id is required"))?;
         let mut definition = self
@@ -93,7 +95,7 @@ impl ServerActor {
                 readiness,
             ));
         }
-        self.ensure_dispatch_policy(&definition, &actor).await?;
+        self.ensure_target_valid(&definition).await?;
         let precheck = payload
             .get("precheck")
             .and_then(Value::as_bool)

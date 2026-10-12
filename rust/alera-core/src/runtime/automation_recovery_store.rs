@@ -1,7 +1,6 @@
 use super::{AutomationAttempt, AutomationRun, AutomationRunStatus, RuntimeStore};
 use anyhow::{anyhow, bail, Result};
 use chrono::{DateTime, Duration, Utc};
-use serde_json::json;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -158,18 +157,9 @@ impl RuntimeStore {
 
     pub async fn record_automation_runtime_started(&self) -> Result<DateTime<Utc>> {
         let now = Utc::now();
-        if let Some(previous) = self.get_metadata("automations.runtimeStartedAt").await? {
-            self.set_metadata("automations.previousStartedAt", &previous)
-                .await?;
-        }
         self.set_metadata(
             "automations.runtimeStartedAt",
             &super::format_timestamp(now),
-        )
-        .await?;
-        self.set_metadata(
-            "automations.runtimeStatus",
-            &json!({"startedAt":now}).to_string(),
         )
         .await?;
         Ok(now)

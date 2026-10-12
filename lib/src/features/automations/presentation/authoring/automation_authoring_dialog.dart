@@ -8,7 +8,6 @@ import 'package:alera/src/features/automations/application/automation_authoring_
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_review_step.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_what_when_steps.dart';
@@ -31,18 +30,11 @@ Future<AutomationRecord?> showAutomationAuthoringDialog(
       catalog.where((item) => item.id == id).firstOrNull;
   final editing = find(request.editId);
   final cloned = find(request.cloneId);
-  final template = request.template;
   final draft = editing != null
       ? AutomationDraft.fromRecord(editing)
       : cloned != null
       ? AutomationDraft.fromRecord(cloned).cloned()
-      : AutomationDraft(
-          originWorkspaceId: request.originWorkspaceId,
-          name: automationJsonString(template?['name']),
-          description: automationJsonString(template?['description']),
-          promptTemplate: automationJsonString(template?['promptTemplate']),
-          tagIds: automationJsonStringList(template?['tagIds']),
-        );
+      : AutomationDraft(originWorkspaceId: request.originWorkspaceId);
   final session = _nextAuthoringSession++;
   final saved = await showDialog<AutomationRecord>(
     context: context,

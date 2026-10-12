@@ -23,7 +23,7 @@ Generic terminal restoration excludes automation-owned tabs until Take Over. The
 
 Recovery copies the original task, previous summary/error, and bounded local Git status and diff statistics into the retry prompt. It does not copy terminal output or file contents. The saved agent launch configuration and permissions remain authoritative. SSH recovery directs the agent to reconcile the preserved remote files.
 
-The authoring and observation capabilities are additive. `createOrAttach` accepts `attachmentMode: observe`; `terminal.observe` offers the same behavior. Mobile forwards observation through `terminal.attach`. Legacy generic attachment retains its takeover semantics. `approve` remains a deprecated activation alias; policy requests return a retirement error.
+The authoring and observation capabilities are additive. `createOrAttach` accepts `attachmentMode: observe`; `terminal.observe` offers the same behavior. Mobile forwards observation through `terminal.attach`. Legacy generic attachment retains its takeover semantics. `approve` remains a deprecated activation alias for older apps. The retired `automation.policy`, `automation.templates`, `automation.tags`, `automation.import`, and `automation.export` verbs now return the generic unknown-request error.
 
 Migration reactivates only technically valid definitions with unambiguous audit evidence that a removed gate stopped a previously active automation. Technical failures remain Blocked; ambiguous history, ordinary drafts, and manually paused definitions are preserved.
 

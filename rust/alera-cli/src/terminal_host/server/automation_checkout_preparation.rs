@@ -115,17 +115,7 @@ impl ServerActor {
             return;
         }
         let latest = current.definition_snapshot.clone().unwrap_or(definition);
-        if let Err(error) = self
-            .ensure_dispatch_policy(
-                &latest,
-                &alera_core::runtime::AutomationActor {
-                    kind: alera_core::runtime::AutomationActorKind::ManagedAgent,
-                    id: current.actor_id.clone(),
-                    label: Some("Alera Automation Scheduler".into()),
-                },
-            )
-            .await
-        {
+        if let Err(error) = self.ensure_target_valid(&latest).await {
             self.block_run(&current, &error.wire_message()).await;
             return;
         }

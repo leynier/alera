@@ -20,7 +20,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "list_automations",
             "List Automations",
-            "List runtime automations with the same filters as the Automations view: state, bucket, project, agent profile, tag, workspace, section, host, or search text.",
+            "List runtime automations with the same filters as the Automations view: state, bucket, project, agent profile, workspace, section, host, or search text.",
             || {
                 object(
                     &[
@@ -28,7 +28,6 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("bucket", one_of("View bucket. needsAttention covers blocked or not ready automations and runs waiting for you.", BUCKETS)),
                         ("projectId", string("Project id.")),
                         ("profileId", string("Agent profile id the automation runs.")),
-                        ("tagId", string("Automation tag id from list_automation_tags.")),
                         ("workspaceId", string("Workspace the automation belongs to.")),
                         ("sectionId", string("Workspace section id.")),
                         ("hostId", string("Host the automation runs on.")),
@@ -44,7 +43,6 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option_if("--bucket", arguments.string("bucket"))
                     .option_if("--project-id", arguments.string("projectId"))
                     .option_if("--profile-id", arguments.string("profileId"))
-                    .option_if("--tag", arguments.string("tagId"))
                     .option_if("--workspace-id", arguments.string("workspaceId"))
                     .option_if("--section-id", arguments.string("sectionId"))
                     .option_if("--host-id", arguments.string("hostId"))

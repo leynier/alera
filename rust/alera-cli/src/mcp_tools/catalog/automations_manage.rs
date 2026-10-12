@@ -1,5 +1,5 @@
-//! Automation authoring, state changes, run control, and the shared catalog
-//! of templates and tags. Definitions travel to the CLI on stdin.
+//! Automation authoring, state changes, and run control. Definitions travel
+//! to the CLI on stdin.
 
 use serde_json::{json, Value};
 
@@ -37,9 +37,6 @@ pub(super) fn with_object(
         .stdin(Value::Object(value.clone()).to_string()))
 }
 
-#[path = "automations_catalog.rs"]
-mod automations_catalog;
-
 pub(super) fn tools() -> Vec<ToolSpec> {
     let mut tools = vec![
         read(
@@ -71,7 +68,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 || {
                     object(
                         &[
-                            ("definition", json_object("Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target, and optional policies, tagIds, and projectId.")),
+                            ("definition", json_object("Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target, and optional policies and projectId.")),
                             ("draft", boolean("Save as a draft instead of activating it.")),
                         ],
                         &["definition"],
@@ -92,7 +89,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 object(
                     &[
                         ("automationId", automation_id()),
-                        ("changes", json_object("Definition fields to replace, such as name, promptTemplate, schedule, target, or tagIds.")),
+                        ("changes", json_object("Definition fields to replace, such as name, promptTemplate, schedule, or target.")),
                         ("expectedRevision", integer("Refuse the change if the automation changed since this revision.", 0, u64::MAX >> 11)),
                     ],
                     &["automationId", "changes"],
@@ -166,7 +163,6 @@ pub(super) fn tools() -> Vec<ToolSpec> {
     ];
     tools.extend(state_changes());
     tools.extend(run_control());
-    tools.extend(automations_catalog::tools());
     tools
 }
 
@@ -343,32 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn tags_and_imports_validate_their_shape() {
-        assert!(args("upsert_automation_tags", json!({})).is_err());
-        assert!(args("upsert_automation_tags", json!({"automationId": "a"})).is_err());
-        let assign = args(
-            "upsert_automation_tags",
-            json!({"automationId": "a", "tagIds": ["t1", "t2"]}),
-        )
-        .unwrap();
-        assert_eq!(
-            assign
-                .iter()
-                .filter(|arg| arg.starts_with("--assign="))
-                .count(),
-            2
-        );
-        let import = args(
-            "import_automations",
-            json!({"bundle": {}, "remap": {"p1": "p2"}}),
-        )
-        .unwrap();
-        assert!(import.contains(&"--remap=p1=p2".to_owned()));
-        assert!(args(
-            "import_automations",
-            json!({"bundle": {}, "remap": {"p1": 3}})
-        )
-        .is_err());
+    fn run_automation_maps_the_precheck_choice() {
         let run = args(
             "run_automation",
             json!({"automationId": "a", "precheck": "skip"}),

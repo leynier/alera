@@ -1,20 +1,19 @@
-use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
 
 use anyhow::{Context, Result};
-use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::cli::{
-    AutomationAction, AutomationCatalogFileArgs, AutomationCommand, AutomationCompleteArgs,
-    AutomationDefinitionFileArgs, AutomationExportArgs, AutomationExtendArgs, AutomationImportArgs,
-    AutomationListArgs, AutomationRevisionArgs, AutomationRunIdArgs, AutomationRunNowArgs,
-    AutomationRunsArgs, AutomationStateArgs, AutomationTargetArgs, AutomationWaitArgs,
-    RuntimeDirArgs,
+    AutomationAction, AutomationCommand, AutomationCompleteArgs, AutomationDefinitionFileArgs,
+    AutomationExtendArgs, AutomationListArgs, AutomationRevisionArgs, AutomationRunIdArgs,
+    AutomationRunNowArgs, AutomationRunsArgs, AutomationStateArgs, AutomationTargetArgs,
+    AutomationWaitArgs, RuntimeDirArgs,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
-use crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATIONS_CAPABILITY;
+use crate::terminal_host::protocol::{
+    RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+};
 
 pub(crate) async fn run(command: AutomationCommand) -> i32 {
     let AutomationCommand {
@@ -57,13 +56,6 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
         AutomationAction::Wait(args) => wait(&runtime, args).await,
         AutomationAction::Extend(args) => extend(&runtime, args).await,
         AutomationAction::Complete(args) => complete(&runtime, args).await,
-        AutomationAction::Templates(args) => catalog(&runtime, "template", args).await,
-        AutomationAction::Tags(args) => automation_run_commands::tags(&runtime, args).await,
-        AutomationAction::Import(args) => import_catalog(&runtime, args).await,
-        AutomationAction::Export(args) => export_catalog(&runtime, args, json_output).await,
-        AutomationAction::Policy(_) => Err(anyhow::anyhow!(
-            "Automation policies were removed. Use readiness to check technical requirements."
-        )),
     };
     match result {
         Ok(value) => {
@@ -94,7 +86,7 @@ async fn request(
                 | "automation.readiness"
                 | "automation.previewSchedule"
         ) {
-            "automationsAuthoringV1"
+            RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY
         } else {
             RUNTIME_HOST_AUTOMATIONS_CAPABILITY
         },
@@ -112,7 +104,6 @@ async fn list(runtime: &RuntimeDirArgs, args: AutomationListArgs) -> Result<Valu
             "state": args.state,
             "projectId": args.project_id,
             "profileId": args.profile_id,
-            "tag": args.tag,
             "search": args.search,
             "workspaceId":args.workspace_id, "sectionId":args.section_id, "hostId":args.host_id, "bucket":args.bucket,
         }),
@@ -152,7 +143,6 @@ async fn run_now(runtime: &RuntimeDirArgs, args: AutomationRunNowArgs) -> Result
         "id": args.id,
         "precheck": if args.precheck || args.skip_precheck { Some(precheck) } else { None },
         "overlap": overlap,
-        "draftTest": args.draft_test,
         "continueFromRunId": args.continue_from_run,
         "revision": args.revision,
         "targetIdentity": target_identity(&args.target),
@@ -249,55 +239,6 @@ async fn complete(runtime: &RuntimeDirArgs, args: AutomationCompleteArgs) -> Res
     .await
 }
 
-async fn catalog(
-    runtime: &RuntimeDirArgs,
-    kind: &str,
-    args: AutomationCatalogFileArgs,
-) -> Result<Value> {
-    let mut payload = match args.file {
-        Some(file) => json!({kind: read_json(&file)?}),
-        None => json!({}),
-    };
-    add_automation_context(&mut payload);
-    request(
-        runtime,
-        if kind == "template" {
-            "automation.templates"
-        } else {
-            "automation.tags"
-        },
-        payload,
-    )
-    .await
-}
-
-async fn import_catalog(runtime: &RuntimeDirArgs, args: AutomationImportArgs) -> Result<Value> {
-    let remap: BTreeMap<String, String> = args.remap.into_iter().collect();
-    let mut payload = json!({"bundle": read_json(&args.file)?, "remap": remap});
-    add_automation_context(&mut payload);
-    request(runtime, "automation.import", payload).await
-}
-
-async fn export_catalog(
-    runtime: &RuntimeDirArgs,
-    args: AutomationExportArgs,
-    json_output: bool,
-) -> Result<Value> {
-    let mut payload = json!({});
-    add_automation_context(&mut payload);
-    let value = request(runtime, "automation.export", payload).await?;
-    if let Some(path) = args.file {
-        fs::write(&path, serde_json::to_string_pretty(&value)?)
-            .with_context(|| format!("could not write automation catalog to {path}"))?;
-        return Ok(json!({"file": path}));
-    }
-    if !json_output {
-        println!("{}", serde_json::to_string_pretty(&value)?);
-        return Ok(json!({}));
-    }
-    Ok(value)
-}
-
 fn read_json(path: &str) -> Result<Value> {
     let mut contents = String::new();
     if path == "-" {
@@ -346,11 +287,6 @@ fn add_automation_context(payload: &mut Value) {
     };
     payload["run"] = Value::String(run_id);
     payload["targetIdentity"] = target_identity(&AutomationTargetArgs::default());
-}
-
-#[allow(dead_code)]
-fn _serialize<T: Serialize>(value: &T) -> Result<Value> {
-    Ok(serde_json::to_value(value)?)
 }
 
 #[cfg(test)]

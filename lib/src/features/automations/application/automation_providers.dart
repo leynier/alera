@@ -76,15 +76,3 @@ class AutomationRuntimeCapabilities extends _$AutomationRuntimeCapabilities {
     return AutomationCapabilities(authoring: results[0], observe: results[1]);
   }
 }
-
-/// Tag ids to names, refreshed with the catalog.
-@riverpod
-Future<Map<String, String>> automationTagNames(Ref ref) async {
-  ref.watch(automationCatalogProvider);
-  final tags = await ref.watch(automationRepositoryProvider).tags();
-  return <String, String>{
-    for (final tag in tags)
-      if (tag['id'] is String)
-        tag['id']! as String: '${tag['name'] ?? tag['id']}',
-  };
-}

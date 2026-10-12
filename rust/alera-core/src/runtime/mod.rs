@@ -25,7 +25,6 @@ mod alera_account_models;
 mod alera_account_store;
 #[cfg(test)]
 mod alera_account_store_tests;
-mod automation_catalog_store;
 mod automation_circuit_store;
 mod automation_models;
 #[cfg(test)]
@@ -302,7 +301,6 @@ pub use agent_quota_settings_models::*;
 pub use ai_assist_validation::validate_ai_assist_settings;
 pub use alera_account_models::*;
 #[allow(unused_imports)]
-pub use automation_catalog_store::*;
 pub use automation_models::*;
 #[allow(unused_imports)]
 pub use automation_run_store::*;

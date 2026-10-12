@@ -22,6 +22,13 @@ impl RuntimeStore {
             "DROP TABLE IF EXISTS browserProfiles",
             "DROP TABLE IF EXISTS codexChatState",
             "DELETE FROM workspaceTabs WHERE kind IN ('mobileEmulator', 'browser', 'codex')",
+            "DROP TRIGGER IF EXISTS automationAgentPoliciesProfileInsertGuard",
+            "DROP TRIGGER IF EXISTS automationAgentPoliciesProfileUpdateGuard",
+            "DROP TABLE IF EXISTS automationAgentPolicies",
+            "DROP TABLE IF EXISTS automationProjectPolicies",
+            "DROP TABLE IF EXISTS automationTagAssignments",
+            "DROP TABLE IF EXISTS automationTags",
+            "DROP TABLE IF EXISTS automationTemplates",
         ] {
             sqlx::query(statement).execute(&mut *transaction).await?;
         }

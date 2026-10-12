@@ -40,7 +40,6 @@ class const _FiltersSheet({
       projectId: projectId == null ? filters.projectId : projectId(),
       hostId: filters.hostId,
       profileId: profileId == null ? filters.profileId : profileId(),
-      tagId: filters.tagId,
       bucket: filters.bucket,
     );
     final profileIds = <String>{

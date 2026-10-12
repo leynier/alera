@@ -17,10 +17,11 @@ async fn prepared() -> (tempfile::TempDir, RuntimeStore, AutomationDefinition) {
         .await
         .unwrap();
     store
-        .approve_automation(
+        .set_automation_state(
             &definition.id,
-            definition.revision,
+            AutomationState::Active,
             definition.created_by.clone(),
+            None,
         )
         .await
         .unwrap();
@@ -179,7 +180,12 @@ async fn existing_workspace_dependency_is_checked_before_child_records_are_delet
         .await
         .unwrap();
     store
-        .approve_automation(&definition.id, definition.revision, definition.created_by)
+        .set_automation_state(
+            &definition.id,
+            AutomationState::Active,
+            definition.created_by,
+            None,
+        )
         .await
         .unwrap();
     assert!(store.remove_project("project").await.is_err());
