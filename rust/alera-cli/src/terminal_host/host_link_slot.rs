@@ -164,6 +164,10 @@ impl SlotState {
             },
             satellite_version: self.satellite_version.clone(),
             hub_version: super::runtime_build_info::version().to_string(),
+            runtime_update_available: super::satellite_version::runtime_update_available(
+                super::runtime_build_info::version(),
+                self.satellite_version.as_deref(),
+            ),
         }
     }
 }
@@ -191,4 +195,7 @@ pub(crate) struct HostLinkStatus {
     pub(crate) failure_kind: Option<AttachFailureKind>,
     pub(crate) satellite_version: Option<String>,
     pub(crate) hub_version: String,
+    /// The satellite runs an older version than the hub
+    /// ([`super::satellite_version::relation`]).
+    pub(crate) runtime_update_available: bool,
 }

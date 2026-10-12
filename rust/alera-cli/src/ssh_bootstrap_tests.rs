@@ -79,6 +79,8 @@ fn configured_platform_and_arch_prevent_detection_requirement() {
         archive_path: None,
         artifact_path: None,
         manifest_public_key: None,
+        restart_runtime: false,
+        force: false,
     };
 
     assert_eq!(
@@ -376,6 +378,8 @@ fn empty_plan_request(target_id: &str) -> SshTargetBootstrapRequest {
         archive_path: None,
         artifact_path: None,
         manifest_public_key: None,
+        restart_runtime: false,
+        force: false,
     }
 }
 

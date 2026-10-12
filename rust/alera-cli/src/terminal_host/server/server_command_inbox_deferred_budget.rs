@@ -16,8 +16,15 @@ pub(super) fn command_bytes(command: &ServerCommand) -> Option<usize> {
     let bytes = match command {
         ServerCommand::HistoryRequestRetry { line, .. } => string_bytes(line),
         ServerCommand::SshBootstrapFinished {
-            target_id, job_id, ..
-        } => string_bytes(target_id) + string_bytes(job_id),
+            target_id,
+            job_id,
+            error,
+            ..
+        } => {
+            string_bytes(target_id)
+                + string_bytes(job_id)
+                + error.as_deref().map(string_bytes).unwrap_or_default()
+        }
         ServerCommand::SshTargetsChanged { host_id } => {
             host_id.as_deref().map(string_bytes).unwrap_or_default()
         }

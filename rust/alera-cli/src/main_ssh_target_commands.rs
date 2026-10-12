@@ -3,8 +3,8 @@
 use super::*;
 use crate::cli::{
     SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
-    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetStatusArgs,
-    SshTargetUpdateArgs,
+    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetRuntimeArgs,
+    SshTargetStatusArgs, SshTargetUpdateArgs,
 };
 use crate::ssh_bootstrap::{
     build_ssh_bootstrap_plan, new_bootstrap_job_id, reject_password_ssh_bootstrap_auth,
@@ -120,11 +120,17 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                 Err(error) => return print_error(error),
             };
             let payload = request.clone();
-            let value: Value = if let Some(mut client) =
-                match RuntimeHostRpcClient::connect(&runtime_dir(&runtime)).await {
-                    Ok(client) => client,
-                    Err(error) => return print_error(error),
-                } {
+            // The restart needs the runtime's host link, so it never runs in
+            // the CLI process.
+            let client = if request.restart_runtime {
+                runtime_host_required(&runtime).await.map(Some)
+            } else {
+                RuntimeHostRpcClient::connect(&runtime_dir(&runtime)).await
+            };
+            let value: Value = if let Some(mut client) = match client {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            } {
                 match client
                     .request_value("sshTarget.bootstrap.start", &payload)
                     .await
@@ -157,6 +163,20 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
             };
             print_value(&value, json_output, "ssh bootstrap started");
         }
+        SshTargetAction::UpdateRuntime(SshTargetRuntimeArgs { id, force }) => {
+            let payload = json!({ "targetId": id, "restartRuntime": true, "force": force });
+            match runtime_request(&runtime, "sshTarget.bootstrap.start", &payload).await {
+                Ok(value) => print_value(&value, json_output, "ssh runtime update started"),
+                Err(error) => return print_error(error),
+            }
+        }
+        SshTargetAction::RestartRuntime(SshTargetRuntimeArgs { id, force }) => {
+            let payload = json!({ "id": id, "force": force });
+            match runtime_request(&runtime, "sshTarget.restartRuntime", &payload).await {
+                Ok(value) => print_value(&value, json_output, "ssh runtime restarted"),
+                Err(error) => return print_error(error),
+            }
+        }
         SshTargetAction::BootstrapCancel(IdArgs { id }) => {
             let payload = json!({ "id": id });
             let value: Value = if let Some(mut client) =
@@ -178,6 +198,19 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
         }
     }
     0
+}
+
+/// Updating or restarting a host's runtime goes through this machine's
+/// runtime, which owns the host link; it is started when needed.
+async fn runtime_request(
+    runtime: &RuntimeDirArgs,
+    request_type: &str,
+    payload: &Value,
+) -> anyhow::Result<Value> {
+    runtime_host_required(runtime)
+        .await?
+        .request_value(request_type, payload)
+        .await
 }
 
 /// A running runtime answers with each host's `hostStatus` as well.
@@ -361,6 +394,8 @@ fn ssh_bootstrap_request_from_plan_args(
         archive_path: host_accessible_optional_path(args.archive_path)?,
         artifact_path: host_accessible_optional_path(args.artifact_path)?,
         manifest_public_key: args.manifest_public_key,
+        restart_runtime: false,
+        force: false,
     })
 }
 
@@ -378,6 +413,8 @@ fn ssh_bootstrap_request_from_args(
         archive_path: host_accessible_optional_path(args.archive_path)?,
         artifact_path: host_accessible_optional_path(args.artifact_path)?,
         manifest_public_key: args.manifest_public_key,
+        restart_runtime: args.restart_runtime,
+        force: args.force,
     })
 }
 

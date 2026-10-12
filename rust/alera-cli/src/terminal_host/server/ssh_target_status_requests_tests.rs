@@ -26,6 +26,7 @@ fn link(state: HostLinkState, failure_kind: Option<AttachFailureKind>) -> HostLi
         failure_kind,
         satellite_version: None,
         hub_version: "2.0.0".into(),
+        runtime_update_available: false,
     }
 }
 
@@ -259,7 +260,7 @@ fn a_phone_learns_a_host_name_system_and_state_and_nothing_about_reaching_it() {
             "platform": "macos",
             "status": "connected",
             "runtimeVersion": "1.4.0",
-            "updateAvailable": false,
+            "updateAvailable": true,
         }),
         "the probed platform wins over the declared one"
     );
@@ -273,4 +274,47 @@ fn a_phone_learns_a_host_name_system_and_state_and_nothing_about_reaching_it() {
     ] {
         assert!(entry.get(key).is_none(), "{key} must stay on the hub");
     }
+}
+
+#[test]
+fn only_a_connected_older_runtime_offers_an_update() {
+    let installed = target("installed", None);
+    let with_version = |version: &str| {
+        let mut live = link(attached(), None);
+        live.satellite_version = Some(version.into());
+        live
+    };
+    let offered = |status: &HostLinkStatus, hub: &str| {
+        host_status_payload(&installed, status, None, hub).runtime_update_available
+    };
+    assert!(offered(&with_version("1.5.0"), "2.0.0"));
+    assert!(!offered(&with_version("2.0.0"), "2.0.0"));
+    assert!(
+        !offered(&with_version("2.1.0"), "2.0.0"),
+        "a newer runtime is never offered a downgrade"
+    );
+    assert!(
+        !offered(&with_version("1.5.0"), "0.1.0-dev"),
+        "a development hub offers nothing to a release"
+    );
+    assert!(!offered(&with_version("1.5.0"), "unknown"));
+    assert!(
+        offered(&link(attached(), None), "2.0.0"),
+        "the attachment's version counts when the slot has none"
+    );
+    // Not connected: nothing to restart onto the new version yet.
+    assert!(!offered(&link(HostLinkState::Disconnected, None), "2.0.0"));
+    let installing = InstallJobView {
+        stage: "upload".into(),
+        message: "Uploading".into(),
+    };
+    assert!(
+        !host_status_payload(
+            &installed,
+            &with_version("1.5.0"),
+            Some(&installing),
+            "2.0.0"
+        )
+        .runtime_update_available
+    );
 }

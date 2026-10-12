@@ -97,6 +97,12 @@ impl ServerActor {
                 self.start_ssh_target_check(client_id, request_id, payload);
                 Ok(true)
             }
+            "sshTarget.restartRuntime" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.start_ssh_runtime_restart(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
+            }
             "workflows.retryCleanup" => {
                 self.start_workflow_cleanup_retry(client_id, request_id, payload)?;
                 Ok(true)

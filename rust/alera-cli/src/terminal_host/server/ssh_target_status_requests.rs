@@ -21,7 +21,7 @@ use crate::terminal_host::host_link::{HostLinkAttachment, HostLinkState};
 use crate::terminal_host::host_link_failure::AttachFailureKind;
 use crate::terminal_host::host_link_registry::HostLinkRegistry;
 use crate::terminal_host::host_link_slot::{HostLinkStatus, RetryStatus};
-use crate::terminal_host::runtime_build_info;
+use crate::terminal_host::{runtime_build_info, satellite_version};
 
 use super::{ServerActor, ServerCommand};
 
@@ -97,6 +97,20 @@ pub(crate) fn host_status_payload(
             HostLinkState::Disconnected => (HostState::Disconnected, None, None),
         }
     };
+    let attached_version = match &link.state {
+        HostLinkState::Attached { attachment } => attachment.host_version.clone(),
+        _ => None,
+    };
+    let satellite_version = link
+        .satellite_version
+        .clone()
+        .or(attached_version)
+        .or_else(|| target.runtime_version.clone());
+    // Only a runtime that answers can be restarted onto the new version, and
+    // only an older one is offered the update (a development hub never
+    // offers a downgrade).
+    let runtime_update_available = state == HostState::Connected
+        && satellite_version::runtime_update_available(hub_version, satellite_version.as_deref());
     HostStatus {
         state,
         detail,
@@ -107,12 +121,9 @@ pub(crate) fn host_status_payload(
             HostLinkState::Attached { .. } => "attached",
             HostLinkState::Failed { .. } => "failed",
         },
-        satellite_version: link
-            .satellite_version
-            .clone()
-            .or_else(|| target.runtime_version.clone()),
+        satellite_version,
         hub_version: hub_version.to_string(),
-        runtime_update_available: false,
+        runtime_update_available,
         last_checked_at: target.last_checked_at,
         retry: link.retry.clone(),
         desired: link.desired,

@@ -318,7 +318,6 @@ impl HostLinkRegistry {
 
     /// A runtime restart begins: an attempt in flight is abandoned and the
     /// next close of the current link is expected rather than a failure.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn begin_restart(&self, host_id: &str) {
         let slot = self.slot(host_id);
         let mut state = slot.lock();
@@ -326,7 +325,6 @@ impl HostLinkRegistry {
         state.restarting = true;
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn end_restart(&self, host_id: &str) {
         if let Some(slot) = self.existing_slot(host_id) {
             slot.lock().restarting = false;
@@ -334,7 +332,6 @@ impl HostLinkRegistry {
     }
 
     /// Waits for the current link to close. `false` on timeout.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) async fn wait_closed(&self, host_id: &str, deadline: Duration) -> bool {
         let link = self
             .existing_slot(host_id)
@@ -343,6 +340,18 @@ impl HostLinkRegistry {
             Some(link) => tokio::time::timeout(deadline, link.closed()).await.is_ok(),
             None => true,
         }
+    }
+
+    /// Closes the current link without pausing the host, for a restart whose
+    /// old runtime kept the link open or answered again with the old version.
+    pub(crate) async fn close_for_restart(&self, host_id: &str) {
+        let link = self
+            .existing_slot(host_id)
+            .and_then(|slot| slot.lock().take_link());
+        if let Some(link) = link {
+            link.close().await;
+        }
+        self.publish(host_id, false);
     }
 
     /// The satellite's record for a workspace already mirrored over `link`

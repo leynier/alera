@@ -30,7 +30,19 @@ alera ssh-target --json bootstrap-cancel --id <host-id>
 
 Bootstrap installs the signed Alera runtime release for the host's platform and architecture into `~/.alera/sidecar` (macOS and Linux) or `%LOCALAPPDATA%\Alera\runtime` (Windows); `--install-dir` overrides it. It does not create a Git worktree or a workspace. With a running runtime, `bootstrap` starts a job and returns at once; follow it in the app or with `status`. Without one, the CLI installs in the foreground and prints progress to stderr. `bootstrap-plan` previews the steps without changing the host.
 
-Bootstrapping again installs the release again, but a runtime already running on the host keeps the version it started with until it stops.
+Bootstrapping again installs the release again, but a runtime already running on the host keeps the version it started with until it stops. To switch it over, update instead.
+
+## Update The Alera Runtime
+
+```bash
+alera ssh-target --json update-runtime --id <host-id>
+alera ssh-target --json restart-runtime --id <host-id>
+alera ssh-target --json bootstrap --id <host-id> --restart-runtime
+```
+
+`update-runtime` installs the latest stable runtime, restarts the host's runtime onto it, checks that the restarted runtime reports the installed version, and removes older versions from the host. It starts a job and returns at once; follow it with `status`. `restart-runtime` only restarts onto the version already installed and returns when the host answers again. `bootstrap --restart-runtime` does the same as `update-runtime` with the usual bootstrap flags. All three need this machine's runtime and start it when needed.
+
+While terminals are open on the host they are refused with `hostBusy`, naming how many would close. Ask the user before adding `--force`, which updates anyway and closes them.
 
 ## Status
 

@@ -1,5 +1,8 @@
 use super::server_actor_test_support::account_push_for_test;
+use super::ssh_bootstrap_jobs::SshBootstrapJobState;
 use super::*;
+use crate::ssh_bootstrap::SshTargetBootstrapProgress;
+use alera_core::runtime::SshBootstrapStatus;
 use std::net::Ipv6Addr;
 
 #[tokio::test]

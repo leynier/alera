@@ -22,6 +22,10 @@ use ssh_bootstrap_install_dir::{local_home_dir, prepare_remote_install_dir};
 mod ssh_bootstrap_plan;
 pub(crate) use ssh_bootstrap_plan::build_ssh_bootstrap_plan;
 
+#[path = "ssh_bootstrap_prune.rs"]
+mod ssh_bootstrap_prune;
+pub(crate) use ssh_bootstrap_prune::{installed_runtime_version, prune_remote_versions};
+
 #[path = "ssh_bootstrap_remote.rs"]
 mod ssh_bootstrap_remote;
 pub(crate) use ssh_bootstrap_remote::validate_remote_runtime;
@@ -38,6 +42,7 @@ use ssh_bootstrap_remote::{
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SshTargetBootstrapRequest {
+    #[serde(alias = "id")]
     pub target_id: String,
     #[serde(default)]
     pub channel: Option<String>,
@@ -57,6 +62,13 @@ pub(crate) struct SshTargetBootstrapRequest {
     pub artifact_path: Option<PathBuf>,
     #[serde(default)]
     pub manifest_public_key: Option<String>,
+    /// After a validated install, restart the host's runtime onto the new
+    /// version (`remoteRuntimeUpdateV1`). Only a running runtime host does it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub restart_runtime: bool,
+    /// Restart even though hub terminals still run on the host.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub force: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -401,6 +413,11 @@ fn default_install_dir(platform: &str) -> String {
         // CLI runtime profile at ~/.alera/runtime (runtime.sqlite, host json).
         "~/.alera/sidecar".to_string()
     }
+}
+
+/// The `versions/` entry an install of `version` extracts into.
+pub(crate) fn version_dir_name(version: &str, platform: &str, arch: &str) -> String {
+    format!("{version}-{platform}-{arch}")
 }
 
 pub(crate) fn normalize_arch(value: &str) -> String {

@@ -145,6 +145,8 @@ pub enum ServerCommand {
         target_id: String,
         job_id: String,
         status: SshBootstrapStatus,
+        /// Why the job failed, repeated on its final progress event.
+        error: Option<String>,
     },
     /// A satellite pushed an event over its host link.
     HostLinkEvent {

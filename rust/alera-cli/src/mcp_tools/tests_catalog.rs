@@ -24,6 +24,8 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
     ("ssh-target", Some("bootstrap")),
     ("ssh-target", Some("bootstrap-plan")),
     ("ssh-target", Some("bootstrap-cancel")),
+    ("ssh-target", Some("update-runtime")),
+    ("ssh-target", Some("restart-runtime")),
     ("ssh-target", Some("link")),
     ("runtime", Some("start")),
     ("runtime", Some("stop")),

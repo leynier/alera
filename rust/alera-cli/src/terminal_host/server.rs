@@ -4,10 +4,7 @@ use std::path::PathBuf;
 use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
-use alera_core::runtime::{
-    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshBootstrapStatus,
-    SshTarget,
-};
+use alera_core::runtime::{prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore};
 use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
@@ -16,11 +13,6 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use crate::agent_status::{start_agent_integrations, start_fx_herdr_receiver, start_hook_receiver};
-use crate::ssh_bootstrap::{
-    cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id,
-    reject_password_ssh_bootstrap_auth, run_ssh_bootstrap, SshTargetBootstrapJob,
-    SshTargetBootstrapProgress, SshTargetBootstrapRequest,
-};
 use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
@@ -291,6 +283,10 @@ mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
 mod ssh_bootstrap_job_events;
+mod ssh_bootstrap_jobs;
+mod ssh_bootstrap_restart;
+#[cfg(test)]
+mod ssh_bootstrap_restart_tests;
 mod ssh_target_removal;
 mod ssh_target_status_requests;
 mod tab_compatibility;
@@ -404,16 +400,6 @@ struct ClientState {
     relay_client_id: Option<String>,
 }
 
-struct SshBootstrapJobState {
-    job_id: String,
-    target_id: String,
-    status: SshBootstrapStatus,
-    /// Last progress stage and message, for the host status.
-    stage: String,
-    message: String,
-    handle: JoinHandle<()>,
-}
-
 pub use server_runner::{run_terminal_host_server, TerminalHostExit};
 
 struct ServerActor {
@@ -427,7 +413,7 @@ struct ServerActor {
     pull_request_watches: pull_request_watch_runtime::WatchRuntime,
     automations_active: bool,
     sessions: HashMap<String, Session>,
-    ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
+    ssh_bootstrap_jobs: HashMap<String, ssh_bootstrap_jobs::SshBootstrapJobState>,
     host_links: crate::terminal_host::host_link_registry::HostLinkRegistry,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     /// Cancel handles of running New Workspace from Prompt operations.
@@ -786,7 +772,8 @@ impl ServerActor {
                 target_id,
                 job_id,
                 status,
-            } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+                error,
+            } => self.handle_ssh_bootstrap_finished(target_id, job_id, status, error),
             ServerCommand::HostLinkEvent { host_id, event } => {
                 self.handle_host_link_event(host_id, event)
             }
@@ -1327,159 +1314,6 @@ impl ServerActor {
             let clients: Vec<u64> = session.clients.iter().copied().collect();
             self.broadcast(&clients, event("error", session.error_payload(&message)));
         }
-    }
-
-    async fn start_ssh_bootstrap_job(
-        &mut self,
-        request: SshTargetBootstrapRequest,
-    ) -> HostResult<Value> {
-        if let Some(existing) = self.ssh_bootstrap_jobs.get(&request.target_id) {
-            return Ok(json!(SshTargetBootstrapJob {
-                job_id: existing.job_id.clone(),
-                target_id: existing.target_id.clone(),
-                status: existing.status,
-            }));
-        }
-        let target = self
-            .runtime_store
-            .find_ssh_target(&request.target_id)
-            .await
-            .map_err(|error| HostError::from_anyhow(&error))?
-            .ok_or_else(|| {
-                HostError::state(format!("ssh target not found: {}", request.target_id))
-            })?;
-        reject_password_ssh_bootstrap_auth(target.auth_kind)
-            .map_err(|error| HostError::from_anyhow(&error))?;
-        let job_id = new_bootstrap_job_id();
-        mark_ssh_bootstrap_installing(&self.runtime_store, &target.id)
-            .await
-            .map_err(|error| HostError::from_anyhow(&error))?;
-        self.broadcast_authenticated(event(
-            "sshTargetBootstrapProgress",
-            json!(SshTargetBootstrapProgress {
-                job_id: job_id.clone(),
-                target_id: target.id.clone(),
-                status: SshBootstrapStatus::Installing,
-                stage: "auth".to_string(),
-                message: "Checking SSH Authentication".to_string(),
-                error: None,
-            }),
-        ));
-        self.broadcast_ssh_targets_changed(Some(&target.id));
-        let target_id = request.target_id.clone();
-        let store = self.runtime_store.clone();
-        let cache_dir = self.runtime_dir.join("runtime-artifacts");
-        let inbox = self.inbox.clone();
-        let task_job_id = job_id.clone();
-        let task_target_id = target_id.clone();
-        let handle = tokio::spawn(async move {
-            let result =
-                run_ssh_bootstrap(store, cache_dir, request, task_job_id.clone(), |progress| {
-                    let _ = inbox.send(ServerCommand::SshBootstrapProgress { progress });
-                })
-                .await;
-            let status = if result.is_ok() {
-                SshBootstrapStatus::Installed
-            } else {
-                SshBootstrapStatus::Failed
-            };
-            let _ = inbox
-                .send_wait(ServerCommand::SshBootstrapFinished {
-                    target_id: task_target_id,
-                    job_id: task_job_id,
-                    status,
-                })
-                .await;
-        });
-        let job = SshBootstrapJobState {
-            job_id: job_id.clone(),
-            target_id: target_id.clone(),
-            status: SshBootstrapStatus::Installing,
-            stage: "auth".to_string(),
-            message: "Checking SSH Authentication".to_string(),
-            handle,
-        };
-        self.ssh_bootstrap_jobs.insert(target_id.clone(), job);
-        self.cancel_shutdown_timer();
-        Ok(json!(SshTargetBootstrapJob {
-            job_id,
-            target_id,
-            status: SshBootstrapStatus::Installing,
-        }))
-    }
-
-    async fn cancel_ssh_bootstrap_job(&mut self, target_id: &str) -> HostResult<Value> {
-        if let Some(target) = self
-            .cancel_active_ssh_bootstrap_job(target_id, "Remote Runtime Install Cancelled")
-            .await?
-        {
-            self.schedule_shutdown_if_idle();
-            return Ok(json!(target));
-        }
-        if let Some(target) = self
-            .runtime_store
-            .find_ssh_target(target_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-        {
-            if target.bootstrap_status == SshBootstrapStatus::Installing {
-                let target = self
-                    .mark_ssh_bootstrap_cancelled(
-                        target_id,
-                        new_bootstrap_job_id(),
-                        "Stale Remote Runtime Install Cancelled",
-                    )
-                    .await?;
-                self.schedule_shutdown_if_idle();
-                return Ok(json!(target));
-            }
-        }
-        Err(HostError::state(format!(
-            "No active bootstrap job for SSH target: {target_id}"
-        )))
-    }
-
-    async fn cancel_ssh_bootstrap_job_before_remove(&mut self, target_id: &str) -> HostResult<()> {
-        self.cancel_active_ssh_bootstrap_job(target_id, "Remote Runtime Install Cancelled")
-            .await?;
-        self.schedule_shutdown_if_idle();
-        Ok(())
-    }
-
-    async fn cancel_active_ssh_bootstrap_job(
-        &mut self,
-        target_id: &str,
-        message: &str,
-    ) -> HostResult<Option<SshTarget>> {
-        let Some(job) = self.ssh_bootstrap_jobs.remove(target_id) else {
-            return Ok(None);
-        };
-        job.handle.abort();
-        self.mark_ssh_bootstrap_cancelled(target_id, job.job_id, message)
-            .await
-            .map(Some)
-    }
-
-    async fn mark_ssh_bootstrap_cancelled(
-        &mut self,
-        target_id: &str,
-        job_id: String,
-        message: &str,
-    ) -> HostResult<SshTarget> {
-        let target = cancel_ssh_bootstrap(&self.runtime_store, target_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let progress = SshTargetBootstrapProgress {
-            job_id,
-            target_id: target_id.to_string(),
-            status: SshBootstrapStatus::Cancelled,
-            stage: "cancelled".to_string(),
-            message: message.to_string(),
-            error: None,
-        };
-        self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_ssh_targets_changed(Some(target_id));
-        Ok(target)
     }
 }
 

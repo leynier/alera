@@ -26,6 +26,11 @@ pub const RUNTIME_HOST_REMOTE_SATELLITE_UNLINK_CAPABILITY: &str = "remoteSatelli
 /// `sshTarget.check` verb, the `sshTargetInUse` conflict on remove and the
 /// `hostId` scope on `sshTargetsChanged`. Additive.
 pub const RUNTIME_HOST_REMOTE_HOST_STATUS_CAPABILITY: &str = "remoteHostStatusV1";
+/// `restartRuntime` and `force` on `sshTarget.bootstrap.start`, the
+/// `sshTarget.restartRuntime` verb, the `hostBusy` conflict, the `restart` and
+/// `prune` install stages, and `runtimeUpdateAvailable` on `hostStatus` and
+/// the host link status. Additive.
+pub const RUNTIME_HOST_REMOTE_RUNTIME_UPDATE_CAPABILITY: &str = "remoteRuntimeUpdateV1";
 /// `identityFile` on SSH targets, passed to ssh as `-i` with
 /// `IdentitiesOnly=yes`. Additive.
 pub const RUNTIME_HOST_SSH_TARGET_IDENTITY_FILE_CAPABILITY: &str = "sshTargetIdentityFileV1";

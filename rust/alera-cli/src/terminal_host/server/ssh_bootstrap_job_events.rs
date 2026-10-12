@@ -41,6 +41,7 @@ impl ServerActor {
         target_id: String,
         job_id: String,
         status: SshBootstrapStatus,
+        error: Option<String>,
     ) {
         if self
             .ssh_bootstrap_jobs
@@ -62,7 +63,7 @@ impl ServerActor {
                         _ => "Remote Runtime Bootstrap Updated",
                     }
                     .to_string(),
-                    error: None,
+                    error,
                 }),
             ));
             self.broadcast_ssh_targets_changed(Some(&target_id));

@@ -49,6 +49,36 @@ fn ssh_target_bootstrap_help_states_no_remote_worktree() {
 }
 
 #[test]
+fn ssh_target_runtime_update_commands_parse() {
+    use crate::cli::{Command, SshTargetAction};
+    let action = |args: &[&str]| {
+        let mut argv = vec!["alera", "ssh-target"];
+        argv.extend_from_slice(args);
+        match Cli::try_parse_from(argv).map(|cli| cli.command) {
+            Ok(Command::SshTarget(command)) => Ok(command.action),
+            Ok(other) => panic!("unexpected command {other:?}"),
+            Err(error) => Err(error),
+        }
+    };
+    match action(&["update-runtime", "--id", "lab", "--force"]).unwrap() {
+        SshTargetAction::UpdateRuntime(args) => assert!(args.id == "lab" && args.force),
+        other => panic!("unexpected action {other:?}"),
+    }
+    match action(&["restart-runtime", "--id", "lab"]).unwrap() {
+        SshTargetAction::RestartRuntime(args) => assert!(args.id == "lab" && !args.force),
+        other => panic!("unexpected action {other:?}"),
+    }
+    match action(&["bootstrap", "--id", "lab", "--restart-runtime", "--force"]).unwrap() {
+        SshTargetAction::Bootstrap(args) => assert!(args.restart_runtime && args.force),
+        other => panic!("unexpected action {other:?}"),
+    }
+    assert!(
+        action(&["bootstrap", "--id", "lab", "--force"]).is_err(),
+        "--force only means something with --restart-runtime"
+    );
+}
+
+#[test]
 fn workspace_add_help_documents_host_id_for_remote_hosts() {
     for command in [
         &["workspace", "add"][..],

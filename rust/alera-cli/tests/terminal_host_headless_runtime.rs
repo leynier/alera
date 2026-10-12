@@ -39,6 +39,8 @@ mod profile_snapshot_restart_cases;
 #[cfg(unix)]
 #[path = "terminal_host_headless_runtime/project_hosts_case.rs"]
 mod project_hosts_case;
+#[path = "terminal_host_headless_runtime/runtime_update_case.rs"]
+mod runtime_update_case;
 #[path = "terminal_host_headless_runtime/ssh_target_check_case.rs"]
 mod ssh_target_check_case;
 #[path = "terminal_host_headless_runtime/ssh_target_remove_case.rs"]

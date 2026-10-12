@@ -238,7 +238,10 @@ pub(super) fn posix_install_script(
 ) -> String {
     let version_dir = RemoteShell::Posix.join(
         install_dir,
-        &["versions", &format!("{version}-{platform}-{arch}")],
+        &[
+            "versions",
+            &super::version_dir_name(version, platform, arch),
+        ],
     );
     format!(
         r#"set -eu
@@ -291,7 +294,10 @@ pub(super) fn windows_install_script(
 ) -> String {
     let version_dir = RemoteShell::Windows.join(
         install_dir,
-        &["versions", &format!("{version}-{platform}-{arch}")],
+        &[
+            "versions",
+            &super::version_dir_name(version, platform, arch),
+        ],
     );
     format!(
         r#"

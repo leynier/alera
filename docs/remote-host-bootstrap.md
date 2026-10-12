@@ -118,6 +118,25 @@ When the runtime host is running, `bootstrap` starts a host job and returns imme
 
 `alera ssh-target link [--id <target-id>] [--connect | --disconnect]` lists, opens, or closes the hub's persistent link to a bootstrapped host's runtime; see `docs/remote-hosts-hub.md`. Bootstrap still does not place a Git worktree; use `alera workspace add --worktree --host-id <target-id>` or select a linked worktree in New Workspace for that.
 
+## Update Runtime
+
+Update Runtime installs a new runtime on a bootstrapped host and restarts the host's runtime onto it, so the host does not keep running the old binary until its next reboot. It is `sshTarget.bootstrap.start` with `restartRuntime: true` (capability `remoteRuntimeUpdateV1`); the request also accepts `id` in place of `targetId`. The job runs the ordinary install stages and then two more:
+
+- `restart`: the hub reads the version the installed binary reports (`alera version --json` through `current`), stops the host's runtime with `host.shutdown` over the host link (`host.restart` would relaunch the old executable), waits up to 20 s for the link to close, and reconnects. The new `runtime-attach` goes through `bin/alera` to `current/alera`, so it starts the new runtime. It retries up to 10 times, 1.5 s apart, until the attached runtime reports the installed version; otherwise the job fails with `The runtime on <alias> still reports version <v> after the update. ...`.
+- `prune`: every `versions/*` entry except the one just installed and the one `current` points at is deleted (POSIX `current` symlink, Windows `current.txt`). The script refuses to delete anything when it cannot tell which version is current. A failed prune is logged and never fails the job.
+
+The final `installed` progress event is sent only after the restart and prune, and a failed job's final event carries the error. While hub terminals still run on the host, the request is refused before anything is installed with the conflict `hostBusy {hostId, alias, activeSessions, sessionIds}`; repeating it with `force: true` updates anyway and the restart closes those terminals. `force` is also passed to the satellite's `host.shutdown`, which otherwise refuses while its own terminals, agents or jobs are active.
+
+`sshTarget.restartRuntime {id, force?}` runs only the restart and prune for a host whose runtime is already installed, with the same `hostBusy` rule. It is local-client-only, answers `{hostId, satelliteVersion}` once the restarted runtime has attached, and is refused while an install job runs on that host.
+
+```bash
+alera ssh-target --json update-runtime --id <target-id> [--force]
+alera ssh-target --json restart-runtime --id <target-id> [--force]
+alera ssh-target --json bootstrap --id <target-id> --restart-runtime [--force]
+```
+
+These go through the Alera runtime on this machine, starting it when needed, because the restart uses its host link. `update-runtime` installs the latest stable runtime and prints the job; `bootstrap --restart-runtime` takes the usual artifact flags. None of them is exposed as an MCP tool.
+
 ## Mobile Access
 
 Mobile companion pairing is managed from **Settings → Mobile Devices** in the desktop app: enable the gateway, tune bind host/port, generate a pairing offer rendered as a QR code (with a copy-JSON fallback), watch active offers with their expiry, and rename or revoke paired devices. The pane pre-validates custom endpoints with the same rules the runtime enforces and updates live through the `mobileSettingsChanged`, `mobilePairingsChanged`, `mobileDevicesChanged`, and `mobileGatewayChanged` events. The equivalent CLI surface remains available:
