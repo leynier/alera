@@ -10,9 +10,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automation_detail_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/authoring/mobile_automation_authoring_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_filters_sheet.dart';
@@ -332,7 +330,7 @@ class const _AutomationCard({
               const SizedBox(height: AleraTokens.spaceXs),
               Text(mobileAutomationScheduleLine(automation), style: muted),
               Text(
-                mobileAutomationTargetLine(automation, names),
+                automationRecordTargetSummary(automation, names),
                 style: muted,
                 maxLines: 2,
                 overflow: .ellipsis,

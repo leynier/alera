@@ -6,11 +6,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_authoring_controller.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_draft.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_field_bounds.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_timezones.dart';
-import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_lines.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -301,7 +297,7 @@ class _MobileReviewStepState extends ConsumerState<MobileReviewStep> {
     super.initState();
     final draft = ref.read(widget.provider).draft;
     _numbers = <AutomationNumericField, TextEditingController>{
-      for (final field in AutomationNumericField.values)
+      for (final field in AutomationNumericField.editableFields)
         field: TextEditingController(text: draft.number(field)),
     };
     _precheck = TextEditingController(text: draft.precheckCommand);
@@ -360,7 +356,7 @@ class _MobileReviewStepState extends ConsumerState<MobileReviewStep> {
         for (final (label, value) in <(String, String)>[
           ('Name', draft.effectiveName),
           ('When', draft.schedule.describe(timezone: draft.timezone)),
-          ('Where', mobileDraftTargetLine(draft, names)),
+          ('Where', automationTargetSummary(draft, names)),
           if (names.workspace(draft.originWorkspaceId) case final origin?)
             ('Shown In', origin.name),
         ])
@@ -414,7 +410,7 @@ class _MobileReviewStepState extends ConsumerState<MobileReviewStep> {
                 (current) => current.copyWith(precheckCommand: value),
               ),
             ),
-            for (final field in AutomationNumericField.values)
+            for (final field in AutomationNumericField.editableFields)
               Padding(
                 padding: const EdgeInsets.only(top: AleraTokens.spaceMd),
                 child: AleraTextField(

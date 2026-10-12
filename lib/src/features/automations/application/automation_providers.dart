@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

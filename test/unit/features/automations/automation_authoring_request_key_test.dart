@@ -1,6 +1,5 @@
 import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/automation_test_harness.dart';

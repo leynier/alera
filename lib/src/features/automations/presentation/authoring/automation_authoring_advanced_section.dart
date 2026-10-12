@@ -2,9 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,7 +37,7 @@ class _AutomationAdvancedSectionState
     super.initState();
     final initial = ref.read(widget.provider).draft;
     _numbers = <AutomationNumericField, TextEditingController>{
-      for (final field in AutomationNumericField.values)
+      for (final field in AutomationNumericField.editableFields)
         field: TextEditingController(text: initial.number(field)),
     };
     _precheck = TextEditingController(text: initial.precheckCommand);
@@ -107,10 +105,7 @@ class _AutomationAdvancedSectionState
   @override
   Widget build(BuildContext context) {
     final draft = ref.watch(widget.provider).draft;
-    final usesWorkspaceName =
-        draft.targetType == AutomationTargetType.managedWorkspace ||
-        draft.targetType == AutomationTargetType.projectWorktree ||
-        draft.targetType == AutomationTargetType.projectCheckout;
+    final usesWorkspaceName = draft.targetType?.createsWorkspace == true;
     const gap = SizedBox(height: AleraTokens.space12);
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -169,7 +164,7 @@ class _AutomationAdvancedSectionState
           ),
           gap,
         ],
-        for (final field in AutomationNumericField.values) ...<Widget>[
+        for (final field in AutomationNumericField.editableFields) ...<Widget>[
           _number(draft, field),
           gap,
         ],

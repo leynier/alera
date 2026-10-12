@@ -6,12 +6,7 @@ import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
-import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
-import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
-import 'package:alera/src/features/automations/presentation/automation_list_tile.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/automation_overview_tab.dart';
 import 'package:alera/src/features/automations/presentation/automation_run_panel.dart';
 import 'package:alera/src/features/automations/presentation/automation_run_row.dart';
@@ -150,7 +145,7 @@ class const _SettingsTab({required final AutomationRecord automation})
         'Target',
         'Where each run happens and what it leaves behind.',
         <(String, String)>[
-          ('Target', automationTargetLine(automation, names)),
+          ('Target', automationRecordTargetSummary(automation, names)),
           if (automation.associatedWorkspaceId case final workspace?)
             ('Shown In', names.workspaceName(workspace)),
           if (placement.sectionId case final section?)
@@ -318,30 +313,4 @@ class const _ActivityTab({required final List<JsonMap> events})
       ],
     );
   }
-}
-
-String automationActivityLabel(JsonMap event) =>
-    switch (automationJsonString(event['action'])) {
-      'edit' => 'Edited',
-      'create' => 'Created',
-      'approve' || 'active' => 'Activated',
-      'paused' => 'Paused',
-      'blocked' => 'Needs attention',
-      'trashed' => 'Moved to Trash',
-      'draft' => 'Restored as draft',
-      'archived' => 'Completed',
-      'takenOver' => 'Run taken over',
-      final other => other.isEmpty ? 'Changed' : other,
-    };
-
-String automationActorLabel(JsonMap actor) {
-  final label = automationJsonOptionalString(actor['label']);
-  final kind = switch (actor['kind']) {
-    'humanDesktop' => 'Desktop',
-    'authenticatedMobile' => 'Phone',
-    'localCli' => 'CLI',
-    'managedAgent' => 'Agent',
-    _ => 'Runtime',
-  };
-  return label == null ? kind : '$kind ($label)';
 }

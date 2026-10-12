@@ -1,39 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
-import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
 import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
-
-/// Readable target line: what runs where, never raw ids.
-String automationTargetLine(
-  AutomationRecord automation,
-  AutomationWorkbenchContext names,
-) {
-  if (automation.targetSummary case final summary?) return summary;
-  final details = automation.targetDetails;
-  final profile = automation.agentProfileId == null
-      ? null
-      : names.profileName(automation.agentProfileId);
-  final where = switch (automation.targetType) {
-    AutomationTargetType.freshTab =>
-      'New tab in ${names.workspaceName(automation.targetWorkspaceId)}',
-    AutomationTargetType.projectWorktree =>
-      'New worktree of ${names.projectName(automationJsonOptionalString(details['projectId']))} from ${automationJsonOptionalString(details['sourceBranch']) ?? 'its default branch'}',
-    AutomationTargetType.managedWorkspace =>
-      'New worktree from ${names.workspaceName(automation.targetWorkspaceId)}',
-    AutomationTargetType.projectCheckout =>
-      'Folder of ${names.projectName(automationJsonOptionalString(details['projectId']))} on ${names.hostName(automationJsonOptionalString(details['hostId']))}',
-    AutomationTargetType.existingTab =>
-      'Conversation in ${names.workspaceName(automation.targetWorkspaceId)}',
-    null => 'No target',
-  };
-  return profile == null ? where : '$where · $profile';
-}
 
 String automationScheduleLine(AutomationRecord automation) {
   if (automation.isCompleted) return 'Completed';
@@ -88,7 +59,7 @@ class const AutomationListTile({
               style: muted,
             ),
             Text(
-              automationTargetLine(automation, names),
+              automationRecordTargetSummary(automation, names),
               maxLines: 1,
               overflow: .ellipsis,
               style: muted,
@@ -126,7 +97,9 @@ class const AutomationListTile({
                 message: 'Last run: ${_lastRunLabel(lastRun)}',
                 child: AleraStatusDot(
                   active: true,
-                  color: automationToneColor(_lastRunTone(lastRun.status)),
+                  color: automationToneColor(
+                    automationRunStatusTone(lastRun.status),
+                  ),
                 ),
               ),
       ),
@@ -153,11 +126,3 @@ String _lastRunLabel(AutomationLastRun run) {
       ? status
       : '$status ${automationRelativeTime(finished)}';
 }
-
-AutomationTone _lastRunTone(String status) => switch (status) {
-  'success' => AutomationTone.success,
-  'failure' || 'timeout' => AutomationTone.error,
-  'blocked' || 'waitingForUser' => AutomationTone.warning,
-  'pending' || 'dispatching' || 'dispatched' => AutomationTone.info,
-  _ => AutomationTone.neutral,
-};

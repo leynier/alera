@@ -4,11 +4,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_field_bounds.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_lines.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_run_row.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_run_sheet.dart';
@@ -28,7 +24,7 @@ class const AutomationDetailOverviewTab({
       padding: AleraTokens.pagePadding,
       children: <Widget>[
         Text(
-          '${mobileAutomationScheduleLine(automation)}. ${mobileAutomationTargetLine(automation, names)}.',
+          '${mobileAutomationScheduleLine(automation)}. ${automationRecordTargetSummary(automation, names)}.',
         ),
         if (automation.attention case final attention?) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceSm),
@@ -109,7 +105,7 @@ class const AutomationDetailSettingsTab({
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
       ('Schedule', automationScheduleDescription(automation.schedule)),
-      ('Target', mobileAutomationTargetLine(automation, names)),
+      ('Target', automationRecordTargetSummary(automation, names)),
       ('Missed Schedules', automationPolicyLabel(automation.misfirePolicy)),
       ('When Runs Overlap', automationPolicyLabel(automation.overlapPolicy)),
       (
@@ -156,10 +152,10 @@ class const AutomationDetailActivityTab({
         for (final event in events)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(_activityLabel(automationJsonString(event['action']))),
+            title: Text(automationActivityLabel(event)),
             subtitle: Text(
               <String>[
-                _actorLabel(automationJsonMap(event['actor'])),
+                automationActorLabel(automationJsonMap(event['actor'])),
                 if (automationJsonDate(event['createdAt']) case final date?)
                   automationDateTimeLabel(date),
               ].join(' · '),
@@ -168,29 +164,4 @@ class const AutomationDetailActivityTab({
       ],
     );
   }
-}
-
-String _activityLabel(String action) => switch (action) {
-  'edit' => 'Edited',
-  'create' => 'Created',
-  'approve' || 'active' => 'Activated',
-  'paused' => 'Paused',
-  'blocked' => 'Needs attention',
-  'trashed' => 'Moved to Trash',
-  'draft' => 'Restored as draft',
-  'archived' => 'Completed',
-  'takenOver' => 'Run taken over',
-  _ => action.isEmpty ? 'Changed' : action,
-};
-
-String _actorLabel(JsonMap actor) {
-  final label = automationJsonOptionalString(actor['label']);
-  final kind = switch (actor['kind']) {
-    'humanDesktop' => 'Desktop',
-    'authenticatedMobile' => 'Phone',
-    'localCli' => 'CLI',
-    'managedAgent' => 'Agent',
-    _ => 'Runtime',
-  };
-  return label == null ? kind : '$kind ($label)';
 }

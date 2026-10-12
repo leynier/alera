@@ -7,20 +7,19 @@ import 'package:alera/src/features/automations/application/automation_project_ch
 import 'package:alera/src/features/automations/application/automation_target_context.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_project_worktree_fields.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_workspace_placement_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-String _targetDescription(AutomationTargetType type) => switch (type) {
-  AutomationTargetType.freshTab =>
+String _targetDescription(AutomationTargetChoice choice) => switch (choice) {
+  AutomationTargetChoice.freshTab =>
     'Each run opens a new agent tab in a workspace you choose.',
-  AutomationTargetType.projectWorktree => 'Each run creates a new workspace with its own worktree and branch from a project branch, then opens an agent tab there. Git projects on this computer only.',
-  AutomationTargetType.managedWorkspace => 'Each run creates a child workspace with its own worktree and branch from a workspace you choose. Git projects on this computer only.',
-  AutomationTargetType.projectCheckout => 'Each run creates a workspace on a registered project folder, here or on an SSH host. Files are shared.',
-  AutomationTargetType.existingTab =>
+  AutomationTargetChoice.projectWorktree => 'Each run creates a new workspace with its own worktree and branch from a project branch, then opens an agent tab there. Git projects on this computer only.',
+  AutomationTargetChoice.workspaceWorktree => 'Each run creates a child workspace with its own worktree and branch from a workspace you choose. Git projects on this computer only.',
+  AutomationTargetChoice.projectCheckout => 'Each run creates a workspace on a registered project folder, here or on an SSH host. Files are shared.',
+  AutomationTargetChoice.existingTab =>
     'Each run sends the prompt to an agent conversation that is already open.',
 };
 
@@ -56,18 +55,18 @@ class const AutomationWhereStep({
         ],
         Text('Where Should It Run?', style: theme.textTheme.titleSmall),
         const SizedBox(height: AleraTokens.space8),
-        for (final type in AutomationTargetType.values)
+        for (final choice in AutomationTargetChoice.values)
           _TargetTypeCard(
-            type: type,
-            selected: draft.targetType == type,
+            choice: choice,
+            selected: AutomationTargetChoice.of(draft) == choice,
             disabledReason:
-                type == AutomationTargetType.existingTab &&
+                choice == AutomationTargetChoice.existingTab &&
                     !conversationsAvailable
                 ? 'Open an agent tab whose conversation Alera can resume to use this.'
                 : null,
             onSelect: () => controller.update(
               (current) =>
-                  chooseAutomationTargetType(current, type, names, request),
+                  chooseAutomationTargetType(current, choice, names, request),
             ),
           ),
         if (draft.targetType != null) ...<Widget>[
@@ -88,7 +87,7 @@ class const AutomationWhereStep({
 }
 
 class const _TargetTypeCard({
-  required final AutomationTargetType type,
+  required final AutomationTargetChoice choice,
   required final bool selected,
   required final VoidCallback onSelect,
   final String? disabledReason,
@@ -114,8 +113,8 @@ class const _TargetTypeCard({
             selected ? AleraIcons.radioOn : AleraIcons.radioOff,
             size: AleraTokens.iconMd,
           ),
-          title: Text(type.label),
-          subtitle: Text(disabledReason ?? _targetDescription(type)),
+          title: Text(choice.label),
+          subtitle: Text(disabledReason ?? _targetDescription(choice)),
         ),
       ),
     );
@@ -130,7 +129,7 @@ class const _TargetFields({
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(provider.notifier);
-    final type = draft.targetType!;
+    final choice = AutomationTargetChoice.of(draft)!;
     void set(AutomationDraftField field, String? value) =>
         controller.update((current) => current.withTargetField(field, value));
     Widget picker({
@@ -157,7 +156,7 @@ class const _TargetFields({
 
     final workspaceEntries = <AleraDropdownFieldEntry<String?>>[
       for (final workspace in names.workspaces)
-        if (type != AutomationTargetType.managedWorkspace ||
+        if (choice != AutomationTargetChoice.workspaceWorktree ||
             names.project(workspace.projectId)?.isGitRepository == true)
           AleraDropdownFieldEntry(
             value: workspace.id,
@@ -170,8 +169,8 @@ class const _TargetFields({
         AleraDropdownFieldEntry(value: profile.id, label: profile.name),
     ];
     final children = <Widget>[];
-    switch (type) {
-      case AutomationTargetType.freshTab:
+    switch (choice) {
+      case AutomationTargetChoice.freshTab:
         children.add(
           picker(
             field: .workspaceId,
@@ -179,14 +178,14 @@ class const _TargetFields({
             entries: workspaceEntries,
           ),
         );
-      case AutomationTargetType.managedWorkspace:
+      case AutomationTargetChoice.workspaceWorktree:
         children.add(
           picker(
-            field: .workspaceId,
+            field: .parentWorkspaceId,
             label: 'Source Workspace',
             entries: workspaceEntries,
             onChanged: (value) => controller.update((current) {
-              var next = current.withTargetField(.workspaceId, value);
+              var next = current.withTargetField(.parentWorkspaceId, value);
               final branch = names.workspace(value)?.branch?.trim();
               if (branch != null && branch.isNotEmpty) {
                 next = next.withTargetField(.sourceBranch, branch);
@@ -207,13 +206,13 @@ class const _TargetFields({
               AutomationDraftField.sourceBranch,
             ),
             child: _BranchField(
-              key: ValueKey<String?>(draft.field(.workspaceId)),
+              key: ValueKey<String?>(draft.field(.parentWorkspaceId)),
               value: draft.field(.sourceBranch) ?? '',
               onChanged: (value) => set(.sourceBranch, value),
             ),
           ),
         );
-      case AutomationTargetType.projectWorktree:
+      case AutomationTargetChoice.projectWorktree:
         children.add(
           AutomationProjectWorktreeFields(
             provider: provider,
@@ -221,7 +220,7 @@ class const _TargetFields({
             names: names,
           ),
         );
-      case AutomationTargetType.projectCheckout:
+      case AutomationTargetChoice.projectCheckout:
         final projectId = draft.field(.projectId);
         final checkouts = projectId == null
             ? null
@@ -266,7 +265,7 @@ class const _TargetFields({
             );
           }
         }
-      case AutomationTargetType.existingTab:
+      case AutomationTargetChoice.existingTab:
         final workspaceId = draft.field(.workspaceId);
         children.add(
           picker(
@@ -312,7 +311,7 @@ class const _TargetFields({
           );
         }
     }
-    if (type != AutomationTargetType.existingTab) {
+    if (choice != AutomationTargetChoice.existingTab) {
       children.add(
         picker(
           field: .agentProfileId,

@@ -1,20 +1,19 @@
 import 'package:alera/src/features/automations/application/automation_target_context.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   AutomationDraft projectWorktree() =>
       const AutomationDraft(promptTemplate: 'Fix')
-          .withTargetType(AutomationTargetType.projectWorktree)
+          .withTargetType(AutomationTargetType.worktree)
           .withTargetField(.projectId, 'project-1')
           .withTargetField(.sourceBranch, 'develop')
           .withTargetField(.agentProfileId, 'codex');
 
   test('a project worktree needs a project, a branch and a profile', () {
     final empty = const AutomationDraft(promptTemplate: 'Fix')
-        .withTargetType(AutomationTargetType.projectWorktree);
+        .withTargetType(AutomationTargetType.worktree);
     expect(empty.requiredTargetFields, <AutomationDraftField>[
       .projectId,
       .sourceBranch,
@@ -58,7 +57,8 @@ void main() {
         },
       },
     });
-    expect(record.targetType, AutomationTargetType.projectWorktree);
+    expect(record.targetType, AutomationTargetType.worktree);
+    expect(record.worktreeSource, AutomationWorktreeSource.project);
     final draft = AutomationDraft.fromRecord(record);
     expect(draft.field(.projectId), 'project-1');
     expect(draft.field(.sourceBranch), 'develop');
@@ -74,22 +74,24 @@ void main() {
       'tagIds': <String>['tag-1'],
       'sectionId': 'section-1',
     });
-    AutomationDraft choose(AutomationDraft draft, AutomationTargetType type) =>
-        chooseAutomationTargetType(
-          draft,
-          type,
-          const AutomationWorkbenchContext(),
-          null,
-        );
-    final switched = choose(placed, AutomationTargetType.projectCheckout);
+    AutomationDraft choose(
+      AutomationDraft draft,
+      AutomationTargetChoice choice,
+    ) => chooseAutomationTargetType(
+      draft,
+      choice,
+      const AutomationWorkbenchContext(),
+      null,
+    );
+    final switched = choose(placed, AutomationTargetChoice.projectCheckout);
     expect(switched.workspaceSectionId, 'section-1');
     expect(
       switched.fromContext,
       isNot(contains(AutomationDraftField.workspaceSectionId)),
     );
-    final reselected = choose(placed, AutomationTargetType.projectWorktree);
+    final reselected = choose(placed, AutomationTargetChoice.projectWorktree);
     expect(reselected.workspaceSectionId, 'section-1');
-    final freshTab = choose(placed, AutomationTargetType.freshTab);
+    final freshTab = choose(placed, AutomationTargetChoice.freshTab);
     expect(freshTab.workspaceSectionId, isNull);
     expect(freshTab.toDefinition()['workspacePlacement'], isEmpty);
   });

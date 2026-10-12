@@ -6,12 +6,7 @@ import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
-import 'package:alera/src/features/automations/domain/automation_prompt_variables.dart';
-import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
-import 'package:alera/src/features/automations/presentation/automation_list_tile.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/automation_overview_cards.dart';
 import 'package:alera/src/features/automations/presentation/automation_run_row.dart';
 import 'package:flutter/material.dart';
@@ -307,7 +302,7 @@ class const _DetailsCard({
       (
         AleraIcons.workspaceMain,
         'Target',
-        automationTargetLine(automation, names),
+        automationRecordTargetSummary(automation, names),
       ),
       if (branch != null) (AleraIcons.gitBranch, 'Source Branch', branch),
       if (automation.effectiveProjectId case final project?)

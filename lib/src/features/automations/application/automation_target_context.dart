@@ -1,18 +1,18 @@
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 
-/// Selects [type] and fills only the fields the entry context determines
-/// without ambiguity. Choosing the type stays the user's act; the context may
-/// never choose it, and an ambiguous field stays empty.
+/// Selects [choice] and fills only the fields the entry context determines
+/// without ambiguity. Choosing the target stays the user's act; the context
+/// may never choose it, and an ambiguous field stays empty.
 AutomationDraft chooseAutomationTargetType(
   AutomationDraft draft,
-  AutomationTargetType type,
+  AutomationTargetChoice choice,
   AutomationWorkbenchContext context,
   AutomationAuthoringRequest? request,
 ) {
-  var next = draft.withTargetType(type);
+  final type = choice.type;
+  var next = choice.applyTo(draft);
   final filled = <AutomationDraftField, String>{};
   final origin = context.workspace(
     request?.originWorkspaceId ?? draft.originWorkspaceId,
@@ -33,24 +33,24 @@ AutomationDraft chooseAutomationTargetType(
               [final only] => only,
               _ => null,
             });
-  switch (type) {
-    case AutomationTargetType.freshTab:
+  switch (choice) {
+    case AutomationTargetChoice.freshTab:
       if (workspace != null) filled[.workspaceId] = workspace.id;
-    case AutomationTargetType.managedWorkspace:
+    case AutomationTargetChoice.workspaceWorktree:
       final source = workspace;
       final sourceProject = context.project(source?.projectId);
       if (source != null && sourceProject?.isGitRepository == true) {
-        filled[.workspaceId] = source.id;
+        filled[.parentWorkspaceId] = source.id;
         final branch = source.branch?.trim();
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
-    case AutomationTargetType.projectWorktree:
+    case AutomationTargetChoice.projectWorktree:
       if (project != null && project.isGitRepository && !project.isRemoteOnly) {
         filled[.projectId] = project.id;
       }
-    case AutomationTargetType.projectCheckout:
+    case AutomationTargetChoice.projectCheckout:
       if (project != null) filled[.projectId] = project.id;
-    case AutomationTargetType.existingTab:
+    case AutomationTargetChoice.existingTab:
       if (workspace != null) {
         filled[.workspaceId] = workspace.id;
         final tabs = context.conversationTabs(workspace.id);

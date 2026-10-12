@@ -6,8 +6,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_authoring_controller.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_draft.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_lines.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,18 +46,20 @@ class const MobileWhereStep({
             ),
           ),
         Text('Where Should It Run?', style: theme.textTheme.titleMedium),
-        for (final type in AutomationTargetType.values)
+        for (final choice in AutomationTargetChoice.values)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            selected: draft.targetType == type,
+            selected: AutomationTargetChoice.of(draft) == choice,
             leading: Icon(
-              draft.targetType == type ? AleraIcons.check : AleraIcons.circle,
+              AutomationTargetChoice.of(draft) == choice
+                  ? AleraIcons.check
+                  : AleraIcons.circle,
             ),
-            title: Text(type.label),
-            subtitle: Text(mobileTargetDescription(type)),
+            title: Text(choice.label),
+            subtitle: Text(mobileTargetDescription(choice)),
             onTap: () => controller.update(
               (current) =>
-                  chooseMobileAutomationTargetType(current, type, names),
+                  chooseMobileAutomationTargetType(current, choice, names),
             ),
           ),
         if (draft.targetType != null)
@@ -82,7 +83,8 @@ class const _MobileTargetFields({
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(provider.notifier);
-    final type = draft.targetType!;
+    final choice = AutomationTargetChoice.of(draft)!;
+    final type = choice.type;
     void set(AutomationDraftField field, String? value) =>
         controller.update((current) => current.withTargetField(field, value));
     Widget picker(
@@ -119,7 +121,7 @@ class const _MobileTargetFields({
 
     final workspaces = <AleraDropdownFieldEntry<String?>>[
       for (final workspace in names.workspaces)
-        if (type != AutomationTargetType.managedWorkspace ||
+        if (choice != AutomationTargetChoice.workspaceWorktree ||
             names.isGitProject(workspace.projectId))
           AleraDropdownFieldEntry(
             value: workspace.id,
@@ -128,17 +130,17 @@ class const _MobileTargetFields({
           ),
     ];
     final children = <Widget>[];
-    switch (type) {
-      case AutomationTargetType.freshTab:
+    switch (choice) {
+      case AutomationTargetChoice.freshTab:
         children.add(picker(.workspaceId, 'Workspace', workspaces));
-      case AutomationTargetType.managedWorkspace:
+      case AutomationTargetChoice.workspaceWorktree:
         children.add(
           picker(
-            .workspaceId,
+            .parentWorkspaceId,
             'Source Workspace',
             workspaces,
             onChanged: (value) => controller.update((current) {
-              var next = current.withTargetField(.workspaceId, value);
+              var next = current.withTargetField(.parentWorkspaceId, value);
               final branch = names.workspace(value)?.branch?.trim();
               if (branch != null && branch.isNotEmpty) {
                 next = next.withTargetField(.sourceBranch, branch);
@@ -157,13 +159,13 @@ class const _MobileTargetFields({
           Padding(
             padding: const EdgeInsets.only(top: AleraTokens.spaceMd),
             child: _BranchField(
-              key: ValueKey<String?>(draft.field(.workspaceId)),
+              key: ValueKey<String?>(draft.field(.parentWorkspaceId)),
               value: draft.field(.sourceBranch) ?? '',
               onChanged: (value) => set(.sourceBranch, value),
             ),
           ),
         );
-      case AutomationTargetType.projectWorktree:
+      case AutomationTargetChoice.projectWorktree:
         children.add(
           picker(.projectId, 'Project', <AleraDropdownFieldEntry<String?>>[
             for (final project in names.projects)
@@ -181,7 +183,7 @@ class const _MobileTargetFields({
             ),
           ),
         );
-      case AutomationTargetType.projectCheckout:
+      case AutomationTargetChoice.projectCheckout:
         final projectId = draft.field(.projectId);
         children.add(
           picker(
@@ -219,7 +221,7 @@ class const _MobileTargetFields({
             ),
           );
         }
-      case AutomationTargetType.existingTab:
+      case AutomationTargetChoice.existingTab:
         final workspaceId = draft.field(.workspaceId);
         children.add(
           picker(

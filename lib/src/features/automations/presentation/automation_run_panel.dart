@@ -6,9 +6,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
-import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/automation_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
 import 'package:flutter/material.dart';
@@ -20,14 +18,6 @@ const Set<String> _runAgainStatuses = <String>{
   'cancelled',
   'blocked',
   'success',
-};
-
-String automationLaunchKindLabel(String? kind) => switch (kind) {
-  'resume' => 'Resumed Conversation',
-  'contextRetry' => 'Retried With Context',
-  'reusePaste' => 'Continued Conversation',
-  'reuseRelaunch' => 'Relaunched Conversation',
-  _ => 'Started',
 };
 
 /// Everything about one run: status and recovery, attempts, links to the

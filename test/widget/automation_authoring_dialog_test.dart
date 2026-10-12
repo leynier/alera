@@ -1,6 +1,6 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,7 +56,7 @@ void main() {
     expect(find.byIcon(AleraIcons.radioOn), findsNothing);
     expect(
       find.byIcon(AleraIcons.radioOff),
-      findsNWidgets(AutomationTargetType.values.length),
+      findsNWidgets(AutomationTargetChoice.values.length),
     );
     expect(
       find.textContaining('Created from Workflow Delivery'),
@@ -136,12 +136,16 @@ void main() {
     await next(tester);
     await tester.tap(find.text('Advanced'));
     await tester.pumpAndSettle();
+    expect(
+      find.text('Circuit Failure Threshold (1-10 failures)'),
+      findsNothing,
+    );
     final field = find.ancestor(
-      of: find.text('Circuit Failure Threshold (1-10 failures)'),
+      of: find.text('Retry Attempts (1-3 launches)'),
       matching: find.byType(TextField),
     );
-    await tester.enterText(field, '50');
+    await tester.enterText(field, '5');
     await tester.pumpAndSettle();
-    expect(find.text('Use 1 to 10 failures.'), findsOneWidget);
+    expect(find.text('Use 1 to 3 launches.'), findsOneWidget);
   });
 }

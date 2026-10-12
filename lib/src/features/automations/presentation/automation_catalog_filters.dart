@@ -4,8 +4,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 
 /// Scope, search and named filters. Always rendered, including when nothing

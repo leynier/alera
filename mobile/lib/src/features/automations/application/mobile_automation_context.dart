@@ -1,7 +1,5 @@
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_draft.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
@@ -20,15 +18,17 @@ class const MobileAutomationContext({
       const <WorkspaceSectionSummary>[],
   final List<AgentProfileSummary> profiles = const <AgentProfileSummary>[],
   final List<WorkspaceTagSummary> tags = const <WorkspaceTagSummary>[],
-}) {
+}) implements AutomationNameLookup {
   ProjectSummary? project(String? id) =>
       projects.where((item) => item.id == id).firstOrNull;
 
   WorkspaceSummary? workspace(String? id) =>
       workspaces.where((item) => item.id == id).firstOrNull;
 
+  @override
   String projectName(String? id) => project(id)?.name ?? 'Unavailable Project';
 
+  @override
   String workspaceName(String? id) =>
       workspace(id)?.name ?? 'Unavailable Workspace';
 
@@ -42,10 +42,12 @@ class const MobileAutomationContext({
         tag.name,
   ].join(', ');
 
+  @override
   String profileName(String? id) =>
       profiles.where((item) => item.id == id).firstOrNull?.name ??
       'Unavailable Agent Profile';
 
+  @override
   String hostName(String? id) =>
       id == null || id.isEmpty || id == 'local' ? 'This Computer' : id;
 
@@ -113,35 +115,36 @@ Future<List<({String hostId, String path})>> mobileAutomationProjectFolders(
   ];
 }
 
-/// Selects [type] and fills only fields the origin determines without
-/// ambiguity. The type itself is always the user's choice.
+/// Selects [choice] and fills only fields the origin determines without
+/// ambiguity. The target itself is always the user's choice.
 AutomationDraft chooseMobileAutomationTargetType(
   AutomationDraft draft,
-  AutomationTargetType type,
+  AutomationTargetChoice choice,
   MobileAutomationContext context, {
   String? originWorkspaceId,
 }) {
+  final type = choice.type;
   final filled = <AutomationDraftField, String>{};
   final origin = context.workspace(
     originWorkspaceId ?? draft.originWorkspaceId,
   );
-  switch (type) {
-    case AutomationTargetType.freshTab:
-    case AutomationTargetType.existingTab:
+  switch (choice) {
+    case AutomationTargetChoice.freshTab:
+    case AutomationTargetChoice.existingTab:
       if (origin != null) filled[.workspaceId] = origin.id;
-    case AutomationTargetType.managedWorkspace:
+    case AutomationTargetChoice.workspaceWorktree:
       if (origin != null && context.isGitProject(origin.projectId)) {
-        filled[.workspaceId] = origin.id;
+        filled[.parentWorkspaceId] = origin.id;
         final branch = origin.branch?.trim();
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
-    case AutomationTargetType.projectWorktree:
+    case AutomationTargetChoice.projectWorktree:
       if (origin != null && context.isGitProject(origin.projectId)) {
         filled[.projectId] = origin.projectId;
         final branch = origin.branch?.trim();
         if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
       }
-    case AutomationTargetType.projectCheckout:
+    case AutomationTargetChoice.projectCheckout:
       if (origin != null) filled[.projectId] = origin.projectId;
   }
   if (type != AutomationTargetType.existingTab &&
@@ -155,7 +158,7 @@ AutomationDraft chooseMobileAutomationTargetType(
   if (type.createsWorkspace && section != null) {
     filled[.workspaceSectionId] = section;
   }
-  return draft
-      .withTargetType(type)
+  return choice
+      .applyTo(draft)
       .copyWith(targetFields: filled, fromContext: fromContext);
 }

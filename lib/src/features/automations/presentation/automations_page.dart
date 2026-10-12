@@ -10,8 +10,7 @@ import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.da
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_dialog.dart';
 import 'package:alera/src/features/automations/presentation/automation_catalog_filters.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_view.dart';

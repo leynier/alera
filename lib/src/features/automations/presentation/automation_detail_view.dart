@@ -7,8 +7,7 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
-import 'package:alera/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_dialog.dart';
 import 'package:alera/src/features/automations/presentation/automation_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_tabs.dart';
@@ -61,7 +60,7 @@ class const AutomationDetailView({
           ),
           const SizedBox(height: AleraTokens.space4),
           Text(
-            '${automationScheduleLine(automation)} · ${automationTargetLine(automation, names)}',
+            '${automationScheduleLine(automation)} · ${automationRecordTargetSummary(automation, names)}',
             maxLines: 1,
             overflow: .ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(

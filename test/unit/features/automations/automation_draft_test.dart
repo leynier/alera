@@ -1,9 +1,6 @@
 import 'package:alera/src/features/automations/application/automation_target_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
-import 'package:alera/src/features/automations/domain/automation_schedule_preset.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/automation_test_harness.dart';
@@ -37,7 +34,7 @@ void main() {
     expect(draft.toDefinition(draft: true)['state'], 'draft');
   });
 
-  test('numbers use the runtime bounds and are never clamped', () {
+  test('editable numbers use the runtime bounds and are never clamped', () {
     final draft = const AutomationDraft().copyWith(
       numbers: <AutomationNumericField, String>{
         .circuitFailureThreshold: '11',
@@ -53,11 +50,14 @@ void main() {
     expect(
       errors.keys,
       containsAll(<AutomationNumericField>[
-        .circuitFailureThreshold,
         .precheckTimeoutSeconds,
-        .heartbeatIntervalSeconds,
+        .inactivityTimeoutSeconds,
         .retryMaxAttempts,
       ]),
+    );
+    expect(
+      errors.containsKey(AutomationNumericField.circuitFailureThreshold),
+      isFalse,
     );
     expect(
       errors.containsKey(AutomationNumericField.circuitOpenSeconds),
@@ -75,7 +75,7 @@ void main() {
     const request = AutomationAuthoringRequest(originWorkspaceId: 'ws-1');
     final draft = chooseAutomationTargetType(
       const AutomationDraft(originWorkspaceId: 'ws-1'),
-      AutomationTargetType.freshTab,
+      AutomationTargetChoice.freshTab,
       context,
       request,
     );
@@ -94,13 +94,13 @@ void main() {
     final context = automationTestContext();
     final freshTab = chooseAutomationTargetType(
       const AutomationDraft(),
-      AutomationTargetType.freshTab,
+      AutomationTargetChoice.freshTab,
       context,
       const AutomationAuthoringRequest(originWorkspaceId: 'ws-1'),
     );
     final checkout = chooseAutomationTargetType(
       freshTab,
-      AutomationTargetType.projectCheckout,
+      AutomationTargetChoice.projectCheckout,
       context,
       null,
     );
@@ -112,11 +112,11 @@ void main() {
   test('without context nothing but an only profile is filled', () {
     final draft = chooseAutomationTargetType(
       const AutomationDraft(),
-      AutomationTargetType.managedWorkspace,
+      AutomationTargetChoice.workspaceWorktree,
       automationTestContext(),
       null,
     );
-    expect(draft.field(.workspaceId), isNull);
+    expect(draft.field(.parentWorkspaceId), isNull);
     expect(draft.field(.sourceBranch), isNull);
   });
 

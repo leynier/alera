@@ -4,7 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_terminal_observation.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
@@ -26,7 +26,10 @@ extension type const AutomationActions(WidgetRef ref) {
         AleraToast.publish(message: success, tone: AleraToastTone.success);
       }
     } catch (error) {
-      AleraToast.publish(message: '$error', tone: AleraToastTone.error);
+      AleraToast.publish(
+        message: automationErrorMessage(error),
+        tone: AleraToastTone.error,
+      );
     }
   }
 
@@ -54,7 +57,10 @@ extension type const AutomationActions(WidgetRef ref) {
       }
       return run;
     } catch (error) {
-      AleraToast.publish(message: '$error', tone: AleraToastTone.error);
+      AleraToast.publish(
+        message: automationErrorMessage(error),
+        tone: AleraToastTone.error,
+      );
       return null;
     }
   }
@@ -188,7 +194,10 @@ extension type const AutomationActions(WidgetRef ref) {
         tone: AleraToastTone.success,
       );
     } catch (error) {
-      AleraToast.publish(message: '$error', tone: AleraToastTone.error);
+      AleraToast.publish(
+        message: automationErrorMessage(error),
+        tone: AleraToastTone.error,
+      );
     }
   }
 }

@@ -3,7 +3,7 @@ import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
-import 'package:alera/src/features/automations/domain/automation_prompt_variables.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

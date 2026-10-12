@@ -1,5 +1,4 @@
-import 'package:alera_mobile/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:logging/logging.dart';
 
@@ -14,14 +13,6 @@ const Set<String> automationCatalogEvents = <String>{
   'automationRunChanged',
   'automationAttentionRequired',
 };
-
-class const AutomationReadinessException(final AutomationReadiness readiness)
-    implements Exception {
-  @override
-  String toString() => readiness.errors.isEmpty
-      ? 'The automation is not ready.'
-      : readiness.errors.map((issue) => issue.message).join(' ');
-}
 
 class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
   final Logger _logger = Logger('MobileRuntimeAutomationRepository');

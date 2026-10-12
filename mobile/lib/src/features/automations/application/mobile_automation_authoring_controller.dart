@@ -1,9 +1,7 @@
 import 'dart:convert';
 
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_draft.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
-import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 

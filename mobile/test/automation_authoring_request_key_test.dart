@@ -1,7 +1,6 @@
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_authoring_controller.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_draft.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

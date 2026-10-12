@@ -5,34 +5,10 @@ import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
-import 'package:alera/src/features/automations/domain/automation_draft.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_advanced_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-String automationDraftTargetLine(
-  AutomationDraft draft,
-  AutomationWorkbenchContext names,
-) {
-  String? value(AutomationDraftField field) => draft.field(field);
-  final profile = value(.agentProfileId) == null
-      ? ''
-      : ' with ${names.profileName(value(.agentProfileId))}';
-  return switch (draft.targetType) {
-    null => 'No target chosen',
-    AutomationTargetType.freshTab =>
-      'New agent tab in ${names.workspaceName(value(.workspaceId))}$profile',
-    AutomationTargetType.projectWorktree =>
-      'New workspace and worktree of ${names.projectName(value(.projectId))} from ${value(.sourceBranch) ?? 'its default branch'}$profile',
-    AutomationTargetType.managedWorkspace =>
-      'New worktree from ${names.workspaceName(value(.workspaceId))} on ${value(.sourceBranch) ?? 'its branch'}$profile',
-    AutomationTargetType.projectCheckout =>
-      'Project folder of ${names.projectName(value(.projectId))} on ${names.hostName(value(.hostId))}$profile',
-    AutomationTargetType.existingTab =>
-      'The agent conversation in ${names.workspaceName(value(.workspaceId))}',
-  };
-}
 
 class AutomationReviewStep extends ConsumerStatefulWidget {
   const AutomationReviewStep({super.key, required this.provider});
@@ -66,7 +42,7 @@ class _AutomationReviewStepState extends ConsumerState<AutomationReviewStep> {
       ('Name', draft.effectiveName),
       ('Prompt', draft.promptTemplate.trim()),
       ('When', draft.schedule.describe(timezone: draft.timezone)),
-      ('Where', automationDraftTargetLine(draft, names)),
+      ('Where', automationTargetSummary(draft, names)),
       if (names.workspace(draft.originWorkspaceId) case final origin?)
         ('Shown In', origin.name),
       if (draft.targetType?.createsWorkspace == true) ...<(String, String)>[

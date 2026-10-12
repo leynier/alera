@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 const String automationsAuthoringCapability = 'automationsAuthoringV1';
@@ -15,15 +14,6 @@ const Set<String> automationCatalogEvents = <String>{
   'automationAttentionRequired',
   aleraRuntimeHostConnectedEvent,
 };
-
-/// Thrown when the runtime rejects a definition with structured readiness.
-class const AutomationReadinessException(final AutomationReadiness readiness)
-    implements Exception {
-  @override
-  String toString() => readiness.errors.isEmpty
-      ? 'The automation is not ready.'
-      : readiness.errors.map((issue) => issue.message).join(' ');
-}
 
 class RuntimeAutomationRepository(final RuntimeHostClient _client) {
   Stream<RuntimeHostEvent> get events => _client.runtimeEvents.where(
