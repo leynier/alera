@@ -43,6 +43,21 @@ void main() {
       );
     });
 
+    test('fromJson drops overrides of the retired Run Board and Automations '
+        'actions', () {
+      final restored = KeyboardShortcutSettings.fromJson(<String, Object?>{
+        'terminalPolicy': 'appFirst',
+        'overrides': <String, Object?>{
+          'openRunBoard': <String>['Mod+Shift+R'],
+          'openAutomations': <String>[],
+          'openActivity': <String>['Mod+Alt+A'],
+        },
+      });
+      expect(restored.overrides, <KeyboardActionId, List<String>>{
+        KeyboardActionId.openActivity: <String>['Mod+Alt+A'],
+      });
+    });
+
     test('fromJson skips unknown action overrides', () {
       final restored = KeyboardShortcutSettings.fromJson(<String, Object?>{
         'terminalPolicy': 'appFirst',

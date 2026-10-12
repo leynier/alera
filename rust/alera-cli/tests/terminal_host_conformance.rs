@@ -19,7 +19,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 
 /// Kills the host process when the test ends, regardless of assertions.
 struct HostGuard(Child);

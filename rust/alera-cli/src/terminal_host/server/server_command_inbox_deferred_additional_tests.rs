@@ -11,10 +11,10 @@ use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
 use super::*;
 
-type WorkflowLaunchCommand = super::super::workflow_launch_requests::WorkflowLaunchCommand;
-type WorkflowLaunchReply = super::super::workflow_launch_requests::WorkflowLaunchReply;
-type ValidatedWorkflowLaunch = super::super::workflow_launch_requests::ValidatedWorkflowLaunch;
-type ExecutionPass = super::super::workflow_launch_requests::execution::ExecutionPass;
+type WorkflowLaunchCommand = super::super::run_launch_requests::WorkflowLaunchCommand;
+type WorkflowLaunchReply = super::super::run_launch_requests::WorkflowLaunchReply;
+type ValidatedWorkflowLaunch = super::super::run_launch_requests::ValidatedWorkflowLaunch;
+type ExecutionPass = super::super::run_launch_requests::execution::ExecutionPass;
 
 fn fill_control_and_request_shutdown(inbox: &ServerInbox) {
     super::deferred_tests::fill_control_and_request_shutdown(inbox);

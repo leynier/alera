@@ -127,7 +127,7 @@ async fn an_agent_can_ask_without_waiting_and_read_the_answer_later() {
 }
 
 #[tokio::test]
-async fn conversations_are_visible_read_only_on_every_surface() {
+async fn conversations_are_read_only_and_stay_off_the_phone() {
     let mut fixture = fixture().await;
     fixture
         .ok(
@@ -136,13 +136,19 @@ async fn conversations_are_visible_read_only_on_every_surface() {
             json!({"from": "coord", "to": "worker", "subject": "Plan", "body": "Start with the store"}),
         )
         .await;
-    let listed = fixture.ok(PHONE, "inbox.conversations", json!({})).await;
+    // Run timelines replaced agent conversations on the phone.
+    for verb in ["inbox.conversations", "inbox.conversation"] {
+        let id = fixture.send(PHONE, verb, json!({})).await;
+        let refused = fixture.response(PHONE, id).expect("answered");
+        assert_eq!(refused["ok"], false, "{verb}: {refused}");
+    }
+    let listed = fixture.ok(CLI, "inbox.conversations", json!({})).await;
     assert_eq!(listed["kind"], "conversations");
     let thread = &listed["items"][0];
     assert_eq!(thread["participants"], json!(["coord", "worker"]));
     let thread_id = thread["threadId"].as_str().unwrap().to_string();
     let detail = fixture
-        .ok(PHONE, "inbox.conversation", json!({"threadId": thread_id}))
+        .ok(CLI, "inbox.conversation", json!({"threadId": thread_id}))
         .await;
     assert_eq!(detail["messages"][0]["body"], "Start with the store");
     let unread = fixture

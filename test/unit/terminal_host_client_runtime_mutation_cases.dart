@@ -89,7 +89,10 @@ void _registerTerminalHostClientRuntimeMutationTests() {
       expect(status, containsPair('runtimeHostVersion', '1.7.0'));
       expect(event!.tags, containsPair('runtime_version', '1.7.0'));
       expect(event.tags, containsPair('runtime_build', 'abc1234'));
-      expect(event.tags, containsPair('runtime_protocol', '4'));
+      expect(
+        event.tags,
+        containsPair('runtime_protocol', '$aleraTerminalHostProtocolVersion'),
+      );
     },
   );
 

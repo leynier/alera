@@ -1,4 +1,4 @@
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +22,7 @@ void main() {
     final container = automationContainer(runtime);
     addTearDown(container.dispose);
     addTearDown(runtime.dispose);
-    container.read(automationsNavigationProvider.notifier).open();
+    container.read(activityNavigationProvider.notifier).openAutomations();
     await tester.pumpWidget(AutomationsTestApp(container: container));
     await tester.pumpAndSettle();
     return (container: container, runtime: runtime);
@@ -51,8 +51,10 @@ void main() {
   ) async {
     final f = await mount(tester);
     f.container
-        .read(automationsNavigationProvider.notifier)
-        .setFilters(const AutomationCatalogFilters(search: 'no such thing'));
+        .read(activityNavigationProvider.notifier)
+        .setAutomationFilters(
+          const AutomationCatalogFilters(search: 'no such thing'),
+        );
     await tester.pumpAndSettle();
     expect(
       find.textContaining('No automations match these filters'),
@@ -109,8 +111,10 @@ void main() {
       ],
     );
     f.container
-        .read(automationsNavigationProvider.notifier)
-        .setScope(const AutomationScope(kind: .workspace, id: 'ws-1'));
+        .read(activityNavigationProvider.notifier)
+        .setAutomationScope(
+          const AutomationScope(kind: .workspace, id: 'ws-1'),
+        );
     await tester.pumpAndSettle();
     expect(find.text('SCHEDULED HERE'), findsOneWidget);
     expect(find.text('Scheduled In Workspace'), findsOneWidget);

@@ -1,14 +1,14 @@
 ---
 title: Automations
 description: Schedule agent work, create tasks from desktop, mobile, or CLI, and follow execution and recovery in your runtime.
-updatedDate: 2026-10-04
+updatedDate: 2026-10-12
 ---
 
 An automation runs an [Agent Profile](/docs/agent-profiles) with a prompt, on a schedule or on demand. Definitions, individual runs, and activity are shared by the desktop, phone, and CLI through the selected runtime. Automations and orchestration tasks have separate lifecycles.
 
 ## Create An Automation
 
-Open **Automations** from the application menu or with `Mod+Shift+A`, then choose **New Automation**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. Creation guides you through the task, target, schedule, and review. Choose the target explicitly; the current workspace can supply its context after that choice.
+Open **Activity** from the application menu or with `Mod+Shift+A`, choose **Automations** in its rail, then choose **New Automation**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. Creation guides you through the task, target, schedule, and review. Choose the target explicitly; the current workspace can supply its context after that choice.
 
 - **Prompt Template** supports variables including `{{automation.name}}`, `{{run.number}}`, `{{run.scheduledAt}}`, `{{workspace.path}}`, and `{{project.name}}`. Unknown variables and malformed delimiters produce validation errors.
 - **Target** selects **Fresh Tab**, **Existing Tab**, **Managed Workspace**, or **Project Folder**. Fresh Tab opens an agent in a workspace; Existing Tab uses a captured conversation; Managed Workspace creates a Git worktree; Project Folder uses a registered local or SSH checkout.

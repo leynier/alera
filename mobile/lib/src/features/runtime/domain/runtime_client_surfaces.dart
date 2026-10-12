@@ -116,8 +116,31 @@ abstract interface class MobileInboxClient {
   Stream<MobileRuntimeEvent> get events;
   bool get supportsInbox;
 
+  /// The host takes a `delivery` choice on `inbox.ask` (`inboxV2`).
+  bool get supportsInboxDelivery;
+
   /// Names the workspaces of the agents a question can go to.
   Future<List<WorkspaceSummary>> listWorkspaces();
+
+  Future<Map<String, Object?>> requestMap(
+    String type, [
+    Map<String, Object?> payload,
+    Duration? timeout,
+  ]);
+}
+
+/// What the run screens need from a paired runtime.
+abstract interface class MobileRunsClient {
+  Stream<MobileRuntimeEvent> get events;
+
+  /// `runsV1`: every `runs.*` verb the phone uses.
+  bool get supportsRuns;
+
+  /// `recipesV1`: `recipes.catalog` and `recipes.recipe`.
+  bool get supportsRecipes;
+
+  Future<List<WorkspaceSummary>> listWorkspaces();
+  Future<List<AgentProfileSummary>> listAgentProfiles();
 
   Future<Map<String, Object?>> requestMap(
     String type, [

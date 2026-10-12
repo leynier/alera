@@ -5,7 +5,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/domain/automation_prompt_variables.dart';
@@ -150,7 +150,7 @@ class const _RecentRunsCard({
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final navigation = ref.read(automationsNavigationProvider.notifier);
+    final navigation = ref.read(activityNavigationProvider.notifier);
     final runs = detail.runs
         .where((run) => run.status != 'misfireSkipped')
         .take(_recentRunCount)
@@ -176,7 +176,8 @@ class const _RecentRunsCard({
                   AutomationRunRow(
                     run: run,
                     selected: false,
-                    onTap: () => navigation.selectRun(automation.id, run.id),
+                    onTap: () =>
+                        navigation.selectAutomationRun(automation.id, run.id),
                   ),
               ],
             ),

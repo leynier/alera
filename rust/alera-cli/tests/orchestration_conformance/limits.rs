@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn lifecycle_to_group_and_unknown_recipients_are_rejected() {
+fn removed_types_and_unknown_recipients_are_rejected() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
@@ -31,17 +31,20 @@ fn unsafe_orchestration_messages_are_rejected_before_persistence() {
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
 
-    let self_lifecycle = request(
-        &mut writer,
-        &mut reader,
-        80,
-        "orchestration.send",
-        json!({"from": "worker", "to": "worker", "subject": "done", "type": "worker_done"}),
-    );
-    assert_eq!(self_lifecycle["ok"], json!(false));
-    assert!(self_lifecycle["error"]
-        .as_str()
-        .is_some_and(|error| error.contains("lifecycle operation")));
+    // Lifecycle messages no longer exist; a worker reports through `complete`.
+    for removed in ["worker_done", "heartbeat"] {
+        let refused = request(
+            &mut writer,
+            &mut reader,
+            80,
+            "orchestration.send",
+            json!({"from": "worker", "to": "worker", "subject": "done", "type": removed}),
+        );
+        assert_eq!(refused["ok"], json!(false));
+        assert!(refused["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("unknown message type")));
+    }
 
     let oversized = request(
         &mut writer,

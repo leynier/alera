@@ -1,44 +1,42 @@
-use alera_core::runtime::{is_external_inbox, OrchestrationMessage, OrchestrationMessagePriority};
+use alera_core::runtime::{is_external_inbox, OrchestrationMessage, OrchestrationMessageType};
 
-const BANNER_WIDTH: usize = 60;
 const INJECT_BODY_MAX_BYTES: usize = 4 * 1024;
 const INJECT_PAYLOAD_MAX_BYTES: usize = 2 * 1024;
 const INJECT_BATCH_MAX_BYTES: usize = 16 * 1024;
 const INJECT_BATCH_RESERVED_BYTES: usize = 512;
 
-/// Rich message banners help agents (and humans reading terminal output)
-/// quickly parse message metadata. Priority indicators surface urgent
-/// messages visually; the reply hint reduces friction for agent-to-agent
-/// responses.
+/// One header line, the body, and one reply line. A question from an inbox
+/// says that its sender cannot read the terminal, so the agent answers with
+/// `reply` instead of leaving the answer in its own output.
 pub fn format_message_banner(message: &OrchestrationMessage) -> String {
-    let priority_tag = match message.priority {
-        OrchestrationMessagePriority::Urgent => " [URGENT]",
-        OrchestrationMessagePriority::High => " [HIGH]",
-        OrchestrationMessagePriority::Normal => "",
-    };
     let external = is_external_inbox(&message.from_handle);
     let mut lines = vec![if external {
         format!(
-            "──── External question from {from}{via}{priority_tag} ({message_type}) ────",
+            "[Alera] Question from {from}{via}, id {id}",
             from = message.from_handle,
             via = external_origin_suffix(message),
-            message_type = message.message_type.as_str(),
+            id = message.id,
         )
     } else {
+        let kind = match message.message_type {
+            OrchestrationMessageType::Question => "Question",
+            _ => "Message",
+        };
         format!(
-            "──── From: {sender_name} ({from}){priority_tag} ({message_type}) ────",
-            sender_name = message.from_handle.to_uppercase(),
+            "[Alera] {kind} from {from}, id {id}",
             from = message.from_handle,
-            message_type = message.message_type.as_str(),
+            id = message.id,
         )
     }];
-    lines.push(format!("Subject: {}", message.subject));
+    if !external && !message.subject.is_empty() && message.subject != message.body {
+        lines.push(format!("Subject: {}", message.subject));
+    }
     if !message.body.is_empty() {
         let (body, truncated) = truncate_utf8(&message.body, INJECT_BODY_MAX_BYTES);
         lines.push(body.to_string());
         if truncated {
             lines.push(format!(
-                "[Message body truncated; run alera orchestration inbox --terminal {} for full content]",
+                "[Message body truncated; run alera orchestration messages --terminal {} for full content]",
                 message.to_handle
             ));
         }
@@ -47,26 +45,20 @@ pub fn format_message_banner(message: &OrchestrationMessage) -> String {
         let (payload, truncated) = truncate_utf8(payload, INJECT_PAYLOAD_MAX_BYTES);
         lines.push(format!(
             "[Payload: {payload}{}]",
-            if truncated { "…" } else { "" }
+            if truncated { "..." } else { "" }
         ));
     }
     if external {
-        // The asker reads only the reply; text left in the terminal is lost.
-        lines.push(
-            "[The sender cannot read this terminal. Put your complete answer in the reply.]"
-                .to_string(),
-        );
         lines.push(format!(
-            "[Reply: alera orchestration reply --id {} --body \"...\", or --body-file <path> for a long answer]",
+            "Reply: alera orchestration reply --id {} --body \"...\" (the sender cannot read this terminal)",
             message.id
         ));
     } else {
         lines.push(format!(
-            "[Reply: alera orchestration reply --id {} --body \"...\"]",
+            "Reply: alera orchestration reply --id {} --body \"...\"",
             message.id
         ));
     }
-    lines.push("─".repeat(BANNER_WIDTH));
     lines.join("\n")
 }
 
@@ -134,7 +126,7 @@ pub fn format_messages_for_injection(messages: &[OrchestrationMessage]) -> Strin
             > content_limit
         {
             let notice = format!(
-                "[{} additional message(s) omitted; run alera orchestration inbox --terminal {}]",
+                "[{} additional message(s) omitted; run alera orchestration messages --terminal {}]",
                 messages.len().saturating_sub(banners.len()),
                 message.to_handle
             );
@@ -171,7 +163,7 @@ fn truncate_utf8(value: &str, max_bytes: usize) -> (&str, bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alera_core::runtime::OrchestrationMessageType;
+    use alera_core::runtime::{MessageDelivery, OrchestrationMessagePriority};
 
     fn message(priority: OrchestrationMessagePriority) -> OrchestrationMessage {
         OrchestrationMessage {
@@ -197,23 +189,29 @@ mod tests {
             obsolete_at: None,
             reply_to_id: None,
             external_meta: None,
+            delivery: MessageDelivery::TurnEnd,
         }
     }
 
     #[test]
-    fn banner_includes_metadata_and_reply_hint() {
+    fn agent_message_banner_has_one_header_body_and_reply_line() {
         let banner = format_message_banner(&message(OrchestrationMessagePriority::Urgent));
-        assert!(banner.contains("From: TERM_A (term_a) [URGENT] (status)"));
-        assert!(banner.contains("Subject: Build done"));
-        assert!(banner.contains("All green."));
-        assert!(banner.contains("[Payload: {\"x\":1}]"));
-        assert!(banner.contains("alera orchestration reply --id msg_1"));
+        assert_eq!(
+            banner,
+            "[Alera] Message from term_a, id msg_1\n\
+             Subject: Build done\n\
+             All green.\n\
+             [Payload: {\"x\":1}]\n\
+             Reply: alera orchestration reply --id msg_1 --body \"...\""
+        );
     }
 
     #[test]
-    fn normal_priority_has_no_tag() {
-        let banner = format_message_banner(&message(OrchestrationMessagePriority::Normal));
-        assert!(banner.contains("From: TERM_A (term_a) (status)"));
+    fn an_agent_question_is_labelled_a_question() {
+        let mut question = message(OrchestrationMessagePriority::High);
+        question.message_type = OrchestrationMessageType::Question;
+        assert!(format_message_banner(&question)
+            .starts_with("[Alera] Question from term_a, id msg_1\n"));
     }
 
     #[test]
@@ -256,13 +254,16 @@ mod tests {
         let mut question = message(OrchestrationMessagePriority::High);
         question.from_handle = "ext:user".to_string();
         question.external_meta = Some(serde_json::json!({"origin": {"surface": "mobile"}}));
+        question.subject = "Is CI green?".to_string();
+        question.body = "Is CI green?".to_string();
+        question.payload = None;
         let banner = format_message_banner(&question);
-        assert!(banner.starts_with("──── External question from ext:user via Alera mobile [HIGH]"));
-        assert!(banner.contains("The sender cannot read this terminal"));
-        assert!(banner.contains("alera orchestration reply --id msg_1 --body \"...\""));
-        assert!(banner.contains("--body-file <path>"));
-        assert!(!banner.contains("<<'EOF'"));
-        assert!(!banner.contains("From: EXT:USER"));
+        assert_eq!(
+            banner,
+            "[Alera] Question from ext:user via Alera mobile, id msg_1\n\
+             Is CI green?\n\
+             Reply: alera orchestration reply --id msg_1 --body \"...\" (the sender cannot read this terminal)"
+        );
     }
 
     #[test]
@@ -273,10 +274,12 @@ mod tests {
             "origin": {"surface": "mcp", "transport": "remote", "clientId": "c-1", "clientName": "Chat\u{7}GPT"},
         }));
         let banner = format_message_banner(&question);
-        assert!(banner.starts_with("──── External question from ext:mcp via ChatGPT (MCP) [HIGH]"));
+        assert!(banner.starts_with("[Alera] Question from ext:mcp via ChatGPT (MCP), id msg_1"));
         question.external_meta = Some(serde_json::json!({"origin": {"surface": "mcp"}}));
         let banner = format_message_banner(&question);
-        assert!(banner.starts_with("──── External question from ext:mcp via an MCP client (MCP)"));
+        assert!(
+            banner.starts_with("[Alera] Question from ext:mcp via an MCP client (MCP), id msg_1")
+        );
     }
 
     #[test]

@@ -7,7 +7,13 @@ use super::{ClientKind, ServerActor};
 
 const HANDOFF_SOURCE_WORKSPACE_IDS_KEY: &str = "handoffSourceWorkspaceIds";
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 12] = [
+/// The run a coordinator or worker terminal was created for. Host-owned so a
+/// client cannot attach an ordinary tab to a run or detach a run's tab.
+pub(super) const RUN_ID_TAB_PAYLOAD_KEY: &str = "runId";
+/// The run task a worker terminal was created for.
+pub(super) const RUN_TASK_ID_TAB_PAYLOAD_KEY: &str = "runTaskId";
+
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 14] = [
     HANDOFF_SOURCE_WORKSPACE_IDS_KEY,
     "agentProfileLaunchV1",
     "initialPrompt",
@@ -20,7 +26,21 @@ const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 12] = [
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
+    RUN_ID_TAB_PAYLOAD_KEY,
+    RUN_TASK_ID_TAB_PAYLOAD_KEY,
 ];
+
+/// Marks a tab as belonging to a run, and to one of its tasks for workers.
+pub(super) fn stamp_run_tab_payload(
+    payload: &mut serde_json::Value,
+    run_id: &str,
+    task_id: Option<&str>,
+) {
+    payload[RUN_ID_TAB_PAYLOAD_KEY] = serde_json::json!(run_id);
+    if let Some(task_id) = task_id {
+        payload[RUN_TASK_ID_TAB_PAYLOAD_KEY] = serde_json::json!(task_id);
+    }
+}
 
 /// Removes host-owned bootstrap text from a tab before it crosses the runtime
 /// protocol. The persisted copy is recovery state, not workbench UI state.

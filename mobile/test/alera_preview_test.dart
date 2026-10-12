@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.previe
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.preview.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.preview.dart';
 import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.preview.dart';
+import 'package:alera_mobile/src/features/runs/presentation/run_gate_card.preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,6 +17,9 @@ void main() {
     ('Needs Input', aleraBadgeTonesPreview),
     ('Checks Passing', aleraBadgeLeadingPreview),
     ('feat/active-rail', aleraActiveRailPreview),
+    ('Approve Gate', runGateCardStagePreview),
+    ('Kill And Failover', runGateCardStallPreview),
+    ('Refresh', runGateCardStalePreview),
   ]) {
     testWidgets('$name preview lays out within its phone viewport', (
       tester,

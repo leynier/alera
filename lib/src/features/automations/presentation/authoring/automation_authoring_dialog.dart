@@ -6,7 +6,8 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
@@ -55,9 +56,9 @@ Future<AutomationRecord?> showAutomationAuthoringDialog(
     ),
   );
   if (saved != null) {
-    ref.read(automationsNavigationProvider.notifier)
-      ..open()
-      ..select(saved.id);
+    ref.read(activityNavigationProvider.notifier)
+      ..openAutomations()
+      ..selectAutomation(saved.id);
     ref.invalidate(automationCatalogProvider);
   }
   return saved;

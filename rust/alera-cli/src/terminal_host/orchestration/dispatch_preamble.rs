@@ -6,11 +6,9 @@ pub struct BaseDrift {
 
 pub struct PreambleParams<'a> {
     pub task_id: &'a str,
-    /// Completion and heartbeat commands attribute activity to a specific
-    /// dispatch context (not just a task): a retried task has multiple
-    /// dispatch contexts, and keying lifecycle operations on dispatchId
-    /// prevents stale messages from a previously-failed dispatch from
-    /// completing or refreshing the retry.
+    /// Worker commands act on a specific dispatch context (not just a task):
+    /// a retried task has several, and keying them on the dispatch keeps a
+    /// worker from a previously failed dispatch from completing the retry.
     pub dispatch_id: &'a str,
     pub task_spec: &'a str,
     pub coordinator_handle: &'a str,
@@ -44,7 +42,7 @@ pub enum WorkerKind {
 }
 
 pub fn build_dispatch_bootstrap() -> String {
-    "You have an active Alera orchestration dispatch in this terminal. Run `alera orchestration dispatch-accept` first, then run `alera orchestration --json context` to read the complete task and worker instructions. Follow that context exactly.".to_string()
+    "You have an active Alera orchestration dispatch in this terminal. Run `alera orchestration --json context`, do the task, then `alera orchestration complete --summary \"...\"`. Ask with `alera orchestration ask`, report blockers with `alera orchestration escalate`.".to_string()
 }
 
 pub fn build_worker_contract(coordinator_handle: &str, worker_kind: WorkerKind) -> String {
@@ -52,40 +50,34 @@ pub fn build_worker_contract(coordinator_handle: &str, worker_kind: WorkerKind) 
     format!(
         r#"You talk to the coordinator only through the CLI commands below. Do not use
 Slack, GitHub comments, or any other channel to reach a human during the run.
+There is no accept step and no heartbeat: your first worker command tells
+Alera you started, and your terminal activity keeps the task alive.
 
 === CLI COMMANDS ===
 
-  # Accept before beginning. Execution timers start only after this succeeds.
-  alera orchestration dispatch-accept
-
-  # Inspect the context installed for this terminal.
+  # Read the task and these instructions.
   alera orchestration --json context
 
-  # Optional semantic phase update. Runtime activity also renews liveness.
-  alera orchestration heartbeat --phase "<investigating|implementing|reviewing|waiting>"
+  # Record the result exactly once, when the task is done. Only --summary is
+  # required; add --kind failure when the task could not be done. Optional
+  # evidence: --files "path/a,path/b", --artifacts '<json array>',
+  # --validation '<json array>', --result-extra '<json object>'.
+  alera orchestration complete --summary "<what was completed and what remains>"
 
-  # Atomically commit a successful or failed result. Do this exactly once.
-  alera orchestration complete --summary "<what was completed and remaining work>" --completion-kind success --files-modified "path/a,path/b" --artifacts '[]' --validation '[]'
-
-  # Ask the coordinator a question and block until it answers.
+  # Ask the coordinator a question and wait for the answer.
   #
   # BEHAVIOR RULE #1 (MUST NOT VIOLATE):
-  # NEVER use AskUserQuestion; use `alera orchestration ask` or send
-  # --type decision_gate. AskUserQuestion opens a local TUI prompt that the
-  # coordinator cannot see and cannot answer - your session will hang forever
-  # waiting on a human. Every interactive question goes through `ask` below.
-  #
-  # The `ask` verb is a thin wrapper: it sends a decision_gate message and
-  # blocks until the coordinator replies, then prints the reply body. Use it
-  # anywhere you would otherwise have reached for AskUserQuestion.
-  alera orchestration ask --to {coordinator_handle} --question "<your question>" --options "<optional,comma,separated>" --timeout-ms 600000
+  # NEVER use AskUserQuestion; use `alera orchestration ask`. AskUserQuestion
+  # opens a local TUI prompt that the coordinator cannot see and cannot
+  # answer - your session will hang forever waiting on a human.
+  alera orchestration ask --to {coordinator_handle} --question "<your question>" --options "<optional,comma,separated>"
 
-  # Escalate a blocker or failure (pre-completion, when you need the
-  # coordinator to do something before you can continue):
+  # Report a blocker or failure the coordinator must act on:
   alera orchestration escalate --subject "Blocked: <reason>" --body "<details>"
 
-  # Check for messages from the coordinator:
+  # Read messages sent to you, or list recent ones:
   alera orchestration check
+  alera orchestration messages
 
 {post_done}"#
     )
@@ -158,7 +150,7 @@ fn build_post_worker_done_instructions(worker_kind: WorkerKind) -> String {
     match worker_kind {
         WorkerKind::BareShell => r#"=== AFTER COMPLETE RETURNS ===
 
-Successful completion ends your turn for this task. Your dispatched work is complete:
+Completion ends your turn for this task. Your dispatched work is complete:
 stop and take no further actions - do NOT start new or unrelated work,
 do NOT run a sleep/poll loop, and do NOT keep calling
 `alera orchestration check`. The coordinator has already recorded your
@@ -170,7 +162,7 @@ dispatch or prompt another worker with a fresh TASK block."#
             .to_string(),
         WorkerKind::PromptReturningAgent => r#"=== AFTER COMPLETE RETURNS ===
 
-Successful completion ends your turn for this task. Your dispatched work is complete:
+Completion ends your turn for this task. Your dispatched work is complete:
 stop, return to an idle prompt, and take no further actions - do NOT start
 new or unrelated work, do NOT run a sleep/poll loop, and do NOT keep calling
 `alera orchestration check`. The coordinator has already recorded your
@@ -227,9 +219,11 @@ mod tests {
         let preamble = build_dispatch_preamble(&params(None, None));
         assert!(preamble.contains("Your task ID is: task_1"));
         assert!(preamble.contains("Your dispatch ID is: ctx_1"));
-        assert!(preamble.contains("alera orchestration dispatch-accept"));
-        assert!(preamble.contains("alera orchestration heartbeat"));
-        assert!(preamble.contains("alera orchestration complete"));
+        assert!(preamble.contains("alera orchestration --json context"));
+        assert!(preamble.contains("alera orchestration complete --summary"));
+        assert!(preamble.contains("alera orchestration messages"));
+        assert!(!preamble.contains("dispatch-accept"));
+        assert!(!preamble.contains("heartbeat --phase"));
         assert!(preamble.contains("NEVER use AskUserQuestion"));
         assert!(preamble.contains("alera orchestration ask --to term_coord"));
         assert!(preamble.contains("=== TASK ===\nFix the login button CSS"));
@@ -241,7 +235,14 @@ mod tests {
     #[test]
     fn worker_contract_contains_lifecycle_and_communication_rules() {
         let contract = build_worker_contract("term_coord", WorkerKind::PromptReturningAgent);
-        for command in ["heartbeat", "complete", "ask", "escalate", "check"] {
+        for command in [
+            "--json context",
+            "complete --summary",
+            "ask",
+            "escalate",
+            "check",
+            "messages",
+        ] {
             assert!(
                 contract.contains(command),
                 "{command} missing from {contract}"
@@ -253,6 +254,16 @@ mod tests {
         assert!(contract.contains("do NOT run a sleep/poll loop"));
         assert!(!contract.contains("=== TASK ==="));
         assert!(!contract.contains("Fix the login button CSS"));
+    }
+
+    #[test]
+    fn bootstrap_starts_with_context_and_ends_with_complete() {
+        let bootstrap = build_dispatch_bootstrap();
+        assert!(bootstrap.contains("alera orchestration --json context"));
+        assert!(bootstrap.contains("alera orchestration complete --summary"));
+        assert!(bootstrap.contains("alera orchestration ask"));
+        assert!(bootstrap.contains("escalate"));
+        assert!(!bootstrap.contains("dispatch-accept"));
     }
 
     #[test]

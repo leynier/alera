@@ -265,9 +265,8 @@ pub enum ServerCommand {
         source: WorkflowRecipeSource,
         catalog_revision: i64,
     },
-    WorkflowPlanChanged,
     WorkflowWorkspaceRecoveryFinished,
-    WorkflowLaunch(super::workflow_launch_requests::WorkflowLaunchCommand),
+    WorkflowLaunch(super::run_launch_requests::WorkflowLaunchCommand),
     OrchestrationCompletionFinished(
         super::orchestration_completion::OrchestrationCompletionFinished,
     ),

@@ -752,6 +752,8 @@ impl ServerActor {
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
+                        super::tab_compatibility::RUN_ID_TAB_PAYLOAD_KEY,
+                        super::tab_compatibility::RUN_TASK_ID_TAB_PAYLOAD_KEY,
                     ] {
                         payload.remove(key);
                     }

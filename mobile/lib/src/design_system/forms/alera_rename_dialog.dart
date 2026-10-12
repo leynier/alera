@@ -13,6 +13,7 @@ class const AleraRenameDialog({
   final String initialValue = '',
   final String? helperText,
   final bool allowEmpty = false,
+  final String confirmLabel = 'Rename',
 }) extends StatefulWidget {
   @override
   State<AleraRenameDialog> createState() => _AleraRenameDialogState();
@@ -74,7 +75,7 @@ class _AleraRenameDialogState extends State<AleraRenameDialog> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _submit,
-                    child: const Text('Rename'),
+                    child: Text(widget.confirmLabel),
                   ),
                 ),
               ],

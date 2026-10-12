@@ -16,15 +16,6 @@ async fn message_limits_are_enforced_at_the_storage_boundary() {
         .to_string()
         .contains("body"));
 
-    let mut oversized_lifecycle = message("a", "b", OrchestrationMessageType::WorkerDone);
-    oversized_lifecycle.body = "x".repeat(ORCHESTRATION_LIFECYCLE_BODY_MAX_BYTES + 1);
-    assert!(store
-        .insert_orchestration_message(oversized_lifecycle)
-        .await
-        .unwrap_err()
-        .to_string()
-        .contains("body"));
-
     let mut oversized_payload = message("a", "b", OrchestrationMessageType::Status);
     oversized_payload.payload = Some("x".repeat(ORCHESTRATION_PAYLOAD_MAX_BYTES + 1));
     assert!(store
@@ -61,5 +52,8 @@ async fn message_limits_are_enforced_at_the_storage_boundary() {
         .to_string()
         .contains("from handle"));
 
-    assert_eq!(store.orchestration_inbox(10).await.unwrap().len(), 1);
+    assert_eq!(
+        store.recent_orchestration_messages(10).await.unwrap().len(),
+        1
+    );
 }

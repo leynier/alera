@@ -5,7 +5,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_dialog.dart';

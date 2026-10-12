@@ -24,26 +24,13 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
             check_message_summary(value)
         }
         "orchestration.reply" => "reply sent".to_string(),
-        "orchestration.inbox" => {
+        "orchestration.messages" => {
             let count = value
                 .get("items")
                 .and_then(Value::as_array)
                 .map(|messages| messages.len())
                 .unwrap_or(0);
             format!("{count} message(s)")
-        }
-        "orchestration.taskCreate" | "orchestration.taskCreateContracted" => value
-            .get("id")
-            .and_then(Value::as_str)
-            .map(|id| format!("task created: {id}"))
-            .unwrap_or_else(|| "task created".to_string()),
-        "orchestration.taskList" => {
-            let count = value
-                .get("items")
-                .and_then(Value::as_array)
-                .map(|tasks| tasks.len())
-                .unwrap_or(0);
-            format!("{count} task(s)")
         }
         "agentProfile.list" => {
             let items = value.get("items").and_then(Value::as_array);
@@ -64,56 +51,6 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
             }
             lines.join("\n")
         }
-        "orchestration.runPolicyPropose"
-        | "orchestration.runPolicyShow"
-        | "orchestration.runPolicyApprove"
-        | "orchestration.runPolicyReject" => {
-            let status = value
-                .get("status")
-                .and_then(Value::as_str)
-                .unwrap_or("none");
-            let stages = value
-                .get("policy")
-                .and_then(|policy| policy.get("stages"))
-                .and_then(Value::as_array)
-                .map(Vec::len)
-                .unwrap_or(0);
-            if status == "none" {
-                return "run has no execution policy".to_string();
-            }
-            let blocked = value
-                .get("blocksDispatch")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let suffix = if blocked {
-                " (scheduling held until it is resolved)"
-            } else {
-                ""
-            };
-            format!("execution policy {status}, {stages} stage(s){suffix}")
-        }
-        "orchestration.taskUpdate" => "task updated".to_string(),
-        "orchestration.dispatch" => value
-            .get("preamble")
-            .or_else(|| {
-                (value.get("startupState").and_then(Value::as_str)
-                    == Some("awaiting_manual_delivery"))
-                .then(|| value.get("bootstrap"))
-                .flatten()
-            })
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| {
-                if value
-                    .get("dryRun")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false)
-                {
-                    "dispatch dry run".to_string()
-                } else {
-                    "task dispatched".to_string()
-                }
-            }),
         "orchestration.dispatchShow" => {
             serde_json::to_string_pretty(value).unwrap_or_else(|_| "dispatch context".to_string())
         }
@@ -122,7 +59,6 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
             .and_then(Value::as_str)
             .map(|id| format!("gate created: {id}"))
             .unwrap_or_else(|| "gate created".to_string()),
-        "orchestration.gateResolve" => "gate resolved".to_string(),
         "orchestration.gateList" => {
             let count = value
                 .get("items")
@@ -131,12 +67,6 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
                 .unwrap_or(0);
             format!("{count} gate(s)")
         }
-        "orchestration.run" => value
-            .get("runId")
-            .and_then(Value::as_str)
-            .map(|id| format!("coordinator run started: {id}"))
-            .unwrap_or_else(|| "coordinator run started".to_string()),
-        "orchestration.runStop" => "coordinator run stopped".to_string(),
         "orchestration.terminals" => {
             let count = value
                 .get("items")
@@ -146,6 +76,50 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
             format!("{count} terminal(s)")
         }
         "orchestration.reset" => "orchestration state reset".to_string(),
+        "orchestration.planPropose" => {
+            let run = value.get("runId").and_then(Value::as_str).unwrap_or("");
+            let revision = value.get("revision").and_then(Value::as_i64).unwrap_or(0);
+            let status = value.get("status").and_then(Value::as_str).unwrap_or("");
+            format!("plan revision {revision} proposed for run {run} ({status})")
+        }
+        "runs.create" => {
+            let run = value.pointer("/run/runId").and_then(Value::as_str);
+            let state = value
+                .pointer("/coordinator/status")
+                .and_then(Value::as_str)
+                .unwrap_or("not started");
+            match run {
+                Some(run) => format!("run created: {run} (coordinator {state})"),
+                None => "run created".to_string(),
+            }
+        }
+        "runs.board" => {
+            let items = value.get("items").and_then(Value::as_array);
+            let mut lines = vec![format!("{} run(s)", items.map(Vec::len).unwrap_or(0))];
+            for item in items.into_iter().flatten() {
+                lines.push(format!(
+                    "  {}  {}  {}",
+                    item.get("id").and_then(Value::as_str).unwrap_or(""),
+                    item.get("status").and_then(Value::as_str).unwrap_or(""),
+                    item.get("objective").and_then(Value::as_str).unwrap_or("")
+                ));
+            }
+            lines.join("\n")
+        }
+        "runs.control" | "runs.retryCancellation" => format!(
+            "run {}: {} ({})",
+            value.get("runId").and_then(Value::as_str).unwrap_or(""),
+            value.get("action").and_then(Value::as_str).unwrap_or(""),
+            value.get("status").and_then(Value::as_str).unwrap_or("")
+        ),
+        "runs.resolveGate" => format!(
+            "gate resolved; run {} is {}",
+            value.get("runId").and_then(Value::as_str).unwrap_or(""),
+            value
+                .get("runStatus")
+                .and_then(Value::as_str)
+                .unwrap_or("unchanged")
+        ),
         _ => serde_json::to_string_pretty(value).unwrap_or_else(|_| "ok".to_string()),
     }
 }

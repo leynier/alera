@@ -7,13 +7,13 @@ use crate::terminal_host::protocol::TerminalHostLaunch;
 use crate::terminal_host::session::Session;
 
 use super::pty_event_forwarder::forward_pty_event;
+use super::run_launch_requests::WorkflowLaunchPermit;
 use super::terminal_launch_defaults::default_terminal_launch;
 use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
 use super::terminal_startup_commands::{
     agent_profile_id, delivers_initial_command_once, delivers_initial_prompt_once,
     pending_agent_type, tab_agent_type, terminal_session_id,
 };
-use super::workflow_launch_requests::WorkflowLaunchPermit;
 use super::ServerActor;
 
 const DEFAULT_TERMINAL_COLS: u16 = 80;

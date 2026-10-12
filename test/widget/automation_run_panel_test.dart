@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/automation_test_harness.dart';
-import '../support/run_board_widget_harness.dart';
+import '../support/workbench_fixture.dart';
 
 void main() {
   Future<({FakeAutomationRuntime runtime, BoardTestWorkbench workbench})> mount(

@@ -1,5 +1,6 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,9 +22,7 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(runtime.dispose);
     await tester.pumpWidget(AutomationsTestApp(container: container));
-    container
-        .read(automationsNavigationProvider.notifier)
-        .startAuthoring(request);
+    container.read(activityNavigationProvider.notifier).startAuthoring(request);
     await tester.pumpAndSettle();
     return (container: container, runtime: runtime);
   }
@@ -100,7 +99,7 @@ void main() {
         },
       });
       expect(
-        f.container.read(automationsNavigationProvider).selectedId,
+        f.container.read(activityNavigationProvider).automations.selectedId,
         'created',
       );
     },

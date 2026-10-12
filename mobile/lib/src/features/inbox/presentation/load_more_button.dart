@@ -6,12 +6,13 @@ import 'package:flutter/material.dart';
 class const LoadMoreButton({
   super.key,
   required final Future<void> Function() onLoad,
+  final String label = 'Load More',
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: TextButton(
       onPressed: () => unawaited(_load(ScaffoldMessenger.of(context))),
-      child: const Text('Load More'),
+      child: Text(label),
     ),
   );
 

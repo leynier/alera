@@ -391,9 +391,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     trailing: Row(
                       mainAxisSize: .min,
                       children: <Widget>[
-                        RunBoardAttentionControl(),
-                        AutomationAttentionControl(),
-                        InboxAttentionControl(),
+                        ActivityAttentionControl(),
                         VoiceStatusBarControl(),
                         ResourceStatusBarControl(),
                         KeepAliveStatusBarControl(),

@@ -8,6 +8,12 @@ pub struct AgentAdapter {
     pub interrupt_bytes: &'static [u8],
     pub startup_prompt: AgentStartupPrompt,
     pub session_resume: Option<AgentSessionResumeShape>,
+    /// Whether text pasted and submitted while a turn runs is queued by the
+    /// agent as its next input instead of being lost or corrupting the turn.
+    /// Only then may a `delivery = now` message be pasted into a working
+    /// agent. Set only after verifying it against the installed CLI (see
+    /// `docs/orchestration.md`).
+    pub accepts_queued_input: bool,
 }
 
 /// How a freshly launched agent receives the prompt it is supposed to start
@@ -50,6 +56,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
         session_resume: Some(AgentSessionResumeShape::Subcommand(&["resume"])),
+        accepts_queued_input: true,
     },
     AgentAdapter {
         agent_type: "claude",
@@ -58,6 +65,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
         session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
+        accepts_queued_input: true,
     },
     AgentAdapter {
         agent_type: "copilot",
@@ -66,6 +74,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--interactive"),
         session_resume: Some(AgentSessionResumeShape::EqualsFlag("--resume")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "cursor",
@@ -74,6 +83,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
         session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "agy",
@@ -82,6 +92,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--prompt-interactive"),
         session_resume: Some(AgentSessionResumeShape::Flag("--conversation")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "opencode",
@@ -90,6 +101,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
         session_resume: Some(AgentSessionResumeShape::Flag("--session")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         // OpenCode 2 installs as `opencode2` beside v1's `opencode`.
@@ -99,6 +111,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
         session_resume: Some(AgentSessionResumeShape::Flag("--session")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "pi",
@@ -107,6 +120,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::Positional,
         session_resume: Some(AgentSessionResumeShape::Flag("--session")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "amp",
@@ -117,6 +131,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         session_resume: Some(AgentSessionResumeShape::Subcommand(&[
             "threads", "continue",
         ])),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "grok",
@@ -125,6 +140,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
         session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "fx",
@@ -133,6 +149,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::TerminalAfterReady,
         session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
+        accepts_queued_input: false,
     },
 ];
 
@@ -196,6 +213,30 @@ mod tests {
                 ("amp", AgentStartupPrompt::StdinScript),
                 ("grok", AgentStartupPrompt::PositionalAfterTerminator),
                 ("fx", AgentStartupPrompt::TerminalAfterReady),
+            ]
+        );
+    }
+
+    #[test]
+    fn only_verified_agents_accept_input_queued_mid_turn() {
+        let queued: Vec<_> = AGENT_ADAPTERS
+            .iter()
+            .map(|adapter| (adapter.agent_type, adapter.accepts_queued_input))
+            .collect();
+        assert_eq!(
+            queued,
+            [
+                ("codex", true),
+                ("claude", true),
+                ("copilot", false),
+                ("cursor", false),
+                ("agy", false),
+                ("opencode", false),
+                ("opencode2", false),
+                ("pi", false),
+                ("amp", false),
+                ("grok", false),
+                ("fx", false),
             ]
         );
     }

@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
@@ -17,11 +16,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 typedef AppMenuPackageInfoLoader = Future<PackageInfo> Function();
 
-void openRunBoardFromAppMenu(WidgetRef ref) =>
-    ref.read(runBoardNavigationProvider.notifier).open();
-
-void openInboxFromAppMenu(WidgetRef ref) =>
-    ref.read(inboxNavigationProvider.notifier).open();
+/// Opens Activity where it was left: runs, questions and automations.
+void openActivityFromAppMenu(WidgetRef ref) =>
+    ref.read(activityNavigationProvider.notifier).open();
 
 Future<void> openAppMenuSettings(BuildContext context) {
   return openSettingsDialog(context);

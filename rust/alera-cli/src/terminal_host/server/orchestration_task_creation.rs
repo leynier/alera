@@ -67,7 +67,15 @@ impl ServerActor {
         let requested_coordinator = optional_string(payload, "coordinator");
         let workspace_id =
             optional_string(payload, "workspace").unwrap_or_else(|| "global".to_string());
-        let run_id = optional_string(payload, "run");
+        let mut run_id = optional_string(payload, "run");
+        if run_id.is_none() && payload.get("ensureRun").and_then(Value::as_bool) == Some(true) {
+            let coordinator = optional_string(payload, "coordinator")
+                .or_else(|| created_by.clone())
+                .unwrap_or_else(|| "coord".to_string());
+            run_id = self
+                .delegated_run(&workspace_id, &coordinator, &spec)
+                .await?;
+        }
         let coordinator_handle = if let Some(run_id) = run_id.as_deref() {
             let run = self
                 .runtime_store
@@ -152,5 +160,50 @@ impl ServerActor {
             return Ok(json!(stored));
         }
         Ok(json!(task))
+    }
+
+    /// The shared run a delegated task joins: the loopless running shared run
+    /// its coordinator already owns in the workspace, or a new one. A
+    /// workspace held by any other run keeps the task outside a run.
+    async fn delegated_run(
+        &mut self,
+        workspace_id: &str,
+        coordinator: &str,
+        spec: &str,
+    ) -> HostResult<Option<String>> {
+        let runs = self
+            .runtime_store
+            .list_orchestration_coordinator_runs(Some(workspace_id))
+            .await
+            .map_err(state_error)?;
+        if let Some(active) = runs.iter().find(|run| run.holds_workspace()) {
+            // A run with a coordinator loop schedules its own ready tasks and
+            // would race the delegate's own dispatch.
+            let joinable = active.isolation == "shared"
+                && active.status == OrchestrationCoordinatorStatus::Running
+                && active.coordinator_handle.as_deref() == Some(coordinator)
+                && !self.coordinators.contains_key(&active.id);
+            return Ok(joinable.then(|| active.id.clone()));
+        }
+        let objective = spec
+            .lines()
+            .next()
+            .unwrap_or(spec)
+            .chars()
+            .take(512)
+            .collect::<String>();
+        let run = self
+            .runtime_store
+            .create_scoped_orchestration_coordinator_run(
+                &objective,
+                Some(coordinator),
+                2000,
+                workspace_id,
+                4,
+            )
+            .await
+            .map_err(state_error)?;
+        self.broadcast_orchestration_board_change().await;
+        Ok(Some(run.id))
     }
 }

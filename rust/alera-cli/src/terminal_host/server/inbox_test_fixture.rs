@@ -53,7 +53,8 @@ pub(super) async fn fixture() -> Fixture {
         session("lonely-term", "ws-2"),
     ]);
     let mut actor = test_actor(&dir, clients, sessions).await;
-    // Working agents keep questions queued, so these tests never paste.
+    // Agents waiting on a prompt keep every question queued, so these tests
+    // never paste unless they set a presence themselves.
     for (handle, agent) in [
         ("claude-term", "claude"),
         ("codex-term", "codex"),
@@ -61,7 +62,7 @@ pub(super) async fn fixture() -> Fixture {
     ] {
         actor
             .agent_presence
-            .update(handle, agent.to_string(), AgentPresenceState::Working);
+            .update(handle, agent.to_string(), AgentPresenceState::Waiting);
     }
     Fixture {
         _dir: dir,

@@ -18,7 +18,6 @@ async fn startup_failures_have_an_independent_three_attempt_budget() {
                 "workspace_1",
                 "coord",
                 None,
-                "return-immediately",
                 "keep-open",
             )
             .await
@@ -46,7 +45,7 @@ async fn startup_failures_have_an_independent_three_attempt_budget() {
 }
 
 #[tokio::test]
-async fn expired_unaccepted_dispatch_consumes_startup_budget() {
+async fn a_failed_startup_past_the_deadline_consumes_startup_budget() {
     let (_dir, store) = store().await;
     let created = store
         .create_orchestration_task(task("accept", vec![]))
@@ -60,7 +59,6 @@ async fn expired_unaccepted_dispatch_consumes_startup_budget() {
             "workspace_1",
             "coord",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await
@@ -73,16 +71,17 @@ async fn expired_unaccepted_dispatch_consumes_startup_budget() {
     .await
     .unwrap();
 
-    let expired = store
-        .expire_unaccepted_orchestration_dispatches("2021-01-01 00:00:00")
+    let waiting = store
+        .unaccepted_orchestration_dispatches("2021-01-01 00:00:00")
+        .await
+        .unwrap();
+    assert_eq!(waiting.len(), 1);
+    let failed = store
+        .fail_orchestration_startup(&waiting[0].id, "the worker terminal stopped")
         .await
         .unwrap();
 
-    assert_eq!(expired.len(), 1);
-    assert_eq!(
-        expired[0].status,
-        OrchestrationDispatchStatus::StartupFailed
-    );
+    assert_eq!(failed.status, OrchestrationDispatchStatus::StartupFailed);
     let task = store
         .orchestration_task_by_id(&created.id)
         .await
@@ -107,7 +106,6 @@ async fn pending_spawn_timeout_cannot_reopen_an_actively_dispatched_task() {
             "workspace_1",
             "coord",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await
@@ -150,7 +148,6 @@ async fn latest_dispatch_retains_acceptance_after_fast_completion() {
             "workspace_1",
             "coord",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await
@@ -299,10 +296,7 @@ async fn cancellation_closes_pending_gates_without_reopening_task() {
             .status,
         OrchestrationGateStatus::Timeout
     );
-    assert!(store
-        .resolve_orchestration_gate(&gate.id, "yes")
-        .await
-        .is_err());
+    assert!(store.resolve_gate(&gate.id, "yes", None).await.is_err());
     assert_eq!(
         store
             .orchestration_task_by_id(&created.id)
@@ -350,7 +344,6 @@ async fn dispatch_activity_refreshes_its_coordinator_run() {
             "ws_1",
             "coord",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await
@@ -367,10 +360,13 @@ async fn dispatch_activity_refreshes_its_coordinator_run() {
     .await
     .unwrap();
 
-    assert!(store
-        .record_orchestration_activity(&dispatch.id)
-        .await
-        .unwrap());
+    assert_eq!(
+        store
+            .record_orchestration_activity(&dispatch.id)
+            .await
+            .unwrap(),
+        ActivityOutcome::Recorded
+    );
     let refreshed = store
         .orchestration_coordinator_run_by_id(&run.id)
         .await
@@ -451,7 +447,6 @@ async fn dedicated_completion_is_idempotent_and_promotes_dependencies() {
             "workspace_1",
             "coord",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await

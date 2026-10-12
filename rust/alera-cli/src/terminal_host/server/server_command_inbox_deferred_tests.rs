@@ -11,9 +11,9 @@ use alera_core::runtime::{
 use chrono::Utc;
 use serde_json::json;
 
-type WorkflowLaunchCommand = super::super::workflow_launch_requests::WorkflowLaunchCommand;
-type WorkflowLaunchReply = super::super::workflow_launch_requests::WorkflowLaunchReply;
-type ValidatedWorkflowLaunch = super::super::workflow_launch_requests::ValidatedWorkflowLaunch;
+type WorkflowLaunchCommand = super::super::run_launch_requests::WorkflowLaunchCommand;
+type WorkflowLaunchReply = super::super::run_launch_requests::WorkflowLaunchReply;
+type ValidatedWorkflowLaunch = super::super::run_launch_requests::ValidatedWorkflowLaunch;
 pub(super) fn fill_control_and_request_shutdown(inbox: &ServerInbox) {
     for id in 0..SERVER_COMMAND_CONTROL_CAPACITY {
         inbox
@@ -181,15 +181,10 @@ async fn workflow_launch_deferred_variants_survive_shutdown_admission_closure() 
     let (inbox, mut receiver) = ServerInbox::channel();
     fill_control_and_request_shutdown(&inbox);
     let commands = [
-        ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::CoordinatorPrepared {
+        ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::RunCreated {
             client_id: 7,
             request_id: 100,
-            result: Err(HostError::state("coordinator failed")),
-        }),
-        ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::Prepared {
-            client_id: 7,
-            request_id: 200,
-            result: Err(HostError::state("prepare failed")),
+            result: Err(HostError::state("run creation failed")),
         }),
         claimed_command("claimed-1"),
         spawn_validated_command("validated-1"),
@@ -201,20 +196,13 @@ async fn workflow_launch_deferred_variants_survive_shutdown_admission_closure() 
             .expect("accepted workflow completion must be retained");
     }
 
-    for expected in [100, 200] {
-        match next_deferred(&mut receiver).await {
-            ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::CoordinatorPrepared {
-                client_id,
-                request_id,
-                ..
-            }) if client_id == 7 && request_id == expected => {}
-            ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::Prepared {
-                client_id,
-                request_id,
-                ..
-            }) if client_id == 7 && request_id == expected => {}
-            _ => panic!("unexpected workflow completion"),
-        }
+    match next_deferred(&mut receiver).await {
+        ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::RunCreated {
+            client_id,
+            request_id,
+            ..
+        }) if client_id == 7 && request_id == 100 => {}
+        _ => panic!("unexpected run creation completion"),
     }
     match next_deferred(&mut receiver).await {
         ServerCommand::WorkflowLaunch(WorkflowLaunchCommand::Claimed {

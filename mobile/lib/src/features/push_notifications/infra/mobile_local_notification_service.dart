@@ -104,7 +104,9 @@ class FlutterMobileLocalNotificationService({
     }
     final event = message.navigationIntent?.eventKind ?? PushEventKind.unknown;
     final attention =
-        event == PushEventKind.attention || event == PushEventKind.inboxReply;
+        event == PushEventKind.attention ||
+        event == PushEventKind.inboxReply ||
+        event == PushEventKind.runGate;
     final channel = attention ? attentionChannel : activityChannel;
     await _plugin.show(
       id: _notificationId(message),

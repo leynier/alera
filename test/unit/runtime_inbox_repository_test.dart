@@ -104,17 +104,23 @@ void main() {
   });
 
   test('ask sends only what the user chose', () async {
-    client.respond('inbox.ask', <String, Object?>{'threadId': 'msg_q9'});
-    final threadId = await repository.ask(
+    client.respond('inbox.ask', <String, Object?>{
+      'threadId': 'msg_q9',
+      'recipient': {'deliveryMode': 'paste'},
+    });
+    final result = await repository.ask(
       const InboxAskRequest(
         body: 'Status?',
         inbox: 'ext:user',
         to: 'term-1',
         subject: '  ',
         expiresIn: Duration(hours: 1),
+        delivery: InboxDelivery.now,
       ),
     );
-    expect(threadId, 'msg_q9');
+    expect(result.threadId, 'msg_q9');
+    expect(result.deliveryMode, InboxDeliveryMode.queuedAtTurnEnd);
+    // Without inboxV2 the delivery choice never reaches the host.
     expect(client.calls.single.$2, {
       'body': 'Status?',
       'inbox': 'ext:user',
@@ -125,6 +131,29 @@ void main() {
       const InboxAskRequest(body: 'And?', threadId: 'msg_q9'),
     );
     expect(client.calls.last.$2, {'body': 'And?', 'threadId': 'msg_q9'});
+  });
+
+  test('an inboxV2 host receives the delivery choice', () async {
+    client
+      ..deliverySupported = true
+      ..respond('inbox.ask', <String, Object?>{
+        'threadId': 'msg_q9',
+        'deliveryMode': 'pasted_now',
+      });
+    final result = await repository.ask(
+      const InboxAskRequest(
+        body: 'And?',
+        threadId: 'msg_q9',
+        delivery: InboxDelivery.turnEnd,
+      ),
+    );
+    expect(client.calls.last.$2, {
+      'body': 'And?',
+      'threadId': 'msg_q9',
+      'delivery': 'turnEnd',
+    });
+    expect(result.deliveryMode, InboxDeliveryMode.pastedNow);
+    expect(await repository.supportsDelivery(), isTrue);
   });
 
   test('an old host fails closed before any request', () async {
@@ -173,7 +202,7 @@ void main() {
           message: 'limit',
         ),
       ),
-      startsWith('This agent already has 20 questions waiting'),
+      startsWith('This agent already has 100 questions waiting'),
     );
     expect(
       inboxErrorMessage(

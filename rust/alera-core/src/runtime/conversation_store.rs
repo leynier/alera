@@ -14,7 +14,7 @@ use super::{OrchestrationMessage, RuntimeStore};
 /// escalations are task control and stay out of this view and its retention.
 const CONVERSATION_ROW: &str = "substr(from_handle, 1, 4) != 'ext:' \
      AND substr(to_handle, 1, 4) != 'ext:' \
-     AND type IN ('status', 'handoff', 'merge_ready', 'decision_gate')";
+     AND type IN ('status', 'handoff', 'merge_ready', 'decision_gate', 'question')";
 const DELETE_BATCH: usize = 400;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -48,34 +48,34 @@ pub struct ConversationFilter {
     pub limit: i64,
 }
 
-impl RuntimeStore {
-    pub(super) async fn migrate_conversations(&self) -> Result<()> {
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS conversationRevision (
-                id INTEGER PRIMARY KEY CHECK (id = 1), revision INTEGER NOT NULL
-            )",
-        )
-        .execute(self.pool())
+pub(super) async fn install_conversation_schema(conn: &mut sqlx::SqliteConnection) -> Result<()> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS conversationRevision (
+            id INTEGER PRIMARY KEY CHECK (id = 1), revision INTEGER NOT NULL
+        )",
+    )
+    .execute(&mut *conn)
+    .await?;
+    sqlx::query("INSERT OR IGNORE INTO conversationRevision VALUES (1, 0)")
+        .execute(&mut *conn)
         .await?;
-        sqlx::query("INSERT OR IGNORE INTO conversationRevision VALUES (1, 0)")
-            .execute(self.pool())
-            .await?;
-        for (operation, row) in [("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")] {
-            let condition = CONVERSATION_ROW
-                .replace("from_handle", &format!("{row}.from_handle"))
-                .replace("to_handle", &format!("{row}.to_handle"))
-                .replace("type IN", &format!("{row}.type IN"));
-            sqlx::query(sqlx::AssertSqlSafe(format!(
-                "CREATE TRIGGER IF NOT EXISTS conversation_messages_{operation}
-                 AFTER {operation} ON orchestrationMessages WHEN {condition}
-                 BEGIN UPDATE conversationRevision SET revision = revision + 1 WHERE id = 1; END"
-            )))
-            .execute(self.pool())
-            .await?;
-        }
-        Ok(())
+    for (operation, row) in [("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")] {
+        let condition = CONVERSATION_ROW
+            .replace("from_handle", &format!("{row}.from_handle"))
+            .replace("to_handle", &format!("{row}.to_handle"))
+            .replace("type IN", &format!("{row}.type IN"));
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "CREATE TRIGGER IF NOT EXISTS conversation_messages_{operation}
+             AFTER {operation} ON orchestrationMessages WHEN {condition}
+             BEGIN UPDATE conversationRevision SET revision = revision + 1 WHERE id = 1; END"
+        )))
+        .execute(&mut *conn)
+        .await?;
     }
+    Ok(())
+}
 
+impl RuntimeStore {
     pub async fn conversation_revision(&self) -> Result<i64> {
         let row = sqlx::query("SELECT revision FROM conversationRevision WHERE id = 1")
             .fetch_one(self.pool())

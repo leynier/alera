@@ -398,10 +398,9 @@ pub(super) async fn agent_profile_removal_impact_in(
     let mut execution_policy_run_ids = Vec::new();
     if let Some((_, profile_name)) = profile.as_ref() {
         let policy_rows = sqlx::query(
-            "SELECT id, execution_policy FROM orchestrationCoordinatorRuns \
-             WHERE status NOT IN ('completed', 'failed', 'stopped') \
-               AND execution_policy_status IN ('draft', 'approved') \
-               AND execution_policy IS NOT NULL",
+            "SELECT r.id, r.execution_policy FROM orchestrationCoordinatorRuns r \
+             WHERE r.status NOT IN ('completed', 'failed', 'cancelled') \
+               AND r.execution_policy IS NOT NULL",
         )
         .fetch_all(&mut *connection)
         .await?;

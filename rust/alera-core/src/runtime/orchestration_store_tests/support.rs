@@ -27,6 +27,7 @@ pub(super) fn message(
         expires_at: None,
         reply_to_id: None,
         external_meta: None,
+        delivery: MessageDelivery::TurnEnd,
     }
 }
 

@@ -1,6 +1,3 @@
-#[path = "store_legacy_orchestration.rs"]
-mod legacy_orchestration;
-
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 use std::time::Duration;
@@ -78,10 +75,7 @@ impl RuntimeStore {
             conversation_notification_revision: Default::default(),
         };
         store.migrate().await?;
-        store.migrate_workflows().await?;
-        store.migrate_orchestration_board().await?;
-        store.migrate_inbox().await?;
-        store.migrate_conversations().await?;
+        store.migrate_orchestration_v3(Some(runtime_dir)).await?;
         store.install_runtime_event_triggers().await?;
         harden_sqlite_files(&path)?;
         Ok(store)
@@ -108,15 +102,6 @@ impl RuntimeStore {
         for statement in super::runtime_event_store::RUNTIME_EVENT_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        self.migrate_legacy_orchestration_schema().await?;
-        for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
-            sqlx::query(*statement).execute(&self.pool).await?;
-        }
-        self.set_metadata(
-            "orchestration.schemaVersion",
-            super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
-        )
-        .await?;
         self.ensure_column("sshTargets", "projectsDir", "TEXT")
             .await?;
         self.ensure_column("sshTargets", "installDir", "TEXT")
@@ -176,31 +161,6 @@ impl RuntimeStore {
         self.ensure_column("agentProfiles", "revision", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_agent_profile_new_tab_menu_column().await?;
-        // Orchestration tables are created idempotently above, but CREATE TABLE
-        // IF NOT EXISTS is a no-op on an existing database, so every column
-        // added after the v2 rebuild must also be backfilled here.
-        self.ensure_column("orchestrationCoordinatorRuns", "execution_policy", "TEXT")
-            .await?;
-        self.ensure_column(
-            "orchestrationCoordinatorRuns",
-            "execution_policy_status",
-            "TEXT NOT NULL DEFAULT 'none'",
-        )
-        .await?;
-        self.ensure_column(
-            "orchestrationCoordinatorRuns",
-            "execution_policy_updated_at",
-            "TEXT",
-        )
-        .await?;
-        self.ensure_column("orchestrationTasks", "stage_id", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationDispatchContexts", "agent_profile", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationDispatchContexts", "agent_quota_group", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationDispatchContexts", "completion_sha", "TEXT")
-            .await?;
         for statement in super::runtime_schema::AGENT_PROFILE_REFERENCE_TRIGGERS {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
@@ -225,7 +185,6 @@ impl RuntimeStore {
         self.migrate_relocation_setup_processes().await?;
         self.migrate_relocation_setup_cancellations().await?;
         self.migrate_setup_descendants().await?;
-        self.migrate_role_contracts().await?;
         Ok(())
     }
 

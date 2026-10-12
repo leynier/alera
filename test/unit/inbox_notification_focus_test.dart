@@ -4,7 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
-import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/inbox/application/inbox_notifications.dart';
 import 'package:alera/src/features/inbox/application/inbox_providers.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -84,7 +84,7 @@ void main() {
       );
       addTearDown(container.dispose);
       addTearDown(client.events.close);
-      container.read(inboxNavigationProvider.notifier).open();
+      container.read(activityNavigationProvider.notifier).openQuestions();
       // The shell watches it; a provider nobody listens to is paused.
       container.listen(inboxReplyNotificationCoordinatorProvider, (_, _) {});
       await Future<void>.delayed(const Duration(milliseconds: 30));

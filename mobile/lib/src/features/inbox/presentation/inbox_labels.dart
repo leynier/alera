@@ -3,8 +3,7 @@ import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
 
 AleraBadgeTone inboxStatusTone(InboxQuestionStatus status) => switch (status) {
   InboxQuestionStatus.answered => AleraBadgeTone.success,
-  InboxQuestionStatus.delivered ||
-  InboxQuestionStatus.received => AleraBadgeTone.info,
+  InboxQuestionStatus.delivered => AleraBadgeTone.info,
   InboxQuestionStatus.expired => AleraBadgeTone.attention,
   InboxQuestionStatus.pending ||
   InboxQuestionStatus.cancelled ||
@@ -13,23 +12,14 @@ AleraBadgeTone inboxStatusTone(InboxQuestionStatus status) => switch (status) {
 
 /// What the asker can expect, in words.
 String inboxStatusHint(InboxQuestionStatus status) => switch (status) {
-  InboxQuestionStatus.pending => 'Waiting for the agent to finish its turn before the question is delivered.',
+  InboxQuestionStatus.pending => 'The question has not reached the agent yet.',
   InboxQuestionStatus.delivered =>
     'Delivered to the agent. The answer appears here when it replies.',
-  InboxQuestionStatus.received => 'The coordinator read the question. The answer appears here when it replies.',
   InboxQuestionStatus.answered => 'The agent answered.',
   InboxQuestionStatus.expired =>
     'The question expired before it reached the agent.',
   InboxQuestionStatus.cancelled => 'The question was cancelled.',
   InboxQuestionStatus.unknown => 'The runtime reported an unknown state.',
-};
-
-String inboxDeliveryHint(InboxDeliveryMode mode) => switch (mode) {
-  InboxDeliveryMode.paste =>
-    'Questions reach this agent when it finishes its turn.',
-  InboxDeliveryMode.check =>
-    'This terminal coordinates a run and reads questions on its next check.',
-  InboxDeliveryMode.unavailable => 'This agent is not running or does not report its status, so questions wait.',
 };
 
 /// Compact age such as `5m ago`, or a date once it is a week old.

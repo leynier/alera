@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:alera/src/features/automations/presentation/automation_attention_control.dart';
+import 'package:alera/src/features/activity/presentation/activity_attention_control.dart';
+import 'package:alera/src/features/activity/application/activity_notifications.dart';
 import 'package:alera/src/features/inbox/application/inbox_notifications.dart';
-import 'package:alera/src/features/inbox/presentation/inbox_attention_control.dart';
-import 'package:alera/src/features/orchestration/presentation/run_board_attention_control.dart';
 import 'package:alera/src/features/shell/application/shell_overlay_page.dart';
 import 'package:alera/src/features/shell/presentation/shell_overlay_page_view.dart';
 

@@ -11,20 +11,45 @@ async fn store() -> (tempfile::TempDir, RuntimeStore) {
     (dir, store)
 }
 
+/// `stopped` is the settled cancellation: `cancelled` with `completed_at`.
+/// The policy state lives on the run's latest plan gate.
 async fn run(store: &RuntimeStore, id: &str, status: &str, policy: &str) {
+    let (status, completed_at) = match status {
+        "stopped" => ("cancelled", Some("2026-08-29 12:30:00")),
+        other => (other, None),
+    };
     sqlx::query(
         "INSERT INTO orchestrationCoordinatorRuns
-         (id, spec, status, workspace_id, execution_policy_status, created_at)
+         (id, spec, status, workspace_id, completed_at, created_at)
          VALUES (?, ?, ?, ?, ?, '2026-08-29 12:00:00')",
     )
     .bind(id)
     .bind(format!("Objective {id}"))
     .bind(status)
     .bind(id)
-    .bind(policy)
+    .bind(completed_at)
     .execute(store.pool())
     .await
     .unwrap();
+    let gate = match policy {
+        "draft" => Some(("pending", None)),
+        "approved" => Some(("resolved", Some("approve"))),
+        "rejected" => Some(("resolved", Some("reject"))),
+        _ => None,
+    };
+    if let Some((gate_status, resolution)) = gate {
+        sqlx::query(
+            "INSERT INTO runGates (id, run_id, kind, question, status, resolution)
+             VALUES (?, ?, 'plan', 'Approve?', ?, ?)",
+        )
+        .bind(format!("plan-{id}"))
+        .bind(id)
+        .bind(gate_status)
+        .bind(resolution)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    }
 }
 
 async fn task(store: &RuntimeStore, id: &str, run: &str, status: &str) {
@@ -54,8 +79,8 @@ async fn board_counts_are_aggregated_without_gate_join_multiplication() {
     task(&store, "gate-task", "review", "blocked").await;
     for id in ["gate-1", "gate-2"] {
         sqlx::query(
-            "INSERT INTO orchestrationDecisionGates (id, task_id, question)
-             VALUES (?, 'gate-task', 'Approve?')",
+            "INSERT INTO runGates (id, run_id, task_id, kind, question)
+             VALUES (?, 'review', 'gate-task', 'decision', 'Approve?')",
         )
         .bind(id)
         .execute(store.pool())
@@ -66,9 +91,12 @@ async fn board_counts_are_aggregated_without_gate_join_multiplication() {
         .orchestration_board_snapshot(&Query::default())
         .await
         .unwrap();
-    assert_eq!(snapshot.counts.attention, 3);
-    assert_eq!(snapshot.counts.active, 1);
-    assert_eq!(snapshot.counts.history, 1);
+    // A rejected plan cancels its run, so a run still holding a rejected
+    // plan gate is not asking for anything. A failed run with nothing left
+    // to settle is history.
+    assert_eq!(snapshot.counts.attention, 1);
+    assert_eq!(snapshot.counts.active, 2);
+    assert_eq!(snapshot.counts.history, 2);
     let active = snapshot.items.iter().find(|r| r.id == "active").unwrap();
     assert_eq!(
         (
@@ -80,7 +108,9 @@ async fn board_counts_are_aggregated_without_gate_join_multiplication() {
     );
     assert_eq!(active.project_id, None, "legacy global runs remain visible");
     let review = snapshot.items.iter().find(|r| r.id == "review").unwrap();
-    assert_eq!((review.task_count, review.pending_gate_count), (1, 2));
+    assert_eq!((review.task_count, review.pending_gate_count), (1, 3));
+    assert!(review.plan_gate_pending);
+    assert!(!active.plan_gate_pending);
     assert_eq!(review.bucket, Bucket::Attention);
 }
 
@@ -94,7 +124,8 @@ async fn attention_tracks_failures_stalls_and_pending_gates() {
     run(&store, "gate", "running", "none").await;
     task(&store, "gated", "gate", "pending").await;
     sqlx::query(
-        "INSERT INTO orchestrationDecisionGates (id, task_id, question) VALUES ('g', 'gated', '?')",
+        "INSERT INTO runGates (id, run_id, task_id, kind, question) \
+         SELECT 'g', run_id, id, 'decision', '?' FROM orchestrationTasks WHERE id = 'gated'",
     )
     .execute(store.pool())
     .await
@@ -108,7 +139,7 @@ async fn attention_tracks_failures_stalls_and_pending_gates() {
             .attention,
         4
     );
-    sqlx::query("UPDATE orchestrationDecisionGates SET status = 'resolved' WHERE id = 'g'")
+    sqlx::query("UPDATE runGates SET status = 'resolved' WHERE id = 'g'")
         .execute(store.pool())
         .await
         .unwrap();
@@ -290,8 +321,8 @@ async fn large_board_keeps_pages_bounded_and_counts_complete() {
     let (_dir, store) = store().await;
     sqlx::query(
         "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x + 1 FROM n WHERE x < 1200)
-        INSERT INTO orchestrationCoordinatorRuns (id, spec, status, workspace_id)
-        SELECT printf('run-%04d', x), 'Objective', 'stopped', 'legacy' FROM n",
+        INSERT INTO orchestrationCoordinatorRuns (id, spec, status, workspace_id, completed_at)
+        SELECT printf('run-%04d', x), 'Objective', 'cancelled', 'legacy', datetime('now') FROM n",
     )
     .execute(store.pool())
     .await

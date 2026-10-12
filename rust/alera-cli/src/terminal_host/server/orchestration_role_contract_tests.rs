@@ -55,7 +55,6 @@ async fn accept(actor: &mut ServerActor, task: &OrchestrationTask) -> String {
             "workspace",
             "coord",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await
@@ -164,7 +163,7 @@ async fn role_contract_reaches_dry_run_context_and_coordinator_prompts() {
 
 #[tokio::test]
 async fn role_contract_all_success_rpc_routes_reject_missing_evidence_without_completing() {
-    for verb in ["orchestration.complete", "orchestration.workerDone"] {
+    for verb in ["orchestration.complete"] {
         let dir = tempfile::tempdir().unwrap();
         let mut actor = actor(&dir).await;
         let task = create(&mut actor).await;

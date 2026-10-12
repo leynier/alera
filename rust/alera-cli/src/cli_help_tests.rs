@@ -186,3 +186,105 @@ fn voice_help_documents_home_and_speak() {
         "voice help should document status: {help}"
     );
 }
+
+#[test]
+fn orchestration_help_lists_the_reduced_command_set() {
+    let help = clap_help(&["orchestration"]);
+    for verb in [
+        "delegate",
+        "run",
+        "plan",
+        "gate",
+        "context",
+        "complete",
+        "escalate",
+        "ask",
+        "reply",
+        "send",
+        "check",
+        "messages",
+        "task",
+        "transfer-coordinator",
+        "dispatch",
+        "terminal",
+        "agent-profiles",
+        "current",
+        "reset",
+        "recipe",
+    ] {
+        assert!(
+            help.lines()
+                .any(|line| line.trim_start().starts_with(&format!("{verb} "))),
+            "orchestration help should list {verb}: {help}"
+        );
+    }
+    for removed in [
+        "task-create",
+        "agent-spawn",
+        "board",
+        "run-snapshot",
+        "task-inspect",
+        "run-list",
+        "dispatch-accept",
+        "heartbeat",
+        "worker-help",
+    ] {
+        assert!(
+            !help.contains(removed),
+            "orchestration help still lists {removed}: {help}"
+        );
+    }
+    let run = clap_help(&["orchestration", "run"]);
+    for verb in [
+        "new",
+        "list",
+        "show",
+        "timeline",
+        "cancel",
+        "pause",
+        "resume",
+        "replan",
+        "retry",
+        "resources",
+        "integrations",
+        "cleanup",
+    ] {
+        assert!(run.contains(verb), "run help should list {verb}: {run}");
+    }
+    let cleanup = clap_help(&["orchestration", "run", "cleanup"]);
+    for verb in ["preview", "apply", "status", "list", "retry", "abandon"] {
+        assert!(
+            cleanup.contains(verb),
+            "cleanup help should list {verb}: {cleanup}"
+        );
+    }
+    let new = clap_help(&["orchestration", "run", "new"]);
+    for flag in ["--isolation", "--template", "--approval", "--profile"] {
+        assert!(new.contains(flag), "run new should document {flag}: {new}");
+    }
+    let delegate = clap_help(&["orchestration", "delegate"]);
+    for flag in [
+        "--terminal",
+        "--stage",
+        "--depends-on",
+        "--contract",
+        "--contract-inputs",
+        "--run",
+        "--new-workspace",
+    ] {
+        assert!(
+            delegate.contains(flag),
+            "delegate should document {flag}: {delegate}"
+        );
+    }
+}
+
+#[test]
+fn ask_commands_document_delivery() {
+    let ask = clap_help(&["orchestration", "ask"]);
+    assert!(ask.contains("--delivery") && ask.contains("--no-wait"));
+    let send = clap_help(&["orchestration", "send"]);
+    assert!(send.contains("--delivery"));
+    let inbox = clap_help(&["inbox", "ask"]);
+    assert!(inbox.contains("--deliver"));
+}

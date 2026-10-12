@@ -1,6 +1,7 @@
 import 'package:alera/src/features/automations/application/automation_project_branches.dart';
 import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_prompt_editor.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,7 @@ void main() {
     addTearDown(runtime.dispose);
     await tester.pumpWidget(AutomationsTestApp(container: container));
     container
-        .read(automationsNavigationProvider.notifier)
+        .read(activityNavigationProvider.notifier)
         .startAuthoring(const AutomationAuthoringRequest());
     await tester.pumpAndSettle();
     return runtime;

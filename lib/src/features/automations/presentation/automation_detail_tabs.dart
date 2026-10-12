@@ -5,7 +5,7 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
@@ -77,7 +77,7 @@ class const _RunsTab({
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final navigation = ref.read(automationsNavigationProvider.notifier);
+    final navigation = ref.read(activityNavigationProvider.notifier);
     final selected = detail.runs
         .where((run) => run.id == selectedRunId)
         .firstOrNull;
@@ -91,7 +91,8 @@ class const _RunsTab({
             run: selected,
             runs: detail.runs,
             attempts: detail.attemptsFor(selected.id),
-            onSelectRun: (id) => navigation.selectRun(automation.id, id),
+            onSelectRun: (id) =>
+                navigation.selectAutomationRun(automation.id, id),
           ),
           const SizedBox(height: AleraTokens.space12),
         ],
@@ -103,7 +104,8 @@ class const _RunsTab({
               AutomationRunHistoryRun(:final run) => AutomationRunRow(
                 run: run,
                 selected: run.id == selectedRunId,
-                onTap: () => navigation.selectRun(automation.id, run.id),
+                onTap: () =>
+                    navigation.selectAutomationRun(automation.id, run.id),
               ),
               AutomationRunHistoryMissed() => AutomationMissedRunsRow(
                 missed: entry,

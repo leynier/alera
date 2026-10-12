@@ -1,180 +1,101 @@
-//! Execution policy verbs: a run-scoped stage plan the user approves before the
-//! coordinator is allowed to dispatch.
-//!
-//! Decision gates are the natural approval primitive but are task-scoped at the
-//! storage level, and creating one closes the active dispatch. Explicit
-//! propose/approve verbs give the same property, a durable user decision before
-//! execution, without a destructive schema migration.
+//! A coordinator proposes its run's plan (`orchestration.planPropose`, plan
+//! v2) and reads what it plans against (`orchestration.planContext`). Shared
+//! stages name profiles from the catalog, so the host normalizes them before
+//! the store validates and materializes the plan.
 
-use alera_core::runtime::OrchestrationCoordinatorRun;
-use serde_json::{json, Map, Value};
+use alera_core::runtime::{RunActor, RunActorKind, RunPlanInput, RunPlanStageInput};
+use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::orchestration_validation::{optional_string, require_string};
 use super::ServerActor;
 
-/// Stall handling for workers under an approved policy.
-const STALL_POLICIES: [&str; 3] = ["ask", "auto-failover", "wait"];
-const DEFAULT_STALL_POLICY: &str = "ask";
-const POLICY_VERSION: i64 = 1;
-
 impl ServerActor {
-    pub(super) async fn orchestration_run_policy_propose(
+    /// Stores the next plan revision of a run. With approval required it
+    /// waits behind a plan gate; otherwise the run starts at once.
+    pub(super) async fn orchestration_plan_propose(
         &mut self,
         payload: &Value,
     ) -> HostResult<Value> {
         let run_id = require_string(payload, "run")?;
-        let policy = payload
-            .get("policy")
-            .ok_or_else(|| HostError::format("policy is required."))?;
-        let normalized = self.validated_policy(policy).await?;
-        let encoded = serde_json::to_string(&normalized)
-            .map_err(|error| HostError::format(error.to_string()))?;
-        let run = self
+        let raw = payload
+            .get("plan")
+            .cloned()
+            .ok_or_else(|| HostError::format("plan is required."))?;
+        let mut plan: RunPlanInput = serde_json::from_value(raw)
+            .map_err(|error| HostError::format(format!("invalid plan: {error}")))?;
+        plan.stages = self.normalized_plan_stages(plan.stages).await?;
+        let actor = RunActor::new(RunActorKind::Agent, optional_string(payload, "from"));
+        let proposed = self
             .runtime_store
-            .propose_orchestration_execution_policy(&run_id, &encoded)
+            .propose_run_plan(&run_id, plan, &actor)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        Ok(policy_response(&run))
+            .map_err(super::orchestration_gate_requests::gate_error)?;
+        if let Some(gate_id) = proposed.plan_gate_id.as_deref() {
+            if let Ok(Some(gate)) = self.runtime_store.orchestration_gate_by_id(gate_id).await {
+                self.queue_gate_push(&gate).await;
+            }
+        }
+        self.after_run_transition(&run_id).await;
+        serde_json::to_value(proposed).map_err(|error| HostError::state(error.to_string()))
     }
 
-    pub(super) async fn orchestration_run_policy_show(
+    pub(super) async fn orchestration_plan_context(
         &mut self,
         payload: &Value,
     ) -> HostResult<Value> {
         let run_id = require_string(payload, "run")?;
-        let run = self
-            .runtime_store
-            .orchestration_coordinator_run_by_id(&run_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("coordinator run not found: {run_id}")))?;
-        Ok(policy_response(&run))
-    }
-
-    pub(super) async fn orchestration_run_policy_resolve(
-        &mut self,
-        payload: &Value,
-        approved: bool,
-    ) -> HostResult<Value> {
-        let run_id = require_string(payload, "run")?;
-        // A rejection has to say why; an approval does not need a reason.
-        let reason = if approved {
-            optional_string(payload, "reason").unwrap_or_else(|| "approved".to_string())
-        } else {
-            require_string(payload, "reason")?
-        };
-        let run = self
-            .runtime_store
-            .resolve_orchestration_execution_policy(&run_id, approved)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let action = if approved {
-            "run.policy.approve"
-        } else {
-            "run.policy.reject"
-        };
         self.runtime_store
-            .insert_orchestration_audit_event(
-                optional_string(payload, "actor").as_deref(),
-                action,
-                &run_id,
-                &reason,
-            )
+            .run_plan_context(&run_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        Ok(policy_response(&run))
+            .map_err(super::orchestration_gate_requests::gate_error)
     }
 
-    /// Validates the plan and returns it normalized. Every referenced profile
-    /// must already exist in the catalog: a name that resolves to nothing would
-    /// only fail much later, at dispatch, with no way back to the user.
-    async fn validated_policy(&mut self, policy: &Value) -> HostResult<Value> {
+    /// Every stage profile and fallback must name a profile in the catalog: a
+    /// name that resolves to nothing would only fail much later, at dispatch.
+    pub(super) async fn normalized_plan_stages(
+        &mut self,
+        stages: Vec<RunPlanStageInput>,
+    ) -> HostResult<Vec<RunPlanStageInput>> {
+        if stages.is_empty() {
+            return Ok(stages);
+        }
+        let known = self.known_profile_names().await?;
+        stages
+            .into_iter()
+            .map(|mut stage| {
+                if let Some(profile) = stage.profile.as_deref().map(str::trim) {
+                    stage.profile = Some(canonical_profile(&known, profile)?);
+                }
+                stage.fallbacks = stage
+                    .fallbacks
+                    .iter()
+                    .map(|name| canonical_profile(&known, name.trim()))
+                    .collect::<HostResult<_>>()?;
+                stage.title = stage.title.map(|title| title.trim().to_string());
+                Ok(stage)
+            })
+            .collect()
+    }
+
+    /// Converts a legacy stage policy (`{stages, stallPolicy}`) into plan v2
+    /// stages for `orchestration.run --policy-file`.
+    pub(super) fn policy_plan(policy: &Value) -> HostResult<RunPlanInput> {
         let object = policy
             .as_object()
             .ok_or_else(|| HostError::format("policy must be an object."))?;
-        let version = object.get("version").and_then(Value::as_i64);
-        if version.is_some_and(|value| value != POLICY_VERSION) {
-            return Err(HostError::format(format!(
-                "unsupported policy version: {}. Expected {POLICY_VERSION}.",
-                version.unwrap_or_default()
-            )));
+        let mut plan = json!({ "stages": object.get("stages").cloned().unwrap_or(json!([])) });
+        if let Some(stall) = object.get("stallPolicy") {
+            plan["stallPolicy"] = stall.clone();
         }
-        let stall_policy = object
-            .get("stallPolicy")
-            .and_then(Value::as_str)
-            .unwrap_or(DEFAULT_STALL_POLICY)
-            .to_string();
-        if !STALL_POLICIES.contains(&stall_policy.as_str()) {
-            return Err(HostError::format(format!(
-                "policy.stallPolicy must be one of {}.",
-                STALL_POLICIES.join(", ")
-            )));
-        }
-        let stages = object
-            .get("stages")
-            .and_then(Value::as_array)
-            .ok_or_else(|| HostError::format("policy.stages must be an array."))?;
-        if stages.is_empty() {
-            return Err(HostError::format("policy.stages must not be empty."));
-        }
-
-        let known = self.known_profile_names().await?;
-        let mut seen_ids = Vec::<String>::new();
-        let mut normalized_stages = Vec::<Value>::new();
-        for (index, stage) in stages.iter().enumerate() {
-            let stage = stage.as_object().ok_or_else(|| {
-                HostError::format(format!("policy.stages[{index}] must be an object."))
-            })?;
-            let id = stage_string(stage, "id", index)?;
-            if seen_ids.contains(&id) {
-                return Err(HostError::format(format!("duplicate stage id: {id}.")));
-            }
-            let profile = stage_string(stage, "profile", index)?;
-            require_known_profile(&known, &profile)?;
-            let mut fallbacks = Vec::<String>::new();
-            if let Some(raw) = stage.get("fallbacks") {
-                let entries = raw.as_array().ok_or_else(|| {
-                    HostError::format(format!(
-                        "policy.stages[{index}].fallbacks must be an array."
-                    ))
-                })?;
-                for entry in entries {
-                    let name = entry
-                        .as_str()
-                        .map(str::trim)
-                        .filter(|value| !value.is_empty())
-                        .ok_or_else(|| {
-                            HostError::format(format!(
-                                "policy.stages[{index}].fallbacks entries must be profile names."
-                            ))
-                        })?;
-                    require_known_profile(&known, name)?;
-                    fallbacks.push(name.to_string());
-                }
-            }
-            let mut normalized = Map::new();
-            normalized.insert("id".to_string(), json!(id));
-            if let Some(title) = stage.get("title").and_then(Value::as_str) {
-                normalized.insert("title".to_string(), json!(title.trim()));
-            }
-            normalized.insert("profile".to_string(), json!(profile));
-            normalized.insert("fallbacks".to_string(), json!(fallbacks));
-            normalized_stages.push(Value::Object(normalized));
-            seen_ids.push(id);
-        }
-
-        Ok(json!({
-            "version": POLICY_VERSION,
-            "stallPolicy": stall_policy,
-            "stages": normalized_stages,
-        }))
+        serde_json::from_value(plan)
+            .map_err(|error| HostError::format(format!("invalid policy: {error}")))
     }
 
     /// Binds a task to a stage its run actually declares. A stage id that is not
-    /// in the approved plan is rejected rather than stored, because a task
-    /// pointing at a stage nobody declared can never resolve a profile.
+    /// in the plan is rejected rather than stored, because a task pointing at a
+    /// stage nobody declared can never resolve a profile.
     pub(super) async fn bind_task_to_policy_stage(
         &mut self,
         task_id: &str,
@@ -234,39 +155,14 @@ pub(super) fn stage_ids(policy: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn stage_string(stage: &Map<String, Value>, key: &str, index: usize) -> HostResult<String> {
-    stage
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .ok_or_else(|| HostError::format(format!("policy.stages[{index}].{key} is required.")))
-}
-
-fn require_known_profile(known: &[String], name: &str) -> HostResult<()> {
-    if known
+fn canonical_profile(known: &[String], name: &str) -> HostResult<String> {
+    known
         .iter()
-        .any(|candidate| candidate.eq_ignore_ascii_case(name))
-    {
-        return Ok(());
-    }
-    Err(HostError::format(format!(
-        "unknown agent profile: {name}. Declare it in Settings before referencing it in a policy."
-    )))
-}
-
-fn policy_response(run: &OrchestrationCoordinatorRun) -> Value {
-    let policy = run
-        .execution_policy
-        .as_deref()
-        .and_then(|raw| serde_json::from_str::<Value>(raw).ok());
-    json!({
-        "runId": run.id,
-        "workspaceId": run.workspace_id,
-        "status": run.execution_policy_status.as_str(),
-        "policy": policy,
-        "updatedAt": run.execution_policy_updated_at,
-        "blocksDispatch": run.execution_policy_status.blocks_dispatch(),
-    })
+        .find(|candidate| candidate.eq_ignore_ascii_case(name))
+        .cloned()
+        .ok_or_else(|| {
+            HostError::format(format!(
+                "unknown agent profile: {name}. Declare it in Settings before referencing it in a plan."
+            ))
+        })
 }

@@ -1,5 +1,6 @@
 use super::*;
 
+mod activity;
 mod message_limits;
 mod support;
 mod v2_contract;
@@ -53,23 +54,20 @@ async fn unread_filter_by_type_and_order() {
         .await
         .unwrap();
     store
-        .insert_orchestration_message(message("a", "coord", OrchestrationMessageType::WorkerDone))
+        .insert_orchestration_message(message("a", "coord", OrchestrationMessageType::Handoff))
         .await
         .unwrap();
     store
-        .insert_orchestration_message(message("a", "other", OrchestrationMessageType::WorkerDone))
+        .insert_orchestration_message(message("a", "other", OrchestrationMessageType::Handoff))
         .await
         .unwrap();
 
     let filtered = store
-        .unread_orchestration_messages("coord", Some(&[OrchestrationMessageType::WorkerDone]))
+        .unread_orchestration_messages("coord", Some(&[OrchestrationMessageType::Handoff]))
         .await
         .unwrap();
     assert_eq!(filtered.len(), 1);
-    assert_eq!(
-        filtered[0].message_type,
-        OrchestrationMessageType::WorkerDone
-    );
+    assert_eq!(filtered[0].message_type, OrchestrationMessageType::Handoff);
 
     let all = store
         .unread_orchestration_messages("coord", None)
@@ -81,7 +79,7 @@ async fn unread_filter_by_type_and_order() {
     let historical = store
         .all_orchestration_messages_for_handle(
             "coord",
-            Some(&[OrchestrationMessageType::WorkerDone]),
+            Some(&[OrchestrationMessageType::Handoff]),
             100,
         )
         .await
@@ -89,7 +87,7 @@ async fn unread_filter_by_type_and_order() {
     assert_eq!(historical.len(), 1);
     assert_eq!(
         historical[0].message_type,
-        OrchestrationMessageType::WorkerDone
+        OrchestrationMessageType::Handoff
     );
 }
 
@@ -116,7 +114,15 @@ async fn coordinator_unread_messages_include_only_actionable_types() {
         .await
         .unwrap();
     let done = store
-        .insert_orchestration_message(message("a", "coord", OrchestrationMessageType::WorkerDone))
+        .insert_orchestration_message(message("a", "coord", OrchestrationMessageType::Escalation))
+        .await
+        .unwrap();
+    // A worker's question is for the coordinator to answer, not a gate.
+    store
+        .insert_orchestration_message(NewOrchestrationMessage {
+            payload: Some(serde_json::json!({"taskId": "task_1"}).to_string()),
+            ..message("a", "coord", OrchestrationMessageType::Question)
+        })
         .await
         .unwrap();
 
@@ -136,7 +142,7 @@ async fn coordinator_unread_messages_include_only_actionable_types() {
         .unread_orchestration_messages("coord", None)
         .await
         .unwrap();
-    assert_eq!(all_unread.len(), 4);
+    assert_eq!(all_unread.len(), 5);
 }
 
 #[tokio::test]
@@ -486,62 +492,6 @@ async fn circuit_breaker_carries_failures_across_retries() {
 }
 
 #[tokio::test]
-async fn heartbeat_recorded_only_while_dispatched() {
-    let (_dir, store) = store().await;
-    let created = store
-        .create_orchestration_task(task("hb", vec![]))
-        .await
-        .unwrap();
-    let dispatch = store
-        .create_orchestration_dispatch(&created.id, "term_1")
-        .await
-        .unwrap();
-
-    assert!(store
-        .record_orchestration_heartbeat(&dispatch.id)
-        .await
-        .unwrap());
-
-    store
-        .update_orchestration_task_status(&created.id, OrchestrationTaskStatus::Completed, None)
-        .await
-        .unwrap();
-    // Straggler heartbeat from a completed dispatch is ignored.
-    assert!(!store
-        .record_orchestration_heartbeat(&dispatch.id)
-        .await
-        .unwrap());
-}
-
-#[tokio::test]
-async fn stale_dispatch_query_uses_heartbeat_and_dispatch_time() {
-    let (_dir, store) = store().await;
-    let created = store
-        .create_orchestration_task(task("stale", vec![]))
-        .await
-        .unwrap();
-    let dispatch = store
-        .create_orchestration_dispatch(&created.id, "term_1")
-        .await
-        .unwrap();
-
-    // Threshold in the future: the dispatch (created now) is stale.
-    let stale = store
-        .stale_orchestration_dispatches("9999-01-01 00:00:00")
-        .await
-        .unwrap();
-    assert_eq!(stale.len(), 1);
-    assert_eq!(stale[0].id, dispatch.id);
-
-    // Threshold in the past: nothing stale.
-    let fresh = store
-        .stale_orchestration_dispatches("2000-01-01 00:00:00")
-        .await
-        .unwrap();
-    assert!(fresh.is_empty());
-}
-
-#[tokio::test]
 async fn gate_blocks_task_and_resolution_returns_it_to_ready() {
     let (_dir, store) = store().await;
     let created = store
@@ -589,10 +539,7 @@ async fn gate_blocks_task_and_resolution_returns_it_to_ready() {
         OrchestrationTaskStatus::Blocked
     );
 
-    let resolved = store
-        .resolve_orchestration_gate(&gate.id, "yes")
-        .await
-        .unwrap();
+    let resolved = store.resolve_gate(&gate.id, "yes", None).await.unwrap();
     assert_eq!(resolved.status, OrchestrationGateStatus::Resolved);
     assert_eq!(resolved.resolution.as_deref(), Some("yes"));
     let ready = store
@@ -603,10 +550,7 @@ async fn gate_blocks_task_and_resolution_returns_it_to_ready() {
     assert_eq!(ready.status, OrchestrationTaskStatus::Ready);
 
     // A gate cannot be resolved twice.
-    assert!(store
-        .resolve_orchestration_gate(&gate.id, "no")
-        .await
-        .is_err());
+    assert!(store.resolve_gate(&gate.id, "no", None).await.is_err());
 }
 
 #[tokio::test]
@@ -634,10 +578,7 @@ async fn resolving_stale_gate_does_not_reopen_terminal_task() {
         .await
         .unwrap();
 
-    let resolved = store
-        .resolve_orchestration_gate(&gate.id, "yes")
-        .await
-        .unwrap();
+    let resolved = store.resolve_gate(&gate.id, "yes", None).await.unwrap();
     assert_eq!(resolved.status, OrchestrationGateStatus::Resolved);
     let completed = store
         .orchestration_task_by_id(&created.id)
@@ -700,7 +641,7 @@ async fn gates_with_same_timestamp_keep_creation_order() {
         .await
         .unwrap();
     store
-        .resolve_orchestration_gate(&first.id, "first answer")
+        .resolve_gate(&first.id, "first answer", None)
         .await
         .unwrap();
     let second = store
@@ -708,13 +649,13 @@ async fn gates_with_same_timestamp_keep_creation_order() {
         .await
         .unwrap();
     store
-        .resolve_orchestration_gate(&second.id, "second answer")
+        .resolve_gate(&second.id, "second answer", None)
         .await
         .unwrap();
 
     let timestamp = "2026-07-05 12:00:00";
     sqlx::query(
-        "UPDATE orchestrationDecisionGates \
+        "UPDATE runGates \
          SET id = 'gate_z_old', created_at = ?, resolved_at = ? WHERE id = ?",
     )
     .bind(timestamp)
@@ -724,7 +665,7 @@ async fn gates_with_same_timestamp_keep_creation_order() {
     .await
     .unwrap();
     sqlx::query(
-        "UPDATE orchestrationDecisionGates \
+        "UPDATE runGates \
          SET id = 'gate_a_new', created_at = ?, resolved_at = ? WHERE id = ?",
     )
     .bind(timestamp)
@@ -823,8 +764,15 @@ async fn reset_scopes_tasks_and_messages_independently() {
         .await
         .unwrap()
         .is_empty());
-    assert_eq!(store.orchestration_inbox(10).await.unwrap().len(), 1);
+    assert_eq!(
+        store.recent_orchestration_messages(10).await.unwrap().len(),
+        1
+    );
 
     store.reset_orchestration_messages().await.unwrap();
-    assert!(store.orchestration_inbox(10).await.unwrap().is_empty());
+    assert!(store
+        .recent_orchestration_messages(10)
+        .await
+        .unwrap()
+        .is_empty());
 }

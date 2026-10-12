@@ -25,7 +25,7 @@ async fn workflow_owned_workspace_cannot_begin_relocation() {
         base_sha: before_commit.clone(),
     };
     sqlx::query(
-        "INSERT INTO workflowWorkspaces
+        "INSERT INTO runWorkspaces
          (id, run_id, revision, task_id, attempt, path, identity, phase)
          VALUES (?, 'run', 1, NULL, 0, ?, ?, 'ready')",
     )

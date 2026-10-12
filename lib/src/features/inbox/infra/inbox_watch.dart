@@ -5,7 +5,6 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 
 const String inboxChangedEvent = 'inboxChanged';
-const String conversationsChangedEvent = 'conversationsChanged';
 
 /// Re-reads on every inbox revision and on host reconnects. Errors reach the
 /// UI; recovery is event-driven, so an old host never causes a retry loop.

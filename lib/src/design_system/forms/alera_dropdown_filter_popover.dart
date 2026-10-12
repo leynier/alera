@@ -67,7 +67,8 @@ class _AleraDropdownFilterPopoverState<T>
         if (entry.label.toLowerCase().startsWith(normalized)) entry,
       for (final entry in widget.entries)
         if (!entry.label.toLowerCase().startsWith(normalized) &&
-            entry.label.toLowerCase().contains(normalized))
+            (entry.label.toLowerCase().contains(normalized) ||
+                (entry.group?.toLowerCase().contains(normalized) ?? false)))
           entry,
     ];
   }
@@ -150,6 +151,17 @@ class _AleraDropdownFilterPopoverState<T>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entries = _filteredEntries;
+    // Group headers interleaved with entry indexes, so the keyboard highlight
+    // keeps indexing [entries].
+    final rows = <(String?, int)>[];
+    String? group;
+    for (final (index, entry) in entries.indexed) {
+      if (entry.group != null && entry.group != group) {
+        rows.add((entry.group, -1));
+      }
+      group = entry.group;
+      rows.add((null, index));
+    }
     return Focus(
       onKeyEvent: _handleKey,
       child: Material(
@@ -202,11 +214,31 @@ class _AleraDropdownFilterPopoverState<T>
                             bottom: AleraTokens.space4,
                           ),
                           shrinkWrap: true,
-                          itemCount: entries.length,
-                          itemBuilder: (context, index) {
+                          itemCount: rows.length,
+                          itemBuilder: (context, row) {
+                            final (header, index) = rows[row];
+                            if (header != null) {
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AleraTokens.space8,
+                                  AleraTokens.space8,
+                                  AleraTokens.space8,
+                                  AleraTokens.space4,
+                                ),
+                                child: Text(
+                                  header,
+                                  maxLines: 1,
+                                  overflow: .ellipsis,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: AleraTokens.foregroundMuted,
+                                  ),
+                                ),
+                              );
+                            }
                             final entry = entries[index];
                             return AleraMenuItem(
                               label: entry.label,
+                              subtitle: entry.detail,
                               leading: entry.leading,
                               enabled: entry.enabled,
                               selected: entry.value == widget.selectedValue,

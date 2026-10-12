@@ -4,6 +4,7 @@ use sqlx::Row;
 use sqlx::{Sqlite, Transaction};
 
 use super::orchestration_contract_store::guard_contract_status_update;
+use super::run_event_store::{record_task_run_event, RunEventKind};
 use super::{OrchestrationTask, OrchestrationTaskStatus, RuntimeStore};
 
 pub struct NewOrchestrationTask {
@@ -113,11 +114,13 @@ pub(super) async fn refresh_pending_dependents_after_task_status(
 ) -> Result<()> {
     let mut changed_ids = vec![changed_task_id.to_string()];
     while let Some(changed_id) = changed_ids.pop() {
-        let pending =
-            sqlx::query("SELECT id, deps FROM orchestrationTasks WHERE status = 'pending'
-                AND NOT EXISTS(SELECT 1 FROM workflowPlanTasks p WHERE p.task_id = orchestrationTasks.id)")
-                .fetch_all(&mut **tx)
-                .await?;
+        let pending = sqlx::query(
+            "SELECT id, deps FROM orchestrationTasks WHERE status = 'pending'
+                AND NOT EXISTS(SELECT 1 FROM orchestrationCoordinatorRuns r
+                    WHERE r.id = orchestrationTasks.run_id AND r.isolation = 'isolated')",
+        )
+        .fetch_all(&mut **tx)
+        .await?;
         for row in pending {
             let candidate_id: String = row.try_get("id")?;
             let deps_raw: String = row.try_get("deps")?;
@@ -346,6 +349,16 @@ impl RuntimeStore {
             // DAG refresh: completed deps promote dependents; failed deps make
             // still-pending dependents terminal instead of leaving the run stuck.
             refresh_pending_dependents_after_task_status(&mut tx, id).await?;
+            if status == OrchestrationTaskStatus::Failed {
+                record_task_run_event(
+                    &mut tx,
+                    id,
+                    RunEventKind::TaskFailed,
+                    result.unwrap_or(""),
+                    None,
+                )
+                .await?;
+            }
             let dispatch_status = if status == OrchestrationTaskStatus::Completed {
                 "completed"
             } else {
@@ -388,96 +401,5 @@ impl RuntimeStore {
         self.orchestration_task_by_id(id)
             .await?
             .ok_or_else(|| anyhow!("orchestration task not found after update: {id}"))
-    }
-
-    pub async fn cancel_orchestration_task(
-        &self,
-        id: &str,
-        reason: &str,
-    ) -> Result<OrchestrationTask> {
-        let mut tx = self.pool().begin().await?;
-        let status: Option<String> =
-            sqlx::query("SELECT status FROM orchestrationTasks WHERE id = ?")
-                .bind(id)
-                .fetch_optional(&mut *tx)
-                .await?
-                .map(|row| row.try_get("status"))
-                .transpose()?;
-        match status.as_deref() {
-            None => bail!("orchestration task not found: {id}"),
-            Some("cancelled") => {
-                tx.commit().await?;
-                return self
-                    .orchestration_task_by_id(id)
-                    .await?
-                    .ok_or_else(|| anyhow!("cancelled orchestration task not found: {id}"));
-            }
-            Some("completed" | "failed") => {
-                bail!("cannot cancel terminal orchestration task {id}")
-            }
-            _ => {}
-        }
-        let mut cancelled = vec![id.to_string()];
-        let mut cursor = 0;
-        while cursor < cancelled.len() {
-            let changed = cancelled[cursor].clone();
-            cursor += 1;
-            let rows = sqlx::query(
-                "SELECT id, deps FROM orchestrationTasks \
-                 WHERE status IN ('pending','ready','blocked','stalled')",
-            )
-            .fetch_all(&mut *tx)
-            .await?;
-            for row in rows {
-                let candidate: String = row.try_get("id")?;
-                let deps: String = row.try_get("deps")?;
-                if parse_string_array(&deps).iter().any(|dep| dep == &changed)
-                    && !cancelled.contains(&candidate)
-                {
-                    cancelled.push(candidate);
-                }
-            }
-        }
-        for task_id in &cancelled {
-            let task_reason = if task_id == id {
-                reason.to_string()
-            } else {
-                format!("dependency cancelled: {id}")
-            };
-            sqlx::query(
-                "UPDATE orchestrationTasks SET status = 'cancelled', result = COALESCE(result, ?), \
-                 cancelled_at = datetime('now'), completed_at = datetime('now') \
-                 WHERE id = ? AND status NOT IN ('completed','failed','cancelled')",
-            )
-            .bind(task_reason)
-            .bind(task_id)
-            .execute(&mut *tx)
-            .await?;
-            sqlx::query(
-                "UPDATE orchestrationDispatchContexts SET status = 'cancelled', completed_at = datetime('now') \
-                 WHERE task_id = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled')",
-            )
-            .bind(task_id)
-            .execute(&mut *tx)
-            .await?;
-            sqlx::query(
-                "UPDATE orchestrationMessages SET state = 'obsolete', obsolete_at = datetime('now') \
-                 WHERE task_id = ? AND state = 'queued'",
-            )
-            .bind(task_id)
-            .execute(&mut *tx)
-            .await?;
-            sqlx::query(
-                "UPDATE orchestrationDecisionGates SET status = 'timeout', resolved_at = datetime('now') \
-                 WHERE task_id = ? AND status = 'pending'",
-            )
-            .bind(task_id)
-            .execute(&mut *tx)
-            .await?;
-        }
-        tx.commit().await?;
-        self.orchestration_task_by_id(id)
-            .await?
-            .ok_or_else(|| anyhow!("orchestration task not found after cancellation: {id}"))
     }
 }

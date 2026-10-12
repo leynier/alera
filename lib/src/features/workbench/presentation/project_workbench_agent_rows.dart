@@ -131,6 +131,7 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
     Offset globalPosition,
   ) async {
     final titleAvailable = ref.read(agentTitleAvailableProvider).value == true;
+    final run = RunTabIdentity.fromPayload(widget.tab.payload);
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final selected = await showMenu<String>(
@@ -145,6 +146,12 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
           label: 'Ask Agent',
           leading: Icon(AleraIcons.inbox, size: 16),
         ),
+        if (run != null)
+          const AleraDropdownEntry<String>(
+            value: 'viewRun',
+            label: 'View Run',
+            leading: Icon(AleraIcons.workspaceChildren, size: 16),
+          ),
         if (titleAvailable)
           AleraDropdownEntry<String>(
             value: 'generateTitle',
@@ -157,8 +164,14 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
     if (!context.mounted) return;
     if (selected == 'askAgent') {
       ref
-          .read(inboxNavigationProvider.notifier)
+          .read(activityNavigationProvider.notifier)
           .compose(targetHandle: widget.tab.terminalSessionId);
+      return;
+    }
+    if (selected == 'viewRun' && run != null) {
+      ref.read(activityNavigationProvider.notifier)
+        ..open(ActivitySection.runs)
+        ..selectRun(run.runId);
       return;
     }
     if (selected != 'generateTitle') return;

@@ -1,7 +1,7 @@
 ---
 title: Alera CLI
 description: Script projects, workspaces, terminals, automations, and orchestration with alera, the same Rust runtime the desktop app runs as its sidecar.
-updatedDate: 2026-09-28
+updatedDate: 2026-10-12
 ---
 
 `alera` is the Rust binary the desktop app ships and runs as its runtime sidecar, the process that owns your terminals. The same binary is a command-line tool. Run from an Alera terminal or through the launcher below, it works on the app's own runtime profile, so a workspace you create from a script shows up in the sidebar and on the paired phone.
@@ -39,7 +39,8 @@ Every group and subcommand answers `--help`.
 | `mobile` | The phone gateway, pairing offers, and paired devices |
 | `automation` | [Automations](/docs/automations) and their runs |
 | `agent-profile` | [Agent Profiles](/docs/agent-profiles), including `launch` |
-| `orchestration` | [Orchestration](/docs/orchestration) messages, tasks, gates, and runs, plus [workflow](/docs/run-board) `recipes`, `plans`, and `workspaces` |
+| `orchestration` | [Orchestration](/docs/orchestration): `delegate`, [runs](/docs/runs) with their plans, gates, and cleanup, the worker commands, messages between agents, tasks, terminals, and `recipe` templates |
+| `inbox` | Ask a running agent a [question](/docs/runs#questions) and wait for its reply |
 | `issue` | `show` an issue through `gh`, `glab`, or `az boards` |
 | `version` | CLI and runtime host versions |
 

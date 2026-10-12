@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -36,18 +36,16 @@ class const KeyboardCommandDispatcher({
   void focusActivePane() => _focusActivePane();
 
   void dispatch(KeyboardActionId id) {
-    if (ref.read(runBoardNavigationProvider).visible &&
+    if (ref.read(activityNavigationProvider).visible &&
         keybindingDefinitions.firstWhere((action) => action.id == id).group !=
             KeyboardActionGroup.global) {
       return;
     }
     switch (id) {
-      case KeyboardActionId.openRunBoard:
-        openRunBoardFromAppMenu(ref);
+      case KeyboardActionId.openActivity:
+        openActivityFromAppMenu(ref);
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
-      case KeyboardActionId.openAutomations:
-        openAutomationsPage(ref);
       case KeyboardActionId.openQuickOpen:
         unawaited(showQuickOpenFlow(context, ref));
       case KeyboardActionId.openCommandPalette:

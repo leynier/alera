@@ -35,6 +35,12 @@ async fn run_inner(
     json_output: bool,
 ) -> Result<i32> {
     let spec = args.spec.read()?;
+    // Parsed before anything is created, so a malformed contract never leaves
+    // a new workspace behind.
+    let contract = crate::orchestration_contract_commands::contract_fields(
+        args.contract.as_deref(),
+        args.contract_inputs.as_deref(),
+    )?;
     let task_title = args
         .task_title
         .as_deref()
@@ -107,17 +113,31 @@ async fn run_inner(
     if created_workspace.is_none() {
         let _ = resolve_workspace_context(runtime, Some(&workspace_id)).await?;
     }
+    let mut task_payload = json!({
+        "spec": spec,
+        "taskTitle": task_title,
+        "deps": args.depends_on,
+        "createdBy": from,
+        "workspace": workspace_id,
+        "stage": args.stage,
+    });
+    // A named run decides its own coordinator; without one the task joins
+    // the caller's delegated run in the workspace, or starts one.
+    match args.run.as_deref() {
+        Some(run) => task_payload["run"] = json!(run),
+        None => {
+            task_payload["coordinator"] = json!(from);
+            task_payload["ensureRun"] = json!(true);
+        }
+    }
     let task = request_value(
         runtime,
-        "orchestration.taskCreate",
-        json!({
-            "spec": spec,
-            "taskTitle": task_title,
-            "deps": Value::Array(Vec::new()),
-            "createdBy": from,
-            "coordinator": from,
-            "workspace": workspace_id,
-        }),
+        if contract.is_some() {
+            "orchestration.taskCreateContracted"
+        } else {
+            "orchestration.taskCreate"
+        },
+        crate::orchestration_contract_commands::with_contract_fields(task_payload, contract),
         None,
     )
     .await?;
@@ -152,6 +172,7 @@ async fn run_inner(
             "profile": profile.name,
             "task": task_id,
             "title": task_title,
+            "terminal": args.terminal,
             "from": from,
             "keepOnFailure": args.keep_on_failure,
         }),
@@ -172,7 +193,8 @@ async fn run_inner(
         .get("terminalHandle")
         .or_else(|| spawn.get("assigneeHandle"))
         .and_then(Value::as_str)
-        .map(ToString::to_string);
+        .map(ToString::to_string)
+        .or_else(|| args.terminal.clone());
     let wait = if let Some(handle) = handle.as_deref() {
         envelope["terminalHandle"] = json!(handle);
         let value = request_value_with_capability(
@@ -181,13 +203,15 @@ async fn run_inner(
             "orchestration.terminalWait",
             json!({
                 "terminal": handle,
-                "target": "dispatch-accepted",
+                "target": "agent-ready",
                 "timeoutMs": args.timeout_ms,
             }),
             Some(args.timeout_ms.saturating_add(WAIT_CLIENT_GRACE_MS)),
         )
         .await?;
-        if matches!(terminal_wait_outcome(&value), "timeout" | "failed") {
+        // A reused terminal is never the spawn's to clean up.
+        if args.terminal.is_none() && matches!(terminal_wait_outcome(&value), "timeout" | "failed")
+        {
             reconcile_agent_spawn_failure(runtime, handle).await;
         }
         envelope["wait"] = value.clone();
@@ -198,7 +222,7 @@ async fn run_inner(
     let outcome = wait.as_ref().map(terminal_wait_outcome);
     let failure = match outcome {
         Some("reached") => None,
-        Some("timeout") => Some("dispatch acceptance timed out".to_string()),
+        Some("timeout") => Some("agent did not become ready".to_string()),
         Some(other) => Some(
             wait.as_ref()
                 .and_then(|value| value.get("error").and_then(Value::as_str))
@@ -227,7 +251,7 @@ fn print_delegate_result(
     } else if let Some(message) = failure {
         if let Some((task_id, profile_name, workspace_id)) = accepted {
             eprintln!(
-                "task {task_id} was not accepted by {profile_name} in workspace {workspace_id}: {message}"
+                "task {task_id} was not started by {profile_name} in workspace {workspace_id}: {message}"
             );
         } else {
             eprintln!(

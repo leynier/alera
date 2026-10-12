@@ -1,0 +1,99 @@
+---
+title: Runs And Activity
+description: Follow every orchestration run, answer the decisions it needs, ask running agents questions, and manage automations from one Activity page.
+updatedDate: 2026-10-12
+---
+
+A run is a piece of work a coordinator agent plans and worker agents carry out, kept by the runtime host with its plan, tasks, decisions, timeline, and retained worktrees. **Activity** is where you follow runs, answer what they need from you, ask running agents questions, and manage [automations](/docs/automations). [Orchestration](/docs/orchestration) covers the agent side.
+
+## Open Activity
+
+- Choose **Activity** in the application menu: the Alera menu on macOS, or the **Application Menu** button beside the app name on Windows and Linux.
+- Press `Mod+Shift+A`. It works while a terminal has focus. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux.
+- Click the attention counter in the status bar. Hover it to see which runs, questions, and automations need you, and click a row to jump straight there.
+
+Activity takes over the main area until you choose **Return to Workspace** or press Esc; your terminals keep running underneath. A rail on the left switches between **Runs**, **Questions**, and **Automations**, each with its own count, and each section remembers where you left it. Selecting a run, a question, or an automation never changes your active workspace; **Open Workspace**, **Open Terminal**, and **Open Diff** are the explicit ways back in.
+
+When a run starts needing you while Activity is not on screen, a **Run Needs Attention** notification says whether a gate or a plan is waiting; clicking it opens that decision.
+
+## Runs
+
+Runs are grouped by what they need from you:
+
+| Group | A run lands here when |
+| --- | --- |
+| **Attention** | A decision is waiting for you, a task failed, stalled, or is blocked, the coordinator could not start, the run failed, or a worktree, integration, cancellation, or cleanup needs a look |
+| **Active** | It is planning or running and nothing needs you |
+| **History** | It completed, or it was cancelled or failed and everything settled |
+
+Use **Search Runs** and the project, workspace, and status filters. A run opens on four tabs:
+
+- **Overview**: decisions waiting for you first, then the objective, the run's facts (template, isolation, source commit, integration commit, who approved the plan, the coordinator with **Open Terminal**), and the actions **Pause** or **Resume**, **Open Workspace**, **Request Changes**, and **Cancel Run**.
+- **Tasks**: tasks grouped by stage. A task shows its profile, worktree, branch, base commit, dependencies, spec, result, artifacts, validation, and history, with **Open Workspace**, **Open Terminal**, **Open Diff**, and **Retry Task**. Validation is what the worker reported, not an independent review.
+- **Timeline**: what happened, newest first and grouped by day: dispatches, acceptances, failures and stalls, escalations, decisions, integrations and conflicts, pauses, cleanups, and the messages the run's agents exchanged. Filter by kind, expand a message or escalation with **More**, jump to an open decision with **Resolve**, and open a completed or integrated result with **Open Diff**.
+- **Resources** (isolated runs): the worktrees and branches the run keeps, and their cleanup. The tab shows how many are still retained.
+
+## Start A Run
+
+<Steps>
+
+1. Choose **New Run** in the Activity header.
+2. Write the **Objective** and pick the **Workspace**. The run starts from the commit shown; uncommitted changes stay where they are.
+3. Choose the **Isolation**. **Isolated** gives every task its own worktree and branch and integrates the results one at a time as squash commits on a local branch. **Shared** lets workers work in the workspace itself.
+4. For an isolated run, pick a **Template**: **Freeform** (one stage, no gates), **Quick Fix**, **Feature Delivery** (with Foundation and Product gates), or one of your own. **Manage Recipes…** opens **Settings → Recipes**.
+5. Choose the **Coordinator** profile and the worker profiles from your [Agent Profiles](/docs/agent-profiles), and set **Concurrent Workers**.
+6. Tick **Require Plan Approval** to review the plan before any worker starts. Without it the run starts as soon as the coordinator proposes a plan.
+7. Choose **Create Run**. The coordinator starts in its own terminal (**Open Coordinator Terminal**) and prepares a plan.
+
+</Steps>
+
+A run never pushes, opens a pull request, or merges a remote branch. The integrated result of an isolated run stays on a local branch for you to review.
+
+## Decisions
+
+Everything a run needs from you is a card at the top of its Overview:
+
+| Card | What you decide |
+| --- | --- |
+| **Plan Approval** | **Approve Plan**, **Request Changes**, or **Reject**. **Review Plan** shows the stages, tasks, contracts, and inputs. Rejecting cancels the run. |
+| **Stage Gate** | Once a gated stage is complete and integrated, **Approve Gate**, **Request Changes**, or **Reject**. **View Evidence** shows the results the approval covers; if they change, you decide again. |
+| **Stall** | A worker showed no activity for 10 minutes. It may still be running, so Alera waits for **Kill And Failover**, **Keep Waiting**, or **Abort Stage**. **Show Output** shows its last output. |
+| **Decision** | A question a coordinator asked you, with its options or **Other…** for a free answer. |
+
+Reject and Request Changes need a note. Request Changes sends your note to the coordinator, which proposes a corrected plan; completed work is kept. If a card changed while you were reading it, Alera asks you to refresh before deciding.
+
+## Clean Up
+
+Nothing is deleted automatically. On **Resources**, once the run has finished, select up to 25 worktrees, opt into **Also Delete This Branch** per worktree, and choose **Preview** to see paths, branches, and changed files. Tick **Confirm this selection**, then **Apply Cleanup**. A dirty, locked, or busy worktree stops the cleanup until you resolve it; **Retry Cleanup** and **Abandon Cleanup** handle one that needs attention.
+
+## Questions
+
+**Questions** lists what you asked running agents and their replies. **Ask Agent** picks a running agent, grouped by project and workspace, and shows how the question will reach it:
+
+- **Delivers now**: the question is pasted into the agent's terminal right away, even mid-turn for agents that queue input (Claude Code and Codex).
+- **Delivers when its turn ends**: the agent gets it when it finishes what it is doing.
+- **Reads on its next check**: a coordinator reads it with its own check.
+
+Choose **Deliver** to override, and under **Advanced** set the inbox and **Expires If Not Delivered**. A thread shows each question and reply, **Send Follow-Up**, **Mark Read**, and **Cancel Question** for one the agent has not received yet. The sidebar's **Ask Agent** on an agent row opens the same dialog. Agents answer with an explicit reply; nothing is read from their terminal.
+
+## On The Phone
+
+The [mobile companion](/docs/mobile) has the same Activity with Runs, Questions, and Automations. You can follow runs, approve or reject plans and gates, pause, resume, or cancel a run, start a **New Run**, clean up resources, and ask agents questions. A push for a decision opens the run at that card.
+
+## From The CLI
+
+```bash
+alera orchestration --json run list --bucket attention
+alera orchestration --json run show --run <run-id>
+alera orchestration --json run timeline --run <run-id>
+alera orchestration --json run new --profile "Opus" --spec "Add audit logging" --template builtIn:feature-delivery --approval
+alera orchestration gate resolve --id <gate-id> --decision approve
+alera orchestration --json recipe list --workspace <workspace-id>
+alera inbox ask --workspace <workspace-id> --agent claude --body "Which tests cover login?" --deliver now
+```
+
+Approving a plan or a gate is your decision: the agent skills tell agents never to resolve gates or approve their own plans.
+
+<Callout type="note">
+Runs need an up-to-date runtime host; an older one shows **Update Required** in that section. Updating to this version resets runs and their history (a backup of the runtime database is kept next to it); worktrees and branches from earlier runs stay on disk. Worktrees isolate Git changes, not access to your machine.
+</Callout>

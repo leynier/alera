@@ -25,7 +25,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     &[
                         ("scope", one_of("own: only threads this MCP client asked. all (default): every client's threads.", &["all", "own"])),
                         ("originClientId", string("Only threads asked by this MCP client id, from a thread's origin.clientId.")),
-                        ("status", one_of("Thread status.", &["pending", "received", "delivered", "expired", "answered", "cancelled"])),
+                        ("status", one_of("Thread status.", &["pending", "delivered", "expired", "answered", "cancelled"])),
                         ("workspaceId", string("Workspace id.")),
                         ("limit", integer("Maximum threads (default 50).", 1, 200)),
                         ("before", integer("Continue from the nextBefore value of a previous listing.", 0, u64::MAX >> 11)),
@@ -87,7 +87,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
             ..execute(
                 "ask_agent",
                 "Ask Agent",
-                "Ask a running agent a question by terminal handle, or the single agent of a workspace. The agent sees which MCP client asked. Returns the question id, its thread id, and the recorded origin; follow it with wait_for_reply or wait_for_inbox.",
+                "Ask a running agent a question by terminal handle, or the single agent of a workspace. The agent sees which MCP client asked. Returns the question id, its thread id, the recorded origin, and deliveryMode (pasted_now, queued_at_turn_end, check, or unavailable); follow it with wait_for_reply or wait_for_inbox.",
                 || {
                     object(
                         &[
@@ -99,6 +99,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                             ("subject", string("Short subject.")),
                             ("priority", one_of("Priority.", &["normal", "high", "urgent"])),
                             ("expiresIn", string("Drop the question if undelivered in time, such as 30m or 2h.")),
+                            ("delivery", one_of("now (default): paste into a working agent that queues input mid-turn. turnEnd: wait for its turn to end.", &["now", "turnEnd"])),
                         ],
                         &["body"],
                     )
@@ -123,6 +124,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         .option_if("--subject", arguments.string("subject"))
                         .option_if("--priority", arguments.string("priority"))
                         .option_if("--expires-in", arguments.string("expiresIn"))
+                        .option_if("--deliver", arguments.string("delivery").map(super::orchestration::cli_delivery))
                         .flag("--body-stdin")
                         .stdin(arguments.required("body")?))
                 },

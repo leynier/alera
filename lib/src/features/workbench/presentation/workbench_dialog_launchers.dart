@@ -6,8 +6,8 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
@@ -62,9 +62,10 @@ Future<void> openSettingsDialog(
   );
 }
 
-/// Opens the Automations page of the shell, like the Run Board.
-void openAutomationsPage(WidgetRef ref) =>
-    ref.read(automationsNavigationProvider.notifier).open();
+/// Opens Activity on its Automations section.
+void openActivityAutomations(WidgetRef ref) => ref
+    .read(activityNavigationProvider.notifier)
+    .open(ActivitySection.automations);
 
 /// Opens Quick Open for the active workspace and restores the prior focus when
 /// the modal route closes.
@@ -90,8 +91,8 @@ Future<void> showQuickOpenFlow(BuildContext context, WidgetRef ref) async {
             oppositePanel: selection.oppositePanel,
           );
       if (!context.mounted) return;
-      if (ref.read(runBoardNavigationProvider).visible) {
-        ref.read(runBoardNavigationProvider.notifier).close();
+      if (ref.read(activityNavigationProvider).visible) {
+        ref.read(activityNavigationProvider.notifier).close();
         return;
       }
     } catch (_) {

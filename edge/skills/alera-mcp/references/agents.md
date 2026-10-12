@@ -20,7 +20,7 @@
 `list_terminals` lists live sessions with their handles. Most terminal tools take a `handle` from it. `show_terminal` shows one session with its agent and lifecycle state.
 
 - `read_terminal` reads retained output. Pass the returned cursor next time to read only what is new.
-- `wait_for_terminal` waits for `process-started`, `agent-detected`, `agent-ready`, or `dispatch-accepted`.
+- `wait_for_terminal` waits for `process-started`, `agent-detected`, or `agent-ready`. To follow delegated work, wait on its task with `wait_for_task` instead.
 - `write_terminal` types text. Use `submit` to send a prompt to an interactive agent; use `enter` to press Enter after a shell command. Type into an agent only when the user asked for it, and read the terminal first so you do not interrupt work in progress.
 - `restart_terminal` replaces the process and keeps the tab and scrollback. `terminate_terminal` ends the session and closes the tab.
 - `prune_terminals` lists stopped terminal tabs, and with `apply` removes them. Run it without `apply` first.
@@ -31,10 +31,10 @@
 The inbox lets you ask a running agent a question and read its answer later. The agent sees which MCP client asked; it cannot read this conversation, so put everything it needs in the question.
 
 1. `list_inbox_targets` lists the agents you can reach.
-2. `ask_agent` asks by terminal `to`, or by `workspaceId` when the workspace runs one agent (add `agent` to choose among several). It returns the question id and thread id. Pass `threadId` to follow up in the same thread.
+2. `ask_agent` asks by terminal `to`, or by `workspaceId` when the workspace runs one agent (add `agent` to choose among several). It returns the question id, thread id, and `deliveryMode`. Pass `threadId` to follow up in the same thread.
 3. `wait_for_reply` waits for news about one question. `wait_for_inbox` waits for any reply to this client's questions, so one call covers every open question. Pass the returned cursor as `after`.
 
-A question reaches the agent when its current turn ends. `expiresIn` drops it if it is never delivered. `cancel_question` cancels it only before the agent sees it.
+An idle agent gets the question at once. With `delivery` `now` (the default), a working agent that queues input mid-turn (Claude Code and Codex) gets it at once too; otherwise, or with `turnEnd`, it arrives when the agent's turn ends. `list_inbox_targets` shows what asking now would do for each agent. `expiresIn` drops a question that is never delivered. `cancel_question` cancels it only before the agent sees it.
 
 - `list_inbox_threads` lists threads asked by every MCP client sharing this inbox; `isOwn` marks this client's. `show_inbox_thread` shows one thread whole.
 - `mark_thread_read` marks a thread's replies as read for everyone sharing the inbox.

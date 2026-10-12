@@ -431,7 +431,8 @@ fn orchestration_delegate_creates_a_task_for_the_declared_profile() {
         &runtime_dir,
         &[
             "orchestration",
-            "task-show",
+            "task",
+            "show",
             "--id",
             payload["taskId"].as_str().unwrap(),
         ],

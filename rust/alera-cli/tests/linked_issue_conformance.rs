@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 const JIRA_URL: &str = "https://example.atlassian.net/browse/ABC-1";
 
 struct HostGuard(Child);

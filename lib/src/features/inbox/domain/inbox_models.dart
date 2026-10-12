@@ -5,26 +5,29 @@ library;
 /// Inbox used by the desktop and mobile apps, so both show one conversation.
 const String inboxUserAddress = 'ext:user';
 
+/// Lifecycle of a question. Labels and tones live with the presentation.
 enum InboxQuestionStatus {
-  pending('pending', 'Pending'),
-  received('received', 'Received'),
-  delivered('delivered', 'Delivered'),
-  expired('expired', 'Expired'),
-  answered('answered', 'Answered'),
-  cancelled('cancelled', 'Cancelled');
+  pending('pending'),
+  delivered('delivered'),
+  answered('answered'),
+  expired('expired'),
+  cancelled('cancelled');
 
-  InboxQuestionStatus(this.key, this.label);
+  InboxQuestionStatus(this.key);
 
   final String key;
-  final String label;
 
-  static InboxQuestionStatus parse(Object? value) => values.firstWhere(
-    (status) => status.key == value,
-    orElse: () => InboxQuestionStatus.pending,
-  );
+  /// Older hosts report `received` for a question a coordinator read with
+  /// `check`; it counts as delivered.
+  static InboxQuestionStatus parse(Object? value) => value == 'received'
+      ? delivered
+      : values.firstWhere(
+          (status) => status.key == value,
+          orElse: () => InboxQuestionStatus.pending,
+        );
 
   /// Still waiting for the agent to read or answer.
-  bool get open => this == pending || this == received || this == delivered;
+  bool get open => this == pending || this == delivered;
 }
 
 enum InboxMessageKind {
@@ -38,21 +41,55 @@ enum InboxMessageKind {
   );
 }
 
-/// How a question reaches the agent right now.
+/// How a question reaches the agent, as the host decided or would decide.
 enum InboxDeliveryMode {
+  /// Pasted into the agent's terminal right away.
+  pastedNow('pasted_now'),
+
   /// Pasted when the agent finishes its turn.
-  paste,
+  queuedAtTurnEnd('queued_at_turn_end'),
 
   /// The agent coordinates a run and reads questions with `check`.
-  check,
+  check('check'),
 
   /// No running agent reports its turns, so nothing will be pasted.
-  unavailable;
+  unavailable('unavailable');
 
-  static InboxDeliveryMode parse(Object? value) => values.firstWhere(
-    (mode) => mode.name == value,
-    orElse: () => InboxDeliveryMode.unavailable,
-  );
+  InboxDeliveryMode(this.key);
+
+  final String key;
+
+  /// Hosts without `inboxV2` report `paste`, which always waited for the end
+  /// of the turn.
+  static InboxDeliveryMode parse(Object? value) => value == 'paste'
+      ? queuedAtTurnEnd
+      : values.firstWhere(
+          (mode) => mode.key == value,
+          orElse: () => InboxDeliveryMode.unavailable,
+        );
+
+  static InboxDeliveryMode? tryParse(Object? value) =>
+      value is String && value.isNotEmpty ? parse(value) : null;
+
+  /// Whether asking with [InboxDelivery.now] reaches the agent before its turn
+  /// ends.
+  bool get acceptsNow => this == pastedNow || this == check;
+}
+
+/// When the asker wants a question pasted. Sent only to `inboxV2` hosts.
+enum InboxDelivery {
+  now('now'),
+  turnEnd('turnEnd');
+
+  InboxDelivery(this.key);
+
+  final String key;
+
+  static InboxDelivery? tryParse(Object? value) => switch (value) {
+    'now' => now,
+    'turnEnd' || 'turn_end' => turnEnd,
+    _ => null,
+  };
 }
 
 String _string(Object? value) => value is String ? value : '';
@@ -161,6 +198,9 @@ class const InboxThread({
   required final int unreadReplyCount,
   final InboxOrigin? origin,
   final InboxTargetSnapshot target = const InboxTargetSnapshot(),
+
+  /// How the latest question was delivered; absent before `inboxV2`.
+  final InboxDeliveryMode? deliveryMode,
 }) {
   factory InboxThread.fromJson(Map<String, Object?> json) => InboxThread(
     threadId: _string(json['threadId']),
@@ -179,6 +219,7 @@ class const InboxThread({
         ? InboxOrigin.fromJson(_map(json['origin']))
         : null,
     target: InboxTargetSnapshot.fromJson(_map(json['target'])),
+    deliveryMode: InboxDeliveryMode.tryParse(json['deliveryMode']),
   );
 }
 
@@ -214,10 +255,15 @@ class const InboxMessage({
   final DateTime? deliveredAt,
   final DateTime? expiresAt,
   final String? replyToId,
+
+  /// What the asker chose; absent before `inboxV2`.
+  final InboxDelivery? delivery,
+  final InboxDeliveryMode? deliveryMode,
 }) {
   factory InboxMessage.fromJson(Map<String, Object?> json) {
     final message = _map(json['message']);
     final status = json['status'];
+    // `inboxV2` hosts may report these beside the message row or inside it.
     return InboxMessage(
       id: _string(message['id']),
       kind: InboxMessageKind.parse(json['kind']),
@@ -229,10 +275,30 @@ class const InboxMessage({
       read: message['read'] == true,
       sequence: _int(message['sequence']),
       createdAt: parseInboxTimestamp(message['created_at']),
-      deliveredAt: parseInboxTimestamp(message['delivered_at']),
+      deliveredAt: parseInboxTimestamp(
+        json['deliveredAt'] ?? message['delivered_at'],
+      ),
       expiresAt: parseInboxTimestamp(message['expires_at']),
       replyToId: _optionalString(message['reply_to_id']),
+      delivery: InboxDelivery.tryParse(json['delivery'] ?? message['delivery']),
+      deliveryMode: InboxDeliveryMode.tryParse(
+        json['deliveryMode'] ?? message['delivery_mode'],
+      ),
     );
+  }
+
+  /// Pasted as soon as it was asked. The host does not record the decision on
+  /// older messages, so a delivery within the minute it was asked counts.
+  bool get deliveredNow {
+    if (deliveryMode case final mode?) {
+      return mode == InboxDeliveryMode.pastedNow;
+    }
+    final asked = createdAt;
+    final delivered = deliveredAt;
+    return delivery == InboxDelivery.now &&
+        asked != null &&
+        delivered != null &&
+        delivered.difference(asked) < const Duration(minutes: 1);
   }
 }
 
@@ -246,6 +312,9 @@ class const InboxRecipient({
   final String? presence,
   required final InboxDeliveryMode deliveryMode,
   final String? tabTitle,
+
+  /// The agent takes input mid-turn, so `now` pastes even while it works.
+  final bool acceptsQueuedInput = false,
 }) {
   factory InboxRecipient.fromJson(Map<String, Object?> json) => InboxRecipient(
     handle: _string(json['handle']),
@@ -256,6 +325,7 @@ class const InboxRecipient({
     presence: _optionalString(json['presence']),
     deliveryMode: InboxDeliveryMode.parse(json['deliveryMode']),
     tabTitle: _optionalString(json['tabTitle']),
+    acceptsQueuedInput: json['acceptsQueuedInput'] == true,
   );
 }
 
@@ -294,13 +364,33 @@ class const InboxAskRequest({
   final String? threadId,
   final String? subject,
   final Duration? expiresIn,
+
+  /// Ignored unless the host advertises `inboxV2`.
+  final InboxDelivery? delivery,
 }) {
-  Map<String, Object?> toJson() => <String, Object?>{
-    'body': body,
-    'inbox': ?inbox,
-    'to': ?to,
-    'threadId': ?threadId,
-    if (subject != null && subject!.trim().isNotEmpty) 'subject': subject,
-    if (expiresIn != null) 'expiresInMs': expiresIn!.inMilliseconds,
-  };
+  /// [includeDelivery] is false for hosts without `inboxV2`, which would
+  /// reject or misread the field.
+  Map<String, Object?> toJson({bool includeDelivery = false}) =>
+      <String, Object?>{
+        'body': body,
+        'inbox': ?inbox,
+        'to': ?to,
+        'threadId': ?threadId,
+        if (subject != null && subject!.trim().isNotEmpty) 'subject': subject,
+        if (expiresIn != null) 'expiresInMs': expiresIn!.inMilliseconds,
+        if (includeDelivery && delivery != null) 'delivery': delivery!.key,
+      };
+}
+
+/// What `inbox.ask` reports: the thread and how the question will arrive.
+class const InboxAskResult({
+  required final String threadId,
+  final InboxDeliveryMode? deliveryMode,
+}) {
+  factory InboxAskResult.fromJson(Map<String, Object?> json) => InboxAskResult(
+    threadId: _string(json['threadId']),
+    deliveryMode: InboxDeliveryMode.tryParse(
+      json['deliveryMode'] ?? _map(json['recipient'])['deliveryMode'],
+    ),
+  );
 }

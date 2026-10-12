@@ -1,0 +1,36 @@
+version: 1
+id: freeform
+revision: 1
+name: Freeform
+description: One stage and one worker role, with no stage gates.
+coordinatorInstructions: >-
+  Split the objective into a small concrete task DAG for workers. Every task
+  must be independently executable and verifiable. Preserve unrelated work.
+roles:
+  - {id: worker, name: Worker, contractId: task, contractRevision: 1}
+contracts:
+  - version: 1
+    id: task
+    revision: 1
+    name: Task
+    purpose: Complete the assigned task.
+    instructions: >-
+      Complete the assigned task with the smallest justified change, run the
+      applicable checks and report unverified assumptions and blockers.
+    inputSchema:
+      type: object
+      properties: {objective: {type: string, minLength: 1}}
+      required: [objective]
+    resultSchema:
+      type: object
+      properties: {summary: {type: string, minLength: 1}}
+      required: [summary]
+    requiredArtifacts: []
+    checklist:
+      - {id: checks, description: Applicable checks pass with recorded evidence.}
+stages:
+  - id: work
+    name: Work
+    purpose: Complete the objective.
+    roles: [worker]
+    dependsOn: []

@@ -16,7 +16,7 @@ pub(crate) fn contract_fields(
                 serde_json::from_str(inputs)?,
             )))
         }
-        _ => bail!("--role-contract and --contract-inputs must be provided together"),
+        _ => bail!("--contract and --contract-inputs must be provided together"),
     }
 }
 
@@ -34,26 +34,23 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn role_contract_cli_rejects_missing_inputs_and_ambiguous_legacy_schema() {
+    fn delegate_requires_contract_and_inputs_together() {
         use crate::cli::Cli;
         use clap::Parser;
-        let base = ["alera", "orchestration", "task-create", "--spec", "Fix"];
-        for extra in [
-            vec!["--role-contract", "{}"],
-            vec!["--contract-inputs", "{}"],
-            vec![
-                "--role-contract",
-                "{}",
-                "--contract-inputs",
-                "{}",
-                "--result-schema",
-                "{}",
-            ],
-        ] {
+        let base = [
+            "alera",
+            "orchestration",
+            "delegate",
+            "--profile",
+            "Worker",
+            "--spec",
+            "Fix",
+        ];
+        for extra in [vec!["--contract", "{}"], vec!["--contract-inputs", "{}"]] {
             assert!(Cli::try_parse_from(base.into_iter().chain(extra)).is_err());
         }
         Cli::try_parse_from(base.into_iter().chain([
-            "--role-contract",
+            "--contract",
             "{}",
             "--contract-inputs",
             "{}",

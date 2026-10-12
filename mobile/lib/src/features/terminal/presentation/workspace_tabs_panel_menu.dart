@@ -118,24 +118,22 @@ const List<PopupMenuEntry<_TabsMenuAction>> _automationMenuEntries =
       PopupMenuDivider(),
     ];
 
-/// Opens this workspace's automations; [create] starts the authoring flow with
-/// the workspace as origin, never as the execution target.
+/// Opens this workspace's automations in Activity; [create] starts the
+/// authoring flow with the workspace as origin, never as the execution target.
 void _openWorkspaceAutomations(
   BuildContext context,
   WorkspaceTabsScreen screen, {
   required bool create,
 }) => unawaited(
-  Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) => AutomationsScreen(
-        hostId: screen.hostId,
-        initialScope: AutomationScope(
-          kind: AutomationScopeKind.workspace,
-          id: screen.workspace.id,
-        ),
-        startAuthoring: create,
-      ),
+  openActivity(
+    context,
+    hostId: screen.hostId,
+    section: ActivitySection.automations,
+    automationScope: AutomationScope(
+      kind: AutomationScopeKind.workspace,
+      id: screen.workspace.id,
     ),
+    startAutomationAuthoring: create,
   ),
 );
 

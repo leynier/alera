@@ -9,7 +9,6 @@ pub mod claude_subagent_roster;
 pub mod coordinator_loop;
 pub mod dispatch_preamble;
 pub mod group_resolution;
-pub mod lifecycle_reconciliation;
 pub mod managed_agent_launch;
 pub mod managed_launch_shell_rendering;
 pub mod message_delivery;

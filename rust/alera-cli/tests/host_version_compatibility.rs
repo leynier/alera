@@ -18,7 +18,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 const PROFILE_CAPABILITY: &str = "orchestrationAgentProfilesV1";
 const PROFILE_ORDERING_CAPABILITY: &str = "agentProfileOrderingV1";
 const V049_TAG_COMMIT: &str = "e60c96ec7522052e9af81ab15ae5d6da2443dac4";

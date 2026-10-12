@@ -6,8 +6,8 @@ async fn store() -> (tempfile::TempDir, RuntimeStore) {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
     sqlx::query(
-        "INSERT INTO orchestrationCoordinatorRuns (id, spec, workspace_id)
-         VALUES ('run', 'Deliver export', 'owner')",
+        "INSERT INTO orchestrationCoordinatorRuns (id, spec, workspace_id, status)
+         VALUES ('run', 'Deliver export', 'owner', 'running')",
     )
     .execute(store.pool())
     .await

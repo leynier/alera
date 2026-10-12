@@ -48,7 +48,7 @@ fn server_side_waits_observe_dispatch_and_task_transitions() {
         &mut writer,
         &mut reader,
         8_314,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({
             "terminal": "wait-worker",
             "contextToken": dispatched["contextToken"]
@@ -131,7 +131,7 @@ fn dispatch_acceptance_wait_recognizes_a_later_stalled_state() {
         &mut writer,
         &mut reader,
         8_323,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({
             "terminal": "stalled-worker",
             "contextToken": dispatched["contextToken"]

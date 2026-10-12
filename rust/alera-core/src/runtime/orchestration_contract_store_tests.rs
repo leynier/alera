@@ -33,7 +33,6 @@ async fn dispatch(store: &RuntimeStore, task_id: &str) -> OrchestrationDispatchC
             "workspace",
             "coordinator",
             None,
-            "return-immediately",
             "keep-open",
         )
         .await
@@ -104,38 +103,6 @@ async fn role_contract_invalid_creation_is_atomic() {
         .await
         .unwrap()
         .is_empty());
-}
-
-#[tokio::test]
-async fn role_contract_migration_preserves_pre_contract_tasks() {
-    let (dir, store) = store().await;
-    sqlx::query("DROP TRIGGER workflowTaskDefinitionImmutable")
-        .execute(store.pool())
-        .await
-        .unwrap();
-    let created = store.create_orchestration_task(task(vec![])).await.unwrap();
-    sqlx::query("DROP TRIGGER orchestrationRoleContractImmutable")
-        .execute(store.pool())
-        .await
-        .unwrap();
-    sqlx::query("ALTER TABLE orchestrationTasks DROP COLUMN role_contract")
-        .execute(store.pool())
-        .await
-        .unwrap();
-    store.pool().close().await;
-    let reopened = RuntimeStore::open(dir.path()).await.unwrap();
-    assert_eq!(
-        reopened
-            .orchestration_task_by_id(&created.id)
-            .await
-            .unwrap()
-            .unwrap(),
-        created
-    );
-    reopened
-        .create_orchestration_task_with_contract(task(vec![]), Some(snapshot()))
-        .await
-        .unwrap();
 }
 
 #[tokio::test]

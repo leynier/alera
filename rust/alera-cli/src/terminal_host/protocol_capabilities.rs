@@ -181,19 +181,20 @@ pub const RUNTIME_HOST_CLOUD_PUSH_CAPABILITY: &str = "cloudPushNotificationsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
-pub const RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY: &str = "orchestrationRunBoardV1";
-pub const RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY: &str = "workflowRecipeCatalogV1";
-pub const RUNTIME_HOST_WORKFLOW_EXPORT_CAPABILITY: &str = "workflowRecipeExportV1";
-pub const RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY: &str = "workflowReviewedPlansV1";
-pub const RUNTIME_HOST_WORKFLOW_LIFECYCLE_CAPABILITY: &str = "workflowRunLifecycleV1";
-pub const RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY: &str = "workflowManagedWorktreesV1";
-pub const RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY: &str = "workflowLocalIntegrationV1";
+/// The `runs.*` client surface and the `runsChanged` event.
+pub const RUNTIME_HOST_RUNS_CAPABILITY: &str = "runsV1";
+/// The `recipes.*` catalog surface and the `recipesChanged` event.
+pub const RUNTIME_HOST_RECIPES_CAPABILITY: &str = "recipesV1";
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";
 // Advertised once the host answers `inbox.*` for questions from addresses
 // outside Alera (`ext:`), on desktop, CLI and paired phones alike.
 pub const RUNTIME_HOST_INBOX_CAPABILITY: &str = "inboxV1";
+// Advertised once `inbox.ask`, `orchestration.send` and `orchestration.ask`
+// take `delivery: now | turnEnd`, asks and targets report `deliveryMode`, and
+// question statuses fold `received` into `delivered`.
+pub const RUNTIME_HOST_INBOX_DELIVERY_CAPABILITY: &str = "inboxV2";
 // Advertised once `inbox.ask` records an MCP client's `externalOrigin` from
 // local clients and `inbox.threads`/`inbox.wait` filter by `originClientId`.
 pub const RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY: &str = "inboxOriginV1";
@@ -214,9 +215,6 @@ pub const RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY: &str =
 pub const RUNTIME_HOST_MANAGED_AGENT_PROFILES_CAPABILITY: &str =
     "orchestrationManagedAgentProfilesV1";
 pub const RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY: &str = "agentProfilePromptLaunchV1";
-// Advertised once runs carry a user-approved execution policy. A run without a
-// policy schedules exactly as before, so this stays a feature check.
-pub const RUNTIME_HOST_RUN_POLICY_CAPABILITY: &str = "orchestrationRunPolicyV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.

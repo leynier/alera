@@ -1,5 +1,4 @@
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/orchestration/presentation/workflow_catalog_pane.dart';
 import 'package:alera/src/features/configuration_sync/presentation/configuration_sync_pane.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -10,6 +9,7 @@ import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/mcp_access_settings_section.dart';
+import 'package:alera/src/features/settings/presentation/recipe_settings_section.dart';
 import 'package:alera/src/features/settings/presentation/voice_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
@@ -222,28 +222,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
 
     final sections = <SettingsSectionData>[
-      SettingsSectionData(
-        id: 'workflows',
-        title: 'Workflows',
-        description: 'Reusable recipes, stages and portable role contracts.',
-        icon: AleraIcons.workspaceChildren,
-        navGroup: SettingsNavGroup.resources,
-        entries: const [
-          SettingsSearchEntry(
-            title: 'Workflow Recipes',
-            keywords: [
-              'catalog',
-              'personal',
-              'project',
-              'built-in',
-              'yaml',
-              'contracts',
-              'export',
-            ],
-          ),
-        ],
-        builder: (_) => const WorkflowCatalogPane(),
-      ),
+      recipeSettingsSection(),
       SettingsSectionData(
         id: 'configurationSync',
         title: 'Configuration Sync',

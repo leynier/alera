@@ -46,8 +46,7 @@ enum KeyboardActionGroup(this.label) {
 @MappableEnum()
 enum KeyboardActionId {
   openSettings,
-  openAutomations,
-  openRunBoard,
+  openActivity,
   openQuickOpen,
   openCommandPalette,
   addProject,

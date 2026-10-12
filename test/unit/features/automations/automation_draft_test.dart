@@ -1,5 +1,5 @@
 import 'package:alera/src/features/automations/application/automation_target_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';

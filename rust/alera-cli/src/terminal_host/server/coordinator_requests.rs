@@ -1,50 +1,18 @@
-use alera_core::runtime::{
-    OrchestrationCoordinatorStatus, OrchestrationGateStatus, OrchestrationMessageType,
-    OrchestrationTaskStatus,
-};
+use alera_core::runtime::{NewRunPlan, OrchestrationCoordinatorStatus, OrchestrationTaskStatus};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::coordinator_loop::{
-    acceptance_timeout_threshold_iso, hung_dispatch_threshold_iso, CoordinatorConfig,
-    CoordinatorHandle, COORDINATOR_DEFAULT_POLL_MS, COORDINATOR_DISPATCH_STALE_THRESHOLD,
+    CoordinatorConfig, CoordinatorHandle, COORDINATOR_DEFAULT_POLL_MS,
     COORDINATOR_MAX_CONCURRENT_DEFAULT,
 };
-use crate::terminal_host::orchestration::dispatch_preamble::{
-    build_dispatch_preamble, parse_allow_stale_base_from_spec, BaseDrift, GateResolution,
-    PreambleParams, WorkerKind,
-};
-use crate::terminal_host::orchestration::lifecycle_reconciliation::{
-    reconcile_lifecycle_message, LifecycleReconciliation,
-};
-use crate::terminal_host::protocol::event;
-use crate::terminal_host::session::Session;
 
-use super::orchestration_owned_spawn::is_pending_orchestration_worker;
+use super::orchestration_validation::{optional_string, require_string};
 use super::{ServerActor, ServerCommand};
-
-const PENDING_WORKER_TAB_GRACE_SECONDS: i64 = 120;
 
 fn state_error(error: impl std::fmt::Display) -> HostError {
     HostError::state(error.to_string())
-}
-
-fn payload_value(message: &alera_core::runtime::OrchestrationMessage) -> Option<Value> {
-    message
-        .payload
-        .as_deref()
-        .and_then(|payload| serde_json::from_str::<Value>(payload).ok())
-}
-
-fn payload_string(payload: Option<&Value>, key: &str) -> Option<String> {
-    payload?
-        .get(key)
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
 }
 
 impl ServerActor {
@@ -109,17 +77,33 @@ impl ServerActor {
             .map_err(state_error)?;
         if tasks.is_empty() {
             return Err(HostError::state(
-                "no orchestration tasks exist; create tasks with task-create before run",
+                "no orchestration tasks exist; delegate tasks before run",
             ));
         }
+        let approval_required = payload
+            .get("approvalRequired")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let policy_plan = match payload.get("policy") {
+            None | Some(Value::Null) => None,
+            Some(policy) => Some(Self::policy_plan(policy)?),
+        };
+        let stall_policy = policy_plan
+            .as_ref()
+            .and_then(|plan| plan.stall_policy.clone())
+            .unwrap_or_else(|| "ask".to_string());
         let run = self
             .runtime_store
-            .create_scoped_orchestration_coordinator_run(
+            .create_planned_orchestration_coordinator_run(
                 spec,
                 Some(&coordinator_handle),
                 poll_interval_ms as i64,
                 &workspace_id,
                 max_concurrent as i64,
+                NewRunPlan {
+                    approval_required,
+                    stall_policy: &stall_policy,
+                },
             )
             .await
             .map_err(state_error)?;
@@ -140,6 +124,7 @@ impl ServerActor {
                 "no unowned tasks in this workspace belong to the coordinator",
             ));
         }
+        let config_handle = Some(coordinator_handle.clone());
         let config = CoordinatorConfig {
             run_id: run.id.clone(),
             coordinator_handle: Some(coordinator_handle),
@@ -155,7 +140,35 @@ impl ServerActor {
             }),
         );
         self.cancel_shutdown_timer();
-        Ok(json!({ "runId": run.id, "status": "running" }))
+        let mut status = run.status.as_str().to_string();
+        if let Some(plan) = policy_plan {
+            let actor = alera_core::runtime::RunActor::new(
+                alera_core::runtime::RunActorKind::Agent,
+                config_handle.clone(),
+            );
+            let mut plan = plan;
+            plan.stall_policy = Some(stall_policy.clone());
+            let stages = std::mem::take(&mut plan.stages);
+            plan.stages = self.normalized_plan_stages(stages).await?;
+            let proposed = self
+                .runtime_store
+                .propose_run_plan(&run.id, plan, &actor)
+                .await
+                .map_err(super::orchestration_gate_requests::gate_error)?;
+            status = proposed.status.clone();
+            if let Some(gate_id) = proposed.plan_gate_id.as_deref() {
+                if let Ok(Some(gate)) = self.runtime_store.orchestration_gate_by_id(gate_id).await {
+                    self.queue_gate_push(&gate).await;
+                }
+            }
+        }
+        self.broadcast_orchestration_board_change().await;
+        Ok(json!({
+            "runId": run.id,
+            "status": status,
+            "approvalRequired": run.approval_required,
+            "stallPolicy": stall_policy,
+        }))
     }
 
     pub(super) async fn orchestration_run_stop(&mut self, payload: &Value) -> HostResult<Value> {
@@ -181,13 +194,7 @@ impl ServerActor {
             .orchestration_coordinator_run_by_id(run_id)
             .await
             .map_err(state_error)?
-            .filter(|run| {
-                matches!(
-                    run.status,
-                    OrchestrationCoordinatorStatus::Running
-                        | OrchestrationCoordinatorStatus::Stopping
-                )
-            })
+            .filter(|run| run.holds_workspace())
             .ok_or_else(|| HostError::state(format!("coordinator run is not active: {run_id}")))?;
         let actor = payload
             .get("actor")
@@ -254,314 +261,69 @@ impl ServerActor {
         Ok(json!({ "runId": run_id, "status": "stopped" }))
     }
 
-    // --- tick ---------------------------------------------------------------
-
-    /// One coordinator tick, executed inside the actor. Order mirrors Orca:
-    /// process messages -> re-assert gate blocks -> warn stale dispatches ->
-    /// dispatch ready tasks -> check convergence.
-    pub(super) async fn handle_coordinator_tick(&mut self, run_id: String) {
-        if self.mutation_queue.has_runtime_mutations() {
-            return;
-        }
-        let Some(handle) = self.coordinators.get(&run_id) else {
-            return;
-        };
-        let config = handle.config.clone();
-
-        if let Err(error) = self.coordinator_process_messages(&config).await {
-            self.coordinator_log(&format!("message processing failed: {error}"));
-        }
-        if let Err(error) = self.coordinator_assert_gate_blocks().await {
-            self.coordinator_log(&format!("gate check failed: {error}"));
-        }
-        if let Err(error) = self.coordinator_warn_stale_dispatches().await {
-            self.coordinator_log(&format!("stale check failed: {error}"));
-        }
-        if let Err(error) = self.coordinator_dispatch_ready_tasks(&config).await {
-            self.coordinator_log(&format!("dispatch failed: {error}"));
-        }
-        match self.coordinator_check_convergence(&config).await {
-            Ok(Some(final_status)) => {
-                let _ = self
-                    .runtime_store
-                    .finish_orchestration_coordinator_run(&run_id, final_status)
-                    .await;
-                if let Some(handle) = self.coordinators.remove(&run_id) {
-                    handle.stop();
-                }
-                self.coordinator_log(&format!(
-                    "coordinator run {run_id} finished: {}",
-                    final_status.as_str()
-                ));
-                self.schedule_shutdown_if_idle();
-            }
-            Ok(None) => {}
-            Err(error) => self.coordinator_log(&format!("convergence check failed: {error}")),
-        }
+    pub(super) async fn orchestration_run_list(&mut self, payload: &Value) -> HostResult<Value> {
+        let runs = self
+            .runtime_store
+            .list_orchestration_coordinator_runs(optional_string(payload, "workspace").as_deref())
+            .await
+            .map_err(state_error)?;
+        Ok(
+            json!({ "kind": "runs", "items": runs, "runs": runs, "filters": { "workspace": optional_string(payload, "workspace") } }),
+        )
     }
 
-    /// Coordinator inbox: worker_done/heartbeat reconcile, escalations fail
-    /// the dispatch (circuit breaker), decision_gate messages create gates.
-    async fn coordinator_process_messages(
-        &mut self,
-        config: &CoordinatorConfig,
-    ) -> anyhow::Result<()> {
-        let Some(coordinator_handle) = &config.coordinator_handle else {
-            return Ok(());
-        };
-        let messages = self
+    pub(super) async fn orchestration_run_show(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let run = self
             .runtime_store
-            .unread_orchestration_coordinator_messages(coordinator_handle)
-            .await?;
-        if messages.is_empty() {
-            return Ok(());
-        }
-        let mut logs = Vec::new();
-        let mut read_ids = Vec::new();
-        for message in &messages {
-            let mark_read = match message.message_type {
-                OrchestrationMessageType::WorkerDone | OrchestrationMessageType::Heartbeat => {
-                    let mut sink = |line: String| logs.push(line);
-                    let outcome =
-                        reconcile_lifecycle_message(&self.runtime_store, message, &mut sink)
-                            .await?;
-                    match outcome {
-                        LifecycleReconciliation::Completed { task_id, .. } => {
-                            logs.push(format!("task {task_id} completed"));
-                        }
-                        LifecycleReconciliation::Failed { task_id, .. } => {
-                            logs.push(format!("task {task_id} failed"));
-                        }
-                        _ => {}
-                    }
-                    true
-                }
-                OrchestrationMessageType::Escalation => {
-                    logs.push(format!(
-                        "escalation from {}: {}",
-                        message.from_handle, message.subject
-                    ));
-                    let payload = payload_value(message);
-                    let task_id = message
-                        .task_id
-                        .clone()
-                        .or_else(|| payload_string(payload.as_ref(), "taskId"));
-                    let dispatch_id = message
-                        .dispatch_id
-                        .clone()
-                        .or_else(|| payload_string(payload.as_ref(), "dispatchId"));
-                    if let Some(task_id) = task_id {
-                        if let Some(dispatch) = self
-                            .runtime_store
-                            .active_orchestration_dispatch_for_task(&task_id)
-                            .await?
-                        {
-                            let assignee_matches = dispatch.assignee_handle.as_deref()
-                                == Some(message.from_handle.as_str());
-                            let dispatch_matches =
-                                dispatch_id.as_deref() == Some(dispatch.id.as_str());
-                            if !assignee_matches || !dispatch_matches {
-                                logs.push(format!("stale escalation for task {task_id} ignored"));
-                            } else {
-                                let failed = self
-                                    .runtime_store
-                                    .fail_orchestration_dispatch(&dispatch.id, &message.subject)
-                                    .await?;
-                                logs.push(format!(
-                                    "dispatch {} failed ({} failures)",
-                                    failed.id, failed.failure_count
-                                ));
-                            }
-                        }
-                    }
-                    true
-                }
-                OrchestrationMessageType::DecisionGate => {
-                    let payload = payload_value(message);
-                    let task_id = message
-                        .task_id
-                        .clone()
-                        .or_else(|| payload_string(payload.as_ref(), "taskId"));
-                    let dispatch_id = message
-                        .dispatch_id
-                        .clone()
-                        .or_else(|| payload_string(payload.as_ref(), "dispatchId"));
-                    if let Some(task_id) = task_id {
-                        let question = payload
-                            .as_ref()
-                            .and_then(|value| value.get("question").and_then(Value::as_str))
-                            .unwrap_or(&message.subject)
-                            .to_string();
-                        let active = self
-                            .runtime_store
-                            .active_orchestration_dispatch_for_task(&task_id)
-                            .await?;
-                        let sender_owns_active_dispatch = active.as_ref().is_some_and(|dispatch| {
-                            dispatch.assignee_handle.as_deref()
-                                == Some(message.from_handle.as_str())
-                                && dispatch_id.as_deref() == Some(dispatch.id.as_str())
-                        });
-                        if !sender_owns_active_dispatch {
-                            logs.push(format!("stale decision gate for task {task_id} ignored"));
-                        } else {
-                            match self
-                                .runtime_store
-                                .create_orchestration_gate(&task_id, &question, &[])
-                                .await
-                            {
-                                Ok(_) => {
-                                    logs.push(format!("gate created for task {task_id}"));
-                                    self.queue_gate_push(&task_id, &question).await;
-                                }
-                                Err(error) => {
-                                    logs.push(format!("gate for task {task_id} ignored: {error}"))
-                                }
-                            }
-                        }
-                        true
-                    } else {
-                        false
-                    }
-                    // Worker-side `ask` questions carry no taskId; they are
-                    // answered by a human/agent via `reply`, not by gates.
-                }
-                _ => false,
-            };
-            if mark_read {
-                read_ids.push(message.id.clone());
-            }
-        }
-        if !read_ids.is_empty() {
-            self.runtime_store
-                .mark_orchestration_messages_read(&read_ids)
-                .await?;
-        }
-        for line in logs {
-            self.coordinator_log(&line);
-        }
-        Ok(())
+            .orchestration_coordinator_run_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("coordinator run not found: {id}")))?;
+        let tasks = self
+            .runtime_store
+            .list_scoped_orchestration_tasks(None, Some(&id), Some(&run.workspace_id))
+            .await
+            .map_err(state_error)?;
+        Ok(json!({ "run": run, "tasks": tasks }))
     }
 
-    /// Invariant: a task with a pending gate stays blocked.
-    async fn coordinator_assert_gate_blocks(&mut self) -> anyhow::Result<()> {
-        let pending_gates = self
+    pub(super) async fn orchestration_status(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let run = self
             .runtime_store
-            .list_orchestration_gates(None, Some(OrchestrationGateStatus::Pending))
-            .await?;
-        for gate in pending_gates {
-            if let Some(task) = self
-                .runtime_store
-                .orchestration_task_by_id(&gate.task_id)
-                .await?
-            {
-                // A stalled task keeps its status while its stall gate is
-                // pending. Flipping it to blocked would close the dispatch and
-                // claim the worker stopped, which is exactly what a stall
-                // cannot assert.
-                if task.status != OrchestrationTaskStatus::Blocked
-                    && task.status != OrchestrationTaskStatus::Completed
-                    && task.status != OrchestrationTaskStatus::Failed
-                    && task.status != OrchestrationTaskStatus::Cancelled
-                    && task.status != OrchestrationTaskStatus::Stalled
-                {
-                    let _ = self
-                        .runtime_store
-                        .update_orchestration_task_status(
-                            &task.id,
-                            OrchestrationTaskStatus::Blocked,
-                            None,
-                        )
-                        .await;
-                }
-            }
+            .orchestration_coordinator_run_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("coordinator run not found: {id}")))?;
+        let tasks = self
+            .runtime_store
+            .list_scoped_orchestration_tasks(None, Some(&id), Some(&run.workspace_id))
+            .await
+            .map_err(state_error)?;
+        let mut run_handles = tasks
+            .iter()
+            .filter_map(|task| task.assignee_handle.as_deref())
+            .collect::<std::collections::HashSet<_>>();
+        if let Some(coordinator_handle) = run.coordinator_handle.as_deref() {
+            run_handles.insert(coordinator_handle);
         }
-        Ok(())
-    }
-
-    /// A dispatch with no runtime activity past the lease is stalled. It is
-    /// never auto-retried, preventing two agents from doing the same work.
-    async fn coordinator_warn_stale_dispatches(&mut self) -> anyhow::Result<()> {
-        let acceptance_threshold = acceptance_timeout_threshold_iso(chrono::Utc::now());
-        let unaccepted = self
-            .runtime_store
-            .expire_unaccepted_orchestration_dispatches(&acceptance_threshold)
-            .await?;
-        for dispatch in unaccepted {
-            if let Some(handle) = dispatch.assignee_handle.as_deref() {
-                self.remove_dispatch_context(handle);
-                self.cleanup_failed_owned_spawn(handle).await;
-            }
-            self.coordinator_log(&format!(
-                "dispatch {} did not accept before the startup deadline",
-                dispatch.id
-            ));
-        }
-        let threshold = hung_dispatch_threshold_iso(chrono::Utc::now());
-        let stale = self
-            .runtime_store
-            .stall_expired_orchestration_dispatches(&threshold)
-            .await?;
-        for dispatch in stale {
-            self.coordinator_log(&format!(
-                "dispatch {} on {} exceeded its activity lease and is stalled since {}",
-                dispatch.id,
-                dispatch.assignee_handle.as_deref().unwrap_or("<unknown>"),
-                dispatch
-                    .last_heartbeat_at
-                    .as_deref()
-                    .or(dispatch.dispatched_at.as_deref())
-                    .unwrap_or("dispatch")
-            ));
-            self.apply_stall_policy(&dispatch).await;
-        }
-        self.coordinator_process_stall_decisions().await?;
-        Ok(())
-    }
-
-    async fn coordinator_policy_blocks_dispatch(&mut self, run_id: &str) -> anyhow::Result<bool> {
-        let Some(run) = self
-            .runtime_store
-            .orchestration_coordinator_run_by_id(run_id)
-            .await?
-        else {
-            return Ok(false);
-        };
-        Ok(run.execution_policy_status.blocks_dispatch())
-    }
-
-    async fn coordinator_dispatch_ready_tasks(
-        &mut self,
-        config: &CoordinatorConfig,
-    ) -> anyhow::Result<()> {
-        // A proposed but unresolved execution policy holds scheduling: the whole
-        // point of the plan is that the user approves it before work starts. A
-        // run with no policy is unaffected and schedules as it always did.
-        if self
-            .coordinator_policy_blocks_dispatch(&config.run_id)
-            .await?
-        {
-            return Ok(());
-        }
-        let ready = self
-            .runtime_store
-            .list_scoped_orchestration_tasks(
-                Some(OrchestrationTaskStatus::Ready),
-                Some(&config.run_id),
-                config.workspace_id.as_deref(),
-            )
-            .await?;
-        if ready.is_empty() {
-            return Ok(());
-        }
-        let occupied = self
-            .runtime_store
-            .list_scoped_orchestration_tasks(
-                None,
-                Some(&config.run_id),
-                config.workspace_id.as_deref(),
-            )
-            .await?
+        let terminals = self.orchestration_terminals(&json!({}))["items"]
+            .as_array()
             .into_iter()
+            .flatten()
+            .filter(|terminal| {
+                terminal.get("workspaceId").and_then(Value::as_str)
+                    == Some(run.workspace_id.as_str())
+                    && terminal
+                        .get("handle")
+                        .and_then(Value::as_str)
+                        .is_some_and(|handle| run_handles.contains(handle))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let active = tasks
+            .iter()
             .filter(|task| {
                 matches!(
                     task.status,
@@ -569,366 +331,12 @@ impl ServerActor {
                 )
             })
             .count();
-        let mut slots = config.max_concurrent.saturating_sub(occupied);
-        if slots == 0 {
-            return Ok(());
-        }
-
-        let mut idle_terminals = self.coordinator_available_terminals(config).await?;
-        if idle_terminals.is_empty() {
-            // One worker terminal per tick: the app spawns it eagerly and the
-            // agent's presence appears before the next dispatch attempt.
-            if self.coordinator_pending_worker_tabs(config).await? > 0 {
-                self.coordinator_log("waiting for a spawned worker terminal to report presence");
-                return Ok(());
-            }
-            self.coordinator_create_worker_terminal(config, &ready)
-                .await?;
-            return Ok(());
-        }
-
-        for task in ready {
-            if slots == 0 || idle_terminals.is_empty() {
-                break;
-            }
-            let handle = idle_terminals[0].clone();
-            match self
-                .coordinator_dispatch_task(config, &task.id, &handle)
-                .await
-            {
-                Ok(true) => {
-                    idle_terminals.remove(0);
-                    slots -= 1;
-                }
-                Ok(false) => {}
-                Err(error) => {
-                    idle_terminals.remove(0);
-                    self.coordinator_log(&format!("dispatch of {} failed: {error}", task.id));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Idle worker candidates: running sessions in the scoped workspace with
-    /// injection-ready agent presence, no active dispatch, and not the
-    /// coordinator's own terminal.
-    async fn coordinator_available_terminals(
-        &mut self,
-        config: &CoordinatorConfig,
-    ) -> anyhow::Result<Vec<String>> {
-        let mut candidates = Vec::new();
-        let session_ids: Vec<(String, String, bool)> = self
-            .sessions
-            .iter()
-            .map(|(session_id, session)| {
-                (
-                    session_id.clone(),
-                    session.workspace_id.clone(),
-                    session.running(),
-                )
-            })
-            .collect();
-        for (session_id, workspace_id, running) in session_ids {
-            if !running {
-                continue;
-            }
-            if let Some(scope) = &config.workspace_id {
-                if &workspace_id != scope {
-                    continue;
-                }
-            }
-            if config.coordinator_handle.as_deref() == Some(session_id.as_str()) {
-                continue;
-            }
-            if !self.agent_presence.is_injection_ready(&session_id) {
-                continue;
-            }
-            let busy = self
-                .runtime_store
-                .active_orchestration_dispatch_for_handle(&session_id)
-                .await?
-                .is_some();
-            if !busy {
-                candidates.push(session_id);
-            }
-        }
-        Ok(candidates)
-    }
-
-    async fn coordinator_pending_worker_tabs(
-        &self,
-        config: &CoordinatorConfig,
-    ) -> anyhow::Result<usize> {
-        let Some(workspace_id) = &config.workspace_id else {
-            return Ok(0);
-        };
-        let tabs = self.runtime_store.list_workspace_tabs(workspace_id).await?;
-        let now = chrono::Utc::now();
-        let mut pending = 0;
-        for tab in tabs.into_iter().filter(|tab| tab.kind == "terminal") {
-            let Some((handle, created_at)) = (|| {
-                if !is_pending_orchestration_worker(&tab.payload, &config.agent_type) {
-                    return None;
-                }
-                let fallback_id = tab.id;
-                let created_at = tab.created_at;
-                let payload = tab.payload.as_object()?;
-                payload
-                    .get("terminalSessionId")
-                    .and_then(Value::as_str)
-                    .filter(|handle| !handle.is_empty())
-                    .map(str::to_string)
-                    .or(Some(fallback_id))
-                    .map(|handle| (handle, created_at))
-            })() else {
-                continue;
-            };
-            if now.signed_duration_since(created_at)
-                > chrono::Duration::seconds(PENDING_WORKER_TAB_GRACE_SECONDS)
-            {
-                continue;
-            }
-            if !self
-                .sessions
-                .get(&handle)
-                .is_some_and(|session| session.running())
-            {
-                pending += 1;
-                continue;
-            }
-            let active_dispatch = self
-                .runtime_store
-                .active_orchestration_dispatch_for_handle(&handle)
-                .await?
-                .is_some();
-            if active_dispatch {
-                continue;
-            }
-            let Some(presence) = self.agent_presence.get(&handle) else {
-                pending += 1;
-                continue;
-            };
-            if presence.accepts_injection() {
-                continue;
-            }
-            if presence.state == AgentPresenceState::Done {
-                continue;
-            }
-            pending += 1;
-        }
-        Ok(pending)
-    }
-
-    /// Dispatch with the stale-base pre-flight: a drift beyond the threshold
-    /// silently skips (task stays ready, retried next tick) so circuit budget
-    /// is not burned on a recoverable fetch-and-retry situation.
-    async fn coordinator_dispatch_task(
-        &mut self,
-        config: &CoordinatorConfig,
-        task_id: &str,
-        handle: &str,
-    ) -> anyhow::Result<bool> {
-        let Some(task) = self.runtime_store.orchestration_task_by_id(task_id).await? else {
-            return Ok(false);
-        };
-        let Some((stripped_spec, drift)) = self.coordinator_dispatch_preflight(config, &task).await
-        else {
-            return Ok(false);
-        };
-        let (profile_name, profile_quota_group, effective_spec) = self
-            .coordinator_profile_prompt_for_task(&task, &stripped_spec)
-            .await?;
-        let gates = self
-            .runtime_store
-            .list_orchestration_gates(Some(task_id), Some(OrchestrationGateStatus::Resolved))
-            .await?;
-        let gate_resolution = gates.into_iter().last().map(|gate| GateResolution {
-            question: gate.question,
-            resolution: gate.resolution.unwrap_or_default(),
-        });
-
-        let context_token = uuid::Uuid::new_v4().simple().to_string();
-        let context_hash = hex::encode(Sha256::digest(context_token.as_bytes()));
-        let dispatch = self
-            .runtime_store
-            .create_scoped_orchestration_dispatch(
-                task_id,
-                handle,
-                Some(&config.run_id),
-                config.workspace_id.as_deref().unwrap_or("global"),
-                config
-                    .coordinator_handle
-                    .as_deref()
-                    .unwrap_or("coordinator"),
-                Some(&context_hash),
-                "return-immediately",
-                "keep-open",
-            )
-            .await?;
-        self.runtime_store
-            .set_orchestration_dispatch_profile(
-                &dispatch.id,
-                profile_name.as_deref(),
-                profile_quota_group.as_deref(),
-            )
-            .await?;
-        self.orchestration_activity_last_recorded.remove(handle);
-        if let Err(error) = self.install_dispatch_context(handle, &dispatch.id, &context_token) {
-            self.runtime_store
-                .fail_orchestration_startup(&dispatch.id, "could not install worker context")
-                .await?;
-            return Err(anyhow::anyhow!(error.to_string()));
-        }
-        let preamble = build_dispatch_preamble(&PreambleParams {
-            task_id,
-            dispatch_id: &dispatch.id,
-            task_spec: &effective_spec,
-            coordinator_handle: config
-                .coordinator_handle
-                .as_deref()
-                .unwrap_or("coordinator"),
-            base_drift: drift.as_ref(),
-            gate_resolution: gate_resolution.as_ref(),
-            worker_kind: WorkerKind::PromptReturningAgent,
-        });
-        if !self.sessions.get(handle).is_some_and(Session::running) {
-            self.remove_dispatch_context(handle);
-            self.runtime_store
-                .fail_orchestration_startup(&dispatch.id, "terminal not writable")
-                .await?;
-            return Ok(false);
-        }
-        let force_submit =
-            adapter_for(&config.agent_type).is_some_and(|adapter| adapter.force_submit);
-        if let Err(error) =
-            self.queue_orchestration_paste(handle, &preamble, Vec::new(), force_submit)
-        {
-            self.remove_dispatch_context(handle);
-            self.runtime_store
-                .fail_orchestration_startup(&dispatch.id, "terminal input unavailable")
-                .await?;
-            return Err(anyhow::anyhow!(error.wire_message()));
-        }
-        self.coordinator_log(&format!("dispatched {task_id} to {handle}"));
-        Ok(true)
-    }
-
-    async fn coordinator_probe_drift(&self, config: &CoordinatorConfig) -> Option<BaseDrift> {
-        let workspace_id = config.workspace_id.as_deref()?;
-        let workspace = self
-            .runtime_store
-            .find_workspace(workspace_id)
-            .await
-            .ok()??;
-        let path = workspace.path.clone();
-        // git2 walks are blocking; run off the actor thread.
-        let drift = tokio::task::spawn_blocking(move || {
-            alera_core::git::probe_base_drift(&path).ok().flatten()
-        })
-        .await
-        .ok()??;
-        Some(BaseDrift {
-            base: drift.base,
-            behind: drift.behind,
-            recent_subjects: drift.recent_subjects,
-        })
-    }
-
-    pub(super) async fn coordinator_dispatch_preflight(
-        &self,
-        config: &CoordinatorConfig,
-        task: &alera_core::runtime::OrchestrationTask,
-    ) -> Option<(String, Option<BaseDrift>)> {
-        self.runtime_store
-            .ensure_legacy_workflow_dispatch_allowed(&task.id)
-            .await
-            .ok()?;
-        let (allow_stale, stripped_spec) = parse_allow_stale_base_from_spec(&task.spec);
-        let drift = self.coordinator_probe_drift(config).await;
-        if let Some(drift) = &drift {
-            if drift.behind > COORDINATOR_DISPATCH_STALE_THRESHOLD && !allow_stale {
-                self.coordinator_log(&format!(
-                    "worktree is {} commits behind {}; skipping dispatch of {} this tick",
-                    drift.behind, drift.base, task.id
-                ));
-                return None;
-            }
-        }
-        Some((stripped_spec, drift))
-    }
-
-    /// Done when every task is completed or failed. Stuck (only blocked left)
-    /// keeps the loop alive but logs the situation.
-    async fn coordinator_check_convergence(
-        &mut self,
-        config: &CoordinatorConfig,
-    ) -> anyhow::Result<Option<OrchestrationCoordinatorStatus>> {
-        let tasks = self
-            .runtime_store
-            .list_scoped_orchestration_tasks(
-                None,
-                Some(&config.run_id),
-                config.workspace_id.as_deref(),
-            )
-            .await?;
-        if tasks.is_empty() {
-            return Ok(Some(OrchestrationCoordinatorStatus::Failed));
-        }
-        let all_terminal = tasks.iter().all(|task| {
-            matches!(
-                task.status,
-                OrchestrationTaskStatus::Completed
-                    | OrchestrationTaskStatus::Failed
-                    | OrchestrationTaskStatus::Cancelled
-            )
-        });
-        if all_terminal {
-            let any_failed = tasks
-                .iter()
-                .any(|task| task.status == OrchestrationTaskStatus::Failed);
-            return Ok(Some(if any_failed {
-                OrchestrationCoordinatorStatus::Failed
-            } else {
-                OrchestrationCoordinatorStatus::Completed
-            }));
-        }
-        let has_actionable = tasks.iter().any(|task| {
-            matches!(
-                task.status,
-                OrchestrationTaskStatus::Ready | OrchestrationTaskStatus::Dispatched
-            )
-        });
-        if !has_actionable {
-            if tasks
-                .iter()
-                .any(|task| task.status == OrchestrationTaskStatus::Blocked)
-            {
-                self.coordinator_log(
-                    "coordinator stuck: blocked tasks remain; resolve decision gates to continue",
-                );
-            } else if tasks
-                .iter()
-                .any(|task| task.status == OrchestrationTaskStatus::Stalled)
-            {
-                self.coordinator_log(
-                    "coordinator waiting: stalled tasks require explicit recovery",
-                );
-            } else {
-                self.coordinator_log(
-                    "coordinator run failed: pending tasks have no active dependencies",
-                );
-                return Ok(Some(OrchestrationCoordinatorStatus::Failed));
-            }
-        }
-        Ok(None)
-    }
-
-    pub(super) fn coordinator_log(&self, message: &str) {
-        tracing::info!("[coordinator] {message}");
-        self.broadcast_authenticated(event(
-            "orchestrationCoordinatorLog",
-            json!({ "message": message }),
-        ));
+        Ok(json!({
+            "run": run,
+            "tasks": tasks,
+            "terminals": terminals,
+            "activeTaskCount": active,
+            "lastActivityAt": run.last_activity_at,
+        }))
     }
 }

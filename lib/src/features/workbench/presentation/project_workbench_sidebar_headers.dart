@@ -201,13 +201,12 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
       id: widget.project.id,
     );
     if (selected == 'automations' && context.mounted) {
-      ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(automationsNavigationProvider.notifier).open(scope: projectScope);
+      ProviderScope.containerOf(context, listen: false)
+          .read(activityNavigationProvider.notifier)
+          .openAutomations(scope: projectScope);
     } else if (selected == 'new-automation' && context.mounted) {
       ProviderScope.containerOf(context, listen: false)
-          .read(automationsNavigationProvider.notifier)
+          .read(activityNavigationProvider.notifier)
           .startAuthoring(
             AutomationAuthoringRequest(projectId: widget.project.id),
             scope: projectScope,

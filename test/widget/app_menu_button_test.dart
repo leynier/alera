@@ -1,8 +1,8 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/core/build_flavor.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
-import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +22,10 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(find.text('Settings'), findsOneWidget);
-          expect(find.text('Run Board'), findsOneWidget);
+          expect(find.text('Activity'), findsOneWidget);
+          expect(find.text('Run Board'), findsNothing);
+          expect(find.text('Inbox'), findsNothing);
+          expect(find.text('Automations'), findsNothing);
           expect(find.text('Check for Updates'), findsOneWidget);
           expect(find.text('Undo'), findsOneWidget);
           expect(find.text('Cut'), findsOneWidget);
@@ -31,26 +34,31 @@ void main() {
           final container = ProviderScope.containerOf(
             tester.element(find.byType(AleraAppMenuButton)),
           );
-          await tester.tap(find.text('Run Board'));
+          await tester.tap(find.text('Activity'));
           await tester.pumpAndSettle();
-          expect(container.read(runBoardNavigationProvider).visible, isTrue);
+          expect(container.read(activityNavigationProvider).visible, isTrue);
         });
       });
     }
 
-    testWidgets('opens the inbox and closes the Run Board', (tester) async {
+    testWidgets('Activity reopens on the section it was left on', (
+      tester,
+    ) async {
       await _withPlatform(.linux, () async {
         await _pumpButton(tester);
         final container = ProviderScope.containerOf(
           tester.element(find.byType(AleraAppMenuButton)),
         );
-        container.read(runBoardNavigationProvider.notifier).open();
+        container.read(activityNavigationProvider.notifier)
+          ..open(ActivitySection.questions)
+          ..close();
         await tester.tap(find.byTooltip('Application Menu'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Inbox'));
+        await tester.tap(find.text('Activity'));
         await tester.pumpAndSettle();
-        expect(container.read(inboxNavigationProvider).visible, isTrue);
-        expect(container.read(runBoardNavigationProvider).visible, isFalse);
+        final location = container.read(activityNavigationProvider);
+        expect(location.visible, isTrue);
+        expect(location.section, ActivitySection.questions);
       });
     });
 

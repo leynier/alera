@@ -2,13 +2,14 @@ use clap::{Args, Subcommand};
 
 use crate::cli::{OutputArgs, RuntimeDirArgs};
 pub use crate::cli_orchestration_runs::*;
+pub use crate::cli_orchestration_tasks::*;
 pub use crate::cli_orchestration_terminal::*;
 use crate::cli_orchestration_timeouts::parse_wait_timeout_ms;
 
-/// `alera orchestration ...` - inter-agent messaging, task DAG, dispatch,
-/// decision gates, and the coordinator loop. All verbs are RPC calls to the
-/// running runtime-host; there is no direct-store fallback because waiters,
-/// presence, and the coordinator are in-process host state.
+/// `alera orchestration ...` - runs, delegated tasks, the worker protocol,
+/// messages between agents, gates, and recipes. All verbs are RPC calls to
+/// the running runtime-host; there is no direct-store fallback because
+/// waiters, presence, and the coordinator are in-process host state.
 #[derive(Debug, Args)]
 pub struct OrchestrationCommand {
     #[command(flatten)]
@@ -21,126 +22,69 @@ pub struct OrchestrationCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum OrchestrationAction {
-    /// Inspect, validate and edit portable workflow recipe catalogs.
-    Recipes(crate::cli_workflow_recipes::WorkflowRecipesArgs),
-    /// Prepare and inspect workflow plans; human decisions are desktop-only.
-    Plans(crate::cli_workflow_plans::WorkflowPlansArgs),
-    /// Prepare and inspect isolated workflow workspaces and attempts.
-    Workspaces(crate::cli_workflow_workspaces::WorkflowWorkspacesArgs),
-    /// Create, inspect, cancel, and start workflow proposals; never approves plans.
-    Proposals(crate::cli_workflow_plans::WorkflowProposalsArgs),
-    /// Inspect, start, pause, or correct the execution of a workflow run.
-    Execution(crate::cli_workflow_plans::WorkflowExecutionArgs),
-    /// Preview and run the cleanup of a workflow's retained workspaces.
-    Cleanup(crate::cli_workflow_plans::WorkflowCleanupArgs),
-    /// Create or select a worker terminal and dispatch once the agent is ready.
-    #[command(name = "agent-spawn")]
-    AgentSpawn(OrchestrationAgentSpawnArgs),
-    /// Create a task and spawn a declared profile to accept it.
-    Delegate(OrchestrationDelegateArgs),
+    /// Create a task and start a declared profile on it, or hand it to an
+    /// existing terminal with --terminal.
+    Delegate(Box<OrchestrationDelegateArgs>),
+    /// Create, inspect, control, and clean up runs.
+    #[command(subcommand)]
+    Run(RunAction),
+    /// Read a run's planning context, propose its plan, or show a plan.
+    #[command(subcommand)]
+    Plan(PlanAction),
+    /// List, show, resolve, or create gates.
+    #[command(subcommand)]
+    Gate(GateAction),
+    /// Read the active dispatch context for this terminal. The first worker
+    /// command also accepts the dispatch.
+    Context,
+    /// Record the active dispatch's result, exactly once. Only --summary is required.
+    Complete(OrchestrationCompleteArgs),
+    /// Report a blocker through the active dispatch context.
+    Escalate(OrchestrationEscalateArgs),
+    /// Ask another agent a question and wait for the answer.
+    Ask(OrchestrationAskArgs),
+    /// Reply to a message or question by id.
+    Reply(OrchestrationReplyArgs),
     /// Send a message to a terminal handle or @group address.
     Send(OrchestrationSendArgs),
     /// Read messages for a terminal (unread by default; marks them read).
     Check(OrchestrationCheckArgs),
-    /// Reply to a message by id.
-    Reply(OrchestrationReplyArgs),
-    /// List recent messages across all recipients.
-    Inbox(OrchestrationInboxArgs),
-    /// Ask another agent a question and block until it answers.
-    Ask(OrchestrationAskArgs),
-    /// Create a task in the orchestration DAG.
-    TaskCreate(OrchestrationTaskCreateArgs),
-    /// List tasks, optionally filtered by status.
-    TaskList(OrchestrationTaskListArgs),
-    /// Show one task with its active dispatch.
-    TaskShow(OrchestrationTaskIdArgs),
-    /// Wait until a task reaches one of the requested states.
-    TaskWait(OrchestrationTaskWaitArgs),
-    /// Cancel a task and its not-yet-started descendants.
-    TaskCancel(OrchestrationTaskCancelArgs),
-    /// Resolve a stalled task through an audited administrative action.
-    TaskRecover(OrchestrationTaskRecoverArgs),
+    /// List recent messages across all recipients, or one terminal's.
+    Messages(OrchestrationMessagesArgs),
+    /// Show, wait for, cancel, or recover a task.
+    #[command(subcommand)]
+    Task(TaskAction),
     /// Transfer task or run coordinator ownership.
     #[command(name = "transfer-coordinator")]
     TransferCoordinator(OrchestrationTransferCoordinatorArgs),
-    /// Dispatch a ready task to a terminal.
-    Dispatch(OrchestrationDispatchArgs),
-    /// Show the dispatch state and preamble for a task.
-    DispatchShow(OrchestrationDispatchShowArgs),
-    /// Accept the active dispatch installed for this worker terminal.
-    DispatchAccept,
-    /// Interrupt an active worker turn without terminating the terminal.
-    DispatchInterrupt(OrchestrationDispatchInterruptArgs),
-    /// Inspect the active dispatch context for this terminal.
-    Context,
-    /// Record semantic worker activity for the active dispatch.
-    Heartbeat(OrchestrationHeartbeatArgs),
-    /// Escalate a blocker through the active dispatch context.
-    Escalate(OrchestrationEscalateArgs),
-    /// Atomically complete the active dispatch.
-    Complete(OrchestrationCompleteArgs),
-    /// Idempotent explicit completion for recovery and automation.
-    #[command(name = "worker-done")]
-    WorkerDone(OrchestrationWorkerDoneArgs),
-    /// Print the compact worker lifecycle command reference.
-    #[command(name = "worker-help")]
-    WorkerHelp,
-    /// Create a decision gate that blocks a task until resolved.
-    #[command(name = "gate-create")]
-    GateCreate(OrchestrationGateCreateArgs),
-    /// Resolve a pending decision gate.
-    #[command(name = "gate-resolve")]
-    GateResolve(OrchestrationGateResolveArgs),
-    /// List decision gates.
-    #[command(name = "gate-list")]
-    GateList(OrchestrationGateListArgs),
-    /// List the user-declared agent profiles available for dispatch.
+    /// Show a task's dispatch or interrupt a worker turn.
+    #[command(subcommand)]
+    Dispatch(DispatchAction),
+    /// List, show, wait for, or prune terminals.
+    #[command(subcommand)]
+    Terminal(OrchestrationTerminalAction),
+    /// List the user-declared agent profiles available for delegation.
     #[command(name = "agent-profiles")]
     AgentProfiles,
-    /// Propose a stage plan for a run. Holds scheduling until it is resolved.
-    #[command(name = "run-policy-propose")]
-    RunPolicyPropose(OrchestrationRunPolicyProposeArgs),
-    /// Show a run's execution policy and its approval state.
-    #[command(name = "run-policy-show")]
-    RunPolicyShow(OrchestrationRunPolicyShowArgs),
-    /// Approve a proposed execution policy so the run may schedule.
-    #[command(name = "run-policy-approve")]
-    RunPolicyApprove(OrchestrationRunPolicyShowArgs),
-    /// Reject a proposed execution policy.
-    #[command(name = "run-policy-reject")]
-    RunPolicyReject(OrchestrationRunPolicyRejectArgs),
-    /// Start the background coordinator loop.
-    Run(OrchestrationRunArgs),
-    /// List durable coordinator runs.
-    RunList(OrchestrationRunListArgs),
-    /// Show a coordinator run.
-    RunShow(OrchestrationRunIdArgs),
-    /// Aggregate run, task, worker, and escalation state.
-    Status(OrchestrationRunIdArgs),
-    /// Stop the active coordinator loop.
-    RunStop(OrchestrationRunStopArgs),
-    /// Read one page of the run board, with runs grouped by attention, active, or history.
-    Board(OrchestrationBoardArgs),
-    /// Read a coordinator run with a page of its tasks.
-    RunSnapshot(OrchestrationRunSnapshotArgs),
-    /// Read one task of a run with its dispatch history.
-    TaskInspect(OrchestrationTaskInspectArgs),
-    /// List live terminals with agent presence.
-    #[command(name = "terminal-list")]
-    TerminalList(OrchestrationTerminalListArgs),
-    /// Show one terminal with explicit startup and agent state.
-    #[command(name = "terminal-show")]
-    TerminalShow(OrchestrationTerminalShowArgs),
-    /// Wait for a terminal lifecycle state without caller-side polling.
-    #[command(name = "terminal-wait")]
-    TerminalWait(OrchestrationTerminalWaitArgs),
-    /// List or remove stopped terminal sessions.
-    #[command(name = "terminal-prune")]
-    TerminalPrune(OrchestrationTerminalPruneArgs),
     /// Show the workspace and terminal inferred from this environment.
     Current,
     /// Clear orchestration state (default: everything).
     Reset(OrchestrationResetArgs),
+    /// Inspect, validate, and save portable run recipes.
+    #[command(subcommand)]
+    Recipe(crate::cli_run_recipes::RecipeAction),
+}
+
+#[derive(Debug, Subcommand)]
+pub enum OrchestrationTerminalAction {
+    /// List live terminals with agent presence.
+    List(OrchestrationTerminalListArgs),
+    /// Show one terminal with explicit startup and agent state.
+    Show(OrchestrationTerminalShowArgs),
+    /// Wait for a terminal lifecycle state without caller-side polling.
+    Wait(OrchestrationTerminalWaitArgs),
+    /// List or remove stopped terminal sessions.
+    Prune(OrchestrationTerminalPruneArgs),
 }
 
 #[derive(Debug, Args)]
@@ -165,9 +109,14 @@ pub struct OrchestrationSendArgs {
     #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
     pub body_stdin: bool,
 
-    /// Message type: status|dispatch|merge_ready|escalation|handoff|decision_gate.
+    /// Message type: status|dispatch|merge_ready|escalation|handoff|decision_gate|question.
     #[arg(long = "type", value_name = "type")]
     pub message_type: Option<String>,
+
+    /// When the message may reach a working agent: now (if its agent queues
+    /// input mid-turn) or turn-end (default).
+    #[arg(long = "delivery", value_parser = ["now", "turn-end"])]
+    pub delivery: Option<String>,
 
     /// Priority: normal|high|urgent.
     #[arg(long = "priority", value_name = "level")]
@@ -251,7 +200,7 @@ pub struct OrchestrationReplyArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct OrchestrationInboxArgs {
+pub struct OrchestrationMessagesArgs {
     /// Restrict to one terminal handle.
     #[arg(long = "terminal", value_name = "handle")]
     pub terminal: Option<String>,
@@ -290,135 +239,11 @@ pub struct OrchestrationAskArgs {
     /// next turn, or read it with `alera inbox wait --question <id>`.
     #[arg(long = "no-wait")]
     pub no_wait: bool,
-}
 
-#[derive(Debug, Args)]
-pub struct OrchestrationTaskCreateArgs {
-    #[command(flatten)]
-    pub spec: crate::cli::SpecSourceArgs,
-
-    /// Short title for listings.
-    #[arg(long = "task-title", value_name = "text")]
-    pub task_title: Option<String>,
-
-    /// JSON array of task ids this task depends on.
-    #[arg(long = "deps", value_name = "json_array")]
-    pub deps: Option<String>,
-
-    /// Parent task id.
-    #[arg(long = "parent", value_name = "task_id")]
-    pub parent: Option<String>,
-
-    /// Workspace that owns the task.
-    #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: Option<String>,
-
-    /// Coordinator run for a coordinated task.
-    #[arg(long = "run", value_name = "run_id")]
-    pub run: Option<String>,
-
-    /// Execution-policy stage this task belongs to. Must be declared by the
-    /// run's policy, which is what resolves the profile and fallbacks.
-    #[arg(long = "stage", value_name = "stage_id")]
-    pub stage: Option<String>,
-
-    /// Coordinator terminal for a manual task. Defaults to ALERA_TERMINAL_HANDLE.
-    #[arg(long = "coordinator", value_name = "handle")]
-    pub coordinator: Option<String>,
-
-    /// Optional JSON Schema applied to structured completion results.
-    #[arg(long = "result-schema", value_name = "json")]
-    pub result_schema: Option<String>,
-    /// Portable version 1 role contract JSON. Requires concrete inputs.
-    #[arg(
-        long,
-        value_name = "json",
-        requires = "contract_inputs",
-        conflicts_with = "result_schema"
-    )]
-    pub role_contract: Option<String>,
-    /// Concrete JSON inputs to freeze with the role contract.
-    #[arg(long, value_name = "json", requires = "role_contract")]
-    pub contract_inputs: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTaskListArgs {
-    /// Filter by status: pending|ready|dispatched|completed|failed|blocked.
-    #[arg(long = "status", value_name = "status", conflicts_with = "ready")]
-    pub status: Option<String>,
-
-    /// Shorthand for --status ready.
-    #[arg(long = "ready")]
-    pub ready: bool,
-    #[arg(long = "run", value_name = "run_id")]
-    pub run: Option<String>,
-    #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTaskIdArgs {
-    #[arg(long = "id", value_name = "task_id")]
-    pub id: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTaskWaitArgs {
-    #[arg(long = "task", value_name = "task_id")]
-    pub task: String,
-    #[arg(
-        long = "for",
-        value_name = "status_csv",
-        default_value = "completed,failed,stalled,cancelled"
-    )]
-    pub targets: String,
-    #[arg(long = "timeout-ms", default_value_t = 120_000, value_parser = parse_wait_timeout_ms)]
-    pub timeout_ms: u64,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTaskCancelArgs {
-    #[arg(long = "id", value_name = "task_id")]
-    pub id: String,
-    #[arg(long, value_name = "text")]
-    pub reason: String,
-    /// Bypass coordinator ownership for audited administrative recovery.
-    #[arg(long)]
-    pub force: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTaskRecoverArgs {
-    #[arg(long = "id", value_name = "task_id")]
-    pub id: String,
-    #[arg(long, value_parser = ["ready", "failed", "cancelled"])]
-    pub status: String,
-    #[arg(long)]
-    pub reason: String,
-    /// Bypass coordinator ownership for audited administrative recovery.
-    #[arg(long)]
-    pub force: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTransferCoordinatorArgs {
-    #[arg(long, conflicts_with = "run", required_unless_present = "run")]
-    pub task: Option<String>,
-    #[arg(long, conflicts_with = "task", required_unless_present = "task")]
-    pub run: Option<String>,
-    #[arg(long = "to")]
-    pub to: String,
-    #[arg(long)]
-    pub reason: String,
-    #[arg(long)]
-    pub force: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationHeartbeatArgs {
-    #[arg(long, value_name = "text")]
-    pub phase: Option<String>,
+    /// When the question reaches a working agent: now (default; pasted at once
+    /// when its agent queues input mid-turn) or turn-end.
+    #[arg(long = "delivery", value_parser = ["now", "turn-end"])]
+    pub delivery: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -435,130 +260,24 @@ pub struct OrchestrationEscalateArgs {
 
 #[derive(Debug, Args)]
 pub struct OrchestrationCompleteArgs {
+    /// What was completed and what remains.
     #[arg(long, value_name = "text")]
     pub summary: String,
-    #[arg(long = "completion-kind", default_value = "success", value_parser = ["success", "failure"])]
-    pub completion_kind: String,
+    /// success (the default) or failure.
+    #[arg(long = "kind", value_parser = ["success", "failure"])]
+    pub kind: Option<String>,
+    /// JSON array of artifacts, when the task's contract asks for them.
     #[arg(long = "artifacts", value_name = "json")]
     pub artifacts: Option<String>,
-    #[arg(long = "files-modified", value_name = "csv")]
-    pub files_modified: Option<String>,
+    /// Comma-separated paths of the files the task changed.
+    #[arg(long = "files", value_name = "csv")]
+    pub files: Option<String>,
+    /// JSON array of validation results, when the task's contract asks for them.
     #[arg(long = "validation", value_name = "json")]
     pub validation: Option<String>,
     /// Additional JSON object fields required by the task result schema.
     #[arg(long = "result-extra", value_name = "json_object")]
     pub result_extra: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationWorkerDoneArgs {
-    #[arg(long = "task")]
-    pub task: String,
-    #[arg(long = "dispatch")]
-    pub dispatch: String,
-    #[arg(long)]
-    pub summary: String,
-    /// Additional JSON object fields required by the task result schema.
-    #[arg(long = "result-extra", value_name = "json_object")]
-    pub result_extra: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationDispatchArgs {
-    /// Task id to dispatch (must be ready).
-    #[arg(long = "task", value_name = "task_id")]
-    pub task: String,
-
-    /// Target terminal handle.
-    #[arg(long = "to", value_name = "handle")]
-    pub to: String,
-
-    /// Coordinator handle embedded in the preamble. Defaults to ALERA_TERMINAL_HANDLE.
-    #[arg(long = "from", value_name = "handle")]
-    pub from: Option<String>,
-
-    /// Inject the preamble into the target terminal (requires a running agent).
-    #[arg(long = "inject")]
-    pub inject: bool,
-
-    /// Audited manual override when hooks cannot report an already-running agent.
-    #[arg(long = "assume-agent", value_name = "agent_type", requires = "inject")]
-    pub assume_agent: Option<String>,
-
-    /// Build the preamble without mutating any state.
-    #[arg(long = "dry-run")]
-    pub dry_run: bool,
-
-    /// Include the full preamble text in the response.
-    #[arg(long = "return-preamble")]
-    pub return_preamble: bool,
-
-    /// Allow a deliberate coordinator-to-self protocol test.
-    #[arg(long = "allow-self-dispatch")]
-    pub allow_self_dispatch: bool,
-
-    /// Worker completion acknowledgement policy.
-    #[arg(long = "completion-policy", default_value = "return-immediately", value_parser = ["return-immediately"])]
-    pub completion_policy: String,
-
-    /// Terminal lifecycle after successful completion.
-    #[arg(long = "terminal-policy", default_value = "keep-open", value_parser = ["keep-open", "close-on-success", "return-to-shell"])]
-    pub terminal_policy: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationDispatchShowArgs {
-    /// Task id to inspect.
-    #[arg(long = "task", value_name = "task_id")]
-    pub task: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationDispatchInterruptArgs {
-    #[arg(long = "id", value_name = "dispatch_id")]
-    pub id: String,
-    #[arg(long)]
-    pub reason: String,
-    /// Bypass coordinator ownership for an audited administrative interrupt.
-    #[arg(long)]
-    pub force: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationGateCreateArgs {
-    /// Task id the gate blocks.
-    #[arg(long = "task", value_name = "task_id")]
-    pub task: String,
-
-    /// The question for the human/coordinator.
-    #[arg(long = "question", value_name = "text")]
-    pub question: String,
-
-    /// JSON array of options.
-    #[arg(long = "options", value_name = "json_array")]
-    pub options: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationGateResolveArgs {
-    /// Gate id.
-    #[arg(long = "id", value_name = "gate_id")]
-    pub id: String,
-
-    /// The resolution text fed into the next dispatch preamble.
-    #[arg(long = "resolution", value_name = "text")]
-    pub resolution: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationGateListArgs {
-    /// Filter by task id.
-    #[arg(long = "task", value_name = "task_id")]
-    pub task: Option<String>,
-
-    /// Filter by status: pending|resolved|timeout.
-    #[arg(long = "status", value_name = "status")]
-    pub status: Option<String>,
 }
 
 #[derive(Debug, Args)]

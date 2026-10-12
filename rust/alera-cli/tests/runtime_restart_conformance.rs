@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 
 struct HostGuard(Child);
 

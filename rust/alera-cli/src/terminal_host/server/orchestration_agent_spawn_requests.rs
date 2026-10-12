@@ -153,7 +153,7 @@ impl ServerActor {
         let workspace_id = require_string(payload, "workspace")?;
         let task_id = require_string(payload, "task")?;
         self.runtime_store
-            .ensure_legacy_workflow_dispatch_allowed(&task_id)
+            .ensure_terminal_dispatch_allowed(&task_id)
             .await
             .map_err(state_error)?;
         let from = require_string(payload, "from")?;
@@ -190,7 +190,6 @@ impl ServerActor {
                     "from": from,
                     "inject": true,
                     "forceSubmit": adapter.force_submit,
-                    "completionPolicy": "return-immediately",
                     "terminalPolicy": "keep-open",
                     "agentProfile": resolved.profile_name,
                     "agentQuotaGroup": resolved.quota_group,
@@ -229,7 +228,6 @@ impl ServerActor {
                 "to": id,
                 "from": from,
                 "inject": false,
-                "completionPolicy": "return-immediately",
                 "terminalPolicy": "keep-open",
                 "agentProfile": resolved.profile_name,
                 "agentQuotaGroup": resolved.quota_group,
@@ -283,6 +281,13 @@ impl ServerActor {
             tab_payload["initialManagedAgentLaunch"] = json!(resolved.managed_launch);
             tab_payload["agentType"] = json!(agent_type);
         }
+        if let Some(run_id) = task.run_id.as_deref() {
+            super::tab_compatibility::stamp_run_tab_payload(
+                &mut tab_payload,
+                run_id,
+                Some(&task.id),
+            );
+        }
         let tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
@@ -316,7 +321,6 @@ impl ServerActor {
             "coordinatorHandle": task.coordinator_handle,
             "assigneeHandle": id,
             "startupState": "terminal_started",
-            "acceptanceState": "awaiting_acceptance",
         });
         if let Some(dispatch) = dispatch_response.take() {
             response["dispatch"] = dispatch["dispatch"].clone();

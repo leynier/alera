@@ -1,5 +1,5 @@
 use crate::terminal_host::protocol::{
-    ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS, ORCHESTRATION_MAX_WAIT_TIMEOUT_MS,
+    ORCHESTRATION_MAX_WAIT_TIMEOUT_MS, ORCHESTRATION_STARTUP_DEADLINE_MS,
 };
 
 /// Parse-time validation for the `--timeout-ms` flags.
@@ -20,9 +20,9 @@ fn parse_timeout_ms(value: &str, ceiling: u64) -> Result<u64, String> {
     Ok(timeout)
 }
 
-/// Bounded by how long the host will wait for a spawned agent to accept.
+/// Bounded by the host's startup deadline for a spawned agent.
 pub(crate) fn parse_agent_spawn_timeout_ms(value: &str) -> Result<u64, String> {
-    parse_timeout_ms(value, ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS)
+    parse_timeout_ms(value, ORCHESTRATION_STARTUP_DEADLINE_MS)
 }
 
 /// Bounded by how long the host will hold a parked wait open.
@@ -35,17 +35,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn agent_spawn_timeout_respects_host_acceptance_limit() {
+    fn agent_spawn_timeout_respects_the_host_startup_deadline() {
         assert_eq!(parse_agent_spawn_timeout_ms("1").unwrap(), 1);
         assert_eq!(
-            parse_agent_spawn_timeout_ms(&ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS.to_string()).unwrap(),
-            ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS
+            parse_agent_spawn_timeout_ms(&ORCHESTRATION_STARTUP_DEADLINE_MS.to_string()).unwrap(),
+            ORCHESTRATION_STARTUP_DEADLINE_MS
         );
         assert!(parse_agent_spawn_timeout_ms("0").is_err());
-        assert!(parse_agent_spawn_timeout_ms(
-            &(ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS + 1).to_string()
-        )
-        .is_err());
+        assert!(
+            parse_agent_spawn_timeout_ms(&(ORCHESTRATION_STARTUP_DEADLINE_MS + 1).to_string())
+                .is_err()
+        );
     }
 
     #[test]

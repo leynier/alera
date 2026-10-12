@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_terminal_observation.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -49,8 +49,8 @@ extension type const AutomationActions(WidgetRef ref) {
       AleraToast.publish(message: message, tone: tone);
       if (run.id.isNotEmpty) {
         ref
-            .read(automationsNavigationProvider.notifier)
-            .selectRun(automation.id, run.id);
+            .read(activityNavigationProvider.notifier)
+            .selectAutomationRun(automation.id, run.id);
       }
       return run;
     } catch (error) {
@@ -139,7 +139,7 @@ extension type const AutomationActions(WidgetRef ref) {
       return;
     }
     final controller = ref.read(workbenchControllerProvider.notifier);
-    ref.read(automationsNavigationProvider.notifier).close();
+    ref.read(activityNavigationProvider.notifier).close();
     await controller.selectWorkspace(project: project, workspace: workspace);
     await controller.selectWorkspaceTab(
       workspaceId: workspace.id,
@@ -163,7 +163,7 @@ extension type const AutomationActions(WidgetRef ref) {
       );
       return;
     }
-    ref.read(automationsNavigationProvider.notifier).close();
+    ref.read(activityNavigationProvider.notifier).close();
     await ref
         .read(workbenchControllerProvider.notifier)
         .selectWorkspace(project: project, workspace: workspace);

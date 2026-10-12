@@ -100,7 +100,7 @@ void _registerAleraShellSidebarTitleTests() {
     expect((entry.leading! as Icon).size, 16);
   });
 
-  testWidgets('Ask Agent opens the inbox composer for that terminal', (
+  testWidgets('Ask Agent opens Activity at Questions with the composer', (
     tester,
   ) async {
     final inbox = InboxTestClient()
@@ -176,13 +176,100 @@ void _registerAleraShellSidebarTitleTests() {
     expect(find.text('Regenerate Title'), findsNothing);
     await tester.tap(find.text('Ask Agent'));
     await tester.pumpAndSettle();
-    expect(find.byType(InboxComposerDialog), findsOneWidget);
+    expect(find.byType(AskAgentDialog), findsOneWidget);
     expect(
-      tester
-          .widget<InboxComposerDialog>(find.byType(InboxComposerDialog))
-          .initialTarget,
+      tester.widget<AskAgentDialog>(find.byType(AskAgentDialog)).initialTarget,
       'session-7',
     );
     expect(find.textContaining('Terminal 2'), findsWidgets);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AleraShellPage)),
+    );
+    final location = container.read(activityNavigationProvider);
+    expect(location.visible, isTrue);
+    expect(location.section, ActivitySection.questions);
+    expect(find.byType(ActivityPage), findsOneWidget);
+    expect(
+      container.read(workbenchControllerProvider).activeWorkspaceId,
+      _stackedWorkbenchState().activeWorkspaceId,
+    );
+  });
+  testWidgets('View Run on a run terminal opens Activity at that run', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _stackedWorkbenchState().copyWith(
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          'workspace-1': <WorkspaceTabRecord>[
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              title: 'Terminal 1',
+              createdAt: DateTime.utc(2026, 5, 22),
+              updatedAt: DateTime.utc(2026, 5, 22),
+            ),
+            WorkspaceTabRecord(
+              id: 'tab-2',
+              workspaceId: 'workspace-1',
+              title: 'Worker',
+              createdAt: DateTime.utc(2026, 5, 22),
+              updatedAt: DateTime.utc(2026, 5, 22),
+              payload: const <String, Object?>{
+                'terminalSessionId': 'session-7',
+                'runId': 'run-1',
+                'runTaskId': 'task-2',
+              },
+            ),
+          ],
+        },
+      ),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: .waiting,
+          lastAssistantMessage: 'Plain agent',
+        ),
+        'session-7': _agentStatusEntry(
+          terminalSessionId: 'session-7',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-2',
+          state: .waiting,
+          lastAssistantMessage: 'Run worker',
+        ),
+      },
+    );
+    await tester.tap(find.byTooltip('Show Agent Runs'));
+    await tester.pumpAndSettle();
+    Future<void> openMenu(String label) async {
+      await tester.tapAt(
+        tester.getCenter(
+          find.descendant(
+            of: find.byType(ProjectWorkbenchSidebar),
+            matching: find.text(label),
+          ),
+        ),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await openMenu('Plain agent');
+    expect(find.text('View Run'), findsNothing);
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+    await openMenu('Run worker');
+    await tester.tap(find.text('View Run'));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AleraShellPage)),
+    );
+    final location = container.read(activityNavigationProvider);
+    expect(location.visible, isTrue);
+    expect(location.section, ActivitySection.runs);
+    expect(location.runs.runId, 'run-1');
+    expect(find.byType(ActivityPage), findsOneWidget);
   });
 }

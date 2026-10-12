@@ -4,15 +4,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Run Board is global and has no default shortcut on any platform', () {
+  test('Activity is global and opens with Mod+Shift+A on every platform', () {
     final action = keybindingDefinitions.singleWhere(
-      (item) => item.id == KeyboardActionId.openRunBoard,
+      (item) => item.id == KeyboardActionId.openActivity,
     );
+    expect(action.label, 'Open Activity');
     expect(action.group, KeyboardActionGroup.global);
     expect(action.allowInTerminal, isTrue);
     for (final platform in KeyboardPlatform.values) {
-      expect(action.defaultBindings.forPlatform(platform), isEmpty);
+      expect(action.defaultBindings.forPlatform(platform), <String>[
+        'Mod+Shift+A',
+      ]);
     }
+    expect(
+      KeyboardActionId.values.map((id) => id.name),
+      isNot(anyOf(contains('openRunBoard'), contains('openAutomations'))),
+    );
   });
   tearDown(() {
     debugDefaultTargetPlatformOverride = null;

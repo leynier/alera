@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
-import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
-import 'package:alera/src/features/orchestration/infra/runtime_run_board_repository.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/runs/domain/run_error_messages.dart';
+import 'package:alera/src/features/runs/domain/run_summary.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -12,63 +12,59 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
 
-import '../test/support/run_board_fixtures.dart';
-import '../test/support/run_board_widget_harness.dart';
+import '../test/support/runs_fake_repository.dart';
+import '../test/support/runs_harness.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('native Run Board preserves workspace, inspection and recovery', (
+  testWidgets('native Runs preserves workspace, inspection and recovery', (
     tester,
   ) async {
     await windowManager.ensureInitialized();
     await windowManager.setMinimumSize(Size.zero);
-    final repository = BoardTestRepository();
-    final container = boardContainer(repository);
+    final repository = FakeRunRepository();
+    final container = runsContainer(repository);
     addTearDown(container.dispose);
     addTearDown(repository.dispose);
-    final navigation = container.read(runBoardNavigationProvider.notifier)
+    final navigation = container.read(activityNavigationProvider.notifier)
       ..open();
     final captureKey = GlobalKey();
     await windowManager.setSize(const Size(1100, 800));
     await tester.pumpWidget(
       RepaintBoundary(
         key: captureKey,
-        child: BoardTestApp(container: container),
+        child: RunsTestApp(container: container),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Deliver reviewed workflow plans'));
+    await tester.tap(find.text('Add OAuth login to the settings page'));
     await tester.pumpAndSettle();
     expect(
       container.read(workbenchControllerProvider).activeWorkspaceId,
       'ws-2',
     );
     await _capture(tester, captureKey, 'overview');
-    await tester.ensureVisible(find.text('Build the review surface'));
-    await tester.tap(find.text('Build the review surface'));
+    navigation.selectTask('task-2');
     await tester.pumpAndSettle();
     await _capture(tester, captureKey, 'inspector');
     await tester.drag(find.byType(ListView).last, const Offset(0, -600));
     await tester.pumpAndSettle();
     expect(
-      find.text(
-        'Worker-reported evidence. This is not an independent review or a human gate approval.',
-      ),
+      find.text('Worker-reported evidence is not an independent review.'),
       findsOneWidget,
     );
     await _capture(tester, captureKey, 'evidence');
     await tester.tap(find.text('Return to Workspace'));
     await tester.pumpAndSettle();
-    expect(repository.watchers, 0);
-    await tester.tap(find.text('Open Run Board'));
+    await tester.tap(find.text('Open Activity'));
     await tester.pumpAndSettle();
-    expect(container.read(runBoardNavigationProvider).taskId, 'task-2');
+    expect(container.read(activityNavigationProvider).runs.taskId, 'task-2');
     navigation.selectTask(null);
     await windowManager.setSize(const Size(420, 640));
     await tester.pumpWidget(
       RepaintBoundary(
         key: captureKey,
-        child: BoardTestApp(container: container, scale: 2),
+        child: RunsTestApp(container: container, scale: 2),
       ),
     );
     await tester.pumpAndSettle();
@@ -80,19 +76,15 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(
         key: captureKey,
-        child: BoardTestApp(container: container),
+        child: RunsTestApp(container: container),
       ),
     );
-    repository.board = RunBoardSnapshot(
-      revision: 2,
-      counts: const RunBoardCounts(attention: 0, active: 0, history: 0),
-      items: [],
-    );
-    repository.events.add(null);
+    repository.board = const RunBoardPage(revision: 2);
+    repository.changed();
     await tester.pumpAndSettle();
     await _capture(tester, captureKey, 'empty');
-    repository.error = const RunBoardUpdateRequired();
-    repository.events.add(null);
+    repository.error = const RunsUpdateRequired();
+    repository.changed();
     await tester.pumpAndSettle();
     expect(find.text('Update Required'), findsOneWidget);
     await _capture(tester, captureKey, 'update-required');
@@ -115,10 +107,7 @@ Future<void> _capture(WidgetTester tester, GlobalKey key, String name) async {
       final directory = await Directory(output).create(recursive: true);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       await File(
-        p.join(
-          directory.path,
-          'run-board-${Platform.operatingSystem}-$name.png',
-        ),
+        p.join(directory.path, 'runs-${Platform.operatingSystem}-$name.png'),
       ).writeAsBytes(bytes!.buffer.asUint8List());
     }
   } finally {

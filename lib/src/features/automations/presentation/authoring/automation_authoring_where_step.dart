@@ -6,7 +6,7 @@ import 'package:alera/src/features/automations/application/automation_authoring_
 import 'package:alera/src/features/automations/application/automation_project_checkouts.dart';
 import 'package:alera/src/features/automations/application/automation_target_context.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/authoring/automation_project_worktree_fields.dart';

@@ -87,12 +87,15 @@ mod orchestration_contract_schema;
 mod orchestration_contract_store;
 #[cfg(test)]
 mod orchestration_contract_store_tests;
+mod orchestration_dispatch_lease_store;
+mod orchestration_dispatch_outcome_store;
 mod orchestration_dispatch_store;
+mod orchestration_gate_store;
+#[cfg(test)]
+mod orchestration_gate_store_tests;
 mod orchestration_message_store;
 mod orchestration_models;
 mod orchestration_policy_store;
-#[cfg(test)]
-mod orchestration_policy_store_tests;
 #[cfg(test)]
 mod orchestration_profile_attempt_tests;
 mod orchestration_role_contract;
@@ -107,6 +110,7 @@ mod orchestration_stall_store;
 mod orchestration_stall_store_tests;
 #[cfg(test)]
 mod orchestration_store_tests;
+mod orchestration_task_cancellation;
 mod orchestration_task_inspection;
 #[cfg(test)]
 mod orchestration_task_inspection_tests;
@@ -135,6 +139,20 @@ mod remote_relocation_checkout_reservations;
 mod remote_workspace_relocation_commit;
 mod remote_workspace_relocation_receipts;
 mod remote_workspace_relocation_store;
+mod run_builtins;
+mod run_cancellation;
+mod run_catalog;
+mod run_catalog_store;
+#[cfg(test)]
+mod run_catalog_tests;
+mod run_cleanup;
+mod run_cleanup_abandon;
+mod run_cleanup_catalog;
+mod run_cleanup_claim;
+mod run_cleanup_status;
+#[cfg(test)]
+mod run_cleanup_tests;
+mod run_coordinator;
 mod runtime_file_security;
 mod runtime_schema;
 mod schema_migrations;
@@ -155,114 +173,104 @@ mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
 mod workbench_shared_state_store_tests;
-mod workflow_approval_store;
-mod workflow_builtins;
-mod workflow_cancellation;
-mod workflow_catalog;
-mod workflow_catalog_store;
-#[cfg(test)]
-mod workflow_catalog_tests;
-mod workflow_cleanup;
-mod workflow_cleanup_abandon;
-mod workflow_cleanup_catalog;
-mod workflow_cleanup_claim;
-mod workflow_cleanup_status;
-#[cfg(test)]
-mod workflow_cleanup_tests;
-mod workflow_coordinator;
-pub use workflow_cleanup::{WorkflowCleanupItem, WorkflowCleanupPreview};
-pub use workflow_cleanup_catalog::{
+pub use run_cleanup::{WorkflowCleanupItem, WorkflowCleanupPreview};
+pub use run_cleanup_catalog::{
     WorkflowCleanupPage, WorkflowCleanupQuery, WorkflowCleanupResource, WorkflowCleanupSummary,
 };
-pub use workflow_cleanup_claim::WorkflowCleanupClaim;
-pub use workflow_cleanup_status::{WorkflowCleanupState, WorkflowCleanupStatus};
-mod workflow_proposal_cancellation;
-pub use workflow_proposal_cancellation::WorkflowProposalCancellation;
-mod workflow_correction;
-mod workflow_correction_evidence;
+pub use run_cleanup_claim::WorkflowCleanupClaim;
+pub use run_cleanup_status::{WorkflowCleanupState, WorkflowCleanupStatus};
+mod run_execution;
+pub use run_cancellation::{WorkflowCancellationTarget, WorkflowTerminalShutdownState};
+mod run_execution_completion;
+mod run_execution_step;
 #[cfg(test)]
-mod workflow_correction_review_tests;
-pub use workflow_correction::{CreateWorkflowCorrection, WorkflowCorrectionContext};
+mod run_execution_step_tests;
+pub use run_execution_step::WorkflowExecutionStep;
+mod run_event_store;
 #[cfg(test)]
-mod workflow_coordinator_tests;
+mod run_event_store_tests;
+mod run_export;
 #[cfg(test)]
-mod workflow_correction_tests;
-mod workflow_execution;
-pub use workflow_cancellation::{WorkflowCancellationTarget, WorkflowTerminalShutdownState};
-mod workflow_run_controls;
+mod run_export_tests;
+mod run_gate_evidence;
+mod run_integration;
+mod run_integration_cancellation;
+mod run_integration_schema;
+mod run_integration_snapshot;
+mod run_integration_store;
 #[cfg(test)]
-mod workflow_run_controls_tests;
-pub use workflow_run_controls::{WorkflowRunControls, WorkflowStageControl};
-mod workflow_execution_completion;
-mod workflow_execution_step;
+mod run_integration_tests;
+mod run_integration_validation;
+mod run_json_escapes;
+mod run_launch;
+mod run_launch_schema;
+mod run_launch_store;
 #[cfg(test)]
-mod workflow_execution_step_tests;
-pub use workflow_execution_step::WorkflowExecutionStep;
-mod workflow_export;
+mod run_launch_tests;
+mod run_launch_transitions;
+mod run_launch_validation;
+mod run_plan;
 #[cfg(test)]
-mod workflow_export_tests;
-mod workflow_gate_evidence;
+mod run_plan_change_tests;
+mod run_plan_compilation;
+mod run_plan_gate_store;
+mod run_plan_materialization;
+mod run_plan_schema;
+mod run_plan_store;
 #[cfg(test)]
-mod workflow_gate_tests;
-mod workflow_integration;
-mod workflow_integration_cancellation;
-mod workflow_integration_schema;
-mod workflow_integration_snapshot;
-mod workflow_integration_store;
+mod run_plan_tests;
+mod run_project_files;
 #[cfg(test)]
-mod workflow_integration_tests;
-mod workflow_integration_validation;
-mod workflow_json_escapes;
-mod workflow_launch;
-mod workflow_launch_schema;
-mod workflow_launch_store;
+mod run_project_files_tests;
+mod run_recipe;
+mod run_recipe_compilation;
 #[cfg(test)]
-mod workflow_launch_tests;
-mod workflow_launch_transitions;
-mod workflow_launch_validation;
-mod workflow_plan;
-mod workflow_plan_compilation;
-mod workflow_plan_materialization;
-mod workflow_plan_schema;
-mod workflow_plan_store;
+mod run_recipe_tests;
+mod run_schema;
 #[cfg(test)]
-mod workflow_plan_tests;
-mod workflow_project_files;
+mod run_summary_links_tests;
+mod runs_v3_schema;
+mod store_runs_v3_reset;
 #[cfg(test)]
-mod workflow_project_files_tests;
-mod workflow_proposal;
-mod workflow_proposal_listing;
-mod workflow_proposal_store;
-#[cfg(test)]
-mod workflow_proposal_tests;
-mod workflow_recipe;
-mod workflow_recipe_compilation;
-#[cfg(test)]
-mod workflow_recipe_tests;
-mod workflow_review;
-#[cfg(test)]
-mod workflow_review_tests;
-mod workflow_schema;
-pub use workflow_execution::{
-    ControlWorkflowExecution, WorkflowExecutionAction, WorkflowExecutionState,
+mod store_runs_v3_reset_tests;
+pub use run_execution::WorkflowExecutionState;
+mod run_changes;
+mod run_control;
+pub use run_control::{RetryRunCancellation, RunControl, RunControlAction, RunControlReceipt};
+mod run_dispatch;
+mod run_gate_detail;
+pub use run_gate_detail::{RunGateDetail, RunGateEvidenceTask, RunGateFilter};
+mod run_gate_resolution;
+pub use run_gate_resolution::{ResolveRunGate, RunGate, RunGateResolution};
+mod run_lifecycle;
+pub use run_lifecycle::{CreateRun, RunCreated, FREEFORM_RECIPE_ID, RUN_STALL_POLICIES};
+mod run_plan_inputs;
+mod run_plan_proposal;
+pub use run_plan_proposal::RunPlanProposed;
+mod run_plan_view;
+pub use run_plan_view::{RunPlanStageView, RunPlanTaskView, RunPlanView};
+mod run_timeline;
+pub use run_timeline::{
+    RunTimelineEntry, RunTimelinePage, RunTimelineQuery, RUN_TIMELINE_BODY_MAX_BYTES,
+    RUN_TIMELINE_MAX_LIMIT,
 };
 #[cfg(test)]
-mod workflow_schema_tests;
-mod workflow_setup_report;
-mod workflow_source_identity;
-mod workflow_source_snapshot;
-mod workflow_workspace;
-mod workflow_workspace_eligibility;
-mod workflow_workspace_ownership;
-mod workflow_workspace_schema;
-mod workflow_workspace_snapshot;
-mod workflow_workspace_store;
+mod run_schema_tests;
+mod run_setup_report;
+mod run_source_identity;
+mod run_source_snapshot;
+mod run_workspace;
+mod run_workspace_eligibility;
+mod run_workspace_ownership;
+mod run_workspace_schema;
+mod run_workspace_snapshot;
+mod run_workspace_store;
 #[cfg(test)]
-mod workflow_workspace_tests;
-mod workflow_workspace_transitions;
-mod workflow_yaml;
+mod run_workspace_tests;
+mod run_workspace_transitions;
+mod run_yaml;
 #[cfg(test)]
-mod workflow_yaml_tests;
+mod run_yaml_tests;
 mod workspace_archive_store;
 #[cfg(test)]
 mod workspace_archive_store_tests;
@@ -316,19 +324,41 @@ pub use linked_issue_store::LinkedIssue;
 pub use models::*;
 pub use orchestration_board_models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
+pub use orchestration_gate_store::{
+    GateFilter, PLAN_GATE_APPROVE, PLAN_GATE_REJECT, PLAN_GATE_REQUEST_CHANGES, RUN_GATE_OPTIONS,
+    STALL_GATE_ABORT_STAGE, STALL_GATE_KEEP_WAITING, STALL_GATE_KILL_AND_FAILOVER,
+    STALL_GATE_OPTIONS, STALL_GATE_RESUMED,
+};
 pub use orchestration_message_store::{
     NewOrchestrationMessage, ORCHESTRATION_BODY_MAX_BYTES, ORCHESTRATION_HANDLE_MAX_BYTES,
-    ORCHESTRATION_LIFECYCLE_BODY_MAX_BYTES, ORCHESTRATION_PAYLOAD_MAX_BYTES,
-    ORCHESTRATION_SUBJECT_MAX_BYTES, ORCHESTRATION_THREAD_ID_MAX_BYTES,
+    ORCHESTRATION_PAYLOAD_MAX_BYTES, ORCHESTRATION_SUBJECT_MAX_BYTES,
+    ORCHESTRATION_THREAD_ID_MAX_BYTES,
 };
 pub use orchestration_models::*;
 pub use orchestration_role_contract::*;
 pub use orchestration_run_snapshot::*;
+pub use orchestration_run_store::NewRunPlan;
 pub use orchestration_task_inspection::*;
 pub use orchestration_task_store::NewOrchestrationTask;
 pub use project_clone_models::*;
 pub use prompt_workspace_operation_store::PromptWorkspaceOperationRecord;
 pub use pull_request_watch_store::{PullRequestWatch, PullRequestWatchDispatchMark};
+pub use run_builtins::builtin_workflow_recipes;
+pub use run_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
+pub use run_coordinator::*;
+pub use run_event_store::{
+    record_run_event, NewRunEvent, RunActorKind, RunEvent, RunEventKind,
+    RUN_EVENT_PAYLOAD_MAX_BYTES, RUN_EVENT_SUMMARY_MAX_BYTES,
+};
+pub use run_export::{WorkflowExportPreview, WorkflowExportRequest};
+pub use run_integration::*;
+pub use run_launch::*;
+pub use run_plan::*;
+pub use run_recipe::*;
+pub use run_source_snapshot::*;
+pub use run_workspace::*;
+pub use run_workspace_snapshot::*;
+pub use run_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};
 pub use runtime_event_store::{
     RuntimeEvent, RuntimeEventFilter, RuntimeEventPage, RUNTIME_EVENT_RETENTION_DAYS,
 };
@@ -340,22 +370,6 @@ pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
 pub use voice_home::*;
 pub use workbench_shared_state_models::*;
-pub use workflow_approval_store::WorkflowDecisionReceipt;
-pub use workflow_builtins::builtin_workflow_recipes;
-pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
-pub use workflow_coordinator::*;
-pub use workflow_export::{WorkflowExportPreview, WorkflowExportRequest};
-pub use workflow_integration::*;
-pub use workflow_launch::*;
-pub use workflow_plan::*;
-pub use workflow_proposal::*;
-pub use workflow_proposal_listing::*;
-pub use workflow_recipe::*;
-pub use workflow_review::*;
-pub use workflow_source_snapshot::*;
-pub use workflow_workspace::*;
-pub use workflow_workspace_snapshot::*;
-pub use workflow_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};
 pub use workspace_location_path::relocated_path as relocated_workspace_path;
 pub use workspace_relocation_models::*;
 pub use workspace_relocation_preparation::WorkspaceRelocationIntent;

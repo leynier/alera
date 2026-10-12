@@ -2,8 +2,9 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
-import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_run_sheet.dart';
+import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
+import 'package:alera_mobile/src/features/runs/presentation/activity_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,7 +39,13 @@ void main() {
     final client = FakeAutomationClient();
     addTearDown(client.dispose);
     await tester.pumpWidget(
-      _app(client, const AutomationsScreen(hostId: 'host')),
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.automations,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('Nightly Review'), findsOneWidget);
@@ -57,9 +64,10 @@ void main() {
     await tester.pumpWidget(
       _app(
         client,
-        const AutomationsScreen(
+        const ActivityScreen(
           hostId: 'host',
-          initialScope: AutomationScope(kind: .workspace, id: 'elsewhere'),
+          initialSection: ActivitySection.automations,
+          automationScope: AutomationScope(kind: .workspace, id: 'elsewhere'),
         ),
       ),
     );
@@ -78,10 +86,11 @@ void main() {
     await tester.pumpWidget(
       _app(
         client,
-        const AutomationsScreen(
+        const ActivityScreen(
           hostId: 'host',
-          initialScope: AutomationScope(kind: .workspace, id: 'ws-1'),
-          startAuthoring: true,
+          initialSection: ActivitySection.automations,
+          automationScope: AutomationScope(kind: .workspace, id: 'ws-1'),
+          startAutomationAuthoring: true,
         ),
       ),
     );

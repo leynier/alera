@@ -326,7 +326,8 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
 
 /// Prevents a writer that was validated before a concurrent profile removal
 /// from committing a new dangling reference after that removal. These run
-/// after every owning table (including orchestration tables) has been created.
+/// after every owning table has been created; the guard on run execution
+/// policies lives with the orchestration schema in `runs_v3_schema`.
 pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
     "CREATE TRIGGER IF NOT EXISTS workspaceTabsAgentProfileInsertGuard
      BEFORE INSERT ON workspaceTabs
@@ -431,25 +432,5 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
      WHEN NEW.key = 'settings.agents.defaultAgentProfileId'
        AND trim(NEW.value) <> ''
        AND NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = trim(NEW.value))
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS orchestrationPolicyProfileUpdateGuard
-     BEFORE UPDATE OF execution_policy, execution_policy_status, status
-     ON orchestrationCoordinatorRuns
-     WHEN NEW.execution_policy IS NOT NULL
-       AND NEW.status NOT IN ('completed', 'failed', 'stopped')
-       AND NEW.execution_policy_status IN ('draft', 'approved')
-       AND EXISTS (
-         SELECT 1 FROM json_each(json_extract(NEW.execution_policy, '$.stages')) AS stage
-         WHERE NOT EXISTS (
-           SELECT 1 FROM agentProfiles
-           WHERE name = json_extract(stage.value, '$.profile') COLLATE NOCASE
-         ) OR EXISTS (
-           SELECT 1 FROM json_each(json_extract(stage.value, '$.fallbacks')) AS fallback
-           WHERE NOT EXISTS (
-             SELECT 1 FROM agentProfiles
-             WHERE name = fallback.value COLLATE NOCASE
-           )
-         )
-       )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
 ];
