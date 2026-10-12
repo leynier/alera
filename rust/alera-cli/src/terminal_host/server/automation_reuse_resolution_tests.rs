@@ -36,7 +36,7 @@ fn assert_new_tab(plan: BoundTargetPlan, rebind: bool) {
             assert_eq!(profile_id, "profile-1");
             assert_eq!(rebind_tab, rebind);
         }
-        other => panic!("expected a new tab, got {other:?}"),
+        _ => panic!("expected a new tab"),
     }
 }
 
