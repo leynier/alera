@@ -47,8 +47,10 @@ pub(super) fn is_workspace_git_write(request_type: &str) -> bool {
             | "git.discard"
             | "git.discardArea"
             | "git.commit"
+            | "git.commitSelected"
             | "git.commitAmend"
             | "git.pull"
+            | "git.pullWithProgress"
             | "git.stash"
             | "git.stashPop"
             | "git.createAndCheckoutBranch"
@@ -66,6 +68,13 @@ pub(super) async fn handle_workspace_git_request(
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let path = git_path(&workspace, payload)?;
+    if matches!(
+        request_type,
+        "git.pushWithProgress" | "git.pullWithProgress" | "git.networkProgress"
+    ) {
+        return super::workspace_git_progress::handle(&workspace.id, &path, request_type, payload)
+            .await;
+    }
     let payload = payload.clone();
     let request_type = request_type.to_string();
     spawn_blocking_workspace("Workspace git request", move || {
@@ -77,6 +86,32 @@ pub(super) async fn handle_workspace_git_request(
 fn run_git_verb(request_type: &str, path: String, payload: &Value) -> HostResult<Value> {
     let file_path = optional_string_key(payload, "filePath");
     match request_type {
+        "git.workspaceDefaultBranch" => encode(sc::git_workspace_default_branch(path)),
+        "git.workspaceComparison" => encode(sc::git_workspace_comparison(
+            path,
+            optional_string_key(payload, "baseRef"),
+        )),
+        "git.workspaceComparisonDiff" => {
+            let snapshot = serde_json::from_value(payload["snapshot"].clone())
+                .map_err(|error| HostError::format(error.to_string()))?;
+            encode(sc::git_workspace_comparison_diff(
+                path,
+                snapshot,
+                require_string_key(payload, "filePath")?,
+            ))
+        }
+        "git.commitSelected" => {
+            let snapshot = serde_json::from_value(payload["snapshot"].clone())
+                .map_err(|error| HostError::format(error.to_string()))?;
+            let files = serde_json::from_value(payload["filePaths"].clone())
+                .map_err(|error| HostError::format(error.to_string()))?;
+            encode(sc::git_commit_selected(
+                path,
+                snapshot,
+                files,
+                require_string_key(payload, "message")?,
+            ))
+        }
         "git.isRepository" => encode(sc::is_git_repository(path)),
         "git.isAncestor" => encode(sc::is_ancestor(
             path,
@@ -251,7 +286,7 @@ fn hosted_review_range(path: &str, payload: &Value) -> HostResult<Value> {
     }))
 }
 
-fn encode<T: Serialize>(result: Result<T, GitError>) -> HostResult<Value> {
+pub(super) fn encode<T: Serialize>(result: Result<T, GitError>) -> HostResult<Value> {
     let value = result.map_err(git_conflict)?;
     serde_json::to_value(value)
         .map_err(|error| HostError::state(format!("Git result encoding failed: {error}")))
@@ -296,7 +331,7 @@ fn optional_u32(payload: &Value, key: &str) -> Option<u32> {
 /// The directory the verb runs in: the workspace root, or a directory inside
 /// it when the client set a Source Control root. Separators are compared
 /// component-wise so a Windows checkout accepts either slash.
-fn git_path(workspace: &Workspace, payload: &Value) -> HostResult<String> {
+pub(super) fn git_path(workspace: &Workspace, payload: &Value) -> HostResult<String> {
     let Some(requested) = optional_string_key(payload, "path") else {
         return Ok(workspace.path.clone());
     };

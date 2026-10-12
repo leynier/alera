@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
@@ -14,6 +16,24 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 /// (libgit2 for local operations, the `git` CLI for clone) through
 /// flutter_rust_bridge; tests use an in-memory fake.
 abstract interface class GitBackend {
+  Future<String> workspaceDefaultBranch(String path);
+
+  Future<GitWorkspaceComparison> workspaceComparison(
+    String path, {
+    String? baseRef,
+  });
+  Future<GitDiffResult> workspaceComparisonDiff(
+    String path,
+    GitWorkspaceComparison snapshot,
+    String filePath,
+  );
+  Future<String> commitSelected(
+    String path,
+    GitWorkspaceComparison snapshot,
+    List<String> filePaths,
+    String message,
+  );
+
   /// Whether [path] resolves to a git repository work tree.
   Future<bool> isGitRepository(String path);
 

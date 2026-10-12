@@ -5,6 +5,9 @@ class const _PullRequestReviewActions({
   required final HostedReviewStack? stack,
   required final List<ReviewMergeMethod> mergeMethods,
   required final bool canCloseReview,
+  required final bool mergeAllowed,
+  required final bool readyAllowed,
+  final String? actionHint,
   required final bool canChangeDraftStatus,
   required final PullRequestAction? action,
   required final Future<void> Function(ReviewMergeMethod method) onMerge,
@@ -62,8 +65,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
     final action = _action;
     final actions = _availableActions;
     final mergeEnabled =
-        review.state == HostedReviewState.open &&
-        review.mergeable != HostedReviewMergeable.conflicting;
+        review.state == HostedReviewState.open && widget.mergeAllowed;
     final primaryEnabled =
         !_busy &&
         switch (action) {
@@ -75,7 +77,8 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
             review.isOpen && widget.canCloseReview,
           _PullRequestReviewAction.markReady =>
             review.state == HostedReviewState.draft &&
-                widget.canChangeDraftStatus,
+                widget.canChangeDraftStatus &&
+                widget.readyAllowed,
           _PullRequestReviewAction.convertToDraft =>
             review.state == HostedReviewState.open &&
                 widget.canChangeDraftStatus,
@@ -102,7 +105,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       _PullRequestReviewAction.unlink =>
         widget.action == PullRequestAction.unlink,
     };
-    return _PullRequestActionButton(
+    final button = _PullRequestActionButton(
       action: action,
       actions: actions,
       busy: showProgress,
@@ -114,6 +117,9 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         setState(() => _selectedAction = selected);
       },
     );
+    return widget.actionHint == null
+        ? button
+        : Tooltip(message: widget.actionHint!, child: button);
   }
 
   String _actionLabel(_PullRequestReviewAction action) {
@@ -158,26 +164,14 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
   }
 
   Future<void> _confirmMerge(ReviewMergeMethod method) async {
-    final stack = widget.stack;
-    final affected = stack
-        ?.entriesThrough(widget.review.number)
-        .where((entry) => entry.review.state != HostedReviewState.merged)
-        .length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AleraConfirmDialog(
-        title: stack == null
-            ? '${method.label} PR #${widget.review.number}?'
-            : '${method.label} Stack Through #${widget.review.number}?',
-        message: stack == null
-            ? 'This will update the pull request on '
-                  '${widget.review.provider.label}.'
-            : 'This will merge $affected pull ${affected == 1 ? 'request' : 'requests'} atomically through #${widget.review.number}. Pull requests above it will remain open.',
-        confirmLabel: stack == null ? method.label : '${method.label} Stack',
-      ),
-    );
-    if (confirmed == true) {
-      await widget.onMerge(method);
+    final onMerge = widget.onMerge;
+    if (await confirmPullRequestMerge(
+      context,
+      review: widget.review,
+      stack: widget.stack,
+      method: method,
+    )) {
+      await onMerge(method);
     }
   }
 
@@ -223,21 +217,13 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
   }
 
   Future<void> _confirmDraftStatus({required bool draft}) async {
-    final label = draft ? 'Convert To Draft' : 'Mark Ready For Review';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AleraConfirmDialog(
-        title: '$label PR #${widget.review.number}?',
-        message: draft
-            ? 'This will convert the pull request to draft on '
-                  '${widget.review.provider.label}.'
-            : 'This will mark the pull request as ready for review on '
-                  '${widget.review.provider.label}.',
-        confirmLabel: label,
-      ),
-    );
-    if (confirmed == true) {
-      await widget.onDraftStatusChanged(draft);
+    final onChanged = widget.onDraftStatusChanged;
+    if (await confirmPullRequestDraftStatus(
+      context,
+      review: widget.review,
+      draft: draft,
+    )) {
+      await onChanged(draft);
     }
   }
 }

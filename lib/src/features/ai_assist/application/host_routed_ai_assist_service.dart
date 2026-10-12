@@ -52,10 +52,19 @@ class HostRoutedAiAssistService implements AiAssistService {
     _operations[key] = operationId;
     _canceled.remove(key);
     try {
+      request.onStarted?.call();
       await beforeAccess?.call();
+      if (_canceled.contains(key)) throw const AiAssistCanceledException();
       final value = await client.runtimeRequest(verb, <String, Object?>{
         'operationId': operationId,
         'workspaceId': workspaceId,
+        if (request.commitContext != null) 'path': request.workspacePath,
+        if (request.commitContext case final context?)
+          'commitContext': {
+            'branch': context.branch,
+            'stagedSummary': context.stagedSummary,
+            'stagedPatch': context.stagedPatch,
+          },
         if (request.operation == AiAssistOperation.pullRequestDetails)
           'baseBranch': request.baseBranch?.trim() ?? '',
       }, Duration(seconds: request.settings.timeoutSeconds) + _requestMargin);

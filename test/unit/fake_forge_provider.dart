@@ -1,4 +1,6 @@
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
+import 'package:alera/src/features/pull_requests/application/forge_review_action_access_provider.dart';
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
@@ -16,7 +18,18 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 
 /// Configurable in-memory [ForgeProvider] shared by the pull-request
 /// controller suites.
-class FakeForgeProvider implements ForgeProvider {
+class FakeForgeProvider
+    implements ForgeProvider, ForgeReviewActionAccessProvider {
+  ReviewActionAccess actionAccess = const ReviewActionAccess(
+    canMerge: true,
+    canMarkReady: true,
+  );
+  @override
+  Future<ReviewActionAccess> reviewActionAccess({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required HostedReview review,
+  }) async => actionAccess;
   GitHostingProvider provider = .github;
   ForgeAuthStatus auth = .authenticated;
   HostedReview? branchReview;
@@ -322,6 +335,7 @@ class FakeForgeProvider implements ForgeProvider {
 
 /// In-memory [LinkedReviewRepository] keyed by workspace id.
 class FakeLinkedReviewRepository implements LinkedReviewRepository {
+  Object? saveError;
   final Map<String, LinkedReview> store = <String, LinkedReview>{};
 
   @override
@@ -334,6 +348,7 @@ class FakeLinkedReviewRepository implements LinkedReviewRepository {
 
   @override
   Future<void> save(LinkedReview review) async {
+    if (saveError != null) throw saveError!;
     store[review.workspaceId] = review;
   }
 

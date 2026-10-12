@@ -77,6 +77,8 @@ pub fn write_control_file(
         "port": port,
         "token": token,
         "runtimeCapabilities": [
+            "workspaceDetailsV1",
+            "gitOperationsProgressV1",
             super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
             super::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
             super::protocol::RUNTIME_HOST_REMOTE_AUTOMATION_CLEANUP_CAPABILITY,
@@ -228,6 +230,8 @@ mod tests {
         assert_eq!(
             value["runtimeCapabilities"],
             json!([
+                "workspaceDetailsV1",
+                "gitOperationsProgressV1",
                 super::super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
                 super::super::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY,
                 super::super::protocol::RUNTIME_HOST_REMOTE_AUTOMATION_CLEANUP_CAPABILITY,

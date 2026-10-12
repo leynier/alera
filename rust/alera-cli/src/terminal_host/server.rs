@@ -341,6 +341,7 @@ mod workspace_archive_requests;
 mod workspace_blocking;
 mod workspace_file_mutation_requests;
 mod workspace_focus_requests;
+mod workspace_git_progress;
 mod workspace_git_requests;
 mod workspace_handoff_relocate;
 mod workspace_main_tabs;

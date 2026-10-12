@@ -1,3 +1,6 @@
+import 'package:alera/src/shared/infra/git/git_network_progress.dart';
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'dart:typed_data';
 
 import 'package:alera/src/shared/infra/git/git_backend.dart';
@@ -21,8 +24,46 @@ typedef RemoteGitBackendResolver = GitBackend? Function(String path);
 class const HostRoutedGitBackend({
   required final GitBackend local,
   required final RemoteGitBackendResolver remoteFor,
-}) implements GitBackend {
+}) implements GitBackend, GitNetworkProgressBackend {
   GitBackend _for(String path) => remoteFor(path) ?? local;
+
+  /// Bind an approved operation to its original host before an async boundary.
+  GitBackend forPath(String path) => _for(path);
+
+  @override
+  Future<void> networkWithProgress(
+    String path, {
+    required bool push,
+    required void Function(String line) onOutput,
+  }) => runGitNetworkWithProgress(
+    _for(path),
+    path,
+    push: push,
+    onOutput: onOutput,
+  );
+
+  @override
+  Future<String> workspaceDefaultBranch(String path) =>
+      _for(path).workspaceDefaultBranch(path);
+
+  @override
+  Future<GitWorkspaceComparison> workspaceComparison(
+    String path, {
+    String? baseRef,
+  }) => _for(path).workspaceComparison(path, baseRef: baseRef);
+  @override
+  Future<GitDiffResult> workspaceComparisonDiff(
+    String path,
+    GitWorkspaceComparison snapshot,
+    String filePath,
+  ) => _for(path).workspaceComparisonDiff(path, snapshot, filePath);
+  @override
+  Future<String> commitSelected(
+    String path,
+    GitWorkspaceComparison snapshot,
+    List<String> filePaths,
+    String message,
+  ) => _for(path).commitSelected(path, snapshot, filePaths, message);
 
   @override
   Future<bool> isGitRepository(String path) => _for(path).isGitRepository(path);

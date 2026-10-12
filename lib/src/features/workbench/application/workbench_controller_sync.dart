@@ -134,6 +134,13 @@ mixin _WorkbenchControllerSync
         _releaseRetiredWorkspaceSessions(workspace.id);
       }
     }
+    final prunedDetailsHidden = Set<String>.from(
+      prefs.workspaceDetailsHiddenIds,
+    )..removeAll(removedProjectWorkspaceIds);
+    final prunedComparisonBases =
+        Map<String, String>.from(prefs.workspaceComparisonBases)..removeWhere(
+          (key, _) => removedProjectWorkspaceIds.contains(key.split(':').first),
+        );
     final prunedSourceControlRoots =
         Map<String, String>.from(prefs.sourceControlRootByWorkspaceId)
           ..removeWhere(
@@ -151,6 +158,8 @@ mixin _WorkbenchControllerSync
           (workspaceId, _) => removedProjectWorkspaceIds.contains(workspaceId),
         );
     final prefsChanged =
+        prunedDetailsHidden.length != prefs.workspaceDetailsHiddenIds.length ||
+        prunedComparisonBases.length != prefs.workspaceComparisonBases.length ||
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
         prunedSelected.length != prefs.selectedProjectIds.length ||
         prunedSourceControlRoots.length !=
@@ -160,6 +169,8 @@ mixin _WorkbenchControllerSync
         prunedWorkspacePanels.length != prefs.workspacePanels.length;
     final prunedViewPrefs = prefsChanged
         ? prefs.copyWith(
+            workspaceDetailsHiddenIds: prunedDetailsHidden,
+            workspaceComparisonBases: prunedComparisonBases,
             collapsedProjectIds: prunedCollapsed,
             selectedProjectIds: prunedSelected,
             sourceControlRootByWorkspaceId: prunedSourceControlRoots,

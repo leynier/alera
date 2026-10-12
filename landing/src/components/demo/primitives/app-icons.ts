@@ -1,3 +1,4 @@
+import FileSearch from '@lucide/astro/icons/file-search';
 import Activity from '@lucide/astro/icons/activity';
 import ArrowLeft from '@lucide/astro/icons/arrow-left';
 import ArrowRight from '@lucide/astro/icons/arrow-right';
@@ -114,6 +115,7 @@ export const APP_ICONS = {
   gitMerge: GitMerge,
   gitPullRequest: GitPullRequest,
   checks: ListChecks,
+  review: FileSearch,
   diff: GitCompare,
   success: CircleCheck,
   error: CircleAlert,

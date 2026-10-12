@@ -90,6 +90,17 @@ class WorkspaceSourceControlController
     return _load();
   }
 
+  Future<void> runReviewedAction(
+    Future<void> Function(GitBackend backend) operation,
+  ) async {
+    if (state.asData?.value.isBusy ?? false) {
+      throw const GitConflictException(
+        'Another Git action is already running.',
+      );
+    }
+    await _run(.commitPush, operation);
+  }
+
   Future<void> refresh() => _run(.refresh, (_) async {});
 
   Future<void> stage(String? filePath) => _run(
@@ -260,6 +271,7 @@ class WorkspaceSourceControlController
         ),
       );
     }
+    final keepAlive = ref.keepAlive();
     try {
       await operation(ref.read(gitBackendProvider));
       state = AsyncData(await _load());
@@ -272,6 +284,7 @@ class WorkspaceSourceControlController
       }
       rethrow;
     } finally {
+      keepAlive.close();
       _scheduleQueuedWatcherReload();
     }
   }

@@ -5,6 +5,27 @@ import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'details preferences round-trip while older records use visible defaults',
+    () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        workspaceDetailsHiddenIds: {'workspace'},
+        workspaceComparisonBases: {'workspace:/repo': 'origin/develop'},
+      );
+      final restored = WorkbenchViewPrefs.fromJson(prefs.toMap());
+      expect(restored.workspaceDetailsHiddenIds, {'workspace'});
+      expect(
+        restored.workspaceComparisonBases['workspace:/repo'],
+        'origin/develop',
+      );
+      final older = prefs.toMap()
+        ..remove('workspaceDetailsHiddenIds')
+        ..remove('workspaceComparisonBases');
+      final migrated = WorkbenchViewPrefs.fromJson(older);
+      expect(migrated.workspaceDetailsHiddenIds, isEmpty);
+      expect(migrated.workspaceComparisonBases, isEmpty);
+    },
+  );
   group('WorkbenchViewPrefs', () {
     test('defaults match the documented values', () {
       expect(WorkbenchViewPrefs.defaults.groupBy, WorkbenchGroupBy.project);

@@ -4,6 +4,15 @@ part of 'keyboard_action.dart';
 /// resolver, the dispatcher, and the settings UI.
 const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   KeybindingDefinition(
+    id: .toggleWorkspaceDetails,
+    label: 'Toggle Workspace Details',
+    group: .workspace,
+    description: 'Show or hide the workspace details card.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['git', 'host', 'changes'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
     id: .openSettings,
     label: 'Open Settings',
     group: .global,

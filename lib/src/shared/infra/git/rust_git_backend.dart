@@ -1,3 +1,11 @@
+import 'dart:convert';
+
+import 'package:alera/src/rust/api/git/network_progress.dart' as network_rust;
+import 'package:alera/src/shared/infra/git/git_network_progress.dart';
+import 'package:alera/src/rust/api/git/workspace_comparison.dart'
+    as comparison_rust;
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'dart:typed_data';
 
 import 'package:alera/src/rust/api/git.dart' as rust;
@@ -16,10 +24,15 @@ import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'rust_git_backend_enum_mappers.dart';
 part 'rust_git_backend_hosted_review.dart';
+part 'rust_git_backend_workspace.dart';
+part 'rust_git_network_progress.dart';
 
 /// Rust-backed [GitBackend] translating bridge values into domain values.
 class const RustGitBackend()
-    with _RustGitBackendHostedReview
+    with
+        _RustGitBackendHostedReview,
+        _RustGitBackendWorkspace,
+        _RustGitNetworkProgress
     implements GitBackend {
   @override
   Future<bool> isGitRepository(String path) =>

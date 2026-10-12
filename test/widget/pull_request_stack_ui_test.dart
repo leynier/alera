@@ -28,6 +28,7 @@ const _currentReview = HostedReview(
   url: 'https://github.com/leynier/alera/pull/42',
   baseBranch: 'feature/one',
   headBranch: 'feature/two',
+  mergeable: .mergeable,
 );
 
 const _stack = HostedReviewStack(
@@ -63,6 +64,7 @@ Widget _reviewView({
         baseBranches: const <String>['main', 'feature/one'],
         mergeMethods: const <ReviewMergeMethod>[ReviewMergeMethod.mergeCommit],
         canCloseReview: true,
+        mergeAllowed: true,
         canChangeDraftStatus: true,
         canComment: false,
         action: null,
@@ -104,7 +106,7 @@ void main() {
 
     expect(find.text('Create Merge Commit Stack Through #42?'), findsOneWidget);
     expect(
-      find.textContaining('merge 2 pull requests atomically through #42'),
+      find.textContaining('#41: feat: first layer\n#42: feat: second layer'),
       findsOneWidget,
     );
     expect(mergedWith, isNull);

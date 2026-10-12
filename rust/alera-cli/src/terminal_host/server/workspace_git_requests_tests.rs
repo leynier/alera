@@ -208,3 +208,33 @@ fn hosted_review_verbs_reach_the_core_and_answer_the_desktop_shape() {
         "remoteNotFound"
     );
 }
+
+#[test]
+fn workspace_details_rpc_keeps_comparison_and_selected_commit_consistent() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().to_string_lossy().to_string();
+    let repo = git2::Repository::init(&root).unwrap();
+    repo.config().unwrap().set_str("user.name", "Test").unwrap();
+    repo.config()
+        .unwrap()
+        .set_str("user.email", "test@example.com")
+        .unwrap();
+    std::fs::write(temp.path().join("a.txt"), "new\n").unwrap();
+    let snapshot = run_git_verb("git.workspaceComparison", root.clone(), &json!({})).unwrap();
+    assert_eq!(snapshot["added"], 1);
+    let diff = run_git_verb(
+        "git.workspaceComparisonDiff",
+        root.clone(),
+        &json!({"snapshot": snapshot, "filePath": "a.txt"}),
+    )
+    .unwrap();
+    assert_eq!(diff["files"][0]["added"], snapshot["added"]);
+    assert!(is_workspace_git_write("git.commitSelected"));
+    let committed = run_git_verb(
+        "git.commitSelected",
+        root,
+        &json!({"snapshot": snapshot, "filePaths": ["a.txt"], "message": "reviewed"}),
+    )
+    .unwrap();
+    assert!(committed.as_str().is_some());
+}

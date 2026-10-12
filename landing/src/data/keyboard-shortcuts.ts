@@ -47,6 +47,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     id: 'workspace',
     title: 'Workspace',
     actions: [
+      { id: 'toggleWorkspaceDetails', label: 'Toggle Workspace Details', description: 'Show or hide the workspace details card.', bindings: uniform(), inTerminal: true },
       { id: 'createWorkspace', label: 'New Workspace', description: 'Create a linked workspace for the active Git project.', bindings: uniform('Mod+Shift+N'), inTerminal: true },
       { id: 'handOffWorkspace', label: 'Hand Off', description: 'Move the main worktree\'s current work into a new child workspace.', bindings: uniform(), inTerminal: true },
       { id: 'handOnWorkspace', label: 'Hand On', description: 'Bring a child worktree\'s current work back onto the main worktree.', bindings: uniform(), inTerminal: true },

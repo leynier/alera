@@ -1,3 +1,6 @@
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
+import 'package:alera/src/features/pull_requests/application/forge_review_action_access_provider.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -23,14 +26,18 @@ import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 part 'azure_devops_review_actions.dart';
+part 'azure_devops_review_action_access.dart';
 part 'azure_devops_review_comments.dart';
 
 /// [ForgeProvider] for Azure DevOps, wrapping the official `az` CLI (with the
 /// `azure-devops` extension). Authentication relies on `az login`. Checks are
 /// derived from PR policy evaluations.
 class const AzureDevOpsForgeProvider(final ProcessRunner _processRunner)
-    with _AzureDevOpsReviewActions, _AzureDevOpsReviewComments
-    implements ForgeProvider {
+    with
+        _AzureDevOpsReviewActions,
+        _AzureDevOpsReviewComments,
+        _AzureDevOpsReviewActionAccess
+    implements ForgeProvider, ForgeReviewActionAccessProvider {
   @override
   GitHostingProvider get id => GitHostingProvider.azureDevops;
 

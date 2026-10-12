@@ -1,3 +1,5 @@
+import 'package:alera/src/features/workbench/presentation/workspace_external_actions.dart'
+    as external_actions;
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/workbench/application/workspace_removal_dependencies.dart';
@@ -39,16 +41,12 @@ import 'package:alera/src/features/workbench/application/workspace_descendants.d
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
-import 'package:alera/src/features/workbench/application/repository_browser_opener.dart';
-import 'package:alera/src/features/workbench/application/repository_browser_providers.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';
-import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_status_indicator.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_watch_indicator.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
@@ -64,7 +62,6 @@ import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spin
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';

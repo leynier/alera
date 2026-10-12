@@ -54,6 +54,7 @@ enum KeyboardActionId {
   addProject,
   toggleSidebar,
   toggleContextPanel,
+  toggleWorkspaceDetails,
   showExplorer,
   showSourceControl,
   createWorkspace,

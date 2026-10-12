@@ -12,6 +12,7 @@ class const PullRequestStackSection({
   super.key,
   required final HostedReviewStack? stack,
   required final int currentReviewNumber,
+  final int? highlightedReviewNumber,
   required final bool canManage,
   required final bool enabled,
   required final bool managing,
@@ -84,7 +85,9 @@ class const PullRequestStackSection({
             for (final entry in currentStack.entries) ...<Widget>[
               _StackEntryRow(
                 entry: entry,
-                current: entry.review.number == currentReviewNumber,
+                current:
+                    entry.review.number ==
+                    (highlightedReviewNumber ?? currentReviewNumber),
                 hasLocalWorkspace:
                     entry.review.headBranch != null &&
                     localWorkspaceBranches.contains(entry.review.headBranch),
