@@ -84,7 +84,9 @@ sealed class const RemoteHostStatus() {
     switch (link?.phase) {
       case HostLinkPhase.attached:
         final satelliteVersion =
-            link?.attachment?.hostVersion ?? target.runtimeVersion;
+            link?.satelliteVersion ??
+            link?.attachment?.hostVersion ??
+            target.runtimeVersion;
         final hub = hubVersion ?? link?.hubVersion;
         return RemoteHostConnected(
           satelliteVersion: satelliteVersion,

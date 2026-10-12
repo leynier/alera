@@ -126,6 +126,9 @@ impl ServerActor {
         }
         let payload = self.host_links.status_payload(&host_id);
         self.broadcast_authenticated_local(event(HOST_LINK_CHANGED_EVENT, payload));
+        // `hostStatus` on `sshTarget.list` and `status` on `mobile.hosts.list`
+        // fold in the link, and phones never receive `hostLinkChanged`.
+        self.broadcast_ssh_targets_changed(Some(&host_id));
     }
 
     pub(super) fn handle_host_link_closed(&mut self, host_id: String, error: String) {

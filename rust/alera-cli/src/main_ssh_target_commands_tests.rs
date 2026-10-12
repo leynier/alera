@@ -90,3 +90,37 @@ fn an_empty_value_clears_an_optional_field() {
     assert_eq!(updated.arch.as_deref(), Some("arm64"));
     assert_eq!(updated.auth_kind, SshAuthKind::Key);
 }
+
+#[tokio::test]
+async fn an_offline_remove_refuses_a_host_that_still_has_checkouts() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    store.upsert_ssh_target(saved_target()).await.unwrap();
+    let project: alera_core::runtime::Project = serde_json::from_value(json!({
+        "id": "app", "name": "app", "repoPath": "/srv/app", "kind": "folder",
+        "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
+    }))
+    .unwrap();
+    store.upsert_project(project).await.unwrap();
+    store
+        .register_project_checkout("app", "build-mac", "/srv/app")
+        .await
+        .unwrap();
+
+    let error = remove_unused_ssh_target(&store, "build-mac")
+        .await
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        error,
+        "Build Mac still has 1 project and 0 workspaces. Remove them first."
+    );
+    assert!(store.find_ssh_target("build-mac").await.unwrap().is_some());
+
+    store
+        .remove_project_checkout("app", "build-mac")
+        .await
+        .unwrap();
+    remove_unused_ssh_target(&store, "build-mac").await.unwrap();
+    assert!(store.find_ssh_target("build-mac").await.unwrap().is_none());
+}

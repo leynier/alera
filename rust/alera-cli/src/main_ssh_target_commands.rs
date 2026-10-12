@@ -46,7 +46,7 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                 &runtime,
                 "sshTarget.remove",
                 &payload,
-                |store| async move { store.remove_ssh_target(&id).await },
+                |store| async move { remove_unused_ssh_target(&store, &id).await },
             )
             .await
             {
@@ -211,6 +211,34 @@ async fn runtime_request(
         .await?
         .request_value(request_type, payload)
         .await
+}
+
+/// The offline path of `remove`: the same refusal `sshTarget.remove` gives
+/// (`sshTargetInUse`), so removing a host without a running runtime cannot
+/// strand the workspaces and checkouts that route through it.
+async fn remove_unused_ssh_target(store: &RuntimeStore, id: &str) -> anyhow::Result<()> {
+    let references = store.ssh_target_references(id).await?;
+    if !references.is_empty() {
+        let alias = store
+            .find_ssh_target(id)
+            .await?
+            .map(|target| target.alias)
+            .unwrap_or_else(|| id.to_string());
+        anyhow::bail!(
+            "{alias} still has {} and {}. Remove them first.",
+            counted(references.project_ids.len(), "project"),
+            counted(references.workspace_count, "workspace"),
+        );
+    }
+    store.remove_ssh_target(id).await
+}
+
+fn counted(count: usize, noun: &str) -> String {
+    if count == 1 {
+        format!("1 {noun}")
+    } else {
+        format!("{count} {noun}s")
+    }
 }
 
 /// A running runtime answers with each host's `hostStatus` as well.

@@ -149,7 +149,9 @@ pub(crate) fn mobile_host_entry(target: &SshTarget, status: &HostStatus) -> Valu
         "alias": target.alias,
         "platform": target.runtime_platform.as_ref().or(target.platform.as_ref()),
         "status": status.state,
-        "runtimeVersion": target.runtime_version,
+        // The version `updateAvailable` was decided on: what the attached
+        // runtime reports, else the last one recorded.
+        "runtimeVersion": status.satellite_version,
         "updateAvailable": status.runtime_update_available,
     })
 }

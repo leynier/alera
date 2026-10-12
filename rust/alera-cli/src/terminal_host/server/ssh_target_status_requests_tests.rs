@@ -259,10 +259,10 @@ fn a_phone_learns_a_host_name_system_and_state_and_nothing_about_reaching_it() {
             "alias": "Studio Mac",
             "platform": "macos",
             "status": "connected",
-            "runtimeVersion": "1.4.0",
+            "runtimeVersion": "1.5.0",
             "updateAvailable": true,
         }),
-        "the probed platform wins over the declared one"
+        "the probed platform wins over the declared one, and the version is the one the attached runtime reports"
     );
     for key in [
         "host",

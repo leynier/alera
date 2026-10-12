@@ -61,8 +61,9 @@ class const HostLinkRetry({
   }
 }
 
-/// [retry], [failureKind], [hubVersion] and [runtimeUpdateAvailable] are
-/// additive fields a supervising runtime reports; an older one omits them.
+/// [retry], [failureKind], [satelliteVersion], [hubVersion] and
+/// [runtimeUpdateAvailable] are additive fields a supervising runtime reports;
+/// an older one omits them.
 class const HostLinkState({
   required final String hostId,
   required final HostLinkPhase phase,
@@ -70,6 +71,10 @@ class const HostLinkState({
   final String? error,
   final HostLinkRetry? retry,
   final String? failureKind,
+
+  /// The version the host's runtime last reported, kept after the link
+  /// drops, unlike [attachment].
+  final String? satelliteVersion,
   final String? hubVersion,
   final bool? runtimeUpdateAvailable,
 }) {
@@ -85,6 +90,7 @@ class const HostLinkState({
       error: json['error'] as String?,
       retry: HostLinkRetry.fromJson(json['retry']),
       failureKind: json['failureKind'] as String?,
+      satelliteVersion: json['satelliteVersion'] as String?,
       hubVersion: json['hubVersion'] as String?,
       runtimeUpdateAvailable: updateAvailable is bool ? updateAvailable : null,
     );

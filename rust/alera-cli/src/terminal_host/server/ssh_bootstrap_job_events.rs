@@ -11,11 +11,15 @@ impl ServerActor {
             .ssh_bootstrap_jobs
             .values()
             .map(|job| {
-                json!(SshTargetBootstrapJob {
+                let mut value = json!(SshTargetBootstrapJob {
                     job_id: job.job_id.clone(),
                     target_id: job.target_id.clone(),
                     status: job.status,
-                })
+                });
+                // Additive: lets a client that attaches mid-install resume
+                // its step list at the stage the job last reported.
+                value["stage"] = json!(job.stage);
+                value
             })
             .collect::<Vec<_>>();
         json!(jobs)
