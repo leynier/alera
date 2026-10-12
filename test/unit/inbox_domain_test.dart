@@ -90,6 +90,21 @@ void main() {
       });
       expect(late.delivery, InboxDelivery.now);
       expect(late.deliveredNow, isFalse);
+
+      // The host's recorded decision wins over the timestamp heuristic.
+      final queued = InboxMessage.fromJson(const {
+        'kind': 'question',
+        'delivery': 'now',
+        'deliveryMode': 'queued_at_turn_end',
+        'deliveredAt': '2026-10-06 10:00:20',
+        'message': {'id': 'q', 'created_at': '2026-10-06 10:00:00'},
+      });
+      expect(queued.deliveredNow, isFalse);
+      final pasted = InboxMessage.fromJson(const {
+        'kind': 'question',
+        'message': {'id': 'q', 'delivery_mode': 'pasted_now'},
+      });
+      expect(pasted.deliveredNow, isTrue);
     },
   );
 
