@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_clipboard_paste_action.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
+import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -22,6 +23,9 @@ import 'package:alera/src/features/projects/domain/project_host_enrollment.dart'
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_notice.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_selection.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_controller.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
@@ -144,6 +148,7 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
     final workbench = ref.watch(workbenchControllerProvider);
     final profilesAsync = ref.watch(agentProfilesProvider);
     final sshTargets = ref.watch(sshTargetsProvider);
+    final remoteHosts = ref.watch(remoteHostsControllerProvider).hosts;
     final defaultProfileId = ref
         .watch(settingsControllerProvider)
         .agents
@@ -177,6 +182,7 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
             profiles: profiles,
             profile: selectedProfile,
             sshTargets: sshTargets,
+            remoteHosts: remoteHosts,
             parents: parents,
             hostEnrollment: hostEnrollment,
           ),
@@ -193,6 +199,7 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
     required List<AgentProfile>? profiles,
     required AgentProfile? profile,
     required AsyncValue<List<SshTarget>> sshTargets,
+    required List<RemoteHostView> remoteHosts,
     required List<Workspace> parents,
     required ProjectHostEnrollmentController hostEnrollment,
   }) {
@@ -226,7 +233,6 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
       );
     }
     final checkout = _useProjectCheckout || !project.isGitRepository;
-    final targets = sshTargets.value ?? const <SshTarget>[];
     final hostError = _hostSelectionError(sshTargets);
     final enrollment = _enrollmentFor(project);
     return _HomeComposerReady(
@@ -238,9 +244,9 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
       onSend: () => unawaited(_submit()),
       onPaste: _pastePromptClipboard,
       onPickProfile: (context) => _pickProfile(context, profiles),
-      hostLabel: workspaceHostLabel(targets, _selectedHostId),
+      hostLabel: remoteHostViewLabel(remoteHosts, _selectedHostId),
       hostIsLocal: normalizedRemoteHostId(_selectedHostId) == null,
-      onPickHost: (context) => _pickHost(context, targets),
+      onPickHost: (context) => _pickHost(context, remoteHosts),
       parentLabel: _selectedParentLabel(parents, workbench),
       showParent: parents.isNotEmpty,
       onPickParent: (context) => _pickParent(context, parents, workbench),
@@ -253,7 +259,7 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
           : ProjectHostEnrollmentNotice(
               enrollment: enrollment,
               projectName: project.name,
-              hostLabel: workspaceHostLabel(targets, _selectedHostId),
+              hostLabel: remoteHostViewLabel(remoteHosts, _selectedHostId),
               controller: hostEnrollment,
               onAdd: _addProjectToSelectedHost,
             ),

@@ -1250,7 +1250,15 @@ fn runtime_failed_bootstrap_preserves_previous_runtime_metadata() {
                 .find(|item| item["id"] == json!("remote-installed"))
         })
         .expect("saved target should be listed");
-    assert_eq!(target["bootstrapStatus"], json!("failed"));
+    // The runtime already on the host is still there, so a failed update keeps
+    // the host installed and only records why the update failed.
+    assert_eq!(target["bootstrapStatus"], json!("installed"));
+    assert!(
+        target["lastError"]
+            .as_str()
+            .is_some_and(|error| !error.is_empty()),
+        "failed update should record its error: {target}"
+    );
     assert_eq!(target["runtimeVersion"], json!("1.2.2"));
     assert_eq!(target["runtimePlatform"], json!("linux"));
     assert_eq!(target["runtimeArch"], json!("x64"));

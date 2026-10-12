@@ -26,6 +26,11 @@ pub(crate) use ssh_bootstrap_plan::build_ssh_bootstrap_plan;
 mod ssh_bootstrap_prune;
 pub(crate) use ssh_bootstrap_prune::{installed_runtime_version, prune_remote_versions};
 
+#[path = "ssh_bootstrap_status.rs"]
+mod ssh_bootstrap_status;
+use ssh_bootstrap_status::status_after_interrupted_install;
+pub(crate) use ssh_bootstrap_status::{cancel_ssh_bootstrap, mark_ssh_bootstrap_installing};
+
 #[path = "ssh_bootstrap_remote.rs"]
 mod ssh_bootstrap_remote;
 pub(crate) use ssh_bootstrap_remote::validate_remote_runtime;
@@ -162,7 +167,10 @@ where
                 .update_ssh_target_bootstrap_state(
                     &target.id,
                     SshTargetBootstrapStateUpdate {
-                        status: SshBootstrapStatus::Failed,
+                        status: status_after_interrupted_install(
+                            target.bootstrap_status,
+                            SshBootstrapStatus::Failed,
+                        ),
                         install_dir: None,
                         runtime_version: None,
                         runtime_platform: None,
@@ -352,44 +360,6 @@ where
     Ok(installed)
 }
 
-pub(crate) async fn mark_ssh_bootstrap_installing(
-    store: &RuntimeStore,
-    target_id: &str,
-) -> Result<SshTarget> {
-    store
-        .update_ssh_target_bootstrap_state(
-            target_id,
-            SshTargetBootstrapStateUpdate {
-                status: SshBootstrapStatus::Installing,
-                install_dir: None,
-                runtime_version: None,
-                runtime_platform: None,
-                runtime_arch: None,
-                last_error: None,
-            },
-        )
-        .await
-}
-
-pub(crate) async fn cancel_ssh_bootstrap(
-    store: &RuntimeStore,
-    target_id: &str,
-) -> Result<SshTarget> {
-    store
-        .update_ssh_target_bootstrap_state(
-            target_id,
-            SshTargetBootstrapStateUpdate {
-                status: SshBootstrapStatus::Cancelled,
-                install_dir: None,
-                runtime_version: None,
-                runtime_platform: None,
-                runtime_arch: None,
-                last_error: None,
-            },
-        )
-        .await
-}
-
 fn parse_channel(value: Option<&str>) -> Result<RuntimeArchiveChannel> {
     match value.unwrap_or("stable").trim().to_lowercase().as_str() {
         "" | "stable" => Ok(RuntimeArchiveChannel::Stable),
@@ -398,7 +368,7 @@ fn parse_channel(value: Option<&str>) -> Result<RuntimeArchiveChannel> {
     }
 }
 
-async fn find_target(store: &RuntimeStore, target_id: &str) -> Result<SshTarget> {
+pub(super) async fn find_target(store: &RuntimeStore, target_id: &str) -> Result<SshTarget> {
     store
         .find_ssh_target(target_id)
         .await?
