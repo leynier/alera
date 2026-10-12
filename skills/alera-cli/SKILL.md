@@ -12,7 +12,7 @@ Use the managed `alera` CLI for Alera resources. Inside Alera terminals, its shi
 ## Choose The Relevant Workflow
 
 - Projects, worktrees, hand-off/hand-on, linked issues, Watch and Fix, tags, tabs, relations, and sections: read [workspaces](references/workspaces.md).
-- Remote hosts over SSH, installing the Alera runtime on them, projects and workspaces on a host, and the CLI inside a terminal on a host: read [hosts](references/hosts.md).
+- Remote hosts over SSH, installing or updating the Alera runtime on them, host status, projects and workspaces on a host, and the CLI inside a terminal on a host: read [hosts](references/hosts.md).
 - Scheduled agent work: use the `alera-automations` skill; CLI entry points are in [automations](references/automations.md).
 - Missing runtime host, external-shell configuration, metadata repair, or a tab that stopped showing its agent's status: read [recovery](references/recovery.md).
 - Agent Profile inspection, launch, or maintenance: use the `alera-agent-profiles` skill. Its simple-maintenance route does not require catalog research.

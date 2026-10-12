@@ -301,7 +301,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "list_ssh_targets",
             "List SSH Targets",
-            "List the remote hosts this runtime reaches over SSH, with their platform, installed Alera runtime, and bootstrap state. Credentials are never included.",
+            "List the remote hosts this runtime reaches over SSH, with their platform, installed Alera runtime, bootstrap state, and hostStatus: one state per host (needsSetup, installing, disconnected, offline, connecting, connected, or error), the runtime versions, and whether an update is available. Credentials are never included.",
             no_arguments,
             |_| Ok(Invocation::new("ssh-target", &["list"])),
         ),

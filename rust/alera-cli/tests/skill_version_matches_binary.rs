@@ -23,7 +23,7 @@ const DIGESTS: &[(&str, i64, &str)] = &[
     (
         "alera-cli",
         2,
-        "369821ceea326fafbb0e66fb6382f073ef4f8baff7a729fc91fea9ce483941f9",
+        "9cec1f0df8967e49e3f5c3fd736ca7ceb12707ae96b8eee10a3eeb866ce169cf",
     ),
     (
         "alera-orchestration",

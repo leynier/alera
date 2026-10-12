@@ -1,61 +1,115 @@
 ---
 title: Remote Hosts
 description: Run workspaces on another macOS, Linux, or Windows machine over SSH, with terminals, files, Git, and agents served by that host.
-updatedDate: 2026-09-28
+updatedDate: 2026-10-11
 ---
 
-A workspace can live on another machine, such as a build server or a Windows box. Your desktop keeps the projects, workspaces, and settings, and each host runs its own copy of the Alera runtime next to the code.
+A workspace can live on another machine, such as a build server or a Windows box. Your desktop keeps the projects, workspaces, and settings, and each host runs its own copy of the Alera runtime next to the code. Alera installs and updates that runtime for you over SSH.
 
 ## Before You Start
 
-- The host runs an OpenSSH server that this computer reaches with key or agent authentication. Alera runs your system `ssh` and `sftp` in batch mode, so nothing answers a password prompt: load passphrase-protected keys into your SSH agent.
-- macOS, Linux, and Windows hosts are supported, on x64 or arm64. macOS and Linux need `tar`. Windows needs Windows PowerShell and `tar.exe`, and its OpenSSH default shell must stay `cmd.exe`, or the host link cannot attach.
+- The host runs an OpenSSH server that this computer reaches with key or agent authentication. Alera runs your system `ssh` and `sftp` in batch mode, so nothing answers a password prompt: load passphrase-protected keys into your SSH agent. Password login is not supported.
+- macOS, Linux, and Windows hosts are supported, on x64 or arm64. macOS and Linux need `tar`. Windows needs Windows PowerShell and `tar.exe`, and its OpenSSH default shell must stay `cmd.exe`, or Alera cannot connect to the runtime there.
 - Git, your forge CLI (`gh`, `glab`, or `az`), and your agent CLIs are installed and signed in on the host.
 
 ## Add A Host
 
-Open **Settings → Remote Hosts** (`Mod+Comma` opens Settings; `Mod` is ⌘ on macOS and Ctrl on Windows and Linux) and click **New Host**.
+Open **Settings → Remote Hosts** (`Mod+Comma` opens Settings; `Mod` is ⌘ on macOS and Ctrl on Windows and Linux) and click **Add Host**. The dialog walks through three steps: **Connection**, **Install Runtime**, and **Done**.
 
-- **Alias** is the display name. **Host**, **Username**, and **Port** (22 when blank) go to `ssh` as typed.
-- **Authentication** is **Agent** or **Key**. Both leave the key to your SSH agent and `~/.ssh/config`; Alera stores no key paths. **Password** is listed but cannot be selected.
-- **Platform** and **Architecture** default to **Auto**, which asks the host.
-- **Install Directory** defaults to `~/.alera/sidecar`, or `%LOCALAPPDATA%\Alera\runtime` on Windows.
-- **Projects Folder** is where the host clones projects when you give no path: `alera-projects` in the remote home unless set. `~` and `%VAR%` expand on the host.
+<Steps>
+
+1. **Connection.** Type the **SSH Address** the way you would give it to `ssh`: `user@host`, or `user@host:port` when the port is not 22 (an IPv6 address goes in brackets before a port, as in `user@[::1]:2222`). **Alias** is the display name and follows the host you typed until you change it. Under **Authentication**, **SSH Agent** uses your agent and `~/.ssh/config`; **Key File** adds an **Identity File** such as `~/.ssh/id_ed25519`. **Continue** saves the host.
+2. **Install Runtime.** Alera checks the connection and shows who it reached and whether an Alera runtime is already installed, next to **What Will Be Installed**: the install directory, platform, version, and source. The button then reads **Install Runtime** when none is installed, **Update Runtime** when the connected host runs an older runtime than This Device, and **Connect** otherwise. Progress shows each stage, and **Cancel Install** stops it.
+3. **Done.** The dialog confirms the host is ready, with **Add a Project to This Host** or **Done**.
+
+</Steps>
+
+Closing the dialog never cancels an install that is already running. The host keeps showing **Installing…**, and a toast says **Alera runtime installed on** the host when it finishes.
 
 The first connection records the host's key; a key that later changes is refused.
 
-## Bootstrap The Runtime
+### Use A Specific Key
 
-**Plan** previews the install without connecting. **Bootstrap** runs it:
+With **Key File**, Alera passes the **Identity File** to `ssh` and `sftp` with `-i` and offers only that key, so a server with a low `MaxAuthTries` does not refuse you after trying every key in your agent. A passphrase-protected key still has to be loaded into your agent. Leaving the field empty goes back to your agent and `~/.ssh/config`.
+
+## What The Install Does
 
 <Steps>
 
 1. Check SSH authentication and detect the platform and architecture.
-2. Download the signed runtime archive for your Alera release from GitHub Releases, verify its Ed25519 signature, and check the tarball's SHA-256 and size.
+2. Download the latest stable signed runtime archive from GitHub Releases, verify its Ed25519 signature, and check the tarball's SHA-256 and size.
 3. Upload the tarball over SFTP, so the host never has to reach GitHub.
 4. Extract it under `versions/`, point `current` at it, and write the `bin/alera` wrapper (`bin\alera.cmd` on Windows). If this fails, the previous version stays current.
-5. Run the installed runtime's status check against its `data` directory.
+5. Validate the installed runtime.
 
 </Steps>
 
-The host then reads **Installed**. Run **Bootstrap** again to update it after updating Alera. Bootstrap installs no system service and creates no workspace; **Remove** forgets the host without uninstalling anything.
+The install creates no system service and no workspace.
 
-A bootstrapped host also shows **Host Link**, the persistent SSH session that carries file, Git, and search requests for the host; each terminal gets its own SSH session. It opens on demand, so **Connect** and **Disconnect** are rarely needed.
+## Host States
+
+Each host shows one state, in Settings, in the status bar, and in host pickers.
+
+| State | What it means |
+| --- | --- |
+| **Needs Setup** | The Alera runtime is not installed there yet. **Install Runtime** fixes it. |
+| **Installing…** | An install or update is running. |
+| **Not Connected** | The runtime is installed and the host is idle. Alera connects when something needs it. |
+| **Offline** | The machine or its SSH server could not be reached. |
+| **Connecting…** | Alera is opening the connection, or retrying after a drop. |
+| **Connected** | The host is linked and ready. |
+| **Update Available** | Connected, but the host runs an older Alera runtime than This Device. |
+| **Error** | The install failed, or SSH reached the host but the connection did not work, for example a refused key or a broken runtime. The detail and **Retry** appear under the header. |
+
+## Manage A Host
+
+Select a host in **Settings → Remote Hosts**. The header shows its SSH address, platform, runtime version, how many projects and workspaces it holds, and when it was last checked, with the one action its state calls for: **Install Runtime**, **Connect**, **Disconnect**, or **Update Runtime**.
+
+- **Check Connection** probes SSH and the installed runtime now and records the result.
+- **More Actions** has **Edit Connection**, **Copy SSH Command**, and **Remove Host**.
+- **Projects on This Host** lists the projects there and adds more.
+- **Advanced** holds **Install Directory** (empty uses a folder under `~/.alera` on macOS and Linux, or `%LOCALAPPDATA%\Alera\runtime` on Windows), **Projects Folder**, **Platform** and **Architecture** (both **Auto** by default, which asks the host), and **Identity File**.
+- **Diagnostics** shows the last check and the last error, and **Open Logs Folder** opens the logs of the Alera runtime on This Device, which records every connection and install.
+
+### Connect And Disconnect
+
+The connection to a host carries its file, Git, and search requests; each terminal gets its own SSH session. A host with an active workspace, or one you connected with **Connect**, stays connected, and Alera reconnects it after a drop, waiting longer after each failure, from 2 seconds up to 5 minutes. Any other host connects when something needs it and closes after 10 minutes without requests, which leaves it **Not Connected**.
+
+**Disconnect** closes the connection and stops Alera from reconnecting on its own. **Connect**, **Check Connection**, or opening a terminal on that host lifts it.
+
+### Update The Runtime
+
+When a host reads **Update Available**, **Update Runtime** installs the latest stable runtime and then restarts the host's runtime onto it, adding the stages **Restart runtime** and **Remove old versions**. The version the host is running stays on disk until the new one is running. A toast says **Alera runtime updated on** the host when it finishes.
+
+Restarting closes the terminals open on that host. When there are any, Alera asks first with **Close Terminals?**, naming how many, and the confirmation reads like **Close 2 Terminals and Update**. Agents running in those terminals stop.
+
+### Remove A Host
+
+**Remove Host** forgets the host. It is unavailable while the host still has projects or workspaces: remove its workspaces and take its projects off it first. Removing a host does not uninstall the Alera runtime or delete files on the host.
 
 ## Put A Project On The Host
 
-A Git project is registered once, then added to hosts. Right-click it in the sidebar, choose **Hosts**, and use **Add to Another Host**: enter an **Existing Path**, or leave it empty and the host clones the project's `origin` remote into its projects folder with its own Git credentials. Removing a project from a host never deletes files. Folder projects stay on one host.
+A Git project is registered once, then added to hosts. In a host's **Projects on This Host**, use **Add Project to This Host**:
 
-For a repository that exists only on a server, **Add Project** offers **Add Remote Project**, which registers or clones it on the host and copies nothing here.
+- **Add Existing Project…** picks a registered project. Enter an **Existing Path** on the host, or leave it empty and the host clones the project's `origin` remote into its projects folder with its own Git credentials.
+- **New Remote Project…** registers a folder already on the host or clones a repository there, and copies nothing to this computer.
+
+You can do the same from the sidebar: right-click a project, choose **Hosts**, and use **Add to Another Host**. **Add Project** also offers **Add Remote Project**. Removing a project from a host never deletes files. Folder projects stay on one host.
 
 ## Create A Workspace There
 
-In [New Workspace](/docs/new-workspace) (`Mod+Shift+N`), pick the machine under **Host**. Hosts that need attention read **(Not Bootstrapped)** or **(Unreachable)**, and a project not yet on that host shows **Add to Host** in place.
+In [New Workspace](/docs/new-workspace) (`Mod+Shift+N`), pick the machine under **Host**. A host that cannot take a workspace yet stays in the list but cannot be picked, with its state in parentheses, such as **Build Mac (Needs Setup)**. **Offline** and **Not Connected** hosts can be picked, because Alera connects when the workspace needs it. A project not yet on that host shows **Add to Host** in place.
 
 - **New Worktree** creates a Git worktree under `~/.alera/workspaces` on the host (`%USERPROFILE%\.alera\workspaces` on Windows), from branches already in the host's repository. Alera does not fetch first.
 - **Project Folder** shares the host checkout's current branch and files.
 
-From the CLI:
+## Status Bar And Notifications
+
+Once a host is registered, the status bar shows a **Hosts** chip such as **Hosts 2/3**, connected over registered, with **Installing…** while an install runs. Its color follows the host that needs the most attention. Hover or click it for one row per host with a quick fix (**Connect**, **Retry**, or **Update**), plus **Add Host** and **Open Remote Hosts**.
+
+When a connected host drops, a toast says it disconnected, or that it is reconnecting, with **Open Host**. A later **reconnected** note follows only for a drop that was announced. Your own **Disconnect** and the host open in Settings stay quiet.
+
+## From The CLI
 
 ```bash
 alera ssh-target add --id build --alias "Build Box" --host build.example.com --username me
@@ -64,7 +118,12 @@ alera project hosts add --project-id <project-id> --host-id build
 alera workspace add --project-id <project-id> --host-id build --worktree --branch feature/login --source-branch main
 ```
 
-With Alera running, `bootstrap` returns as soon as the job starts, and **Settings → Remote Hosts** shows its progress.
+- `add --auth key --identity-file ~/.ssh/id_ed25519` uses a specific key, and `update --id build --identity-file ""` goes back to the agent.
+- `status` probes SSH and the installed runtime. `link --id build --connect` and `--disconnect` match **Connect** and **Disconnect**.
+- `update-runtime --id build` installs the latest stable runtime and restarts the host onto it. `restart-runtime --id build` restarts the runtime already installed. Both refuse while terminals are open on the host unless you pass `--force`, which closes them.
+- `remove --id build` refuses while the host still has projects or workspaces.
+
+With Alera running, `bootstrap` and `update-runtime` return as soon as the job starts, and **Settings → Remote Hosts** shows its progress.
 
 ## What Runs On The Host
 
@@ -73,9 +132,9 @@ With Alera running, `bootstrap` returns as soon as the job starts, and **Setting
 - Source Control, from staging to push.
 - Pull requests and checks, through the host's forge CLI and credentials. Your desktop's environment and tokens are never sent.
 - AI Assist, using the agent CLI on the host.
-- [Agent quotas](/docs/quotas) while a workspace there is active, and per-terminal CPU and memory in the Resource Manager while the host is linked.
+- [Agent quotas](/docs/quotas) while a workspace there is active, and per-terminal CPU and memory in the Resource Manager while the host is connected.
 
-In a terminal on the host, project and workspace commands such as `alera workspace list` reach your desktop, and a new workspace defaults to that host. Without a linked desktop they fail. Terminal, host, account, and settings commands never reach the desktop from a host.
+In a terminal on the host, project and workspace commands such as `alera workspace list` reach your desktop, and a new workspace defaults to that host. Without a connected desktop they fail. Terminal, host, account, and settings commands never reach the desktop from a host.
 
 ## What Stays On The Desktop
 

@@ -4,20 +4,22 @@
 
 A host is another machine this runtime reaches over SSH. The runtime you talk to is the hub; each host runs its own Alera runtime, installed by bootstrap. A project is registered once and then put on hosts: "project X on host Y" is one checkout row per host, and a workspace belongs to exactly one host. `local` is the hub's own machine. Workspaces never move between hosts, and Git is the only channel between checkouts on different hosts.
 
-Hosts are managed with `alera ssh-target`. Every host id comes from `alera ssh-target --json list`. SSH authentication must come from an SSH agent or a key configured in `~/.ssh/config`; password authentication is rejected.
+Hosts are managed with `alera ssh-target`. Every host id comes from `alera ssh-target --json list`. SSH authentication must come from an SSH agent, a key configured in `~/.ssh/config`, or a key file saved on the host with `--identity-file`; password authentication is rejected.
 
 ## Add And Edit A Host
 
 ```bash
 alera ssh-target --json list
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
-alera ssh-target --json add --id build-linux --alias build-linux --host 10.0.0.5 --username dev --auth key --projects-dir "~/code"
+alera ssh-target --json add --id build-linux --alias build-linux --host 10.0.0.5 --username dev --auth key --identity-file "~/.ssh/build_linux" --projects-dir "~/code"
 alera ssh-target --json update --id <host-id> --host mac.lan --port 2222
 alera ssh-target --json remove --id <host-id>
 ```
 
 - `add` only saves the record. It does not install anything or create a workspace. `--platform` and `--arch` are detected during bootstrap when omitted. `--projects-dir` is where the host clones projects when no path is given (default `alera-projects` under the remote home); quote `~/...` so your shell does not expand it.
-- `add --id` with an id that is already saved fails with `ssh target already exists`. Use `update` to change a saved host: only the flags given change, an empty value clears `--platform`, `--arch`, or `--projects-dir`, and the installed runtime and its status are kept. Bootstrap again if `--host` now names another machine.
+- `--identity-file` is a private key path on this machine, passed to `ssh` and `sftp` as `-i` with `IdentitiesOnly`, so only that key is offered. A passphrase-protected key still has to be in the SSH agent.
+- `add --id` with an id that is already saved fails with `ssh target already exists`. Use `update` to change a saved host: only the flags given change, an empty value clears `--platform`, `--arch`, `--projects-dir`, or `--identity-file`, and the installed runtime and its status are kept. Changing the address, port, user, authentication or identity file drops the current link. Bootstrap again if `--host` now names another machine.
+- `remove` is refused while the host still has projects or workspaces, with the counts in the error, even without a running runtime. Remove its workspaces and take its projects off it first (`project hosts remove`, or remove a project that lives only there). Removing never uninstalls the runtime or deletes files on the host.
 - Unknown ids fail with `ssh target not found`. Duplicate aliases, including different casing, fail with `ssh target alias already exists`.
 
 ## Install The Alera Runtime
@@ -47,11 +49,26 @@ While terminals are open on the host they are refused with `hostBusy`, naming ho
 ## Status
 
 ```bash
+alera ssh-target --json list
 alera ssh-target --json status
 alera ssh-target --json status --id <host-id>
 ```
 
-`status` probes SSH connectivity and, when a runtime is installed, checks it. It records `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) and `lastCheckedAt` on every call. Without `--id` it probes every saved host and returns an array.
+With a running runtime, every host in `list` and `status` carries `hostStatus`, the one state the app and the phone show:
+
+| `hostStatus.state` | App label | Next step |
+| --- | --- | --- |
+| `needsSetup` | Needs Setup | `bootstrap` (the install never finished, failed, or was cancelled; `detail` has the last error) |
+| `installing` | Installing… | Wait; `stage` is the current step (`auth`, `detect`, `artifact`, `upload`, `install`, `validate`, then `restart` and `prune` for an update) |
+| `disconnected` | Not Connected | Nothing: the link opens when needed, or `link --connect` |
+| `offline` | Offline | Check the machine and the network; the hub retries a host it needs |
+| `connecting` | Connecting… | Wait |
+| `connected` | Connected | Ready. `runtimeUpdateAvailable: true` means Update Available: run `update-runtime` |
+| `error` | Error | Read `detail`, often a refused key or a runtime that did not attach, then fix and run `status` |
+
+`hostStatus` also carries `satelliteVersion` (the host's runtime), `hubVersion`, `lastCheckedAt`, and `retry` (`{attempt, nextRetryAt}` while a dropped link waits to retry).
+
+`status` probes SSH connectivity and, when a runtime is installed, checks it. It records `lastStatus` (`reachable`, `unreachable`, or `runtimeReady`) and `lastCheckedAt` on every call. With a running runtime it is the app's Check Connection: the app refreshes and a host that should be linked connects now. Without `--id` it probes every saved host and returns an array.
 
 ## Link
 
@@ -61,7 +78,7 @@ alera ssh-target --json link --id <host-id> --connect
 alera ssh-target --json link --id <host-id> --disconnect
 ```
 
-The hub keeps at most one persistent link per host: one `ssh` connection to that host's Alera runtime that carries requests and events. Terminals each use their own SSH channel. The link opens on its own when a remote workspace needs it, such as opening a terminal or reading files; `--connect` opens it ahead of time and starts the host's runtime when needed, and `--disconnect` closes it. `link` without flags lists each link with its state (`disconnected`, `connecting`, `attached`, or `failed`) and the last error.
+The hub keeps at most one persistent link per host: one `ssh` connection to that host's Alera runtime that carries requests and events. Terminals each use their own SSH channel. A host with an installed runtime and an active workspace, or one connected with `--connect`, stays linked, and a dropped link is retried with a backoff that grows from 2 seconds to 5 minutes. Any other link opens when a remote workspace needs it, such as opening a terminal or reading files, and closes after 10 minutes without use. `--connect` also starts the host's runtime when needed. `--disconnect` closes the link and stops the hub from reconnecting it until the next `--connect`, `status`, or terminal on that host. `link` without flags lists each link with its state (`disconnected`, `connecting`, `attached`, or `failed`), the last error, `retry`, and whether the host is `desired` or `paused`.
 
 ## Put A Project On A Host
 

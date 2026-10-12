@@ -78,7 +78,7 @@ Control de acceso:
 | Registrar proyecto remoto o ponerlo en un host | D | `project add-remote`, `project hosts add` (`--path`, `--clone-url` o ambos; `register-checkout` queda como alias oculto) | `register_remote_project`, `add_project_host` | Cubierta | - |
 | Renombrar proyecto | D, M (`project.rename`) | — | — | Brecha, solo GUI | P3 |
 | Eliminar proyecto | D, M | `project remove` | — | Por diseño (destructivo), o como mucho con confirmación explícita | — |
-| Hosts del proyecto | D | `project hosts list/add/remove` | — | Brecha. `list` es lectura útil | P2 (list) / P3 |
+| Hosts del proyecto | D | `project hosts list/add/remove` | `list_project_hosts`, `add_project_host`, `remove_project_host` | Cubierta | - |
 | Ramas del proyecto (catálogo) | D, M (`project.branches.list`) | — | — | Brecha, solo GUI. Hoy un cliente MCP no puede saber qué `sourceBranch` pasar | **P1** |
 | Configuración efectiva del proyecto (New Workspace, setup, copy rules) | D, M (`projectConfig.*`) | — | — | Brecha, solo GUI. Leerla da la rama origen preferida | P2 (lectura) / P3 (escritura) |
 
@@ -200,8 +200,8 @@ Estas capacidades no tienen comando CLI. Exponerlas por MCP exige primero un com
 
 | Acción | GUI | CLI | MCP | Comentario | Prioridad |
 |---|---|---|---|---|---|
-| SSH targets: listar o ver estado | D | `ssh-target list/status` | — | Brecha de lectura razonable | P2 |
-| SSH targets: alta, baja, bootstrap, link | D | `ssh-target add/remove/bootstrap*/link` | — | Por diseño: credenciales e instalación remota | — |
+| SSH targets: listar o ver estado | D | `ssh-target list/status` | `list_ssh_targets` (con `hostStatus`), `ssh_target_status` | Cubierta | - |
+| SSH targets: alta, edición, baja, bootstrap, actualización del runtime, link | D | `ssh-target add/update/remove/bootstrap*/update-runtime/restart-runtime/link` | - | Por diseño: credenciales e instalación remota | - |
 | Mobile: habilitar, emparejar, dispositivos | D | `mobile …` | — | Por diseño: escalada de acceso | — |
 | Cuenta Alera: login, logout, borrar, transferir | D | `account …` | — | Por diseño | — |
 | MCP Control: habilitar, apps, revocar | D | `mcp status/enable/disable/apps/revoke` | — | Por diseño: un cliente MCP no debe gestionar su propio acceso. `mcp status` podría exponerse en solo lectura | — |

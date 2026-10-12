@@ -1,10 +1,10 @@
 ---
 title: Alera CLI
-description: Script projects, workspaces, terminals, automations, and orchestration with alera, the same Rust runtime the desktop app runs as its sidecar.
+description: Script projects, workspaces, terminals, automations, and orchestration with alera, the same Rust runtime the desktop app runs in the background.
 updatedDate: 2026-09-28
 ---
 
-`alera` is the Rust binary the desktop app ships and runs as its runtime sidecar, the process that owns your terminals. The same binary is a command-line tool. Run from an Alera terminal or through the launcher below, it works on the app's own runtime profile, so a workspace you create from a script shows up in the sidebar and on the paired phone.
+`alera` is the Rust binary the desktop app ships and runs as its runtime, the background process that owns your terminals. The same binary is a command-line tool. Run from an Alera terminal or through the launcher below, it works on the app's own runtime profile, so a workspace you create from a script shows up in the sidebar and on the paired phone.
 
 ## Get It On Your PATH
 
@@ -35,7 +35,7 @@ Every group and subcommand answers `--help`.
 | `tag` | Global workspace tags |
 | `tab` | List, create, and remove workspace tabs |
 | `terminal` | `list`, `show`, `wait`, `prune`, `read`, and `write` live terminal sessions |
-| `ssh-target` | [Remote hosts](/docs/remote-hosts): `add`, `status`, `bootstrap` the sidecar, `link` |
+| `ssh-target` | [Remote hosts](/docs/remote-hosts): `list`, `add` and `update` (including `--identity-file`), `status`, `bootstrap` the Alera runtime, `update-runtime`, `restart-runtime`, `link`, `remove` |
 | `mobile` | The phone gateway, pairing offers, and paired devices |
 | `automation` | [Automations](/docs/automations) and their runs |
 | `agent-profile` | [Agent Profiles](/docs/agent-profiles), including `launch` |

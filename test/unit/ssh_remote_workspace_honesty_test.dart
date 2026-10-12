@@ -25,10 +25,11 @@ void main() {
     );
   });
 
-  test('remote host bootstrap docs keep sidecar-only bootstrap and document New Workspace host picker', () {
+  test('remote host bootstrap docs keep runtime-only bootstrap and document New Workspace host picker', () {
     final docs = File('docs/remote-host-bootstrap.md').readAsStringSync();
     final lower = docs.toLowerCase();
-    expect(lower, contains('sidecar only'));
+    expect(lower, contains('installs and validates the alera runtime only'));
+    expect(lower, isNot(contains('sidecar only')));
     expect(docs, contains('register --host-id'));
     expect(lower, contains('metadata only'));
     expect(docs, contains('workspace add'));
