@@ -1,5 +1,6 @@
 use alera_core::runtime::{
     AutomationActor, AutomationActorKind, AutomationDefinition, AutomationRun, AutomationRunStatus,
+    AutomationState,
 };
 
 use super::super::ServerCommand;
@@ -192,6 +193,34 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
+    /// A run executes its frozen definition snapshot, so later edits never
+    /// stop it; only a definition that was deleted or trashed meanwhile does.
+    /// Returns true when the run was stopped.
+    pub(in crate::terminal_host::server) async fn stop_run_if_definition_retired(
+        &mut self,
+        run: &AutomationRun,
+        stage: &str,
+    ) -> bool {
+        match self.runtime_store.find_automation(&run.automation_id).await {
+            Ok(Some(live)) if live.state != AutomationState::Trashed => false,
+            Ok(_) => {
+                let _ = self
+                    .runtime_store
+                    .update_automation_run_status(
+                        &run.id,
+                        AutomationRunStatus::Cancelled,
+                        Some(format!("Automation was deleted during {stage}")),
+                    )
+                    .await;
+                true
+            }
+            Err(error) => {
+                self.block_run(run, &error.to_string()).await;
+                true
+            }
+        }
+    }
+
     async fn complete_precheck_if_current(
         &mut self,
         definition: AutomationDefinition,
@@ -224,28 +253,13 @@ impl ServerActor {
                 .await;
             return;
         }
-        let Some(latest) = current.definition_snapshot.clone().or(self
-            .runtime_store
-            .find_automation(&definition.id)
+        if self
+            .stop_run_if_definition_retired(&current, "precheck")
             .await
-            .ok()
-            .flatten())
-        else {
-            self.block_run(
-                &current,
-                "Automation definition disappeared during precheck",
-            )
-            .await;
-            return;
-        };
-        if latest.revision != definition.revision
-            || latest.state != definition.state
-            || latest.target != definition.target
         {
-            self.block_run(&current, "Automation definition changed during precheck")
-                .await;
             return;
         }
+        let latest = current.definition_snapshot.clone().unwrap_or(definition);
         if let Err(error) = self
             .ensure_dispatch_policy(
                 &latest,

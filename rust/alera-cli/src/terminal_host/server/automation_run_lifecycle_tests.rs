@@ -28,6 +28,10 @@ struct ExpireCase {
     include_setup_tab: bool,
     inactivity_timeout_seconds: i64,
     started_ago: Duration,
+    heartbeat_ago: Option<Duration>,
+    activity_ago: Option<Duration>,
+    trigger: AutomationRunTrigger,
+    recurring: bool,
     absolute_deadline_ago: Option<Duration>,
     cancel_requested_ago: Option<Duration>,
 }
@@ -40,6 +44,10 @@ impl Default for ExpireCase {
             include_setup_tab: false,
             inactivity_timeout_seconds: 7200,
             started_ago: Duration::seconds(10),
+            heartbeat_ago: None,
+            activity_ago: None,
+            trigger: AutomationRunTrigger::Manual,
+            recurring: false,
             absolute_deadline_ago: None,
             cancel_requested_ago: None,
         }
@@ -70,7 +78,17 @@ async fn expire_harness(case: ExpireCase) -> ExpireHarness {
     .unwrap();
 
     let now = Utc::now();
-    let definition = definition(case.inactivity_timeout_seconds);
+    let mut definition = definition(case.inactivity_timeout_seconds);
+    if case.recurring {
+        // A final run archives a one-time definition before blocking could apply.
+        definition.schedule = AutomationSchedule::Recurring {
+            cron: "0 * * * *".into(),
+            timezone: "UTC".into(),
+            start_at: None,
+            end_at: None,
+            max_scheduled_runs: None,
+        };
+    }
     let actor_record = definition.created_by.clone();
     actor
         .runtime_store
@@ -85,7 +103,7 @@ async fn expire_harness(case: ExpireCase) -> ExpireHarness {
     };
     let mut run = actor
         .runtime_store
-        .create_automation_run(&definition, &occurrence, AutomationRunTrigger::Manual)
+        .create_automation_run(&definition, &occurrence, case.trigger)
         .await
         .unwrap();
     run.status = AutomationRunStatus::Dispatched;
@@ -95,6 +113,8 @@ async fn expire_harness(case: ExpireCase) -> ExpireHarness {
     run.owned_tab = case.owned_tab;
     run.taken_over = case.taken_over;
     run.started_at = Some(now - case.started_ago);
+    run.last_heartbeat_at = case.heartbeat_ago.map(|ago| now - ago);
+    run.last_activity_at = case.activity_ago.map(|ago| now - ago);
     run.absolute_deadline_at = case.absolute_deadline_ago.map(|ago| now - ago);
     run.cancel_requested_at = case.cancel_requested_ago.map(|ago| now - ago);
     if case.include_setup_tab {
@@ -345,4 +365,84 @@ async fn timeout_terminates_owned_setup_tab_session() {
     assert!(harness.actor.sessions.contains_key(NEIGHBOR_SESSION_ID));
     assert!(tab_exists(&harness.actor, TAB_ID).await);
     assert!(tab_exists(&harness.actor, SETUP_TAB_ID).await);
+}
+
+fn stale_heartbeat_case(activity_ago: Option<Duration>) -> ExpireCase {
+    ExpireCase {
+        inactivity_timeout_seconds: 2 * 60 * 60,
+        started_ago: Duration::hours(4),
+        heartbeat_ago: Some(Duration::hours(3)),
+        activity_ago,
+        ..ExpireCase::default()
+    }
+}
+
+#[tokio::test]
+async fn recent_hook_activity_extends_the_inactivity_timeout() {
+    let mut harness = expire_harness(stale_heartbeat_case(Some(Duration::minutes(10)))).await;
+
+    harness.actor.expire_inactive_automation_runs().await;
+
+    let run = saved_run(&harness.actor, &harness.run_id).await;
+    assert_eq!(run.status, AutomationRunStatus::Dispatched);
+    assert!(harness.actor.sessions.contains_key(SESSION_ID));
+    let wakeup = harness
+        .actor
+        .runtime_store
+        .next_automation_run_wakeup()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(wakeup > Utc::now(), "a live run must not wake in the past");
+}
+
+#[tokio::test]
+async fn stale_heartbeat_without_activity_still_times_out() {
+    let mut harness = expire_harness(stale_heartbeat_case(None)).await;
+
+    harness.actor.expire_inactive_automation_runs().await;
+
+    let run = saved_run(&harness.actor, &harness.run_id).await;
+    assert_eq!(run.status, AutomationRunStatus::Timeout);
+}
+
+async fn definition_state_after_block(
+    trigger: AutomationRunTrigger,
+) -> (AutomationRun, AutomationState) {
+    let mut harness = expire_harness(ExpireCase {
+        trigger,
+        recurring: true,
+        ..ExpireCase::default()
+    })
+    .await;
+    let run = saved_run(&harness.actor, &harness.run_id).await;
+
+    harness.actor.block_run(&run, "fixture blocked").await;
+
+    let state = harness
+        .actor
+        .runtime_store
+        .find_automation(&run.automation_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .state;
+    (saved_run(&harness.actor, &harness.run_id).await, state)
+}
+
+#[tokio::test]
+async fn blocked_manual_run_keeps_the_definition_active() {
+    let (run, state) = definition_state_after_block(AutomationRunTrigger::Manual).await;
+
+    assert_eq!(run.status, AutomationRunStatus::Blocked);
+    assert_eq!(run.error.as_deref(), Some("fixture blocked"));
+    assert_eq!(state, AutomationState::Active);
+}
+
+#[tokio::test]
+async fn blocked_scheduled_run_blocks_the_definition() {
+    let (run, state) = definition_state_after_block(AutomationRunTrigger::Scheduled).await;
+
+    assert_eq!(run.status, AutomationRunStatus::Blocked);
+    assert_eq!(state, AutomationState::Blocked);
 }

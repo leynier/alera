@@ -291,7 +291,7 @@ async fn remote_precheck_checks_checkout_without_retired_permission_gates() {
 #[tokio::test]
 async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_count() {
     for scenario in [
-        "skip", "failure", "edit", "location", "cancel", "policy", "restart",
+        "skip", "failure", "edit", "trash", "location", "cancel", "policy", "restart",
     ] {
         let (mut fixture, mut definition) = empty_project().await;
         declare(&fixture.repo_path);
@@ -336,6 +336,17 @@ async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_c
                 edited.prompt_template.push_str(" edited");
                 store
                     .upsert_automation(edited, definition.created_by.clone())
+                    .await
+                    .unwrap();
+            }
+            "trash" => {
+                store
+                    .set_automation_state(
+                        &definition.id,
+                        alera_core::runtime::AutomationState::Trashed,
+                        definition.created_by.clone(),
+                        None,
+                    )
                     .await
                     .unwrap();
             }
@@ -405,12 +416,18 @@ async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_c
             current.status,
             match scenario {
                 "skip" | "failure" => AutomationRunStatus::PrecheckSkipped,
-                "cancel" => AutomationRunStatus::Cancelled,
+                "cancel" | "trash" => AutomationRunStatus::Cancelled,
                 "edit" | "policy" => AutomationRunStatus::Dispatched,
                 _ => AutomationRunStatus::Blocked,
             },
             "{scenario}"
         );
+        if scenario == "trash" {
+            assert!(current
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("deleted during precheck")));
+        }
         let dispatched = matches!(scenario, "edit" | "policy");
         assert_eq!(current.attempt_count, i64::from(dispatched), "{scenario}");
         assert_eq!(current.workspace_id.is_some(), dispatched);

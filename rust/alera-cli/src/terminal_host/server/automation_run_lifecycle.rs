@@ -1,5 +1,6 @@
 use alera_core::runtime::{
-    AutomationRun, AutomationRunStatus, AutomationState, AutomationTarget, AutomationTargetIdentity,
+    AutomationRun, AutomationRunStatus, AutomationRunTrigger, AutomationState, AutomationTarget,
+    AutomationTargetIdentity,
 };
 use chrono::{Duration, Utc};
 use serde_json::{json, Value};
@@ -160,12 +161,15 @@ impl ServerActor {
                 Some(reason.to_string()),
             )
             .await;
-        self.block_automation_definition_if_active(
-            &run.automation_id,
-            managed_actor(),
-            Some(reason),
-        )
-        .await;
+        // Only the scheduler re-fires on its own; a blocked manual run must not pause it.
+        if run.trigger == AutomationRunTrigger::Scheduled {
+            self.block_automation_definition_if_active(
+                &run.automation_id,
+                managed_actor(),
+                Some(reason),
+            )
+            .await;
+        }
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "automationAttentionRequired",
             json!({ "automationId": run.automation_id, "runId": run.id, "reason": reason }),
@@ -342,7 +346,7 @@ impl ServerActor {
             else {
                 continue;
             };
-            let reference = run.last_heartbeat_at.unwrap_or(started);
+            let reference = run.inactivity_reference().unwrap_or(started);
             let absolute_deadline = run
                 .absolute_deadline_at
                 .or_else(|| Some(started + Duration::hours(24)));

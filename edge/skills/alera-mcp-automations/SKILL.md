@@ -2,7 +2,7 @@
 name: alera-mcp-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through this MCP server, and follow their runs. Use for recurring or one-time agent work.
 metadata:
-  version: 1
+  version: 2
 ---
 
 # Alera Automations Through MCP
@@ -25,7 +25,7 @@ Choose the execution target explicitly; never infer its type. A valid prompt, sc
 
 ## Running And State
 
-- `run_automation` runs it once now, like Run Now, without changing its schedule. `continueFromRunId` continues an earlier run's conversation in its preserved workspace.
+- `run_automation` runs it once now, like Run Now, without changing its schedule. `continueFromRunId` names a finished run: the new run opens a fresh agent tab in that run's preserved workspace and appends its summary and error to the prompt.
 - `pause_automation` stops scheduling. When runs are active, `activeRuns` chooses whether they continue or are cancelled. `resume_automation` activates a paused or draft automation.
 - `trash_automation` moves it to the trash, and `restore_automation` brings it back. `purge_automations` permanently deletes everything in the trash for at least 30 days; use it only on request.
 

@@ -124,7 +124,7 @@ impl RuntimeStore {
             {
                 if let Some(definition) = definition {
                     deadlines.push(
-                        run.last_heartbeat_at.or(run.last_activity_at).map(|at| {
+                        run.inactivity_reference().map(|at| {
                             at + Duration::seconds(definition.inactivity_timeout_seconds)
                         }),
                     );

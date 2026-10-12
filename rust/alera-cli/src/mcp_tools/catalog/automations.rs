@@ -84,7 +84,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("automationId", string("Automation id from list_automations.")),
                         ("precheck", one_of("Run or skip the configured precheck for this run.", &["run", "skip"])),
                         ("overlap", one_of("What to do when another run is active: skip, queue behind it, run the latest once, or run in parallel.", &["skip", "queue", "runLatestOnce", "forceParallel"])),
-                        ("continueFromRunId", string("Earlier run whose conversation this run continues.")),
+                        ("continueFromRunId", string("Finished run whose preserved workspace this run opens a fresh agent tab in; its summary and error are appended to the prompt.")),
                         ("expectedRevision", integer("Refuse to run if the automation changed since this revision.", 0, u64::MAX >> 11)),
                     ],
                     &["automationId"],

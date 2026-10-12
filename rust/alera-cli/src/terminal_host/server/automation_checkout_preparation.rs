@@ -108,31 +108,13 @@ impl ServerActor {
                 .await;
             return;
         }
-        let Some(latest) = current.definition_snapshot.clone().or(self
-            .runtime_store
-            .find_automation(&definition.id)
+        if self
+            .stop_run_if_definition_retired(&current, "checkout preparation")
             .await
-            .ok()
-            .flatten())
-        else {
-            self.block_run(
-                &current,
-                "Automation definition disappeared during checkout preparation",
-            )
-            .await;
-            return;
-        };
-        if latest.revision != definition.revision
-            || latest.state != definition.state
-            || latest.target != definition.target
         {
-            self.block_run(
-                &current,
-                "Automation definition changed during checkout preparation",
-            )
-            .await;
             return;
         }
+        let latest = current.definition_snapshot.clone().unwrap_or(definition);
         if let Err(error) = self
             .ensure_dispatch_policy(
                 &latest,

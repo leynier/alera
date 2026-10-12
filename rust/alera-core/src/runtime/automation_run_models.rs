@@ -128,6 +128,22 @@ pub struct AutomationRun {
     pub updated_at: DateTime<Utc>,
 }
 
+impl AutomationRun {
+    /// The instant the inactivity timeout counts from. Agent hooks refresh
+    /// `last_activity_at` without a heartbeat, so the latest of the three
+    /// signals wins; otherwise a busy agent would time out on a stale heartbeat.
+    pub fn inactivity_reference(&self) -> Option<DateTime<Utc>> {
+        [
+            self.started_at,
+            self.last_heartbeat_at,
+            self.last_activity_at,
+        ]
+        .into_iter()
+        .flatten()
+        .max()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AutomationAttempt {

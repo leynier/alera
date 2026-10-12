@@ -278,6 +278,11 @@ async fn deferred_checkout_preparation_uses_the_admitted_definition() {
 }
 
 #[tokio::test]
+async fn deferred_checkout_preparation_cancels_when_the_definition_is_trashed() {
+    deferred_preparation_rejection("trash").await;
+}
+
+#[tokio::test]
 async fn deferred_checkout_preparation_failure_does_not_allocate_a_task() {
     deferred_preparation_rejection("failure").await;
 }
@@ -378,6 +383,19 @@ async fn deferred_preparation_rejection(scenario: &'static str) {
                 .await
                 .unwrap();
         }
+        "trash" => {
+            fixture
+                .actor
+                .runtime_store
+                .set_automation_state(
+                    &definition.id,
+                    alera_core::runtime::AutomationState::Trashed,
+                    definition.created_by.clone(),
+                    None,
+                )
+                .await
+                .unwrap();
+        }
         "failure" | "timeout" => {}
         _ => unreachable!(),
     }
@@ -413,9 +431,9 @@ async fn deferred_preparation_rejection(scenario: &'static str) {
             AutomationRunStatus::Cancelled,
             "cancelled during checkout preparation",
         ),
-        "edit" => (
-            AutomationRunStatus::Blocked,
-            "definition changed during checkout preparation",
+        "trash" => (
+            AutomationRunStatus::Cancelled,
+            "deleted during checkout preparation",
         ),
         "failure" => (
             AutomationRunStatus::Blocked,

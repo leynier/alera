@@ -6540,7 +6540,7 @@
             "type": "string"
           },
           "continueFromRunId": {
-            "description": "Earlier run whose conversation this run continues.",
+            "description": "Finished run whose preserved workspace this run opens a fresh agent tab in; its summary and error are appended to the prompt.",
             "minLength": 1,
             "type": "string"
           },
