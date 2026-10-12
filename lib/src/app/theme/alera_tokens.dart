@@ -51,6 +51,13 @@ abstract final class AleraTokens {
   static const double automationAuthoringWidth = 720.0;
   static const double automationAuthoringMaxHeight = 760.0;
   static const double automationInfoLabelWidth = 100.0;
+
+  /// Width of the muted label column in `AleraKeyValueRow` fact lists.
+  static const double keyValueLabelWidth = 120.0;
+
+  /// Height of compact single-line controls (dropdown fields, the number and
+  /// time inputs beside them) so they line up in one row.
+  static const double controlHeight = 34.0;
   static const double collapsedSidebarFooterHeight = 72.0;
   static const double dividerExtent = 1.0;
   static const double iconXs = 10.0;

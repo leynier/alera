@@ -32,6 +32,8 @@ abstract final class const AleraIcons._() {
   static const IconData restart = LucideIcons.rotateCcw;
   static const IconData restore = LucideIcons.history;
   static const IconData schedule = LucideIcons.calendarClock;
+  static const IconData date = LucideIcons.calendar;
+  static const IconData time = LucideIcons.clock;
   static const IconData cancel = LucideIcons.circleX;
   static const IconData blocked = LucideIcons.ban;
   static const IconData check = LucideIcons.check;
