@@ -39,7 +39,13 @@ Add a target. Duplicate aliases, including different casing, fail with `ssh targ
 alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 ```
 
-`--auth password` is rejected with the same product error as bootstrap and does not persist the target.
+`--auth password` is rejected with the same product error as bootstrap and does not persist the target. `add` only creates: an id that is already saved fails with `ssh target already exists: <id>` and points to `update`.
+
+Change a saved target. Only the flags given change; an empty `--platform`, `--arch`, or `--projects-dir` clears that field, and the install directory, runtime version, and status are kept. Unknown ids fail with `ssh target not found`, and `--auth password` is rejected like `add`:
+
+```bash
+alera ssh-target --json update --id <target-id> --host mac.lan --port 2222
+```
 
 Remove a saved target. Unknown ids fail with `ssh target not found`, matching `status` and `bootstrap-plan`:
 
@@ -77,7 +83,7 @@ The command fails if the target is missing, not bootstrapped, or unreachable.
 Register an existing main project folder on a bootstrapped SSH host, then create independent tasks on it:
 
 ```bash
-alera project --json register-checkout --project-id <project-id> --host-id <target-id> --path <remote-absolute-path>
+alera project --json hosts add --project-id <project-id> --host-id <target-id> --path <remote-absolute-path>
 alera workspace add --project-id <project-id> --host-id <target-id> --name "First Task"
 alera workspace add --project-id <project-id> --host-id <target-id> --name "Second Task"
 ```
@@ -87,10 +93,10 @@ Registration requires a remote sidecar supporting checkout inspection. It resolv
 For a Git project without a checkout on that SSH host, clone directly on the host before registration:
 
 ```bash
-alera project --json register-checkout --project-id <project-id> --host-id <target-id> --path <new-remote-absolute-path> --clone-url <repository-url>
+alera project --json hosts add --project-id <project-id> --host-id <target-id> --path <new-remote-absolute-path> --clone-url <repository-url>
 ```
 
-The destination's parent must exist. The sidecar reserves a new destination and rejects existing directories, including empty ones and symlinks. Git uses that host's environment and credential helper with terminal prompting disabled. The runtime performs registration and cloning outside its actor loop so terminal requests can continue. If cloning fails or the response is lost, inspect the destination first: a completed clone can be registered by repeating `register-checkout` without `--clone-url`. A partial destination is retained for inspection; another clone must use a new path. The CLI waits up to 30 minutes for the response; expiration does not confirm that remote work stopped.
+The destination's parent must exist. The sidecar reserves a new destination and rejects existing directories, including empty ones and symlinks. Git uses that host's environment and credential helper with terminal prompting disabled. The runtime performs registration and cloning outside its actor loop so terminal requests can continue. If cloning fails or the response is lost, inspect the destination first: a completed clone can be registered by repeating `hosts add --path` without `--clone-url`. A partial destination is retained for inspection; another clone must use a new path. The CLI waits up to 30 minutes for the response; expiration does not confirm that remote work stopped.
 
 To add a project to a host without choosing a destination, let the host pick one:
 
@@ -100,7 +106,7 @@ alera project --json hosts list --project-id <project-id>
 alera project --json hosts remove --project-id <project-id> --host-id <target-id>
 ```
 
-`hosts add` clones the Git remote of the local project folder (or `--clone-url <repository-url>`) into `<projects folder>/<project-folder-name>` on the host, where the projects folder is the target's `--projects-dir` (set with `alera ssh-target add --projects-dir` or in Settings > Remote Hosts) and defaults to `alera-projects` under the remote user's home, creating `alera-projects` when needed and taking the first free `<name>-N`. With `--path` it registers an existing checkout instead, like `register-checkout`. `hosts remove` forgets the checkout and never deletes files; it is refused while workspaces remain on that host. See `docs/remote-hosts-hub.md` for the model.
+`hosts add` clones the Git remote of the local project folder (or `--clone-url <repository-url>`) into `<projects folder>/<project-folder-name>` on the host, where the projects folder is the target's `--projects-dir` (set with `alera ssh-target add --projects-dir` or in Settings > Remote Hosts) and defaults to `alera-projects` under the remote user's home, creating `alera-projects` when needed and taking the first free `<name>-N`. With `--path` it registers an existing checkout instead, and with `--path` and `--clone-url` it clones into exactly that folder as described above. A project already on the host is refused. `alera project register-checkout` remains only as a hidden alias of `hosts add --path [--clone-url]`. `hosts remove` forgets the checkout and never deletes files; it is refused while workspaces remain on that host. See `docs/remote-hosts-hub.md` for the model.
 
 Cancel an active runtime-host bootstrap job:
 
@@ -110,7 +116,7 @@ alera ssh-target --json bootstrap-cancel --id <target-id>
 
 When the runtime host is running, `bootstrap` starts a host job and returns immediately with a job id. Without a runtime host, the CLI performs the bootstrap in the foreground and prints progress to stderr.
 
-`alera ssh-target` has no connect or disconnect verbs. Bootstrap still does not place a Git worktree; use `alera workspace add --worktree --host-id <target-id>` or select a linked worktree in New Workspace for that.
+`alera ssh-target link [--id <target-id>] [--connect | --disconnect]` lists, opens, or closes the hub's persistent link to a bootstrapped host's runtime; see `docs/remote-hosts-hub.md`. Bootstrap still does not place a Git worktree; use `alera workspace add --worktree --host-id <target-id>` or select a linked worktree in New Workspace for that.
 
 ## Mobile Access
 

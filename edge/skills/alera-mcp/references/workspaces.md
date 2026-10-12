@@ -6,10 +6,21 @@ A project is a repository or folder registered in a runtime. `list_projects` sho
 
 - Add a folder that already exists with `register_project`. The folder is not changed.
 - Clone a repository with `clone_project`. It returns a clone job at once; follow it with `get_project_clone`. `list_project_clones` lists jobs, and `cancel_project_clone` stops one and deletes its partial folder.
-- A project can live on SSH hosts too. `list_ssh_targets` lists the hosts the runtime knows, and `ssh_target_status` checks whether they are reachable. `register_remote_project` adds a project that exists only on a host. For an existing project, `add_project_host` adds a host, either from a folder there or by cloning, and `register_project_checkout` registers a specific folder. `list_project_hosts` shows the folder on each host, and `remove_project_host` forgets one without deleting files.
+- A project can also live on remote hosts; see Hosts below.
 - `list_project_branches` lists the branches that can be a new worktree's `sourceBranch`, and the project's preferred one.
 - `get_project_config` shows the effective project settings and whether they come from the app or from the repository's `alera.toml`. `update_project_config` saves app settings that override the file, part by part, and `reset_project_config` goes back to the file or the defaults.
 - `rename_project` changes only the display name. `remove_project` removes the project from Alera as the app does: dependent automations are paused, and no file is deleted. Run `preview_project_removal` first and report what it shows.
+
+## Hosts
+
+A host is another machine the runtime reaches over SSH, with its own Alera runtime installed. A project is registered once and then put on hosts, and each workspace belongs to one host. `local` is the runtime's own machine. Adding, editing, installing, and linking hosts happens in the Alera app or its CLI; MCP tools cannot do it.
+
+- `list_ssh_targets` lists the hosts with their platform, installed Alera runtime, and bootstrap state. `ssh_target_status` probes whether they are reachable and whether the runtime answers: one host by `hostId`, or all of them.
+- `list_project_hosts` shows the folder on each host and which one is primary, the host of the project's own folder.
+- `add_project_host` puts an existing Git project on a host in one of three ways: with `path` it registers a checkout that already exists there; with `path` and `cloneUrl` it clones into exactly that new folder, whose parent must exist; with no `path` the host clones the project's remote, or `cloneUrl`, into its projects folder. The host must have the runtime installed.
+- `register_remote_project` adds a project that lives only on a host, from an existing folder or by cloning. That host becomes its primary host, and a new worktree on it needs an explicit `sourceBranch`.
+- `remove_project_host` forgets a host's folder without deleting files. It is refused while workspaces remain there, and for the project's only or primary host.
+- `hostId` on `create_workspace`, `start_agent_workspace`, and `start_workspace_from_prompt` picks the host; leave it out for the project's primary host. The project must already be on that host. `list_workspaces` and `list_project_branches` take `hostId` to filter or to read that host's branches.
 
 ## Workspaces
 

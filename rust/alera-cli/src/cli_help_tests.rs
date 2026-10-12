@@ -13,16 +13,24 @@ fn clap_help(args: &[&str]) -> String {
 }
 
 #[test]
-fn ssh_target_help_states_bootstrap_is_sidecar_only() {
+fn ssh_target_help_states_bootstrap_installs_the_runtime_only() {
     let help = clap_help(&["ssh-target"]);
     let lower = help.to_lowercase();
     assert!(
-        lower.contains("sidecar only"),
-        "ssh-target help should state bootstrap is sidecar only: {help}"
+        lower.contains("installs the alera runtime only"),
+        "ssh-target help should state bootstrap installs the runtime only: {help}"
     );
     assert!(
         lower.contains("does not create remote workspaces"),
         "ssh-target help should say it does not create remote workspaces: {help}"
+    );
+    assert!(
+        help.contains("update"),
+        "ssh-target help should list update: {help}"
+    );
+    assert!(
+        !lower.contains("sidecar"),
+        "ssh-target help should speak of the Alera runtime: {help}"
     );
 }
 
@@ -31,8 +39,8 @@ fn ssh_target_bootstrap_help_states_no_remote_worktree() {
     let help = clap_help(&["ssh-target", "bootstrap"]);
     let lower = help.to_lowercase();
     assert!(
-        lower.contains("sidecar"),
-        "bootstrap help should mention the sidecar: {help}"
+        lower.contains("alera runtime"),
+        "bootstrap help should mention the Alera runtime: {help}"
     );
     assert!(
         lower.contains("does not create a remote git worktree"),
@@ -41,16 +49,72 @@ fn ssh_target_bootstrap_help_states_no_remote_worktree() {
 }
 
 #[test]
-fn workspace_add_help_documents_host_id_for_ssh_targets() {
-    let help = clap_help(&["workspace", "add"]);
-    let lower = help.to_lowercase();
+fn workspace_add_help_documents_host_id_for_remote_hosts() {
+    for command in [
+        &["workspace", "add"][..],
+        &["workspace", "start"][..],
+        &["workspace", "prompt-start", "run"][..],
+    ] {
+        let help = clap_help(command);
+        assert!(
+            help.contains("--host-id"),
+            "{command:?} help should document --host-id: {help}"
+        );
+        assert!(
+            help.contains("ssh-target list") && help.contains("primary host"),
+            "{command:?} help should name host ids and the primary host default: {help}"
+        );
+    }
+    let list = clap_help(&["workspace", "list"]);
     assert!(
-        help.contains("--host-id"),
-        "workspace add help should document --host-id: {help}"
+        list.contains("origin"),
+        "workspace list should document the origin host: {list}"
+    );
+}
+
+#[test]
+fn retired_and_internal_commands_stay_out_of_help() {
+    let top = clap_help(&[]);
+    assert!(
+        !top.contains("runtime-proxy"),
+        "runtime-proxy is started by the app: {top}"
+    );
+    let project = clap_help(&["project"]);
+    for hidden in ["register-checkout", "register-owner-workspace"] {
+        assert!(
+            !project.contains(hidden),
+            "project help should not list {hidden}: {project}"
+        );
+    }
+    assert!(
+        Cli::try_parse_from([
+            "alera",
+            "project",
+            "register-owner-workspace",
+            "--state-dir",
+            "/tmp/state",
+            "--metadata-base64",
+            "e30=",
+        ])
+        .is_err(),
+        "register-owner-workspace was removed"
     );
     assert!(
-        lower.contains("ssh") || lower.contains("bootstrapped"),
-        "workspace add help should mention SSH targeting: {help}"
+        Cli::try_parse_from([
+            "alera",
+            "project",
+            "register-checkout",
+            "--project-id",
+            "p",
+            "--host-id",
+            "h",
+            "--path",
+            "/srv/p",
+            "--clone-url",
+            "git@example.test:o/p.git",
+        ])
+        .is_ok(),
+        "register-checkout stays as a hidden alias of hosts add"
     );
 }
 

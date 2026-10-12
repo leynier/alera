@@ -8,7 +8,7 @@
 | `existing-tab` | Workspace, tab, capturable conversation | Send to that live conversation |
 | `managed-workspace` | Source workspace, source branch, profile | New Git worktree per run, child of the source workspace |
 | `project-worktree` | Project, source branch, profile | New Git worktree per run from the project, with no parent workspace |
-| `project-checkout` | Project, host, profile | Workspace in the registered local or SSH project folder |
+| `project-checkout` | Project, host, profile | Workspace in the project's folder on that host: `local`, or a host id from `alera ssh-target list` the project is on |
 
 Flag creation can use `--at <RFC3339>` instead of `--cron`, and `--prompt-file` instead of `--prompt`. `--origin-workspace-id` controls where the definition appears contextually, independently of the execution target. The CLI uses the current workspace as the origin when available. Section membership follows that workspace dynamically.
 

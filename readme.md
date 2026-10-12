@@ -96,12 +96,12 @@ flowchart LR
         agents[("CLI agents<br/><small>one Git worktree each</small>")]
     end
 
-    remote["SSH host<br/><small>satellite runtime</small>"]
+    remote["Remote host<br/><small>its own Alera runtime</small>"]
 
     desktop -->|"local socket"| runtime
     phone -->|"direct, Tailscale, or encrypted relay"| runtime
     runtime -->|"real PTYs"| agents
-    runtime -->|"one SSH link per host"| remote
+    runtime -->|"SSH: one link per host, one channel per terminal"| remote
 ```
 
 1. **Register a project.** Add a local folder or clone a Git repository. Open as many workspaces on it as you need, and give each one its own worktree when the project uses Git.

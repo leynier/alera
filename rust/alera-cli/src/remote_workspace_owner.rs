@@ -19,12 +19,6 @@ pub(crate) struct RemoteWorkspaceOwnerArgs {
     pub metadata_base64: String,
 }
 
-pub(crate) async fn run(args: RemoteWorkspaceOwnerArgs) -> Result<Workspace> {
-    let registration = parse_registration(&args)?;
-    let store = RuntimeStore::open(&args.state_dir).await?;
-    register(&store, registration).await
-}
-
 pub(crate) fn parse_registration(
     args: &RemoteWorkspaceOwnerArgs,
 ) -> Result<RemoteWorkspaceOwnerRegistration> {

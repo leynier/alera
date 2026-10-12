@@ -9,7 +9,7 @@ use super::{catalog, ToolAccess, ToolSpec, CLIENT_REQUEST_ID};
 use crate::cli::Cli;
 
 /// Commands no MCP tool may run: the security control plane, device pairing,
-/// SSH credentials and sidecar installs, the runtime's own lifecycle, and the
+/// SSH credentials and runtime installs, the runtime's own lifecycle, and the
 /// decisions that only a person makes in the Alera app.
 const EXCLUDED: &[(&str, Option<&str>)] = &[
     ("account", None),
@@ -19,6 +19,7 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
     ("terminal-host", None),
     ("runtime-proxy", None),
     ("ssh-target", Some("add")),
+    ("ssh-target", Some("update")),
     ("ssh-target", Some("remove")),
     ("ssh-target", Some("bootstrap")),
     ("ssh-target", Some("bootstrap-plan")),
