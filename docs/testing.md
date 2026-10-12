@@ -87,7 +87,7 @@ When coverage drops, use the "worst files by missed lines" section to decide whe
 
 ## Golden Tests
 
-Golden tests live under `test/golden/` and use `alchemist`. The project config disables platform-readable goldens and keeps CI goldens stable across hosts. The first snapshots cover core design-system controls and the welcome dashboard in desktop and compact states.
+Golden tests live under `test/golden/` and use `alchemist`. The project config disables platform-readable goldens and keeps CI goldens stable across hosts. The first snapshots cover core design-system controls and the home composer in desktop and compact states.
 
 Good golden candidates:
 

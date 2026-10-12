@@ -98,6 +98,36 @@ void main() {
     },
   );
 
+  test('replaceAdder keeps the path field and an in-flight add', () async {
+    final gate = Completer<Project>();
+    final controller = ProjectHostEnrollmentController(
+      (_, _, _) => gate.future,
+    );
+    addTearDown(controller.dispose);
+    controller.pathController.text = '/kept';
+    var notices = 0;
+    controller.addListener(() => notices++);
+
+    final pending = controller.add(project, 'ssh-mac');
+    final path = controller.pathController;
+    controller.replaceAdder(null);
+
+    expect(controller.supported, isFalse);
+    expect(controller.pathController, same(path));
+    expect(controller.pathController.text, '/kept');
+    expect(notices, 1);
+
+    gate.complete(
+      projectWithCheckout(
+        project,
+        const ProjectCheckout(hostId: 'ssh-mac', path: '/cloned'),
+      ),
+    );
+    expect(await pending, isNotNull);
+    expect(controller.resolve(project).isOnHost('ssh-mac'), isTrue);
+    expect(notices, 2);
+  });
+
   test('an add that finishes after dispose does not notify', () async {
     final gate = Completer<Project>();
     final controller = ProjectHostEnrollmentController(
