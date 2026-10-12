@@ -1,3 +1,5 @@
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
+
 enum SshAuthKind {
   password,
   key,
@@ -58,6 +60,14 @@ class const SshTarget({
   final DateTime? lastBootstrapAt,
   final DateTime? lastCheckedAt,
   final String? lastError,
+
+  /// Private key passed to ssh as `-i` (`sshTargetIdentityFileV1`). Null
+  /// keeps the agent and `~/.ssh/config` defaults.
+  final String? identityFile,
+
+  /// The runtime's unified status (`remoteHostStatusV1`), null from an older
+  /// runtime. Server-owned: never sent back on upsert.
+  final RemoteHostStatus? hostStatus,
 }) {
   factory fromJson(Map<String, Object?> json) {
     return SshTarget(
@@ -81,6 +91,8 @@ class const SshTarget({
       lastBootstrapAt: _optionalDateTime(json['lastBootstrapAt']),
       lastCheckedAt: _optionalDateTime(json['lastCheckedAt']),
       lastError: _optionalString(json['lastError']),
+      identityFile: _optionalString(json['identityFile']),
+      hostStatus: RemoteHostStatus.fromJson(json['hostStatus']),
     );
   }
 
@@ -106,6 +118,7 @@ class const SshTarget({
       'lastBootstrapAt': lastBootstrapAt?.toUtc().toIso8601String(),
       'lastCheckedAt': lastCheckedAt?.toUtc().toIso8601String(),
       'lastError': lastError,
+      'identityFile': identityFile,
     };
   }
 
@@ -119,6 +132,7 @@ class const SshTarget({
     SshAuthKind? authKind,
     String? installDir,
     String? projectsDir,
+    String? identityFile,
   }) {
     final now = DateTime.now().toUtc();
     return SshTarget(
@@ -142,6 +156,8 @@ class const SshTarget({
       lastBootstrapAt: lastBootstrapAt,
       lastCheckedAt: lastCheckedAt,
       lastError: lastError,
+      identityFile: identityFile ?? this.identityFile,
+      hostStatus: hostStatus,
     );
   }
 }
@@ -175,16 +191,19 @@ class const SshTargetBootstrapPlan({
   }
 }
 
+/// A running install. [stage] is additive and absent from older runtimes.
 class const SshTargetBootstrapJob({
   required final String jobId,
   required final String targetId,
   required final SshBootstrapStatus status,
+  final String? stage,
 }) {
   factory fromJson(Map<String, Object?> json) {
     return SshTargetBootstrapJob(
       jobId: _requiredString(json, 'jobId'),
       targetId: _requiredString(json, 'targetId'),
       status: SshBootstrapStatus.parse(json['status']),
+      stage: _optionalString(json['stage']),
     );
   }
 }
@@ -196,8 +215,12 @@ class const SshTargetBootstrapProgress({
   required final String stage,
   required final String message,
   final String? error,
+
+  /// Fraction (0..1) of the current stage, when the runtime reports one.
+  final double? progress,
 }) {
   factory fromJson(Map<String, Object?> json) {
+    final progress = json['progress'];
     return SshTargetBootstrapProgress(
       jobId: _requiredString(json, 'jobId'),
       targetId: _requiredString(json, 'targetId'),
@@ -205,6 +228,7 @@ class const SshTargetBootstrapProgress({
       stage: _requiredString(json, 'stage'),
       message: _requiredString(json, 'message'),
       error: _optionalString(json['error']),
+      progress: progress is num ? progress.toDouble() : null,
     );
   }
 }

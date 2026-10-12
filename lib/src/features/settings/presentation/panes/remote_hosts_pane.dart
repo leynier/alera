@@ -8,7 +8,7 @@ import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_editor_controllers.dart';
-import 'package:alera/src/features/settings/presentation/panes/remote_host_field_normalizers.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_form_values.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_list_row.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_target_signatures.dart';
 import 'package:flutter/material.dart';

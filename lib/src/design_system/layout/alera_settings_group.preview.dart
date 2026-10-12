@@ -31,3 +31,26 @@ Widget aleraSettingsGroupPreview() => const SizedBox(
 );
 
 void _ignoreValue(bool _) {}
+
+@AleraPreview(
+  name: 'Collapsible',
+  group: 'Settings group',
+  size: Size(520, 200),
+)
+Widget aleraSettingsGroupCollapsiblePreview() => SizedBox(
+  width: 480,
+  child: AleraSettingsGroup(
+    title: 'Advanced',
+    description: 'Install directory and platform overrides.',
+    collapsible: true,
+    initiallyExpanded: false,
+    trailing: TextButton(onPressed: () {}, child: const Text('Revert')),
+    children: const <Widget>[
+      AleraSettingRow(
+        title: 'Install Directory',
+        description: 'Where the Alera runtime lives on the host.',
+        child: Text('~/.alera/runtime'),
+      ),
+    ],
+  ),
+);

@@ -85,6 +85,21 @@ const String aleraRuntimeHostRemoteSshWorkspacesCapability =
 /// `hostLinkChanged`. Additive: do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostRemoteHostLinkCapability = 'remoteHostLinkV1';
 
+/// Every `sshTarget.list` item carries `hostStatus` and the runtime answers
+/// `sshTarget.check`. Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteHostStatusCapability = 'remoteHostStatusV1';
+
+/// `sshTarget.bootstrap.start` accepts `restartRuntime` and `force`, and the
+/// runtime answers `sshTarget.restartRuntime`. Additive: do not bump
+/// [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostRemoteRuntimeUpdateCapability =
+    'remoteRuntimeUpdateV1';
+
+/// SSH targets persist `identityFile` and pass it to ssh as `-i`. Additive:
+/// do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostSshTargetIdentityFileCapability =
+    'sshTargetIdentityFileV1';
+
 /// The runtime answers the desktop `git.*` verbs for a workspace on another
 /// host by forwarding them over that host's link, so Source Control, diffs,
 /// history and the explorer badges work on a remote checkout. Additive: do
