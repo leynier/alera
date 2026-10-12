@@ -2,7 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/automation_run_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +30,9 @@ class const AutomationWorkspaceRuns({
         if (runs.value == null && runs.hasError)
           Padding(
             padding: const EdgeInsets.all(AleraTokens.space16),
-            child: Text('Runs are unavailable: ${runs.error}'),
+            child: Text(
+              'Runs are unavailable: ${automationErrorMessage(runs.error)}',
+            ),
           )
         else if (here.isEmpty)
           Padding(

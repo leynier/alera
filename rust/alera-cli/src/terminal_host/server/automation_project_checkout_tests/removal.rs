@@ -8,10 +8,11 @@ async fn offline_cli_project_removal_refuses_dependencies_without_implicit_cance
     fixture
         .actor
         .runtime_store
-        .approve_automation(
+        .set_automation_state(
             &definition.id,
-            definition.revision,
+            alera_core::runtime::AutomationState::Active,
             definition.created_by.clone(),
+            None,
         )
         .await
         .unwrap();

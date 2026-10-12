@@ -22,11 +22,7 @@ pub(super) fn actor_for_client(
 }
 
 impl ServerActor {
-    pub(super) fn automation_actor(
-        &self,
-        client_id: u64,
-        _payload: &serde_json::Value,
-    ) -> AutomationActor {
+    pub(super) fn automation_actor(&self, client_id: u64) -> AutomationActor {
         let mobile_device_id = self
             .clients
             .get(&client_id)

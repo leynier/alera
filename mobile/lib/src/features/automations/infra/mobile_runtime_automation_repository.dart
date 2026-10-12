@@ -1,5 +1,4 @@
-import 'package:alera_mobile/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:logging/logging.dart';
 
@@ -15,14 +14,6 @@ const Set<String> automationCatalogEvents = <String>{
   'automationAttentionRequired',
 };
 
-class const AutomationReadinessException(final AutomationReadiness readiness)
-    implements Exception {
-  @override
-  String toString() => readiness.errors.isEmpty
-      ? 'The automation is not ready.'
-      : readiness.errors.map((issue) => issue.message).join(' ');
-}
-
 class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
   final Logger _logger = Logger('MobileRuntimeAutomationRepository');
 
@@ -35,6 +26,11 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
 
   bool get supportsObserve =>
       _client.runtimeCapabilities.contains(automationTerminalObserveCapability);
+
+  /// Whether the runtime keeps a reuse policy and a bound target. Without it
+  /// the composer hides Reuse and never sends the policy.
+  bool get supportsReuse =>
+      _client.runtimeCapabilities.contains(automationReuseCapability);
 
   Future<List<AutomationRecord>> list() async {
     try {
@@ -150,12 +146,15 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
 
   Future<void> restore(String id) => _state('automation.restore', id);
 
-  /// `automation.approve` is the activation verb every runtime understands;
-  /// it no longer gates anything.
-  Future<void> activate(AutomationRecord automation) => _client.request(
-    'automation.approve',
-    <String, Object?>{'id': automation.id, 'revision': automation.revision},
-  );
+  /// Activates a draft. `automation.resume` runs the same readiness check as
+  /// the retired `automation.approve` and accepts a draft.
+  Future<void> activate(AutomationRecord automation) =>
+      _state('automation.resume', automation.id);
+
+  /// Forgets where a reusing automation returns to; the next run creates a
+  /// new destination. Requires [automationReuseCapability].
+  Future<void> unbind(String id, {String? reason}) =>
+      _state('automation.unbind', id, reason: reason);
 
   Future<AutomationRunRecord> runNow(
     String id, {
@@ -202,26 +201,17 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
   Future<void> takeOver(String runId) =>
       _client.request('automation.takeOver', <String, Object?>{'runId': runId});
 
-  Future<List<JsonMap>> templates() async {
-    final payload = await _client.requestMap('automation.templates');
-    return automationJsonList(payload['items'])
-        .map(automationJsonMap)
-        .toList(growable: false);
-  }
-
-  Future<JsonMap> exportCatalog() => _client.requestMap('automation.export');
-
-  Future<void> importCatalog(JsonMap bundle, Map<String, String> remap) =>
-      _client.request('automation.import', <String, Object?>{
-        'bundle': bundle,
-        'remap': remap,
-      });
-
-  Future<void> _state(String request, String id, {String? activeRuns}) async {
+  Future<void> _state(
+    String request,
+    String id, {
+    String? activeRuns,
+    String? reason,
+  }) async {
     try {
       await _client.request(request, <String, Object?>{
         'id': id,
         'activeRuns': ?activeRuns,
+        'reason': ?reason,
       });
     } on Object catch (error, stackTrace) {
       _logger.warning('could not update automation $id', error, stackTrace);

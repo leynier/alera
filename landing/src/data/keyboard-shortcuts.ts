@@ -31,6 +31,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     actions: [
       { id: 'openSettings', label: 'Open Settings', description: 'Open the settings dialog.', bindings: uniform('Mod+Comma'), inTerminal: true },
       { id: 'openAutomations', label: 'Open Automations', description: 'Open the runtime-local automation manager.', bindings: uniform('Mod+Shift+A'), inTerminal: true },
+      { id: 'newAutomation', label: 'New Automation', description: 'Schedule a prompt for an agent, starting from the active workspace.', bindings: uniform(), inTerminal: true },
       { id: 'openRunBoard', label: 'Open Run Board', description: 'Inspect orchestration runs across projects.', bindings: uniform(), inTerminal: true },
       { id: 'openQuickOpen', label: 'Quick Open', description: 'Search and open a file in the active workspace.', bindings: uniform('Mod+P'), inTerminal: true },
       { id: 'openCommandPalette', label: 'Command Palette', description: 'Search and run an Alera command.', bindings: uniform('Mod+Shift+P'), inTerminal: true },

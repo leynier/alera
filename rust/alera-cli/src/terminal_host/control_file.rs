@@ -170,6 +170,7 @@ pub fn write_control_file(
             RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
             RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
             RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
+            crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
             crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
         ],
         "persistent": persistent,
@@ -326,6 +327,7 @@ mod tests {
                 RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
                 RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
                 RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
+                crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
                 crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
             ])
         );

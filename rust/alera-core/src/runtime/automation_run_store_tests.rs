@@ -61,6 +61,8 @@ pub(super) fn definition() -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: None,
         created_by: AutomationActor {
             kind: AutomationActorKind::LocalCli,
@@ -94,13 +96,15 @@ async fn completion_is_idempotent_and_heartbeat_updates_activity() {
         .upsert_automation(definition.clone(), actor.clone())
         .await
         .unwrap();
-    store
-        .claim_automation_occurrence(&occurrence)
-        .await
-        .unwrap();
     let run = store
-        .create_automation_run(&definition, &occurrence, AutomationRunTrigger::Scheduled)
+        .admit_automation_run(
+            &definition,
+            &occurrence,
+            AutomationRunTrigger::Scheduled,
+            true,
+        )
         .await
+        .unwrap()
         .unwrap();
     let alive = store
         .heartbeat_automation_run(&run.id, actor.clone())
@@ -171,10 +175,12 @@ async fn lifecycle_identity_binds_actor_and_all_target_fields() {
         conversation_id: Some("conversation".into()),
         terminal_handle: Some("session".into()),
     };
-    store
-        .bind_automation_run(&run.id, &actor, identity.clone())
-        .await
-        .unwrap();
+    let mut bound = run;
+    bound.actor_kind = Some(actor.kind);
+    bound.actor_id = actor.id.clone();
+    bound.target_identity = Some(identity.clone());
+    store.save_automation_run(&bound).await.unwrap();
+    let run = bound;
     assert!(store
         .verify_automation_run_identity(&run.id, &actor, &identity)
         .await

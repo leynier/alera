@@ -5,19 +5,26 @@ import 'package:alera/src/design_system/badges/alera_keybinding_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
+import 'package:alera/src/design_system/chips/alera_property_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_progress_steps.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
+import 'package:alera/src/design_system/forms/alera_date_time_field.dart';
+import 'package:alera/src/design_system/forms/alera_duration_field.dart';
+import 'package:alera/src/design_system/forms/alera_time_of_day_field.dart';
 import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/forms/alera_color_picker.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_collapsible_section.dart';
+import 'package:alera/src/design_system/layout/alera_key_value_row.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
+import 'package:alera/src/design_system/layout/alera_sectioned_picker.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
@@ -198,5 +205,93 @@ Widget galleryColorPicker() => Center(
   child: AleraColorPicker(
     pickerColor: AleraTokens.info,
     onColorChanged: (_) {},
+  ),
+);
+
+@AleraPreview(name: 'Composer controls', group: 'Gallery', size: Size(560, 640))
+Widget galleryComposerControls() => SingleChildScrollView(
+  child: Column(
+    mainAxisSize: .min,
+    crossAxisAlignment: .stretch,
+    children: <Widget>[
+      Wrap(
+        spacing: AleraTokens.space8,
+        runSpacing: AleraTokens.space8,
+        children: <Widget>[
+          AleraPropertyChip(
+            icon: AleraIcons.schedule,
+            value: 'Weekdays at 09:00',
+            onTap: () {},
+          ),
+          AleraPropertyChip(
+            icon: AleraIcons.folder,
+            value: 'alera / main',
+            fromContext: true,
+            onTap: () {},
+          ),
+          AleraPropertyChip(
+            icon: AleraIcons.agent,
+            value: 'Choose Agent',
+            hasError: true,
+            onTap: () {},
+          ),
+        ],
+      ),
+      const SizedBox(height: AleraTokens.space16),
+      AleraDurationField(
+        labelText: 'Inactivity Timeout',
+        seconds: 900,
+        onChanged: (_) {},
+      ),
+      const SizedBox(height: AleraTokens.space12),
+      AleraTimeOfDayField(
+        labelText: 'Time',
+        hour: 9,
+        minute: 0,
+        onChanged: (_, _) {},
+      ),
+      const SizedBox(height: AleraTokens.space12),
+      AleraDateTimeField(
+        labelText: 'Starts',
+        value: DateTime(2026, 10, 13, 9),
+        clearable: true,
+        onChanged: (_) {},
+      ),
+      const SizedBox(height: AleraTokens.space12),
+      const AleraCollapsibleSection(
+        title: 'Options',
+        initiallyExpanded: true,
+        child: Column(
+          children: <Widget>[
+            AleraKeyValueRow(label: 'Retry Attempts', value: '2'),
+            AleraKeyValueRow(label: 'Notify On Success', value: 'Off'),
+          ],
+        ),
+      ),
+      const SizedBox(height: AleraTokens.space12),
+      AleraPanel(
+        children: <Widget>[
+          AleraSectionedPicker<String>(
+            autofocus: false,
+            searchable: false,
+            selectedValue: 'main',
+            onSelected: (_) {},
+            sections: const <AleraPickerSection<String>>[
+              AleraPickerSection<String>(
+                title: 'New Tab In A Workspace',
+                rows: <AleraPickerRow<String>>[
+                  AleraPickerRow<String>(value: 'main', title: 'alera / main'),
+                  AleraPickerRow<String>(
+                    value: 'docs',
+                    title: 'alera / docs',
+                    disabledReason: 'Host is offline.',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
   ),
 );

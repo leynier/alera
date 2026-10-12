@@ -93,6 +93,8 @@ pub struct AutomationRun {
     pub error: Option<String>,
     #[serde(default)]
     pub rendered_prompt: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reuse: Option<crate::runtime::AutomationRunReuse>,
     #[serde(default)]
     pub workspace_id: Option<String>,
     #[serde(default)]
@@ -126,6 +128,22 @@ pub struct AutomationRun {
     pub finished_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl AutomationRun {
+    /// The instant the inactivity timeout counts from. Agent hooks refresh
+    /// `last_activity_at` without a heartbeat, so the latest of the three
+    /// signals wins; otherwise a busy agent would time out on a stale heartbeat.
+    pub fn inactivity_reference(&self) -> Option<DateTime<Utc>> {
+        [
+            self.started_at,
+            self.last_heartbeat_at,
+            self.last_activity_at,
+        ]
+        .into_iter()
+        .flatten()
+        .max()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -191,78 +209,4 @@ pub struct AutomationAuditEvent {
     #[serde(default)]
     pub details: Value,
     pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AutomationTag {
-    pub id: String,
-    pub name: String,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct AutomationTemplate {
-    pub id: String,
-    pub name: String,
-    pub prompt_template: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub project_id: Option<String>,
-    #[serde(default)]
-    pub tag_ids: Vec<String>,
-    pub created_by: AutomationActor,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AutomationAgentPolicy {
-    pub profile_id: String,
-    #[serde(default)]
-    pub may_activate_or_edit_active: bool,
-    #[serde(default)]
-    pub may_execute: bool,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AutomationProjectPolicy {
-    pub project_id: String,
-    #[serde(default)]
-    pub repo_declared: bool,
-    #[serde(default)]
-    pub local_approved: bool,
-    #[serde(default)]
-    pub restrictive: bool,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct AutomationImportBundle {
-    pub schema_version: String,
-    pub definitions: Vec<AutomationDefinition>,
-    #[serde(default)]
-    pub templates: Vec<AutomationTemplate>,
-    #[serde(default)]
-    pub tags: Vec<AutomationTag>,
-}
-
-/// A portable catalog deliberately stores definitions as JSON values. Target
-/// workspaces, tabs, profiles, and conversations belong to one runtime and
-/// must never leak into an export that can be shared with another runtime.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct AutomationExportBundle {
-    pub schema_version: String,
-    pub definitions: Vec<Value>,
-    #[serde(default)]
-    pub templates: Vec<Value>,
-    #[serde(default)]
-    pub tags: Vec<Value>,
 }

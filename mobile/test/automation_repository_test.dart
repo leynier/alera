@@ -1,3 +1,4 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +45,40 @@ void main() {
       client.callsOf('automation.runNow').single.payload,
       <String, Object?>{'id': 'nightly'},
     );
+  });
+
+  test('activating a draft resumes it; approve is never sent', () async {
+    final client = FakeAutomationClient(
+      automations: <Map<String, Object?>>[mobileAutomationJson(state: 'draft')],
+    );
+    addTearDown(client.dispose);
+    final repository = MobileRuntimeAutomationRepository(client);
+    final draft = (await repository.list()).single;
+    await repository.activate(draft);
+    expect(client.callsOf('automation.resume').single.payload, {
+      'id': 'nightly',
+    });
+    expect(client.callsOf('automation.approve'), isEmpty);
+  });
+
+  test('unbind sends automation.unbind with the automation id', () async {
+    final client = FakeAutomationClient();
+    addTearDown(client.dispose);
+    await MobileRuntimeAutomationRepository(client).unbind('nightly');
+    expect(client.callsOf('automation.unbind').single.payload, {
+      'id': 'nightly',
+    });
+  });
+
+  test('reuse is detected from the runtime capabilities', () {
+    final plain = FakeAutomationClient();
+    final reusing = FakeAutomationClient(
+      capabilities: <String>{'automationsV1', automationReuseCapability},
+    );
+    addTearDown(plain.dispose);
+    addTearDown(reusing.dispose);
+    expect(MobileRuntimeAutomationRepository(plain).supportsReuse, isFalse);
+    expect(MobileRuntimeAutomationRepository(reusing).supportsReuse, isTrue);
   });
 
   test(

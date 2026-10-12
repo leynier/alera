@@ -22,11 +22,11 @@ From `landing/`, run `bun install --frozen-lockfile`, then `bun run package:plug
 
 | ZIP | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `alera-plugin.zip` | 91937 | `687bf72a0e2045f9b04d9600a13580410f05ff17845f37ee88ed14adbcc04645` |
-| `alera-claude-plugin.zip` | 73279 | `2f3baf7ce541bf987b95e576f598112ac54563e631857b3da999028a341ab539` |
-| `alera-grokbot-cursor-plugin.zip` | 74854 | `9352b78b968b2d01cd39d977601b6025a2b90cade21b816df17fb4c504de5467` |
-| `alera-agent-plugin.zip` | 24648 | `faee80a99235a4f87b2f87c0bca79a6c488998f1c19d7ea5ece7218cc2f7ff31` |
-| `alera-copilot-plugin.zip` | 24912 | `9ed0d089ceb2c0f7d7f5b15cce3f548865ffa4681272714fa8bc50ce04940beb` |
+| `alera-plugin.zip` | 92594 | `fdf618f601c563f5756de09ad624fd3a5292ad62699f74cc1521c309b1b9eb8c` |
+| `alera-claude-plugin.zip` | 73935 | `5c73519b2b2bde67fe0382045d2ecf7ad1a837942fb5e04a281ce59bbc9dc6e2` |
+| `alera-grokbot-cursor-plugin.zip` | 75507 | `3165349d8bc29aecc0c8e2c2aa3192f74a0c2b017a9a91935edb1ba50db8eae9` |
+| `alera-agent-plugin.zip` | 25301 | `4dafc704ecf7146a46b32b2130c13ebe15b9c586bcac19bd9b5c7df8f0eef780` |
+| `alera-copilot-plugin.zip` | 25565 | `aba957d9bff1091d47d89a1df41eb66a04e9dc5992f44db04b9ddc906927e2a8` |
 
 Fixed ZIP timestamps, sorted contained paths, fixed modes, and pinned `fflate` provide deterministic bytes across tested time zones. Schema copies are unmodified official Apache-2.0 inputs, with upstream commit and hashes recorded in `landing/config/schemas/agent-plugins-1.0.0/README.md`. They and Ajv are not plugin payload files. The Agent Plugin has no extensions, including `com.openai` or `com.cursor`.
 

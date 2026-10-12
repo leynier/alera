@@ -51,7 +51,10 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       container
           .read(automationsNavigationProvider.notifier)
           .startAuthoring(
-            AutomationAuthoringRequest(originWorkspaceId: widget.workspace.id),
+            AutomationAuthoringRequest(
+              originWorkspaceId: widget.workspace.id,
+              sectionId: widget.workspace.sectionId,
+            ),
             scope: workspaceScope,
           );
     } else if (selected == _recoveryAction && context.mounted) {

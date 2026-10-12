@@ -1,5 +1,5 @@
 import 'package:alera/src/features/automations/application/automation_providers.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/automations/presentation/automation_run_panel.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +55,14 @@ void main() {
     await tester.pumpAndSettle();
     return (runtime: runtime, workbench: workbench);
   }
+
+  test('reuse attempts have their own launch labels', () {
+    expect(automationLaunchKindLabel('reusePaste'), 'Continued Conversation');
+    expect(
+      automationLaunchKindLabel('reuseRelaunch'),
+      'Relaunched Conversation',
+    );
+  });
 
   testWidgets('Watch Terminal opens the tab without taking the run over', (
     tester,

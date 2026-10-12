@@ -1,7 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_tone.dart';
 import 'package:flutter/material.dart';
 
@@ -20,6 +18,7 @@ class const MobileAutomationRunRow({
       if (started != null) automationDateTimeLabel(started),
       if (!run.isFinal && run.lastActivityAt != null)
         'Last activity ${automationRelativeTime(run.lastActivityAt!)}',
+      if (run.reuse case final reuse?) reuse.label,
     ];
     return ListTile(
       contentPadding: EdgeInsets.zero,

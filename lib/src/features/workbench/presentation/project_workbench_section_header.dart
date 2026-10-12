@@ -37,10 +37,25 @@ class _WorkspaceSectionHeader extends StatelessWidget {
       return;
     }
     if (action == 'new-automation') {
-      ProviderScope.containerOf(context, listen: false)
+      final container = ProviderScope.containerOf(context, listen: false);
+      final sectionId = row.section!.id;
+      // A section whose workspaces all belong to one project also seeds
+      // that project as the destination.
+      final projects = container
+          .read(workbenchControllerProvider)
+          .workspacesByProject
+          .values
+          .expand((workspaces) => workspaces)
+          .where((workspace) => workspace.sectionId == sectionId)
+          .map((workspace) => workspace.projectId)
+          .toSet();
+      container
           .read(automationsNavigationProvider.notifier)
           .startAuthoring(
-            const AutomationAuthoringRequest(),
+            AutomationAuthoringRequest(
+              sectionId: sectionId,
+              projectId: projects.length == 1 ? projects.single : null,
+            ),
             scope: sectionScope,
           );
       return;

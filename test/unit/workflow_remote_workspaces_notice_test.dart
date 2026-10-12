@@ -38,9 +38,5 @@ void main() {
       workflowRemoteWorkspacesNoticeMessage,
       'Workflows run on This Device. Remote workspaces are not listed.',
     );
-    expect(
-      automationRemoteProjectsNoticeMessage,
-      'Automations run on This Device. Remote projects are not listed.',
-    );
   });
 }

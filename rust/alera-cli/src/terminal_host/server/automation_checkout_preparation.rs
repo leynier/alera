@@ -99,8 +99,7 @@ impl ServerActor {
         }
         if current.cancel_requested_at.is_some() {
             let _ = self
-                .runtime_store
-                .update_automation_run_status(
+                .set_automation_run_status(
                     &current.id,
                     AutomationRunStatus::Cancelled,
                     Some("Automation cancelled during checkout preparation".into()),
@@ -108,42 +107,14 @@ impl ServerActor {
                 .await;
             return;
         }
-        let Some(latest) = current.definition_snapshot.clone().or(self
-            .runtime_store
-            .find_automation(&definition.id)
+        if self
+            .stop_run_if_definition_retired(&current, "checkout preparation")
             .await
-            .ok()
-            .flatten())
-        else {
-            self.block_run(
-                &current,
-                "Automation definition disappeared during checkout preparation",
-            )
-            .await;
-            return;
-        };
-        if latest.revision != definition.revision
-            || latest.state != definition.state
-            || latest.target != definition.target
         {
-            self.block_run(
-                &current,
-                "Automation definition changed during checkout preparation",
-            )
-            .await;
             return;
         }
-        if let Err(error) = self
-            .ensure_dispatch_policy(
-                &latest,
-                &alera_core::runtime::AutomationActor {
-                    kind: alera_core::runtime::AutomationActorKind::ManagedAgent,
-                    id: current.actor_id.clone(),
-                    label: Some("Alera Automation Scheduler".into()),
-                },
-            )
-            .await
-        {
+        let latest = current.definition_snapshot.clone().unwrap_or(definition);
+        if let Err(error) = self.ensure_target_valid(&latest).await {
             self.block_run(&current, &error.wire_message()).await;
             return;
         }
@@ -166,8 +137,14 @@ impl ServerActor {
                     self.apply_automation_workspace_placement(&latest, &workspace)
                         .await;
                 }
-                self.continue_automation_dispatch(&latest, run, workspace, &project)
-                    .await
+                self.continue_automation_dispatch(
+                    &latest,
+                    run,
+                    workspace,
+                    &project,
+                    super::super::automation_bound_target_resolution::BoundTargetPlan::CreateNew,
+                )
+                .await
             }
             Err(error) => self.block_run(&current, &error.to_string()).await,
         }

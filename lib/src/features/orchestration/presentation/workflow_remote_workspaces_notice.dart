@@ -6,10 +6,7 @@ import 'package:flutter/material.dart';
 const String workflowRemoteWorkspacesNoticeMessage =
     'Workflows run on This Device. Remote workspaces are not listed.';
 
-const String automationRemoteProjectsNoticeMessage =
-    'Automations run on This Device. Remote projects are not listed.';
-
-/// Whether a workspace picker for workflows or automations hid any of
+/// Whether a workspace picker for workflows hid any of
 /// [workspaces] because they live on another host.
 bool hidesRemoteWorkspaces(Iterable<Workspace> workspaces) =>
     workspaces.any((workspace) => isRemoteWorkspaceHostId(workspace.hostId));

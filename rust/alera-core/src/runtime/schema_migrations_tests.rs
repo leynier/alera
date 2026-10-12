@@ -220,3 +220,49 @@ async fn feature_retirement_rolls_back_schema_and_data_when_tab_cleanup_fails() 
         .is_none());
     store.pool().close().await;
 }
+
+const RETIRED_AUTOMATION_SCHEMA: &[&str] = &[
+    "CREATE TABLE automationTemplates (id TEXT PRIMARY KEY, name TEXT NOT NULL, dataJson TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL)",
+    "CREATE UNIQUE INDEX automationTemplatesNameIdx ON automationTemplates(name COLLATE NOCASE)",
+    "CREATE TABLE automationTags (id TEXT PRIMARY KEY, name TEXT NOT NULL, createdAt TEXT NOT NULL)",
+    "CREATE TABLE automationTagAssignments (automationId TEXT NOT NULL, tagId TEXT NOT NULL, PRIMARY KEY(automationId, tagId))",
+    "CREATE TABLE automationAgentPolicies (profileId TEXT PRIMARY KEY, dataJson TEXT NOT NULL, updatedAt TEXT NOT NULL)",
+    "CREATE TABLE automationProjectPolicies (projectId TEXT PRIMARY KEY, dataJson TEXT NOT NULL, updatedAt TEXT NOT NULL)",
+    "CREATE TRIGGER automationAgentPoliciesProfileInsertGuard BEFORE INSERT ON automationAgentPolicies WHEN NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.profileId) BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END",
+    "CREATE TRIGGER automationAgentPoliciesProfileUpdateGuard BEFORE UPDATE OF profileId ON automationAgentPolicies WHEN NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.profileId) BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END",
+];
+
+async fn retired_automation_object_count(store: &RuntimeStore) -> i64 {
+    sqlx::query_scalar(
+        "SELECT count(*) FROM sqlite_master WHERE name IN ('automationTemplates', 'automationTemplatesNameIdx', 'automationTags', 'automationTagAssignments', 'automationAgentPolicies', 'automationProjectPolicies', 'automationAgentPoliciesProfileInsertGuard', 'automationAgentPoliciesProfileUpdateGuard')",
+    )
+    .fetch_one(store.pool())
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn retiring_the_automation_catalog_and_policy_tables_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    assert_eq!(retired_automation_object_count(&store).await, 0);
+    for statement in RETIRED_AUTOMATION_SCHEMA {
+        sqlx::query(*statement).execute(store.pool()).await.unwrap();
+    }
+    sqlx::query("INSERT INTO automationTagAssignments VALUES ('automation-1', 'tag-1')")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(retired_automation_object_count(&store).await, 8);
+
+    store.retire_removed_features().await.unwrap();
+    assert_eq!(retired_automation_object_count(&store).await, 0);
+    store.retire_removed_features().await.unwrap();
+    assert_eq!(retired_automation_object_count(&store).await, 0);
+    store.pool().close().await;
+
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    store.retire_removed_features().await.unwrap();
+    assert_eq!(retired_automation_object_count(&store).await, 0);
+    store.pool().close().await;
+}

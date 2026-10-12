@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 const String automationsAuthoringCapability = 'automationsAuthoringV1';
@@ -15,15 +14,6 @@ const Set<String> automationCatalogEvents = <String>{
   'automationAttentionRequired',
   aleraRuntimeHostConnectedEvent,
 };
-
-/// Thrown when the runtime rejects a definition with structured readiness.
-class const AutomationReadinessException(final AutomationReadiness readiness)
-    implements Exception {
-  @override
-  String toString() => readiness.errors.isEmpty
-      ? 'The automation is not ready.'
-      : readiness.errors.map((issue) => issue.message).join(' ');
-}
 
 class RuntimeAutomationRepository(final RuntimeHostClient _client) {
   Stream<RuntimeHostEvent> get events => _client.runtimeEvents.where(
@@ -153,12 +143,19 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
     return AutomationRecord.fromJson(payload);
   }
 
-  Future<AutomationRecord> activate(AutomationRecord automation) async {
+  /// Activates a draft. `automation.resume` runs the same readiness check as
+  /// the deprecated `automation.approve` and accepts a draft.
+  Future<AutomationRecord> activate(AutomationRecord automation) =>
+      setState('automation.resume', automation.id);
+
+  /// Forgets where a reusing automation returns to; the next run creates a
+  /// new destination. Requires [automationReuseCapability].
+  Future<AutomationRecord> unbind(String id, {String? reason}) async {
     final payload = await _client.runtimeRequest(
-      'automation.approve',
-      <String, Object?>{'id': automation.id, 'revision': automation.revision},
+      'automation.unbind',
+      <String, Object?>{'id': id, 'reason': ?reason},
     );
-    return AutomationRecord.fromJson(payload);
+    return AutomationRecord.fromJson(_automationOf(payload));
   }
 
   /// Manual runs use the definition's own precheck and overlap policy unless
@@ -210,40 +207,6 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
   Future<void> takeOver(String runId) async {
     await _client.runtimeRequest('automation.takeOver', <String, Object?>{
       'runId': runId,
-    });
-  }
-
-  Future<List<JsonMap>> templates() async {
-    final payload = await _client.runtimeRequest('automation.templates');
-    return automationJsonList(automationJsonMap(payload)['items'])
-        .map(automationJsonMap)
-        .toList(growable: false);
-  }
-
-  Future<JsonMap> saveTemplate(JsonMap template) async {
-    final payload = await _client.runtimeRequest(
-      'automation.templates',
-      <String, Object?>{'template': template},
-    );
-    return automationJsonMap(payload);
-  }
-
-  Future<List<JsonMap>> tags() async {
-    final payload = await _client.runtimeRequest('automation.tags');
-    return automationJsonList(automationJsonMap(payload)['items'])
-        .map(automationJsonMap)
-        .toList(growable: false);
-  }
-
-  Future<JsonMap> exportCatalog() async {
-    final payload = await _client.runtimeRequest('automation.export');
-    return automationJsonMap(payload);
-  }
-
-  Future<void> importCatalog(JsonMap bundle, Map<String, String> remap) async {
-    await _client.runtimeRequest('automation.import', <String, Object?>{
-      'bundle': bundle,
-      'remap': remap,
     });
   }
 

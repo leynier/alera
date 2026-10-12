@@ -36,16 +36,6 @@ pub(super) fn run_query() -> &'static str {
 }
 
 impl RuntimeStore {
-    pub async fn count_automation_occurrences(&self, automation_id: &str) -> Result<i64> {
-        Ok(sqlx::query(
-            "SELECT COUNT(*) AS count FROM automationOccurrences WHERE automationId = ? AND occurrenceKey NOT LIKE 'manual|%'",
-        )
-        .bind(automation_id)
-        .fetch_one(self.pool())
-        .await?
-        .try_get("count")?)
-    }
-
     /// Counts scheduled executions that were actually admitted to the run
     /// lifecycle. Durable occurrence claims are intentionally not used here:
     /// misfires, overlap skips, queue-cap skips, and precheck skips must not
@@ -76,23 +66,6 @@ impl RuntimeStore {
             ))),
             None => Ok(None),
         }
-    }
-
-    pub async fn claim_automation_occurrence(
-        &self,
-        occurrence: &AutomationOccurrence,
-    ) -> Result<bool> {
-        let result = sqlx::query(
-            "INSERT INTO automationOccurrences (automationId, occurrenceKey, scheduledAt, claimedAt) \
-             VALUES (?, ?, ?, ?) ON CONFLICT(automationId, occurrenceKey) DO NOTHING",
-        )
-        .bind(&occurrence.automation_id)
-        .bind(&occurrence.key)
-        .bind(format_timestamp(occurrence.scheduled_at))
-        .bind(format_timestamp(Utc::now()))
-        .execute(self.pool())
-        .await?;
-        Ok(result.rows_affected() == 1)
     }
 
     pub async fn create_automation_run(
@@ -138,49 +111,6 @@ impl RuntimeStore {
         Ok(Some(run))
     }
 
-    pub async fn bind_automation_run(
-        &self,
-        id: &str,
-        actor: &AutomationActor,
-        target_identity: AutomationTargetIdentity,
-    ) -> Result<AutomationRun> {
-        if target_identity.is_empty() {
-            bail!("automation run target identity is required");
-        }
-        let mut run = self
-            .find_automation_run(id)
-            .await?
-            .ok_or_else(|| anyhow!("automation run not found: {id}"))?;
-        if run.status.is_final() {
-            bail!("automation run is already final: {id}");
-        }
-        run.actor_kind = Some(actor.kind);
-        run.actor_id = actor.id.clone();
-        run.target_identity = Some(target_identity);
-        run.updated_at = Utc::now();
-        self.save_automation_run(&run).await
-    }
-
-    pub async fn set_automation_run_target_identity(
-        &self,
-        id: &str,
-        target_identity: AutomationTargetIdentity,
-    ) -> Result<AutomationRun> {
-        if target_identity.is_empty() {
-            bail!("automation run target identity is required");
-        }
-        let mut run = self
-            .find_automation_run(id)
-            .await?
-            .ok_or_else(|| anyhow!("automation run not found: {id}"))?;
-        if run.status.is_final() {
-            bail!("automation run is already final: {id}");
-        }
-        run.target_identity = Some(target_identity);
-        run.updated_at = Utc::now();
-        self.save_automation_run(&run).await
-    }
-
     pub async fn verify_automation_run_identity(
         &self,
         id: &str,
@@ -222,27 +152,6 @@ impl RuntimeStore {
         Ok(run)
     }
 
-    pub async fn insert_automation_run(&self, run: &AutomationRun) -> Result<()> {
-        sqlx::query(
-            "INSERT INTO automationRuns (id, automationId, runNumber, occurrenceKey, scheduledAt, trigger, status, dataJson, createdAt, updatedAt, finishedAt) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(&run.id)
-        .bind(&run.automation_id)
-        .bind(run.number)
-        .bind(&run.occurrence_key)
-        .bind(format_timestamp(run.scheduled_at))
-        .bind(run.trigger.as_str())
-        .bind(run.status.as_str())
-        .bind(serde_json::to_string(run)?)
-        .bind(format_timestamp(run.created_at))
-        .bind(format_timestamp(run.updated_at))
-        .bind(run.finished_at.map(format_timestamp))
-        .execute(self.pool())
-        .await?;
-        Ok(())
-    }
-
     pub async fn find_automation_run(&self, id: &str) -> Result<Option<AutomationRun>> {
         sqlx::query(sqlx::AssertSqlSafe(format!("{} WHERE id = ?", run_query())))
             .bind(id)
@@ -275,6 +184,18 @@ impl RuntimeStore {
         }
         let rows = request.bind(limit).fetch_all(self.pool()).await?;
         rows.into_iter().map(decode_run).collect()
+    }
+
+    /// The error of the newest run that recorded one.
+    pub async fn latest_automation_run_error(&self, automation_id: &str) -> Result<Option<String>> {
+        Ok(sqlx::query(
+            "SELECT json_extract(dataJson, '$.error') AS error FROM automationRuns WHERE automationId = ? AND json_extract(dataJson, '$.error') IS NOT NULL ORDER BY createdAt DESC, runNumber DESC LIMIT 1",
+        )
+        .bind(automation_id)
+        .fetch_optional(self.pool())
+        .await?
+        .map(|row| row.try_get("error"))
+        .transpose()?)
     }
 
     pub async fn save_automation_run(&self, run: &AutomationRun) -> Result<AutomationRun> {
@@ -310,13 +231,55 @@ impl RuntimeStore {
         Ok(saved)
     }
 
-    pub async fn count_automation_failure_streak(&self, automation_id: &str) -> Result<i64> {
-        let runs = self.list_automation_runs(Some(automation_id), 1000).await?;
-        Ok(runs
-            .into_iter()
-            .filter(|run| run.trigger == AutomationRunTrigger::Scheduled)
-            .take_while(|run| run.status.counts_as_failure())
-            .count() as i64)
+    /// Counts consecutive failed scheduled runs, newest first. Reading stops at
+    /// `threshold` (at most 10) because the circuit breaker only compares
+    /// the streak with it.
+    pub async fn count_automation_failure_streak(
+        &self,
+        automation_id: &str,
+        threshold: i64,
+    ) -> Result<i64> {
+        let rows = sqlx::query(
+            "SELECT status FROM automationRuns WHERE automationId = ? AND trigger = 'scheduled' ORDER BY createdAt DESC, runNumber DESC LIMIT ?",
+        )
+        .bind(automation_id)
+        .bind(threshold.clamp(1, 10))
+        .fetch_all(self.pool())
+        .await?;
+        let mut streak = 0;
+        for row in rows {
+            if !AutomationRunStatus::from_db(&row.try_get::<String, _>("status")?)
+                .counts_as_failure()
+            {
+                break;
+            }
+            streak += 1;
+        }
+        Ok(streak)
+    }
+
+    /// Claims scheduled occurrences that will never run, without run rows, so
+    /// the schedule cursor moves past them. Returns how many were new.
+    pub async fn claim_skipped_automation_occurrences(
+        &self,
+        automation_id: &str,
+        occurrences: &[AutomationOccurrence],
+    ) -> Result<u64> {
+        let mut tx = self.pool().begin().await?;
+        let claimed_at = format_timestamp(Utc::now());
+        let mut claimed = 0;
+        for occurrence in occurrences {
+            claimed += sqlx::query("INSERT INTO automationOccurrences (automationId, occurrenceKey, scheduledAt, claimedAt) VALUES (?, ?, ?, ?) ON CONFLICT(automationId, occurrenceKey) DO NOTHING")
+                .bind(automation_id)
+                .bind(&occurrence.key)
+                .bind(format_timestamp(occurrence.scheduled_at))
+                .bind(&claimed_at)
+                .execute(&mut *tx)
+                .await?
+                .rows_affected();
+        }
+        tx.commit().await?;
+        Ok(claimed)
     }
 
     pub async fn list_active_automation_runs(&self) -> Result<Vec<AutomationRun>> {
@@ -371,6 +334,7 @@ fn new_run(
         summary: None,
         error: None,
         rendered_prompt: None,
+        reuse: None,
         workspace_id: definition.target.workspace_id().map(str::to_string),
         tab_id: None,
         setup_tab_id: None,

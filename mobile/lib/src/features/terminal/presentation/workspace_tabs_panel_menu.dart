@@ -118,8 +118,8 @@ const List<PopupMenuEntry<_TabsMenuAction>> _automationMenuEntries =
       PopupMenuDivider(),
     ];
 
-/// Opens this workspace's automations; [create] starts the authoring flow with
-/// the workspace as origin, never as the execution target.
+/// Opens this workspace's automations; [create] opens the composer seeded
+/// with a new agent tab in this workspace, which the user can change.
 void _openWorkspaceAutomations(
   BuildContext context,
   WorkspaceTabsScreen screen, {

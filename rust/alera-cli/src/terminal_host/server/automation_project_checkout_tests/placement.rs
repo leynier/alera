@@ -3,7 +3,6 @@ use super::*;
 #[tokio::test]
 async fn project_checkout_places_a_new_task_once_and_leaves_a_resumed_one_alone() {
     let (fixture, mut definition) = empty_project().await;
-    declare(&fixture.repo_path);
     let store = fixture.actor.runtime_store.clone();
     let now = Utc::now();
     let tag = store

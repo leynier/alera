@@ -16,7 +16,6 @@ class const AgentProfileRemovalImpact({
   final int? revision,
   required final bool isDefault,
   required final List<String> automationIds,
-  required final bool hasAutomationPolicy,
   required final List<String> executionPolicyRunIds,
   required final List<AgentProfileTabReference> tabs,
 }) {
@@ -32,7 +31,6 @@ class const AgentProfileRemovalImpact({
       automationIds: automationIds is List
           ? automationIds.whereType<String>().toList(growable: false)
           : const <String>[],
-      hasAutomationPolicy: json['hasAutomationPolicy'] as bool? ?? false,
       executionPolicyRunIds: executionPolicyRunIds is List
           ? executionPolicyRunIds.whereType<String>().toList(growable: false)
           : const <String>[],
@@ -59,7 +57,6 @@ class const AgentProfileRemovalImpact({
         '${automationIds.length} automation${automationIds.length == 1 ? '' : 's'}',
       if (tabs.isNotEmpty) '${tabs.length} tab${tabs.length == 1 ? '' : 's'}',
       if (isDefault) 'the default profile setting',
-      if (hasAutomationPolicy) 'an automation policy',
       if (executionPolicyRunIds.isNotEmpty)
         '${executionPolicyRunIds.length} active execution '
             '${executionPolicyRunIds.length == 1 ? 'policy' : 'policies'}',

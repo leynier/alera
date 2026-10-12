@@ -284,3 +284,8 @@ pub const RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY: &str =
 
 pub const RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY: &str = "automationsAuthoringV1";
 pub const RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY: &str = "automationTerminalObserveV1";
+// Advertised once definitions carry `reusePolicy` and the runtime-owned
+// `boundTarget`, catalog items carry `boundTargetSummary`, and the host
+// answers `automation.unbind`. Additive, so it never bumps the protocol
+// version; clients hide reuse controls without it.
+pub const RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY: &str = "automationReuseV1";

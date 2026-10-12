@@ -7,8 +7,9 @@ async fn project_worktree(fixture: &mut Harness) -> AutomationDefinition {
     let mut definition = draft_definition();
     definition.project_id = Some("project-1".into());
     definition.setup_policy = AutomationSetupPolicy::Skip;
-    definition.target = AutomationTarget::ProjectWorktree {
-        project_id: "project-1".into(),
+    definition.target = AutomationTarget::Worktree {
+        project_id: Some("project-1".into()),
+        parent_workspace_id: None,
         source_branch: "main".into(),
         name_template: "run-{{run.number}}".into(),
         agent_profile_id: "profile-1".into(),
@@ -46,20 +47,12 @@ async fn started_run(fixture: &Harness, definition: &AutomationDefinition) -> Au
 }
 
 fn worktree_target(definition: &AutomationDefinition) -> AutomationWorktree<'_> {
-    let AutomationTarget::ProjectWorktree {
-        project_id,
-        source_branch,
-        name_template,
-        ..
-    } = &definition.target
-    else {
-        unreachable!("project worktree definition")
-    };
+    let spec = definition.target.worktree().expect("worktree definition");
     AutomationWorktree {
-        project_id,
-        source_branch,
-        name_template,
-        parent_workspace_id: None,
+        project_id: spec.project_id.unwrap_or("project-1"),
+        source_branch: spec.source_branch,
+        name_template: spec.name_template,
+        parent_workspace_id: spec.parent_workspace_id,
     }
 }
 
@@ -194,7 +187,7 @@ async fn project_worktree_run_files_its_workspace_under_the_chosen_tags_and_sect
     let mut placed = plain.clone();
     placed.id = "automation-placed".into();
     placed.slug = "placed".into();
-    if let AutomationTarget::ProjectWorktree { name_template, .. } = &mut placed.target {
+    if let AutomationTarget::Worktree { name_template, .. } = &mut placed.target {
         *name_template = "placed-{{run.number}}".into();
     }
     placed.workspace_placement = alera_core::runtime::AutomationWorkspacePlacement {
@@ -231,8 +224,8 @@ async fn project_worktree_target_refuses_a_project_with_no_folder_on_this_comput
         .await
         .unwrap();
     definition.project_id = Some("project-remote".into());
-    if let AutomationTarget::ProjectWorktree { project_id, .. } = &mut definition.target {
-        *project_id = "project-remote".into();
+    if let AutomationTarget::Worktree { project_id, .. } = &mut definition.target {
+        *project_id = Some("project-remote".into());
     }
     let error = fixture
         .actor
@@ -240,4 +233,88 @@ async fn project_worktree_target_refuses_a_project_with_no_folder_on_this_comput
         .await
         .unwrap_err();
     assert!(error.wire_message().contains("no folder on this computer"));
+}
+
+#[tokio::test]
+async fn parent_worktree_run_nests_under_its_parent_and_reuses_it_on_retry() {
+    let mut fixture = harness().await;
+    init_repo(&fixture.repo_path);
+    let workspaces = fixture.repo_path.parent().unwrap().join("workspaces");
+    fixture
+        .actor
+        .runtime_store
+        .set_workspace_directory(Some(&workspaces.to_string_lossy()))
+        .await
+        .unwrap();
+    let mut definition = draft_definition();
+    definition.setup_policy = AutomationSetupPolicy::Skip;
+    definition.target = serde_json::from_value(serde_json::json!({
+        "managedWorkspace": {
+            "sourceWorkspaceId": "workspace-1",
+            "sourceBranch": "main",
+            "nameTemplate": "child-{{run.number}}",
+            "agentProfileId": "profile-1",
+        }
+    }))
+    .unwrap();
+    let definition = fixture
+        .actor
+        .runtime_store
+        .upsert_automation(definition.clone(), definition.created_by.clone())
+        .await
+        .unwrap();
+    assert_eq!(definition.target.kind(), "worktree");
+    let location = fixture
+        .actor
+        .automation_target_location(&definition)
+        .await
+        .unwrap();
+    assert_eq!(location.project.id, "project-1");
+    assert_eq!(
+        location
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.id.as_str()),
+        Some("workspace-1")
+    );
+    let mut run = started_run(&fixture, &definition).await;
+    let workspace = fixture
+        .actor
+        .project_worktree_automation_workspace(&definition, &mut run, worktree_target(&definition))
+        .await
+        .unwrap()
+        .expect("worktree created");
+    assert_eq!(
+        workspace.parent_workspace_id.as_deref(),
+        Some("workspace-1")
+    );
+    assert_eq!(run.workspace_id.as_deref(), Some(workspace.id.as_str()));
+
+    // A retried attempt must reuse the worktree instead of creating another
+    // one on the same branch.
+    let mut retried = fixture
+        .actor
+        .runtime_store
+        .find_automation_run(&run.id)
+        .await
+        .unwrap()
+        .unwrap();
+    let reused = fixture
+        .actor
+        .project_worktree_automation_workspace(
+            &definition,
+            &mut retried,
+            worktree_target(&definition),
+        )
+        .await
+        .unwrap()
+        .expect("worktree reused");
+    assert_eq!(reused.id, workspace.id);
+    assert_eq!(retried.workspace_id.as_deref(), Some(workspace.id.as_str()));
+    let identity = fixture
+        .actor
+        .target_identity(&definition.target, definition.reuse_policy)
+        .await
+        .unwrap();
+    assert_eq!(identity.workspace_id.as_deref(), Some("workspace-1"));
 }

@@ -20,11 +20,17 @@ impl RuntimeStore {
         let references = format!(
             "CREATE VIEW IF NOT EXISTS automationProjectReferencesV1 AS
              SELECT id AS automationId, COALESCE(json_extract(dataJson, '$.target.projectCheckout.projectId'), json_extract(dataJson, '$.target.projectCheckout.project_id')) AS projectId FROM automations
+             UNION SELECT id, json_extract(dataJson, '$.target.worktree.projectId') FROM automations
              UNION SELECT id, COALESCE(json_extract(dataJson, '$.projectId'), json_extract(dataJson, '$.project_id')) FROM automations
-             UNION SELECT a.id, w.projectId FROM automations a JOIN workspaces w ON w.id = COALESCE(json_extract(a.dataJson, '$.target.existingTab.workspaceId'), json_extract(a.dataJson, '$.target.existingTab.workspace_id'), json_extract(a.dataJson, '$.target.freshTab.workspaceId'), json_extract(a.dataJson, '$.target.freshTab.workspace_id'), json_extract(a.dataJson, '$.target.managedWorkspace.sourceWorkspaceId'), json_extract(a.dataJson, '$.target.managedWorkspace.source_workspace_id'))
+             UNION SELECT a.id, w.projectId FROM automations a JOIN workspaces w ON w.id = COALESCE(json_extract(a.dataJson, '$.target.existingTab.workspaceId'), json_extract(a.dataJson, '$.target.existingTab.workspace_id'), json_extract(a.dataJson, '$.target.freshTab.workspaceId'), json_extract(a.dataJson, '$.target.freshTab.workspace_id'), json_extract(a.dataJson, '$.target.managedWorkspace.sourceWorkspaceId'), json_extract(a.dataJson, '$.target.managedWorkspace.source_workspace_id'), json_extract(a.dataJson, '$.target.worktree.parentWorkspaceId'))
              UNION SELECT r.automationId, w.projectId FROM automationRuns r JOIN workspaces w ON w.id IN (json_extract(r.dataJson, '$.workspaceId'), json_extract(r.dataJson, '$.targetIdentity.workspaceId')) WHERE r.status NOT IN ({FINAL_RUNS})
              UNION SELECT r.automationId, json_extract(a.workspaceJson, '$.projectId') FROM automationRuns r JOIN automationSharedWorkspaceAllocations a ON a.runId = r.id WHERE r.status NOT IN ({FINAL_RUNS})"
         );
+        // Recreated on every start so a host that adds a target spelling also
+        // updates the view an older host created.
+        sqlx::query("DROP VIEW IF EXISTS automationProjectReferencesV1")
+            .execute(self.pool())
+            .await?;
         sqlx::query(sqlx::AssertSqlSafe(references))
             .execute(self.pool())
             .await?;

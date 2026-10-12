@@ -59,6 +59,8 @@ fn definition() -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: Some(1),
         created_by: actor.clone(),
         modified_by: actor,
@@ -119,7 +121,12 @@ async fn expired_circuit_tick_broadcasts_automations_changed() {
         .unwrap();
     actor
         .runtime_store
-        .approve_automation(&definition.id, 1, actor_record.clone())
+        .set_automation_state(
+            &definition.id,
+            alera_core::runtime::AutomationState::Active,
+            actor_record.clone(),
+            None,
+        )
         .await
         .unwrap();
     actor
@@ -199,7 +206,12 @@ async fn open_automation_circuit_preserves_paused_state() {
         .unwrap();
     actor
         .runtime_store
-        .approve_automation(&definition.id, 1, actor_record.clone())
+        .set_automation_state(
+            &definition.id,
+            alera_core::runtime::AutomationState::Active,
+            actor_record.clone(),
+            None,
+        )
         .await
         .unwrap();
     actor
@@ -246,7 +258,12 @@ async fn block_automation_definition_preserves_paused_state() {
         .unwrap();
     actor
         .runtime_store
-        .approve_automation(&definition.id, 1, actor_record.clone())
+        .set_automation_state(
+            &definition.id,
+            alera_core::runtime::AutomationState::Active,
+            actor_record.clone(),
+            None,
+        )
         .await
         .unwrap();
     actor

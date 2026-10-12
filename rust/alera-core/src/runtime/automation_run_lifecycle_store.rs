@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use chrono::{DateTime, Utc};
 use sqlx::Row;
-use uuid::Uuid;
 
 use super::super::{
     format_timestamp, AutomationActor, AutomationActorKind, AutomationAttempt, AutomationRun,
@@ -292,47 +291,6 @@ impl RuntimeStore {
         )
         .await?;
         Ok(saved)
-    }
-
-    pub async fn insert_automation_attempt(
-        &self,
-        run_id: &str,
-        status: AutomationRunStatus,
-        error: Option<String>,
-    ) -> Result<AutomationAttempt> {
-        let number: i64 = sqlx::query(
-            "SELECT COALESCE(MAX(attemptNumber), 0) + 1 AS nextNumber FROM automationAttempts WHERE runId = ?",
-        )
-        .bind(run_id)
-        .fetch_one(self.pool())
-        .await?
-        .try_get("nextNumber")?;
-        let attempt = AutomationAttempt {
-            id: Uuid::new_v4().to_string(),
-            run_id: run_id.to_string(),
-            number,
-            launch_kind: None,
-            session_id: None,
-            tab_id: None,
-            interruption_code: None,
-            last_activity_at: None,
-            status,
-            error,
-            started_at: Utc::now(),
-            finished_at: None,
-        };
-        sqlx::query(
-            "INSERT INTO automationAttempts (id, runId, attemptNumber, status, dataJson, startedAt, finishedAt) VALUES (?, ?, ?, ?, ?, ?, NULL)",
-        )
-        .bind(&attempt.id)
-        .bind(&attempt.run_id)
-        .bind(attempt.number)
-        .bind(attempt.status.as_str())
-        .bind(serde_json::to_string(&attempt)?)
-        .bind(format_timestamp(attempt.started_at))
-        .execute(self.pool())
-        .await?;
-        Ok(attempt)
     }
 
     async fn finish_latest_automation_attempt(

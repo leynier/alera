@@ -1,8 +1,8 @@
 use super::*;
 
-struct Declaration(Option<bool>);
+struct RemoteFolder;
 
-impl crate::ssh_remote::RemoteHostExecutor for Declaration {
+impl crate::ssh_remote::RemoteHostExecutor for RemoteFolder {
     async fn probe_shell(
         &self,
         _: &alera_core::runtime::SshTarget,
@@ -17,15 +17,14 @@ impl crate::ssh_remote::RemoteHostExecutor for Declaration {
         _: crate::ssh_remote_command::RemoteCommandBudget,
     ) -> Result<String> {
         Ok(
-            serde_json::json!({"version":1,"path":"/fixture/remote","kind":"folder",
-            "branch":null,"automationDeclared":self.0})
-            .to_string(),
+            serde_json::json!({"version":1,"path":"/fixture/remote","kind":"folder","branch":null})
+                .to_string(),
         )
     }
 }
 
 #[tokio::test]
-async fn automation_preparation_ignores_retired_declaration_gate() {
+async fn automation_preparation_inspects_a_remote_checkout_without_creating_a_task() {
     let state = tempfile::tempdir().unwrap();
     let folder = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(state.path()).await.unwrap();
@@ -43,17 +42,14 @@ async fn automation_preparation_ignores_retired_declaration_gate() {
         .register_project_checkout(&project.id, "ssh", "/fixture/remote")
         .await
         .unwrap();
-    for declaration in [None, Some(false), Some(true)] {
-        let mut candidate = request(&project.id, "candidate");
-        candidate.host_id = Some("ssh".into());
-        let prepared =
-            prepare_shared_workspace_with(&store, candidate, &Declaration(declaration), true).await;
-        assert!(prepared.is_ok());
-        assert!(store.find_workspace("candidate").await.unwrap().is_none());
-    }
+    let mut candidate = request(&project.id, "candidate");
+    candidate.host_id = Some("ssh".into());
+    let prepared = prepare_shared_workspace_with(&store, candidate, &RemoteFolder).await;
+    assert!(prepared.is_ok());
+    assert!(store.find_workspace("candidate").await.unwrap().is_none());
     let mut manual = request(&project.id, "manual");
     manual.host_id = Some("ssh".into());
-    create_shared_workspace_with(&store, manual, &Declaration(Some(false)))
+    create_shared_workspace_with(&store, manual, &RemoteFolder)
         .await
         .unwrap();
     assert!(store.find_workspace("manual").await.unwrap().is_some());

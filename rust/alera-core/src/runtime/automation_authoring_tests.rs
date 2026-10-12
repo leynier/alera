@@ -69,10 +69,10 @@ async fn atomic_admission_survives_restart_and_rolls_back_failed_insert() {
         .is_err());
     assert_eq!(
         store
-            .count_automation_occurrences(&definition.id)
+            .latest_automation_occurrence(&definition.id)
             .await
             .unwrap(),
-        0
+        None
     );
     sqlx::query("DROP TRIGGER failAdmission")
         .execute(store.pool())
