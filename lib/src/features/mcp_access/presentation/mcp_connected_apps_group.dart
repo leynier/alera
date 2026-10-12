@@ -7,7 +7,7 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/mcp_access/domain/mcp_grant.dart';
-import 'package:alera/src/features/settings/presentation/panes/mobile_device_list_row.dart';
+import 'package:alera/src/shared/format_timestamp.dart';
 import 'package:flutter/material.dart';
 
 /// What the Connected Apps list currently holds.
@@ -197,8 +197,6 @@ String mcpGrantDetail(McpGrant grant) {
   return <String>[
     ?grant.redirectHost,
     runtimes,
-    lastUsed == null
-        ? 'Never used'
-        : 'Last used ${formatMobileTimestamp(lastUsed)}',
+    lastUsed == null ? 'Never used' : 'Last used ${formatTimestamp(lastUsed)}',
   ].join(' · ');
 }

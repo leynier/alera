@@ -3,7 +3,7 @@ import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/settings/presentation/panes/mobile_device_list_row.dart';
+import 'package:alera/src/shared/format_timestamp.dart';
 import 'package:alera/src/features/webhooks/domain/runtime_webhook.dart';
 import 'package:flutter/material.dart';
 
@@ -116,8 +116,8 @@ String webhookDeliveryDetail(RuntimeWebhook webhook) {
   return <String>[
     lastDelivery == null
         ? 'No deliveries yet'
-        : 'Last delivery ${formatMobileTimestamp(lastDelivery)}',
-    if (createdAt != null) 'Added ${formatMobileTimestamp(createdAt)}',
+        : 'Last delivery ${formatTimestamp(lastDelivery)}',
+    if (createdAt != null) 'Added ${formatTimestamp(createdAt)}',
     if (!webhook.allRuntimes)
       switch (webhook.runtimeIds.length) {
         1 => '1 runtime',

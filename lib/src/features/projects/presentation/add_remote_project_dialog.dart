@@ -39,6 +39,7 @@ class const AddRemoteProjectDialog({
   super.key,
   required final List<SshTarget> sshTargets,
   required final RegisterRemoteProject registerRemoteProject,
+  final String? initialHostId,
 }) extends StatefulWidget {
   @override
   State<AddRemoteProjectDialog> createState() => _AddRemoteProjectDialogState();
@@ -59,7 +60,9 @@ class _AddRemoteProjectDialogState extends State<AddRemoteProjectDialog> {
   void initState() {
     super.initState();
     final hosts = remoteProjectHosts(widget.sshTargets);
-    if (hosts.length == 1) {
+    if (hosts.any((target) => target.id == widget.initialHostId)) {
+      _hostId = widget.initialHostId;
+    } else if (hosts.length == 1) {
       _hostId = hosts.single.id;
     }
   }

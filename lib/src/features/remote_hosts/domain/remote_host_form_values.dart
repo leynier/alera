@@ -49,8 +49,12 @@ class const RemoteHostConnectionValues({
   );
 
   /// The first problem with these values, as a sentence, or null when they
-  /// can be saved. Aliases compare case-insensitively, like the runtime.
+  /// can be saved. The address comes first because Add Host fills the alias
+  /// from it. Aliases compare case-insensitively, like the runtime.
   String? validate({required Iterable<SshTarget> existing, String? editingId}) {
+    if (sshAddressError(address) case final error?) {
+      return error;
+    }
     final name = alias.trim();
     if (name.isEmpty) {
       return 'Enter a name for this host.';
@@ -63,7 +67,7 @@ class const RemoteHostConnectionValues({
     if (duplicate) {
       return duplicateRemoteHostAliasMessage(name);
     }
-    return sshAddressError(address);
+    return null;
   }
 
   /// A new target, or [existing] with its identity replaced. Server-owned
@@ -100,19 +104,35 @@ class const RemoteHostConnectionValues({
 }
 
 /// The Advanced group: where the runtime goes and what it is built for. A
-/// blank value means the runtime's default.
+/// blank value means the runtime's default. A null [identityFile] keeps the
+/// target's own, which is what a host without key file login uses.
 class const RemoteHostAdvancedValues({
   final String installDir = '',
   final String projectsDir = '',
   final String platform = '',
   final String arch = '',
+  final String? identityFile,
 }) {
   factory fromTarget(SshTarget target) => RemoteHostAdvancedValues(
     installDir: target.installDir ?? '',
     projectsDir: target.projectsDir ?? '',
     platform: normalizedRemoteHostPlatform(target.platform),
     arch: normalizedRemoteHostArch(target.arch),
+    identityFile: target.authKind == SshAuthKind.key
+        ? target.identityFile ?? ''
+        : null,
   );
+
+  /// Whether saving these values would change nothing, comparing trimmed
+  /// text the way [applyTo] stores it.
+  bool sameAs(RemoteHostAdvancedValues other) {
+    return emptyToNull(installDir) == emptyToNull(other.installDir) &&
+        emptyToNull(projectsDir) == emptyToNull(other.projectsDir) &&
+        emptyToNull(platform) == emptyToNull(other.platform) &&
+        emptyToNull(arch) == emptyToNull(other.arch) &&
+        emptyToNull(identityFile ?? '') ==
+            emptyToNull(other.identityFile ?? '');
+  }
 
   SshTarget applyTo(SshTarget target, {required DateTime now}) {
     return SshTarget(
@@ -136,7 +156,9 @@ class const RemoteHostAdvancedValues({
       lastBootstrapAt: target.lastBootstrapAt,
       lastCheckedAt: target.lastCheckedAt,
       lastError: target.lastError,
-      identityFile: target.identityFile,
+      identityFile: identityFile == null
+          ? target.identityFile
+          : emptyToNull(identityFile!),
     );
   }
 }

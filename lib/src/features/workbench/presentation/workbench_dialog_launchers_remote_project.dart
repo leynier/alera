@@ -11,7 +11,8 @@ bool _remoteProjectAvailable(WidgetRef ref) {
   return remoteProjectHosts(targets).isNotEmpty;
 }
 
-/// Opens the form that creates a project living only on an SSH host.
+/// Opens the form that creates a project living only on an SSH host,
+/// starting on [initialHostId] when it is one of the hosts offered.
 ///
 /// Nothing here selects the new project or a workspace: the runtime announces
 /// `projectsChanged` and the sidebar lists the project from that. The request
@@ -19,14 +20,16 @@ bool _remoteProjectAvailable(WidgetRef ref) {
 /// a toast.
 Future<void> showAddRemoteProjectFlow(
   BuildContext context,
-  WidgetRef ref,
-) async {
+  WidgetRef ref, {
+  String? initialHostId,
+}) async {
   final client = ref.read(projectHostsClientProvider);
   var dialogOpen = true;
   final project = await showDialog<Project>(
     context: context,
     builder: (_) => Consumer(
       builder: (context, ref, _) => AddRemoteProjectDialog(
+        initialHostId: initialHostId,
         sshTargets: ref.watch(sshTargetsProvider).value ?? const <SshTarget>[],
         registerRemoteProject: (request) async {
           try {

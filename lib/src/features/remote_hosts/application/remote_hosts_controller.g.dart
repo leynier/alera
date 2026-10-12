@@ -51,7 +51,7 @@ final class RemoteHostsControllerProvider
 }
 
 String _$remoteHostsControllerHash() =>
-    r'27d0a441615bafdbf861950cb408ba321e211c3c';
+    r'3c718e7024c4a4b0d224f4877d4db33385d5da49';
 
 /// Every remote host with one status each, merged from the stored targets,
 /// their links and the install progress this session has seen, plus the
