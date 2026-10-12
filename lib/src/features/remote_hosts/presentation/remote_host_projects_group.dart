@@ -15,6 +15,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
 import 'package:alera/src/features/projects/presentation/project_host_row.dart';
 import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
+import 'package:alera/src/features/remote_hosts/presentation/add_project_to_host_dialog.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
@@ -95,14 +96,11 @@ class const RemoteHostProjectsGroup({
     );
     final installed =
         host.target.bootstrapStatus == SshBootstrapStatus.installed;
-    final addable = <Project>[
-      for (final project in projects)
-        if (project.isGitRepository && !project.isOnHost(host.id)) project,
-    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final canAddExisting = projectsAddableToHost(projects, host.id).isNotEmpty;
     return AleraSettingsGroup(
       title: 'Projects on This Host',
       trailing: manageable && installed
-          ? _AddProjectMenu(host: host, addable: addable)
+          ? _AddProjectMenu(host: host, canAddExisting: canAddExisting)
           : null,
       children: <Widget>[
         if (entries.isEmpty)
@@ -115,11 +113,7 @@ class const RemoteHostProjectsGroup({
             action: manageable && installed
                 ? FilledButton(
                     onPressed: () => unawaited(
-                      showAddRemoteProjectFlow(
-                        context,
-                        ref,
-                        initialHostId: host.id,
-                      ),
+                      showAddProjectToHostFlow(context, ref, hostId: host.id),
                     ),
                     child: const Text('Add Project to This Host'),
                   )
@@ -170,43 +164,30 @@ class const RemoteHostProjectsGroup({
   }
 }
 
-enum _AddAction { newRemote, existing }
-
 class const _AddProjectMenu({
   required final RemoteHostView host,
-  required final List<Project> addable,
+  required final bool canAddExisting,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return PopupMenuButton<(_AddAction, Project?)>(
+    return PopupMenuButton<AddProjectToHostMode>(
       tooltip: 'Add Project to This Host',
       icon: const Icon(AleraIcons.add, size: AleraTokens.iconMd),
-      onSelected: (choice) => unawaited(switch (choice) {
-        (_AddAction.newRemote, _) => showAddRemoteProjectFlow(
-          context,
-          ref,
-          initialHostId: host.id,
+      onSelected: (mode) => unawaited(
+        showAddProjectToHostFlow(context, ref, hostId: host.id, mode: mode),
+      ),
+      itemBuilder: (_) => <PopupMenuEntry<AddProjectToHostMode>>[
+        AleraDropdownEntry<AddProjectToHostMode>(
+          value: .existingProject,
+          enabled: canAddExisting,
+          leading: const Icon(AleraIcons.gitBranch, size: AleraTokens.iconMd),
+          label: 'Add Existing Project…',
         ),
-        (_AddAction.existing, final project?) => showProjectHostsFlow(
-          context,
-          ref,
-          project,
-        ),
-        (_AddAction.existing, null) => Future<void>.value(),
-      }),
-      itemBuilder: (_) => <PopupMenuEntry<(_AddAction, Project?)>>[
-        const AleraDropdownEntry<(_AddAction, Project?)>(
-          value: (_AddAction.newRemote, null),
+        const AleraDropdownEntry<AddProjectToHostMode>(
+          value: .newRemoteProject,
           leading: Icon(AleraIcons.newFolder, size: AleraTokens.iconMd),
           label: 'New Remote Project…',
         ),
-        if (addable.isNotEmpty) const PopupMenuDivider(),
-        for (final project in addable)
-          AleraDropdownEntry<(_AddAction, Project?)>(
-            value: (_AddAction.existing, project),
-            leading: const Icon(AleraIcons.gitBranch, size: AleraTokens.iconMd),
-            label: 'Add ${project.name}…',
-          ),
       ],
     );
   }

@@ -125,6 +125,19 @@ class RuntimeSshTargetRepository(
     ];
   }
 
+  /// Whether the runtime creates workspaces on remote hosts. A client that
+  /// cannot report capabilities is trusted, because the create request checks
+  /// again and answers with the reason.
+  Future<bool> supportsRemoteWorkspaces() async {
+    final client = _client;
+    if (client is! RuntimeHostCapabilityClient) {
+      return true;
+    }
+    return (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
+      aleraRuntimeHostRemoteSshWorkspacesCapability,
+    );
+  }
+
   Future<bool> supportsCapability(String capability) async {
     final client = _client;
     return client is RuntimeHostCapabilityClient &&

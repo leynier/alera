@@ -451,6 +451,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
                       expanderBuilder: _buildExpander,
                       contextMenuDelegate: _ExplorerMenuDelegate(
                         fileManagerLabel: _folderOpener.fileManagerLabel,
+                        canReveal: !widget.workspace.isRemote,
                         canFocusSourceControlFolders:
                             widget.onFocusSourceControlFolder != null,
                         isFocusedSourceControlRoot: (node) {

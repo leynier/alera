@@ -6,6 +6,7 @@ import 'package:alera/src/features/automations/application/automation_authoring_
 import 'package:alera/src/features/automations/application/automation_project_branches.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/domain/automation_draft.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_remote_workspaces_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -46,9 +47,18 @@ class const AutomationProjectWorktreeFields({
         if (project.isGitRepository && !project.isRemoteOnly)
           AleraDropdownFieldEntry(value: project.id, label: project.name),
     ];
+    final hidesRemote = names.projects.any(
+      (project) => project.isGitRepository && project.isRemoteOnly,
+    );
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
+        if (hidesRemote) ...<Widget>[
+          const WorkflowRemoteWorkspacesNotice(
+            message: automationRemoteProjectsNoticeMessage,
+          ),
+          const SizedBox(height: AleraTokens.space12),
+        ],
         AutomationContextMarked(
           fromContext: draft.fromContext.contains(
             AutomationDraftField.projectId,

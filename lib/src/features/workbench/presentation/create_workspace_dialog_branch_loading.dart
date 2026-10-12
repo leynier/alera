@@ -58,7 +58,10 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
     ];
   }
 
-  Future<void> _loadBranches(Project project) async {
+  /// Loads the branch catalog for the selected host. [preserveBranch] keeps
+  /// the branch picked on the previous host selected when the new catalog has
+  /// it too.
+  Future<void> _loadBranches(Project project, {String? preserveBranch}) async {
     final generation = ++_branchLoadGeneration;
     _branchesAwaitHostEnrollment = _hostEnrollmentFor(project) != .enrolled;
     if (_branchesAwaitHostEnrollment) {
@@ -67,7 +70,10 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
     }
     final hostId = _selectedHostId;
     final preferredSource =
-        (_selectedSourceBranch ?? _sourceBranchController.text).trim();
+        (preserveBranch ??
+                _selectedSourceBranch ??
+                _sourceBranchController.text)
+            .trim();
     final preferredNewBranch = _newBranchController.text.trim();
     _update(() {
       _loadingBranches = true;

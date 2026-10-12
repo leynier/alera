@@ -43,6 +43,10 @@ Future<void> pumpFlowHarness(
   List<SshTarget> sshTargets = const <SshTarget>[],
   RuntimeProjectHostsClient? projectHostsClient,
 }) async {
+  // New Workspace lists the host on its first step, so the default test
+  // surface would hide the branch list behind the footer.
+  await tester.binding.setSurfaceSize(const Size(1280, 1200));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   final configRepository = FakeProjectConfigRepository();
   addTearDown(configRepository.dispose);
   await tester.pumpWidget(

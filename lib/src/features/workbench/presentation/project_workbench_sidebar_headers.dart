@@ -271,6 +271,10 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                     ),
                   ),
                 ),
+                if (widget.project.isRemoteOnly) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space6),
+                  _ProjectHostMarker(hostId: widget.project.primaryHostId),
+                ],
                 const SizedBox(width: AleraTokens.space6),
                 Text(
                   widget.workspaceCount.toString(),
@@ -304,6 +308,33 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Marks a project that lives only on a remote host, naming that host.
+class const _ProjectHostMarker({required final String hostId})
+    extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final alias = ref.watch(remoteHostLabelProvider(hostId));
+    final os = ref.watch(
+      sshTargetsProvider.select((targets) {
+        for (final target in targets.value ?? const <SshTarget>[]) {
+          if (target.id == hostId) {
+            return sshTargetHostOs(target);
+          }
+        }
+        return HostOs.unknown;
+      }),
+    );
+    return Tooltip(
+      message: 'Lives on $alias',
+      child: AleraHostOsIcon(
+        key: const Key('project-header-host'),
+        os: os,
+        color: AleraTokens.foregroundFaint,
       ),
     );
   }

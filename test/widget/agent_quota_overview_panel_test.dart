@@ -227,6 +227,7 @@ void main() {
               alignment: Alignment.bottomCenter,
               child: AgentQuotaStatusBarView(
                 hostId: 'local',
+                hostLabel: 'This Device',
                 snapshots: snapshots,
                 settings: settings,
                 onRefresh: () {},
@@ -294,9 +295,9 @@ void main() {
       ),
     );
 
-    expect(find.text('2 agent quotas - Local'), findsOneWidget);
+    expect(find.text('2 agent quotas - This Device'), findsOneWidget);
 
-    await tester.tap(find.text('2 agent quotas - Local'), kind: .mouse);
+    await tester.tap(find.text('2 agent quotas - This Device'), kind: .mouse);
     await tester.pumpAndSettle();
 
     expect(find.text('Claude Code Default'), findsOneWidget);
@@ -322,6 +323,7 @@ Widget _wrap({
             width: width,
             child: AgentQuotaStatusBarView(
               hostId: 'local',
+              hostLabel: 'This Device',
               snapshots: snapshots,
               settings: settings,
               onRefresh: () {},

@@ -1,4 +1,5 @@
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +54,27 @@ void main() {
       'Build Mac',
     );
     expect(workspaceHostTooltip(hostId: 'gone-host'), 'gone-host');
+  });
+
+  test('the row marker names a host that cannot serve and fades it', () {
+    final target = _target(runtimePlatform: 'darwin');
+    String tooltip(RemoteHostStatus? status) => workspaceHostMarkerTooltip(
+      hostId: 'build-mac',
+      target: target,
+      status: status,
+    );
+    expect(tooltip(const RemoteHostOffline()), 'Build Mac · Offline');
+    expect(tooltip(const RemoteHostError(detail: 'x')), 'Build Mac · Error');
+    expect(tooltip(const RemoteHostInstalling()), 'Build Mac · Installing…');
+    expect(tooltip(const RemoteHostConnected()), 'Build Mac (macOS)');
+    expect(tooltip(null), 'Build Mac (macOS)');
+    expect(workspaceHostMarkerDimmed(const RemoteHostOffline()), isTrue);
+    expect(
+      workspaceHostMarkerDimmed(const RemoteHostError(detail: 'x')),
+      isTrue,
+    );
+    expect(workspaceHostMarkerDimmed(const RemoteHostConnected()), isFalse);
+    expect(workspaceHostMarkerDimmed(null), isFalse);
   });
 
   test('sshTargetsById indexes by id', () {

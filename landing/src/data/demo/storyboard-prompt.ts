@@ -53,7 +53,7 @@ export const PROMPT_CHAPTER = script([
       state(3.9, 'd-dialog-prompt', 'typing'),
     ],
     typing: [{ node: 'd-dialog-prompt-text', start: at(3.9), text: SAMPLE.prompt, cps: 27 }],
-    tweens: [{ node: 'd-dialog-form', prop: 'scroll', keys: [{ at: at(7.0), value: 0 }, { at: at(7.35), value: 18, ease: 'easeOut' }] }],
+    tweens: [{ node: 'd-dialog-form', prop: 'scroll', keys: [{ at: at(7.0), value: 0 }, { at: at(7.35), value: 83, ease: 'easeOut' }] }],
   },
   {
     // The job card and the workspace arriving on both screens.

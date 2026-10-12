@@ -1,7 +1,10 @@
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_selection.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/remote_host_view_fixtures.dart';
 
 void main() {
   test('Workspace.isRemote is false for local and blank host ids', () {
@@ -16,76 +19,81 @@ void main() {
     expect(normalizedRemoteHostId(' ssh-box '), 'ssh-box');
   });
 
-  test('host selection errors name bootstrap and unreachable hosts', () {
-    final installed = _target(
-      id: 'ssh-1',
-      alias: 'Build Mac',
-      bootstrapStatus: SshBootstrapStatus.installed,
+  test('host selection errors name the reason a host cannot be used', () {
+    final connected = remoteHostView(
+      'ssh-1',
+      'Build Mac',
+      status: const RemoteHostConnected(),
     );
-    final missingSidecar = _target(
-      id: 'ssh-2',
-      alias: 'Office Linux',
-      bootstrapStatus: SshBootstrapStatus.notInstalled,
+    final offline = remoteHostView(
+      'ssh-2',
+      'Office Linux',
+      status: const RemoteHostOffline(),
     );
-    final unreachable = _target(
-      id: 'ssh-3',
-      alias: 'Windows Box',
-      bootstrapStatus: SshBootstrapStatus.installed,
-      lastStatus: 'unreachable',
+    final needsSetup = remoteHostView(
+      'ssh-3',
+      'Windows Box',
+      status: const RemoteHostNeedsSetup(),
     );
+    final installing = remoteHostView(
+      'ssh-4',
+      'GPU Rig',
+      status: const RemoteHostInstalling(),
+    );
+    final failing = remoteHostView(
+      'ssh-5',
+      'Old Mac',
+      status: const RemoteHostError(detail: 'Permission denied'),
+    );
+    final hosts = [connected, offline, needsSetup, installing, failing];
+    String? error(String? hostId, {bool supported = true}) =>
+        remoteHostSelectionError(
+          hostId: hostId,
+          hosts: hosts,
+          supportsRemoteSshWorkspaces: supported,
+        );
 
+    expect(error(null), isNull);
+    expect(error('ssh-1'), isNull);
+    expect(error('ssh-2'), isNull, reason: 'the runtime connects on demand');
     expect(
-      remoteWorkspaceHostSelectionError(
-        hostId: null,
-        targets: <SshTarget>[installed],
-        supportsRemoteSshWorkspaces: true,
-      ),
-      isNull,
-    );
-    expect(
-      remoteWorkspaceHostSelectionError(
-        hostId: 'ssh-1',
-        targets: <SshTarget>[installed],
-        supportsRemoteSshWorkspaces: false,
-      ),
+      error('ssh-1', supported: false),
       remoteHostMissingCapabilityMessage(),
     );
+    expect(error('missing'), sshTargetNotFoundMessage('missing'));
     expect(
-      remoteWorkspaceHostSelectionError(
-        hostId: 'missing',
-        targets: <SshTarget>[installed],
-        supportsRemoteSshWorkspaces: true,
-      ),
-      contains('ssh target not found'),
+      error('ssh-3'),
+      'The Alera runtime is not installed on Windows Box yet.',
     );
-    expect(
-      remoteWorkspaceHostSelectionError(
-        hostId: 'ssh-2',
-        targets: <SshTarget>[missingSidecar],
-        supportsRemoteSshWorkspaces: true,
-      ),
-      contains('not bootstrapped'),
-    );
-    expect(
-      remoteWorkspaceHostSelectionError(
-        hostId: 'ssh-3',
-        targets: <SshTarget>[unreachable],
-        supportsRemoteSshWorkspaces: true,
-      ),
-      contains('unreachable'),
-    );
+    expect(error('ssh-4'), 'The Alera runtime is still installing on GPU Rig.');
+    expect(error('ssh-5'), 'Old Mac: Permission denied');
   });
 
-  test('user-facing mapper keeps host errors and strips Dart prefixes', () {
+  test('host messages never send the user to plain-text settings paths', () {
+    for (final message in <String>[
+      remoteHostMissingCapabilityMessage(),
+      remoteWorkspaceFilesMissingCapabilityMessage(),
+      sshTargetNotFoundMessage('ssh-1'),
+    ]) {
+      expect(message, isNot(contains('→')));
+      expect(message.toLowerCase(), isNot(contains('sidecar')));
+    }
+  });
+
+  test('user-facing mapper keeps runtime host errors and strips prefixes', () {
     expect(
       userFacingExceptionMessage(
         StateError(
-          hostNotBootstrappedMessage(
-            _target(id: 'ssh-2', alias: 'Office Linux'),
-          ),
+          "host 'Office Linux' is not bootstrapped. Open Settings → Remote Hosts and install the Alera runtime.",
         ),
       ),
       contains('not bootstrapped'),
+    );
+    expect(
+      remoteWorkspaceErrorMessage(
+        Exception('retry from Settings → Remote Hosts.'),
+      ),
+      'retry from Settings → Remote Hosts.',
     );
     expect(
       userFacingExceptionMessage(Exception('source branch is required')),
@@ -94,25 +102,30 @@ void main() {
   });
 
   test('picker labels mark hosts that are not ready', () {
+    expect(remoteHostView('ssh-1', 'Build Mac').pickerLabel, 'Build Mac');
     expect(
-      sshTargetPickerLabel(_target(id: 'ssh-1', alias: 'Build Mac')),
-      'Build Mac',
+      remoteHostView(
+        'ssh-2',
+        'Office Linux',
+        status: const RemoteHostOffline(),
+      ).pickerLabel,
+      'Office Linux',
     );
     expect(
-      sshTargetPickerLabel(
-        _target(
-          id: 'ssh-2',
-          alias: 'Office Linux',
-          bootstrapStatus: SshBootstrapStatus.notInstalled,
-        ),
-      ),
-      'Office Linux (Not Bootstrapped)',
+      remoteHostView(
+        'ssh-3',
+        'Windows Box',
+        status: const RemoteHostNeedsSetup(),
+      ).pickerLabel,
+      'Windows Box (Needs Setup)',
     );
     expect(
-      sshTargetPickerLabel(
-        _target(id: 'ssh-3', alias: 'Windows Box', lastStatus: 'unreachable'),
-      ),
-      'Windows Box (Unreachable)',
+      remoteHostView(
+        'ssh-4',
+        'GPU Rig',
+        status: const RemoteHostError(detail: 'boom'),
+      ).pickerLabel,
+      'GPU Rig (Error)',
     );
   });
 
@@ -166,26 +179,5 @@ Workspace _workspace({required String hostId}) {
     kind: WorkspaceKind.linked,
     status: WorkspaceStatus.active,
     hostId: hostId,
-  );
-}
-
-SshTarget _target({
-  required String id,
-  required String alias,
-  SshBootstrapStatus bootstrapStatus = SshBootstrapStatus.installed,
-  String? lastStatus,
-}) {
-  final now = DateTime.utc(2026, 9, 8);
-  return SshTarget(
-    id: id,
-    alias: alias,
-    host: '$alias.example.test',
-    port: 22,
-    username: 'leynier',
-    authKind: SshAuthKind.agent,
-    createdAt: now,
-    updatedAt: now,
-    bootstrapStatus: bootstrapStatus,
-    lastStatus: lastStatus,
   );
 }

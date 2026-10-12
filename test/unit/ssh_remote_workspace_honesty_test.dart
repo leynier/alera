@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
-import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -23,13 +22,6 @@ void main() {
     expect(
       remoteHostSearchEntries.any((candidate) => candidate.matches('clone')),
       isTrue,
-    );
-  });
-
-  test('host metadata tooltip describes a remote ssh worktree', () {
-    expect(
-      WorkspaceGraphChips.hostMetadataTooltip('audit-637-mac'),
-      'Remote workspace on audit-637-mac. Terminals attach over SSH.',
     );
   });
 

@@ -14,7 +14,62 @@ extension _CreateWorkspaceDialogHostEnrollment on _CreateWorkspaceDialogState {
   bool get _hostBlocksCreation {
     final project = _selectedProject;
     return _hostEnrollment.adding ||
-        (project != null && _hostEnrollmentFor(project) != .enrolled);
+        (project != null && _hostEnrollmentFor(project) != .enrolled) ||
+        remoteHostSelectionError(
+              hostId: _selectedHostId,
+              hosts: widget.hosts,
+              supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+            ) !=
+            null;
+  }
+
+  /// The host list follows the Remote Hosts controller, so a host removed
+  /// while the form is open drops the selection back to This Device or the
+  /// project's primary host.
+  void _fallBackWhenHostRemoved(List<RemoteHostView> previousHosts) {
+    final remoteId = normalizedRemoteHostId(_selectedHostId);
+    if (remoteId == null ||
+        remoteHostViewById(previousHosts, remoteId) == null ||
+        remoteHostViewById(widget.hosts, remoteId) != null) {
+      return;
+    }
+    final fallback = initialWorkspaceHostId(
+      project: _selectedProject,
+      requested: null,
+    );
+    if (fallback == _selectedHostId) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _selectedHostId != fallback) {
+        _setHost(fallback);
+      }
+    });
+  }
+
+  Widget _hostPicker() {
+    final notice = _hostEnrollmentNotice();
+    return Column(
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
+      children: <Widget>[
+        WorkspaceHostPicker(
+          hostId: _selectedHostId,
+          hosts: widget.hosts,
+          remoteOnlyProject: _selectedProject?.isRemoteOnly ?? false,
+          supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
+          enabled: !_creating,
+          onChanged: _setHost,
+          onAddHost: widget.onAddHost,
+          onOpenHost: widget.onOpenHost,
+          onOpenRemoteHosts: widget.onOpenRemoteHosts,
+        ),
+        if (notice != null) ...<Widget>[
+          const SizedBox(height: AleraTokens.space12),
+          notice,
+        ],
+      ],
+    );
   }
 
   /// The controller is shared with the other New Workspace form, so the add
@@ -57,7 +112,7 @@ extension _CreateWorkspaceDialogHostEnrollment on _CreateWorkspaceDialogState {
     return ProjectHostEnrollmentNotice(
       enrollment: enrollment,
       projectName: project.name,
-      hostLabel: workspaceHostLabel(widget.sshTargets, _selectedHostId),
+      hostLabel: remoteHostViewLabel(widget.hosts, _selectedHostId),
       controller: _hostEnrollment,
       enabled: !_creating,
       onAdd: _addProjectToSelectedHost,

@@ -22,6 +22,10 @@ class const RemoteHostView({
 
   String get alias => target.alias;
 
+  /// What a host picker lists: the alias, plus the reason in parentheses when
+  /// the host cannot be picked (`Build Mac (Needs Setup)`).
+  String get pickerLabel => status.isReady ? alias : '$alias (${status.label})';
+
   /// `macOS arm64`, from what the runtime probed or, before the first
   /// install, what the user entered. Null when neither is known.
   String? get platformLabel {

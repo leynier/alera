@@ -17,9 +17,12 @@ import 'package:alera/src/features/projects/domain/project_host_enrollment.dart'
 import 'package:alera/src/features/projects/presentation/add_remote_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_hosts_dialog.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_controller.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/presentation/add_project_to_host_dialog.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
 import 'package:alera/src/features/remote_hosts/presentation/add_remote_host_dialog.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';

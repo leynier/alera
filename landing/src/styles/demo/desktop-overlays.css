@@ -144,12 +144,36 @@
   color: var(--app-foreground);
 }
 
-[data-alera-demo] .field-helper {
-  margin-top: 8px;
+/* AleraInlineNotice in its info tone, with the action under the message. */
+[data-alera-demo] .inline-notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-12);
+  margin-top: var(--app-space-8);
+  padding: var(--app-space-12);
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-variant);
+}
+
+[data-alera-demo] .inline-notice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-8);
   color: var(--app-foreground-muted);
   font-size: 12px;
   letter-spacing: 0.4px;
   line-height: 1.33;
+}
+
+[data-alera-demo] .inline-notice-icon {
+  flex: none;
+  margin-top: var(--app-space-2);
+  color: var(--app-info);
+}
+
+[data-alera-demo] .inline-notice-action {
+  align-self: flex-start;
 }
 
 /* Material outlined text fields with the label inside until they are

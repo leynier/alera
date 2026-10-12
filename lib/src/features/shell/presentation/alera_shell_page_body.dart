@@ -4,6 +4,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   String? _lastErrorMessage;
   final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
       WorkbenchTabCompletionAcknowledgements();
+  final RemoteHostLinkToastPolicy _hostLinkToasts = RemoteHostLinkToastPolicy();
 
   @override
   void initState() {
@@ -24,6 +25,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       });
     });
     _watchShellCoordinators(ref);
+    listenRemoteHostLinkToasts(ref, _hostLinkToasts);
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {
         final workspace = state.activeWorkspace;
@@ -397,6 +399,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                         VoiceStatusBarControl(),
                         ResourceStatusBarControl(),
                         KeepAliveStatusBarControl(),
+                        RemoteHostsStatusBarControl(),
                         RuntimeHostStatusBarControl(),
                       ],
                     ),

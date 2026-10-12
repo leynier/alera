@@ -3,9 +3,11 @@ import 'package:alera/src/features/agent_profiles/application/agent_profile_prov
 import 'package:alera/src/features/orchestration/application/workflow_catalog_providers.dart';
 import 'package:alera/src/features/orchestration/application/workflow_lifecycle_providers.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_new_run_form.dart';
+import 'package:alera/src/features/orchestration/presentation/workflow_remote_workspaces_notice.dart';
 import 'package:alera/src/features/orchestration/presentation/workflow_saved_proposals.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,6 +34,15 @@ class _WorkflowNewRunPageState extends ConsumerState<WorkflowNewRunPage> {
       for (final project in workbench.projects)
         if (project.kind == ProjectKind.gitRepository) project.id: project,
     };
+    final candidates = [
+      for (final workspace in workbench.workspacesByProject.values.expand(
+        (items) => items,
+      ))
+        if (projects.containsKey(workspace.projectId) &&
+            workspace.isActive &&
+            !workspace.workflowOwned)
+          workspace,
+    ];
     return IndexedStack(
       index: _saved ? 1 : 0,
       children: [
@@ -51,19 +62,18 @@ class _WorkflowNewRunPageState extends ConsumerState<WorkflowNewRunPage> {
                   'Agent Profiles could not be loaded: ${profiles.error}',
                 ),
               ),
+            if (hidesRemoteWorkspaces(candidates))
+              const Padding(
+                padding: EdgeInsets.all(AleraTokens.space12),
+                child: WorkflowRemoteWorkspacesNotice(),
+              ),
             Expanded(
               child: WorkflowNewRunForm(
                 repository: repository,
                 catalog: ref.watch(workflowCatalogRepositoryProvider),
                 workspaces: [
-                  for (final workspace
-                      in workbench.workspacesByProject.values.expand(
-                        (items) => items,
-                      ))
-                    if (projects.containsKey(workspace.projectId) &&
-                        workspace.isActive &&
-                        workspace.hostId == 'local' &&
-                        !workspace.workflowOwned)
+                  for (final workspace in candidates)
+                    if (!isRemoteWorkspaceHostId(workspace.hostId))
                       (
                         id: workspace.id,
                         label:

@@ -53,7 +53,13 @@ const dropdowns = [{ label: APP_COPY.parentWorkspace.text, value: APP_COPY.noPar
           <span class="dropdown-value"><AppIcon name="workspaceMain" size={14} />{APP_COPY.thisDevice.text}</span>
           <AppIcon name="chevronDown" size={16} />
         </span>
-        <span class="field-helper">{APP_COPY.hostHelper.text}</span>
+        <span class="inline-notice">
+          <span class="inline-notice-row">
+            <AppIcon name="info" size={14} class="inline-notice-icon" />
+            <span>{APP_COPY.hostHelper.text}</span>
+          </span>
+          <span class="app-outlined-button inline-notice-action">{APP_COPY.addHost.text}</span>
+        </span>
         <span class="field-label field-gap">{APP_COPY.agentProfile.text}</span>
         <span class="app-dropdown"><span>Claude</span><AppIcon name="chevronDown" size={16} /></span>
         <span class="text-field text-field-single field-gap">

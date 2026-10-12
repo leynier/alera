@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/remote_hosts/application/remote_host_usage_provider.dart';
 import 'package:alera/src/features/remote_hosts/application/remote_hosts_controller.dart';
 import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_visible_host.dart';
 import 'package:alera/src/features/remote_hosts/presentation/remote_host_advanced_group.dart';
 import 'package:alera/src/features/remote_hosts/presentation/remote_host_detail.dart';
 import 'package:alera/src/features/remote_hosts/presentation/remote_host_list_row.dart';
@@ -34,11 +35,35 @@ class _RemoteHostsSettingsPaneState
     extends ConsumerState<RemoteHostsSettingsPane> {
   late String? _selectedHostId = widget.initialHostId;
   RemoteHostAdvancedDraft? _draft;
+  String? _publishedHostId;
+  late final RemoteHostsVisibleHost _visibleHost = ref.read(
+    remoteHostsVisibleHostProvider.notifier,
+  );
 
   @override
   void dispose() {
     _draft?.dispose();
+    _publishVisibleHost(null);
     super.dispose();
+  }
+
+  /// Providers cannot change while the tree builds, so the shown host is
+  /// published after the frame.
+  void _publishVisibleHost(String? hostId) {
+    final previous = _publishedHostId;
+    if (previous == hostId) {
+      return;
+    }
+    _publishedHostId = hostId;
+    final visibleHost = _visibleHost;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (previous != null) {
+        visibleHost.hide(previous);
+      }
+      if (hostId != null) {
+        visibleHost.show(hostId);
+      }
+    });
   }
 
   @override
@@ -52,6 +77,7 @@ class _RemoteHostsSettingsPaneState
     });
     final usage = ref.watch(remoteHostUsageProvider);
     if (state.hosts.isEmpty) {
+      _publishVisibleHost(null);
       if (state.loading) {
         return const AleraEmptyState(
           loading: true,
@@ -76,6 +102,7 @@ class _RemoteHostsSettingsPaneState
       );
     }
     final selected = state.hostById(_selectedHostId) ?? state.hosts.first;
+    _publishVisibleHost(selected.id);
     final draft = _draftFor(selected);
     return ListenableBuilder(
       listenable: draft,

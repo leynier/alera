@@ -1,7 +1,21 @@
-part of 'add_remote_project_dialog.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/remote_project_request.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
+import 'package:flutter/material.dart';
 
-class const _RemoteProjectFields({
-  required final List<SshTarget> hosts,
+/// The fields that describe a project living only on a host: the host, an
+/// existing folder there or a repository to clone, and a display name. Hosts
+/// that are not ready are listed but cannot be picked. A null
+/// [onHostChanged] hides the host picker, for a form opened on one host.
+class const RemoteProjectFields({
+  super.key,
+  required final List<RemoteHostView> hosts,
   required final String? hostId,
   required final RemoteProjectSource source,
   required final ProjectKind kind,
@@ -9,7 +23,7 @@ class const _RemoteProjectFields({
   required final TextEditingController pathController,
   required final TextEditingController cloneUrlController,
   required final TextEditingController nameController,
-  required final ValueChanged<String> onHostChanged,
+  required final ValueChanged<String>? onHostChanged,
   required final ValueChanged<RemoteProjectSource> onSourceChanged,
   required final ValueChanged<ProjectKind> onKindChanged,
   required final VoidCallback onEdited,
@@ -18,8 +32,8 @@ class const _RemoteProjectFields({
   /// A Windows host writes paths with a drive letter, so the example follows
   /// the selected host rather than this device.
   String get _folderHint {
-    final selected = sshTargetsById(hosts)[hostId];
-    return sshTargetHostOs(selected) == HostOs.windows
+    final selected = hosts.where((host) => host.id == hostId).firstOrNull;
+    return selected?.os == HostOs.windows
         ? r'C:\Users\me\project'
         : '/home/me/project';
   }
@@ -30,6 +44,7 @@ class const _RemoteProjectFields({
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: AleraTokens.foregroundMuted,
     );
+    final onHostChanged = this.onHostChanged;
     return Column(
       mainAxisSize: .min,
       crossAxisAlignment: .stretch,
@@ -38,27 +53,30 @@ class const _RemoteProjectFields({
           'The project lives only on the host. Nothing is cloned or copied to this device.',
           style: muted,
         ),
-        const SizedBox(height: AleraTokens.space16),
-        AleraDropdownField<String>(
-          value: hostId,
-          labelText: 'Host',
-          hintText: 'Select Host',
-          enabled: enabled,
-          filterable: hosts.length > 4,
-          filterHintText: 'Search Hosts',
-          entries: <AleraDropdownFieldEntry<String>>[
-            for (final target in hosts)
-              AleraDropdownFieldEntry<String>(
-                value: target.id,
-                label: sshTargetPickerLabel(target),
-                leading: AleraHostOsIcon(
-                  os: sshTargetHostOs(target),
-                  size: AleraTokens.iconMd,
+        if (onHostChanged != null) ...<Widget>[
+          const SizedBox(height: AleraTokens.space16),
+          AleraDropdownField<String>(
+            value: hostId,
+            labelText: 'Host',
+            hintText: 'Select Host',
+            enabled: enabled,
+            filterable: hosts.length > 4,
+            filterHintText: 'Search Hosts',
+            entries: <AleraDropdownFieldEntry<String>>[
+              for (final host in hosts)
+                AleraDropdownFieldEntry<String>(
+                  value: host.id,
+                  label: host.pickerLabel,
+                  enabled: host.status.isReady,
+                  leading: AleraHostOsIcon(
+                    os: host.os,
+                    size: AleraTokens.iconMd,
+                  ),
                 ),
-              ),
-          ],
-          onChanged: onHostChanged,
-        ),
+            ],
+            onChanged: onHostChanged,
+          ),
+        ],
         const SizedBox(height: AleraTokens.space16),
         // The control has no disabled state; a request in flight ignores it.
         IgnorePointer(
@@ -144,7 +162,8 @@ class const _RemoteProjectFields({
   }
 }
 
-class const _RemoteProjectProgress() extends StatelessWidget {
+/// The in-place progress of a remote project request.
+class const RemoteProjectProgress({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(

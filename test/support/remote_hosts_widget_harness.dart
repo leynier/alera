@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -162,6 +166,35 @@ Map<String, Object?> remoteHostTargetJson(
     'lastStatus': ?lastStatus,
     'hostStatus': ?hostStatus,
   };
+}
+
+/// A host as the remote host surfaces receive it, for presentational widgets
+/// that take [RemoteHostView]s instead of reading the controller.
+RemoteHostView remoteHostTestView(
+  String id,
+  String alias, {
+  RemoteHostStatus status = const RemoteHostConnected(),
+  HostOs os = HostOs.macos,
+}) {
+  final now = DateTime.utc(2026, 10);
+  return RemoteHostView(
+    target: SshTarget(
+      id: id,
+      alias: alias,
+      host: '$id.local',
+      port: 22,
+      username: 'leynier',
+      authKind: SshAuthKind.agent,
+      createdAt: now,
+      updatedAt: now,
+      bootstrapStatus: status is RemoteHostNeedsSetup
+          ? SshBootstrapStatus.notInstalled
+          : SshBootstrapStatus.installed,
+    ),
+    status: status,
+    os: os,
+    address: 'leynier@$id.local',
+  );
 }
 
 Project remoteHostTestProject(

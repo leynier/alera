@@ -41,6 +41,9 @@ class RemoteHostLinkToastPolicy {
   Map<String, RemoteHostStatus>? _previous;
   final Set<String> _announced = <String>{};
 
+  /// Whether a first snapshot has been seen, which is always silent.
+  bool get hasSnapshot => _previous != null;
+
   List<RemoteHostLinkToast> evaluate(
     Iterable<RemoteHostLinkSnapshot> hosts, {
     String? visibleHostId,
@@ -124,4 +127,38 @@ class RemoteHostLinkToastPolicy {
       actionLabel: remoteHostOpenHostActionLabel,
     );
   }
+}
+
+/// Installs that finished between [previous] and [next] while no install
+/// dialog was showing them, as the success toast each one deserves. The
+/// dialog announces its own result, so a watched install stays quiet.
+List<RemoteHostLinkToast> remoteHostInstallCompletionToasts(
+  RemoteHostsState? previous,
+  RemoteHostsState next,
+) {
+  if (previous == null) {
+    return const <RemoteHostLinkToast>[];
+  }
+  final toasts = <RemoteHostLinkToast>[];
+  for (final host in next.hosts) {
+    final install = host.installProgress;
+    final before = previous.hostById(host.id)?.installProgress;
+    if (install == null ||
+        !install.succeeded ||
+        before == null ||
+        !before.isRunning ||
+        next.isInstallDialogOpen(host.id)) {
+      continue;
+    }
+    toasts.add(
+      RemoteHostLinkToast(
+        hostId: host.id,
+        message: install.includesRestart
+            ? 'Alera runtime updated on ${host.alias}'
+            : 'Alera runtime installed on ${host.alias}',
+        tone: RemoteHostToastTone.success,
+      ),
+    );
+  }
+  return toasts;
 }
