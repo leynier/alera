@@ -1,5 +1,5 @@
 use alera_core::runtime::{
-    AutomationActor, AutomationActorKind, AutomationDefinition, AutomationRun, AutomationRunStatus,
+    AutomationDefinition, AutomationRun, AutomationRunStatus, AutomationState,
 };
 
 use super::super::ServerCommand;
@@ -91,7 +91,7 @@ impl ServerActor {
             Err(_) => true,
         };
         if unresolved && run.status != AutomationRunStatus::WaitingForUser {
-            let _ = self.runtime_store.update_automation_run_status(
+            let _ = self.set_automation_run_status(
                 &run.id, AutomationRunStatus::WaitingForUser,
                 Some("Automation precheck process closure is unverified; its run and dependencies are retained".into()),
             ).await;
@@ -192,6 +192,33 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
+    /// A run executes its frozen definition snapshot, so later edits never
+    /// stop it; only a definition that was deleted or trashed meanwhile does.
+    /// Returns true when the run was stopped.
+    pub(in crate::terminal_host::server) async fn stop_run_if_definition_retired(
+        &mut self,
+        run: &AutomationRun,
+        stage: &str,
+    ) -> bool {
+        match self.runtime_store.find_automation(&run.automation_id).await {
+            Ok(Some(live)) if live.state != AutomationState::Trashed => false,
+            Ok(_) => {
+                let _ = self
+                    .set_automation_run_status(
+                        &run.id,
+                        AutomationRunStatus::Cancelled,
+                        Some(format!("Automation was deleted during {stage}")),
+                    )
+                    .await;
+                true
+            }
+            Err(error) => {
+                self.block_run(run, &error.to_string()).await;
+                true
+            }
+        }
+    }
+
     async fn complete_precheck_if_current(
         &mut self,
         definition: AutomationDefinition,
@@ -215,8 +242,7 @@ impl ServerActor {
         }
         if current.cancel_requested_at.is_some() {
             let _ = self
-                .runtime_store
-                .update_automation_run_status(
+                .set_automation_run_status(
                     &current.id,
                     AutomationRunStatus::Cancelled,
                     Some("Automation cancelled during precheck".into()),
@@ -224,39 +250,14 @@ impl ServerActor {
                 .await;
             return;
         }
-        let Some(latest) = current.definition_snapshot.clone().or(self
-            .runtime_store
-            .find_automation(&definition.id)
+        if self
+            .stop_run_if_definition_retired(&current, "precheck")
             .await
-            .ok()
-            .flatten())
-        else {
-            self.block_run(
-                &current,
-                "Automation definition disappeared during precheck",
-            )
-            .await;
-            return;
-        };
-        if latest.revision != definition.revision
-            || latest.state != definition.state
-            || latest.target != definition.target
         {
-            self.block_run(&current, "Automation definition changed during precheck")
-                .await;
             return;
         }
-        if let Err(error) = self
-            .ensure_dispatch_policy(
-                &latest,
-                &AutomationActor {
-                    kind: AutomationActorKind::ManagedAgent,
-                    id: current.actor_id.clone(),
-                    label: Some("Alera Automation Scheduler".into()),
-                },
-            )
-            .await
-        {
+        let latest = current.definition_snapshot.clone().unwrap_or(definition);
+        if let Err(error) = self.ensure_target_valid(&latest).await {
             self.block_run(&current, &error.wire_message()).await;
             return;
         }
@@ -277,7 +278,8 @@ impl ServerActor {
         }
         let error = match result {
             Ok(true) => {
-                Box::pin(self.dispatch_prechecked_automation(&latest, current, location)).await;
+                self.dispatch_prechecked_automation(&latest, current, location)
+                    .await;
                 return;
             }
             Ok(false) => "automation precheck did not pass".to_string(),
@@ -287,8 +289,7 @@ impl ServerActor {
             self.block_run(&current, &error).await;
         } else {
             let _ = self
-                .runtime_store
-                .update_automation_run_status(
+                .set_automation_run_status(
                     &current.id,
                     AutomationRunStatus::PrecheckSkipped,
                     Some(error),

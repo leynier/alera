@@ -5,7 +5,7 @@ use chrono::Utc;
 use serde_json::{json, Value};
 
 impl ServerActor {
-    pub(super) async fn dispatch_fresh_tab(
+    pub(in crate::terminal_host::server) async fn dispatch_fresh_tab(
         &mut self,
         run: &mut AutomationRun,
         workspace_id: &str,

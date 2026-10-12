@@ -53,10 +53,6 @@ pub(super) async fn apply_profiles(
             }
         }
         if next.is_none() {
-            sqlx::query("DELETE FROM automationAgentPolicies WHERE profileId = ?")
-                .bind(&id)
-                .execute(&mut *connection)
-                .await?;
             sqlx::query("DELETE FROM agentProfiles WHERE id = ?")
                 .bind(&id)
                 .execute(&mut *connection)

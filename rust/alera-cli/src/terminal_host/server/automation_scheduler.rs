@@ -162,6 +162,8 @@ mod tests {
             creation_request_fingerprint: None,
             state_before_trash: None,
             workspace_placement: Default::default(),
+            reuse_policy: Default::default(),
+            bound_target: None,
             approved_revision: None,
             created_by: actor(),
             modified_by: actor(),

@@ -42,7 +42,7 @@ final class AutomationsNavigationProvider
 }
 
 String _$automationsNavigationHash() =>
-    r'408bc9aae86d5a30ad032c6ee5a16f66b5be1634';
+    r'73d3a440093e6f7e6bafb22d60745b91cdc93755';
 
 abstract class _$AutomationsNavigation extends $Notifier<AutomationsLocation> {
   AutomationsLocation build();

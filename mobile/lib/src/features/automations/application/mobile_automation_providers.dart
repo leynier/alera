@@ -1,5 +1,4 @@
-import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_reader.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';

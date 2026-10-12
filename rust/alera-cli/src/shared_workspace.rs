@@ -32,7 +32,7 @@ pub(crate) async fn create_shared_workspace_with<E: crate::ssh_remote::RemoteHos
     executor: &E,
 ) -> Result<WorkspaceCreationResult> {
     let parent_id = request.parent_workspace_id.clone();
-    let workspace = match prepare_shared_workspace_with(store, request, executor, false).await? {
+    let workspace = match prepare_shared_workspace_with(store, request, executor).await? {
         PreparedSharedWorkspace::Existing(workspace) => return Ok(created(workspace)),
         PreparedSharedWorkspace::New(workspace) => workspace,
     };
@@ -59,7 +59,7 @@ pub(crate) async fn prepare_fresh_shared_workspace(
     store: &RuntimeStore,
     request: SharedWorkspaceCreateRequest,
 ) -> Result<Workspace> {
-    match prepare_shared_workspace_with(store, request, &crate::ssh_remote::LiveSshRemoteHost, true)
+    match prepare_shared_workspace_with(store, request, &crate::ssh_remote::LiveSshRemoteHost)
         .await?
     {
         PreparedSharedWorkspace::New(workspace) => Ok(workspace),
@@ -73,7 +73,6 @@ async fn prepare_shared_workspace_with<E: crate::ssh_remote::RemoteHostExecutor>
     store: &RuntimeStore,
     request: SharedWorkspaceCreateRequest,
     executor: &E,
-    _require_remote_automation_declaration: bool,
 ) -> Result<PreparedSharedWorkspace> {
     let project = store
         .find_project(&request.project_id)

@@ -64,7 +64,7 @@ pub(super) fn string_scope(payload: &Value, key: &str) -> Option<String> {
     payload.get(key).and_then(Value::as_str).map(str::to_string)
 }
 
-fn scope_payload(field: &str, id: Option<&str>) -> Value {
+pub(super) fn scope_payload(field: &str, id: Option<&str>) -> Value {
     match id.filter(|value| !value.is_empty()) {
         Some(value) => json!({ field: value }),
         None => json!({}),

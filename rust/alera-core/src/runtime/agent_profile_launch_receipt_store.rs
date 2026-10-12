@@ -27,6 +27,12 @@ impl RuntimeStore {
             .bind(tab_id)
             .execute(&mut *tx)
             .await?;
+        super::automation_binding_store::release_bound_tabs_for_tab_in(
+            &mut tx,
+            tab_id,
+            "tabClosed",
+        )
+        .await?;
         tx.commit().await?;
         Ok(())
     }

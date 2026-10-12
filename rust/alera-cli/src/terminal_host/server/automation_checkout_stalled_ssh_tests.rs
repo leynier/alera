@@ -15,7 +15,6 @@ async fn stalled_ssh_dispatch(precheck: bool) {
     let (mut fixture, mut definition) = empty_project().await;
     fixture.actor.clients.get_mut(&1).unwrap().local_role =
         crate::terminal_host::server::client_delivery::LocalClientRole::App;
-    declare(&fixture.repo_path);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let store = fixture.actor.runtime_store.clone();

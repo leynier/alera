@@ -61,6 +61,8 @@ fn definition() -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: None,
         created_by: AutomationActor {
             kind: AutomationActorKind::LocalCli,
@@ -116,7 +118,7 @@ async fn revisioned_upsert_preserves_active_state_for_material_edits() {
         .await
         .unwrap();
     let approved = store
-        .approve_automation(&saved.id, saved.revision, actor.clone())
+        .set_automation_state(&saved.id, AutomationState::Active, actor.clone(), None)
         .await
         .unwrap();
     assert_eq!(approved.state, AutomationState::Active);
@@ -139,7 +141,7 @@ async fn name_description_and_tags_preserve_exact_revision_approval() {
         .await
         .unwrap();
     let approved = store
-        .approve_automation(&saved.id, saved.revision, actor.clone())
+        .set_automation_state(&saved.id, AutomationState::Active, actor.clone(), None)
         .await
         .unwrap();
     let mut cosmetic = approved.clone();
@@ -163,7 +165,7 @@ async fn expired_circuit_open_duration_resets_blocked_automations() {
         .await
         .unwrap();
     let approved = store
-        .approve_automation(&saved.id, saved.revision, actor.clone())
+        .set_automation_state(&saved.id, AutomationState::Active, actor.clone(), None)
         .await
         .unwrap();
     store
@@ -294,7 +296,7 @@ async fn open_automation_circuit_blocks_active_and_preserves_paused() {
         .await
         .unwrap();
     store
-        .approve_automation(&saved.id, saved.revision, actor.clone())
+        .set_automation_state(&saved.id, AutomationState::Active, actor.clone(), None)
         .await
         .unwrap();
 
@@ -337,7 +339,7 @@ async fn reset_automation_circuit_restores_approved_blocked_state() {
         .await
         .unwrap();
     store
-        .approve_automation(&saved.id, saved.revision, actor.clone())
+        .set_automation_state(&saved.id, AutomationState::Active, actor.clone(), None)
         .await
         .unwrap();
     store

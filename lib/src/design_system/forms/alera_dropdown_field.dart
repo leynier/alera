@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_filter_popover.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:flutter/material.dart';
 
 /// One selectable option of an [AleraDropdownField].
@@ -27,20 +28,31 @@ class const AleraDropdownField<T>({
   final bool filterable = false,
   final String filterHintText = 'Search',
 }) extends StatefulWidget {
-  static const double _height = 34;
+  static const double _height = AleraTokens.controlHeight;
 
   @override
   State<AleraDropdownField<T>> createState() => _AleraDropdownFieldState<T>();
 }
 
 class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
-  final LayerLink _fieldLink = LayerLink();
-  OverlayEntry? _filterOverlay;
+  final AleraPopoverController _filterPopover = AleraPopoverController();
+
+  @override
+  void initState() {
+    super.initState();
+    _filterPopover.addListener(_handleFilterPopoverChanged);
+  }
 
   @override
   void dispose() {
-    _removeFilterOverlay();
+    _filterPopover.dispose();
     super.dispose();
+  }
+
+  void _handleFilterPopoverChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _openMenu(BuildContext context) async {
@@ -111,64 +123,6 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
     }
   }
 
-  void _openFilterOverlay() {
-    if (_filterOverlay != null) {
-      return;
-    }
-    final box = context.findRenderObject()! as RenderBox;
-    final entry = OverlayEntry(
-      builder: (overlayContext) => Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: .opaque,
-              onTap: _closeFilterOverlay,
-              child: const SizedBox.shrink(),
-            ),
-          ),
-          CompositedTransformFollower(
-            link: _fieldLink,
-            targetAnchor: .bottomLeft,
-            followerAnchor: .topLeft,
-            offset: const Offset(0, AleraTokens.space4),
-            child: AleraDropdownFilterPopover<T>(
-              entries: List<AleraDropdownFieldEntry<T>>.of(widget.entries),
-              selectedValue: widget.value,
-              width: box.size.width,
-              filterHintText: widget.filterHintText,
-              onDismiss: _closeFilterOverlay,
-              onSelected: (value) {
-                _closeFilterOverlay();
-                if (value != widget.value) {
-                  widget.onChanged(value);
-                }
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-    Overlay.of(context).insert(entry);
-    setState(() => _filterOverlay = entry);
-  }
-
-  void _closeFilterOverlay() {
-    if (_filterOverlay == null) {
-      return;
-    }
-    _removeFilterOverlay();
-    setState(() {});
-  }
-
-  void _removeFilterOverlay() {
-    final entry = _filterOverlay;
-    if (entry == null) {
-      return;
-    }
-    _filterOverlay = null;
-    entry.remove();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -184,65 +138,81 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
         : current == null
         ? AleraTokens.foregroundMuted
         : AleraTokens.foreground;
-    final open = _filterOverlay != null;
+    final open = _filterPopover.isOpen;
     final field = Semantics(
       button: true,
       enabled: widget.enabled,
       label: current?.label ?? widget.hintText,
       child: InkWell(
         onTap: widget.enabled
-            ? () =>
-                  widget.filterable ? _openFilterOverlay() : _openMenu(context)
+            ? () => widget.filterable
+                  ? _filterPopover.toggle()
+                  : _openMenu(context)
             : null,
         borderRadius: .circular(AleraTokens.radiusMd),
         mouseCursor: widget.enabled
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
-        child: CompositedTransformTarget(
-          link: _fieldLink,
-          child: Container(
-            height: AleraDropdownField._height,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space12,
-            ),
-            decoration: BoxDecoration(
-              color: AleraTokens.surfaceVariant,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-              border: Border.all(color: AleraTokens.border),
-            ),
-            child: Row(
-              children: <Widget>[
-                if (current?.leading != null) ...<Widget>[
-                  current!.leading!,
-                  const SizedBox(width: AleraTokens.space8),
-                ],
-                Expanded(
-                  child: Text(
-                    current?.label ?? widget.hintText ?? '',
-                    maxLines: 1,
-                    overflow: .ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: labelColor,
-                    ),
+        child: Container(
+          height: AleraDropdownField._height,
+          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
+          decoration: BoxDecoration(
+            color: AleraTokens.surfaceVariant,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            border: Border.all(color: AleraTokens.border),
+          ),
+          child: Row(
+            children: <Widget>[
+              if (current?.leading != null) ...<Widget>[
+                current!.leading!,
+                const SizedBox(width: AleraTokens.space8),
+              ],
+              Expanded(
+                child: Text(
+                  current?.label ?? widget.hintText ?? '',
+                  maxLines: 1,
+                  overflow: .ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: labelColor,
                   ),
                 ),
-                const SizedBox(width: AleraTokens.space8),
-                Icon(
-                  open ? AleraIcons.chevronUp : AleraIcons.chevronDown,
-                  size: 16,
-                  color: widget.enabled
-                      ? AleraTokens.foregroundMuted
-                      : AleraTokens.foregroundFaint,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AleraTokens.space8),
+              Icon(
+                open ? AleraIcons.chevronUp : AleraIcons.chevronDown,
+                size: 16,
+                color: widget.enabled
+                    ? AleraTokens.foregroundMuted
+                    : AleraTokens.foregroundFaint,
+              ),
+            ],
           ),
         ),
       ),
     );
+    final anchored = !widget.filterable
+        ? field
+        : AleraPopover(
+            controller: _filterPopover,
+            matchAnchorWidth: true,
+            toggleOnAnchorTap: false,
+            builder: (context, close) => AleraDropdownFilterPopover<T>(
+              entries: List<AleraDropdownFieldEntry<T>>.of(widget.entries),
+              selectedValue: widget.value,
+              filterHintText: widget.filterHintText,
+              onDismiss: close,
+              onSelected: (value) {
+                close();
+                if (value != widget.value) {
+                  widget.onChanged(value);
+                }
+              },
+            ),
+            child: field,
+          );
     final label = widget.labelText;
     if (label == null) {
-      return field;
+      return anchored;
     }
     return Column(
       crossAxisAlignment: .start,
@@ -255,7 +225,7 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
           ),
         ),
         const SizedBox(height: AleraTokens.space4),
-        field,
+        anchored,
       ],
     );
   }

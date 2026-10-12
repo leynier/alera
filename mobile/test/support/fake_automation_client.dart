@@ -31,6 +31,11 @@ class FakeAutomationClient implements MobileAutomationClient {
   Set<String> runtimeCapabilities;
   List<Map<String, Object?>> automations;
   List<Map<String, Object?>> runs = <Map<String, Object?>>[];
+  Map<String, List<WorkspaceTabSummary>> tabs =
+      <String, List<WorkspaceTabSummary>>{};
+
+  /// Branches `project.branches.list` answers with; null fails the request.
+  List<String>? branches = const <String>['main', 'develop'];
   Map<String, Object?> runNowResult = <String, Object?>{
     'id': 'run-9',
     'number': 9,
@@ -86,6 +91,13 @@ class FakeAutomationClient implements MobileAutomationClient {
       },
       'automation.create' => <String, Object?>{
         'automation': mobileAutomationJson(id: 'created'),
+      },
+      'automation.patch' => <String, Object?>{
+        'automation': <String, Object?>{
+          ...automations.firstWhere((item) => item['id'] == payload['id']),
+          ...?(payload['changes'] as Map<String, Object?>?),
+          'revision': 3,
+        },
       },
       'checkout.list' => <Object?>[],
       _ => <String, Object?>{},
@@ -144,13 +156,32 @@ class FakeAutomationClient implements MobileAutomationClient {
 
   @override
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async =>
-      const <WorkspaceTabSummary>[];
+      tabs[workspaceId] ?? const <WorkspaceTabSummary>[];
+
+  @override
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  }) async {
+    calls.add((
+      type: 'project.branches.list',
+      payload: {'projectId': projectId},
+    ));
+    final listed = branches;
+    if (listed == null) throw StateError('Branches are unavailable.');
+    return ProjectBranches(
+      projectId: projectId,
+      branches: listed,
+      localBranches: listed,
+    );
+  }
 }
 
 Map<String, Object?> mobileAutomationJson({
   String id = 'nightly',
   String name = 'Nightly Review',
   String state = 'active',
+  Map<String, Object?> extra = const <String, Object?>{},
 }) => <String, Object?>{
   'id': id,
   'slug': id,
@@ -167,4 +198,5 @@ Map<String, Object?> mobileAutomationJson({
   },
   'state': state,
   'revision': 2,
+  ...extra,
 };

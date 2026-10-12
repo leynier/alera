@@ -55,22 +55,6 @@ impl AutomationState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum AutomationScheduleKind {
-    OneTime,
-    Recurring,
-}
-
-impl AutomationScheduleKind {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::OneTime => "oneTime",
-            Self::Recurring => "recurring",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AutomationSchedule {
@@ -91,13 +75,6 @@ pub enum AutomationSchedule {
 }
 
 impl AutomationSchedule {
-    pub fn kind(&self) -> AutomationScheduleKind {
-        match self {
-            Self::OneTime { .. } => AutomationScheduleKind::OneTime,
-            Self::Recurring { .. } => AutomationScheduleKind::Recurring,
-        }
-    }
-
     pub fn timezone(&self) -> &str {
         match self {
             Self::OneTime { timezone, .. } | Self::Recurring { timezone, .. } => timezone,
@@ -380,6 +357,15 @@ pub struct AutomationDefinition {
         skip_serializing_if = "super::AutomationWorkspacePlacement::is_empty"
     )]
     pub workspace_placement: super::AutomationWorkspacePlacement,
+    #[serde(
+        default,
+        skip_serializing_if = "super::AutomationReusePolicy::is_default"
+    )]
+    pub reuse_policy: super::AutomationReusePolicy,
+    /// Runtime-owned: written only by the dispatcher and the binding store,
+    /// never taken from a client.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound_target: Option<super::AutomationBoundTarget>,
     pub created_by: AutomationActor,
     pub modified_by: AutomationActor,
     pub created_at: DateTime<Utc>,

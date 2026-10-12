@@ -7,7 +7,7 @@ const portableReferenceInstruction = 'Read only the bundled references the task 
 
 export function adaptPortableAleraSkill(text: string, entrypoint: boolean): string {
   if (!entrypoint) return text;
-  const adapted = text.replace(remoteReferenceInstruction, portableReferenceInstruction).replace('  version: 1\n', '  version: "1"\n');
+  const adapted = text.replace(remoteReferenceInstruction, portableReferenceInstruction).replace(/^  version: (\d+)\n/m, '  version: "$1"\n');
   return `${adapted.trimEnd()}\n\n## Connection And Client Capabilities\n\nUse the remote Alera MCP connection only after its tools are actually available. If they are missing, load the bundled alera-setup skill and explain the client's documented installation or authorization requirements. Do not assume a native subagent, shell, local MCP process, or shared account synchronization. The agents and coordinator terminals described here run on the selected Alera runtime. Credentials belong in the client's authorization flow, never in chat or package files. Do not bypass scope failures or upgrade permissions to test connectivity.\n`;
 }
 

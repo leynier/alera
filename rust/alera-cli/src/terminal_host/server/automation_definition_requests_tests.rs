@@ -1,11 +1,11 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use alera_core::runtime::{
-    AutomationActor, AutomationActorKind, AutomationAgentPolicy, AutomationDefinition,
-    AutomationMisfirePolicy, AutomationOverlapPolicy, AutomationSchedule, AutomationSetupPolicy,
-    AutomationState, AutomationTarget, Project, ProjectKind, Workspace, WorkspaceKind,
-    WorkspaceStatus, LOCAL_HOST_ID,
+    AutomationActor, AutomationActorKind, AutomationDefinition, AutomationMisfirePolicy,
+    AutomationOverlapPolicy, AutomationSchedule, AutomationSetupPolicy, AutomationState,
+    AutomationTarget, Project, ProjectKind, Workspace, WorkspaceKind, WorkspaceStatus,
+    LOCAL_HOST_ID,
 };
 use chrono::Utc;
 use serde_json::json;
@@ -23,13 +23,16 @@ struct Harness {
     _runtime_dir: tempfile::TempDir,
     repo_path: PathBuf,
     actor: ServerActor,
+    // Kept open so broadcasts reach the client instead of queueing a
+    // disconnect into the actor inbox the tests read.
+    events: tokio::sync::mpsc::UnboundedReceiver<crate::terminal_host::client::ClientFrame>,
 }
 
 async fn harness() -> Harness {
     let runtime_dir = tempfile::tempdir().unwrap();
     let repo_path = runtime_dir.path().join("repo");
     std::fs::create_dir(&repo_path).unwrap();
-    let (handle, _events) = ClientHandle::test_channels();
+    let (handle, events) = ClientHandle::test_channels();
     let actor = test_actor(
         &runtime_dir,
         HashMap::from([(1, local_client(handle))]),
@@ -92,6 +95,7 @@ async fn harness() -> Harness {
         _runtime_dir: runtime_dir,
         repo_path,
         actor,
+        events,
     }
 }
 
@@ -145,16 +149,14 @@ fn draft_definition() -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: None,
         created_by: actor.clone(),
         modified_by: actor,
         created_at: now,
         updated_at: now,
     }
-}
-
-fn declare(repo: &Path) {
-    std::fs::write(repo.join("alera.toml"), "[automation]\ndeclared = true\n").unwrap();
 }
 
 async fn upsert_draft(actor: &mut ServerActor) -> AutomationDefinition {
@@ -228,41 +230,49 @@ async fn approve_and_pause_work_without_alera_toml_declaration() {
 }
 
 #[tokio::test]
-async fn execution_without_declaration_or_profile_permission_is_allowed() {
+async fn authored_target_is_valid_without_retired_gates() {
     let mut harness = harness().await;
     let created = upsert_draft(&mut harness.actor).await;
-    let actor = harness.actor.automation_actor(1, &json!({}));
-    harness
-        .actor
-        .ensure_agent_policy(&created, &actor, true)
-        .await
-        .unwrap();
+    harness.actor.ensure_target_valid(&created).await.unwrap();
     assert!(harness.actor.automation_readiness(&created, false).await["ready"] == true);
 }
 
 #[tokio::test]
-async fn execution_policy_accepts_a_declared_repository() {
+async fn retired_catalog_and_policy_verbs_are_unknown_requests() {
     let mut harness = harness().await;
-    let created = upsert_draft(&mut harness.actor).await;
-    declare(&harness.repo_path);
-    harness
-        .actor
-        .runtime_store
-        .set_automation_agent_policy(AutomationAgentPolicy {
-            profile_id: "profile-1".into(),
-            may_activate_or_edit_active: true,
-            may_execute: true,
-            updated_at: Utc::now(),
-        })
-        .await
-        .unwrap();
-    let actor = harness.actor.automation_actor(1, &json!({}));
-    harness
-        .actor
-        .ensure_agent_policy(&created, &actor, true)
-        .await
-        .unwrap();
+    for verb in [
+        "automation.templates",
+        "automation.tags",
+        "automation.export",
+        "automation.import",
+        "automation.policy",
+    ] {
+        let error = harness
+            .actor
+            .handle_automation_request(1, verb, &json!({}))
+            .await
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("Unknown terminal host request"),
+            "{verb}: {error}"
+        );
+    }
 }
 
 #[path = "automation_experience_tests.rs"]
 mod experience;
+
+#[path = "automation_event_tests.rs"]
+mod events;
+
+#[path = "automation_reuse_test_fixture.rs"]
+mod reuse_fixture;
+
+#[path = "automation_reuse_resolution_tests.rs"]
+mod reuse_resolution;
+
+#[path = "automation_reuse_lifecycle_tests.rs"]
+mod reuse_lifecycle;
+
+#[path = "automation_reuse_dispatch_tests.rs"]
+mod reuse_dispatch;

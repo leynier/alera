@@ -85,6 +85,7 @@ impl ServerActor {
             .set_automation_run_waiting(&id, actor, waiting)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.broadcast_automation_run_changed(&run);
         serde_json::to_value(run).map_err(|error| HostError::state(error.to_string()))
     }
 
@@ -124,6 +125,7 @@ impl ServerActor {
             .extend_waiting_automation_run(&id, until, actor)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.broadcast_automation_run_changed(&run);
         serde_json::to_value(run).map_err(|error| HostError::state(error.to_string()))
     }
 
@@ -191,22 +193,14 @@ impl ServerActor {
             .complete_automation_run(&id, status, summary, error, actor)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let _ = self
-            .runtime_store
-            .archive_one_time_automation_if_final(
-                &run.automation_id,
-                AutomationActor {
-                    kind: AutomationActorKind::ManagedAgent,
-                    id: run.actor_id.clone(),
-                    label: Some("one-time automation finalizer".to_string()),
-                },
-            )
-            .await;
         if current.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
             && status.counts_as_failure()
             && self
                 .runtime_store
-                .count_automation_failure_streak(&run.automation_id)
+                .count_automation_failure_streak(
+                    &run.automation_id,
+                    definition.circuit_failure_threshold,
+                )
                 .await
                 .unwrap_or_default()
                 >= definition.circuit_failure_threshold
@@ -234,7 +228,12 @@ impl ServerActor {
                 )
                 .await
             {
-                Ok(_) => self.automation_wake.notify_one(),
+                Ok(_) => {
+                    self.automation_wake.notify_one();
+                    if definition.circuit_opened {
+                        self.broadcast_automation_changed(Some(&run.automation_id));
+                    }
+                }
                 Err(error) => tracing::warn!(
                     automation_id = %run.automation_id,
                     "could not reset automation circuit after scheduled success: {error}"
@@ -256,10 +255,7 @@ impl ServerActor {
         self.cleanup_automation_owned_target(&run, run.status).await;
         self.queue_automation_push(&run, &definition, status, run.summary.as_deref())
             .await;
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationRunChanged",
-            json!({ "automationId": run.automation_id, "runId": run.id }),
-        ));
+        self.broadcast_automation_run_changed(&run);
         serde_json::to_value(run).map_err(|error| HostError::state(error.to_string()))
     }
 
@@ -310,6 +306,7 @@ impl ServerActor {
             .request_automation_cancel(&id, actor)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.broadcast_automation_run_changed(&run);
         serde_json::to_value(run).map_err(|error| HostError::state(error.to_string()))
     }
 }

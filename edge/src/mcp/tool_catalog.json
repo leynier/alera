@@ -6421,7 +6421,7 @@
         "readOnlyHint": true,
         "title": "List Automations"
       },
-      "description": "List runtime automations with the same filters as the Automations view: state, bucket, project, agent profile, tag, workspace, section, host, or search text.",
+      "description": "List runtime automations with the same filters as the Automations view: state, bucket, project, agent profile, workspace, section, host, or search text.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -6470,11 +6470,6 @@
           },
           "state": {
             "description": "Automation state: draft, active, paused, blocked, archived, or trashed.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "tagId": {
-            "description": "Automation tag id from list_automation_tags.",
             "minLength": 1,
             "type": "string"
           },
@@ -6540,7 +6535,7 @@
             "type": "string"
           },
           "continueFromRunId": {
-            "description": "Earlier run whose conversation this run continues.",
+            "description": "Finished run whose preserved workspace this run opens a fresh agent tab in; its summary and error are appended to the prompt.",
             "minLength": 1,
             "type": "string"
           },
@@ -6654,7 +6649,7 @@
             "type": "string"
           },
           "definition": {
-            "description": "Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target, and optional policies, tagIds, and projectId.",
+            "description": "Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target (freshTab, existingTab, worktree with projectId and/or parentWorkspaceId, or projectCheckout), and optional policies and projectId. reusePolicy (newEachRun by default, reuseWorkspace, or reuseConversation) sends later runs to the workspace or conversation the first run created.",
             "type": "object"
           },
           "draft": {
@@ -6690,7 +6685,7 @@
             "type": "string"
           },
           "changes": {
-            "description": "Definition fields to replace, such as name, promptTemplate, schedule, target, or tagIds.",
+            "description": "Definition fields to replace, such as name, promptTemplate, schedule, target, or reusePolicy. Changing the target or setting reusePolicy to newEachRun drops the bound target.",
             "type": "object"
           },
           "expectedRevision": {
@@ -6989,6 +6984,39 @@
     {
       "access": "execute",
       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Unbind Automation Target"
+      },
+      "description": "Forget the workspace or conversation an automation with reusePolicy reuseWorkspace or reuseConversation returns to. Its next run creates a new target and binds to that one.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "description": "Automation id from list_automations.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why, recorded in the audit history.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "automationId"
+        ],
+        "type": "object"
+      },
+      "name": "unbind_automation_target",
+      "timeoutSeconds": 30,
+      "title": "Unbind Automation Target"
+    },
+    {
+      "access": "execute",
+      "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
@@ -7127,166 +7155,6 @@
       "name": "take_over_automation_run",
       "timeoutSeconds": 30,
       "title": "Take Over Automation Run"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Automation Templates"
-      },
-      "description": "List the saved prompt templates automations can start from.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {},
-        "type": "object"
-      },
-      "name": "list_automation_templates",
-      "timeoutSeconds": 30,
-      "title": "List Automation Templates"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Save Automation Template"
-      },
-      "description": "Create or replace a prompt template by id, as Save as Template does.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "template": {
-            "description": "Template with id, name, promptTemplate, and optional description and defaults. updatedAt is optional.",
-            "type": "object"
-          }
-        },
-        "required": [
-          "template"
-        ],
-        "type": "object"
-      },
-      "name": "upsert_automation_template",
-      "timeoutSeconds": 30,
-      "title": "Save Automation Template"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Automation Tags"
-      },
-      "description": "List the tags that group automations.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {},
-        "type": "object"
-      },
-      "name": "list_automation_tags",
-      "timeoutSeconds": 30,
-      "title": "List Automation Tags"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Save Automation Tags"
-      },
-      "description": "Create a tag, or rename one by tagId, and set the tags of an automation. Pass tagName, automationId with tagIds, or both. To remove every tag, use update_automation with tagIds set to an empty list.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "automationId": {
-            "description": "Automation whose tags tagIds replaces.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "tagId": {
-            "description": "Existing tag to rename.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "tagIds": {
-            "description": "Every tag id the automation should have.",
-            "items": {
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array",
-            "uniqueItems": true
-          },
-          "tagName": {
-            "description": "Name of the tag to create, or the new name of tagId.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "upsert_automation_tags",
-      "timeoutSeconds": 30,
-      "title": "Save Automation Tags"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Export Automations"
-      },
-      "description": "Export this runtime's automations, templates, and tags as a portable catalog that import_automations accepts.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {},
-        "type": "object"
-      },
-      "name": "export_automations",
-      "timeoutSeconds": 30,
-      "title": "Export Automations"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Import Automations"
-      },
-      "description": "Import a catalog from export_automations. Imported automations keep their ids unless remapped.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "bundle": {
-            "description": "Catalog object as export_automations returns it.",
-            "type": "object"
-          },
-          "remap": {
-            "description": "Map of source id to target id, for projects, profiles, or workspaces that differ on this runtime.",
-            "type": "object"
-          }
-        },
-        "required": [
-          "bundle"
-        ],
-        "type": "object"
-      },
-      "name": "import_automations",
-      "timeoutSeconds": 30,
-      "title": "Import Automations"
     },
     {
       "access": "read",

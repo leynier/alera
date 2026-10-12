@@ -25,17 +25,30 @@ mod alera_account_models;
 mod alera_account_store;
 #[cfg(test)]
 mod alera_account_store_tests;
-mod automation_catalog_store;
 mod automation_circuit_store;
 mod automation_models;
 #[cfg(test)]
 mod automation_models_serde_tests;
+mod automation_overlap;
+mod automation_reuse;
+pub use automation_reuse::{
+    validate_reuse, AutomationBoundTarget, AutomationReusePolicy, AutomationRunReuse,
+    AUTOMATION_REUSE_CLEANUP_ERROR, AUTOMATION_REUSE_WORKSPACE_EXISTING_TAB_ERROR,
+};
+mod automation_binding_store;
+#[cfg(test)]
+mod automation_binding_store_tests;
 mod automation_run_store;
 mod automation_target;
 mod automation_workspace_placement;
 mod project_automation_dependencies;
 mod project_registration_store;
-pub use automation_target::AutomationTarget;
+pub use automation_overlap::{
+    busy_target_decision, decide_overlap, AutomationOverlapDecision,
+    AUTOMATION_OVERLAP_SKIP_REASON, AUTOMATION_OVERLAP_SUPERSEDED_REASON,
+    AUTOMATION_QUEUE_LIMIT_REASON,
+};
+pub use automation_target::{AutomationTarget, AutomationWorktreeSpec};
 pub use automation_workspace_placement::AutomationWorkspacePlacement;
 pub use project_automation_dependencies::ProjectAutomationDependency;
 mod automation_authoring;
@@ -302,7 +315,6 @@ pub use agent_quota_settings_models::*;
 pub use ai_assist_validation::validate_ai_assist_settings;
 pub use alera_account_models::*;
 #[allow(unused_imports)]
-pub use automation_catalog_store::*;
 pub use automation_models::*;
 #[allow(unused_imports)]
 pub use automation_run_store::*;

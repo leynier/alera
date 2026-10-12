@@ -11,7 +11,6 @@ impl ServerActor {
         verb: &str,
         payload: &Value,
     ) -> HostResult<Value> {
-        self.require_request_allowed(client_id, verb)?;
         if self
             .clients
             .get(&client_id)

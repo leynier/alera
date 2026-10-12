@@ -13,8 +13,8 @@ const guides = [
 test('serves all five independent plugin downloads with valid checksums and existing aliases', async ({ page, request }) => {
   await page.goto('/download');
   const previous = [
-    ['Download Plugin ZIP', 'alera-plugin.zip', '4f1fedc3116746ebdc0dc006bab198520bc205660b0fb6242bd0f80305811b91'],
-    ['Download Claude Plugin ZIP', 'alera-claude-plugin.zip', '696bd234f1ce0d731a4abecae67f3171910f8b2064cd2af7c16646aaf1b044e4'],
+    ['Download Plugin ZIP', 'alera-plugin.zip', 'ad93f57ea382b89e544345baa173114752dbb45371c3c448810020aa8f5404af'],
+    ['Download Claude Plugin ZIP', 'alera-claude-plugin.zip', 'a56fbbf3fad233c671daa3873bfeca411d288095323795d78bfea75d72c8e8b1'],
   ] as const;
   for (const [button, archive, checksum] of previous) {
     await expect(page.getByRole('link', { name: button, exact: true })).toHaveAttribute('href', `/downloads/${archive}`);

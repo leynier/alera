@@ -1,7 +1,12 @@
 import 'package:alera_mobile/src/design_system/alera_preview.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.preview.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.preview.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_date_time_field.preview.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_duration_field.preview.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_time_of_day_field.preview.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.preview.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_collapsible_section.preview.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_key_value_row.preview.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.preview.dart';
 import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.preview.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +21,14 @@ void main() {
     ('Needs Input', aleraBadgeTonesPreview),
     ('Checks Passing', aleraBadgeLeadingPreview),
     ('feat/active-rail', aleraActiveRailPreview),
+    ('Options', aleraCollapsibleSectionPreview),
+    ('Description', aleraCollapsibleSectionCollapsedPreview),
+    ('Schedule', aleraKeyValueRowPreview),
+    ('Inactivity Timeout', aleraDurationFieldPreview),
+    ('Use at least 10 seconds.', aleraDurationFieldErrorPreview),
+    ('Time', aleraTimeOfDayFieldPreview),
+    ('Starts', aleraDateTimeFieldPreview),
+    ('Choose Date', aleraDateTimeFieldEmptyPreview),
   ]) {
     testWidgets('$name preview lays out within its phone viewport', (
       tester,

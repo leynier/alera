@@ -4,7 +4,7 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';

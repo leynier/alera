@@ -47,6 +47,7 @@ enum KeyboardActionGroup(this.label) {
 enum KeyboardActionId {
   openSettings,
   openAutomations,
+  newAutomation,
   openRunBoard,
   openQuickOpen,
   openCommandPalette,

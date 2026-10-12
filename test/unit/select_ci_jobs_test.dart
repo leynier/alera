@@ -93,15 +93,18 @@ void main() {
     expect(jobs.rust, isFalse);
   });
 
-  test('shared configuration package runs packages, tests, and mobile', () {
-    final jobs = selectCiJobs(const <String>[
+  test('shared Dart packages run packages, tests, and mobile', () {
+    for (final path in const <String>[
       'packages/alera_configuration/lib/src/configuration_sync.dart',
-    ]);
-    expect(jobs.packages, isTrue);
-    expect(jobs.test, isTrue);
-    expect(jobs.mobile, isTrue);
-    expect(jobs.staticDart, isTrue);
-    expect(jobs.rust, isFalse);
+      'packages/alera_automations/lib/src/automation_draft.dart',
+    ]) {
+      final jobs = selectCiJobs(<String>[path]);
+      expect(jobs.packages, isTrue, reason: path);
+      expect(jobs.test, isTrue, reason: path);
+      expect(jobs.mobile, isTrue, reason: path);
+      expect(jobs.staticDart, isTrue, reason: path);
+      expect(jobs.rust, isFalse, reason: path);
+    }
   });
 
   test('desktop updater fork and app boundary run package validation', () {

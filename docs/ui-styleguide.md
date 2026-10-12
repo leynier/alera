@@ -100,6 +100,8 @@ Typography and sizing:
 | `logoSm`, `logoMd`, `logoLg` | `AleraLogo` sizes for the sidebar brand row, loading screens, and About dialog |
 | `iconButtonXs`, `iconButtonSm` | Hit areas for compact `AleraIconButton`s inside chips and row headers |
 | `conversationMaxWidth` | Content width of the home composer and other centered conversations |
+| `controlHeight` | Height of compact single-line controls (`AleraDropdownField`, `AleraCompactInput`, the date button of `AleraDateTimeField`) so they line up in one row |
+| `keyValueLabelWidth` | Width of the muted label column in `AleraKeyValueRow` |
 
 ## Component Rules
 
@@ -117,6 +119,8 @@ Typography and sizing:
 - Default Material button shape uses `radiusLg`.
 - Default Material button minimum height is `34`.
 - Confirmation dialogs use equal-width secondary and primary footer actions.
+- Prompt-first forms put each property in an `AleraPropertyChip` that opens an `AleraPopover`. The chip marks an open popover as active, a blocking value with the error border, and a value seeded from where the form was opened with a `From Context` badge. A popover closes on Escape or an outside tap and returns focus to where it was; a search-and-sections choice inside it uses `AleraSectionedPicker`.
+- Durations are edited as a number plus unit with `AleraDurationField` and printed with `aleraDurationLabel`; times of day are typed into `AleraTimeOfDayField` (24-hour display, accepts `9`, `9:30`, `6:05 pm`). Fields report raw values and leave range checks and their messages to the caller.
 
 ## Surface Model
 
@@ -166,11 +170,11 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Role | Components |
 | --- | --- |
 | Buttons | `AleraIconButton`, `AleraSegmentedButton` |
-| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip` |
-| Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail` |
+| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip`, `AleraPropertyChip` |
+| Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail`, `AleraPopover` |
 | Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast`, `AleraQrCode` |
-| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView` |
+| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox`, `AleraCompactInput`, `AleraDurationField`, `AleraTimeOfDayField`, `AleraDateTimeField` |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView`, `AleraSectionedPicker`, `AleraCollapsibleSection`, `AleraKeyValueRow` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 | Iconography | `AleraIcons`, `AleraFileIcon`, `AleraLogo` |
 

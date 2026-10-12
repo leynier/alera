@@ -17,7 +17,7 @@ pub(crate) struct AutostartPaths {
     pub content: String,
 }
 
-pub(crate) fn current_platform() -> AutostartPlatform {
+fn current_platform() -> AutostartPlatform {
     if cfg!(target_os = "macos") {
         AutostartPlatform::Macos
     } else if cfg!(target_os = "windows") {
@@ -31,13 +31,24 @@ pub(crate) async fn reconcile_runtime_autostart(runtime_store: &RuntimeStore, ru
     let Ok(settings) = runtime_store.automation_settings().await else {
         return;
     };
+    if let Err(error) = try_reconcile_runtime_autostart(&settings, runtime_dir) {
+        tracing::warn!("automation autostart reconciliation failed: {error}");
+    }
+}
+
+/// Writes or removes this runtime's login entry for `settings`. A runtime
+/// whose own executable path is unknown has nothing to register.
+pub(crate) fn try_reconcile_runtime_autostart(
+    settings: &RuntimeAutomationSettings,
+    runtime_dir: &Path,
+) -> Result<()> {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| runtime_dir.to_path_buf());
     let app_data = std::env::var_os("APPDATA").map(PathBuf::from);
     let xdg_config = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from);
     let Ok(executable) = std::env::current_exe() else {
-        return;
+        return Ok(());
     };
     let paths = build_autostart_paths(
         current_platform(),
@@ -47,12 +58,10 @@ pub(crate) async fn reconcile_runtime_autostart(runtime_store: &RuntimeStore, ru
         &executable,
         runtime_dir,
     );
-    if let Err(error) = reconcile_autostart(&settings, &paths) {
-        tracing::warn!("automation autostart reconciliation failed: {error}");
-    }
+    reconcile_autostart(settings, &paths)
 }
 
-pub(crate) fn build_autostart_paths(
+fn build_autostart_paths(
     platform: AutostartPlatform,
     home: &Path,
     app_data: Option<&Path>,
@@ -105,10 +114,7 @@ pub(crate) fn build_autostart_paths(
     }
 }
 
-pub(crate) fn reconcile_autostart(
-    settings: &RuntimeAutomationSettings,
-    paths: &AutostartPaths,
-) -> Result<()> {
+fn reconcile_autostart(settings: &RuntimeAutomationSettings, paths: &AutostartPaths) -> Result<()> {
     if settings.autostart {
         if let Some(parent) = paths.file.parent() {
             fs::create_dir_all(parent).with_context(|| {

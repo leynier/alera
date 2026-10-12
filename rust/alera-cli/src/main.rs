@@ -8,7 +8,6 @@ mod agent_skills;
 mod agent_status;
 mod automation_autostart;
 mod automation_commands;
-mod automation_declaration;
 mod automation_ssh_precheck;
 mod cli;
 mod cli_async_runtime;
