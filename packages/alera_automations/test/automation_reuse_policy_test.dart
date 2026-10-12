@@ -145,6 +145,20 @@ void main() {
       }),
       'Unbound',
     );
+    expect(
+      automationActivityLabel(const {
+        'action': 'misfiresSkipped',
+        'details': {'count': 3},
+      }),
+      'Skipped 3 missed runs',
+    );
+    expect(
+      automationActivityLabel(const {
+        'action': 'misfiresSkipped',
+        'details': {'count': 1},
+      }),
+      'Skipped 1 missed run',
+    );
     expect(automationLaunchKindLabel('reusePaste'), 'Continued Conversation');
     expect(
       automationLaunchKindLabel('reuseRelaunch'),

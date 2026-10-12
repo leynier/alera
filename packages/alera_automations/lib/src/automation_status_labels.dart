@@ -184,6 +184,11 @@ String automationActivityLabel(JsonMap event) {
     'draft' => 'Restored as draft',
     'archived' => 'Completed',
     'takenOver' => 'Run taken over',
+    'misfiresSkipped' => switch (automationJsonMap(event['details'])['count']) {
+      final int count when count == 1 => 'Skipped 1 missed run',
+      final int count => 'Skipped $count missed runs',
+      _ => 'Skipped missed runs',
+    },
     'targetBound' => 'Bound to a target',
     'boundTabReleased' => 'Released the bound tab',
     'targetUnbound' => switch (automationJsonMap(event['details'])['reason']) {
