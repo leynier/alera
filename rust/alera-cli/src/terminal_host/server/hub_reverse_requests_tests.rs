@@ -133,6 +133,60 @@ async fn a_lost_hub_fails_the_questions_it_had_not_answered() {
 }
 
 #[tokio::test]
+async fn a_reconnected_hub_replaces_the_link_it_left_behind() {
+    const NEW_HUB: u64 = 4;
+    let (_root, mut actor, _old_hub_frames, mut cli_frames) = satellite().await;
+    let (handle, mut new_hub_frames) = ClientHandle::test_channels();
+    actor
+        .clients
+        .insert(NEW_HUB, ClientState::local(handle, false));
+    register_hub(&mut actor);
+    handled(actor.try_handle_hub_reverse_request(
+        CLI,
+        9,
+        "hub.forward",
+        &json!({"type": "project.list"}),
+    ));
+
+    handled(actor.try_handle_hub_reverse_request(NEW_HUB, 1, "hub.link.register", &json!({})));
+
+    let failure = cli_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(failure["id"], 9, "{failure}");
+    assert!(
+        failure["error"]
+            .as_str()
+            .unwrap()
+            .contains("No Alera desktop"),
+        "{failure}"
+    );
+    let stale = actor
+        .try_handle_hub_reverse_request(
+            HUB,
+            2,
+            "hub.respond",
+            &json!({"requestId": "any", "ok": true, "payload": {}}),
+        )
+        .unwrap_err();
+    assert!(stale.to_string().contains("Only a hub link"), "{stale}");
+    handled(actor.try_handle_hub_reverse_request(
+        CLI,
+        10,
+        "hub.forward",
+        &json!({"type": "project.list"}),
+    ));
+    let asked = new_hub_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(asked["event"], HUB_REQUEST_EVENT, "{asked}");
+
+    actor.forget_hub_reverse_client(HUB);
+    let status =
+        handled(actor.try_handle_hub_reverse_request(CLI, 2, "hub.link.status", &json!({})));
+    assert_eq!(
+        status["linked"], true,
+        "the old link going away changes nothing"
+    );
+}
+
+#[tokio::test]
 async fn the_reverse_channel_is_closed_to_phones_and_ignores_other_verbs() {
     let (_root, mut actor, _hub_frames, _cli_frames) = satellite().await;
     assert!(actor

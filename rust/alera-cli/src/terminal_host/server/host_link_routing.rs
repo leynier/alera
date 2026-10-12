@@ -4,8 +4,8 @@
 //! Every host-scoped verb (files, git, search, processes) starts here: resolve
 //! the workspace, open or reuse its host link, and make sure the satellite has
 //! the workspace registered before asking it to do anything with it. The
-//! mirror call is idempotent and cheap once the record exists, so callers do
-//! not track whether they already mirrored.
+//! registry remembers what it mirrored over the current link, so a repeated
+//! registration costs no round trip and callers do not track it.
 
 use std::sync::Arc;
 
@@ -49,6 +49,10 @@ pub(crate) async fn mirror_workspace(
             .await
             .map_err(|error| HostError::from_anyhow(&error))?;
     let link = links.link(&workspace.host_id).await?;
+    let hash = registration_hash(&registration);
+    if let Some(mirrored) = links.mirrored(&workspace.host_id, &link, &workspace.id, hash) {
+        return Ok((link, mirrored));
+    }
     let mirrored = link
         .request_with_timeout(
             "hub.mirror.workspace",
@@ -56,7 +60,23 @@ pub(crate) async fn mirror_workspace(
             crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
         )
         .await?;
+    links.note_mirrored(
+        &workspace.host_id,
+        &link,
+        &workspace.id,
+        hash,
+        mirrored.clone(),
+    );
     Ok((link, mirrored))
+}
+
+/// Identifies one registration for the mirror cache. The cache lives as long
+/// as one link, so the hash only has to be stable within this process.
+fn registration_hash(registration: &Value) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    registration.to_string().hash(&mut hasher);
+    hasher.finish()
 }
 
 /// Verbs whose work happens where the checkout is. The `mobile.*` names are

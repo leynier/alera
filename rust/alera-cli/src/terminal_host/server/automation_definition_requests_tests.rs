@@ -266,3 +266,7 @@ async fn execution_policy_accepts_a_declared_repository() {
 
 #[path = "automation_experience_tests.rs"]
 mod experience;
+
+#[cfg(unix)]
+#[path = "automation_remote_owner_tests.rs"]
+mod remote_owner;

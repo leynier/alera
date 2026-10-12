@@ -164,6 +164,17 @@ pub enum ServerCommand {
     /// A link started connecting, attached, failed or was dropped.
     HostLinkStateChanged {
         host_id: String,
+        /// A new link was just installed, so state the satellite missed while
+        /// the host was unlinked is pushed and read again.
+        newly_attached: bool,
+    },
+    /// Time for the host link supervisor to compare desired hosts with links.
+    HostLinkSupervisorTick,
+    /// A satellite answered `automation.ownerStatus` for a run, off the actor.
+    AutomationRemoteOwnerStatus {
+        run_id: String,
+        host_id: String,
+        state: Option<String>,
     },
     /// A forwarded request or a link operation finished off the actor.
     HostLinkRequestFinished {

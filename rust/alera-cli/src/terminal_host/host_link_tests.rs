@@ -16,7 +16,7 @@ async fn close_signal_latches_without_an_active_receiver() {
         .expect("late subscribers observe cancellation");
 }
 
-fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
+pub(crate) fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
     let now = Utc::now();
     SshTarget {
         id: "lab".into(),
@@ -158,17 +158,16 @@ fn host_link_state_serializes_with_a_state_tag() {
 }
 
 #[cfg(unix)]
-mod live {
+pub(crate) mod live {
     use std::sync::Arc;
 
     use super::*;
-    use crate::terminal_host::host_link_registry::HostLinkRegistry;
     use crate::terminal_host::server::ServerCommand;
     use alera_core::runtime::RuntimeStore;
 
     /// A shell stand-in for `runtime-attach`: announces, pushes one event,
     /// then echoes every request id back as an ok response.
-    const FAKE_SATELLITE: &str = r#"
+    pub(crate) const FAKE_SATELLITE: &str = r#"
 printf '%s\n' '{"event":"hostLink.attached","payload":{"runtimeDir":"/sat/data","platform":"linux","arch":"x86_64","hostVersion":"9.9.9","runtimeCapabilities":["runtimeStore","remoteSatelliteV1"]}}'
 printf '%s\n' '{"event":"workspacesChanged","payload":{"projectId":"p1"}}'
 while IFS= read -r line; do
@@ -180,7 +179,7 @@ while IFS= read -r line; do
 done
 "#;
 
-    fn fake_launcher(script: &'static str) -> Arc<HostLinkLauncher> {
+    pub(crate) fn fake_launcher(script: &'static str) -> Arc<HostLinkLauncher> {
         Arc::new(move |_target: &SshTarget| {
             let mut command = alera_core::child_process::windowless_async_command("sh");
             command.arg("-c").arg(script);
@@ -188,7 +187,7 @@ done
         })
     }
 
-    async fn stored_target(store: &RuntimeStore) -> SshTarget {
+    pub(crate) async fn stored_target(store: &RuntimeStore) -> SshTarget {
         let target = target("linux", Some("~/.alera/sidecar"));
         store.upsert_ssh_target(target.clone()).await.unwrap();
         target
@@ -244,75 +243,5 @@ done
             .await
             .unwrap_err();
         assert!(after.wire_message().contains("closed"), "{after}");
-    }
-
-    #[tokio::test]
-    async fn registry_connects_once_per_host_and_publishes_states() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = RuntimeStore::open(dir.path()).await.unwrap();
-        let target = stored_target(&store).await;
-        let (inbox, mut rx) = crate::terminal_host::ServerInbox::channel();
-        let registry = HostLinkRegistry::with_launcher(store, inbox, fake_launcher(FAKE_SATELLITE));
-        assert_eq!(registry.state(&target.id), HostLinkState::Disconnected);
-
-        let (a, b) = tokio::join!(registry.link(&target.id), registry.link(&target.id));
-        let (a, b) = (a.unwrap(), b.unwrap());
-        assert!(Arc::ptr_eq(&a, &b), "concurrent callers share one link");
-        assert!(matches!(
-            registry.state(&target.id),
-            HostLinkState::Attached { .. }
-        ));
-        let snapshot = registry.snapshot();
-        assert_eq!(snapshot["links"][0]["hostId"], "lab");
-        assert_eq!(snapshot["links"][0]["state"], "attached");
-
-        let mut states = Vec::new();
-        while let Ok(command) = rx.try_recv() {
-            if let ServerCommand::HostLinkStateChanged { host_id } = command {
-                states.push(host_id);
-            }
-        }
-        assert_eq!(states, vec!["lab".to_string(), "lab".to_string()]);
-
-        registry.disconnect(&target.id).await;
-        assert_eq!(registry.state(&target.id), HostLinkState::Disconnected);
-        assert!(a.is_closed());
-    }
-
-    #[tokio::test]
-    async fn registry_records_a_failed_attach() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = RuntimeStore::open(dir.path()).await.unwrap();
-        let target = stored_target(&store).await;
-        let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
-        let registry = HostLinkRegistry::with_launcher(
-            store,
-            inbox,
-            fake_launcher("echo 'permission denied (publickey)' >&2; exit 255"),
-        );
-        let error = registry.link(&target.id).await.unwrap_err();
-        assert!(
-            error.wire_message().contains("permission denied"),
-            "{error}"
-        );
-        match registry.state(&target.id) {
-            HostLinkState::Failed { error } => assert!(error.contains("permission denied")),
-            other => panic!("unexpected {other:?}"),
-        }
-    }
-
-    #[tokio::test]
-    async fn registry_refuses_hosts_that_are_not_bootstrapped() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = RuntimeStore::open(dir.path()).await.unwrap();
-        let mut target = target("linux", Some("~/.alera/sidecar"));
-        target.bootstrap_status = SshBootstrapStatus::NotInstalled;
-        store.upsert_ssh_target(target.clone()).await.unwrap();
-        let (inbox, _rx) = crate::terminal_host::ServerInbox::channel();
-        let registry = HostLinkRegistry::with_launcher(store, inbox, fake_launcher(FAKE_SATELLITE));
-        let error = registry.link(&target.id).await.unwrap_err();
-        assert!(error.wire_message().contains("not bootstrapped"), "{error}");
-        let missing = registry.link("ghost").await.unwrap_err();
-        assert!(missing.wire_message().contains("not found"), "{missing}");
     }
 }

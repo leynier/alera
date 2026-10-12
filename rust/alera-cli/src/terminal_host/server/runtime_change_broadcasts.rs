@@ -52,6 +52,9 @@ impl ServerActor {
     }
 
     pub(super) fn broadcast_workspaces_changed(&self, project_id: Option<&str>) {
+        // A workspace that appears on or leaves a host changes whether that
+        // host should keep a link.
+        self.host_links.reevaluate();
         self.broadcast_authenticated(event(
             "workspacesChanged",
             scope_payload("projectId", project_id),

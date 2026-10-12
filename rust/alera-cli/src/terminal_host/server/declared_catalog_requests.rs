@@ -57,17 +57,27 @@ impl ServerActor {
         // An omitted installDir means "leave it alone", not "clear it": the app
         // only sends it when the user edited the bootstrap location.
         if payload.get("installDir").is_none() {
-            if let Some(existing) = existing {
-                target.install_dir = existing.install_dir;
+            if let Some(existing) = &existing {
+                target.install_dir = existing.install_dir.clone();
             }
         }
+        let endpoint_changed = existing
+            .as_ref()
+            .is_some_and(|existing| ssh_endpoint_changed(existing, &target));
         let stored = self
             .runtime_store
             .upsert_ssh_target(target)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        let host_id = stored.id.clone();
         let value =
             serde_json::to_value(stored).map_err(|error| HostError::format(error.to_string()))?;
+        if endpoint_changed {
+            // A link to the old address is stale, and a pause or a failure
+            // recorded against it no longer describes the host.
+            let links = self.host_links.clone();
+            tokio::spawn(async move { links.target_changed(&host_id).await });
+        }
         self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
         Ok(value)
     }
@@ -79,6 +89,8 @@ impl ServerActor {
             .remove_ssh_target(&id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        let links = self.host_links.clone();
+        tokio::spawn(async move { links.drop_host(&id).await });
         self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
         Ok(json!({}))
     }
@@ -417,9 +429,39 @@ fn mobile_hosts_payload(targets: &[SshTarget]) -> Value {
     )
 }
 
+/// Whether an edit changes how the hub reaches the host. A new alias or
+/// projects folder does not.
+fn ssh_endpoint_changed(existing: &SshTarget, next: &SshTarget) -> bool {
+    existing.host != next.host
+        || existing.port != next.port
+        || existing.username != next.username
+        || existing.auth_kind != next.auth_kind
+        || existing.install_dir != next.install_dir
+}
+
 #[cfg(test)]
 mod mobile_host_tests {
     use super::*;
+
+    #[test]
+    fn only_reaching_the_host_differently_changes_its_endpoint() {
+        let target: SshTarget = serde_json::from_value(serde_json::json!({
+            "id": "ssh-1", "alias": "Lab", "host": "10.0.0.7", "port": 22,
+            "username": "dev", "authKind": "agent",
+            "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
+        }))
+        .unwrap();
+        let mut renamed = target.clone();
+        renamed.alias = "Studio".into();
+        renamed.projects_dir = Some("~/code".into());
+        assert!(!ssh_endpoint_changed(&target, &renamed));
+        let mut moved = target.clone();
+        moved.host = "10.0.0.8".into();
+        assert!(ssh_endpoint_changed(&target, &moved));
+        let mut port = target.clone();
+        port.port = 2222;
+        assert!(ssh_endpoint_changed(&target, &port));
+    }
 
     #[test]
     fn a_phone_learns_a_host_name_and_system_and_nothing_about_reaching_it() {

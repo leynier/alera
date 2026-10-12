@@ -112,6 +112,7 @@ mod automation_policy_requests;
 #[cfg(test)]
 mod automation_policy_requests_tests;
 mod automation_profile_readiness;
+mod automation_remote_owner_status;
 mod automation_request_authorization;
 mod automation_request_routes;
 mod automation_requests;
@@ -172,6 +173,7 @@ mod history_request_retry;
 mod history_writer;
 mod host_link_requests;
 mod host_link_routing;
+mod host_link_supervision;
 mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
@@ -356,7 +358,7 @@ mod workspace_sleep_requests;
 pub use server_command::ServerCommand;
 #[cfg(test)]
 pub(crate) use server_command_inbox::ServerInboxReceiver;
-pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox};
+pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox, ServerInboxSendError};
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
@@ -432,6 +434,10 @@ struct ServerActor {
     workflow_workspace_recovery_running: bool,
     automation_checkout_jobs: std::collections::HashSet<String>,
     automation_precheck_jobs: std::collections::HashSet<String>,
+    /// Last `automation.ownerStatus` answer per remote run, read by the next
+    /// reconciliation so the actor never waits on a host link.
+    automation_remote_owner_states:
+        HashMap<String, automation_remote_owner_status::RemoteOwnerState>,
     pending_terminal_lifecycle_shutdowns:
         HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
@@ -786,9 +792,16 @@ impl ServerActor {
             ServerCommand::HostLinkClosed { host_id, error } => {
                 self.handle_host_link_closed(host_id, error)
             }
-            ServerCommand::HostLinkStateChanged { host_id } => {
-                self.handle_host_link_state_changed(host_id)
-            }
+            ServerCommand::HostLinkStateChanged {
+                host_id,
+                newly_attached,
+            } => self.handle_host_link_state_changed(host_id, newly_attached),
+            ServerCommand::HostLinkSupervisorTick => self.handle_host_link_supervisor_tick().await,
+            ServerCommand::AutomationRemoteOwnerStatus {
+                run_id,
+                host_id,
+                state,
+            } => Box::pin(self.finish_automation_remote_owner_status(run_id, host_id, state)).await,
             ServerCommand::HostLinkRequestFinished {
                 client_id,
                 request_id,

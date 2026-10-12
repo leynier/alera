@@ -49,7 +49,7 @@ impl ServerActor {
                 "sshTargetBootstrapProgress",
                 json!(SshTargetBootstrapProgress {
                     job_id,
-                    target_id,
+                    target_id: target_id.clone(),
                     status,
                     stage: status.as_str().to_string(),
                     message: match status {
@@ -63,6 +63,9 @@ impl ServerActor {
                 }),
             ));
             self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+            if status == SshBootstrapStatus::Installed {
+                self.host_links.clear_configuration_failure(&target_id);
+            }
             self.schedule_shutdown_if_idle();
         }
     }

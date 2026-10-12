@@ -332,6 +332,7 @@ mod tests {
             workflow_workspace_recovery_running: false,
             automation_checkout_jobs: Default::default(),
             automation_precheck_jobs: Default::default(),
+            automation_remote_owner_states: Default::default(),
             pending_terminal_lifecycle_shutdowns: Default::default(),
             checkout_buffer_guards: HashMap::new(),
             mutation_queue: Default::default(),

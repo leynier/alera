@@ -5,7 +5,7 @@ use alera_core::runtime::{
     AutomationRunTrigger, WorkspaceTabRecord,
 };
 
-async fn owned_run(fixture: &mut Harness) -> AutomationRun {
+pub(super) async fn owned_run(fixture: &mut Harness) -> AutomationRun {
     let definition = upsert_draft(&mut fixture.actor).await;
     let run = fixture
         .actor

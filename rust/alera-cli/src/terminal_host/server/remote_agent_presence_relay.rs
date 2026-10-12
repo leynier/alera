@@ -159,6 +159,7 @@ impl ServerActor {
     /// starting one opens the link. Failure is not the terminal's problem: the
     /// PTY travels on its own channel.
     pub(super) fn ensure_host_link_for_remote_terminal(&self, host_id: &str) {
+        self.host_links.resume(host_id);
         let links = self.host_links.clone();
         let host_id = host_id.to_string();
         tokio::spawn(async move {
@@ -204,7 +205,7 @@ impl ServerActor {
     }
 
     /// The hub sessions whose workspace lives on `host_id`.
-    async fn sessions_on_host(&self, host_id: &str) -> HashSet<String> {
+    pub(super) async fn sessions_on_host(&self, host_id: &str) -> HashSet<String> {
         let mut owned = HashSet::new();
         let mut hosts = std::collections::HashMap::<String, bool>::new();
         for (session_id, session) in &self.sessions {

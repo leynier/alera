@@ -23,6 +23,8 @@ impl ServerActor {
                 runs.push(reserved);
             }
         }
+        self.automation_remote_owner_states
+            .retain(|run_id, _| runs.iter().any(|run| &run.id == run_id));
         for mut run in runs {
             if run.taken_over
                 || (!run.owner_reserved
@@ -100,25 +102,7 @@ impl ServerActor {
                 }
             }
             let remote_host = host_id.as_deref().filter(|id| *id != LOCAL_HOST_ID);
-            let remote_state = if let Some(host) = remote_host {
-                let links = self.host_links.clone();
-                let owner = json!({"sessionId":run.session_id,"workspaceId":run.workspace_id,"tabId":run.tab_id});
-                tokio::time::timeout(std::time::Duration::from_millis(250), async {
-                    let link = links.link(host).await?;
-                    link.request_with_timeout(
-                        "automation.ownerStatus",
-                        owner,
-                        std::time::Duration::from_millis(200),
-                    )
-                    .await
-                })
-                .await
-                .ok()
-                .and_then(Result::ok)
-                .and_then(|value| value["state"].as_str().map(str::to_string))
-            } else {
-                None
-            };
+            let remote_state = remote_host.and_then(|host| self.remote_owner_state(&run, host));
             if let Some(host) = remote_host.filter(|_| remote_state.as_deref() == Some("running")) {
                 let resume_expired = run
                     .recovery
@@ -137,20 +121,7 @@ impl ServerActor {
                                 >= (definition.heartbeat_interval_seconds * 2).max(120)
                         });
                 if resume_expired {
-                    let links = self.host_links.clone();
-                    let payload = json!({"sessionId":run.session_id});
-                    let _ = tokio::time::timeout(std::time::Duration::from_millis(250), async {
-                        links
-                            .link(host)
-                            .await?
-                            .request_with_timeout(
-                                "terminate",
-                                payload,
-                                std::time::Duration::from_millis(200),
-                            )
-                            .await
-                    })
-                    .await;
+                    self.terminate_remote_owner(host, run.session_id.as_deref());
                     // Retry only after a subsequent owner-status response proves closure.
                     continue;
                 }
