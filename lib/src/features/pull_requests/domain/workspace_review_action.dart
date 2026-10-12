@@ -63,8 +63,10 @@ WorkspaceReviewActionState resolveWorkspaceReviewAction(
   if (state.actionAccess.canMerge != true ||
       state.mergeMethods.isEmpty ||
       state.mergeMethodsErrorMessage != null) {
-    return const WorkspaceReviewActionState(
-      hint: 'No permitted merge method is available for this account.',
+    return WorkspaceReviewActionState(
+      hint:
+          state.actionAccess.mergeBlockReason ??
+          'No permitted merge method is available for this account.',
     );
   }
   if (state.stackErrorMessage != null) {

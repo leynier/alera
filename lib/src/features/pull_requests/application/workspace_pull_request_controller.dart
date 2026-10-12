@@ -120,7 +120,12 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     _pollTimer?.cancel();
     final visible = state.value;
     if (visible != null) {
-      state = AsyncData(visible.copyWith(action: .merge, clearError: true));
+      state = AsyncData(
+        visible.copyWith(
+          action: action == .ready ? .draftStatus : .merge,
+          clearError: true,
+        ),
+      );
     }
     try {
       final fresh = await _loader.load(scope);

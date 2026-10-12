@@ -3,7 +3,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::git_cli::git_in_dir;
 use git2::{
-    build::CheckoutBuilder, BranchType, DiffOptions, ErrorCode, Index, ObjectType, Oid, Repository,
+    build::CheckoutBuilder, DiffOptions, ErrorCode, Index, ObjectType, Oid, Repository,
     RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
 };
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,7 @@ mod git_history_impl;
 #[path = "git_range_impl.rs"]
 mod git_range_impl;
 mod remotes;
+mod repository_state;
 mod source_control_actions;
 mod working_tree_commit;
 mod working_tree_paths;
@@ -45,6 +46,7 @@ pub use explorer_status::{
 pub use git_diff_impl::git_reading_diff_patch::git_reading_diff_patch;
 pub use git_diff_paths::GitPathContext;
 pub use remotes::{list_remotes, GitRemote};
+pub use repository_state::git_repository_state;
 pub use source_control_actions::{
     can_discard_from_parent, can_stage_from_parent, can_unstage_from_parent,
     is_submodule_worktree_only, source_control_actions, source_control_primary_action,
@@ -464,48 +466,4 @@ pub fn git_range_context(
     head_ref: Option<String>,
 ) -> Result<GitRangeContext, GitError> {
     git_range_impl::git_range_context(path, base_ref, commit_limit, head_ref)
-}
-
-pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError> {
-    let repo = open_repo(&path)?;
-    let branch = head_branch_name(&repo);
-    let mut upstream = None;
-    let mut ahead = 0;
-    let mut behind = 0;
-
-    if branch != "HEAD" {
-        if let Ok(local) = repo.find_branch(&branch, BranchType::Local) {
-            if let Ok(upstream_branch) = local.upstream() {
-                upstream = upstream_branch
-                    .name()
-                    .map_err(GitError::from_git2)?
-                    .map(ToString::to_string);
-                if let (Some(local_oid), Some(upstream_oid)) =
-                    (local.get().target(), upstream_branch.get().target())
-                {
-                    let counts = repo
-                        .graph_ahead_behind(local_oid, upstream_oid)
-                        .map_err(GitError::from_git2)?;
-                    ahead = counts.0 as u32;
-                    behind = counts.1 as u32;
-                }
-            }
-        }
-    }
-
-    let head_message = current_head_commit(&repo)?.and_then(|commit| {
-        commit
-            .message()
-            .ok()
-            .map(|message| message.trim_end_matches(['\r', '\n']).to_string())
-    });
-
-    Ok(GitRepositoryState {
-        branch,
-        upstream,
-        ahead,
-        behind,
-        has_conflicts: repository_has_conflicts(&repo)?,
-        head_message,
-    })
 }

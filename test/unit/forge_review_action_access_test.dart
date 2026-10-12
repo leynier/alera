@@ -59,6 +59,28 @@ void main() {
     }
   });
   test(
+    'GitHub explains protection separately from denied account access',
+    () async {
+      for (final mergeState in ['blocked', 'behind']) {
+        for (final write in [true, false]) {
+          final access =
+              await GitHubForgeProvider(
+                FakeRecordingProcessRunner([
+                  ok('{"permissions":{"push":$write}}'),
+                  ok('{"mergeable_state":"$mergeState"}'),
+                ]),
+              ).reviewActionAccess(
+                identity: github,
+                repoPath: '/checkout',
+                review: review,
+              );
+          expect(access.canMerge, isFalse);
+          expect(access.mergeBlockReason, write ? isNotNull : isNull);
+        }
+      }
+    },
+  );
+  test(
     'GitLab uses documented MR merge permission and inherited developer role',
     () async {
       final runner = FakeRecordingProcessRunner([

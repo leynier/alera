@@ -214,7 +214,7 @@ class const WorkspacePullRequestState({
         : '${stack!.number}:${stack!.open}:'
               '${stack!.entries.map((entry) => '${entry.review.number}:${entry.review.state.name}:${entry.review.baseBranch}').join('|')}';
     return '$checksLoaded:$checksErrorMessage:$stackChecksLoaded:$stackMergeBlocker:'
-        '${actionAccess.canMerge}:${actionAccess.canMarkReady}:'
+        '${actionAccess.canMerge}:${actionAccess.canMarkReady}:${actionAccess.mergeBlockReason}:'
         '${review?.number}:${review?.state.name}:${review?.title}:'
         '${review?.mergeable.name}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'

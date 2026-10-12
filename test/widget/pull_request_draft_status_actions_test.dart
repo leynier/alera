@@ -40,6 +40,7 @@ Widget _wrap(
         ],
         canCloseReview: true,
         canChangeDraftStatus: canChangeDraftStatus,
+        readyAllowed: canChangeDraftStatus,
         canComment: true,
         action: null,
         onOpenUrl: (_) async {},

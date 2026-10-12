@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
 import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
@@ -20,6 +23,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'fake_forge_provider.dart';
 import 'fake_git_backend.dart';
+
+part 'workspace_pull_request_revalidation_test_cases.dart';
 
 HostedReview _review(
   int number, {
@@ -80,6 +85,7 @@ ProviderContainer _container({
 }
 
 void main() {
+  _registerWorkspacePullRequestRevalidationTests();
   test('auto-detects the review for the branch on open', () async {
     final forge = FakeForgeProvider()
       ..branchReview = _review(123)
@@ -352,102 +358,6 @@ void main() {
     expect((result as UpdateReviewFailure).code, UpdateReviewErrorCode.blocked);
     expect(forge.updateCalls, 0);
   });
-
-  test('merge rejects a changed head after confirmation', () async {
-    final forge = FakeForgeProvider()
-      ..branchReview = _review(123).copyWith(headSha: 'before');
-    final container = _container(
-      forge: forge,
-      repo: FakeLinkedReviewRepository(),
-    );
-    addTearDown(container.dispose);
-    final loaded = await container.read(
-      workspacePullRequestControllerProvider(_scope).future,
-    );
-    forge.branchReview = _review(123).copyWith(headSha: 'after');
-    final result = await container
-        .read(workspacePullRequestControllerProvider(_scope).notifier)
-        .mergeReview(
-          .squash,
-          expectedFingerprint: reviewActionFingerprint(loaded),
-        );
-    expect(result, isFalse);
-    expect(forge.mergeCalls, 0);
-    expect(
-      container
-          .read(workspacePullRequestControllerProvider(_scope))
-          .value!
-          .review!
-          .headSha,
-      'after',
-    );
-  });
-  test('merge revalidates newly failing checks and revoked access', () async {
-    for (final revoked in [false, true]) {
-      final forge = FakeForgeProvider()..branchReview = _review(123);
-      final container = _container(
-        forge: forge,
-        repo: FakeLinkedReviewRepository(),
-      );
-      final loaded = await container.read(
-        workspacePullRequestControllerProvider(_scope).future,
-      );
-      if (revoked) {
-        forge.actionAccess = const ReviewActionAccess(canMerge: false);
-      } else {
-        forge.checks = [
-          const ReviewCheck(
-            name: 'CI',
-            status: .completed,
-            conclusion: .failure,
-          ),
-        ];
-      }
-      final result = await container
-          .read(workspacePullRequestControllerProvider(_scope).notifier)
-          .mergeReview(
-            .squash,
-            expectedFingerprint: reviewActionFingerprint(loaded),
-          );
-      expect(result, isFalse);
-      expect(forge.mergeCalls, 0);
-      container.dispose();
-    }
-  });
-
-  test(
-    'a created PR is visible even when its local link cannot be saved',
-    () async {
-      final forge = FakeForgeProvider()
-        ..createResult = CreateReviewSuccess(_review(124));
-      final links = FakeLinkedReviewRepository()
-        ..saveError = StateError('disk unavailable');
-      final container = _container(forge: forge, repo: links);
-      addTearDown(container.dispose);
-      await container.read(
-        workspacePullRequestControllerProvider(_scope).future,
-      );
-      final result = await container
-          .read(workspacePullRequestControllerProvider(_scope).notifier)
-          .createReview(
-            const CreateReviewInput(
-              provider: .github,
-              title: 'Details',
-              baseBranch: 'main',
-              headBranch: 'feature',
-            ),
-            pushBranch: false,
-          );
-      final state = container
-          .read(workspacePullRequestControllerProvider(_scope))
-          .value!;
-      expect(result, isA<CreateReviewSuccess>());
-      expect(state.review?.number, 124);
-      expect(state.isBusy, isFalse);
-      expect(state.errorMessage, contains('was created'));
-      expect(forge.createCalls, 1);
-    },
-  );
 
   test(
     'merge keeps an auto-detected PR linked and shows its merged state',

@@ -126,3 +126,40 @@ fn progress_redacts_credentials_and_bounds_output() {
     );
     assert_eq!(super::redact_progress_line(&"x".repeat(5000)).len(), 512);
 }
+
+#[test]
+fn failures_redact_stderr_stdout_and_command_credentials() {
+    #[cfg(unix)]
+    let status = {
+        use std::os::unix::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(256)
+    };
+    #[cfg(windows)]
+    let status = {
+        use std::os::windows::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(1)
+    };
+    let diagnostics = b"fatal: https://user:secret@example.org/repo\nAuthorization: private\rpassword=private\ntoken=private\nBearer private\nordinary diagnostic";
+    for stderr in [true, false] {
+        let output = std::process::Output {
+            status,
+            stdout: if stderr {
+                Vec::new()
+            } else {
+                diagnostics.to_vec()
+            },
+            stderr: if stderr {
+                diagnostics.to_vec()
+            } else {
+                Vec::new()
+            },
+        };
+        let error =
+            super::failure_message(&["push", "https://user:secret@example.org/repo"], &output);
+        assert!(!error.contains("secret"), "{error}");
+        assert!(!error.contains("private"), "{error}");
+        assert!(!error.contains("user:"), "{error}");
+        assert!(error.contains("ordinary diagnostic"), "{error}");
+        assert!(error.contains("https://[redacted]@example.org/repo"));
+    }
+}

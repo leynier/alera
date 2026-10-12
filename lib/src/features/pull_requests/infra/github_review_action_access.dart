@@ -29,6 +29,15 @@ mixin _GitHubReviewActionAccess {
     return ReviewActionAccess(
       canMerge: write == null || mergeState == null ? null : write && allowed,
       canMarkReady: write,
+      mergeBlockReason: write != true
+          ? null
+          : switch (mergeState) {
+              'blocked' => 'Branch protection requirements have not been met.',
+              'behind' =>
+                'Update this branch with the base branch before merging.',
+              'unknown' || null => 'Mergeability has not been confirmed.',
+              _ => null,
+            },
     );
   }
 }

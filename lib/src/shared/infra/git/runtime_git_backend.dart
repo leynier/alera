@@ -16,6 +16,7 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'runtime_git_wire_decoders.dart';
+part 'runtime_git_errors.dart';
 part 'runtime_git_workspace_details.dart';
 part 'runtime_git_network_progress.dart';
 
@@ -475,32 +476,4 @@ class RuntimeGitBackend
       '$operation is not available for a workspace on a remote host.',
     ),
   );
-}
-
-/// Rebuilds the [GitException] the bridge would have thrown from the typed
-/// `gitError` conflict the runtime answers with.
-GitException gitExceptionFromRuntime(TerminalHostConflictException error) {
-  final context = switch (error.details['context']) {
-    final String context => context,
-    _ => error.message,
-  };
-  return switch (error.details['kind']) {
-    'notARepository' => NotARepositoryException(context),
-    'accessDenied' => AccessDeniedException(context),
-    'branchNotFound' => BranchNotFoundException(context),
-    'branchAlreadyExists' => BranchAlreadyExistsException(context),
-    'invalidBranchName' => InvalidBranchNameException(context),
-    'worktreeAlreadyExists' => WorktreeAlreadyExistsException(context),
-    'worktreeNotFound' => WorktreeNotFoundException(context),
-    'cloneFailed' => CloneFailedException(context),
-    'gitCli' => GitCliException(context),
-    'detachedHead' => DetachedHeadException(context),
-    'noUpstream' => NoUpstreamException(context),
-    'remoteNotFound' => RemoteNotFoundException(context),
-    'nothingToCommit' => NothingToCommitException(context),
-    'workspaceScope' => WorkspaceScopeException(context),
-    'missingIdentity' => MissingIdentityException(context),
-    'conflict' => GitConflictException(context),
-    _ => GitInternalException(context),
-  };
 }

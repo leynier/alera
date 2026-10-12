@@ -166,12 +166,15 @@ class _WorkspaceDetailsOverlayState
       builder: (context, child) => LayoutBuilder(
         builder: (context, constraints) {
           final searchOpen = searches.any((search) => search.isOpen);
+          const toggleTop =
+              AleraTokens.sidebarHeaderHeight + AleraTokens.space4;
+          const cardTop = toggleTop + AleraTokens.space32 + AleraTokens.space8;
           final inline =
               !searchOpen &&
               constraints.maxWidth >= AleraTokens.wideContentBreakpoint &&
               constraints.maxHeight >=
                   AleraTokens.workspaceDetailsMinHeight +
-                      AleraTokens.space48 +
+                      cardTop +
                       AleraTokens.space16;
           if (inline != _inline) {
             _inline = inline;
@@ -192,7 +195,7 @@ class _WorkspaceDetailsOverlayState
                     searchOpen ||
                         constraints.maxWidth < AleraTokens.workspaceDetailsWidth
                     ? null
-                    : AleraTokens.space4,
+                    : toggleTop,
                 bottom:
                     searchOpen ||
                         constraints.maxWidth < AleraTokens.workspaceDetailsWidth
@@ -286,15 +289,13 @@ class _WorkspaceDetailsOverlayState
               ),
               if (showCard && cardWidth >= AleraTokens.workspaceDetailsMinWidth)
                 Positioned(
-                  top: AleraTokens.space48,
+                  top: cardTop,
                   right: AleraTokens.space8,
                   width: cardWidth,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxHeight:
-                          constraints.maxHeight -
-                          AleraTokens.space48 -
-                          AleraTokens.space8,
+                          constraints.maxHeight - cardTop - AleraTokens.space8,
                     ),
                     child: SingleChildScrollView(
                       child: Consumer(
@@ -302,7 +303,7 @@ class _WorkspaceDetailsOverlayState
                           cardRef,
                           availableHeight:
                               constraints.maxHeight -
-                              AleraTokens.space48 -
+                              cardTop -
                               AleraTokens.space8,
                         ),
                       ),

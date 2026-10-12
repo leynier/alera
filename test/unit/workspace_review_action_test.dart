@@ -29,6 +29,19 @@ ReviewCheck check(ReviewCheckConclusion conclusion) => ReviewCheck(
   conclusion: conclusion,
 );
 void main() {
+  test('blocked merge reports its branch protection requirement', () {
+    const hint = 'Branch protection requirements have not been met.';
+    final action = resolveWorkspaceReviewAction(
+      ready().copyWith(
+        actionAccess: const ReviewActionAccess(
+          canMerge: false,
+          mergeBlockReason: hint,
+        ),
+      ),
+    );
+    expect(action.action, isNull);
+    expect(action.hint, hint);
+  });
   test('actions respect conflict, draft and checks priority', () {
     final state = ready();
     expect(

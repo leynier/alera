@@ -196,8 +196,8 @@
 }
 
 [data-alera-demo] .center { container-type: size; container-name: alera-center; }
-[data-alera-demo] .workspace-details-toggle { position: absolute; top: 4px; right: 152px; z-index: 5; }
-[data-alera-demo] .workspace-details { display: none; position: absolute; top: 48px; right: 8px; z-index: 5; width: var(--app-workspace-details-width); border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-surface); overflow: hidden; }
+[data-alera-demo] .workspace-details-toggle { position: absolute; top: 48px; right: 152px; z-index: 5; }
+[data-alera-demo] .workspace-details { display: none; position: absolute; top: 88px; right: 8px; z-index: 5; width: var(--app-workspace-details-width); border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-surface); overflow: hidden; }
 [data-alera-demo] .workspace-details-section { padding: 6px; }
 [data-alera-demo] .workspace-details-section + .workspace-details-section { border-top: 1px solid var(--app-border-subtle); }
 [data-alera-demo] .workspace-detail-row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 0 6px 8px; border-radius: 8px; color: var(--app-foreground); font-size: 13px; }
@@ -214,5 +214,5 @@
 [data-alera-demo] .workspace-details-remove { margin-right: 8px; }
 [data-alera-demo] .workspace-details-add { color: var(--app-success); }
 [data-alera-demo] .workspace-details-remove { color: var(--app-error); }
-@container alera-center (min-width: 760px) and (min-height: 224px) { [data-alera-demo] .workspace-details { display: block; } }
+@container alera-center (min-width: 760px) and (min-height: 264px) { [data-alera-demo] .workspace-details { display: block; } }
 @container alera-center (max-width: 311px) { [data-alera-demo] .workspace-details-toggle { top: auto; right: auto; bottom: 4px; left: 8px; } }

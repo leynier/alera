@@ -226,7 +226,7 @@ void main() {
     (tester) async {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await pumpOverlay(tester, const Size(1000, 250));
+      await pumpOverlay(tester, const Size(1000, 290));
       expect(find.byTooltip('Workspace Options'), findsOneWidget);
       expect(find.text('Changes'), findsOneWidget);
       expect(find.text('Open In File Manager'), findsNothing);

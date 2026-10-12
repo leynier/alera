@@ -189,7 +189,7 @@ pub fn redact_progress_line(line: &str) -> String {
 }
 
 fn describe(args: &[&str]) -> String {
-    format!("git {}", args.join(" "))
+    redact_progress_line(&format!("git {}", args.join(" ")))
 }
 
 fn failure_message(args: &[&str], output: &Output) -> String {
@@ -201,6 +201,11 @@ fn failure_message(args: &[&str], output: &Output) -> String {
         stderr
     };
     if !detail.is_empty() {
+        let detail = detail
+            .split(['\r', '\n'])
+            .map(redact_progress_line)
+            .collect::<Vec<_>>()
+            .join("\n");
         return format!("{command} failed: {detail}");
     }
     match output.status.code() {
