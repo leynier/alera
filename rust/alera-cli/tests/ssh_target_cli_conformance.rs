@@ -1,5 +1,5 @@
-//! CLI coverage for `alera ssh-target` missing-id, duplicate-alias, and
-//! password-auth errors.
+//! CLI coverage for `alera ssh-target` missing-id, duplicate-id,
+//! duplicate-alias, and password-auth errors, and for partial updates.
 
 mod agent_integration_home_isolation;
 
@@ -96,6 +96,7 @@ fn seed_password_target(runtime_dir: &Path, id: &str) {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
@@ -293,4 +294,79 @@ fn ssh_target_bootstrap_plan_rejects_password_auth_through_the_runtime_host() {
     let _host = spawn_host(dir.path());
     let output = run_ssh_target(dir.path(), &["bootstrap-plan", "--id", "audit-674-pass"]);
     assert_json_error(&output, PASSWORD_BOOTSTRAP_UNSUPPORTED);
+}
+
+fn seed_install_state(runtime_dir: &Path, id: &str) {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let store = alera_core::runtime::RuntimeStore::open(runtime_dir)
+                .await
+                .unwrap();
+            let mut target = store.find_ssh_target(id).await.unwrap().unwrap();
+            target.install_dir = Some("/home/alera/.alera/runtime".to_string());
+            store.upsert_ssh_target(target).await.unwrap();
+            // An upsert never writes the probe result; only a check does.
+            store
+                .mark_ssh_target_checked(id, alera_core::runtime::SshTargetLastStatus::RuntimeReady)
+                .await
+                .unwrap();
+        });
+}
+
+fn add_existing_then_update(runtime_dir: &Path) {
+    add_target(runtime_dir, "remote-1");
+    seed_install_state(runtime_dir, "remote-1");
+
+    let again = run_ssh_target(runtime_dir, &add_target_args("remote-1", "Other Mac"));
+    assert_json_error(&again, "ssh target already exists: remote-1");
+    assert_json_error(&again, "alera ssh-target update --id remote-1");
+
+    let updated = success_json(
+        runtime_dir,
+        &[
+            "update", "--id", "remote-1", "--host", "mac.lan", "--port", "2222",
+        ],
+    );
+    assert_eq!(updated["host"], json!("mac.lan"));
+    assert_eq!(updated["port"], json!(2222));
+    assert_eq!(updated["alias"], json!("Build Mac"), "alias is kept");
+    assert_eq!(updated["username"], json!("alera"), "username is kept");
+    assert_eq!(
+        updated["installDir"],
+        json!("/home/alera/.alera/runtime"),
+        "the installed runtime is kept"
+    );
+    assert_eq!(
+        updated["lastStatus"],
+        json!("runtimeReady"),
+        "status is kept"
+    );
+
+    let missing = run_ssh_target(
+        runtime_dir,
+        &["update", "--id", "definitely-missing-637", "--port", "23"],
+    );
+    assert_missing_id_error(&missing, "definitely-missing-637");
+
+    let password = run_ssh_target(
+        runtime_dir,
+        &["update", "--id", "remote-1", "--auth", "password"],
+    );
+    assert_json_error(&password, PASSWORD_BOOTSTRAP_UNSUPPORTED);
+}
+
+#[test]
+fn ssh_target_add_refuses_an_existing_id_and_update_keeps_the_rest_through_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    add_existing_then_update(dir.path());
+}
+
+#[test]
+fn ssh_target_add_refuses_an_existing_id_and_update_keeps_the_rest_through_the_runtime_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let _host = spawn_host(dir.path());
+    add_existing_then_update(dir.path());
 }

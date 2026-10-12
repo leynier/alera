@@ -8,10 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   Workspace workspace({
     WorkspaceKind kind = WorkspaceKind.linked,
-    String hostId = 'local',
-    int childCount = 0,
-    List<String> tagIds = const <String>[],
-    List<String> tagNames = const <String>[],
     String? parentWorkspaceId,
   }) {
     final now = DateTime(2026);
@@ -24,10 +20,6 @@ void main() {
       updatedAt: now,
       kind: kind,
       status: .active,
-      hostId: hostId,
-      childCount: childCount,
-      tagIds: tagIds,
-      tagNames: tagNames,
       parentWorkspaceId: parentWorkspaceId,
     );
   }
@@ -100,62 +92,6 @@ void main() {
         isTrue,
       );
       expect(WorkspaceRoleBadge.hasRole(workspace()), isTrue);
-    });
-  });
-
-  group('WorkspaceGraphChips', () {
-    testWidgets('renders nothing for a plain local workspace', (tester) async {
-      expect(WorkspaceGraphChips.hasContent(workspace()), isFalse);
-      await pump(tester, WorkspaceGraphChips(workspace: workspace()));
-      expect(find.byType(Wrap), findsNothing);
-    });
-
-    testWidgets('shows host, children and capped tags with overflow', (
-      tester,
-    ) async {
-      final ws = workspace(
-        hostId: 'remote-mac',
-        childCount: 2,
-        tagNames: const <String>['alpha', 'beta', 'gamma', 'delta'],
-      );
-      expect(WorkspaceGraphChips.hasContent(ws), isTrue);
-      await pump(tester, WorkspaceGraphChips(workspace: ws));
-
-      expect(find.text('remote-mac'), findsOneWidget);
-      expect(
-        find.byTooltip(
-          'Remote workspace on remote-mac. Terminals attach over SSH.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('2 Children'), findsOneWidget);
-      expect(find.text('#alpha'), findsOneWidget);
-      expect(find.text('#beta'), findsOneWidget);
-      expect(find.text('#gamma'), findsOneWidget);
-      // Fourth tag is hidden behind the overflow chip.
-      expect(find.text('#delta'), findsNothing);
-      expect(find.text('+1 Tags'), findsOneWidget);
-    });
-
-    testWidgets('uses singular Child label and hides the local host', (
-      tester,
-    ) async {
-      final ws = workspace(childCount: 1);
-      await pump(tester, WorkspaceGraphChips(workspace: ws));
-      expect(find.text('1 Child'), findsOneWidget);
-      expect(find.text('local'), findsNothing);
-    });
-
-    testWidgets('prefers tag names and drops blank entries', (tester) async {
-      final ws = workspace(
-        tagIds: const <String>['id-1', 'id-2'],
-        tagNames: const <String>['frontend', '   ', ''],
-      );
-      await pump(tester, WorkspaceGraphChips(workspace: ws));
-      expect(find.text('#frontend'), findsOneWidget);
-      // Falls back to ids only when names are empty; blanks never appear.
-      expect(find.text('#id-1'), findsNothing);
-      expect(find.textContaining('Tags'), findsNothing);
     });
   });
 }

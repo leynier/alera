@@ -57,7 +57,7 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
           await _duplicate(entry);
         }
       case _ExplorerAction.reveal:
-        if (entry != null) {
+        if (entry != null && !widget.workspace.isRemote) {
           await _reveal(entry);
         }
       case _ExplorerAction.delete:

@@ -19,10 +19,10 @@ void main() {
   ) async {
     await _pumpDialog(tester, (_) {});
     double y(String label) => tester.getTopLeft(find.text(label)).dy;
-    expect(y('Project'), lessThan(y('Project Folder')));
+    expect(y('Project'), lessThan(y('Host')));
+    expect(y('Host'), lessThan(y('Project Folder')));
     expect(y('Project Folder'), lessThan(y('Parent Workspace')));
-    expect(y('Parent Workspace'), lessThan(y('Host')));
-    expect(y('Host'), lessThan(y('Agent Profile')));
+    expect(y('Parent Workspace'), lessThan(y('Agent Profile')));
     expect(y('Agent Profile'), lessThan(y('Issue URL')));
     expect(y('Issue URL'), lessThan(y('Initial Prompt')));
     expect(y('Initial Prompt'), lessThan(y('Create Another')));

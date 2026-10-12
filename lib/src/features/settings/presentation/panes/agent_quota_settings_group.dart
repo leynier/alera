@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_label_provider.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
@@ -50,7 +51,7 @@ class const AgentQuotaSettingsPane({
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    hostId == 'local' ? 'Local' : hostId,
+                    ref.watch(remoteHostLabelProvider(hostId)),
                     overflow: .ellipsis,
                     style: AleraTokens.monoStyle,
                   ),

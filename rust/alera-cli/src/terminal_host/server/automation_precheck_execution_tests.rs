@@ -104,8 +104,8 @@ async fn cancellation_keeps_dependency_reserved_while_precheck_command_is_runnin
     definition.precheck = Some(alera_core::runtime::AutomationPrecheck {
         command: format!(
             "sleep 60 & printf %s \"$!\" > {}; while [ ! -f {} ]; do sleep 0.02; done",
-            crate::ssh_bootstrap::shell_quote(ready.to_str().unwrap()),
-            crate::ssh_bootstrap::shell_quote(release.to_str().unwrap())
+            crate::ssh_remote_command::shell_quote(ready.to_str().unwrap()),
+            crate::ssh_remote_command::shell_quote(release.to_str().unwrap())
         ),
         timeout_seconds: 30,
     });
@@ -225,14 +225,18 @@ async fn cancellation_keeps_dependency_reserved_while_precheck_command_is_runnin
 
 struct RemoteFolder;
 impl crate::ssh_remote::RemoteHostExecutor for RemoteFolder {
-    async fn probe_windows(&self, _: &alera_core::runtime::SshTarget) -> Option<bool> {
-        Some(false)
+    async fn probe_shell(
+        &self,
+        _: &alera_core::runtime::SshTarget,
+    ) -> Option<crate::remote_shell::RemoteShell> {
+        Some(crate::remote_shell::RemoteShell::Posix)
     }
     async fn run(
         &self,
         _: &alera_core::runtime::SshTarget,
-        _: bool,
+        _: crate::remote_shell::RemoteShell,
         _: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
     ) -> anyhow::Result<String> {
         Ok(json!({"version":1,"path":"/fixture/remote","kind":"folder","branch":null}).to_string())
     }

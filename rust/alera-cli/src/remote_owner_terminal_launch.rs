@@ -3,7 +3,9 @@ use anyhow::{anyhow, Result};
 use base64::Engine;
 use serde_json::json;
 
-use crate::ssh_bootstrap::{powershell_encoded, powershell_string, shell_quote};
+use crate::remote_shell::RemoteShell;
+use crate::remote_sidecar_command::{sidecar_command, SidecarProfile};
+use crate::ssh_remote_command::powershell_encoded;
 use crate::terminal_host::protocol::TerminalHostLaunch;
 
 pub(crate) struct TerminalIdentity<'a> {
@@ -63,7 +65,7 @@ pub(crate) async fn owned_launch(
     target: &SshTarget,
     workspace: &Workspace,
     identity: TerminalIdentity<'_>,
-    windows: bool,
+    shell: RemoteShell,
 ) -> Result<TerminalHostLaunch> {
     let registration = satellite_registration(store, workspace).await?;
     let install = target
@@ -85,20 +87,19 @@ pub(crate) async fn owned_launch(
         .terminal_restart_launch_token(workspace, identity.tab_id, identity.session_id)
         .await?;
     let script = command_script(
-        windows,
+        shell,
         install,
         &metadata,
         identity,
         automation_run_id.as_deref(),
         launch_token.as_deref(),
     );
-    let command = if windows {
-        format!(
+    let command = match shell {
+        RemoteShell::Windows => format!(
             "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
             powershell_encoded(&script)
-        )
-    } else {
-        format!("sh -lc {}", shell_quote(&script))
+        ),
+        RemoteShell::Posix => format!("sh -lc {}", shell.quote(&script)),
     };
     Ok(TerminalHostLaunch {
         label: "ssh".into(),
@@ -109,18 +110,14 @@ pub(crate) async fn owned_launch(
 }
 
 fn command_script(
-    windows: bool,
+    shell: RemoteShell,
     install: &str,
     metadata: &str,
     identity: TerminalIdentity<'_>,
     automation_run_id: Option<&str>,
     launch_token: Option<&str>,
 ) -> String {
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
+    let quote = |value: &str| shell.quote(value);
     let mut arguments = format!("project owner-terminal --metadata-base64 {} --session-id {} --tab-id {} --cols {} --rows {}",
         quote(metadata), quote(identity.session_id), quote(identity.tab_id), identity.cols, identity.rows);
     if let Some(run_id) = automation_run_id {
@@ -129,24 +126,7 @@ fn command_script(
     if let Some(token) = launch_token {
         arguments.push_str(&format!(" --launch-token {}", quote(token)));
     }
-    owner_command_script(windows, install, &arguments)
-}
-
-/// Wraps a sidecar CLI invocation so it runs against the satellite runtime
-/// profile at `<installDir>/data`: the same profile the host link attaches
-/// to, so every project on a host shares one runtime instead of the retired
-/// per-project `owners/<sha256(projectId)>` profiles.
-pub(crate) fn owner_command_script(windows: bool, install: &str, arguments: &str) -> String {
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
-    if windows {
-        format!("$ErrorActionPreference = 'Stop'\n$install = [Environment]::ExpandEnvironmentVariables({})\n$current = (Get-Content -Raw -LiteralPath (Join-Path $install 'current.txt')).Trim()\n$state = Join-Path $install 'data'\n& (Join-Path $current 'alera.exe') {arguments} --state-dir $state\nexit $LASTEXITCODE\n", quote(install))
-    } else {
-        format!("set -eu\ninstall={}\ncase \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac\nexec \"$install/current/alera\" {arguments} --state-dir \"$install/data\"\n", quote(install))
-    }
+    sidecar_command(shell, install, &arguments, SidecarProfile::DataStateDir)
 }
 
 #[cfg(test)]
@@ -193,7 +173,7 @@ mod tests {
                     cols: 80,
                     rows: 24,
                 },
-                false,
+                RemoteShell::Posix,
             )
             .await
             .unwrap();
@@ -215,7 +195,7 @@ mod tests {
                 cols: 80,
                 rows: 24,
             },
-            false
+            RemoteShell::Posix
         )
         .await
         .unwrap_err()
@@ -244,7 +224,7 @@ mod tests {
                     cols: 80,
                     rows: 24,
                 },
-                false,
+                RemoteShell::Posix,
             )
             .await
             .unwrap();
@@ -273,9 +253,10 @@ mod tests {
 
     #[test]
     fn native_terminal_commands_preserve_identity_and_exit_status() {
-        for windows in [false, true] {
+        for shell in [RemoteShell::Posix, RemoteShell::Windows] {
+            let windows = shell.is_windows();
             let script = command_script(
-                windows,
+                shell,
                 "~/sidecar's files",
                 "e30=",
                 TerminalIdentity {
@@ -290,11 +271,7 @@ mod tests {
             assert!(script.contains("project owner-terminal"));
             assert!(script.contains("--metadata-base64 'e30='"));
             assert!(script.contains("--cols 120 --rows 40"));
-            let quote = if windows {
-                powershell_string
-            } else {
-                shell_quote
-            };
+            let quote = |value: &str| shell.quote(value);
             assert!(script.contains(&format!("--automation-run-id {}", quote("run'3"))));
             assert!(!script.contains("owners"));
             if windows {
@@ -306,7 +283,7 @@ mod tests {
                 assert!(script.contains("'session''1'"));
                 assert!(script.contains("exit $LASTEXITCODE"));
             } else {
-                assert!(script.contains(&shell_quote("session'1")));
+                assert!(script.contains(&shell.quote("session'1")));
                 assert!(script.contains("exec \"$install/current/alera\""));
             }
         }

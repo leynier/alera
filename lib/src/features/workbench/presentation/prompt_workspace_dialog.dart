@@ -18,7 +18,8 @@ import 'package:alera/src/features/projects/domain/project_host_enrollment.dart'
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_notice.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_selection.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -90,8 +91,11 @@ class const PromptWorkspaceDialog({
       const NativePromptWorkspaceClipboard(),
   final Project? initialProject,
   final String? defaultAgentProfileId,
-  final List<SshTarget> sshTargets = const <SshTarget>[],
+  final List<RemoteHostView> hosts = const <RemoteHostView>[],
   final bool supportsRemoteSshWorkspaces = true,
+  final VoidCallback? onAddHost,
+  final ValueChanged<String>? onOpenHost,
+  final VoidCallback? onOpenRemoteHosts,
 
   /// Owned by the caller and shared with [manualForm]. Null means the runtime
   /// cannot put a project on more hosts.
@@ -182,6 +186,12 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   }
 
   @override
+  void didUpdateWidget(covariant PromptWorkspaceDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _fallBackWhenHostRemoved(oldWidget.hosts);
+  }
+
+  @override
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
@@ -266,9 +276,9 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       );
       return;
     }
-    final hostError = remoteWorkspaceHostSelectionError(
+    final hostError = remoteHostSelectionError(
       hostId: _selectedHostId,
-      targets: widget.sshTargets,
+      hosts: widget.hosts,
       supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
     );
     if (hostError != null) {

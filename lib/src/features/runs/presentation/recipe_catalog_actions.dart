@@ -116,7 +116,7 @@ extension _RecipeCatalogActions on _RecipeCatalogPaneState {
             (w) =>
                 w.id == source['workspaceId'] &&
                 w.isActive &&
-                w.hostId == 'local',
+                !isRemoteWorkspaceHostId(w.hostId),
           )
           .firstOrNull;
       if (workspace == null) throw StateError('Workspace is unavailable.');

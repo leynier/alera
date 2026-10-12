@@ -12,64 +12,15 @@ String? normalizedRemoteHostId(String? hostId) {
 }
 
 String remoteHostMissingCapabilityMessage() {
-  return 'This Alera runtime cannot create remote workspaces yet. Update the app and sidecar, or create the workspace on This Device.';
+  return 'This Alera runtime cannot create remote workspaces yet. Update Alera, or create the workspace on This Device.';
 }
 
 String remoteWorkspaceFilesMissingCapabilityMessage() {
-  return 'This Alera runtime cannot browse files on a remote workspace. Update the app and sidecar, then retry.';
+  return 'This Alera runtime cannot browse files on a remote workspace. Update Alera, then retry.';
 }
 
 String sshTargetNotFoundMessage(String hostId) {
-  return 'ssh target not found: $hostId. Add it in Settings → Remote Hosts, then install the sidecar.';
-}
-
-String hostNotBootstrappedMessage(SshTarget target) {
-  return "host '${target.alias}' is not bootstrapped. Open Settings → Remote Hosts and install the Alera runtime sidecar, or run `alera ssh-target bootstrap --id ${target.id}`.";
-}
-
-String hostUnreachableMessage(SshTarget target) {
-  return "host '${target.alias}' (${target.username}@${target.host}:${target.port}) is unreachable. Check SSH agent or key authentication and network, then retry from Settings → Remote Hosts.";
-}
-
-String? remoteWorkspaceHostSelectionError({
-  required String? hostId,
-  required List<SshTarget> targets,
-  required bool supportsRemoteSshWorkspaces,
-}) {
-  final remoteId = normalizedRemoteHostId(hostId);
-  if (remoteId == null) {
-    return null;
-  }
-  if (!supportsRemoteSshWorkspaces) {
-    return remoteHostMissingCapabilityMessage();
-  }
-  SshTarget? target;
-  for (final candidate in targets) {
-    if (candidate.id == remoteId) {
-      target = candidate;
-      break;
-    }
-  }
-  if (target == null) {
-    return sshTargetNotFoundMessage(remoteId);
-  }
-  if (target.bootstrapStatus != SshBootstrapStatus.installed) {
-    return hostNotBootstrappedMessage(target);
-  }
-  if (target.lastStatus == 'unreachable') {
-    return hostUnreachableMessage(target);
-  }
-  return null;
-}
-
-String sshTargetPickerLabel(SshTarget target) {
-  if (target.bootstrapStatus != SshBootstrapStatus.installed) {
-    return '${target.alias} (Not Bootstrapped)';
-  }
-  if (target.lastStatus == 'unreachable') {
-    return '${target.alias} (Unreachable)';
-  }
-  return target.alias;
+  return 'This host is no longer registered ($hostId). Pick another host, or add it again from Remote Hosts.';
 }
 
 /// The name the UI shows for [hostId]: the target's alias, the raw id when the
@@ -104,6 +55,7 @@ String? remoteWorkspaceErrorMessage(Object error) {
       lower.contains('cannot create remote workspaces') ||
       lower.contains('cannot browse files on a remote') ||
       lower.contains('remote ssh workspace') ||
+      // Errors the Alera runtime emits still point at this section by name.
       lower.contains('settings → remote hosts')) {
     return message;
   }

@@ -16,6 +16,7 @@ import 'package:alera/src/features/runs/domain/recipe_catalog_entry.dart';
 import 'package:alera/src/features/runs/domain/run_create_request.dart';
 import 'package:alera/src/features/runs/domain/run_error_messages.dart';
 import 'package:alera/src/features/runs/presentation/new_run_form.dart';
+import 'package:alera/src/features/runs/presentation/run_remote_workspaces_notice.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
@@ -250,6 +251,8 @@ class _NewRunDialogState extends ConsumerState<NewRunDialog> {
                       unawaited(_load());
                     },
                   ),
+                  if (newRunHidesRemoteWorkspaces(workbench))
+                    const RunRemoteWorkspacesNotice(),
                   if (workspaces.isEmpty)
                     Text(
                       isolated

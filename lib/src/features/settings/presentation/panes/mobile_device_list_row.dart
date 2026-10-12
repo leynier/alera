@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_device.dart';
+import 'package:alera/src/shared/format_timestamp.dart';
 import 'package:flutter/material.dart';
 
 class const MobileDeviceListRow({
@@ -20,10 +21,10 @@ class const MobileDeviceListRow({
     final detail = remote
         ? 'Connected through relay'
         : device.isRevoked
-        ? 'Revoked ${formatMobileTimestamp(device.revokedAt!)}'
+        ? 'Revoked ${formatTimestamp(device.revokedAt!)}'
         : lastSeen == null
-        ? 'Paired ${formatMobileTimestamp(device.pairedAt)}'
-        : 'Last seen ${formatMobileTimestamp(lastSeen)}';
+        ? 'Paired ${formatTimestamp(device.pairedAt)}'
+        : 'Last seen ${formatTimestamp(lastSeen)}';
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Row(
@@ -102,15 +103,4 @@ class const MobileDeviceListRow({
       ),
     );
   }
-}
-
-String formatMobileTimestamp(DateTime value) {
-  final local = value.toLocal();
-  final date =
-      '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')}';
-  final time =
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
-  return '$date $time';
 }

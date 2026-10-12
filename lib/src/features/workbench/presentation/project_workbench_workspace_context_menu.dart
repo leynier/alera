@@ -16,6 +16,7 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       ),
       items: workspaceContextMenuEntries(
         fileManagerLabel: widget.fileManagerLabel,
+        isRemote: widget.workspace.isRemote,
         supportsSections: widget.onSetSection != null,
         hasSection: widget.workspace.sectionId != null,
         hasClearParent: widget.onClearParent != null,

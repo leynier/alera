@@ -40,7 +40,13 @@ void _registerProjectHostsMenuTests() {
 
     expect(requests, <String>['project.hosts.list project-1']);
     expect(find.text('Alera Hosts'), findsOneWidget);
-    expect(find.text('This Device'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.text('This Device'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('2 workspaces'), findsOneWidget);
   });
 

@@ -232,6 +232,7 @@ class _ExplorerNameDialogState extends State<_ExplorerNameDialog> {
 
 class const _ExplorerMenuDelegate({
   required final String fileManagerLabel,
+  required final bool canReveal,
   required final bool canFocusSourceControlFolders,
   required final bool Function(tree.VisibleNode node)
   isFocusedSourceControlRoot,
@@ -305,11 +306,12 @@ class const _ExplorerMenuDelegate({
             label: 'Duplicate',
             leading: Icon(AleraIcons.duplicate, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
-            value: .reveal,
-            label: 'Reveal in $fileManagerLabel',
-            leading: const Icon(AleraIcons.external, size: 16),
-          ),
+          if (canReveal)
+            AleraDropdownEntry<_ExplorerAction>(
+              value: .reveal,
+              label: 'Reveal in $fileManagerLabel',
+              leading: const Icon(AleraIcons.external, size: 16),
+            ),
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_ExplorerAction>(
             value: .rename,

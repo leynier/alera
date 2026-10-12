@@ -4,12 +4,13 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/remote_host_view_fixtures.dart';
 
 final DateTime _now = DateTime.utc(2026, 9, 21);
 
@@ -28,7 +29,7 @@ void main() {
       );
       expect(find.widgetWithText(FilledButton, 'Add to Host'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Existing Path'), findsOneWidget);
-      expect(_createButton(tester).onPressed, isNull);
+      expect(_continueButton(tester).onPressed, isNull);
       expect(harness.branchLoads, <String>['local']);
     },
   );
@@ -52,8 +53,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(FilledButton, 'Add to Host'), findsNothing);
-    expect(_createButton(tester).onPressed, isNull);
-    expect(find.text('Back'), findsOneWidget);
+    expect(_continueButton(tester).onPressed, isNull);
 
     harness.gate!.complete();
     await tester.pumpAndSettle();
@@ -62,6 +62,8 @@ void main() {
     expect(find.textContaining('is not on Build Mac yet'), findsNothing);
     expect(harness.branchLoads, <String>['local', 'ssh-box']);
 
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'New Branch Name *'),
       'feature/remote',
@@ -88,7 +90,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(FilledButton, 'Add to Host'), findsOneWidget);
-    expect(_createButton(tester).onPressed, isNull);
+    expect(_continueButton(tester).onPressed, isNull);
     expect(harness.branchLoads, <String>['local']);
   });
 
@@ -105,7 +107,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Add to Host'), findsNothing);
-    expect(_createButton(tester).onPressed, isNull);
+    expect(_continueButton(tester).onPressed, isNull);
   });
 
   testWidgets('a host the project is already on needs no enrollment', (
@@ -120,7 +122,18 @@ void main() {
 
     expect(find.text('Add to Host'), findsNothing);
     expect(harness.branchLoads, <String>['local', 'ssh-box']);
-    expect(_createButton(tester).onPressed, isNotNull);
+    expect(_continueButton(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('the host picker sits right after the project', (tester) async {
+    final harness = _Harness();
+    await harness.openOnHost(tester, 'Build Mac');
+
+    final project = tester.getTopLeft(find.text('Alera').first);
+    final host = tester.getTopLeft(find.text('Host'));
+    final location = tester.getTopLeft(find.text('New Branch'));
+    expect(host.dy, greaterThan(project.dy));
+    expect(host.dy, lessThan(location.dy));
   });
 }
 
@@ -131,9 +144,9 @@ Future<void> _tapAddToHost(WidgetTester tester) async {
   await tester.tap(button);
 }
 
-FilledButton _createButton(WidgetTester tester) {
+FilledButton _continueButton(WidgetTester tester) {
   return tester.widget<FilledButton>(
-    find.widgetWithText(FilledButton, 'Create Workspace'),
+    find.widgetWithText(FilledButton, 'Continue'),
   );
 }
 
@@ -193,8 +206,6 @@ class _Harness {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('This Device'));
     await tester.pumpAndSettle();
     await tester.tap(find.text(alias));
@@ -205,19 +216,7 @@ class _Harness {
     return CreateWorkspaceDialog(
       projects: <Project>[project],
       hostEnrollment: controller,
-      sshTargets: <SshTarget>[
-        SshTarget(
-          id: 'ssh-box',
-          alias: 'Build Mac',
-          host: 'mac.example.test',
-          port: 22,
-          username: 'leynier',
-          authKind: SshAuthKind.agent,
-          createdAt: _now,
-          updatedAt: _now,
-          bootstrapStatus: SshBootstrapStatus.installed,
-        ),
-      ],
+      hosts: [remoteHostView('ssh-box', 'Build Mac')],
       loadHostBranchCatalog: (project, hostId) async {
         final host = hostId ?? 'local';
         branchLoads.add(host);

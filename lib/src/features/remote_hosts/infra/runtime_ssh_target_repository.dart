@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:alera/src/features/remote_hosts/domain/host_link.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_check_result.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target_in_use_exception.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
@@ -51,11 +53,97 @@ class RuntimeSshTargetRepository(
     return SshTarget.fromJson(_mapFromPayload(payload));
   }
 
+  /// Throws [SshTargetInUseException] while the host still has workspaces or
+  /// project checkouts.
   Future<void> remove(String targetId) async {
     await beforeAccess?.call();
-    await _client.runtimeRequest('sshTarget.remove', <String, Object?>{
+    await _request('sshTarget.remove', <String, Object?>{'id': targetId});
+  }
+
+  /// Probes [targetId] over ssh (`sshTarget.check`), which also persists the
+  /// result and nudges a wanted host to connect.
+  Future<RemoteHostCheckResult> checkReachability(String targetId) async {
+    await beforeAccess?.call();
+    final payload = await _request('sshTarget.check', <String, Object?>{
       'id': targetId,
     });
+    final targets = _mapFromPayload(payload)['targets'];
+    if (targets is List) {
+      for (final item in targets) {
+        if (item is Map) {
+          final target = SshTarget.fromJson(Map<String, Object?>.from(item));
+          if (target.id == targetId) {
+            return RemoteHostCheckResult(target: target);
+          }
+        }
+      }
+    }
+    throw FormatException('sshTarget.check did not report $targetId.');
+  }
+
+  /// Reinstalls the runtime on [targetId] and restarts it onto the new
+  /// version. Throws [HostBusyException] while terminals are open there,
+  /// unless [force] closes them.
+  Future<SshTargetBootstrapJob> updateRuntime(
+    String targetId, {
+    bool force = false,
+  }) async {
+    await beforeAccess?.call();
+    final payload = await _request(
+      'sshTarget.bootstrap.start',
+      <String, Object?>{
+        ..._bootstrapRequestPayload(targetId),
+        'restartRuntime': true,
+        'force': force,
+      },
+    );
+    return SshTargetBootstrapJob.fromJson(_mapFromPayload(payload));
+  }
+
+  /// Restarts the runtime already installed on [targetId] without
+  /// reinstalling it. Throws [HostBusyException] like [updateRuntime].
+  Future<void> restartRuntime(String targetId, {bool force = false}) async {
+    await beforeAccess?.call();
+    await _request('sshTarget.restartRuntime', <String, Object?>{
+      'id': targetId,
+      'force': force,
+    });
+  }
+
+  /// Installs the runtime is running now, so a restarted app can show the
+  /// progress of a job it did not start.
+  Future<List<SshTargetBootstrapJob>> listBootstrapJobs() async {
+    await beforeAccess?.call();
+    final payload = await _client.runtimeRequest('sshTarget.bootstrap.jobs');
+    if (payload is! List) {
+      return const <SshTargetBootstrapJob>[];
+    }
+    return <SshTargetBootstrapJob>[
+      for (final item in payload)
+        if (item is Map)
+          SshTargetBootstrapJob.fromJson(Map<String, Object?>.from(item)),
+    ];
+  }
+
+  /// Whether the runtime creates workspaces on remote hosts. A client that
+  /// cannot report capabilities is trusted, because the create request checks
+  /// again and answers with the reason.
+  Future<bool> supportsRemoteWorkspaces() async {
+    final client = _client;
+    if (client is! RuntimeHostCapabilityClient) {
+      return true;
+    }
+    return (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
+      aleraRuntimeHostRemoteSshWorkspacesCapability,
+    );
+  }
+
+  Future<bool> supportsCapability(String capability) async {
+    final client = _client;
+    return client is RuntimeHostCapabilityClient &&
+        await (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
+          capability,
+        );
   }
 
   Future<SshTargetBootstrapPlan> bootstrapPlan({
@@ -84,7 +172,7 @@ class RuntimeSshTargetRepository(
     String? arch,
   }) async {
     await beforeAccess?.call();
-    final payload = await _client.runtimeRequest(
+    final payload = await _request(
       'sshTarget.bootstrap.start',
       _bootstrapRequestPayload(
         targetId,
@@ -105,13 +193,8 @@ class RuntimeSshTargetRepository(
     return SshTarget.fromJson(_mapFromPayload(payload));
   }
 
-  Future<bool> supportsHostLinks() async {
-    final client = _client;
-    return client is RuntimeHostCapabilityClient &&
-        await (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
-          aleraRuntimeHostRemoteHostLinkCapability,
-        );
-  }
+  Future<bool> supportsHostLinks() =>
+      supportsCapability(aleraRuntimeHostRemoteHostLinkCapability);
 
   /// Link states for every host the hub has tried. Empty on a host without
   /// [aleraRuntimeHostRemoteHostLinkCapability].
@@ -158,6 +241,23 @@ class RuntimeSshTargetRepository(
       <String, Object?>{'hostId': hostId},
     );
     return HostLinkState.fromJson(_mapFromPayload(payload));
+  }
+
+  /// Sends [type], turning the runtime's typed host conflicts into the
+  /// exceptions the UI branches on.
+  Future<Object?> _request(String type, Map<String, Object?> payload) async {
+    try {
+      return await _client.runtimeRequest(type, payload);
+    } on TerminalHostConflictException catch (error) {
+      switch (error.code) {
+        case 'sshTargetInUse':
+          throw SshTargetInUseException.fromDetails(error.details);
+        case 'hostBusy':
+          throw HostBusyException.fromDetails(error.details);
+        default:
+          rethrow;
+      }
+    }
   }
 
   Map<String, Object?> _bootstrapRequestPayload(

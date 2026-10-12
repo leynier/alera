@@ -5,7 +5,10 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/runs/domain/recipe_catalog_entry.dart';
 import 'package:alera/src/features/runs/domain/run_create_request.dart';
+import 'package:alera/src/features/runs/presentation/run_remote_workspaces_notice.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
 /// Isolated runs need a local Git workspace to branch worktrees from; shared
@@ -23,7 +26,7 @@ List<AleraDropdownFieldEntry<String>> newRunWorkspaceEntries(
     ))
       if (projects[workspace.projectId] case final project?)
         if (workspace.isActive &&
-            workspace.hostId == 'local' &&
+            !isRemoteWorkspaceHostId(workspace.hostId) &&
             !workspace.workflowOwned &&
             (isolation == RunIsolation.shared ||
                 project.kind == ProjectKind.gitRepository))
@@ -33,6 +36,20 @@ List<AleraDropdownFieldEntry<String>> newRunWorkspaceEntries(
             group: project.name,
           ),
   ];
+}
+
+/// Whether the workspace picker left out workspaces on another host.
+bool newRunHidesRemoteWorkspaces(WorkbenchState workbench) {
+  final projects = {for (final project in workbench.projects) project.id};
+  return hidesRemoteWorkspaces(<Workspace>[
+    for (final workspace in workbench.workspacesByProject.values.expand(
+      (items) => items,
+    ))
+      if (projects.contains(workspace.projectId) &&
+          workspace.isActive &&
+          !workspace.workflowOwned)
+        workspace,
+  ]);
 }
 
 List<AleraDropdownFieldEntry<String>> newRunProfileEntries(

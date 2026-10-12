@@ -28,7 +28,11 @@ impl ServerActor {
             let inbox = self.inbox.clone();
             tokio::spawn(async move {
                 let result = async {
-                    let link = links.link(&host_id).await?;
+                    let link = links.peek_link(&host_id).ok_or_else(|| {
+                        crate::terminal_host::host_error::HostError::state(format!(
+                            "The link to host {host_id} is closed."
+                        ))
+                    })?;
                     link.request_with_timeout(
                         "resources.snapshot",
                         json!({ "intervalMs": interval_ms }),

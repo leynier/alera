@@ -23,7 +23,8 @@ import 'package:alera/src/features/projects/domain/project_host_enrollment.dart'
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_notice.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_selection.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
@@ -73,8 +74,11 @@ class const CreateWorkspaceDialog({
   final Future<void>? Function(ManualWorkspaceCreateRequest request)?
   enqueueCreate,
   final bool initialUseProjectCheckout = true,
-  final List<SshTarget> sshTargets = const <SshTarget>[],
+  final List<RemoteHostView> hosts = const <RemoteHostView>[],
   final bool supportsRemoteSshWorkspaces = true,
+  final VoidCallback? onAddHost,
+  final ValueChanged<String>? onOpenHost,
+  final VoidCallback? onOpenRemoteHosts,
 
   /// Owned by the caller, so an add made in one New Workspace form is known to
   /// the other. Null, or one without an add function, means the runtime cannot
@@ -187,6 +191,12 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     if (project != null) {
       if (!_useProjectCheckout) _loadBranches(project);
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant CreateWorkspaceDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _fallBackWhenHostRemoved(oldWidget.hosts);
   }
 
   @override
@@ -409,6 +419,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             projectSearchController: _projectSearchController,
             onProjectQueryChanged: _setProjectQuery,
             onSelectProject: _selectProject,
+            hostPicker: _hostPicker(),
             getProjectActiveBranch: widget.getProjectActiveBranch,
             reuseExistingBranch: _reuseExistingBranch,
             onReuseExistingBranchChanged: _setReuseExistingBranch,
@@ -443,14 +454,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             parentCandidates: _parentCandidates,
             selectedParentWorkspaceId: _selectedParentWorkspaceId,
             onParentWorkspaceChanged: _setParentWorkspace,
-            sshTargets: widget.sshTargets,
-            selectedHostId: _selectedHostId,
-            supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
-            onHostChanged: _setHost,
+            hostLabel: remoteHostViewLabel(widget.hosts, _selectedHostId),
             creating: _creating,
             onSubmit: _submit,
             issueField: _linkedIssueField(),
-            hostNotice: _hostEnrollmentNotice(),
           );
 
     return _CreateWorkspaceDialogFrame(
@@ -464,7 +471,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       onCancel: () => Navigator.of(context).pop(),
       onBack: _showSelectionStep,
       onContinue:
-          selectedProject == null || (!_useProjectCheckout && _loadingBranches)
+          selectedProject == null ||
+              (!_useProjectCheckout && _loadingBranches) ||
+              _hostBlocksCreation
           ? null
           : _continueToSettings,
       onCreate:

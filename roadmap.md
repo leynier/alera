@@ -118,7 +118,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Smart workspace naming | 2 | 3 | Planned | Manual name field on create; no intelligent auto-naming suggestions yet |
 | Prompt-driven workspace creation | 4 | 4 | Shipped | Create a managed workspace from a prompt with project, branch, parent workspace, agent profile, and deferred setup preserved across desktop and mobile |
 | Workspace cleanup dialog | 2 | 3 | Planned | Bulk cleanup of stale worktrees |
-| Status bar | 2 | 4 | Partial | Agent quota and Resource Manager status-bar controls ship; general SSH/ports/disk status remains unavailable |
+| Status bar | 2 | 4 | Partial | Agent quota, Resource Manager, and remote host status-bar controls ship; ports and disk status remain unavailable |
 | UI zoom controls | 1 | 3 | Planned | Zoom in/out/reset for the entire UI |
 | Global file drop | 2 | 3 | Partial | Terminal drops paste paths, relative to the workspace when inside it, and composer drops attach the files; explorer/editor drops still planned |
 
@@ -175,7 +175,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, `workspace add --host-id`, and Desktop New Workspace host picker; terminals, files, search, source control, pull requests, and AI Assist for a remote workspace run on its host over one SSH link per host; creating a workspace on a remote host does not run worktree setup (copy rules and setup commands) yet |
+| SSH | 5 | 4 | Partial | Remote hosts with signed Alera runtime bootstrap, one state per host (Settings → Remote Hosts, status bar, New Workspace and mobile host pickers), guided Add Host, a supervised link that connects hosts with workspaces, reconnects with backoff and closes when idle, Update Runtime, safe Remove Host, key file login, `alera ssh-target`, and `workspace add --host-id`; terminals, files, search, source control, pull requests, and AI Assist for a remote workspace run on its host over one SSH link per host; creating a workspace on a remote host does not run worktree setup (copy rules and setup commands) yet |
 | Mobile App | 5 | 3 | Shipped | Pairing and terminal foundation plus sidebar parity, secure multi-account enrollment, FCM receipt and tap routing, settings/hooks/quotas, and managed workspace actions; richer non-terminal tab surfaces planned |
 
 ---
@@ -272,7 +272,7 @@ Features whose status or scope was checked against the current implementation:
 | Project configuration file | Shipped |
 | Agent auto-acknowledge | Shipped |
 | Code edition (without LSP) | Partial |
-| SSH targets/bootstrap | Partial |
+| SSH targets/bootstrap | Shipped |
 | Notification system | Partial |
 | Skills install controls | Partial |
 | Worktree metadata (rename/tags/pins) | Partial |

@@ -18,11 +18,28 @@ pub struct SshTargetBootstrapStateUpdate<'a> {
     pub last_error: Option<&'a str>,
 }
 
+fn present(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SshTargetReferences {
+    pub workspace_count: usize,
+    pub checkout_count: usize,
+    pub project_ids: Vec<String>,
+}
+
+impl SshTargetReferences {
+    pub fn is_empty(&self) -> bool {
+        self.workspace_count == 0 && self.checkout_count == 0
+    }
+}
+
 impl RuntimeStore {
     pub async fn list_ssh_targets(&self) -> Result<Vec<SshTarget>> {
         let rows = sqlx::query(
             "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
-             installDir, projectsDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError \
+             installDir, projectsDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError, identityFile \
              FROM sshTargets ORDER BY alias COLLATE NOCASE ASC",
         )
         .fetch_all(self.pool())
@@ -33,7 +50,7 @@ impl RuntimeStore {
     pub async fn find_ssh_target(&self, target_id: &str) -> Result<Option<SshTarget>> {
         let row = sqlx::query(
             "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
-             installDir, projectsDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError \
+             installDir, projectsDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError, identityFile \
              FROM sshTargets WHERE id = ?",
         )
         .bind(target_id)
@@ -62,13 +79,13 @@ impl RuntimeStore {
         sqlx::query(
             "INSERT INTO sshTargets \
              (id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
-              installDir, projectsDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+              installDir, projectsDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError, identityFile) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              alias = excluded.alias, host = excluded.host, port = excluded.port, username = excluded.username, \
              platform = excluded.platform, arch = excluded.arch, authKind = excluded.authKind, \
-             updatedAt = excluded.updatedAt, lastStatus = excluded.lastStatus, installDir = excluded.installDir, \
-             projectsDir = excluded.projectsDir",
+             updatedAt = excluded.updatedAt, installDir = excluded.installDir, \
+             projectsDir = excluded.projectsDir, identityFile = excluded.identityFile",
         )
         .bind(&target.id)
         .bind(&target.alias)
@@ -90,6 +107,7 @@ impl RuntimeStore {
         .bind(target.last_bootstrap_at.map(format_timestamp))
         .bind(target.last_checked_at.map(format_timestamp))
         .bind(&target.last_error)
+        .bind(&target.identity_file)
         .execute(self.pool())
         .await?;
         self.find_ssh_target(&target.id).await?.ok_or_else(|| {
@@ -152,6 +170,64 @@ impl RuntimeStore {
         })
     }
 
+    /// Records what the host's runtime reported when a link attached, so the
+    /// version, platform and architecture follow the runtime that actually
+    /// answers rather than the last install. Empty values keep what is stored.
+    pub async fn mark_ssh_target_attached(
+        &self,
+        target_id: &str,
+        runtime_version: Option<&str>,
+        runtime_platform: Option<&str>,
+        runtime_arch: Option<&str>,
+    ) -> Result<SshTarget> {
+        sqlx::query(
+            "UPDATE sshTargets SET runtimeVersion = COALESCE(?, runtimeVersion), \
+             runtimePlatform = COALESCE(?, runtimePlatform), runtimeArch = COALESCE(?, runtimeArch) \
+             WHERE id = ?",
+        )
+        .bind(present(runtime_version))
+        .bind(present(runtime_platform))
+        .bind(present(runtime_arch))
+        .bind(target_id)
+        .execute(self.pool())
+        .await?;
+        self.find_ssh_target(target_id).await?.ok_or_else(|| {
+            anyhow::anyhow!(RuntimeStoreError::Message(format!(
+                "ssh target not found: {target_id}"
+            )))
+        })
+    }
+
+    /// What still lives on a host: active workspaces and project checkouts.
+    /// A linked-worktree checkout row belongs to its workspace and is not
+    /// counted on its own.
+    pub async fn ssh_target_references(&self, host_id: &str) -> Result<SshTargetReferences> {
+        let workspace_projects: Vec<String> = sqlx::query_scalar(
+            "SELECT projectId FROM workspaces WHERE hostId = ? AND status = 'active'",
+        )
+        .bind(host_id)
+        .fetch_all(self.pool())
+        .await?;
+        let checkout_projects: Vec<String> = sqlx::query_scalar(
+            "SELECT projectId FROM repositoryCheckouts WHERE hostId = ? AND kind = 'project'",
+        )
+        .bind(host_id)
+        .fetch_all(self.pool())
+        .await?;
+        let mut project_ids: Vec<String> = workspace_projects
+            .iter()
+            .chain(checkout_projects.iter())
+            .cloned()
+            .collect();
+        project_ids.sort();
+        project_ids.dedup();
+        Ok(SshTargetReferences {
+            workspace_count: workspace_projects.len(),
+            checkout_count: checkout_projects.len(),
+            project_ids,
+        })
+    }
+
     pub async fn remove_ssh_target(&self, target_id: &str) -> Result<()> {
         let result = sqlx::query("DELETE FROM sshTargets WHERE id = ?")
             .bind(target_id)
@@ -187,6 +263,7 @@ fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
         last_status: row.try_get("lastStatus")?,
         install_dir: row.try_get("installDir")?,
         projects_dir: row.try_get("projectsDir")?,
+        identity_file: row.try_get("identityFile")?,
         runtime_version: row.try_get("runtimeVersion")?,
         runtime_platform: row.try_get("runtimePlatform")?,
         runtime_arch: row.try_get("runtimeArch")?,

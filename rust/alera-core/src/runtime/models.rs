@@ -197,6 +197,8 @@ pub struct SshTarget {
     #[serde(default)]
     pub projects_dir: Option<String>,
     #[serde(default)]
+    pub identity_file: Option<String>,
+    #[serde(default)]
     pub runtime_version: Option<String>,
     #[serde(default)]
     pub runtime_platform: Option<String>,

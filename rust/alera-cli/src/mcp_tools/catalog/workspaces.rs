@@ -39,7 +39,7 @@ fn workspace_creation_properties() -> Vec<(&'static str, serde_json::Value)> {
         ("sourceBranch", string("Branch the new branch starts from.")),
         (
             "hostId",
-            string("SSH target that owns the worktree. Omit for this machine."),
+            string("Host the workspace is created on: a host id from list_ssh_targets, or `local` for the runtime's own machine. Omit for the project's primary host."),
         ),
         ("issueUrl", string("Issue URL to link to the workspace.")),
         ("section", string("Sidebar section name.")),
@@ -56,7 +56,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 object(
                     &[
                         ("projectId", string("Project id from list_projects.")),
-                        ("hostId", string("SSH target id, or `local`.")),
+                        ("hostId", string("Host id from list_ssh_targets, or `local`.")),
                         (
                             "sectionId",
                             string("Section id from list_sections, or `none` for workspaces in Others."),

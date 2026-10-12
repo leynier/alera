@@ -49,6 +49,8 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
 
   void _setHost(String? value) {
     _validationDebounce?.cancel();
+    final preservedBranch =
+        (_selectedSourceBranch ?? _sourceBranchController.text).trim();
     _update(() {
       _selectedHostId = value;
       _isValidatingBranch = false;
@@ -60,7 +62,7 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
     _hostEnrollment.clearError();
     final project = _selectedProject;
     if (!_useProjectCheckout && project != null) {
-      unawaited(_loadBranches(project));
+      unawaited(_loadBranches(project, preserveBranch: preservedBranch));
     }
   }
 
@@ -78,9 +80,7 @@ extension _CreateWorkspaceDialogInteractions on _CreateWorkspaceDialogState {
   void _continueToSettings() {
     final sourceBranch = (_selectedSourceBranch ?? _sourceBranchController.text)
         .trim();
-    // A host the project is not on yet has no branches to pick from; the
-    // settings step is where that host is added or changed.
-    if (!_useProjectCheckout && sourceBranch.isEmpty && !_hostBlocksCreation) {
+    if (!_useProjectCheckout && sourceBranch.isEmpty) {
       _update(() {
         _sourceBranchError = _sourceBranchRequiredError();
       });

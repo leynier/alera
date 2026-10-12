@@ -11,7 +11,11 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/application/project_hosts_providers.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/presentation/remote_host_advanced_group.dart';
+import 'package:alera/src/features/remote_hosts/presentation/remote_host_header_card.dart';
+import 'package:alera/src/features/remote_hosts/presentation/remote_hosts_settings_pane.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
@@ -20,7 +24,6 @@ import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.d
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
-import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/terminal_theme_picker.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
@@ -62,6 +65,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
   AiAssistModelDiscoveryService? modelDiscoveryService,
   String initialSectionId = 'application',
   String? initialProjectId,
+  String? initialHostId,
   List<dynamic> extraOverrides = const <dynamic>[],
 }) async {
   await tester.binding.setSurfaceSize(surfaceSize);
@@ -101,6 +105,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
         home: SettingsDialog(
           initialSectionId: initialSectionId,
           initialProjectId: initialProjectId,
+          initialHostId: initialHostId,
         ),
       ),
     ),

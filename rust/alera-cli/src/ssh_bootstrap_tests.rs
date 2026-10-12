@@ -59,6 +59,7 @@ fn configured_platform_and_arch_prevent_detection_requirement() {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
@@ -78,6 +79,8 @@ fn configured_platform_and_arch_prevent_detection_requirement() {
         archive_path: None,
         artifact_path: None,
         manifest_public_key: None,
+        restart_runtime: false,
+        force: false,
     };
 
     assert_eq!(
@@ -130,64 +133,10 @@ fn windows_install_script_avoids_symlink_privileges() {
 
 #[test]
 fn windows_validate_script_uses_current_file_layout() {
-    let script = windows_validate_script("windows", "C:/Users/me/AppData/Local/Alera/runtime");
+    let script = windows_validate_script("C:/Users/me/AppData/Local/Alera/runtime");
     assert!(script.contains("current.txt"));
     assert!(script.contains("Join-Path $current 'alera.exe'"));
     assert!(!script.contains("current/alera.exe"));
-}
-
-#[test]
-fn windows_sftp_path_forces_openssh_absolute_drive_form() {
-    assert_eq!(
-        windows_sftp_path(r"C:\Users\leyni\AppData\Local\Alera\runtime"),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime"
-    );
-    assert_eq!(
-        windows_sftp_path("C:/Users/leyni/AppData/Local/Alera/runtime"),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime"
-    );
-    assert_eq!(
-        windows_sftp_path("/C:/Users/leyni/AppData/Local/Alera/runtime"),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime"
-    );
-    assert_eq!(
-        windows_sftp_path("//C:/Users/leyni/AppData/Local/Alera/runtime/"),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime"
-    );
-    assert_eq!(windows_sftp_path("c:/Users/me"), "/c:/Users/me");
-    assert_eq!(windows_sftp_path("D:"), "/D:");
-}
-
-#[test]
-fn remote_join_windows_builds_absolute_sftp_destinations() {
-    assert_eq!(
-        remote_join(
-            "windows",
-            r"C:\Users\leyni\AppData\Local\Alera\runtime",
-            &["staging", "job", "archive.tar.gz"],
-        ),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime/staging/job/archive.tar.gz"
-    );
-    assert_eq!(
-        remote_join(
-            "windows",
-            "C:/Users/leyni/AppData/Local/Alera/runtime",
-            &["staging", "job"],
-        ),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime/staging/job"
-    );
-    assert_eq!(
-        remote_join(
-            "windows",
-            "/C:/Users/leyni/AppData/Local/Alera/runtime",
-            &["staging"],
-        ),
-        "/C:/Users/leyni/AppData/Local/Alera/runtime/staging"
-    );
-    assert_eq!(
-        remote_join("linux", "/home/me/.alera/sidecar", &["staging", "job"]),
-        "/home/me/.alera/sidecar/staging/job"
-    );
 }
 
 #[test]
@@ -406,6 +355,7 @@ fn password_ssh_target(id: &str) -> SshTarget {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
@@ -428,6 +378,8 @@ fn empty_plan_request(target_id: &str) -> SshTargetBootstrapRequest {
         archive_path: None,
         artifact_path: None,
         manifest_public_key: None,
+        restart_runtime: false,
+        force: false,
     }
 }
 

@@ -52,6 +52,7 @@ void main() {
           home: Scaffold(
             body: AgentQuotaStatusBarView(
               hostId: 'local',
+              hostLabel: 'This Device',
               snapshots: <AgentQuotaSnapshot>[snapshot],
               settings: const AgentQuotaHostSettings(
                 enabledProviders: <AgentQuotaProviderId>[

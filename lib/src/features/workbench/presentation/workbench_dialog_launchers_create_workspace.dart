@@ -61,7 +61,7 @@ Future<void> _runCreateWorkspaceFlow(
     ref.read(runtimeHostClientProvider),
     beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
   );
-  final sshTargets = await _loadSshTargets(ref);
+  final supportsRemoteSshWorkspaces = await _supportsRemoteSshWorkspaces(ref);
   final hostEnrollment = ProjectHostEnrollmentController(
     _supportsProjectHosts(ref) ? projectHostAdder(ref) : null,
   );
@@ -83,7 +83,7 @@ Future<void> _runCreateWorkspaceFlow(
       controller: controller,
       projects: projects,
       parentCandidates: parentCandidates,
-      sshTargets: sshTargets,
+      supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
       hostEnrollment: hostEnrollment,
       resolvedInitialProject: resolvedInitialProject,
       profiles: profiles,
@@ -105,7 +105,7 @@ Future<void> _showCreateWorkspaceDialogs(
   required WorkbenchController controller,
   required List<Project> projects,
   required List<WorkspaceParentCandidate> parentCandidates,
-  required List<SshTarget> sshTargets,
+  required bool supportsRemoteSshWorkspaces,
   required ProjectHostEnrollmentController hostEnrollment,
   required Project? resolvedInitialProject,
   required List<AgentProfile> profiles,
@@ -122,116 +122,128 @@ Future<void> _showCreateWorkspaceDialogs(
       workbenchState.supportsSections && workbenchState.sections.isNotEmpty;
   final promptResult = await showDialog<PromptWorkspaceDialogResult>(
     context: context,
-    builder: (_) => PromptWorkspaceDialog(
-      projects: projects,
-      agentProfiles: profiles,
-      sshTargets: sshTargets,
-      hostEnrollment: hostEnrollment,
-      defaultAgentProfileId:
-          retryPrompt?.profileId ??
-          ref.read(settingsControllerProvider).agents.defaultAgentProfileId,
-      initialProject: resolvedInitialProject,
-      initialPrompt: retryPrompt?.prompt,
-      loadPreferredSourceBranch: _loadPreferredSourceBranch(ref),
-      initialSourceBranch: retryPrompt?.sourceBranch,
-      initialParentWorkspaceId: retryPrompt?.parentWorkspaceId,
-      initialHostId: retryPrompt?.hostId,
-      initialIssueUrl: retryPrompt?.issueUrl,
-      fetchIssue: fetchIssue,
-      initialError: retryPrompt == null ? null : retryError,
-      initialMode: retryManual != null
-          ? NewWorkspaceMode.manual
-          : NewWorkspaceMode.fromPrompt,
-      manualForm: _buildManualWorkspaceForm(
-        context,
-        ref,
-        controller: controller,
-        projects: projects,
-        parentCandidates: parentCandidates,
-        sshTargets: sshTargets,
-        hostEnrollment: hostEnrollment,
-        resolvedInitialProject: resolvedInitialProject,
-        retryManual: retryManual,
-        retryError: retryError,
-        fetchIssue: fetchIssue,
-        enqueueCreate: (request) {
-          boundJobId ??= const Uuid().v4();
-          final done = ref
-              .read(backgroundSetupJobsProvider.notifier)
-              .enqueueManualWorkspace(request, jobId: boundJobId);
-          if (done == null) {
-            return null;
-          }
-          return done.then((_) {
-            boundJobId = const Uuid().v4();
-          });
-        },
-      ),
-      enqueuePrompt: (request) {
-        boundJobId ??= const Uuid().v4();
-        final done = ref
-            .read(backgroundSetupJobsProvider.notifier)
-            .enqueuePromptWorkspace(request, jobId: boundJobId);
-        if (done == null) {
-          return null;
-        }
-        return done.then((_) {
-          boundJobId = const Uuid().v4();
-        });
-      },
-      loadBranches: controller.listSourceBranches,
-      loadHostBranchCatalog: controller.loadHostBranchCatalog,
-      checkBranchExists: _projectBranchCheck(ref, controller),
-      workspaceBranches: (project) {
-        return ref
-            .read(workbenchControllerProvider)
-            .workspacesFor(project.id)
-            .where((workspace) => workspace.isActive)
-            .map((workspace) => workspace.branch?.trim() ?? '')
-            .where((branch) => branch.isNotEmpty)
-            .toSet();
-      },
-      parentWorkspaces: <Workspace>[
-        for (final candidate in parentCandidates) candidate.workspace,
-      ],
-      initialUseProjectCheckout: retryPrompt?.useProjectCheckout ?? true,
-      hasWorkspaceSections: hasWorkspaceSections,
-      initialAutoAssignSection: retryPrompt?.autoAssignSection ?? true,
-      assignSection: (workspaceId, sectionId) =>
-          controller.saveWorkspaceSection(workspaceId, sectionId: sectionId),
-      generateIdentity: runtime.generateIdentity,
-      cancelGeneration: runtime.cancel,
-      createWorkspace:
-          ({
-            required project,
-            required sourceBranch,
-            required newBranchName,
-            required name,
-            parentWorkspaceId,
-            hostId,
-            issueUrl,
-          }) {
-            return controller.createWorkspaceForPrompt(
-              project: project,
-              sourceBranch: sourceBranch,
-              newBranchName: newBranchName,
-              name: name,
-              parentWorkspaceId: parentWorkspaceId,
-              hostId: hostId,
-              issueUrl: issueUrl,
-            );
+    // Watched so a host added, installed or removed while the form is open
+    // shows up in both pickers.
+    builder: (_) => Consumer(
+      builder: (context, ref, _) {
+        final hosts = _newWorkspaceHostLinks(context, ref);
+        return PromptWorkspaceDialog(
+          projects: projects,
+          agentProfiles: profiles,
+          hosts: hosts.hosts,
+          supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
+          onAddHost: hosts.onAddHost,
+          onOpenHost: hosts.onOpenHost,
+          onOpenRemoteHosts: hosts.onOpenRemoteHosts,
+          hostEnrollment: hostEnrollment,
+          defaultAgentProfileId:
+              retryPrompt?.profileId ??
+              ref.read(settingsControllerProvider).agents.defaultAgentProfileId,
+          initialProject: resolvedInitialProject,
+          initialPrompt: retryPrompt?.prompt,
+          loadPreferredSourceBranch: _loadPreferredSourceBranch(ref),
+          initialSourceBranch: retryPrompt?.sourceBranch,
+          initialParentWorkspaceId: retryPrompt?.parentWorkspaceId,
+          initialHostId: retryPrompt?.hostId,
+          initialIssueUrl: retryPrompt?.issueUrl,
+          fetchIssue: fetchIssue,
+          initialError: retryPrompt == null ? null : retryError,
+          initialMode: retryManual != null
+              ? NewWorkspaceMode.manual
+              : NewWorkspaceMode.fromPrompt,
+          manualForm: _buildManualWorkspaceForm(
+            context,
+            ref,
+            controller: controller,
+            projects: projects,
+            parentCandidates: parentCandidates,
+            hosts: hosts,
+            supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
+            hostEnrollment: hostEnrollment,
+            resolvedInitialProject: resolvedInitialProject,
+            retryManual: retryManual,
+            retryError: retryError,
+            fetchIssue: fetchIssue,
+            enqueueCreate: (request) {
+              boundJobId ??= const Uuid().v4();
+              final done = ref
+                  .read(backgroundSetupJobsProvider.notifier)
+                  .enqueueManualWorkspace(request, jobId: boundJobId);
+              if (done == null) {
+                return null;
+              }
+              return done.then((_) {
+                boundJobId = const Uuid().v4();
+              });
+            },
+          ),
+          enqueuePrompt: (request) {
+            boundJobId ??= const Uuid().v4();
+            final done = ref
+                .read(backgroundSetupJobsProvider.notifier)
+                .enqueuePromptWorkspace(request, jobId: boundJobId);
+            if (done == null) {
+              return null;
+            }
+            return done.then((_) {
+              boundJobId = const Uuid().v4();
+            });
           },
-      launchAgent: runtime.launchAgent,
-      supportsIdempotentAgentLaunch: () =>
-          runtime.supportsIdempotentAgentLaunch().catchError((_) => false),
-      onCreateAnother: ({required creation, required agentTabId}) async {
-        await controller.completePromptWorkspaceCreation(
-          creation: creation,
-          agentTabId: agentTabId,
+          loadBranches: controller.listSourceBranches,
+          loadHostBranchCatalog: controller.loadHostBranchCatalog,
+          checkBranchExists: _projectBranchCheck(ref, controller),
+          workspaceBranches: (project) {
+            return ref
+                .read(workbenchControllerProvider)
+                .workspacesFor(project.id)
+                .where((workspace) => workspace.isActive)
+                .map((workspace) => workspace.branch?.trim() ?? '')
+                .where((branch) => branch.isNotEmpty)
+                .toSet();
+          },
+          parentWorkspaces: <Workspace>[
+            for (final candidate in parentCandidates) candidate.workspace,
+          ],
+          initialUseProjectCheckout: retryPrompt?.useProjectCheckout ?? true,
+          hasWorkspaceSections: hasWorkspaceSections,
+          initialAutoAssignSection: retryPrompt?.autoAssignSection ?? true,
+          assignSection: (workspaceId, sectionId) => controller
+              .saveWorkspaceSection(workspaceId, sectionId: sectionId),
+          generateIdentity: runtime.generateIdentity,
+          cancelGeneration: runtime.cancel,
+          createWorkspace:
+              ({
+                required project,
+                required sourceBranch,
+                required newBranchName,
+                required name,
+                parentWorkspaceId,
+                hostId,
+                issueUrl,
+              }) {
+                return controller.createWorkspaceForPrompt(
+                  project: project,
+                  sourceBranch: sourceBranch,
+                  newBranchName: newBranchName,
+                  name: name,
+                  parentWorkspaceId: parentWorkspaceId,
+                  hostId: hostId,
+                  issueUrl: issueUrl,
+                );
+              },
+          launchAgent: runtime.launchAgent,
+          supportsIdempotentAgentLaunch: () =>
+              runtime.supportsIdempotentAgentLaunch().catchError((_) => false),
+          onCreateAnother: ({required creation, required agentTabId}) async {
+            await controller.completePromptWorkspaceCreation(
+              creation: creation,
+              agentTabId: agentTabId,
+            );
+            if (context.mounted) {
+              _showWorkspaceCreationToast(context, creation);
+            }
+          },
         );
-        if (context.mounted) {
-          _showWorkspaceCreationToast(context, creation);
-        }
       },
     ),
   );
@@ -257,7 +269,8 @@ Widget _buildManualWorkspaceForm(
   required WorkbenchController controller,
   required List<Project> projects,
   required List<WorkspaceParentCandidate> parentCandidates,
-  required List<SshTarget> sshTargets,
+  required _NewWorkspaceHosts hosts,
+  required bool supportsRemoteSshWorkspaces,
   required ProjectHostEnrollmentController hostEnrollment,
   required Project? resolvedInitialProject,
   required Future<void>? Function(ManualWorkspaceCreateRequest request)
@@ -283,7 +296,11 @@ Widget _buildManualWorkspaceForm(
     initialCreationError: retryManual == null ? null : retryError,
     enqueueCreate: enqueueCreate,
     parentCandidates: parentCandidates,
-    sshTargets: sshTargets,
+    hosts: hosts.hosts,
+    supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
+    onAddHost: hosts.onAddHost,
+    onOpenHost: hosts.onOpenHost,
+    onOpenRemoteHosts: hosts.onOpenRemoteHosts,
     hostEnrollment: hostEnrollment,
     loadBranches: controller.listSourceBranches,
     loadHostBranchCatalog: controller.loadHostBranchCatalog,
@@ -378,12 +395,35 @@ Future<bool> Function(Project project, String branchName) _projectBranchCheck(
   ).branchExists;
 }
 
-Future<List<SshTarget>> _loadSshTargets(WidgetRef ref) async {
+/// Whether the runtime creates workspaces on remote hosts. A failed check
+/// keeps the hosts selectable, because the create request checks again.
+Future<bool> _supportsRemoteSshWorkspaces(WidgetRef ref) async {
   try {
-    return await ref.read(sshTargetRepositoryProvider).list();
+    return await ref
+        .read(sshTargetRepositoryProvider)
+        .supportsRemoteWorkspaces();
   } catch (_) {
-    return const <SshTarget>[];
+    return true;
   }
+}
+
+/// The hosts both New Workspace forms list, and the ways out to Remote Hosts
+/// their notices offer.
+typedef _NewWorkspaceHosts = ({
+  List<RemoteHostView> hosts,
+  VoidCallback onAddHost,
+  ValueChanged<String> onOpenHost,
+  VoidCallback onOpenRemoteHosts,
+});
+
+_NewWorkspaceHosts _newWorkspaceHostLinks(BuildContext context, WidgetRef ref) {
+  return (
+    hosts: ref.watch(remoteHostsControllerProvider).hosts,
+    onAddHost: () => unawaited(showAddRemoteHostFlow(context, ref)),
+    onOpenHost: (hostId) =>
+        unawaited(openRemoteHostSettings(context, hostId: hostId)),
+    onOpenRemoteHosts: () => unawaited(openRemoteHostSettings(context)),
+  );
 }
 
 void _showWorkspaceCreationToast(

@@ -9,6 +9,7 @@ class const _CreateWorkspaceSelectionStep({
   required final TextEditingController projectSearchController,
   required final ValueChanged<String> onProjectQueryChanged,
   required final ValueChanged<Project> onSelectProject,
+  required final Widget hostPicker,
   required final String? Function(Project project) getProjectActiveBranch,
   required final bool reuseExistingBranch,
   required final ValueChanged<bool> onReuseExistingBranchChanged,
@@ -51,6 +52,8 @@ class const _CreateWorkspaceSelectionStep({
           onSelectProject: onSelectProject,
           getProjectActiveBranch: getProjectActiveBranch,
         ),
+        const SizedBox(height: AleraTokens.space16),
+        hostPicker,
         const SizedBox(height: AleraTokens.space16),
         if (onLocationChanged != null) ...[
           AleraSegmentedButton<bool>(

@@ -7,14 +7,18 @@ struct Owner {
     scripts: Mutex<Vec<String>>,
 }
 impl RemoteHostExecutor for Owner {
-    async fn probe_windows(&self, _: &alera_core::runtime::SshTarget) -> Option<bool> {
-        Some(false)
+    async fn probe_shell(
+        &self,
+        _: &alera_core::runtime::SshTarget,
+    ) -> Option<crate::remote_shell::RemoteShell> {
+        Some(crate::remote_shell::RemoteShell::Posix)
     }
     async fn run(
         &self,
         _: &alera_core::runtime::SshTarget,
-        _: bool,
+        _: crate::remote_shell::RemoteShell,
         script: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
     ) -> Result<String> {
         self.scripts.lock().unwrap().push(script.into());
         Ok(self.response.to_string())

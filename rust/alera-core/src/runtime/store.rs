@@ -140,6 +140,8 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("sshTargets", "lastError", "TEXT")
             .await?;
+        self.ensure_column("sshTargets", "identityFile", "TEXT")
+            .await?;
         self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_column("workspaces", "isArchived", "INTEGER NOT NULL DEFAULT 0")
@@ -212,6 +214,14 @@ impl RuntimeStore {
         row.map(|row| row.try_get("value"))
             .transpose()
             .map_err(Into::into)
+    }
+
+    pub async fn delete_metadata(&self, key: &str) -> Result<()> {
+        sqlx::query("DELETE FROM runtimeMetadata WHERE key = ?")
+            .bind(key)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn set_metadata(&self, key: &str, value: &str) -> Result<()> {
@@ -1642,6 +1652,7 @@ mod tests {
             last_status: None,
             install_dir: None,
             projects_dir: None,
+            identity_file: None,
             runtime_version: None,
             runtime_platform: None,
             runtime_arch: None,

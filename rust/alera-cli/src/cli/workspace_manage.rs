@@ -10,7 +10,8 @@ pub struct WorkspaceListArgs {
     pub project_id: Option<String>,
     #[arg(long)]
     pub all: bool,
-    /// Only workspaces on this host: an SSH target id, or `local`.
+    /// Only workspaces on this host: a host id from `ssh-target list`, `local`
+    /// for this device, or `origin` for the host this terminal runs on.
     #[arg(long = "host-id")]
     pub host_id: Option<String>,
     /// Only workspaces in this section. `none` lists those in Others.

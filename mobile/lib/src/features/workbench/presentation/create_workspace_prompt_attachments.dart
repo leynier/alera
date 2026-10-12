@@ -8,7 +8,7 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
     final candidates = widget.workspaces.where(
       (workspace) =>
           workspace.projectId == projectId &&
-          !workspace.isRemote &&
+          !workspace.isOnRemoteHost &&
           workspace.status == 'active',
     );
     for (final workspace in candidates) {

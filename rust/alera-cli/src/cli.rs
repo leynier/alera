@@ -13,6 +13,7 @@ mod project;
 mod pull_request;
 mod runtime_manage;
 mod skill;
+mod ssh_target;
 mod terminal_lifecycle;
 mod text_source;
 mod voice;
@@ -30,6 +31,7 @@ pub use project::*;
 pub use pull_request::*;
 pub use runtime_manage::*;
 pub use skill::*;
+pub use ssh_target::*;
 pub use terminal_lifecycle::*;
 pub use text_source::*;
 pub use voice::*;
@@ -37,7 +39,7 @@ pub use webhook::*;
 pub use workspace::*;
 pub use workspace_prompt_start::*;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 /// Top-level CLI, mirroring the Dart `AleraCliCommandRunner`.
 #[derive(Debug, Parser)]
 #[command(
@@ -60,6 +62,8 @@ pub enum Command {
     /// Start the automation host from a native user-login entry.
     #[command(name = "automation-host", hide = true)]
     AutomationHost(AutomationHostArgs),
+    /// Answer agent quota queries for the app over stdio (run by the app).
+    #[command(name = "runtime-proxy", hide = true)]
     RuntimeProxy,
     /// Attach a hub host link to this machine's runtime over stdio (run by the hub over ssh).
     #[command(name = "runtime-attach", hide = true)]
@@ -91,7 +95,7 @@ pub enum Command {
     /// Inspect and write live terminal sessions.
     Terminal(TerminalCommand),
 
-    /// Manage SSH targets known by the Home Runtime. Bootstrap installs the runtime sidecar only; it does not create remote workspaces.
+    /// Manage the remote hosts this runtime reaches over SSH. Bootstrap installs the Alera runtime only; it does not create remote workspaces.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
 
@@ -330,6 +334,9 @@ pub enum RuntimeAction {
     Settings(RuntimeSettingsCommand),
     /// Show CPU and memory use of the host and its terminal sessions.
     Resources,
+    /// On a remote host, stop asking a desktop hub: the CLI lists this
+    /// runtime's own records again. The hub's next mirror links it back.
+    UnlinkHub,
 }
 
 #[derive(Debug, Args)]
@@ -469,138 +476,6 @@ pub struct TabCreateArgs {
     /// before it becomes visible in the app.
     #[arg(long)]
     pub spawn: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct SshTargetCommand {
-    #[command(flatten)]
-    pub runtime: RuntimeDirArgs,
-    #[command(flatten)]
-    pub output: OutputArgs,
-    #[command(subcommand)]
-    pub action: SshTargetAction,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum SshTargetAction {
-    /// List saved SSH targets.
-    List,
-    /// Add an SSH target record. Does not install a sidecar or create a remote workspace.
-    Add(SshTargetAddArgs),
-    /// Remove a saved SSH target.
-    Remove(IdArgs),
-    /// Probe SSH connectivity and, when known, the installed sidecar.
-    Status(SshTargetStatusArgs),
-    /// Preview sidecar install steps. Does not create a remote worktree.
-    BootstrapPlan(SshTargetBootstrapPlanArgs),
-    /// Install the runtime sidecar. Does not create a remote Git worktree.
-    Bootstrap(SshTargetBootstrapArgs),
-    /// Cancel an in-progress sidecar bootstrap job.
-    BootstrapCancel(IdArgs),
-    /// Show, open, or close the hub's persistent link to a bootstrapped host.
-    Link(SshTargetLinkArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct SshTargetLinkArgs {
-    /// Host id. Omit to list every link the runtime knows.
-    #[arg(long)]
-    pub id: Option<String>,
-    /// Open the link (starts the satellite runtime when needed).
-    #[arg(long, conflicts_with = "disconnect")]
-    pub connect: bool,
-    /// Close the link.
-    #[arg(long, conflicts_with = "connect")]
-    pub disconnect: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct SshTargetAddArgs {
-    #[arg(long)]
-    pub id: Option<String>,
-    #[arg(long)]
-    pub alias: String,
-    #[arg(long)]
-    pub host: String,
-    #[arg(long, default_value_t = 22)]
-    pub port: i64,
-    #[arg(long)]
-    pub username: String,
-    #[arg(long)]
-    pub platform: Option<String>,
-    #[arg(long)]
-    pub arch: Option<String>,
-    #[arg(long = "auth", value_enum, default_value_t = SshAuthKindArg::Agent)]
-    pub auth_kind: SshAuthKindArg,
-    /// Folder on the host where projects are cloned when no path is given
-    /// (default: alera-projects under the remote home). `~/` and `%VAR%` are
-    /// expanded on the host.
-    #[arg(long)]
-    pub projects_dir: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum SshAuthKindArg {
-    /// Hidden so help does not advertise it; add still parses it and rejects
-    /// with the bootstrap product error.
-    #[value(hide = true)]
-    Password,
-    Key,
-    Agent,
-}
-
-#[derive(Debug, Args)]
-pub struct SshTargetStatusArgs {
-    #[arg(long)]
-    pub id: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct SshTargetBootstrapPlanArgs {
-    #[arg(long)]
-    pub id: String,
-    #[arg(long)]
-    pub channel: Option<String>,
-    #[arg(long)]
-    pub version: Option<String>,
-    #[arg(long = "install-dir")]
-    pub install_dir: Option<String>,
-    #[arg(long)]
-    pub platform: Option<String>,
-    #[arg(long)]
-    pub arch: Option<String>,
-    #[arg(long = "archive-url")]
-    pub archive_url: Option<String>,
-    #[arg(long = "archive-path")]
-    pub archive_path: Option<String>,
-    #[arg(long = "artifact-path")]
-    pub artifact_path: Option<String>,
-    #[arg(long = "manifest-public-key")]
-    pub manifest_public_key: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct SshTargetBootstrapArgs {
-    #[arg(long)]
-    pub id: String,
-    #[arg(long)]
-    pub channel: Option<String>,
-    #[arg(long)]
-    pub version: Option<String>,
-    #[arg(long = "install-dir")]
-    pub install_dir: Option<String>,
-    #[arg(long)]
-    pub platform: Option<String>,
-    #[arg(long)]
-    pub arch: Option<String>,
-    #[arg(long = "archive-url")]
-    pub archive_url: Option<String>,
-    #[arg(long = "archive-path")]
-    pub archive_path: Option<String>,
-    #[arg(long = "artifact-path")]
-    pub artifact_path: Option<String>,
-    #[arg(long = "manifest-public-key")]
-    pub manifest_public_key: Option<String>,
 }
 
 #[derive(Debug, Args)]

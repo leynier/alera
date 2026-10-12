@@ -565,7 +565,7 @@
         "readOnlyHint": false,
         "title": "Register Remote Project"
       },
-      "description": "Add a project that lives only on an SSH host, from an existing folder there (path) or by cloning a repository into the host's projects folder (cloneUrl).",
+      "description": "Add a project that lives only on a remote host, from an existing folder there (path) or by cloning a repository into the host's projects folder (cloneUrl).",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -576,7 +576,7 @@
             "type": "string"
           },
           "hostId": {
-            "description": "SSH target id from list_ssh_targets.",
+            "description": "Host id from list_ssh_targets.",
             "minLength": 1,
             "type": "string"
           },
@@ -607,52 +607,6 @@
       "name": "register_remote_project",
       "timeoutSeconds": 58,
       "title": "Register Remote Project"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Register Project Checkout"
-      },
-      "description": "Register an existing folder on an SSH host as a project's checkout there, or clone into that new folder first with cloneUrl.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cloneUrl": {
-            "description": "Repository URL to clone into path first.",
-            "maxLength": 2048,
-            "minLength": 1,
-            "type": "string"
-          },
-          "hostId": {
-            "description": "SSH target id from list_ssh_targets.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "path": {
-            "description": "Folder on the host.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "projectId": {
-            "description": "Project id from list_projects.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "projectId",
-          "hostId",
-          "path"
-        ],
-        "type": "object"
-      },
-      "name": "register_project_checkout",
-      "timeoutSeconds": 58,
-      "title": "Register Project Checkout"
     },
     {
       "access": "execute",
@@ -782,7 +736,7 @@
         "readOnlyHint": false,
         "title": "Add Project Host"
       },
-      "description": "Add a project to an SSH host: register an existing folder there (path), or clone the project's Git remote (or cloneUrl) into the host's projects folder.",
+      "description": "Put a project on a remote host in one of three ways: register an existing checkout there (path), clone into a new folder (path with cloneUrl), or let the host clone the project's Git remote, or cloneUrl, into its projects folder (no path). The host must have the Alera runtime installed.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -793,12 +747,12 @@
             "type": "string"
           },
           "hostId": {
-            "description": "SSH target id from list_ssh_targets.",
+            "description": "Host id from list_ssh_targets.",
             "minLength": 1,
             "type": "string"
           },
           "path": {
-            "description": "Existing folder on the host.",
+            "description": "Absolute folder on the host. Alone it must already hold the checkout; with cloneUrl it must not exist yet and the clone goes there.",
             "minLength": 1,
             "type": "string"
           },
@@ -832,7 +786,7 @@
         "additionalProperties": false,
         "properties": {
           "hostId": {
-            "description": "SSH target id from list_ssh_targets.",
+            "description": "Host id from list_ssh_targets.",
             "minLength": 1,
             "type": "string"
           },
@@ -866,7 +820,7 @@
         "additionalProperties": false,
         "properties": {
           "hostId": {
-            "description": "SSH target id, or `local` (default).",
+            "description": "Host id from list_ssh_targets, or `local` (default).",
             "minLength": 1,
             "type": "string"
           },
@@ -985,7 +939,7 @@
         "readOnlyHint": true,
         "title": "List SSH Targets"
       },
-      "description": "List the SSH hosts this runtime knows, with their platform, installed runtime, and bootstrap state. Credentials are never included.",
+      "description": "List the remote hosts this runtime reaches over SSH, with their platform, installed Alera runtime, bootstrap state, and hostStatus: one state per host (needsSetup, installing, disconnected, offline, connecting, connected, or error), the runtime versions, and whether an update is available. Credentials are never included.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {},
@@ -1004,12 +958,17 @@
         "readOnlyHint": true,
         "title": "SSH Target Status"
       },
-      "description": "Check whether SSH hosts are reachable and which runtime they have installed: one host by targetId, or all of them.",
+      "description": "Check whether remote hosts are reachable over SSH and which Alera runtime they have installed: one host by hostId, or all of them.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "hostId": {
+            "description": "Host id from list_ssh_targets.",
+            "minLength": 1,
+            "type": "string"
+          },
           "targetId": {
-            "description": "SSH target id from list_ssh_targets.",
+            "description": "Older name for hostId; hostId wins when both are given.",
             "minLength": 1,
             "type": "string"
           }
@@ -1043,7 +1002,7 @@
             "type": "string"
           },
           "hostId": {
-            "description": "SSH target id, or `local`.",
+            "description": "Host id from list_ssh_targets, or `local`.",
             "minLength": 1,
             "type": "string"
           },
@@ -1093,7 +1052,7 @@
             "type": "string"
           },
           "hostId": {
-            "description": "SSH target that owns the worktree. Omit for this machine.",
+            "description": "Host the workspace is created on: a host id from list_ssh_targets, or `local` for the runtime's own machine. Omit for the project's primary host.",
             "minLength": 1,
             "type": "string"
           },
@@ -1179,7 +1138,7 @@
             "type": "string"
           },
           "hostId": {
-            "description": "SSH target that owns the worktree. Omit for this machine.",
+            "description": "Host the workspace is created on: a host id from list_ssh_targets, or `local` for the runtime's own machine. Omit for the project's primary host.",
             "minLength": 1,
             "type": "string"
           },
@@ -1287,7 +1246,7 @@
             "type": "string"
           },
           "hostId": {
-            "description": "SSH target that owns the worktree. Omit for this machine.",
+            "description": "Host the workspace is created on: a host id from list_ssh_targets, or `local` for the runtime's own machine. Omit for the project's primary host.",
             "minLength": 1,
             "type": "string"
           },

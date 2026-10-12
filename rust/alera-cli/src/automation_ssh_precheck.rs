@@ -7,6 +7,7 @@ use anyhow::{bail, Context, Result};
 use base64::Engine;
 
 use crate::remote_owner_precheck::OwnerPrecheckEnvelope;
+use crate::remote_shell::RemoteShell;
 use crate::ssh_remote::{require_bootstrapped_ssh_target, RemoteHostExecutor};
 
 pub(crate) async fn run_remote_precheck<E: RemoteHostExecutor>(
@@ -49,16 +50,16 @@ async fn execute<E: RemoteHostExecutor>(
         .as_deref()
         .filter(|path| !path.trim().is_empty())
         .context("Bootstrap the SSH runtime before executing owner prechecks")?;
-    let platform = crate::ssh_bootstrap::normalize_platform(
+    let platform = crate::remote_shell::normalize_platform(
         target
             .runtime_platform
             .as_deref()
             .or(target.platform.as_deref())
             .context("The precheck owner platform is unknown")?,
     );
-    if !matches!(platform.as_str(), "linux" | "macos" | "windows") {
+    let Some(shell) = RemoteShell::from_platform(&platform) else {
         bail!("The precheck owner platform is unsupported");
-    }
+    };
     let (intent, mut action) = match records.as_slice() {
         [] => {
             if let Some(id) = definition.target.source_workspace_id() {
@@ -70,18 +71,13 @@ async fn execute<E: RemoteHostExecutor>(
                     bail!("The precheck source location changed before inspection");
                 }
                 crate::remote_project_checkout::ensure_linked_origin(
-                    store,
-                    &workspace,
-                    &target,
-                    platform == "windows",
-                    install,
-                    executor,
+                    store, &workspace, &target, shell, install, executor,
                 )
                 .await?;
             }
             let preview = linked_preview(store, definition, run, host_id, cwd, &platform).await?;
             if let Some(preview) = &preview {
-                let response = owner_response(executor, &target, platform == "windows", install, preview, "probe")
+                let response = owner_response(executor, &target, shell, install, preview, "probe")
                     .await.context("The SSH owner does not support the required linked precheck; verify access and update its runtime before retrying. No precheck command was started")?;
                 if response["version"] != 1 || response["request"] != serde_json::to_value(&preview.request)?
                     || response["capability"] != crate::terminal_host::protocol::RUNTIME_HOST_LINKED_OWNER_PRECHECK_CAPABILITY
@@ -125,7 +121,6 @@ async fn execute<E: RemoteHostExecutor>(
         bail!("The retained precheck owner or checkout changed; closure remains unverified");
     }
     let envelope = owner_envelope(store, &intent).await?;
-    let windows = platform == "windows";
     let deadline = tokio::time::Instant::now()
         + std::time::Duration::from_secs(intent.precheck.timeout_seconds.max(1) as u64 + 60);
     let mut attention = None;
@@ -146,7 +141,7 @@ async fn execute<E: RemoteHostExecutor>(
         {
             action = "cancel";
         }
-        let response = request(executor, &target, windows, install, &envelope, action).await;
+        let response = request(executor, &target, shell, install, &envelope, action).await;
         match response {
             Ok((job, processes)) => {
                 if job.outcome.is_some() {
@@ -203,12 +198,12 @@ async fn retain_attention(
 async fn request<E: RemoteHostExecutor>(
     executor: &E,
     target: &SshTarget,
-    windows: bool,
+    shell: RemoteShell,
     install: &str,
     envelope: &OwnerPrecheckEnvelope,
     action: &str,
 ) -> Result<(OwnerAutomationPrecheck, Vec<AutomationPrecheckProcess>)> {
-    let response = owner_response(executor, target, windows, install, envelope, action).await?;
+    let response = owner_response(executor, target, shell, install, envelope, action).await?;
     let job: OwnerAutomationPrecheck = serde_json::from_value(response["job"].clone())?;
     if response["version"] != 1 || job.request != envelope.request {
         bail!("The owner precheck response does not match the retained operation");
@@ -220,33 +215,40 @@ async fn request<E: RemoteHostExecutor>(
 async fn owner_response<E: RemoteHostExecutor>(
     executor: &E,
     target: &SshTarget,
-    windows: bool,
+    shell: RemoteShell,
     install: &str,
     envelope: &OwnerPrecheckEnvelope,
     action: &str,
 ) -> Result<serde_json::Value> {
-    let quote = if windows {
-        crate::ssh_bootstrap::powershell_string
-    } else {
-        crate::ssh_bootstrap::shell_quote
-    };
+    let quote = |value: &str| shell.quote(value);
     let metadata = base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(envelope)?);
     let arguments = format!(
         "project control-owner-precheck --metadata-base64 {} --action {action}",
         quote(&metadata)
     );
-    let script =
-        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
+    let script = crate::remote_sidecar_command::sidecar_command(
+        shell,
+        install,
+        &arguments,
+        crate::remote_sidecar_command::SidecarProfile::DataStateDir,
+    );
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        executor.run(target, windows, &script),
+        executor.run(
+            target,
+            shell,
+            &script,
+            crate::ssh_remote_command::RemoteCommandBudget::Command,
+        ),
     )
     .await
     .context("The owner precheck response timed out")??;
     if output.len() > 4_194_304 {
         bail!("The owner precheck response exceeds the limit");
     }
-    Ok(serde_json::from_str(output.trim())?)
+    Ok(crate::remote_sidecar_command::parse_last_json_line(
+        &output,
+    )?)
 }
 
 fn outcome(job: &OwnerAutomationPrecheck) -> Result<bool> {

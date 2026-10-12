@@ -4,22 +4,16 @@ use alera_core::runtime::{RuntimeStore, SshTarget, SshTargetLastStatus};
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
-use crate::ssh_bootstrap::{
-    normalize_platform, ssh_target_answers_posix, ssh_target_answers_windows,
-    validate_remote_runtime,
-};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RemoteShellKind {
-    Posix,
-    Windows,
-}
+use crate::remote_shell::{normalize_platform, RemoteShell};
+use crate::ssh_bootstrap::validate_remote_runtime;
+#[cfg(test)]
+use crate::ssh_remote_command::shell_probe_order as connectivity_shell_order;
 
 pub(crate) trait SshTargetProbe {
     fn probe_connectivity(
         &self,
         target: &SshTarget,
-    ) -> impl Future<Output = Option<RemoteShellKind>> + Send;
+    ) -> impl Future<Output = Option<RemoteShell>> + Send;
 
     fn probe_runtime(
         &self,
@@ -32,21 +26,13 @@ pub(crate) trait SshTargetProbe {
 pub(crate) struct LiveSshTargetProbe;
 
 impl SshTargetProbe for LiveSshTargetProbe {
-    async fn probe_connectivity(&self, target: &SshTarget) -> Option<RemoteShellKind> {
-        for shell in connectivity_shell_order(target) {
-            let answered = match shell {
-                RemoteShellKind::Posix => ssh_target_answers_posix(target).await,
-                RemoteShellKind::Windows => ssh_target_answers_windows(target).await,
-            };
-            if answered {
-                return Some(shell);
-            }
-        }
-        None
+    async fn probe_connectivity(&self, target: &SshTarget) -> Option<RemoteShell> {
+        crate::ssh_remote_command::probe_shell(target).await
     }
 
     async fn probe_runtime(&self, target: &SshTarget, platform: &str, install_dir: &str) -> bool {
-        validate_remote_runtime(target, platform, install_dir)
+        let shell = RemoteShell::from_platform(platform).unwrap_or(RemoteShell::Posix);
+        validate_remote_runtime(target, shell, install_dir)
             .await
             .is_ok()
     }
@@ -57,20 +43,32 @@ pub(crate) async fn collect_ssh_target_status<P: SshTargetProbe>(
     id: Option<&str>,
     probe: &P,
 ) -> Result<Value> {
-    if let Some(id) = id {
-        let target = store
+    let refreshed = check_ssh_targets(store, id, probe).await?;
+    match id {
+        Some(_) => Ok(json!(refreshed.into_iter().next())),
+        None => Ok(json!(refreshed)),
+    }
+}
+
+/// Probes one target (or every target without an id) and persists what it
+/// found as `lastStatus` / `lastCheckedAt`.
+pub(crate) async fn check_ssh_targets<P: SshTargetProbe>(
+    store: &RuntimeStore,
+    id: Option<&str>,
+    probe: &P,
+) -> Result<Vec<SshTarget>> {
+    let targets = match id {
+        Some(id) => vec![store
             .find_ssh_target(id)
             .await?
-            .ok_or_else(|| anyhow!("ssh target not found: {id}"))?;
-        let target = refresh_ssh_target_status(store, target, probe).await?;
-        return Ok(json!(target));
-    }
-    let targets = store.list_ssh_targets().await?;
+            .ok_or_else(|| anyhow!("ssh target not found: {id}"))?],
+        None => store.list_ssh_targets().await?,
+    };
     let mut refreshed = Vec::with_capacity(targets.len());
     for target in targets {
         refreshed.push(refresh_ssh_target_status(store, target, probe).await?);
     }
-    Ok(json!(refreshed))
+    Ok(refreshed)
 }
 
 pub(crate) async fn refresh_ssh_target_status<P: SshTargetProbe>(
@@ -113,22 +111,13 @@ fn configured_status_platform(target: &SshTarget) -> Option<String> {
         .map(normalize_platform)
 }
 
-fn connectivity_shell_order(target: &SshTarget) -> [RemoteShellKind; 2] {
-    // Windows OpenSSH + Git for Windows `sh` answers posix; try PowerShell first.
-    if configured_status_platform(target).as_deref() == Some("windows") {
-        [RemoteShellKind::Windows, RemoteShellKind::Posix]
-    } else {
-        [RemoteShellKind::Posix, RemoteShellKind::Windows]
-    }
-}
-
-fn runtime_probe_platform(target: &SshTarget, shell: RemoteShellKind) -> String {
+fn runtime_probe_platform(target: &SshTarget, shell: RemoteShell) -> String {
     match (configured_status_platform(target).as_deref(), shell) {
-        // Same false-posix fingerprint: keep the stored windows runtime path.
+        // Windows OpenSSH with Git for Windows also answers `sh`: keep the
+        // stored windows runtime path when that false POSIX answer wins.
         (Some("windows"), _) => "windows".to_string(),
-        (Some(platform), RemoteShellKind::Posix) => platform.to_string(),
-        (_, RemoteShellKind::Windows) => "windows".to_string(),
-        (_, RemoteShellKind::Posix) => "linux".to_string(),
+        (Some(platform), RemoteShell::Posix) => platform.to_string(),
+        (_, shell) => shell.default_platform().to_string(),
     }
 }
 

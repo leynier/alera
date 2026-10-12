@@ -150,7 +150,6 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "hostDirectory.roots"
             | "hostDirectory.list"
             | "project.register"
-            | "project.checkout.register"
             | "project.rename"
             | "project.remove.preview"
             | "project.remove"

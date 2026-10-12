@@ -64,7 +64,10 @@ impl ServerActor {
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
-        if self.try_start_satellite_mirror_request(client_id, request_id, request_type, payload)? {
+        if self
+            .try_start_satellite_mirror_request(client_id, request_id, request_type, payload)
+            .await?
+        {
             return Ok(true);
         }
         if self.try_start_host_link_request(client_id, request_id, request_type, payload)? {
@@ -95,6 +98,17 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "sshTarget.check" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.start_ssh_target_check(client_id, request_id, payload);
+                Ok(true)
+            }
+            "sshTarget.restartRuntime" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.start_ssh_runtime_restart(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
+            }
             "terminal.ownerLifecycle" => {
                 self.start_owner_terminal_lifecycle(client_id, request_id, payload)
                     .await?;

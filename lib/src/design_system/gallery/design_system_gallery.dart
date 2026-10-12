@@ -12,6 +12,7 @@ import 'package:alera/src/design_system/chips/alera_property_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_gate_card.dart';
+import 'package:alera/src/design_system/feedback/alera_progress_steps.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
@@ -125,7 +126,7 @@ class _GalleryComposerState extends State<_GalleryComposer> {
   }
 }
 
-@AleraPreview(name: 'Feedback', group: 'Gallery', size: Size(420, 240))
+@AleraPreview(name: 'Feedback', group: 'Gallery', size: Size(420, 360))
 Widget galleryFeedback() => Column(
   mainAxisSize: .min,
   children: <Widget>[
@@ -146,6 +147,15 @@ Widget galleryFeedback() => Column(
     ),
     const SizedBox(height: AleraTokens.space24),
     const AleraEmptyState(icon: AleraIcons.searchOff, message: 'No results.'),
+    const SizedBox(height: AleraTokens.space24),
+    const AleraProgressSteps(
+      dense: true,
+      steps: <AleraProgressStep>[
+        AleraProgressStep(label: 'Authenticate', state: .done),
+        AleraProgressStep(label: 'Upload runtime', state: .active),
+        AleraProgressStep(label: 'Validate runtime'),
+      ],
+    ),
   ],
 );
 

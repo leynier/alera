@@ -20,7 +20,7 @@
 //! stamped on the payload. What may be asked is decided by the policy table on
 //! both ends, because a host reached over ssh is less trusted than the desktop.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -49,7 +49,9 @@ const NO_HUB_MESSAGE: &str = "No Alera desktop is linked to this host right now,
 /// connections it answers them on.
 #[derive(Default)]
 pub(super) struct HubReverseState {
-    hub_clients: HashSet<u64>,
+    /// The hub's link. A new `hub.link.register` replaces it: a hub that
+    /// reconnects leaves its dead link behind until the socket notices.
+    hub_client: Option<u64>,
     pending: HashMap<String, PendingReverseRequest>,
     /// Read from the store the first time a question needs it. A negative
     /// answer is only kept while no hub is linked, because the mirror that
@@ -82,12 +84,15 @@ impl ServerActor {
         self.require_authenticated_local_request(client_id, request_type)?;
         match request_type {
             "hub.link.register" => {
-                self.hub_reverse.hub_clients.insert(client_id);
+                if let Some(previous) = self.hub_reverse.hub_client.filter(|id| *id != client_id) {
+                    self.fail_questions_for_hub(previous);
+                }
+                self.hub_reverse.hub_client = Some(client_id);
                 self.forget_negative_satellite_flag();
                 Ok(Some(ReverseOutcome::Answer(json!({"registered": true}))))
             }
             "hub.link.status" => Ok(Some(ReverseOutcome::Answer(
-                json!({"linked": !self.hub_reverse.hub_clients.is_empty()}),
+                json!({"linked": self.hub_reverse.hub_client.is_some()}),
             ))),
             "hub.forward" => {
                 let forwarded_type = require_string_key(payload, "type")?;
@@ -100,7 +105,7 @@ impl ServerActor {
                 Ok(Some(ReverseOutcome::Deferred))
             }
             _ => {
-                if !self.hub_reverse.hub_clients.contains(&client_id) {
+                if self.hub_reverse.hub_client != Some(client_id) {
                     return Err(HostError::state(
                         "Only a hub link may answer a forwarded request.",
                     ));
@@ -127,8 +132,7 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
-        if request_type == "hub.mirror.workspace"
-            && self.hub_reverse.hub_clients.contains(&client_id)
+        if request_type == "hub.mirror.workspace" && self.hub_reverse.hub_client == Some(client_id)
         {
             self.forget_negative_satellite_flag();
             return Ok(false);
@@ -142,7 +146,7 @@ impl ServerActor {
             satellite: true,
             authenticated: client.authenticated,
             local_client: client.kind == ClientKind::Local,
-            hub_link: self.hub_reverse.hub_clients.contains(&client_id),
+            hub_link: self.hub_reverse.hub_client == Some(client_id),
         };
         let guard_is_local = payload
             .get("guardId")
@@ -163,10 +167,15 @@ impl ServerActor {
             return satellite;
         }
         let satellite = crate::hub_federation::is_satellite(&self.runtime_store).await;
-        if satellite || self.hub_reverse.hub_clients.is_empty() {
+        if satellite || self.hub_reverse.hub_client.is_none() {
             self.hub_reverse.satellite = Some(satellite);
         }
         satellite
+    }
+
+    /// `satelliteOfHub` was cleared; the next question reads it again.
+    pub(super) fn forget_satellite_flag(&mut self) {
+        self.hub_reverse.satellite = None;
     }
 
     fn forget_negative_satellite_flag(&mut self) {
@@ -180,7 +189,7 @@ impl ServerActor {
         forwarded_type: &str,
         forwarded_payload: Value,
     ) -> HostResult<()> {
-        let Some(hub_client_id) = self.hub_reverse.hub_clients.iter().next().copied() else {
+        let Some(hub_client_id) = self.hub_reverse.hub_client else {
             return Err(HostError::state(NO_HUB_MESSAGE));
         };
         let reverse_id = Uuid::new_v4().to_string();
@@ -231,9 +240,15 @@ impl ServerActor {
         self.hub_reverse
             .pending
             .retain(|_, pending| pending.asker_client_id != client_id);
-        if !self.hub_reverse.hub_clients.remove(&client_id) {
+        if self.hub_reverse.hub_client != Some(client_id) {
             return;
         }
+        self.hub_reverse.hub_client = None;
+        self.fail_questions_for_hub(client_id);
+    }
+
+    /// Fails every question a hub link took and will not answer now.
+    fn fail_questions_for_hub(&mut self, client_id: u64) {
         let orphaned: Vec<String> = self
             .hub_reverse
             .pending

@@ -49,7 +49,13 @@ pub(crate) fn attached_event(runtime_dir: &std::path::Path, status: &Value) -> V
             "runtimeDir": runtime_dir.display().to_string(),
             "platform": std::env::consts::OS,
             "arch": std::env::consts::ARCH,
-            "hostVersion": status.get("hostVersion").cloned().unwrap_or(Value::Null),
+            // `status.get` names it `runtimeHostVersion`; `hostVersion` is
+            // kept as a fallback for a status that already used that name.
+            "hostVersion": status
+                .get("runtimeHostVersion")
+                .or_else(|| status.get("hostVersion"))
+                .cloned()
+                .unwrap_or(Value::Null),
             "runtimeCapabilities": status.get("runtimeCapabilities").cloned().unwrap_or_else(|| json!([])),
         }
     })
@@ -118,13 +124,18 @@ mod tests {
     #[test]
     fn attached_event_carries_capabilities_and_platform() {
         let status = json!({
-            "hostVersion": "1.2.3",
+            "runtimeHostVersion": "1.2.3",
             "runtimeCapabilities": ["runtimeStore", "remoteSatelliteV1"],
         });
         let event = attached_event(std::path::Path::new("/tmp/data"), &status);
         assert_eq!(event["event"], ATTACHED_EVENT);
         assert_eq!(event["payload"]["runtimeDir"], "/tmp/data");
         assert_eq!(event["payload"]["hostVersion"], "1.2.3");
+        let legacy = attached_event(
+            std::path::Path::new("/tmp/data"),
+            &json!({ "hostVersion": "1.2.0" }),
+        );
+        assert_eq!(legacy["payload"]["hostVersion"], "1.2.0");
         assert_eq!(event["payload"]["platform"], std::env::consts::OS);
         assert!(event["payload"]["runtimeCapabilities"]
             .as_array()

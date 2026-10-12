@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_label_provider.dart';
 import 'package:alera/src/features/resource_manager/application/resource_manager_providers.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_snapshot.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_tree.dart';
@@ -34,6 +35,11 @@ class _ResourceStatusBarControlState
         ref.watch(resourceSnapshotProvider).value ??
         ResourceSnapshot.unavailable();
     final tree = ref.watch(resourceTreeProvider(_sortColumn));
+    final remoteHostIds = <String>{
+      for (final project in tree.projects)
+        for (final workspace in project.workspaces)
+          if (workspace.remote) workspace.hostId,
+    };
     final sessionCount = tree.projects.fold<int>(
       0,
       (total, project) =>
@@ -56,6 +62,10 @@ class _ResourceStatusBarControlState
         tree: tree,
         sortColumn: _sortColumn,
         hostUnreachable: snapshot.error != null,
+        hostLabels: <String, String>{
+          for (final hostId in remoteHostIds)
+            hostId: ref.watch(remoteHostLabelProvider(hostId)),
+        },
         collapsedProjectIds: _collapsedProjectIds,
         onSortColumnChanged: (column) => setState(() => _sortColumn = column),
         onToggleProject: (projectId) => setState(() {

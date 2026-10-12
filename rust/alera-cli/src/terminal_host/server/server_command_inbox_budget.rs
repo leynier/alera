@@ -124,7 +124,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         | ServerCommand::PromptWorkspaceOperationChanged { operation_id: id }
         | ServerCommand::PromptWorkspaceOperationFinished { operation_id: id }
         | ServerCommand::HubReverseRequestExpired { reverse_id: id }
-        | ServerCommand::HostLinkStateChanged { host_id: id }
+        | ServerCommand::HostLinkStateChanged { host_id: id, .. }
         | ServerCommand::HostLinkClosed { host_id: id, .. }
         | ServerCommand::CodexProcessExited { reason: id }
         | ServerCommand::CodexMalformed { reason: id } => string_bytes(id),

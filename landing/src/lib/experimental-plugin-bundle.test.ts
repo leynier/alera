@@ -22,7 +22,7 @@ test('experimental example shares one skill set and carries native manifests bes
   const extracted = unzipSync(bundle.bytes);
   for (const [path, bytes] of Object.entries(bundle.files)) expect(extracted[`${EXPERIMENTAL_PLUGIN_NAME}/${path}`]).toEqual(new Uint8Array(bytes));
   expect(buildExperimentalPluginBundle(root).bytes).toEqual(bundle.bytes);
-  expect(bundle.sha256).toBe('655fbeb9a816973a499d1814fbbf97d69658b54694d3445ca8f0537f2558462d');
+  expect(bundle.sha256).toBe('4cc988f076afb2427fa98f9252cb9277d324c0ec52658ddf0097c8e38aca3c3a');
   expect(strFromU8(bundle.files['README.md']!)).toContain('Experimental only');
   expect(strFromU8(bundle.files['README.md']!)).toContain('OAuth');
 });
@@ -31,11 +31,11 @@ test('combined experiment leaves all five production archives and publishing inp
   const production = [buildPluginBundle, buildClaudePluginBundle, ...clientPluginDistributions.map(({ build }) => build)];
   const before = production.map((build) => build(root).sha256);
   expect(before).toEqual([
-    '72d264b8e4b88dc96aa62ca2c3dddd32f4681e3270f30770edafc97793605da4',
-    'e7d599cf945cc3fd191a76c98af9f38ae4b67f3349abb46b2d82f32c480738c9',
-    '250fc031b553c9fa2ca48469fc1f735899be7098b22e6b544babdebc417c7913',
-    'b7cf404e98699ed03d1b2b831ee83d1b87bf440b623dd2e1c32559f547b3ceb7',
-    '3632ab90acf36fb80ee22538c73bea77b3f540e2cc0360e52308b8aed2f47d5d',
+    '11c3462653b31974af7844f2c58c0949ab8a0d3a4067a84353f0eff051ab3166',
+    '4e2765f33ba5e872b1aac3570b45083f044a7945afebc1c36b73f1e870356f63',
+    '624dd8ffd789d826bf10189a65eb70b2b295bdc47cb799edd9134218b1208441',
+    '46cb12a2a19804cfe3c2862443415f0259de0db338f6b6eaa4084e24f2e9bce7',
+    '89f0b01584b213cd6850bb63d8bde30cb9caedb69e5eb0ac4f9de880f529e2b4',
   ]);
   const experimental = buildExperimentalPluginBundle(root);
   expect(production.map((build) => build(root).sha256)).toEqual(before);

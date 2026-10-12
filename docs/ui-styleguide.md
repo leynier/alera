@@ -118,6 +118,8 @@ Typography and sizing:
 - Status labels use `AleraBadge` with an `AleraBadgeTone`: `neutral`, `accent`, `attention` (warning), `success`, `error`, `info`, `done`. A toned badge draws its Title Case label in the tone color at `labelSmall` w600 on the tone color at `statusTintAlpha`, with `radiusSm` corners; `neutral` and `accent` keep the `accentSubtle` fill. Use tones only for status semantics; tags and counts stay `neutral`.
 - Agent status in sidebar rows: a working run keeps its spinner and gets no label, waiting shows `Needs Input` (attention), blocked shows `Blocked` (error), and done shows `Done` (success). An interrupted run keeps its cancel glyph. While a badge names the state, the leading status slot shows a muted dot so the color is not repeated. At narrow widths the badge outranks the agent glyph and inline metadata trays.
 - Loading and empty lists share `AleraEmptyState` (`loading: true` shows a small spinner in its icon slot).
+- Multi-step work (installs, setup pipelines) uses `AleraProgressSteps`: one row per stage with a 14px glyph joined by a `borderSubtle` connector. Pending shows a faint circle, active an `accent` spinner (`strokeSm`) with an optional progress bar, done a muted check, failed an `error` glyph with the reason as detail, and skipped a faint cancel glyph.
+- A toast with an action (`actionLabel`/`onAction` on `AleraToast.show`) is the only toast that takes pointer input; pressing the action also dismisses it.
 - Default Material button shape uses `radiusLg`.
 - Default Material button minimum height is `34`.
 - Confirmation dialogs use equal-width secondary and primary footer actions.
@@ -174,11 +176,11 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Buttons | `AleraIconButton`, `AleraSegmentedButton`, `AleraTabStrip` (underlined page tabs with an optional muted count) |
 | Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip`, `AleraPropertyChip`, `AleraAttentionChip` (status-bar icon and count, capped at `999+`, in a warning, accent, or muted tone) |
 | Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail`, `AleraPopover` |
-| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast`, `AleraQrCode`, `AleraGateCard` (a decision a run owes a person: prompt, evidence links, notes, answers, stale and busy states) |
+| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast` (optional `actionLabel`/`onAction`), `AleraQrCode`, `AleraProgressSteps`, `AleraGateCard` (a decision a run owes a person: prompt, evidence links, notes, answers, stale and busy states) |
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField` (optional `group` headers and `detail` notes per entry), `AleraSegmentedChoice` (two or three options with the selected option's helper text and each disabled option's reason), `AleraCheckbox`, `AleraCompactInput`, `AleraDurationField`, `AleraTimeOfDayField`, `AleraDateTimeField` |
 | Chat | `AleraMessageBubble` (outgoing or incoming message with heading, status badge, New marker, and time) |
 | Lists | `AleraActivityRow` (optional `trailing` note), `AleraTimeline` (lazy day-grouped event log with open markers), `AleraKeyValueList` (selectable labelled facts with optional Copy) |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView`, `AleraRail` (vertical section rail with icon, label, and count badge; icon-only with tooltips when compact), `AleraSectionedPicker`, `AleraCollapsibleSection`, `AleraKeyValueRow` |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup` (optional `collapsible`, `initiallyExpanded`, `trailing`), `AleraMasterDetail`, `AleraHorizontalScrollView`, `AleraRail` (vertical section rail with icon, label, and count badge; icon-only with tooltips when compact), `AleraSectionedPicker`, `AleraCollapsibleSection`, `AleraKeyValueRow` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 | Iconography | `AleraIcons`, `AleraFileIcon`, `AleraLogo` |
 

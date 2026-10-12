@@ -54,9 +54,9 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     if (!targets.hasValue) {
       return null;
     }
-    return remoteWorkspaceHostSelectionError(
+    return remoteHostSelectionError(
       hostId: _selectedHostId,
-      targets: targets.requireValue,
+      hosts: ref.read(remoteHostsControllerProvider).hosts,
       supportsRemoteSshWorkspaces: true,
     );
   }
@@ -346,7 +346,10 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     }
   }
 
-  Future<void> _pickHost(BuildContext context, List<SshTarget> targets) async {
+  Future<void> _pickHost(
+    BuildContext context,
+    List<RemoteHostView> hosts,
+  ) async {
     final current = normalizedRemoteHostId(_selectedHostId);
     final selected = await showHomeComposerMenu(
       context: context,
@@ -360,12 +363,13 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
             size: AleraTokens.iconMd,
           ),
         ),
-        for (final target in targets)
+        for (final host in hosts)
           HomeComposerMenuChoice(
-            value: target.id,
-            label: sshTargetPickerLabel(target),
-            selected: target.id == current,
-            leading: const Icon(AleraIcons.host, size: AleraTokens.iconMd),
+            value: host.id,
+            label: host.pickerLabel,
+            selected: host.id == current,
+            leading: AleraHostOsIcon(os: host.os, size: AleraTokens.iconMd),
+            enabled: host.status.isReady,
           ),
       ],
     );
