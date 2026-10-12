@@ -9,17 +9,18 @@ use chrono::Utc;
 
 use super::{
     collect_ssh_target_status, connectivity_shell_order, probe_ssh_target_status,
-    refresh_ssh_target_status, runtime_probe_platform, RemoteShellKind, SshTargetProbe,
+    refresh_ssh_target_status, runtime_probe_platform, SshTargetProbe,
 };
+use crate::remote_shell::RemoteShell;
 
 struct MapProbe {
-    connectivity: HashMap<String, Option<RemoteShellKind>>,
+    connectivity: HashMap<String, Option<RemoteShell>>,
     runtime: HashMap<String, bool>,
     runtime_calls: Arc<AtomicUsize>,
 }
 
 impl SshTargetProbe for MapProbe {
-    async fn probe_connectivity(&self, target: &SshTarget) -> Option<RemoteShellKind> {
+    async fn probe_connectivity(&self, target: &SshTarget) -> Option<RemoteShell> {
         self.connectivity.get(&target.id).copied().flatten()
     }
 
@@ -38,12 +39,7 @@ impl MapProbe {
         }
     }
 
-    fn with_target(
-        mut self,
-        id: &str,
-        connectivity: Option<RemoteShellKind>,
-        runtime: bool,
-    ) -> Self {
+    fn with_target(mut self, id: &str, connectivity: Option<RemoteShell>, runtime: bool) -> Self {
         self.connectivity.insert(id.to_string(), connectivity);
         self.runtime.insert(id.to_string(), runtime);
         self
@@ -109,8 +105,8 @@ impl FalsePosixWindowsProbe {
 }
 
 impl SshTargetProbe for FalsePosixWindowsProbe {
-    async fn probe_connectivity(&self, _target: &SshTarget) -> Option<RemoteShellKind> {
-        Some(RemoteShellKind::Posix)
+    async fn probe_connectivity(&self, _target: &SshTarget) -> Option<RemoteShell> {
+        Some(RemoteShell::Posix)
     }
 
     async fn probe_runtime(&self, _target: &SshTarget, platform: &str, _install_dir: &str) -> bool {
@@ -123,15 +119,12 @@ impl SshTargetProbe for FalsePosixWindowsProbe {
 fn runtime_probe_platform_prefers_matching_configured_values() {
     let mut posix = target("remote");
     posix.runtime_platform = Some("Darwin".to_string());
-    assert_eq!(
-        runtime_probe_platform(&posix, RemoteShellKind::Posix),
-        "macos"
-    );
+    assert_eq!(runtime_probe_platform(&posix, RemoteShell::Posix), "macos");
 
     let mut windows = target("remote");
     windows.platform = Some("windows".to_string());
     assert_eq!(
-        runtime_probe_platform(&windows, RemoteShellKind::Windows),
+        runtime_probe_platform(&windows, RemoteShell::Windows),
         "windows"
     );
 }
@@ -141,14 +134,14 @@ fn runtime_probe_platform_trusts_stored_windows_over_posix_shell() {
     let mut stored = target("remote");
     stored.platform = Some("windows".to_string());
     assert_eq!(
-        runtime_probe_platform(&stored, RemoteShellKind::Posix),
+        runtime_probe_platform(&stored, RemoteShell::Posix),
         "windows"
     );
 
     let mut runtime = target("remote");
     runtime.runtime_platform = Some("Windows_NT".to_string());
     assert_eq!(
-        runtime_probe_platform(&runtime, RemoteShellKind::Posix),
+        runtime_probe_platform(&runtime, RemoteShell::Posix),
         "windows"
     );
 }
@@ -156,11 +149,11 @@ fn runtime_probe_platform_trusts_stored_windows_over_posix_shell() {
 #[test]
 fn runtime_probe_platform_falls_back_to_the_shell_that_answered() {
     assert_eq!(
-        runtime_probe_platform(&target("remote"), RemoteShellKind::Windows),
+        runtime_probe_platform(&target("remote"), RemoteShell::Windows),
         "windows"
     );
     assert_eq!(
-        runtime_probe_platform(&target("remote"), RemoteShellKind::Posix),
+        runtime_probe_platform(&target("remote"), RemoteShell::Posix),
         "linux"
     );
 }
@@ -171,14 +164,14 @@ fn connectivity_shell_order_prefers_windows_when_stored_platform_is_windows() {
     stored.platform = Some("windows".to_string());
     assert_eq!(
         connectivity_shell_order(&stored),
-        [RemoteShellKind::Windows, RemoteShellKind::Posix]
+        [RemoteShell::Windows, RemoteShell::Posix]
     );
 
     let mut runtime = target("remote");
     runtime.runtime_platform = Some("MINGW64_NT-10.0".to_string());
     assert_eq!(
         connectivity_shell_order(&runtime),
-        [RemoteShellKind::Windows, RemoteShellKind::Posix]
+        [RemoteShell::Windows, RemoteShell::Posix]
     );
 }
 
@@ -186,21 +179,21 @@ fn connectivity_shell_order_prefers_windows_when_stored_platform_is_windows() {
 fn connectivity_shell_order_prefers_posix_when_unknown_or_unix() {
     assert_eq!(
         connectivity_shell_order(&target("remote")),
-        [RemoteShellKind::Posix, RemoteShellKind::Windows]
+        [RemoteShell::Posix, RemoteShell::Windows]
     );
 
     let mut linux = target("remote");
     linux.runtime_platform = Some("linux".to_string());
     assert_eq!(
         connectivity_shell_order(&linux),
-        [RemoteShellKind::Posix, RemoteShellKind::Windows]
+        [RemoteShell::Posix, RemoteShell::Windows]
     );
 
     let mut macos = target("remote");
     macos.platform = Some("Darwin".to_string());
     assert_eq!(
         connectivity_shell_order(&macos),
-        [RemoteShellKind::Posix, RemoteShellKind::Windows]
+        [RemoteShell::Posix, RemoteShell::Windows]
     );
 }
 
@@ -233,7 +226,7 @@ async fn unreachable_probe_stamps_last_status_and_checked_at() {
 
 #[tokio::test]
 async fn reachable_host_without_install_dir_skips_the_runtime_probe() {
-    let probe = MapProbe::new().with_target("remote", Some(RemoteShellKind::Posix), true);
+    let probe = MapProbe::new().with_target("remote", Some(RemoteShell::Posix), true);
     let status = probe_ssh_target_status(&target("remote"), &probe).await;
     assert_eq!(status, SshTargetLastStatus::Reachable);
     assert_eq!(probe.runtime_calls.load(Ordering::SeqCst), 0);
@@ -244,7 +237,7 @@ async fn reachable_host_with_failed_runtime_stays_reachable() {
     let mut remote = target("remote");
     remote.install_dir = Some("/home/alera/.alera/sidecar".to_string());
     remote.runtime_platform = Some("linux".to_string());
-    let probe = MapProbe::new().with_target("remote", Some(RemoteShellKind::Posix), false);
+    let probe = MapProbe::new().with_target("remote", Some(RemoteShell::Posix), false);
     let status = probe_ssh_target_status(&remote, &probe).await;
     assert_eq!(status, SshTargetLastStatus::Reachable);
     assert_eq!(probe.runtime_calls.load(Ordering::SeqCst), 1);
@@ -257,7 +250,7 @@ async fn reachable_runtime_probe_stamps_runtime_ready() {
     remote.install_dir = Some("/home/alera/.alera/sidecar".to_string());
     remote.runtime_platform = Some("linux".to_string());
     store.upsert_ssh_target(remote).await.unwrap();
-    let probe = MapProbe::new().with_target("remote", Some(RemoteShellKind::Posix), true);
+    let probe = MapProbe::new().with_target("remote", Some(RemoteShell::Posix), true);
 
     let refreshed = refresh_ssh_target_status(
         &store,
@@ -278,7 +271,7 @@ async fn reachable_runtime_probe_stamps_runtime_ready() {
 async fn status_updates_last_checked_at_on_every_call() {
     let (_dir, store) = store().await;
     store.upsert_ssh_target(target("remote")).await.unwrap();
-    let probe = MapProbe::new().with_target("remote", Some(RemoteShellKind::Posix), false);
+    let probe = MapProbe::new().with_target("remote", Some(RemoteShell::Posix), false);
 
     let first = collect_ssh_target_status(&store, Some("remote"), &probe)
         .await
@@ -332,7 +325,7 @@ async fn list_status_probes_each_target_and_keeps_array_shape() {
     store.upsert_ssh_target(beta).await.unwrap();
     let probe = MapProbe::new()
         .with_target("alpha", None, false)
-        .with_target("beta", Some(RemoteShellKind::Posix), true);
+        .with_target("beta", Some(RemoteShell::Posix), true);
 
     let value = collect_ssh_target_status(&store, None, &probe)
         .await

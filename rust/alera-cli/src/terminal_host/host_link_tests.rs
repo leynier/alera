@@ -3,6 +3,7 @@ use chrono::Utc;
 use serde_json::json;
 
 use super::*;
+use crate::remote_shell::RemoteShell;
 
 #[tokio::test]
 async fn close_signal_latches_without_an_active_receiver() {
@@ -43,7 +44,7 @@ fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
 
 #[test]
 fn posix_attach_command_expands_tilde_and_uses_the_sidecar_wrapper() {
-    let command = attach_remote_command("~/.alera/sidecar", false);
+    let command = attach_remote_command("~/.alera/sidecar", RemoteShell::Posix);
     assert!(command.starts_with("sh -lc '"));
     assert!(command.contains("install='\"'\"'~/.alera/sidecar'\"'\"'"));
     assert!(command.contains("exec \"$install/bin/alera\" runtime-attach --stdio"));
@@ -51,13 +52,13 @@ fn posix_attach_command_expands_tilde_and_uses_the_sidecar_wrapper() {
 
 #[test]
 fn windows_attach_command_avoids_powershell_and_quotes_the_wrapper() {
-    let command = attach_remote_command("%LOCALAPPDATA%\\Alera\\runtime", true);
+    let command = attach_remote_command("%LOCALAPPDATA%\\Alera\\runtime", RemoteShell::Windows);
     assert_eq!(
         command,
         "\"%LOCALAPPDATA%\\Alera\\runtime\\bin\\alera.cmd\" runtime-attach --stdio"
     );
     assert!(!command.to_lowercase().contains("powershell"));
-    let forward = attach_remote_command("C:/Users/dev/Alera/runtime/", true);
+    let forward = attach_remote_command("C:/Users/dev/Alera/runtime/", RemoteShell::Windows);
     assert!(forward.starts_with("\"C:\\Users\\dev\\Alera\\runtime\\bin\\alera.cmd\""));
 }
 

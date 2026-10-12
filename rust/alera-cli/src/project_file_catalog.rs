@@ -2,9 +2,11 @@ use alera_core::runtime::{RuntimeStore, LOCAL_HOST_ID};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::remote_sidecar_command::{parse_last_json_line, sidecar_command, SidecarProfile};
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
 };
+use crate::ssh_remote_command::RemoteCommandBudget;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,7 +48,7 @@ pub(crate) async fn list<E: RemoteHostExecutor>(
         inspect(checkout.path.clone()).await?
     } else {
         let target = require_bootstrapped_ssh_target(store, host_id).await?;
-        let windows = probe_or_unreachable(executor, &target).await?;
+        let shell = probe_or_unreachable(executor, &target).await?;
         let install = target
             .install_dir
             .as_deref()
@@ -54,29 +56,25 @@ pub(crate) async fn list<E: RemoteHostExecutor>(
             .ok_or_else(|| {
                 anyhow!("Bootstrap this SSH host again to record its runtime installation")
             })?;
-        let quote = if windows {
-            crate::ssh_bootstrap::powershell_string
-        } else {
-            crate::ssh_bootstrap::shell_quote
-        };
-        let script = crate::remote_project_checkout::checkout_command_script(
-            windows,
+        let script = sidecar_command(
+            shell,
             install,
             &format!(
                 "project inspect-checkout-files --path {}",
-                quote(&checkout.path)
+                shell.quote(&checkout.path)
             ),
+            SidecarProfile::Bare,
         );
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(120),
-            executor.run(&target, windows, &script),
+            executor.run(&target, shell, &script, RemoteCommandBudget::Transfer),
         )
         .await
         .context("SSH file indexing timed out")??;
         if output.len() > 16_777_216 {
             bail!("SSH file indexing exceeds the response limit");
         }
-        let result: ProjectFileCatalog = serde_json::from_str(output.trim())
+        let result: ProjectFileCatalog = parse_last_json_line(&output)
             .context("Update the SSH runtime to index files on the selected checkout")?;
         if result.version != 1 || result.path != checkout.path {
             bail!("SSH file indexing returned a different checkout or unsupported response");

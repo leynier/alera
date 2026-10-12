@@ -1323,16 +1323,16 @@ impl ServerActor {
             .runtime_store
             .find_ssh_target(&request.target_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
             .ok_or_else(|| {
                 HostError::state(format!("ssh target not found: {}", request.target_id))
             })?;
         reject_password_ssh_bootstrap_auth(target.auth_kind)
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         let job_id = new_bootstrap_job_id();
         mark_ssh_bootstrap_installing(&self.runtime_store, &target.id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         self.broadcast_authenticated(event(
             "sshTargetBootstrapProgress",
             json!(SshTargetBootstrapProgress {

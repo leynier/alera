@@ -10,10 +10,17 @@ struct Remote {
 }
 
 impl RemoteHostExecutor for Remote {
-    async fn probe_windows(&self, _: &SshTarget) -> Option<bool> {
-        self.online.then_some(false)
+    async fn probe_shell(&self, _: &SshTarget) -> Option<crate::remote_shell::RemoteShell> {
+        self.online
+            .then_some(crate::remote_shell::RemoteShell::Posix)
     }
-    async fn run(&self, _: &SshTarget, _: bool, script: &str) -> Result<String> {
+    async fn run(
+        &self,
+        _: &SshTarget,
+        _: crate::remote_shell::RemoteShell,
+        script: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
+    ) -> Result<String> {
         self.scripts.lock().unwrap().push(script.into());
         Ok(self.response.to_string())
     }
@@ -162,21 +169,21 @@ async fn invalid_or_incompatible_inspections_never_register_checkout() {
 #[test]
 fn inspection_commands_quote_paths_for_each_host_platform() {
     let posix = inspection_script(
-        false,
+        RemoteShell::Posix,
         "~/.alera/sidecar",
         "/work/a'b $(touch forbidden)",
         ProjectKind::Folder,
     );
     assert!(posix.contains("--path '/work/a'\"'\"'b $(touch forbidden)' --kind folder"));
     let windows = inspection_script(
-        true,
+        RemoteShell::Windows,
         r"C:\Alera Runtime",
         r"C:\work\a'b",
         ProjectKind::GitRepository,
     );
     assert!(windows.contains("-LiteralPath (Join-Path $install 'current.txt')"));
     assert!(windows.contains(r"--path 'C:\work\a''b' --kind git-repository"));
-    assert!(windows.contains("$LASTEXITCODE -ne 0"));
+    assert!(windows.ends_with("exit $LASTEXITCODE\n"));
 }
 
 #[tokio::test]
@@ -293,7 +300,8 @@ async fn changed_remote_path_does_not_replace_a_checkout_or_create_a_task() {
 #[tokio::test]
 async fn missing_linked_origin_uses_native_evidence_and_preserves_known_ownership() {
     use alera_core::runtime::WorkspaceKind;
-    for windows in [false, true] {
+    for shell in [RemoteShell::Posix, RemoteShell::Windows] {
+        let windows = shell.is_windows();
         let (_state, _local, store, project_id) = fixture().await;
         let target = store.find_ssh_target("ssh").await.unwrap().unwrap();
         let mut project = store.find_project(&project_id).await.unwrap().unwrap();
@@ -327,7 +335,7 @@ async fn missing_linked_origin_uses_native_evidence_and_preserves_known_ownershi
                 online: true,
             };
             assert!(
-                ensure_linked_origin(&store, &task, &target, windows, "/sidecar", &remote)
+                ensure_linked_origin(&store, &task, &target, shell, "/sidecar", &remote)
                     .await
                     .is_err()
             );
@@ -344,10 +352,10 @@ async fn missing_linked_origin_uses_native_evidence_and_preserves_known_ownershi
             scripts: Mutex::new(vec![]),
             online: true,
         };
-        ensure_linked_origin(&store, &task, &target, windows, "/sidecar", &remote)
+        ensure_linked_origin(&store, &task, &target, shell, "/sidecar", &remote)
             .await
             .unwrap();
-        ensure_linked_origin(&store, &task, &target, windows, "/sidecar", &remote)
+        ensure_linked_origin(&store, &task, &target, shell, "/sidecar", &remote)
             .await
             .unwrap();
         assert_eq!(remote.scripts.lock().unwrap().len(), 1);

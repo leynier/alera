@@ -15,7 +15,7 @@ impl ServerActor {
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let result = super::requests::json_result(
+            let result = super::requests::anyhow_json_result(
                 crate::remote_project_checkout::register(
                     &store,
                     request,
@@ -53,7 +53,7 @@ impl ServerActor {
                 &crate::ssh_remote::LiveSshRemoteHost,
             )
             .await
-            .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()));
+            .map_err(|error| crate::terminal_host::host_error::HostError::from_anyhow(&error));
             let _ = inbox
                 .send_wait(ServerCommand::ProjectCheckoutRegistered {
                     client_id,
@@ -96,7 +96,7 @@ pub(super) async fn list_project_branches(
         &crate::ssh_remote::LiveSshRemoteHost,
     )
     .await
-    .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()))
+    .map_err(|error| crate::terminal_host::host_error::HostError::from_anyhow(&error))
 }
 
 pub(super) async fn list_checkout_catalog(
@@ -106,15 +106,13 @@ pub(super) async fn list_checkout_catalog(
     let checkouts = store
         .list_project_checkouts(project_id)
         .await
-        .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()))?;
+        .map_err(|error| crate::terminal_host::host_error::HostError::from_anyhow(&error))?;
     let mut result = Vec::with_capacity(checkouts.len());
     for checkout in checkouts {
         let target = store
             .find_ssh_target(&checkout.host_id)
             .await
-            .map_err(|error| {
-                crate::terminal_host::host_error::HostError::state(error.to_string())
-            })?;
+            .map_err(|error| crate::terminal_host::host_error::HostError::from_anyhow(&error))?;
         let mut value = serde_json::to_value(&checkout).map_err(|error| {
             crate::terminal_host::host_error::HostError::state(error.to_string())
         })?;

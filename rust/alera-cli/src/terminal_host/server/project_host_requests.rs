@@ -80,7 +80,7 @@ async fn find_project(store: &RuntimeStore, project_id: &str) -> HostResult<Proj
     store
         .find_project(project_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
         .ok_or_else(|| HostError::state(format!("Project not found: {project_id}")))
 }
 
@@ -90,7 +90,7 @@ async fn project_checkouts(
 ) -> HostResult<Vec<RepositoryCheckout>> {
     crate::project_hosts::project_checkouts(store, project_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))
+        .map_err(|error| HostError::from_anyhow(&error))
 }
 
 pub(super) async fn project_hosts(store: &RuntimeStore, project_id: &str) -> HostResult<Value> {
@@ -99,7 +99,7 @@ pub(super) async fn project_hosts(store: &RuntimeStore, project_id: &str) -> Hos
     let workspaces = store
         .list_workspaces(project_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let primary = primary_host_id(&project.repo_path, &checkouts);
     let hosts: Vec<Value> = host_rows(&project.repo_path, &checkouts)
         .into_iter()
@@ -149,7 +149,7 @@ async fn remove_project_host(
         .remove_project_checkout(project_id, &host_id)
         .await
         .map(|_| ())
-        .map_err(|error| HostError::state(error.to_string()))
+        .map_err(|error| HostError::from_anyhow(&error))
 }
 
 async fn add_request(
@@ -228,17 +228,7 @@ async fn project_remote_url(project: &Project, primary_host_id: &str) -> HostRes
 /// The project folder's own name, which is what the user already calls the
 /// repository on disk; the project's display name is the fallback.
 fn clone_directory_name(project: &Project) -> String {
-    let from_path = project
-        .repo_path
-        .trim_end_matches(['/', '\\'])
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or_default();
-    let raw = if from_path.trim().is_empty() {
-        project.name.as_str()
-    } else {
-        from_path
-    };
+    let raw = crate::project_hosts::folder_name(&project.repo_path).unwrap_or(&project.name);
     let cleaned: String = raw
         .trim()
         .chars()

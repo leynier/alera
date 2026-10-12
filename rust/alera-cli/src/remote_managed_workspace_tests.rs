@@ -15,7 +15,7 @@ use crate::managed_workspace::{create_managed_workspace_with, ManagedWorkspaceCr
 use crate::ssh_remote::RemoteHostExecutor;
 
 struct ScriptedRemoteHost {
-    probe: Option<bool>,
+    probe: Option<crate::remote_shell::RemoteShell>,
     runs: Mutex<VecDeque<Result<String, String>>>,
     recorded: Mutex<Vec<String>>,
 }
@@ -23,7 +23,7 @@ struct ScriptedRemoteHost {
 impl ScriptedRemoteHost {
     fn posix(responses: Vec<Result<String, String>>) -> Self {
         Self {
-            probe: Some(false),
+            probe: Some(crate::remote_shell::RemoteShell::Posix),
             runs: Mutex::new(VecDeque::from(responses)),
             recorded: Mutex::new(Vec::new()),
         }
@@ -39,11 +39,17 @@ impl ScriptedRemoteHost {
 }
 
 impl RemoteHostExecutor for ScriptedRemoteHost {
-    async fn probe_windows(&self, _target: &SshTarget) -> Option<bool> {
+    async fn probe_shell(&self, _target: &SshTarget) -> Option<crate::remote_shell::RemoteShell> {
         self.probe
     }
 
-    async fn run(&self, _target: &SshTarget, _windows: bool, script: &str) -> Result<String> {
+    async fn run(
+        &self,
+        _target: &SshTarget,
+        _: crate::remote_shell::RemoteShell,
+        script: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
+    ) -> Result<String> {
         self.recorded.lock().unwrap().push(script.to_string());
         match self.runs.lock().unwrap().pop_front() {
             Some(Ok(stdout)) => Ok(stdout),
@@ -294,9 +300,12 @@ async fn create_remote_workspace_rejects_an_unreachable_host() {
 
 #[test]
 fn create_script_uses_native_sidecar_on_each_platform() {
-    for windows in [false, true] {
+    for shell in [
+        crate::remote_shell::RemoteShell::Posix,
+        crate::remote_shell::RemoteShell::Windows,
+    ] {
         let script = create_worktree_script(
-            windows,
+            shell,
             "/sidecar",
             "/repo",
             "/worktree",
@@ -314,15 +323,27 @@ fn create_script_uses_native_sidecar_on_each_platform() {
 #[test]
 fn checkout_paths_use_native_windows_drive_and_unc_forms() {
     assert_eq!(
-        super::checkout_join("windows", r"C:\Users\Test User", &["worktrees", "task"]),
+        super::checkout_join(
+            crate::remote_shell::RemoteShell::Windows,
+            r"C:\Users\Test User",
+            &["worktrees", "task"]
+        ),
         "C:/Users/Test User/worktrees/task"
     );
     assert_eq!(
-        super::checkout_join("windows", r"\\server\share", &["task"]),
+        super::checkout_join(
+            crate::remote_shell::RemoteShell::Windows,
+            r"\\server\share",
+            &["task"]
+        ),
         "//server/share/task"
     );
     assert_eq!(
-        super::checkout_join("posix", "/home/test", &["task"]),
+        super::checkout_join(
+            crate::remote_shell::RemoteShell::Posix,
+            "/home/test",
+            &["task"]
+        ),
         "/home/test/task"
     );
 }

@@ -2,6 +2,8 @@ use std::fmt;
 
 use serde_json::{json, Value};
 
+use crate::ssh_remote_command::RemoteCommandError;
+
 /// Errors surfaced to clients over the wire. [`HostError::State`] renders its
 /// message as-is because some client recovery paths pattern-match exact text,
 /// and [`HostError::Format`] renders like Dart's `FormatException`.
@@ -38,6 +40,41 @@ impl HostError {
         }
     }
 
+    /// An internal error for the wire. The message keeps the whole context
+    /// chain (`{:#}`), and a failed or timed-out remote command anywhere in
+    /// that chain becomes a `remoteCommandFailed` conflict carrying what the
+    /// host printed, so a client can show it without parsing the message.
+    pub fn from_anyhow(error: &anyhow::Error) -> Self {
+        let message = format!("{error:#}");
+        let remote = error
+            .chain()
+            .find_map(|cause| cause.downcast_ref::<RemoteCommandError>());
+        match remote {
+            Some(RemoteCommandError::Exit {
+                code,
+                stderr_tail,
+                stdout_tail,
+                ..
+            }) => HostError::conflict(
+                "remoteCommandFailed",
+                message,
+                json!({"exitCode": code, "stderr": stderr_tail, "stdout": stdout_tail}),
+            ),
+            Some(RemoteCommandError::Timeout { budget, .. }) => HostError::conflict(
+                "remoteCommandFailed",
+                message,
+                json!({
+                    "exitCode": null,
+                    "stderr": "",
+                    "stdout": "",
+                    "timedOut": true,
+                    "timeoutSeconds": budget.duration().as_secs(),
+                }),
+            ),
+            _ => HostError::State(message),
+        }
+    }
+
     /// The string placed in the `error` field of an error response.
     pub fn wire_message(&self) -> String {
         match self {
@@ -66,3 +103,7 @@ impl fmt::Display for HostError {
 impl std::error::Error for HostError {}
 
 pub type HostResult<T> = Result<T, HostError>;
+
+#[cfg(test)]
+#[path = "host_error_tests.rs"]
+mod tests;

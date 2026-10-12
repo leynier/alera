@@ -124,7 +124,7 @@ impl HostLinkRegistry {
     async fn connect(&self, host_id: &str) -> HostResult<Arc<HostLink>> {
         let target = crate::ssh_remote::require_bootstrapped_ssh_target(&self.store, host_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         HostLink::connect_with(&target, self.inbox.clone(), self.launcher.as_ref()).await
     }
 

@@ -25,7 +25,7 @@ pub(crate) async fn remote_workspace(
     let workspace = store
         .find_workspace(workspace_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
         .ok_or_else(|| HostError::state(format!("Unknown workspace: {workspace_id}")))?;
     if !crate::ssh_remote::is_remote_host_id(Some(&workspace.host_id)) {
         return Err(HostError::state(format!(
@@ -47,7 +47,7 @@ pub(crate) async fn mirror_workspace(
     let registration =
         crate::remote_owner_terminal_launch::satellite_registration(store, &workspace)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
     let link = links.link(&workspace.host_id).await?;
     let mirrored = link
         .request_with_timeout(
@@ -127,7 +127,7 @@ pub(crate) async fn forward_workspace_scoped_request(
     let workspace = store
         .find_workspace(workspace_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let Some(workspace) = workspace else {
         return Ok(None);
     };

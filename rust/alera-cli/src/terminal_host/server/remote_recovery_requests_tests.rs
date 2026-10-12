@@ -9,12 +9,18 @@ struct WaitingOwner {
     release: Arc<Notify>,
 }
 impl crate::ssh_remote::RemoteHostExecutor for WaitingOwner {
-    async fn probe_windows(&self, _: &SshTarget) -> Option<bool> {
+    async fn probe_shell(&self, _: &SshTarget) -> Option<crate::remote_shell::RemoteShell> {
         self.entered.notify_one();
         self.release.notified().await;
         None
     }
-    async fn run(&self, _: &SshTarget, _: bool, _: &str) -> anyhow::Result<String> {
+    async fn run(
+        &self,
+        _: &SshTarget,
+        _: crate::remote_shell::RemoteShell,
+        _: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
+    ) -> anyhow::Result<String> {
         panic!("An unreachable owner must not receive commands");
     }
 }

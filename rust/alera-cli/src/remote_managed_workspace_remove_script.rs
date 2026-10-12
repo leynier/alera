@@ -1,33 +1,34 @@
 //! Remote managed-workspace worktree removal scripts (POSIX + PowerShell).
 
-use crate::ssh_bootstrap::{powershell_string, shell_quote};
+use crate::remote_shell::RemoteShell;
+use crate::ssh_remote_command::{powershell_string, shell_quote};
 
 pub(crate) fn remove_worktree_script(
-    windows: bool,
+    shell: RemoteShell,
     repo_path: &str,
     worktree_path: &str,
     branch_to_delete: Option<&str>,
 ) -> String {
-    worktree_removal_script(windows, repo_path, worktree_path, branch_to_delete, false)
+    worktree_removal_script(shell, repo_path, worktree_path, branch_to_delete, false)
 }
 
 pub(crate) fn validate_worktree_removal_script(
-    windows: bool,
+    shell: RemoteShell,
     repo_path: &str,
     worktree_path: &str,
     branch: Option<&str>,
 ) -> String {
-    worktree_removal_script(windows, repo_path, worktree_path, branch, true)
+    worktree_removal_script(shell, repo_path, worktree_path, branch, true)
 }
 
 fn worktree_removal_script(
-    windows: bool,
+    shell: RemoteShell,
     repo_path: &str,
     worktree_path: &str,
     branch_to_delete: Option<&str>,
     preflight_only: bool,
 ) -> String {
-    if windows {
+    if shell.is_windows() {
         let expected = branch_to_delete.unwrap_or("");
         format!(
             r#"$ErrorActionPreference = 'Stop'
@@ -199,8 +200,9 @@ mod tests {
 
     #[test]
     fn both_platforms_preflight_before_removal_and_never_force_delete_branches() {
-        for windows in [false, true] {
-            let script = remove_worktree_script(windows, "/repo", "/child", Some("feature"));
+        for shell in [RemoteShell::Posix, RemoteShell::Windows] {
+            let windows = shell.is_windows();
+            let script = remove_worktree_script(shell, "/repo", "/child", Some("feature"));
             assert!(
                 script.find("merge-base --is-ancestor").unwrap()
                     < script.find("worktree remove").unwrap()
@@ -213,7 +215,7 @@ mod tests {
             assert!(!script.contains("DEFAULT=main"));
             assert!(!script.contains("$defaultBranch = 'main'"));
             let preflight =
-                validate_worktree_removal_script(windows, "/repo", "/child", Some("feature"));
+                validate_worktree_removal_script(shell, "/repo", "/child", Some("feature"));
             let stop = if windows {
                 "if ($true) { return }"
             } else {
@@ -221,10 +223,11 @@ mod tests {
             };
             assert!(preflight.find(stop).unwrap() < preflight.find("worktree remove").unwrap());
         }
-        let posix = remove_worktree_script(false, "/repo", "/child", Some("feature"));
+        let posix = remove_worktree_script(RemoteShell::Posix, "/repo", "/child", Some("feature"));
         assert!(posix.contains("rev-parse --abbrev-ref HEAD 2>/dev/null || true"));
         assert!(posix.contains("update-ref -d \"refs/heads/$EXPECTED\" || true"));
-        let windows = remove_worktree_script(true, "/repo", "/child", Some("feature"));
+        let windows =
+            remove_worktree_script(RemoteShell::Windows, "/repo", "/child", Some("feature"));
         assert!(windows.contains("$PSNativeCommandUseErrorActionPreference = $false"));
         let merge_at = windows
             .find("merge-base --is-ancestor")
@@ -276,7 +279,7 @@ mod tests {
                 .args([
                     "-c",
                     &remove_worktree_script(
-                        false,
+                        RemoteShell::Posix,
                         repo.to_str().unwrap(),
                         child.to_str().unwrap(),
                         branch,
@@ -325,7 +328,7 @@ mod tests {
             .args([
                 "-c",
                 &remove_worktree_script(
-                    false,
+                    RemoteShell::Posix,
                     repo.to_str().unwrap(),
                     child.to_str().unwrap(),
                     Some("feature"),
@@ -369,7 +372,7 @@ mod tests {
             .args([
                 "-c",
                 &remove_worktree_script(
-                    false,
+                    RemoteShell::Posix,
                     repo.to_str().unwrap(),
                     child.to_str().unwrap(),
                     Some("feature"),
