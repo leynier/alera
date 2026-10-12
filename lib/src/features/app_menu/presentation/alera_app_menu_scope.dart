@@ -8,8 +8,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/app_menu/infra/native_app_menu_channel.dart';
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
-import 'package:alera/src/features/orchestration/presentation/run_policy_review_dialog.dart';
-import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -67,11 +65,8 @@ class _NativeAppMenuBridgeState extends ConsumerState<_NativeAppMenuBridge> {
 }
 
 enum _AppMenuAction {
-  openRunBoard,
+  openActivity,
   openSettings,
-  openAutomations,
-  openInbox,
-  reviewExecutionPlans,
   checkForUpdates,
   undo,
   redo,
@@ -127,21 +122,12 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
       requestFocus: false,
       items: const <PopupMenuEntry<_AppMenuAction>>[
         AleraDropdownEntry<_AppMenuAction>(
-          value: .openRunBoard,
-          label: 'Run Board',
+          value: .openActivity,
+          label: 'Activity',
         ),
         AleraDropdownEntry<_AppMenuAction>(
           value: .openSettings,
           label: 'Settings',
-        ),
-        AleraDropdownEntry<_AppMenuAction>(
-          value: .openAutomations,
-          label: 'Automations',
-        ),
-        AleraDropdownEntry<_AppMenuAction>(value: .openInbox, label: 'Inbox'),
-        AleraDropdownEntry<_AppMenuAction>(
-          value: .reviewExecutionPlans,
-          label: 'Execution Plans',
         ),
         AleraDropdownEntry<_AppMenuAction>(
           value: .checkForUpdates,
@@ -177,16 +163,10 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
     }
 
     switch (selected) {
-      case _AppMenuAction.openRunBoard:
-        openRunBoardFromAppMenu(ref);
+      case _AppMenuAction.openActivity:
+        openActivityFromAppMenu(ref);
       case _AppMenuAction.openSettings:
         await openAppMenuSettings(context);
-      case _AppMenuAction.openAutomations:
-        openAutomationsPage(ref);
-      case _AppMenuAction.openInbox:
-        openInboxFromAppMenu(ref);
-      case _AppMenuAction.reviewExecutionPlans:
-        await showRunPolicyReviewDialog(context);
       case _AppMenuAction.checkForUpdates:
         await checkForUpdatesFromAppMenu(context, ref);
       case _AppMenuAction.undo:
@@ -258,22 +238,8 @@ class const _MacOsPlatformMenuBar({required final Widget child})
                   },
                 ),
                 PlatformMenuItem(
-                  label: 'Automations',
-                  onSelected: () => openAutomationsPage(ref),
-                ),
-                PlatformMenuItem(
-                  label: 'Run Board',
-                  onSelected: () => openRunBoardFromAppMenu(ref),
-                ),
-                PlatformMenuItem(
-                  label: 'Inbox',
-                  onSelected: () => openInboxFromAppMenu(ref),
-                ),
-                PlatformMenuItem(
-                  label: 'Execution Plans',
-                  onSelected: () {
-                    unawaited(showRunPolicyReviewDialog(context));
-                  },
+                  label: 'Activity',
+                  onSelected: () => openActivityFromAppMenu(ref),
                 ),
                 PlatformMenuItem(
                   label: 'Check for Updates',

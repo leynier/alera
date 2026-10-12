@@ -301,5 +301,30 @@ void main() {
         expect(find.byType(MenuBar), findsNothing);
       });
     });
+
+    testWidgets('the macOS menu has one Activity entry for runs and inbox', (
+      tester,
+    ) async {
+      await withPlatform(.macOS, () async {
+        await pumpMenuScope(tester);
+
+        final labels = <String>[];
+        void collect(List<PlatformMenuItem> items) {
+          for (final item in items) {
+            labels.add(item.label);
+            if (item is PlatformMenu) collect(item.menus);
+            if (item is PlatformMenuItemGroup) collect(item.members);
+          }
+        }
+
+        collect(
+          tester.widget<PlatformMenuBar>(find.byType(PlatformMenuBar)).menus,
+        );
+        expect(labels.where((label) => label == 'Activity'), hasLength(1));
+        expect(labels, isNot(contains('Run Board')));
+        expect(labels, isNot(contains('Inbox')));
+        expect(labels, isNot(contains('Automations')));
+      });
+    });
   });
 }

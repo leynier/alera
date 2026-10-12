@@ -9,7 +9,8 @@ import 'package:alera/src/features/automations/application/automation_composer_c
 import 'package:alera/src/features/automations/application/automation_composer_defaults.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/presentation/automation_destructive_actions.dart';
 import 'package:alera/src/features/automations/presentation/composer/automation_composer_form.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -63,9 +64,9 @@ Future<AutomationRecord?> showAutomationComposerDialog(
     ),
   );
   if (saved != null) {
-    ref.read(automationsNavigationProvider.notifier)
-      ..open()
-      ..select(saved.id);
+    ref.read(activityNavigationProvider.notifier)
+      ..openAutomations()
+      ..selectAutomation(saved.id);
     ref.invalidate(automationCatalogProvider);
   }
   return saved;

@@ -100,8 +100,8 @@ fn codex_spawn_creates_dispatch_before_first_hook() {
         &mut writer,
         &mut reader,
         8_299,
-        "orchestration.gateResolve",
-        json!({"id": gate["id"], "resolution": "safe"}),
+        "runs.resolveGate",
+        json!({"requestId": "resolve-safe", "gateId": gate["id"], "decision": "safe"}),
     ));
     let spawned = expect_ok(request(
         &mut writer,
@@ -116,7 +116,8 @@ fn codex_spawn_creates_dispatch_before_first_hook() {
             "command": "sh -c 'sleep 10' worker"
         }),
     ));
-    assert_eq!(spawned["acceptanceState"], json!("awaiting_acceptance"));
+    assert!(spawned.get("acceptanceState").is_none(), "{spawned}");
+    assert_eq!(spawned["startupState"], json!("terminal_started"));
     assert_eq!(spawned["dispatch"]["status"], json!("awaiting_acceptance"));
     let handle = spawned["terminalHandle"].as_str().unwrap();
     let tab = expect_ok(request(
@@ -138,22 +139,45 @@ fn codex_spawn_creates_dispatch_before_first_hook() {
             .unwrap()
     });
     let prompt = stored.payload["initialPrompt"].as_str().unwrap();
-    assert!(prompt.contains("dispatch-accept"), "{prompt}");
+    assert!(!prompt.contains("dispatch-accept"), "{prompt}");
     assert!(prompt.contains("--json context"), "{prompt}");
     assert!(!prompt.contains("=== TASK ==="), "{prompt}");
     let context: Value =
         serde_json::from_slice(&std::fs::read(spawned["contextPath"].as_str().unwrap()).unwrap())
             .unwrap();
-    expect_ok(request(
+    // The first worker command accepts the dispatch and consumes the owned
+    // spawn's one-shot launch prompt.
+    let first_context = expect_ok(request(
         &mut writer,
         &mut reader,
         8_303,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({
             "terminal": handle,
             "contextToken": context["token"],
         }),
     ));
+    assert_eq!(first_context["dispatch"]["status"], json!("dispatched"));
+    assert!(first_context["dispatch"]["accepted_at"].is_string());
+    let consumed = runtime.block_on(async {
+        alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap()
+            .find_workspace_tab(handle)
+            .await
+            .unwrap()
+            .unwrap()
+    });
+    assert!(
+        consumed.payload.get("initialPrompt").is_none(),
+        "{:?}",
+        consumed.payload
+    );
+    assert!(
+        consumed.payload.get("orchestrationSpawn").is_none(),
+        "{:?}",
+        consumed.payload
+    );
     let worker_context = expect_ok(request(
         &mut writer,
         &mut reader,
@@ -170,7 +194,14 @@ fn codex_spawn_creates_dispatch_before_first_hook() {
         json!({"question": "Which Mode?", "resolution": "safe"})
     );
     let worker_instructions = worker_context["workerInstructions"].as_str().unwrap();
-    for command in ["heartbeat", "complete", "ask", "escalate", "check"] {
+    for command in [
+        "--json context",
+        "complete --summary",
+        "ask",
+        "escalate",
+        "check",
+        "messages",
+    ] {
         assert!(
             worker_instructions.contains(command),
             "{command} missing from {worker_instructions}"
@@ -308,37 +339,10 @@ fn coordinator_predispatches_new_codex_worker() {
         );
         std::thread::sleep(Duration::from_millis(50));
     };
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(async {
-        let store = alera_core::runtime::RuntimeStore::open(host._dir.path())
-            .await
-            .unwrap();
-        sqlx::query(
-            "UPDATE orchestrationDispatchContexts SET dispatched_at = '2020-01-01 00:00:00' \
-             WHERE status = 'awaiting_acceptance'",
-        )
-        .execute(store.pool())
-        .await
-        .unwrap();
-    });
-    let cleanup_deadline = Instant::now() + Duration::from_secs(3);
-    loop {
-        let remaining = handles.iter().filter(|handle| {
-            !expect_ok(request(
-                &mut writer,
-                &mut reader,
-                8_306,
-                "tab.find",
-                json!({"id": handle}),
-            ))
-            .is_null()
-        });
-        if remaining.count() == 0 {
-            break;
-        }
-        assert!(Instant::now() < cleanup_deadline);
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    // Failing a startup that missed its deadline (and removing the owned
+    // terminal) belongs to the host lease sweep, which runs on a 30 second
+    // cadence; `orchestration_lease_sweep_tests` covers it directly.
+    assert_eq!(handles.len(), 2);
 }
 
 #[test]

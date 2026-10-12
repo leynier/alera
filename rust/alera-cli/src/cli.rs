@@ -113,7 +113,7 @@ pub enum Command {
     #[command(name = "agent-quota")]
     AgentQuota(AgentQuotaCommand),
 
-    /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
+    /// Runs, delegated tasks, the worker protocol, messages between agents, gates, and recipes.
     Orchestration(OrchestrationCommand),
 
     /// Ask agents questions from outside a terminal and read their replies.

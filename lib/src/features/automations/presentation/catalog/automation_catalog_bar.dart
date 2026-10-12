@@ -6,7 +6,8 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/domain/activity_location.dart';
 import 'package:alera/src/features/automations/presentation/automation_popover_chip.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
@@ -63,8 +64,8 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
     super.dispose();
   }
 
-  AutomationsNavigation get _navigation =>
-      ref.read(automationsNavigationProvider.notifier);
+  ActivityNavigation get _navigation =>
+      ref.read(activityNavigationProvider.notifier);
 
   AutomationCatalogFilters _with({
     String? search,
@@ -147,7 +148,7 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
                 ),
             ],
             onSelectionChanged: (bucket) =>
-                _navigation.setFilters(_with(bucket: () => bucket)),
+                _navigation.setAutomationFilters(_with(bucket: () => bucket)),
           ),
           const SizedBox(width: AleraTokens.space8),
           _filter(
@@ -157,7 +158,7 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
               for (final project in names.projects) project.id: project.name,
             },
             onChanged: (id) =>
-                _navigation.setFilters(_with(projectId: () => id)),
+                _navigation.setAutomationFilters(_with(projectId: () => id)),
           ),
           const SizedBox(width: AleraTokens.space6),
           _filter(
@@ -167,7 +168,7 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
               for (final id in profiles) id: names.profileName(id),
             },
             onChanged: (id) =>
-                _navigation.setFilters(_with(profileId: () => id)),
+                _navigation.setAutomationFilters(_with(profileId: () => id)),
           ),
           if (hosts.length > 1 || filters.hostId != null) ...<Widget>[
             const SizedBox(width: AleraTokens.space6),
@@ -178,7 +179,7 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
                 for (final id in hosts) id: names.hostName(id),
               },
               onChanged: (id) =>
-                  _navigation.setFilters(_with(hostId: () => id)),
+                  _navigation.setAutomationFilters(_with(hostId: () => id)),
             ),
           ],
           if (scoped) ...<Widget>[
@@ -195,7 +196,8 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
               },
               leading: AleraIcons.section,
               tooltip: 'Show Every Automation',
-              onRemove: () => _navigation.setScope(AutomationScope.all),
+              onRemove: () =>
+                  _navigation.setAutomationScope(AutomationScope.all),
             ),
           ],
           const SizedBox(width: AleraTokens.space8),
@@ -207,7 +209,7 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
               dense: true,
               debounce: AleraTokens.durationMid,
               onChanged: (value) =>
-                  _navigation.setFilters(_with(search: value)),
+                  _navigation.setAutomationFilters(_with(search: value)),
             ),
           ),
           if (filters.isFiltered || scoped) ...<Widget>[
@@ -216,8 +218,8 @@ class _AutomationCatalogBarState extends ConsumerState<AutomationCatalogBar> {
               onPressed: () {
                 _search.clear();
                 _navigation
-                  ..clearFilters()
-                  ..setScope(AutomationScope.all);
+                  ..clearAutomationFilters()
+                  ..setAutomationScope(AutomationScope.all);
               },
               child: const Text('Clear Filters'),
             ),

@@ -13,7 +13,9 @@ async fn ask_resolves_the_recipient_and_records_where_it_came_from() {
         )
         .await;
     assert_eq!(asked["recipient"]["handle"], "claude-term");
-    assert_eq!(asked["recipient"]["deliveryMode"], "paste");
+    assert_eq!(asked["recipient"]["deliveryMode"], "queued_at_turn_end");
+    assert_eq!(asked["recipient"]["acceptsQueuedInput"], false);
+    assert_eq!(asked["deliveryMode"], "queued_at_turn_end");
     let message = &asked["message"];
     assert_eq!(message["from_handle"], "ext:user");
     assert_eq!(message["subject"], "Which tests cover login?");

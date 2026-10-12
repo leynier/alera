@@ -1,4 +1,3 @@
-import 'package:alera/src/features/inbox/domain/conversation_models.dart';
 import 'package:alera/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/inbox/infra/inbox_watch.dart';
@@ -31,11 +30,18 @@ class RuntimeInboxRepository {
   final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
-  Future<bool> supported() async {
+  Future<bool> supported() => _supports(aleraRuntimeHostInboxCapability);
+
+  /// Whether the host takes a `delivery` choice and reports the `inboxV2`
+  /// delivery modes. Without it the app keeps the turn-end behavior.
+  Future<bool> supportsDelivery() =>
+      _supports(aleraRuntimeHostInboxDeliveryCapability);
+
+  Future<bool> _supports(String capability) async {
     final client = _client;
     return client is RuntimeHostCapabilityClient &&
         await (client as RuntimeHostCapabilityClient).supportsRuntimeCapability(
-          aleraRuntimeHostInboxCapability,
+          capability,
         );
   }
 
@@ -71,10 +77,15 @@ class RuntimeInboxRepository {
   Future<List<InboxRecipient>> readTargets() async =>
       parseInboxTargets(await _request('inbox.targets'));
 
-  /// Returns the new question's thread id.
-  Future<String> ask(InboxAskRequest request) async {
-    final response = await _request('inbox.ask', request.toJson());
-    return response['threadId'] as String? ?? '';
+  /// The `delivery` choice reaches only hosts that advertise `inboxV2`.
+  Future<InboxAskResult> ask(InboxAskRequest request) async {
+    final includeDelivery =
+        request.delivery != null && await supportsDelivery();
+    final response = await _request(
+      'inbox.ask',
+      request.toJson(includeDelivery: includeDelivery),
+    );
+    return InboxAskResult.fromJson(response);
   }
 
   Future<void> cancel(String questionId) =>
@@ -111,41 +122,5 @@ class RuntimeInboxRepository {
     coalescer: _coalescer,
     key: 'inbox-thread:$threadId',
     read: () => readThread(threadId),
-  );
-
-  /// Agent-to-agent threads. Read-only: nothing here marks anything read.
-  Future<ConversationPage> readConversations({
-    String? workspaceId,
-    int? before,
-  }) async => ConversationPage.fromJson(
-    await _request('inbox.conversations', <String, Object?>{
-      'workspaceId': ?workspaceId,
-      'limit': 100,
-      'before': ?before,
-    }),
-  );
-
-  Future<ConversationDetail> readConversation(String threadId) async =>
-      ConversationDetail.fromJson(
-        await _request('inbox.conversation', <String, Object?>{
-          'threadId': threadId,
-        }),
-      );
-
-  Stream<ConversationPage> watchConversations({String? workspaceId}) =>
-      watchInbox(
-        client: _client,
-        coalescer: _coalescer,
-        key: 'conversations:${workspaceId ?? '*'}',
-        read: () => readConversations(workspaceId: workspaceId),
-        changedEvent: conversationsChangedEvent,
-      );
-
-  Stream<ConversationDetail> watchConversation(String threadId) => watchInbox(
-    client: _client,
-    coalescer: _coalescer,
-    key: 'conversation:$threadId',
-    read: () => readConversation(threadId),
-    changedEvent: conversationsChangedEvent,
   );
 }

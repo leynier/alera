@@ -1,14 +1,16 @@
 import 'dart:async';
 
 import 'package:code_forge/code_forge.dart' as code_forge;
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
-import 'package:alera/src/features/orchestration/application/run_board_providers.dart';
-import 'package:alera/src/features/orchestration/presentation/run_board_page.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/domain/activity_section.dart';
+import 'package:alera/src/features/runs/application/run_providers.dart';
+import 'package:alera/src/features/activity/presentation/activity_page.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 
 import '../support/inbox_test_client.dart';
-import '../support/run_board_fixtures.dart';
-import '../support/run_board_widget_harness.dart';
+import '../support/runs_fake_repository.dart';
+import '../support/runs_fixtures.dart';
+import '../support/runs_harness.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -50,7 +52,7 @@ import 'package:alera/src/features/workbench/domain/workspace_hand_on_result.dar
 import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spinner_scope.dart';
-import 'package:alera/src/features/inbox/presentation/inbox_composer_dialog.dart';
+import 'package:alera/src/features/inbox/presentation/ask_agent_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_panel_view.dart';
@@ -80,7 +82,7 @@ part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_mutation_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
 part 'alera_shell_page_workspace_tray_test_cases.dart';
-part 'alera_shell_page_run_board_test_cases.dart';
+part 'alera_shell_page_runs_test_cases.dart';
 part 'alera_shell_page_sidebar_worktree_role_test_cases.dart';
 part 'alera_shell_page_workspace_removal_test_cases.dart';
 part 'alera_shell_page_sidebar_titles_test_cases.dart';
@@ -106,7 +108,7 @@ Future<_ShellPumpHarness> _pumpShell(
   EditorSessionRegistry? editorSessionRegistry,
   GitBackend? gitBackend,
   AleraSettings? settings,
-  BoardTestRepository? boardRepository,
+  FakeRunRepository? boardRepository,
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
   bool agentTitlesAvailable = false,
@@ -128,8 +130,10 @@ Future<_ShellPumpHarness> _pumpShell(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        if (boardRepository != null)
-          runBoardRepositoryProvider.overrideWithValue(boardRepository),
+        if (boardRepository != null) ...[
+          runRepositoryProvider.overrideWithValue(boardRepository),
+          runClockProvider.overrideWithValue(() => runsTestNow),
+        ],
         ...inboxClientOverrides(
           inboxClient ?? (InboxTestClient()..supported = false),
         ),
@@ -206,7 +210,7 @@ void main() {
   _registerAleraShellSidebarMutationTests();
   _registerAleraShellSidebarStateTests();
   _registerAleraShellWorkspaceTrayTests();
-  _registerAleraShellRunBoardTests();
+  _registerAleraShellRunsTests();
   _registerAleraShellSidebarWorktreeRoleTests();
   _registerAleraShellWorkspaceRemovalTests();
   _registerAleraShellSidebarTitleTests();

@@ -95,9 +95,16 @@ impl ServerActor {
         origin: Value,
         deduplicated: bool,
     ) -> HostResult<Value> {
+        let delivery_mode = message
+            .external_meta
+            .as_ref()
+            .and_then(|meta| meta.get("deliveryMode"))
+            .cloned()
+            .unwrap_or(Value::Null);
         Ok(json!({
             "questionId": message.id,
             "threadId": message.thread_id.clone().unwrap_or_else(|| message.id.clone()),
+            "deliveryMode": delivery_mode,
             "recipient": self.inbox_recipient(&message.to_handle),
             "origin": origin,
             "deduplicated": deduplicated,

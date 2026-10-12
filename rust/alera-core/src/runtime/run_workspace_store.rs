@@ -1,0 +1,267 @@
+use anyhow::{anyhow, bail, Result};
+use sqlx::{sqlite::SqliteRow, Row};
+
+use super::run_event_store::{record_run_event, NewRunEvent, RunEventKind};
+use super::run_plan::{workflow_digest, workflow_text};
+use super::run_workspace_eligibility::{approved_plan, eligible_task};
+use super::*;
+
+impl RuntimeStore {
+    pub async fn workflow_resource_ownership_page(
+        &self,
+        after: i64,
+    ) -> Result<Vec<(i64, WorkflowWorkspaceIdentity)>> {
+        sqlx::query("SELECT sequence, identity FROM runWorkspaces WHERE sequence > ? ORDER BY sequence LIMIT 32")
+            .bind(after).fetch_all(self.pool()).await?.iter()
+            .map(|row| Ok((row.try_get("sequence")?, serde_json::from_str(&row.try_get::<String, _>("identity")?)?)))
+            .collect()
+    }
+
+    pub async fn workflow_integration_workspace(
+        &self,
+        run: &str,
+    ) -> Result<WorkflowWorkspaceRecord> {
+        decode(
+            &sqlx::query("SELECT * FROM runWorkspaces WHERE run_id = ? AND task_id IS NULL")
+                .bind(run)
+                .fetch_one(self.pool())
+                .await?,
+        )
+    }
+
+    pub async fn workflow_workspace(&self, id: &str) -> Result<WorkflowWorkspaceRecord> {
+        decode(
+            &sqlx::query("SELECT * FROM runWorkspaces WHERE id = ?")
+                .bind(id)
+                .fetch_optional(self.pool())
+                .await?
+                .ok_or_else(|| anyhow!("workflow workspace not found"))?,
+        )
+    }
+
+    pub async fn workflow_workspace_owned(&self, id: &str) -> Result<bool> {
+        Ok(
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM runWorkspaces WHERE id = ?)")
+                .bind(id)
+                .fetch_one(self.pool())
+                .await?,
+        )
+    }
+
+    pub async fn workflow_workspaces(
+        &self,
+        query: &WorkflowWorkspaceQuery,
+    ) -> Result<WorkflowWorkspacePage> {
+        workflow_text(&query.run_id, 160)?;
+        let limit = query.limit.unwrap_or(20).clamp(1, 25) as usize;
+        let rows = sqlx::query(
+            "SELECT * FROM runWorkspaces WHERE run_id = ? AND sequence < ?
+            ORDER BY sequence DESC LIMIT ?",
+        )
+        .bind(&query.run_id)
+        .bind(query.before_row.unwrap_or(i64::MAX))
+        .bind((limit + 1) as i64)
+        .fetch_all(self.pool())
+        .await?;
+        let next_before_row = if rows.len() > limit {
+            Some(rows[limit - 1].try_get("sequence")?)
+        } else {
+            None
+        };
+        Ok(WorkflowWorkspacePage {
+            items: rows.iter().take(limit).map(decode).collect::<Result<_>>()?,
+            next_before_row,
+        })
+    }
+
+    /// The candidate's location comes from the host's managed workspace policy,
+    /// never from a request payload. Only a fresh reservation consumes it.
+    pub async fn reserve_workflow_workspace(
+        &self,
+        request: &PrepareWorkflowWorkspace,
+        mut candidate: Workspace,
+    ) -> Result<WorkflowWorkspaceRecord> {
+        workflow_text(&request.request_id, 160)?;
+        workflow_text(&request.run_id, 160)?;
+        if let Some(task) = &request.task_id {
+            workflow_text(task, 160)?;
+        }
+        if let Some(previous) = &request.retry_of {
+            workflow_text(previous, 160)?;
+        }
+        let digest = workflow_digest(request)?;
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("UPDATE orchestrationBoardRevision SET revision = revision WHERE id = 1")
+            .execute(&mut *tx)
+            .await?;
+        if let Some(row) = sqlx::query(
+            "SELECT digest, workspace_id FROM runWorkspaceRequests WHERE request_id = ?",
+        )
+        .bind(&request.request_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        {
+            if row.try_get::<String, _>("digest")? != digest {
+                bail!("workflow request id was already used for different contents");
+            }
+            let id: String = row.try_get("workspace_id")?;
+            tx.commit().await?;
+            return self.workflow_workspace(&id).await;
+        }
+        let (plan, integration_sha) =
+            approved_plan(&mut tx, &request.run_id, request.revision).await?;
+        if request.retry_of.is_some() {
+            let running: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM orchestrationCoordinatorRuns WHERE id=? AND status='running')",
+            )
+            .bind(&request.run_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if running {
+                bail!("pause the run before preparing a fresh attempt");
+            }
+        }
+        let mut attempt = 0;
+        let mut existing_id = None;
+        if let Some(task) = &request.task_id {
+            eligible_task(&mut tx, &request.run_id, request.revision, task, &plan).await?;
+            let ready: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM runWorkspaces
+                WHERE run_id = ? AND task_id IS NULL AND phase = 'ready')",
+            )
+            .bind(&request.run_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if !ready {
+                bail!("workflow integration workspace is not ready");
+            }
+            let previous = sqlx::query(
+                "SELECT id, attempt, phase FROM runWorkspaces
+                WHERE task_id = ? ORDER BY attempt DESC LIMIT 1",
+            )
+            .bind(task)
+            .fetch_optional(&mut *tx)
+            .await?;
+            if let Some(previous) = previous {
+                let id: String = previous.try_get("id")?;
+                attempt = previous.try_get::<i64, _>("attempt")? + 1;
+                if let Some(retry) = &request.retry_of {
+                    if retry != &id || previous.try_get::<String, _>("phase")? != "attention" {
+                        bail!("retry requires the latest attempt in Attention");
+                    }
+                } else {
+                    existing_id = Some(id);
+                }
+            } else {
+                if request.retry_of.is_some() {
+                    bail!("workflow attempt to retry was not found");
+                }
+                attempt = 1;
+            }
+            if existing_id.is_none() {
+                let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM runWorkspaces x
+                    WHERE x.run_id = ? AND x.revision = ? AND x.task_id IS NOT NULL AND x.phase <> 'attention'
+                      AND NOT (x.dispatch_id IS NULL AND EXISTS(SELECT 1 FROM orchestrationTasks t
+                        WHERE t.id = x.task_id AND t.status = 'cancelled'))
+                      AND NOT EXISTS(SELECT 1 FROM orchestrationDispatchContexts d WHERE d.id = x.dispatch_id
+                        AND d.status IN ('completed','failed','startup_failed','superseded','circuit_broken'))")
+                    .bind(&request.run_id).bind(request.revision).fetch_one(&mut *tx).await?;
+                if active >= i64::from(plan.max_concurrent) {
+                    bail!("workflow concurrency limit reached");
+                }
+            }
+        } else {
+            if request.retry_of.is_some() {
+                bail!("integration workspace cannot be replaced by a task retry");
+            }
+            existing_id = sqlx::query_scalar(
+                "SELECT id FROM runWorkspaces WHERE run_id = ? AND task_id IS NULL",
+            )
+            .bind(&request.run_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+        }
+        let id = if let Some(id) = existing_id {
+            id
+        } else {
+            uuid::Uuid::parse_str(&candidate.id)?;
+            uuid::Uuid::parse_str(&candidate.instance_id)?;
+            if candidate.project_id != plan.source_workspace.project_id
+                || candidate.host_id != LOCAL_HOST_ID
+                || candidate.kind != WorkspaceKind::Linked
+                || !std::path::Path::new(&candidate.path).is_absolute()
+                || candidate.branch.as_deref()
+                    != Some(crate::git::run_branch_name(&candidate.id).as_str())
+            {
+                bail!("invalid managed workflow workspace candidate");
+            }
+            let collision: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM workspaces WHERE id = ? OR path = ?
+                OR (projectId = ? AND branch = ?))",
+            )
+            .bind(&candidate.id)
+            .bind(&candidate.path)
+            .bind(&candidate.project_id)
+            .bind(&candidate.branch)
+            .fetch_one(&mut *tx)
+            .await?;
+            if collision {
+                bail!("workflow workspace identity is already in use");
+            }
+            candidate.source_branch = Some(integration_sha.clone());
+            let identity = WorkflowWorkspaceIdentity {
+                workspace: candidate,
+                repo_path: plan.source_workspace.project_repo_path.clone(),
+                owner_workspace_id: plan.source_workspace.workspace_id.clone(),
+                run_id: request.run_id.clone(),
+                revision: request.revision,
+                task_id: request.task_id.clone(),
+                attempt,
+                base_sha: if request.task_id.is_some() {
+                    integration_sha
+                } else {
+                    plan.source_sha
+                },
+            };
+            let id = identity.workspace.id.clone();
+            sqlx::query("INSERT INTO runWorkspaces(id, run_id, revision, task_id, attempt, path, identity, phase)
+                VALUES(?, ?, ?, ?, ?, ?, ?, 'reserved')")
+                .bind(&id).bind(&identity.run_id).bind(identity.revision).bind(&identity.task_id)
+                .bind(attempt).bind(&identity.workspace.path).bind(serde_json::to_string(&identity)?)
+                .execute(&mut *tx).await?;
+            if let (Some(task_id), Some(previous)) = (&request.task_id, &request.retry_of) {
+                let summary =
+                    format!("Attempt {attempt} replaces the attempt that needed attention.");
+                let mut event = NewRunEvent::new(&request.run_id, RunEventKind::Retried);
+                event.task_id = Some(task_id);
+                event.summary = &summary;
+                event.payload = Some(serde_json::json!({ "retryOf": previous }));
+                record_run_event(&mut tx, &event).await?;
+            }
+            id
+        };
+        sqlx::query(
+            "INSERT INTO runWorkspaceRequests(request_id, digest, workspace_id) VALUES(?, ?, ?)",
+        )
+        .bind(&request.request_id)
+        .bind(digest)
+        .bind(&id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.workflow_workspace(&id).await
+    }
+}
+
+pub(super) fn decode(row: &SqliteRow) -> Result<WorkflowWorkspaceRecord> {
+    Ok(WorkflowWorkspaceRecord {
+        identity: serde_json::from_str(&row.try_get::<String, _>("identity")?)?,
+        phase: serde_json::from_value(serde_json::Value::String(row.try_get("phase")?))?,
+        setup_report: row
+            .try_get::<Option<String>, _>("setup_report")?
+            .map(|value| serde_json::from_str(&value))
+            .transpose()?,
+        error: row.try_get("error")?,
+        dispatch_id: row.try_get("dispatch_id")?,
+    })
+}

@@ -186,7 +186,7 @@ void main() {
   });
 
   test('OpenCode Go host capability is additive', () {
-    expect(aleraTerminalHostProtocolVersion, 4);
+    expect(aleraTerminalHostProtocolVersion, 5);
     expect(
       aleraRuntimeHostAiAssistOpenCodeGoCapability,
       'aiAssistOpenCodeGoV1',

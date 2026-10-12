@@ -55,7 +55,7 @@ async fn threads_group_agent_messages_and_skip_task_control() {
         "worker",
         "coord",
         None,
-        OrchestrationMessageType::Heartbeat,
+        OrchestrationMessageType::Dispatch,
     )
     .await;
     store
@@ -103,7 +103,7 @@ async fn revision_moves_only_for_agent_conversation() {
         "worker",
         "coord",
         None,
-        OrchestrationMessageType::Heartbeat,
+        OrchestrationMessageType::Dispatch,
     )
     .await;
     store

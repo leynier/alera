@@ -1,7 +1,8 @@
 import 'package:alera/src/design_system/chips/alera_property_chip.dart';
 import 'package:alera/src/design_system/forms/alera_duration_field.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/automations/presentation/composer/automation_composer_dialog.dart';
 import 'package:alera/src/features/automations/presentation/composer/automation_prompt_editor.dart';
@@ -80,11 +81,9 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(runtime.dispose);
     await tester.pumpWidget(AutomationsTestApp(container: container));
-    container.read(automationsNavigationProvider.notifier).open();
+    container.read(activityNavigationProvider.notifier).openAutomations();
     await settle(tester);
-    container
-        .read(automationsNavigationProvider.notifier)
-        .startAuthoring(request);
+    container.read(activityNavigationProvider.notifier).startAuthoring(request);
     await settle(tester);
     expect(find.byType(AutomationComposerDialog), findsOneWidget);
     return (container: container, runtime: runtime);
@@ -138,7 +137,7 @@ void main() {
     });
     expect(find.byType(AutomationComposerDialog), findsNothing);
     expect(
-      f.container.read(automationsNavigationProvider).selectedId,
+      f.container.read(activityNavigationProvider).automations.selectedId,
       'created',
     );
   });

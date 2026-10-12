@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# v0.49.0 is the latest stable release before agentProfileOrderingV1. It still
-# speaks protocol 4 and supports the profile catalog and terminal launch flow.
+# v0.49.0 speaks protocol 4. Orchestration v3 moved the current protocol to 5,
+# so this pins that the two refuse each other instead of half working.
 readonly previous_tag="v0.49.0"
 readonly previous_version="0.49.0"
 readonly previous_commit="e60c96ec7522052e9af81ab15ae5d6da2443dac4"
@@ -127,6 +127,6 @@ fi
       --workspace \
       --locked \
       --test host_version_compatibility \
-      v049_host_accepts_current_baseline_client \
+      v049_host_and_current_client_refuse_each_other_by_protocol \
       -- --exact --ignored
 )

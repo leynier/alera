@@ -5,11 +5,13 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
-import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
+import 'package:alera_mobile/src/features/inbox/domain/inbox_error_messages.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/inbox_delivery_labels.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/inbox_follow_up_composer.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,7 +112,11 @@ class _InboxThreadScreenState extends ConsumerState<InboxThreadScreen> {
                   ],
                 ),
               ),
-              _FollowUpComposer(hostId: hostId, threadId: threadId),
+              InboxFollowUpComposer(
+                hostId: hostId,
+                threadId: threadId,
+                recipient: value.recipient,
+              ),
             ],
           ),
         },
@@ -132,6 +138,12 @@ class const _ThreadHeader({
     final expiry = pending
         ? inboxExpiryLabel(latest?.expiresAt, DateTime.now().toUtc())
         : null;
+    final delivery = inboxThreadDeliveryLabel(inboxThreadDeliveryMode(detail));
+    final recipientMode = detail.recipient?.deliveryMode;
+    final deliveryHint =
+        thread.status == InboxQuestionStatus.answered || recipientMode == null
+        ? null
+        : inboxDeliveryHint(recipientMode);
     return Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
@@ -168,14 +180,19 @@ class const _ThreadHeader({
                 color: AleraTokens.foregroundMuted,
               ),
             ),
+            if (delivery != null)
+              Text(
+                delivery,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
             const SizedBox(height: AleraTokens.space8),
             AleraNotice(
               icon: AleraIcons.info,
-              message:
-                  thread.status == InboxQuestionStatus.answered ||
-                      detail.recipient == null
+              message: deliveryHint == null
                   ? inboxStatusHint(thread.status)
-                  : '${inboxStatusHint(thread.status)} ${inboxDeliveryHint(detail.recipient!.deliveryMode)}',
+                  : '${inboxStatusHint(thread.status)} $deliveryHint',
             ),
             if (pending && latest != null) ...<Widget>[
               const SizedBox(height: AleraTokens.space8),
@@ -218,7 +235,11 @@ class const _ThreadHeader({
       await repository.cancel(questionId);
     } on Object catch (error) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Could not cancel the question: $error')),
+        SnackBar(
+          content: Text(
+            'Could not cancel the question: ${inboxErrorMessage(error)}',
+          ),
+        ),
       );
     }
   }
@@ -277,71 +298,6 @@ class const _MessageCard({
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class const _FollowUpComposer({
-  required final String hostId,
-  required final String threadId,
-}) extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_FollowUpComposer> createState() => _FollowUpComposerState();
-}
-
-class _FollowUpComposerState extends ConsumerState<_FollowUpComposer> {
-  final TextEditingController _controller = TextEditingController();
-  bool _sending = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _send() async {
-    final body = _controller.text.trim();
-    if (body.isEmpty || _sending) return;
-    setState(() => _sending = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final repository = await ref.read(
-        mobileInboxRepositoryProvider(widget.hostId).future,
-      );
-      await repository.ask(body: body, threadId: widget.threadId);
-      _controller.clear();
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not send the follow-up: $error')),
-      );
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space8),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: AleraTextField(
-              controller: _controller,
-              hintText: 'Ask a follow-up',
-              minLines: 1,
-              maxLines: 5,
-              keyboardType: TextInputType.multiline,
-            ),
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          IconButton(
-            tooltip: 'Send Follow-Up',
-            onPressed: _sending ? null : () => unawaited(_send()),
-            icon: const Icon(AleraIcons.send),
-          ),
-        ],
       ),
     );
   }

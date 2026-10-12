@@ -1,12 +1,13 @@
 use std::time::{Duration, Instant};
 
-use alera_core::runtime::OrchestrationTaskStatus;
+use alera_core::runtime::{OrchestrationMessageType, OrchestrationTaskStatus};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::message_waiters::{MessageWaiter, WaitKind};
-use crate::terminal_host::protocol::ok_response;
+use crate::terminal_host::protocol::{error_response, ok_response};
 
+use super::orchestration_message_requests::check_response;
 use super::orchestration_validation::{require_string, state_error, state_wait_timeout_ms};
 use super::{ServerActor, ServerCommand};
 
@@ -195,6 +196,150 @@ impl ServerActor {
                 .await;
         });
     }
+
+    // --- waiter plumbing ----------------------------------------------------
+
+    /// Wakes parked `check --wait`/`ask` requests that match a newly arrived
+    /// message and writes their responses.
+    pub(super) async fn notify_message_arrived(
+        &mut self,
+        to_handle: &str,
+        message_type: OrchestrationMessageType,
+    ) {
+        let woken = self
+            .orchestration_waiters
+            .take_matching(to_handle, message_type);
+        for waiter in woken {
+            self.resolve_waiter(waiter).await;
+        }
+    }
+
+    async fn resolve_waiter(&mut self, waiter: MessageWaiter) {
+        match waiter.kind.clone() {
+            WaitKind::Check {
+                type_filter,
+                inject,
+            } => {
+                let filter = type_filter.clone();
+                match self.consume_unread_messages(&waiter.handle, &filter).await {
+                    Ok(messages) if messages.is_empty() => {
+                        // Raced with another consumer: re-park with the same
+                        // waiter id so the original timeout still expires it.
+                        self.orchestration_waiters.repark(waiter);
+                    }
+                    Ok(messages) => {
+                        self.client_write(
+                            waiter.client_id,
+                            ok_response(waiter.request_id, check_response(&messages, inject)),
+                        );
+                    }
+                    Err(error) => {
+                        self.client_write(
+                            waiter.client_id,
+                            error_response(waiter.request_id, &error),
+                        );
+                    }
+                }
+            }
+            WaitKind::Ask {
+                thread_id,
+                after_sequence,
+            } => {
+                match self
+                    .runtime_store
+                    .orchestration_thread_messages_for(&thread_id, &waiter.handle, after_sequence)
+                    .await
+                {
+                    Ok(replies) if replies.is_empty() => {
+                        // The wake was for an unrelated message; keep waiting
+                        // under the original waiter id so its timeout remains
+                        // authoritative.
+                        self.orchestration_waiters.repark(waiter);
+                    }
+                    Ok(mut replies) => {
+                        let ids: Vec<String> =
+                            replies.iter().map(|reply| reply.id.clone()).collect();
+                        let _ = self
+                            .runtime_store
+                            .mark_orchestration_messages_read(&ids)
+                            .await;
+                        let reply = replies.remove(0);
+                        self.client_write(
+                            waiter.client_id,
+                            ok_response(
+                                waiter.request_id,
+                                json!({ "answered": true, "reply": reply }),
+                            ),
+                        );
+                    }
+                    Err(error) => {
+                        self.client_write(
+                            waiter.client_id,
+                            error_response(waiter.request_id, &HostError::state(error.to_string())),
+                        );
+                    }
+                }
+            }
+            WaitKind::Inbox { .. } => self.resolve_inbox_waiter(waiter).await,
+            WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => {
+                self.orchestration_waiters.repark(waiter);
+            }
+        }
+    }
+
+    pub(super) async fn handle_orchestration_wait_timeout(
+        &mut self,
+        waiter_id: u64,
+        effective_timeout_ms: u64,
+    ) {
+        let Some(waiter) = self.orchestration_waiters.take_by_id(waiter_id) else {
+            return;
+        };
+        if matches!(&waiter.kind, WaitKind::Inbox { .. }) {
+            self.finish_inbox_wait_timeout(waiter, effective_timeout_ms)
+                .await;
+            return;
+        }
+        if matches!(
+            &waiter.kind,
+            WaitKind::TerminalState { .. } | WaitKind::TaskState { .. }
+        ) {
+            self.finish_orchestration_state_wait_timeout(waiter, effective_timeout_ms)
+                .await;
+            return;
+        }
+        let mut payload = match waiter.kind {
+            WaitKind::Check { inject, .. } => check_response(&[], inject),
+            WaitKind::Ask { .. } => json!({ "answered": false }),
+            WaitKind::TerminalState { .. }
+            | WaitKind::TaskState { .. }
+            | WaitKind::Inbox { .. } => {
+                unreachable!()
+            }
+        };
+        payload["timedOut"] = Value::Bool(true);
+        payload["outcome"] = Value::String("timeout".to_string());
+        // Reaching the deadline means the wait ran its whole budget, so the two
+        // figures coincide. They are still reported apart, because they answer
+        // different questions and only one of them survives a future change to
+        // how the elapsed time is measured.
+        payload["waitedMs"] = json!(effective_timeout_ms);
+        payload["effectiveTimeoutMs"] = json!(effective_timeout_ms);
+        self.client_write(waiter.client_id, ok_response(waiter.request_id, payload));
+    }
+
+    pub(super) fn spawn_wait_timeout(&self, waiter_id: u64, effective_timeout_ms: u64) {
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(effective_timeout_ms)).await;
+            let _ = inbox
+                .send_wait(ServerCommand::OrchestrationWaitTimeout {
+                    waiter_id,
+                    effective_timeout_ms,
+                })
+                .await;
+        });
+    }
 }
 
 fn with_waited_ms(mut payload: Value, started_at: Instant) -> Value {
@@ -225,16 +370,11 @@ fn terminal_target_reached(state: &str, target: &str) -> bool {
         "process-started" => !state.is_empty() && state != "failed",
         "agent-detected" => matches!(
             state,
-            "agent_detected"
-                | "agent_ready"
-                | "dispatch_submitted_unconfirmed"
-                | "accepted"
-                | "completed"
+            "agent_detected" | "agent_ready" | "accepted" | "completed" | "stalled"
         ),
-        "agent-ready" => matches!(
-            state,
-            "agent_ready" | "dispatch_submitted_unconfirmed" | "accepted" | "completed"
-        ),
+        // A worker that already ran a command is past being ready.
+        "agent-ready" => matches!(state, "agent_ready" | "accepted" | "completed" | "stalled"),
+        // `dispatch-accepted`: the worker ran its first command.
         "dispatch-accepted" => matches!(state, "accepted" | "completed" | "stalled"),
         _ => false,
     }
@@ -272,10 +412,9 @@ mod tests {
         assert!(terminal_target_reached("accepted", "agent-ready"));
         assert!(terminal_target_reached("completed", "dispatch-accepted"));
         assert!(terminal_target_reached("stalled", "dispatch-accepted"));
-        assert!(!terminal_target_reached(
-            "dispatch_submitted_unconfirmed",
-            "dispatch-accepted"
-        ));
+        assert!(!terminal_target_reached("agent_ready", "dispatch-accepted"));
+        assert!(!terminal_target_reached("agent_detected", "agent-ready"));
+        assert!(terminal_target_reached("stalled", "agent-ready"));
     }
 
     #[test]

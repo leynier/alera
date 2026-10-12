@@ -2,17 +2,21 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
+import 'package:alera_mobile/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_labels.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/inbox_delivery_choice.dart';
+import 'package:alera_mobile/src/features/inbox/presentation/inbox_delivery_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Asks a running agent a question from the shared `ext:user` inbox. Pops the
-/// new thread id once the runtime accepted the question.
+/// new thread id once the runtime accepted the question. Hosts with `inboxV2`
+/// also offer when to deliver it and, under Advanced, another inbox and expiry.
 class const InboxComposeScreen({
   super.key,
   required final String hostId,
@@ -26,7 +30,12 @@ class const InboxComposeScreen({
 class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
   final TextEditingController _subject = TextEditingController();
   final TextEditingController _body = TextEditingController();
+  final TextEditingController _inbox = TextEditingController(
+    text: userInboxAddress,
+  );
   late String? _selected = widget.preselectedHandle;
+  InboxDelivery _delivery = InboxDelivery.now;
+  Duration _expiry = inboxDefaultExpiry;
   bool _sending = false;
   String? _error;
 
@@ -34,6 +43,7 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
   void dispose() {
     _subject.dispose();
     _body.dispose();
+    _inbox.dispose();
     super.dispose();
   }
 
@@ -48,9 +58,10 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
             )
             .value ??
         const <InboxRecipient>[];
-    final to = available.any((target) => target.handle == _selected)
-        ? _selected
-        : null;
+    final target = available
+        .where((target) => target.handle == _selected)
+        .firstOrNull;
+    final to = target?.handle;
     final body = _body.text.trim();
     if (to == null || body.isEmpty || _sending) return;
     setState(() {
@@ -61,14 +72,21 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
       final repository = await ref.read(
         mobileInboxRepositoryProvider(widget.hostId).future,
       );
+      final v2 = repository.supportsDelivery;
+      final inbox = _inbox.text.trim();
       final result = await repository.ask(
         to: to,
         body: body,
         subject: _subject.text,
+        inbox: v2 && inbox.isNotEmpty ? inbox : null,
+        expiresIn: v2 ? inboxExpiryToSend(_expiry) : null,
+        delivery: v2
+            ? effectiveInboxDelivery(_delivery, target?.deliveryMode)
+            : null,
       );
       if (mounted) Navigator.of(context).pop(result.threadId);
     } on Object catch (error) {
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = inboxErrorMessage(error));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -85,11 +103,18 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
     final names =
         ref.watch(mobileInboxWorkspaceNamesProvider(widget.hostId)).value ??
         const <String, String>{};
+    final deliverySupported =
+        ref
+            .watch(mobileInboxRepositoryProvider(widget.hostId))
+            .value
+            ?.supportsDelivery ??
+        false;
     // A preselected terminal only counts once the runtime lists it as an agent.
     final available = targets.value ?? const <InboxRecipient>[];
-    final selected = available.any((target) => target.handle == _selected)
-        ? _selected
-        : null;
+    final target = available
+        .where((target) => target.handle == _selected)
+        .firstOrNull;
+    final selected = target?.handle;
     final canSend =
         !_sending && selected != null && _body.text.trim().isNotEmpty;
     return Scaffold(
@@ -145,11 +170,27 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AleraTokens.space8),
-            Text(
-              'The agent receives the question when it finishes its turn. If that does not happen within 5 hours, the question expires.',
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: AleraTokens.foregroundMuted),
-            ),
+            if (deliverySupported) ...<Widget>[
+              const SizedBox(height: AleraTokens.spaceMd),
+              const AleraSectionHeader(label: 'Deliver'),
+              InboxDeliveryChoice(
+                key: const ValueKey<String>('inboxComposeDelivery'),
+                selected: _delivery,
+                targetMode: target?.deliveryMode,
+                expiry: _expiry,
+                onChanged: (value) => setState(() => _delivery = value),
+              ),
+              _AdvancedFields(
+                inbox: _inbox,
+                expiry: _expiry,
+                onExpiryChanged: (value) => setState(() => _expiry = value),
+              ),
+            ] else
+              Text(
+                inboxLegacyDeliveryNote,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.foregroundMuted),
+              ),
             if (_error case final error?) ...<Widget>[
               const SizedBox(height: AleraTokens.space8),
               Text(
@@ -199,7 +240,7 @@ class const _TargetPicker({
               RadioListTile<String>(
                 value: target.handle,
                 title: Text(target.label),
-                subtitle: Text(inboxDeliveryHint(target.deliveryMode)),
+                subtitle: Text(inboxTargetDeliveryLabel(target.deliveryMode)),
                 contentPadding: EdgeInsets.zero,
               ),
           ],
@@ -207,4 +248,41 @@ class const _TargetPicker({
       ),
     );
   }
+}
+
+/// Inbox and expiry, folded away because almost every question uses the
+/// defaults.
+class const _AdvancedFields({
+  required final TextEditingController inbox,
+  required final Duration expiry,
+  required final ValueChanged<Duration> onExpiryChanged,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => ExpansionTile(
+    key: const ValueKey<String>('inboxComposeAdvanced'),
+    tilePadding: EdgeInsets.zero,
+    childrenPadding: const EdgeInsets.only(bottom: AleraTokens.space8),
+    title: const Text('Advanced'),
+    children: <Widget>[
+      AleraTextField(
+        key: const ValueKey<String>('inboxComposeInbox'),
+        controller: inbox,
+        labelText: 'Inbox',
+      ),
+      const SizedBox(height: AleraTokens.space8),
+      AleraDropdownField<Duration>(
+        key: const ValueKey<String>('inboxComposeExpiry'),
+        labelText: 'Expires If Not Delivered',
+        value: expiry,
+        entries: <AleraDropdownFieldEntry<Duration>>[
+          for (final choice in inboxExpiryChoices)
+            AleraDropdownFieldEntry<Duration>(
+              value: choice,
+              label: inboxExpiryChoiceLabel(choice),
+            ),
+        ],
+        onChanged: onExpiryChanged,
+      ),
+    ],
+  );
 }

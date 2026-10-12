@@ -451,7 +451,7 @@ fn mobile_hello_accepts_an_additive_cloud_device_id() {
 
 #[test]
 fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
-    assert_eq!(PROTOCOL_VERSION, 4);
+    assert_eq!(PROTOCOL_VERSION, 5);
     assert_eq!(RUNTIME_HOST_ACCOUNT_CAPABILITY, "aleraAccountV1");
     assert_eq!(
         RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,

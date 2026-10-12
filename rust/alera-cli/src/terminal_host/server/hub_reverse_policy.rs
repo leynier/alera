@@ -82,6 +82,22 @@ const DENIED_VERBS: &[&str] = &[
     "workspace.promptStart.retryLaunch",
     "workspace.promptStart.cancel",
     "workspace.wake",
+    // Run and recipe mutations act for a person on the desktop; a remote host
+    // reads runs but never decides, cancels, cleans up or edits recipes.
+    "runs.create",
+    "runs.resolveGate",
+    "runs.control",
+    "runs.retryTask",
+    "runs.retryIntegration",
+    "runs.retryCancellation",
+    "runs.previewCleanup",
+    "runs.applyCleanup",
+    "runs.retryCleanup",
+    "runs.abandonCleanup",
+    "recipes.validate",
+    "recipes.savePersonal",
+    "recipes.previewExport",
+    "recipes.applyExport",
 ];
 
 /// Hub-owned records and the actions on them. `workspace.bufferGuard.*` is
@@ -106,6 +122,21 @@ const ALLOWED_PREFIXES: &[&str] = &[
 
 const ALLOWED_VERBS: &[&str] = &[
     "agentPresence.list",
+    "runs.board",
+    "runs.snapshot",
+    "runs.task",
+    "runs.timeline",
+    "runs.source",
+    "runs.plan",
+    "runs.gates",
+    "runs.gate",
+    "runs.resources",
+    "runs.cleanups",
+    "runs.cleanup",
+    "runs.integrations",
+    "runs.integration",
+    "recipes.catalog",
+    "recipes.recipe",
     "inbox.summary",
     "inbox.threads",
     "inbox.thread",

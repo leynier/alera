@@ -6,13 +6,22 @@ enum PushEventKind {
 
   /// An agent replied to a question asked from an inbox.
   inboxReply,
+
+  /// A run gate (plan approval, stage gate, stall or decision) is waiting.
+  runGate,
   unknown;
 
   static PushEventKind parse(String? value) {
     return switch (value) {
       'automation' => automation,
       'inboxReply' || 'inbox_reply' => inboxReply,
-      'waiting' || 'blocked' || 'gate' || 'attention' => attention,
+      'decisionGate' ||
+      'decision_gate' ||
+      'gate' ||
+      'runGate' ||
+      'orchestration.gate.created' ||
+      'planApproval' => runGate,
+      'waiting' || 'blocked' || 'attention' => attention,
       'done' => done,
       'terminalExit' || 'terminal_exit' => terminalExit,
       _ => unknown,
@@ -29,11 +38,18 @@ class const PushNavigationIntent({
   final String? automationId,
   final String? runId,
   final String? threadId,
+  final String? gateId,
+  final String? gateKind,
 }) {
+  /// A gate of a run opens the run; a gate on a task outside any run still
+  /// goes to the agent's terminal.
+  bool get opensRun => eventKind == PushEventKind.runGate && runId != null;
+
   bool get shouldOpenTerminal =>
       eventKind != PushEventKind.terminalExit &&
       eventKind != PushEventKind.automation &&
       eventKind != PushEventKind.inboxReply &&
+      !opensRun &&
       tabId != null;
 
   factory fromData(Map<String, Object?> data) {
@@ -54,6 +70,8 @@ class const PushNavigationIntent({
       automationId: _nonEmpty(data['automationId']),
       runId: _nonEmpty(data['runId']),
       threadId: _nonEmpty(data['threadId']),
+      gateId: _nonEmpty(data['gateId']),
+      gateKind: _nonEmpty(data['gateKind']),
     );
   }
 
@@ -66,6 +84,8 @@ class const PushNavigationIntent({
       if (automationId != null) 'automationId': automationId,
       if (runId != null) 'runId': runId,
       if (threadId != null) 'threadId': threadId,
+      if (gateId != null) 'gateId': gateId,
+      if (gateKind != null) 'gateKind': gateKind,
       'eventType': eventKind.name,
     };
   }

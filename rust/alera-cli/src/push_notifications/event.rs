@@ -83,18 +83,31 @@ impl PushEvent {
         }
     }
 
-    pub(crate) fn decision_gate(task_id: &str, _question: &str, location: PushLocation) -> Self {
+    /// Ids only: the gate's question is orchestration text, which never
+    /// travels in a push payload. `gateKind` is `decision`, `stall`, `plan` or
+    /// `stage`; run-scoped gates carry no `taskId`.
+    pub(crate) fn decision_gate(
+        gate: &alera_core::runtime::OrchestrationDecisionGate,
+        location: PushLocation,
+    ) -> Self {
+        let title = match gate.kind {
+            alera_core::runtime::RunGateKind::Plan => "Plan Needs Approval",
+            _ => "Decision Needed",
+        };
         Self {
             event_id: Uuid::new_v4().to_string(),
             category: "attention".to_string(),
             event_type: "decision_gate".to_string(),
-            title: "Decision Needed".to_string(),
+            title: title.to_string(),
             body: location_body(&location),
             data: location_data(
                 &location,
                 json!({
                     "kind": "decisionGate",
-                    "taskId": task_id,
+                    "gateId": gate.id,
+                    "gateKind": gate.kind.as_str(),
+                    "runId": gate.run_id,
+                    "taskId": (!gate.task_id.is_empty()).then_some(gate.task_id.as_str()),
                 }),
             ),
             occurred_at: Utc::now(),

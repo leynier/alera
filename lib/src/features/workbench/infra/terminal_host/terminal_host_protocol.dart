@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-const int aleraTerminalHostProtocolVersion = 4;
+const int aleraTerminalHostProtocolVersion = 5;
 const String aleraCliExecutableName = 'alera';
 const String aleraCliWindowsExecutableName = 'alera.exe';
 const String aleraRuntimeHostCommand = 'runtime-host';
@@ -117,12 +117,19 @@ const String aleraRuntimeHostRemoteProcessCapability = 'remoteProcessV1';
 /// Additive: do not bump [aleraTerminalHostProtocolVersion].
 const String aleraRuntimeHostProjectHostsCapability = 'projectHostsV1';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
-const String aleraRuntimeHostRunBoardCapability = 'orchestrationRunBoardV1';
+
+/// The `runs.*` surface and the `runsChanged` event.
+const String aleraRuntimeHostRunsCapability = 'runsV1';
+
 const String aleraRuntimeHostInboxCapability = 'inboxV1';
-const String aleraRuntimeHostWorkflowPlansCapability =
-    'workflowReviewedPlansV1';
-const String aleraRuntimeHostWorkflowLifecycleCapability =
-    'workflowRunLifecycleV1';
+
+/// `inbox.ask` takes `delivery: now | turnEnd`, and targets, threads and
+/// messages report `deliveryMode` with the `pasted_now` / `queued_at_turn_end`
+/// values. Additive: do not bump [aleraTerminalHostProtocolVersion].
+const String aleraRuntimeHostInboxDeliveryCapability = 'inboxV2';
+
+/// The `recipes.*` catalog and the `recipesChanged` event.
+const String aleraRuntimeHostRecipesCapability = 'recipesV1';
 const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostConfigurationSyncCapability =

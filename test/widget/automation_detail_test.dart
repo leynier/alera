@@ -1,4 +1,5 @@
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/presentation/automation_detail_view.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/automations/presentation/composer/automation_composer_dialog.dart';
 import 'package:alera/src/features/automations/presentation/detail/automation_runs_tab.dart';
@@ -32,9 +33,9 @@ void main() {
     final container = automationContainer(runtime);
     addTearDown(container.dispose);
     addTearDown(runtime.dispose);
-    container.read(automationsNavigationProvider.notifier)
-      ..open()
-      ..select('${automation['id']}');
+    container.read(activityNavigationProvider.notifier)
+      ..openAutomations()
+      ..selectAutomation('${automation['id']}');
     await tester.pumpWidget(AutomationsTestApp(container: container));
     await tester.pumpAndSettle();
     return (container: container, runtime: runtime);
@@ -188,7 +189,13 @@ void main() {
       'automationId': 'nightly',
     });
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Activity'));
+    // The Activity page title shares the label; tap the detail's tab.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AutomationDetailView),
+        matching: find.text('Activity'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(
       find.text('Unbound because the workspace was removed'),

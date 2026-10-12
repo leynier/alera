@@ -7,7 +7,9 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_collapsible_section.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+import 'package:alera/src/features/activity/domain/activity_location.dart';
 import 'package:alera/src/features/automations/presentation/automation_workspace_runs.dart';
 import 'package:alera/src/features/automations/presentation/catalog/automation_catalog_row.dart';
 import 'package:alera/src/features/automations/presentation/composer/automation_composer_dialog.dart';
@@ -31,7 +33,7 @@ class const AutomationCatalogList({
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final navigation = ref.read(automationsNavigationProvider.notifier);
+    final navigation = ref.read(activityNavigationProvider.notifier);
     final automations = catalog.value;
     final workspaceId = location.scope.kind == AutomationScopeKind.workspace
         ? location.scope.id
@@ -58,7 +60,7 @@ class const AutomationCatalogList({
       automation: automation,
       names: names,
       selected: automation.id == location.selectedId,
-      onTap: () => navigation.select(automation.id),
+      onTap: () => navigation.selectAutomation(automation.id),
       onEdit: () => unawaited(
         showAutomationComposerDialog(
           context,
@@ -80,8 +82,8 @@ class const AutomationCatalogList({
               location.scope != AutomationScope.all,
           onClear: () {
             navigation
-              ..clearFilters()
-              ..setScope(AutomationScope.all);
+              ..clearAutomationFilters()
+              ..setAutomationScope(AutomationScope.all);
           },
         )
       else if (workspaceId != null || groupBy == WorkbenchGroupBy.none)
@@ -104,7 +106,7 @@ class const AutomationCatalogList({
               group.key ?? _othersGroupKey,
             ),
             onExpandedChanged: (_) =>
-                navigation.toggleGroup(group.key ?? _othersGroupKey),
+                navigation.toggleAutomationGroup(group.key ?? _othersGroupKey),
             child: Column(
               crossAxisAlignment: .stretch,
               children: group.automations.map(row).toList(),

@@ -89,7 +89,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
             request_type,
             "orchestration.agentSpawn"
                 | "orchestration.dispatch"
-                | "orchestration.dispatchAccept"
+                | "orchestration.context"
                 | "orchestration.run"
                 | "orchestration.taskRecover"
                 | "orchestration.terminalPrune"

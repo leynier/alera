@@ -8,7 +8,7 @@ An automation runs an [Agent Profile](/docs/agent-profiles) with a prompt, on a 
 
 ## Create An Automation
 
-Open **Automations** from the application menu or with `Mod+Shift+A`, then choose **New Automation**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. You can also start one from the **Command Palette** (`Mod+Shift+P`) with **New Automation**, which has no default shortcut, or from a workspace's context menu or a section header.
+Open **Activity** from the application menu or with `Mod+Shift+A`, choose **Automations** in its rail, then choose **New Automation**. `Mod` is ⌘ on macOS and Ctrl on Windows and Linux. You can also start one from the **Command Palette** (`Mod+Shift+P`) with **New Automation**, which has no default shortcut, or from a workspace's context menu or a section header.
 
 The composer is a single form: a name, the prompt, and one chip each for **Schedule**, **Destination**, **Agent**, **Reuse**, and **Options**. Where you opened it fills in what it can. From a workspace it targets a new agent tab in that workspace; from a Git project it targets a new worktree of the project and its usual source branch. Those values are marked **From Context**, and you can change any of them. Opened from anywhere else, the composer asks you to choose a destination.
 
@@ -48,7 +48,7 @@ The automation detail shows where it is bound, with **Open** and **Unbind**. **U
 
 ## Find Your Tasks
 
-The Automations page covers the chosen runtime and its managed local and SSH destinations. One filter bar holds the status buckets (**Needs Attention**, **Active**, **Paused**, **Drafts**, **Completed**, **Trash**), the **Project**, **Agent Profile**, and **Host** filters, and a search. Definitions are grouped by project or section, following the sidebar, and each group can be collapsed. Use the workspace, section, or project entry points to see associated definitions and their runs. The originating workspace controls where a definition is listed, independently of where a run executes; its section follows workspace moves.
+The Automations section of Activity covers the chosen runtime and its managed local and SSH destinations. One filter bar holds the status buckets (**Needs Attention**, **Active**, **Paused**, **Drafts**, **Completed**, **Trash**), the **Project**, **Agent Profile**, and **Host** filters, and a search. Definitions are grouped by project or section, following the sidebar, and each group can be collapsed. Use the workspace, section, or project entry points to see associated definitions and their runs. The originating workspace controls where a definition is listed, independently of where a run executes; its section follows workspace moves.
 
 The detail shows when and where the automation runs, its last run, the prompt, the reuse binding, and **Runs** and **Activity** tabs. Completed definitions offer cloning, running again, and trashing. **Clone** creates a new automation with the same settings.
 

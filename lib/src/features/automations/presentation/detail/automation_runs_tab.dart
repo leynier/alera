@@ -1,7 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/lists/alera_activity_row.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/automations/presentation/automation_run_panel.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
 import 'package:alera_automations/alera_automations.dart';
@@ -49,7 +49,7 @@ class _AutomationRunsTabState extends ConsumerState<AutomationRunsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final navigation = ref.read(automationsNavigationProvider.notifier);
+    final navigation = ref.read(activityNavigationProvider.notifier);
     final automation = widget.automation;
     final runs = widget.detail.runs;
     final selected = runs
@@ -69,7 +69,8 @@ class _AutomationRunsTabState extends ConsumerState<AutomationRunsTab> {
             run: selected,
             runs: runs,
             attempts: widget.detail.attemptsFor(selected.id),
-            onSelectRun: (id) => navigation.selectRun(automation.id, id),
+            onSelectRun: (id) =>
+                navigation.selectAutomationRun(automation.id, id),
           ),
           const SizedBox(height: AleraTokens.space12),
         ],
@@ -101,7 +102,8 @@ class _AutomationRunsTabState extends ConsumerState<AutomationRunsTab> {
               AutomationRunHistoryRun(:final run) => _RunRow(
                 run: run,
                 selected: run.id == widget.selectedRunId,
-                onPressed: () => navigation.selectRun(automation.id, run.id),
+                onPressed: () =>
+                    navigation.selectAutomationRun(automation.id, run.id),
               ),
               final AutomationRunHistoryMissed missed => AleraActivityRow(
                 title: 'Missed While Runtime Was Off',
@@ -110,8 +112,10 @@ class _AutomationRunsTabState extends ConsumerState<AutomationRunsTab> {
                 metadata: missed.from == null || missed.to == null
                     ? null
                     : '${automationDateTimeLabel(missed.from!)} to ${automationDateTimeLabel(missed.to!)}',
-                onPressed: () =>
-                    navigation.selectRun(automation.id, missed.runs.first.id),
+                onPressed: () => navigation.selectAutomationRun(
+                  automation.id,
+                  missed.runs.first.id,
+                ),
               ),
             },
       ],

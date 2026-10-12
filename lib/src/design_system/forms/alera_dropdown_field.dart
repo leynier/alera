@@ -5,13 +5,34 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:flutter/material.dart';
 
-/// One selectable option of an [AleraDropdownField].
+/// One selectable option of an [AleraDropdownField]. Consecutive entries
+/// with the same [group] sit under one header; [detail] is a muted note shown
+/// beside the label in the menu.
 class const AleraDropdownFieldEntry<T>({
   required final T value,
   required final String label,
   final Widget? leading,
   final bool enabled = true,
+  final String? group,
+  final String? detail,
 });
+
+/// Inserts a group header before each run of entries that starts a new group.
+List<PopupMenuEntry<V>> _withGroupHeaders<T, V>(
+  List<AleraDropdownFieldEntry<T>> entries,
+  PopupMenuEntry<V> Function(int index, AleraDropdownFieldEntry<T> entry) item,
+) {
+  final items = <PopupMenuEntry<V>>[];
+  String? group;
+  for (final (index, entry) in entries.indexed) {
+    if (entry.group != null && entry.group != group) {
+      items.add(AleraDropdownGroupHeader<V>(label: entry.group!));
+    }
+    group = entry.group;
+    items.add(item(index, entry));
+  }
+  return items;
+}
 
 /// Tokenized select field: a text-field-like trigger that opens an Alera
 /// popover menu of [AleraDropdownFieldEntry] options and reports the picked
@@ -81,16 +102,17 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
         constraints: constraints,
         color: AleraTokens.surface,
         shape: shape,
-        items: <PopupMenuEntry<int>>[
-          for (final (index, entry) in entries.indexed)
-            AleraDropdownEntry<int>(
-              value: index,
-              label: entry.label,
-              leading: entry.leading,
-              selected: entry.value == widget.value,
-              enabled: entry.enabled,
-            ),
-        ],
+        items: _withGroupHeaders<T, int>(
+          entries,
+          (index, entry) => AleraDropdownEntry<int>(
+            value: index,
+            label: entry.label,
+            leading: entry.leading,
+            detail: entry.detail,
+            selected: entry.value == widget.value,
+            enabled: entry.enabled,
+          ),
+        ),
       );
       if (selectedIndex == null) {
         return;
@@ -107,16 +129,17 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
       constraints: constraints,
       color: AleraTokens.surface,
       shape: shape,
-      items: <PopupMenuEntry<T>>[
-        for (final entry in entries)
-          AleraDropdownEntry<T>(
-            value: entry.value,
-            label: entry.label,
-            leading: entry.leading,
-            selected: entry.value == widget.value,
-            enabled: entry.enabled,
-          ),
-      ],
+      items: _withGroupHeaders<T, T>(
+        entries,
+        (_, entry) => AleraDropdownEntry<T>(
+          value: entry.value,
+          label: entry.label,
+          leading: entry.leading,
+          detail: entry.detail,
+          selected: entry.value == widget.value,
+          enabled: entry.enabled,
+        ),
+      ),
     );
     if (selected != null && selected != widget.value) {
       widget.onChanged(selected);

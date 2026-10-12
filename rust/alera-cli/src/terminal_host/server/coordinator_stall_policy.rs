@@ -7,20 +7,21 @@
 //! legacy tasks can return to ready. This module adds the confirmation step
 //! and the two policies that skip or defer it.
 
-use alera_core::runtime::{OrchestrationDispatchContext, OrchestrationTaskStatus};
-use serde_json::Value;
+use alera_core::runtime::{
+    OrchestrationDispatchContext, OrchestrationTaskStatus, STALL_GATE_ABORT_STAGE,
+    STALL_GATE_KEEP_WAITING, STALL_GATE_KILL_AND_FAILOVER,
+};
 
 use super::ServerActor;
 
 /// What to do when a worker stops showing liveness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum StallPolicy {
-    /// Open a gate and wait for the user. The default under a policy.
+    /// Open a stall gate and wait for a person. The default.
     Ask,
     /// Stop the old worker and begin the appropriate recovery without asking.
     AutoFailover,
-    /// Leave the task stalled for manual recovery. The historical behavior and
-    /// the default for runs without a policy.
+    /// Leave the task stalled for manual recovery.
     Wait,
 }
 
@@ -28,49 +29,29 @@ impl StallPolicy {
     fn parse(value: &str) -> Self {
         match value {
             "auto-failover" => StallPolicy::AutoFailover,
-            "ask" => StallPolicy::Ask,
-            _ => StallPolicy::Wait,
+            "wait" => StallPolicy::Wait,
+            _ => StallPolicy::Ask,
         }
     }
 }
-
-pub(super) const STALL_OPTION_FAILOVER: &str = "Kill And Failover";
-pub(super) const STALL_OPTION_WAIT: &str = "Keep Waiting";
-pub(super) const STALL_OPTION_ABORT: &str = "Abort Stage";
 
 /// How much terminal output to attach to the gate question.
 const STALL_DIAGNOSTIC_BYTES: usize = 2_000;
 
 impl ServerActor {
-    /// The stall policy for a run: `wait` unless an approved plan says
-    /// otherwise, so a run without a policy behaves exactly as before.
+    /// The stall policy stored on the run, `ask` when the task has no run.
     pub(super) async fn stall_policy_for_run(&mut self, run_id: Option<&str>) -> StallPolicy {
         let Some(run_id) = run_id else {
-            return StallPolicy::Wait;
+            return StallPolicy::Ask;
         };
-        let Ok(Some(run)) = self
+        match self
             .runtime_store
             .orchestration_coordinator_run_by_id(run_id)
             .await
-        else {
-            return StallPolicy::Wait;
-        };
-        if !matches!(
-            run.execution_policy_status,
-            alera_core::runtime::OrchestrationPolicyStatus::Approved
-        ) {
-            return StallPolicy::Wait;
+        {
+            Ok(Some(run)) => StallPolicy::parse(&run.stall_policy),
+            _ => StallPolicy::Ask,
         }
-        run.execution_policy
-            .as_deref()
-            .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-            .and_then(|policy| {
-                policy
-                    .get("stallPolicy")
-                    .and_then(Value::as_str)
-                    .map(StallPolicy::parse)
-            })
-            .unwrap_or(StallPolicy::Ask)
     }
 
     /// Applies the run's stall policy to a dispatch that just stalled.
@@ -102,14 +83,9 @@ impl ServerActor {
              It may still be running, so Alera will not respawn without a decision.\n\n\
              Recent output:\n{tail}"
         );
-        let options = vec![
-            STALL_OPTION_FAILOVER.to_string(),
-            STALL_OPTION_WAIT.to_string(),
-            STALL_OPTION_ABORT.to_string(),
-        ];
         match self
             .runtime_store
-            .create_orchestration_stall_gate(&dispatch.task_id, &question, &options)
+            .create_orchestration_stall_gate(&dispatch.task_id, &question)
             .await
         {
             Ok(gate) => {
@@ -117,7 +93,7 @@ impl ServerActor {
                     "opened stall gate {} for task {}",
                     gate.id, dispatch.task_id
                 ));
-                self.queue_gate_push(&dispatch.task_id, &question).await;
+                self.queue_gate_push(&gate).await;
             }
             Err(error) => self.coordinator_log(&format!(
                 "could not open a stall gate for task {}: {error}",
@@ -126,7 +102,8 @@ impl ServerActor {
         }
     }
 
-    /// Acts on stall gates the user already resolved.
+    /// Acts on stall gates a person already resolved. Gates resolved as
+    /// `resumed` never reach here: their worker recovered on its own.
     pub(super) async fn coordinator_process_stall_decisions(&mut self) -> anyhow::Result<()> {
         let gates = self.runtime_store.resolved_stall_gates().await?;
         for gate in gates {
@@ -134,14 +111,14 @@ impl ServerActor {
                 continue;
             };
             match resolution {
-                STALL_OPTION_FAILOVER => {
+                STALL_GATE_KILL_AND_FAILOVER => {
                     self.coordinator_log(&format!(
                         "stall gate {} resolved: killing and failing over",
                         gate.id
                     ));
                     self.failover_stalled_dispatch(&gate.task_id).await;
                 }
-                STALL_OPTION_WAIT => {
+                STALL_GATE_KEEP_WAITING => {
                     self.coordinator_log(&format!(
                         "stall gate {} resolved: resuming the wait",
                         gate.id
@@ -150,7 +127,7 @@ impl ServerActor {
                         .resume_stalled_orchestration_dispatch(&gate.task_id)
                         .await?;
                 }
-                STALL_OPTION_ABORT => {
+                STALL_GATE_ABORT_STAGE => {
                     self.coordinator_log(&format!("stall gate {} resolved: aborting", gate.id));
                     let _ = self
                         .runtime_store

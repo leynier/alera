@@ -1,9 +1,7 @@
 //! Resolving which agent profile runs a task, and picking the next candidate
 //! when an earlier one failed to start.
 
-use alera_core::runtime::{
-    AgentProfile, AgentProfileLaunchMode, OrchestrationPolicyStatus, OrchestrationTask,
-};
+use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode, OrchestrationTask};
 use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -133,8 +131,9 @@ impl ServerActor {
         Ok(remaining.into_iter().next())
     }
 
-    /// The profile a task should be launched with, if its run has an approved
-    /// policy that declares its stage. Selection failures are not fatal: the
+    /// The profile a task should be launched with, if its run's plan declares
+    /// its stage. A plan still awaiting approval never gets here, because a
+    /// pending plan gate holds scheduling. Selection failures are not fatal: the
     /// coordinator falls back to the run-level agent type rather than stalling.
     pub(super) async fn coordinator_profile_for_task(
         &mut self,
@@ -147,9 +146,6 @@ impl ServerActor {
             .orchestration_coordinator_run_by_id(run_id)
             .await
             .ok()??;
-        if run.execution_policy_status != OrchestrationPolicyStatus::Approved {
-            return None;
-        }
         let policy: Value = serde_json::from_str(run.execution_policy.as_deref()?).ok()?;
         self.next_profile_for_task(&task.id, stage_id, &policy)
             .await

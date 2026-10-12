@@ -41,7 +41,9 @@ import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_relocatio
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_recovery_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/runtime_response_completion.dart';
 import 'package:alera_mobile/src/features/inbox/infra/mobile_runtime_inbox_requests.dart';
+import 'package:alera_mobile/src/features/runs/infra/mobile_runtime_run_requests.dart';
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -86,7 +88,8 @@ class MobileRuntimeClient._(
         MobileRuntimeWorkspaceHostRequests,
         MobileRuntimePullRequestWatchRequests,
         MobileRuntimePullRequestRequests,
-        MobileRuntimeInboxRequests
+        MobileRuntimeInboxRequests,
+        MobileRuntimeRunRequests
     implements
         MobileAutomationClient,
         MobileTerminalClient,
@@ -451,13 +454,7 @@ class MobileRuntimeClient._(
     if (completer == null || completer.isCompleted) {
       return;
     }
-    if (message['ok'] == true) {
-      completer.complete(message['payload']);
-    } else {
-      completer.completeError(
-        StateError((message['error'] as String?) ?? 'Mobile runtime error.'),
-      );
-    }
+    completeRuntimeResponse(completer, message);
   }
 
   @override

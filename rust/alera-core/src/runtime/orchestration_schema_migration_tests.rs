@@ -1,53 +1,17 @@
-use super::RuntimeStore;
+use super::store_runs_v3_reset::RUNS_V3_BACKUP_FILE_NAME;
+use super::store_runs_v3_reset_tests::drop_v3_orchestration;
+use super::{OrchestrationMessageType, RuntimeStore};
 
+/// A schema-1 store (no version key, no workspace columns) has no run that
+/// maps onto v3, so it resets like v2: runs go, the external inbox stays.
 #[tokio::test]
-async fn legacy_orchestration_schema_migrates_without_losing_records() {
+async fn legacy_v1_orchestration_schema_resets_to_v3() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
-    // The legacy fixture cannot retain triggers into the modern tables it drops.
-    for trigger in [
-        "workflowEvidenceUpdateInvalidatesGates",
-        "workflowEvidenceDeleteInvalidatesGates",
-        "workflowResultInvalidatesGates",
-        "workflowDispatchBlocked",
-        "workflowTaskDefinitionImmutable",
-        "workflowTaskMembershipRequired",
-        "workflowTaskJoinRequiresMembership",
-    ] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}")))
-            .execute(store.pool())
-            .await
-            .unwrap();
-    }
-    sqlx::query("DROP VIEW orchestrationBoardRuns")
-        .execute(store.pool())
-        .await
-        .unwrap();
-    for table in [
-        "workflowStageGates",
-        "workflowApprovalChallenges",
-        "workflowTaskEvidence",
-        "workflowDecisions",
-        "workflowPlanTasks",
-        "workflowPlanRevisions",
-        "workflowRuns",
-        "orchestrationAuditEvents",
-        "orchestrationDecisionGates",
-        "orchestrationDispatchContexts",
-        "orchestrationMessages",
-        "orchestrationTasks",
-        "orchestrationCoordinatorRuns",
-    ] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TABLE IF EXISTS {table}")))
-            .execute(store.pool())
-            .await
-            .unwrap();
-    }
-    sqlx::query("DELETE FROM runtimeMetadata WHERE key = 'orchestration.schemaVersion'")
-        .execute(store.pool())
-        .await
-        .unwrap();
+    let mut conn = store.pool().acquire().await.unwrap();
+    drop_v3_orchestration(&mut conn).await;
     for statement in [
+        "DELETE FROM runtimeMetadata WHERE key = 'orchestration.schemaVersion'",
         "CREATE TABLE orchestrationMessages (
             id TEXT NOT NULL, from_handle TEXT NOT NULL, to_handle TEXT NOT NULL,
             subject TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', type TEXT NOT NULL,
@@ -77,92 +41,66 @@ async fn legacy_orchestration_schema_migrates_without_losing_records() {
             coordinator_handle TEXT, poll_interval_ms INTEGER NOT NULL,
             created_at TEXT NOT NULL, completed_at TEXT
         )",
-    ] {
-        sqlx::query(statement).execute(store.pool()).await.unwrap();
-    }
-    sqlx::query(
         "INSERT INTO orchestrationTasks VALUES
          ('task-v1', NULL, 'owner', NULL, 'Legacy Task', 'work', 'dispatched', '[]',
           NULL, '2026-01-01 00:00:00', NULL)",
-    )
-    .execute(store.pool())
-    .await
-    .unwrap();
-    sqlx::query(
         "INSERT INTO orchestrationDispatchContexts VALUES
          ('dispatch-v1', 'task-v1', 'worker', 'dispatched', 0, NULL,
           '2026-01-01 00:01:00', NULL, '2026-01-01 00:01:00', NULL)",
-    )
-    .execute(store.pool())
-    .await
-    .unwrap();
-    sqlx::query(
         "INSERT INTO orchestrationMessages VALUES
          ('message-v1', 'worker', 'owner', 'done', 'body', 'status', 'normal',
           NULL, NULL, 0, 1, '2026-01-01 00:02:00', NULL)",
-    )
-    .execute(store.pool())
-    .await
-    .unwrap();
-    sqlx::query(
+        "INSERT INTO orchestrationMessages VALUES
+         ('question-v1', 'ext:ci', 'worker', 'Ask', 'Ready?', 'decision_gate', 'high',
+          NULL, NULL, 1, 2, '2026-01-01 00:02:30', '2026-01-01 00:02:31')",
         "INSERT INTO orchestrationDecisionGates VALUES
          ('gate-v1', 'task-v1', 'Proceed?', '[]', 'pending', NULL,
           '2026-01-01 00:03:00', NULL)",
-    )
-    .execute(store.pool())
-    .await
-    .unwrap();
-    sqlx::query(
         "INSERT INTO orchestrationCoordinatorRuns VALUES
          ('run-v1', 'coordinate', 'running', 'owner', 2000,
           '2026-01-01 00:00:00', NULL)",
-    )
-    .execute(store.pool())
-    .await
-    .unwrap();
+    ] {
+        sqlx::query(statement).execute(&mut *conn).await.unwrap();
+    }
+    drop(conn);
+    store.pool().close().await;
     drop(store);
 
-    let migrated = RuntimeStore::open(dir.path()).await.unwrap();
-    let task = migrated
-        .orchestration_task_by_id("task-v1")
+    let migrated = RuntimeStore::open_as_runtime_owner(dir.path())
         .await
-        .unwrap()
         .unwrap();
-    assert_eq!(task.workspace_id, "global");
-    assert_eq!(task.coordinator_handle, "owner");
-    let dispatch = migrated
-        .orchestration_dispatch_by_id("dispatch-v1")
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(dispatch.workspace_id, "global");
-    assert!(dispatch.completion_sha.is_none());
-    assert_eq!(
-        dispatch.accepted_at.as_deref(),
-        dispatch.dispatched_at.as_deref()
-    );
-    let messages = migrated.orchestration_inbox(10).await.unwrap();
-    assert_eq!(messages[0].id, "message-v1");
-    assert_eq!(messages[0].state, "queued");
-    assert_eq!(
-        migrated.list_orchestration_gates(None, None).await.unwrap()[0].id,
-        "gate-v1"
-    );
-    assert_eq!(
-        migrated
-            .orchestration_coordinator_run_by_id("run-v1")
-            .await
-            .unwrap()
-            .unwrap()
-            .workspace_id,
-        "global"
-    );
     assert_eq!(
         migrated
             .get_metadata("orchestration.schemaVersion")
             .await
             .unwrap()
             .as_deref(),
-        Some("2")
+        Some("3")
     );
+    assert!(dir.path().join(RUNS_V3_BACKUP_FILE_NAME).exists());
+    assert!(migrated
+        .orchestration_task_by_id("task-v1")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(migrated
+        .orchestration_dispatch_by_id("dispatch-v1")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(migrated
+        .orchestration_coordinator_run_by_id("run-v1")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(migrated
+        .list_orchestration_gates(None, None)
+        .await
+        .unwrap()
+        .is_empty());
+    let messages = migrated.recent_orchestration_messages(10).await.unwrap();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].id, "question-v1");
+    assert_eq!(messages[0].message_type, OrchestrationMessageType::Question);
+    assert_eq!(messages[0].state, "read");
 }

@@ -3655,7 +3655,6 @@
             "description": "Thread status.",
             "enum": [
               "pending",
-              "received",
               "delivered",
               "expired",
               "answered",
@@ -3752,7 +3751,7 @@
         "readOnlyHint": false,
         "title": "Ask Agent"
       },
-      "description": "Ask a running agent a question by terminal handle, or the single agent of a workspace. The agent sees which MCP client asked. Returns the question id, its thread id, and the recorded origin; follow it with wait_for_reply or wait_for_inbox.",
+      "description": "Ask a running agent a question by terminal handle, or the single agent of a workspace. The agent sees which MCP client asked. Returns the question id, its thread id, the recorded origin, and deliveryMode (pasted_now, queued_at_turn_end, check, or unavailable); follow it with wait_for_reply or wait_for_inbox.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -3771,6 +3770,14 @@
             "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
             "maxLength": 128,
             "minLength": 8,
+            "type": "string"
+          },
+          "delivery": {
+            "description": "now (default): paste into a working agent that queues input mid-turn. turnEnd: wait for its turn to end.",
+            "enum": [
+              "now",
+              "turnEnd"
+            ],
             "type": "string"
           },
           "expiresIn": {
@@ -4033,53 +4040,9 @@
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
-        "title": "List Tasks"
-      },
-      "description": "List orchestration tasks, optionally filtered by status, coordinator run, or workspace.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "status": {
-            "description": "Task status.",
-            "enum": [
-              "pending",
-              "ready",
-              "dispatched",
-              "completed",
-              "failed",
-              "blocked",
-              "stalled",
-              "cancelled"
-            ],
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_tasks",
-      "timeoutSeconds": 30,
-      "title": "List Tasks"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
         "title": "Show Task"
       },
-      "description": "Show one orchestration task with its active dispatch.",
+      "description": "Show one orchestration task with its active dispatch. For a task of a run, inspect_task adds its result, attempt, gates, and history.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -4097,59 +4060,6 @@
       "name": "show_task",
       "timeoutSeconds": 30,
       "title": "Show Task"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Coordinator Runs"
-      },
-      "description": "List durable orchestration coordinator runs, optionally for one workspace.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_runs",
-      "timeoutSeconds": 30,
-      "title": "List Coordinator Runs"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Orchestration Status"
-      },
-      "description": "Aggregate the run, task, worker, and escalation state of one coordinator run.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "runId": {
-            "description": "Coordinator run id from list_runs.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "orchestration_status",
-      "timeoutSeconds": 30,
-      "title": "Orchestration Status"
     },
     {
       "access": "read",
@@ -4252,7 +4162,7 @@
         "readOnlyHint": false,
         "title": "Delegate Task"
       },
-      "description": "Create an orchestration task and start an agent profile that accepts it, in an existing workspace or a new child worktree. The coordinator is a running agent terminal (from list_terminals) that receives the worker's messages. Returns the task; follow it with wait_for_task. Without a coordinator terminal, use start_agent_workspace or ask_agent instead.",
+      "description": "Create an orchestration task and start an agent profile on it, in an existing workspace, a new child worktree, or an existing agent terminal. The coordinator is a running agent terminal (from list_terminals) that receives the worker's messages. Without runId the task joins the coordinator's delegated run in the workspace, or starts one. Follow it with wait_for_task. Without a coordinator terminal, use create_run, start_agent_workspace, or ask_agent instead.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -4265,6 +4175,15 @@
             "description": "Terminal handle of the coordinating agent, from list_terminals.",
             "minLength": 1,
             "type": "string"
+          },
+          "dependsOn": {
+            "description": "Task ids this task waits for.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
           },
           "name": {
             "description": "Name for the new workspace.",
@@ -4285,6 +4204,11 @@
             "minLength": 1,
             "type": "string"
           },
+          "runId": {
+            "description": "Run to add the task to; the coordinator must be the run's.",
+            "minLength": 1,
+            "type": "string"
+          },
           "sourceBranch": {
             "description": "Branch the new workspace starts from.",
             "minLength": 1,
@@ -4296,8 +4220,18 @@
             "minLength": 1,
             "type": "string"
           },
+          "stage": {
+            "description": "Stage of the run's plan the task belongs to.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "terminal": {
+            "description": "Running agent terminal to hand the task to instead of starting a new one.",
+            "minLength": 1,
+            "type": "string"
+          },
           "timeoutSeconds": {
-            "description": "Seconds to wait for the agent to accept.",
+            "description": "Seconds to wait for the agent to become ready.",
             "maximum": 50,
             "minimum": 1,
             "type": "integer"
@@ -4333,7 +4267,7 @@
         "readOnlyHint": false,
         "title": "Send Orchestration Message"
       },
-      "description": "Send an orchestration message from one agent terminal to a terminal handle or a group such as @all, @idle, or @workspace:<id>. To ask an agent a question from outside, use ask_agent.",
+      "description": "Send an orchestration message from one agent terminal to a terminal handle or a group such as @all, @idle, or @workspace:<id>. delivery now pastes it into a working agent that queues input mid-turn; turnEnd (default) waits for its turn to end. To ask an agent a question from outside, use ask_agent.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -4341,6 +4275,14 @@
             "description": "Message body.",
             "maxLength": 65536,
             "minLength": 1,
+            "type": "string"
+          },
+          "delivery": {
+            "description": "When it reaches a working agent (default turnEnd).",
+            "enum": [
+              "now",
+              "turnEnd"
+            ],
             "type": "string"
           },
           "from": {
@@ -4391,7 +4333,8 @@
               "merge_ready",
               "escalation",
               "handoff",
-              "decision_gate"
+              "decision_gate",
+              "question"
             ],
             "type": "string"
           }
@@ -4440,142 +4383,6 @@
       "name": "cancel_task",
       "timeoutSeconds": 30,
       "title": "Cancel Task"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Create Task"
-      },
-      "description": "Create an orchestration task without starting an agent. A manual task names its coordinator terminal; a task of a coordinator run names the run and, with an execution policy, its stage. Follow it with dispatch_task or spawn_agent.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "coordinator": {
-            "description": "Terminal handle of the coordinating agent, from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "dependsOn": {
-            "description": "Task ids this task waits for.",
-            "items": {
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array"
-          },
-          "parentTaskId": {
-            "description": "Parent task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "resultSchema": {
-            "description": "JSON Schema text that structured completion results must match.",
-            "maxLength": 16384,
-            "minLength": 1,
-            "type": "string"
-          },
-          "runId": {
-            "description": "Coordinator run for a coordinated task.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "spec": {
-            "description": "Task brief the worker receives.",
-            "maxLength": 65536,
-            "minLength": 1,
-            "type": "string"
-          },
-          "stage": {
-            "description": "Execution policy stage id, for a task of a run with a policy.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "title": {
-            "description": "Short title for listings.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace that owns the task.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "spec",
-          "workspaceId"
-        ],
-        "type": "object"
-      },
-      "name": "create_task",
-      "timeoutSeconds": 30,
-      "title": "Create Task"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Dispatch Task"
-      },
-      "description": "Dispatch a ready task to an existing terminal. With inject, the task preamble is pasted into the running agent; dryRun only builds the preamble.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "coordinator": {
-            "description": "Terminal handle of the coordinating agent, from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "dryRun": {
-            "description": "Build the preamble without changing anything.",
-            "type": "boolean"
-          },
-          "inject": {
-            "description": "Paste the preamble into the worker's running agent.",
-            "type": "boolean"
-          },
-          "returnPreamble": {
-            "description": "Include the full preamble text in the result.",
-            "type": "boolean"
-          },
-          "taskId": {
-            "description": "Ready task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "terminalPolicy": {
-            "description": "What happens to the worker terminal after success (default keep-open).",
-            "enum": [
-              "keep-open",
-              "close-on-success",
-              "return-to-shell"
-            ],
-            "type": "string"
-          },
-          "to": {
-            "description": "Terminal handle of the worker, from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "taskId",
-          "to",
-          "coordinator"
-        ],
-        "type": "object"
-      },
-      "name": "dispatch_task",
-      "timeoutSeconds": 30,
-      "title": "Dispatch Task"
     },
     {
       "access": "read",
@@ -4646,290 +4453,9 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
-        "title": "Spawn Agent For Task"
-      },
-      "description": "Start an agent for an existing ready task, in a new or given terminal of a workspace, and dispatch the task once the agent is ready. Returns when the agent accepts or the wait ends.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "agent": {
-            "description": "Agent type (claude, codex, ...) when no profile is given.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "coordinator": {
-            "description": "Terminal handle of the coordinating agent, from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "profile": {
-            "description": "Agent profile name from list_agent_profiles.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "taskId": {
-            "description": "Ready task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "terminal": {
-            "description": "Existing terminal handle to reuse.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "timeoutSeconds": {
-            "description": "Seconds to wait for the agent to accept.",
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "title": {
-            "description": "Title of the worker tab.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace for the worker terminal.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "taskId",
-          "workspaceId",
-          "coordinator"
-        ],
-        "type": "object"
-      },
-      "name": "spawn_agent",
-      "timeoutSeconds": 58,
-      "title": "Spawn Agent For Task"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Start Coordinator Run"
-      },
-      "description": "Start the background coordinator loop for a running coordinator agent: it records the run objective and dispatches the run's ready tasks to worker terminals.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "agent": {
-            "description": "Agent type for worker terminals the loop creates (default codex).",
-            "minLength": 1,
-            "type": "string"
-          },
-          "coordinator": {
-            "description": "Terminal handle of the coordinating agent, from list_terminals.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "maxConcurrent": {
-            "description": "Maximum concurrent dispatches (default 4).",
-            "maximum": 64,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "spec": {
-            "description": "Run objective.",
-            "maxLength": 65536,
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace that scopes worker terminals.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "spec",
-          "coordinator",
-          "workspaceId"
-        ],
-        "type": "object"
-      },
-      "name": "start_coordinator",
-      "timeoutSeconds": 30,
-      "title": "Start Coordinator Run"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Stop Coordinator Run"
-      },
-      "description": "Stop a coordinator run's loop, optionally cancelling its active tasks. Runs as an audited administrative stop.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cancelActive": {
-            "description": "Also cancel the run's active tasks.",
-            "type": "boolean"
-          },
-          "reason": {
-            "description": "Why it is stopped.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "runId": {
-            "description": "Coordinator run id from list_runs.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "reason"
-        ],
-        "type": "object"
-      },
-      "name": "stop_coordinator",
-      "timeoutSeconds": 30,
-      "title": "Stop Coordinator Run"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Show Coordinator Run"
-      },
-      "description": "Show one coordinator run.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "show_run",
-      "timeoutSeconds": 30,
-      "title": "Show Coordinator Run"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Propose Run Policy"
-      },
-      "description": "Propose an execution policy (a stage plan) for a coordinator run. The run holds scheduling until a person approves or rejects the policy in the Alera app.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "policy": {
-            "description": "Execution policy as JSON text.",
-            "maxLength": 262144,
-            "minLength": 1,
-            "type": "string"
-          },
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "policy"
-        ],
-        "type": "object"
-      },
-      "name": "propose_run_policy",
-      "timeoutSeconds": 30,
-      "title": "Propose Run Policy"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Show Run Policy"
-      },
-      "description": "Show a coordinator run's execution policy and whether it is approved.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "show_run_policy",
-      "timeoutSeconds": 30,
-      "title": "Show Run Policy"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Decision Gates"
-      },
-      "description": "List decision gates, optionally for one task or status.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "status": {
-            "description": "Gate status.",
-            "enum": [
-              "pending",
-              "resolved",
-              "timeout"
-            ],
-            "type": "string"
-          },
-          "taskId": {
-            "description": "Task id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_gates",
-      "timeoutSeconds": 30,
-      "title": "List Decision Gates"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
         "title": "Create Decision Gate"
       },
-      "description": "Ask a person to decide before a task continues. The task stays blocked until someone resolves the gate in the Alera app.",
+      "description": "Ask a person to decide before a task continues. The task stays blocked until someone resolves the gate.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -4963,153 +4489,6 @@
       "name": "create_gate",
       "timeoutSeconds": 30,
       "title": "Create Decision Gate"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Get Orchestration Board"
-      },
-      "description": "Read one page of the run board, with coordinator runs grouped as attention, active, or history. Pass nextCursor back as cursor for the next page.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "bucket": {
-            "description": "Board column.",
-            "enum": [
-              "attention",
-              "active",
-              "history"
-            ],
-            "type": "string"
-          },
-          "cursor": {
-            "description": "The nextCursor JSON object of a previous page, as text.",
-            "maxLength": 1024,
-            "minLength": 1,
-            "type": "string"
-          },
-          "limit": {
-            "description": "Maximum runs.",
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "projectId": {
-            "description": "Project id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "search": {
-            "description": "Text to search for.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "get_orchestration_board",
-      "timeoutSeconds": 30,
-      "title": "Get Orchestration Board"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Get Run Snapshot"
-      },
-      "description": "Read a coordinator run with a page of its tasks. Continue with afterTaskId and the returned revision.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "afterTaskId": {
-            "description": "Continue after this task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "limit": {
-            "description": "Maximum tasks.",
-            "maximum": 200,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "revision": {
-            "description": "Board revision of the previous page.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "get_run_snapshot",
-      "timeoutSeconds": 30,
-      "title": "Get Run Snapshot"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Inspect Task"
-      },
-      "description": "Read one task of a coordinator run with its dispatches and history.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cursor": {
-            "description": "The history cursor JSON object of a previous page, as text.",
-            "maxLength": 1024,
-            "minLength": 1,
-            "type": "string"
-          },
-          "limit": {
-            "description": "Maximum history entries.",
-            "maximum": 200,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Coordinator run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "taskId": {
-            "description": "Task id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "taskId"
-        ],
-        "type": "object"
-      },
-      "name": "inspect_task",
-      "timeoutSeconds": 30,
-      "title": "Inspect Task"
     },
     {
       "access": "admin",
@@ -5164,7 +4543,7 @@
         "readOnlyHint": false,
         "title": "Transfer Coordinator"
       },
-      "description": "Hand a task or a whole coordinator run to another coordinator terminal through an audited administrative transfer.",
+      "description": "Hand a task or a whole run to another coordinator terminal through an audited administrative transfer.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -5174,7 +4553,7 @@
             "type": "string"
           },
           "runId": {
-            "description": "Coordinator run to transfer.",
+            "description": "Run to transfer.",
             "minLength": 1,
             "type": "string"
           },
@@ -5208,7 +4587,7 @@
         "readOnlyHint": false,
         "title": "Reset Orchestration"
       },
-      "description": "Clear orchestration state: tasks with their dispatches, gates, and coordinator runs, messages, or both (default all).",
+      "description": "Clear orchestration state: tasks with their dispatches, gates, and runs, messages, or both (default all).",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -5235,9 +4614,1043 @@
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
-        "title": "List Workflow Recipes"
+        "title": "List Runs"
       },
-      "description": "List built-in and personal workflow recipes, plus a workspace's project recipes when workspaceId is given.",
+      "description": "List one page of runs, grouped as attention, active, or history, with their status, progress, and pending gates. Pass nextCursor back as cursor for the next page.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "bucket": {
+            "description": "Group.",
+            "enum": [
+              "attention",
+              "active",
+              "history"
+            ],
+            "type": "string"
+          },
+          "cursor": {
+            "description": "The nextCursor JSON object of a previous page, as text.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum runs.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "projectId": {
+            "description": "Project id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "search": {
+            "description": "Text to search for in run objectives.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_runs",
+      "timeoutSeconds": 30,
+      "title": "List Runs"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Run"
+      },
+      "description": "Show one run: status, plan state, coordinator, pending gates, cleanup, controlSequence, and a page of its tasks. Continue with afterTaskId and the returned revision.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "afterTaskId": {
+            "description": "Continue after this task id.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum tasks.",
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "revision": {
+            "description": "Revision of the previous page.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "show_run",
+      "timeoutSeconds": 30,
+      "title": "Show Run"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Get Run Timeline"
+      },
+      "description": "Read a run's timeline of events and messages between its agents, newest first. Pass nextCursor back as cursor for older entries.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "nextCursor of a previous page.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kinds": {
+            "description": "Event kinds to keep; message keeps messages.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "limit": {
+            "description": "Maximum entries (default 50).",
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Only entries about this task.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "get_run_timeline",
+      "timeoutSeconds": 30,
+      "title": "Get Run Timeline"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Inspect Task"
+      },
+      "description": "Read one task of a run with its result, attempt, gates, and dispatch history.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "The history cursor JSON object of a previous page, as text.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum history entries.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "inspect_task",
+      "timeoutSeconds": 30,
+      "title": "Inspect Task"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Run Plan"
+      },
+      "description": "Show a run's current plan, or one revision: stages, tasks, recipe, and its plan gate.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "description": "Plan revision (default the current one).",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "show_run_plan",
+      "timeoutSeconds": 30,
+      "title": "Show Run Plan"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Run Plan Context"
+      },
+      "description": "Show what a run's coordinator plans against: objective, source, recipe, profiles, the current plan and any change request. Read it before propose_run_plan.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "show_run_plan_context",
+      "timeoutSeconds": 30,
+      "title": "Show Run Plan Context"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Run Gates"
+      },
+      "description": "List a run's gates, newest first: plan approval, stage gates, and the decision and stall gates of its tasks.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "description": "Gate kind.",
+            "enum": [
+              "decision",
+              "stall",
+              "plan",
+              "stage"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "description": "Gate status.",
+            "enum": [
+              "pending",
+              "resolved",
+              "timeout",
+              "invalidated"
+            ],
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Only gates of this task.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "list_run_gates",
+      "timeoutSeconds": 30,
+      "title": "List Run Gates"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Run Gate"
+      },
+      "description": "Show one gate with its options, evidenceDigest, and what it decides on: the plan of a plan gate, the tasks and evidence of a stage gate, or the task of a decision or stall gate.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "gateId": {
+            "description": "Gate id from list_run_gates or show_run.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateId"
+        ],
+        "type": "object"
+      },
+      "name": "show_run_gate",
+      "timeoutSeconds": 30,
+      "title": "Show Run Gate"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Run Resources"
+      },
+      "description": "List the worktrees and branches a run retains, which preview_run_cleanup can select.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "beforeRow": {
+            "description": "Continue before this row from a previous page.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "list_run_resources",
+      "timeoutSeconds": 30,
+      "title": "List Run Resources"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Run Cleanups"
+      },
+      "description": "List a run's cleanups with their state and digest.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "beforeRow": {
+            "description": "Continue before this row from a previous page.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "list_run_cleanups",
+      "timeoutSeconds": 30,
+      "title": "List Run Cleanups"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Run Integrations"
+      },
+      "description": "List the integrations of an isolated run: each task result squashed onto the run's integration branch, in order.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "afterRow": {
+            "description": "Continue after this row from a previous page.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "list_run_integrations",
+      "timeoutSeconds": 30,
+      "title": "List Run Integrations"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Create Run"
+      },
+      "description": "Start a run in a workspace: a coordinator agent profile reads the objective, proposes a plan, and workers carry it out. isolated (default) gives each task its own worktree and integrates results in order; shared lets workers use the run's workspace. With approvalRequired the plan waits for a person. Returns the run id; follow it with show_run.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "approvalRequired": {
+            "description": "Hold the plan for a person's approval.",
+            "type": "boolean"
+          },
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "coordinatorProfile": {
+            "description": "Coordinator agent profile id or unique name from list_agent_profiles.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "isolation": {
+            "description": "Where workers run (default isolated).",
+            "enum": [
+              "isolated",
+              "shared"
+            ],
+            "type": "string"
+          },
+          "maxConcurrent": {
+            "description": "Maximum workers at once.",
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "objective": {
+            "description": "What the run should achieve.",
+            "maxLength": 65536,
+            "minLength": 1,
+            "type": "string"
+          },
+          "recipe": {
+            "description": "Recipe of an isolated run: builtIn:<id>, personal:<id>, or project:<path>, as list_recipes reports them.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "stallPolicy": {
+            "description": "What happens when a worker stalls.",
+            "enum": [
+              "ask",
+              "auto-failover",
+              "wait"
+            ],
+            "type": "string"
+          },
+          "workerProfile": {
+            "description": "Profile for workers whose role has no profile of its own.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Workspace the run works in.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "objective",
+          "coordinatorProfile"
+        ],
+        "type": "object"
+      },
+      "name": "create_run",
+      "timeoutSeconds": 58,
+      "title": "Create Run"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Propose Run Plan"
+      },
+      "description": "Propose the next plan of a run as JSON ({stages?, tasks?, stallPolicy?, maxConcurrent?}); read show_run_plan_context first. When the run requires approval, the plan waits behind a plan gate until a person resolves it.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "plan": {
+            "description": "Plan as JSON text.",
+            "maxLength": 262144,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "plan"
+        ],
+        "type": "object"
+      },
+      "name": "propose_run_plan",
+      "timeoutSeconds": 30,
+      "title": "Propose Run Plan"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Resolve Run Gate"
+      },
+      "description": "Resolve a pending gate as the person it waits for. Plan and stage gates take approve, requestChanges (with reason), or reject; stall gates take killAndFailover, keepWaiting, or abortStage; decision gates take one of their options. Pass the gate's evidenceDigest from show_run_gate so a gate whose evidence changed is refused as stale.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "description": "Option id, or the answer of a decision gate without options.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedEvidenceDigest": {
+            "description": "evidenceDigest from show_run_gate.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "gateId": {
+            "description": "Gate id from list_run_gates.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why. Required with requestChanges.",
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskIds": {
+            "description": "With requestChanges: the tasks the change is about.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "gateId",
+          "decision"
+        ],
+        "type": "object"
+      },
+      "name": "resolve_run_gate",
+      "timeoutSeconds": 30,
+      "title": "Resolve Run Gate"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Cancel Run"
+      },
+      "description": "Cancel a run: interrupt its workers and coordinator, cancel unfinished tasks, and invalidate pending gates. Retained worktrees stay until cleanup.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedSequence": {
+            "description": "controlSequence from show_run. Read from the run when omitted.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why, recorded on the run's timeline.",
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "cancel_run",
+      "timeoutSeconds": 30,
+      "title": "Cancel Run"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Pause Run"
+      },
+      "description": "Pause a running run so no new work starts. Dispatched workers keep going.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedSequence": {
+            "description": "controlSequence from show_run. Read from the run when omitted.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why, recorded on the run's timeline.",
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "pause_run",
+      "timeoutSeconds": 30,
+      "title": "Pause Run"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Resume Run"
+      },
+      "description": "Resume a paused run. Refused while a plan or stage gate waits for a decision.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedSequence": {
+            "description": "controlSequence from show_run. Read from the run when omitted.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why, recorded on the run's timeline.",
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "type": "object"
+      },
+      "name": "resume_run",
+      "timeoutSeconds": 30,
+      "title": "Resume Run"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Replan Run"
+      },
+      "description": "Ask the run's coordinator for a new plan revision, with what should change.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedSequence": {
+            "description": "controlSequence from show_run. Read from the run when omitted.",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "description": "What the coordinator should change.",
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskIds": {
+            "description": "Tasks the change is about.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "runId",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "name": "replan_run",
+      "timeoutSeconds": 30,
+      "title": "Replan Run"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Retry Run Task"
+      },
+      "description": "Start a new attempt of a task whose attempt needs attention, in a paused isolated run.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "retry_run_task",
+      "timeoutSeconds": 30,
+      "title": "Retry Run Task"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Retry Run Integration"
+      },
+      "description": "Integrate a task's result again after its integration needed attention, in a paused isolated run.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Task id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "taskId"
+        ],
+        "type": "object"
+      },
+      "name": "retry_run_integration",
+      "timeoutSeconds": 30,
+      "title": "Retry Run Integration"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Preview Run Cleanup"
+      },
+      "description": "Preview removing up to 25 retained worktrees of a run, from list_run_resources, optionally with their branches. Removes nothing; returns the cleanup id and digest apply_run_cleanup needs.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "deleteBranchFor": {
+            "description": "Selected workspace ids whose branch is deleted too.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "runId": {
+            "description": "Run id from list_runs.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceIds": {
+            "description": "Workspace ids of the resources to remove.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "runId",
+          "workspaceIds"
+        ],
+        "type": "object"
+      },
+      "name": "preview_run_cleanup",
+      "timeoutSeconds": 30,
+      "title": "Preview Run Cleanup"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Show Run Cleanup"
+      },
+      "description": "Show one cleanup with its state, digest, and per-resource results.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cleanupId": {
+            "description": "Cleanup id.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "cleanupId"
+        ],
+        "type": "object"
+      },
+      "name": "show_run_cleanup",
+      "timeoutSeconds": 30,
+      "title": "Show Run Cleanup"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Apply Run Cleanup"
+      },
+      "description": "Remove the resources of a reviewed preview_run_cleanup. Fails if anything changed since the preview.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cleanupId": {
+            "description": "Cleanup id from preview_run_cleanup.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "digest": {
+            "description": "Digest from preview_run_cleanup or show_run_cleanup.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "cleanupId",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "name": "apply_run_cleanup",
+      "timeoutSeconds": 30,
+      "title": "Apply Run Cleanup"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Retry Run Cleanup"
+      },
+      "description": "Retry a cleanup that needs attention.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cleanupId": {
+            "description": "Cleanup id from preview_run_cleanup.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "digest": {
+            "description": "Digest from preview_run_cleanup or show_run_cleanup.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "cleanupId",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "name": "retry_run_cleanup",
+      "timeoutSeconds": 30,
+      "title": "Retry Run Cleanup"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Abandon Run Cleanup"
+      },
+      "description": "Give up on a cleanup that needs attention and release its resources without removing them.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cleanupId": {
+            "description": "Cleanup id from preview_run_cleanup.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "digest": {
+            "description": "Digest from preview_run_cleanup or show_run_cleanup.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "cleanupId",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "name": "abandon_run_cleanup",
+      "timeoutSeconds": 30,
+      "title": "Abandon Run Cleanup"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Recipes"
+      },
+      "description": "List built-in and personal run recipes, plus a workspace's project recipes when workspaceId is given.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -5251,7 +5664,7 @@
       },
       "name": "list_recipes",
       "timeoutSeconds": 30,
-      "title": "List Workflow Recipes"
+      "title": "List Recipes"
     },
     {
       "access": "read",
@@ -5260,9 +5673,9 @@
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
-        "title": "Show Workflow Recipe"
+        "title": "Show Recipe"
       },
-      "description": "Show one workflow recipe with its digest, roles, and stages. Name it as list_recipes reports its source.",
+      "description": "Show one run recipe with its digest, roles, and stages. Name it as list_recipes reports its source.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -5294,7 +5707,7 @@
       },
       "name": "show_recipe",
       "timeoutSeconds": 30,
-      "title": "Show Workflow Recipe"
+      "title": "Show Recipe"
     },
     {
       "access": "read",
@@ -5303,9 +5716,9 @@
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
-        "title": "Validate Workflow Recipe"
+        "title": "Validate Recipe"
       },
-      "description": "Check a portable workflow recipe (YAML) without saving or running it. Returns its digest and stage order.",
+      "description": "Check a portable run recipe (YAML) without saving or running it. Returns its digest and stage order.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -5323,7 +5736,7 @@
       },
       "name": "validate_recipe",
       "timeoutSeconds": 30,
-      "title": "Validate Workflow Recipe"
+      "title": "Validate Recipe"
     },
     {
       "access": "execute",
@@ -5334,7 +5747,7 @@
         "readOnlyHint": false,
         "title": "Save Personal Recipe"
       },
-      "description": "Create or update a personal workflow recipe from YAML. Updating one needs its current catalog revision.",
+      "description": "Create or update a personal run recipe from YAML. Updating one needs its current catalog revision.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -5447,929 +5860,6 @@
       "name": "export_recipe",
       "timeoutSeconds": 30,
       "title": "Export Recipe"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Workflow Proposals"
-      },
-      "description": "List workflow proposals, newest first, with their coordinator and cancellation state.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "beforeCreatedAt": {
-            "description": "createdAt of the last entry of the previous page.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "beforeId": {
-            "description": "id of the last entry of the previous page.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_workflow_proposals",
-      "timeoutSeconds": 30,
-      "title": "List Workflow Proposals"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Get Workflow Proposal"
-      },
-      "description": "Show a workflow proposal's lifecycle state, or with frozenSelection its frozen recipe, profiles, and source.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "frozenSelection": {
-            "description": "Return the frozen selection instead of the lifecycle state.",
-            "type": "boolean"
-          },
-          "proposalId": {
-            "description": "Proposal id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "proposalId"
-        ],
-        "type": "object"
-      },
-      "name": "get_workflow_proposal",
-      "timeoutSeconds": 30,
-      "title": "Get Workflow Proposal"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Create Workflow Proposal"
-      },
-      "description": "Propose a workflow run from a recipe at the source workspace's current commit. Start its coordinator with start_workflow_coordinator; a person approves the plan in the Alera app.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "clientRequestId": {
-            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "coordinatorProfileId": {
-            "description": "Agent profile id for the coordinator, from list_agent_profiles.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "expectedRevision": {
-            "description": "Current revision of runId.",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "maxConcurrent": {
-            "description": "Workers that may run at once (default 4).",
-            "maximum": 16,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "objective": {
-            "description": "What the workflow should achieve.",
-            "maxLength": 16384,
-            "minLength": 1,
-            "type": "string"
-          },
-          "recipeDigest": {
-            "description": "Recipe digest from show_recipe.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "recipeId": {
-            "description": "Recipe id, or for a project recipe its path, as list_recipes reports them.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "recipeOrigin": {
-            "description": "Where the recipe lives, as list_recipes reports it.",
-            "enum": [
-              "builtIn",
-              "personal",
-              "project"
-            ],
-            "type": "string"
-          },
-          "recipeWorkspaceId": {
-            "description": "Workspace of a project recipe.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "roleProfiles": {
-            "description": "Agent profile per recipe role, each as role=profileId.",
-            "items": {
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array",
-            "uniqueItems": true
-          },
-          "runId": {
-            "description": "Revise this existing run instead of starting a new one.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "Active local Git workspace the workflow starts from.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "workspaceId",
-          "objective",
-          "recipeOrigin",
-          "recipeId",
-          "recipeDigest",
-          "coordinatorProfileId"
-        ],
-        "type": "object"
-      },
-      "name": "create_workflow_proposal",
-      "timeoutSeconds": 30,
-      "title": "Create Workflow Proposal"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Submit Workflow Proposal Tasks"
-      },
-      "description": "Submit the concrete task list for a proposal, as its coordinator would. Does not approve the plan or start workers.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "proposalId": {
-            "description": "Proposal id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "tasks": {
-            "description": "JSON array of plan tasks (id, title, spec, stageId, roleId, dependsOn, inputs, correctsTaskId).",
-            "maxLength": 1048576,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "proposalId",
-          "tasks"
-        ],
-        "type": "object"
-      },
-      "name": "submit_workflow_proposal",
-      "timeoutSeconds": 30,
-      "title": "Submit Workflow Proposal Tasks"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Cancel Workflow Proposal"
-      },
-      "description": "Cancel a workflow proposal and its coordinator. Pass expectedSequence to retry a cancellation that did not finish.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "expectedSequence": {
-            "description": "Cancellation sequence from get_workflow_proposal, to retry it.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "proposalId": {
-            "description": "Proposal id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "proposalId"
-        ],
-        "type": "object"
-      },
-      "name": "cancel_workflow_proposal",
-      "timeoutSeconds": 30,
-      "title": "Cancel Workflow Proposal"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Start Workflow Coordinator"
-      },
-      "description": "Start the coordinator agent of a workflow proposal. The coordinator drafts the plan; it does not approve it.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "proposalId": {
-            "description": "Proposal id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "proposalId"
-        ],
-        "type": "object"
-      },
-      "name": "start_workflow_coordinator",
-      "timeoutSeconds": 58,
-      "title": "Start Workflow Coordinator"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Prepare Workflow Plan"
-      },
-      "description": "Prepare a durable workflow plan for review from a PrepareWorkflowPlan JSON document with a stable requestId. Starts no workers; a person approves it in the Alera app.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "document": {
-            "description": "PrepareWorkflowPlan JSON document.",
-            "maxLength": 1048576,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "document"
-        ],
-        "type": "object"
-      },
-      "name": "prepare_workflow_plan",
-      "timeoutSeconds": 30,
-      "title": "Prepare Workflow Plan"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Show Workflow Plan"
-      },
-      "description": "Show the current or a past revision of a workflow run's plan, with its digest, tasks, and frozen profiles.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "revision": {
-            "description": "Plan revision (default current).",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "show_workflow_plan",
-      "timeoutSeconds": 30,
-      "title": "Show Workflow Plan"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Get Workflow Execution"
-      },
-      "description": "Show whether a workflow run is scheduling, paused, or cancelled, with the command sequence control_workflow_execution needs.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "revision": {
-            "description": "Plan revision (default current).",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "get_workflow_execution",
-      "timeoutSeconds": 30,
-      "title": "Get Workflow Execution"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Control Workflow Execution"
-      },
-      "description": "Start, pause, or cancel the scheduling of an approved workflow run revision. Fails if expectedSequence is stale.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "action": {
-            "description": "What to do.",
-            "enum": [
-              "start",
-              "pause",
-              "cancel"
-            ],
-            "type": "string"
-          },
-          "clientRequestId": {
-            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "expectedSequence": {
-            "description": "Sequence from get_workflow_execution.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "revision": {
-            "description": "Approved plan revision.",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "revision",
-          "expectedSequence",
-          "action"
-        ],
-        "type": "object"
-      },
-      "name": "control_workflow_execution",
-      "timeoutSeconds": 30,
-      "title": "Control Workflow Execution"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Create Workflow Correction"
-      },
-      "description": "Open a correction proposal for a workflow run revision, with the reason the coordinator receives. A person still approves the corrected plan.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "clientRequestId": {
-            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "planDigest": {
-            "description": "Plan digest from show_workflow_plan.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "reason": {
-            "description": "Why the run needs a correction.",
-            "maxLength": 4096,
-            "minLength": 1,
-            "type": "string"
-          },
-          "revision": {
-            "description": "Approved plan revision.",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "revision",
-          "planDigest",
-          "reason"
-        ],
-        "type": "object"
-      },
-      "name": "create_workflow_correction",
-      "timeoutSeconds": 30,
-      "title": "Create Workflow Correction"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Prepare Workflow Attempt"
-      },
-      "description": "Prepare the integration workspace of an approved run, or a task's isolated attempt. retryOf names the latest failed attempt; a retry always gets a new worktree. Dispatches no worker.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "clientRequestId": {
-            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "retryOf": {
-            "description": "Workspace id of the task's latest failed attempt.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "revision": {
-            "description": "Approved plan revision.",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "taskId": {
-            "description": "Task to prepare an attempt for. Omit to prepare the integration workspace.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "revision"
-        ],
-        "type": "object"
-      },
-      "name": "prepare_workflow_attempt",
-      "timeoutSeconds": 58,
-      "title": "Prepare Workflow Attempt"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Launch Workflow Task"
-      },
-      "description": "Launch one approved task in its ready isolated attempt, at most once per clientRequestId.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "clientRequestId": {
-            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "revision": {
-            "description": "Approved plan revision.",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "taskId": {
-            "description": "Task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "The task attempt's workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "revision",
-          "taskId",
-          "workspaceId"
-        ],
-        "type": "object"
-      },
-      "name": "launch_workflow_task",
-      "timeoutSeconds": 58,
-      "title": "Launch Workflow Task"
-    },
-    {
-      "access": "execute",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Integrate Workflow Result"
-      },
-      "description": "Squash a completed task's result into its run's local integration workspace. Use a new clientRequestId to retry a failed integration.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "clientRequestId": {
-            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "revision": {
-            "description": "Approved plan revision.",
-            "maximum": 9007199254740991,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "taskId": {
-            "description": "Task id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceId": {
-            "description": "The task attempt's workspace id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId",
-          "revision",
-          "taskId",
-          "workspaceId"
-        ],
-        "type": "object"
-      },
-      "name": "integrate_workflow_result",
-      "timeoutSeconds": 58,
-      "title": "Integrate Workflow Result"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Workflow Integrations"
-      },
-      "description": "List a run's local integration outcomes, or show one integration receipt with any conflict paths.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "afterRow": {
-            "description": "Continue after this row of a previous page.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "integrationId": {
-            "description": "Show this integration instead of listing.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "name": "list_workflow_integrations",
-      "timeoutSeconds": 30,
-      "title": "List Workflow Integrations"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Workflow Workspaces"
-      },
-      "description": "List the workspaces a workflow run retains (integration and attempts) with their setup outcome.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "beforeRow": {
-            "description": "Continue before this row of a previous page.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "limit": {
-            "description": "Maximum entries.",
-            "maximum": 200,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "list_workflow_workspaces",
-      "timeoutSeconds": 30,
-      "title": "List Workflow Workspaces"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "List Workflow Cleanups"
-      },
-      "description": "List a workflow run's retained resources with their cleanup state, or its cleanup operations.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "beforeRow": {
-            "description": "Continue before this row of a previous page.",
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "view": {
-            "description": "resources (default) or operations.",
-            "enum": [
-              "resources",
-              "operations"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "runId"
-        ],
-        "type": "object"
-      },
-      "name": "list_workflow_cleanups",
-      "timeoutSeconds": 30,
-      "title": "List Workflow Cleanups"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Preview Workflow Cleanup"
-      },
-      "description": "Preview removing up to 25 retained workspaces of a workflow run, optionally with their branches. Changes nothing; returns the id and digest the cleanup tools need.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "removeBranchFor": {
-            "description": "Selected workspaces whose branch is deleted too.",
-            "items": {
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array",
-            "uniqueItems": true
-          },
-          "runId": {
-            "description": "Workflow run id.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "workspaceIds": {
-            "description": "Retained workspaces to remove.",
-            "items": {
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array",
-            "uniqueItems": true
-          }
-        },
-        "required": [
-          "runId",
-          "workspaceIds"
-        ],
-        "type": "object"
-      },
-      "name": "preview_workflow_cleanup",
-      "timeoutSeconds": 30,
-      "title": "Preview Workflow Cleanup"
-    },
-    {
-      "access": "read",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Get Workflow Cleanup"
-      },
-      "description": "Show a workflow cleanup operation, its reviewed preview, and the outcome of each resource.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cleanupId": {
-            "description": "Cleanup (preview) id.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "cleanupId"
-        ],
-        "type": "object"
-      },
-      "name": "get_workflow_cleanup",
-      "timeoutSeconds": 30,
-      "title": "Get Workflow Cleanup"
-    },
-    {
-      "access": "admin",
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Apply Workflow Cleanup"
-      },
-      "description": "Remove the workspaces (and branches) of a previewed workflow cleanup. Fails if they changed since the preview.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cleanupId": {
-            "description": "Cleanup id from preview_workflow_cleanup.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "digest": {
-            "description": "Digest from preview_workflow_cleanup.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "cleanupId",
-          "digest"
-        ],
-        "type": "object"
-      },
-      "name": "apply_workflow_cleanup",
-      "timeoutSeconds": 58,
-      "title": "Apply Workflow Cleanup"
-    },
-    {
-      "access": "admin",
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Retry Workflow Cleanup"
-      },
-      "description": "Retry a workflow cleanup that did not finish, for the same reviewed preview.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cleanupId": {
-            "description": "Cleanup id from preview_workflow_cleanup.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "digest": {
-            "description": "Digest from preview_workflow_cleanup.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "cleanupId",
-          "digest"
-        ],
-        "type": "object"
-      },
-      "name": "retry_workflow_cleanup",
-      "timeoutSeconds": 58,
-      "title": "Retry Workflow Cleanup"
-    },
-    {
-      "access": "admin",
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-        "title": "Abandon Workflow Cleanup"
-      },
-      "description": "Abandon an unfinished workflow cleanup and keep the resources it did not remove.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "cleanupId": {
-            "description": "Cleanup id from preview_workflow_cleanup.",
-            "minLength": 1,
-            "type": "string"
-          },
-          "digest": {
-            "description": "Digest from preview_workflow_cleanup.",
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "cleanupId",
-          "digest"
-        ],
-        "type": "object"
-      },
-      "name": "abandon_workflow_cleanup",
-      "timeoutSeconds": 58,
-      "title": "Abandon Workflow Cleanup"
     },
     {
       "access": "read",

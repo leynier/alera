@@ -338,3 +338,40 @@ fn inbox_verbs_reach_the_hub_by_name() {
     }
     assert!(!hub_answers("inbox.somethingNew"));
 }
+
+/// A remote host reads runs and recipes through its hub but never decides,
+/// cancels, cleans up or edits them.
+#[test]
+fn a_satellite_reads_runs_but_never_mutates_them() {
+    for verb in [
+        "runs.board",
+        "runs.snapshot",
+        "runs.task",
+        "runs.timeline",
+        "runs.plan",
+        "runs.gates",
+        "runs.gate",
+        "recipes.catalog",
+        "recipes.recipe",
+    ] {
+        assert!(hub_answers(verb), "{verb}");
+    }
+    for verb in [
+        "runs.create",
+        "runs.resolveGate",
+        "runs.control",
+        "runs.retryTask",
+        "runs.retryIntegration",
+        "runs.retryCancellation",
+        "runs.previewCleanup",
+        "runs.applyCleanup",
+        "runs.retryCleanup",
+        "runs.abandonCleanup",
+        "runs.unknownVerb",
+        "recipes.savePersonal",
+        "recipes.applyExport",
+        "workflows.catalog",
+    ] {
+        assert!(!hub_answers(verb), "{verb}");
+    }
+}

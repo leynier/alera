@@ -1,5 +1,5 @@
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

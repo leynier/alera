@@ -1,9 +1,11 @@
 use anyhow::{anyhow, bail, Result};
-use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite};
+use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite, SqliteConnection};
 
+use super::orchestration_board_schema::DUE_GATE_SQL;
 use super::{
     OrchestrationBoardBucket, OrchestrationBoardCounts, OrchestrationBoardCursor,
-    OrchestrationBoardQuery, OrchestrationBoardSnapshot, OrchestrationRunSummary, RuntimeStore,
+    OrchestrationBoardQuery, OrchestrationBoardSnapshot, OrchestrationRunSummary,
+    RunPendingGateRef, RuntimeStore, RUN_SUMMARY_PENDING_GATES_MAX,
 };
 
 pub(super) const BOARD_REVISION_SQL: &str =
@@ -74,6 +76,7 @@ impl RuntimeStore {
             .collect::<Result<Vec<_>>>()?;
         let has_more = items.len() > limit as usize;
         items.truncate(limit as usize);
+        attach_pending_gates(&mut tx, &mut items).await?;
         let next_cursor = items
             .last()
             .filter(|_| has_more)
@@ -107,6 +110,43 @@ fn push_filters(sql: &mut QueryBuilder<Sqlite>, filter: &OrchestrationBoardQuery
     }
 }
 
+/// Fills each summary's newest due gates (bounded per run) in one query.
+pub(super) async fn attach_pending_gates(
+    conn: &mut SqliteConnection,
+    items: &mut [OrchestrationRunSummary],
+) -> Result<()> {
+    if items.iter().all(|item| item.pending_gate_count == 0) {
+        return Ok(());
+    }
+    let due = DUE_GATE_SQL.replace("{gate}", "g");
+    let mut sql = QueryBuilder::<Sqlite>::new(format!(
+        "SELECT run_id, id, kind, task_id FROM (
+            SELECT COALESCE(g.run_id, t.run_id) AS run_id, g.id, g.kind, g.task_id,
+                ROW_NUMBER() OVER (PARTITION BY COALESCE(g.run_id, t.run_id)
+                    ORDER BY g.created_at DESC, g.rowid DESC) AS position
+            FROM runGates g LEFT JOIN orchestrationTasks t ON t.id = g.task_id
+            WHERE {due} AND COALESCE(g.run_id, t.run_id) IN ("
+    ));
+    let mut ids = sql.separated(", ");
+    for item in items.iter().filter(|item| item.pending_gate_count > 0) {
+        ids.push_bind(item.id.clone());
+    }
+    sql.push(") ) WHERE position <= ")
+        .push_bind(RUN_SUMMARY_PENDING_GATES_MAX)
+        .push(" ORDER BY run_id, position");
+    for row in sql.build().fetch_all(&mut *conn).await? {
+        let run_id: String = row.try_get("run_id")?;
+        if let Some(item) = items.iter_mut().find(|item| item.id == run_id) {
+            item.pending_gates.push(RunPendingGateRef {
+                id: row.try_get("id")?,
+                kind: row.try_get("kind")?,
+                task_id: row.try_get("task_id")?,
+            });
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn summary_from_row(row: SqliteRow) -> Result<OrchestrationRunSummary> {
     let bucket = match row.try_get::<String, _>("bucket")?.as_str() {
         "attention" => OrchestrationBoardBucket::Attention,
@@ -125,9 +165,21 @@ pub(super) fn summary_from_row(row: SqliteRow) -> Result<OrchestrationRunSummary
         project_name: row.try_get("project_name")?,
         created_at: row.try_get("created_at")?,
         last_activity_at: row.try_get("last_activity_at")?,
-        policy_status: row.try_get("policy_status")?,
-        workflow_revision: row.try_get("workflow_revision")?,
-        workflow_status: row.try_get("workflow_status")?,
+        completed_at: row.try_get("completed_at")?,
+        plan_gate_pending: row.try_get("plan_gate_pending")?,
+        isolation: row.try_get("isolation")?,
+        approval_required: row.try_get("approval_required")?,
+        plan_revision: row.try_get("plan_revision")?,
+        attention_reason: row.try_get("attention_reason")?,
+        coordinator_state: row.try_get("coordinator_state")?,
+        paused_by: row.try_get("paused_by")?,
+        control_sequence: row.try_get("control_sequence")?,
+        pending_gate_kinds: row
+            .try_get::<String, _>("pending_gate_kinds")?
+            .split(',')
+            .filter(|kind| !kind.is_empty())
+            .map(str::to_string)
+            .collect(),
         task_count: row.try_get("task_count")?,
         completed_count: row.try_get("completed_count")?,
         running_count: row.try_get("running_count")?,
@@ -137,5 +189,6 @@ pub(super) fn summary_from_row(row: SqliteRow) -> Result<OrchestrationRunSummary
         pending_gate_count: row.try_get("pending_gate_count")?,
         cleanup_attention: row.try_get("cleanup_attention")?,
         cleanup_applying: row.try_get("cleanup_applying")?,
+        pending_gates: Vec::new(),
     })
 }

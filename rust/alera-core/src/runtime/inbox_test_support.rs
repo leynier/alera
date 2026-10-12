@@ -29,11 +29,13 @@ pub(super) fn message(
         expires_at: None,
         reply_to_id: None,
         external_meta: None,
+        delivery: MessageDelivery::TurnEnd,
     }
 }
 
 pub(super) fn question(inbox: &str, recipient: &str) -> NewInboxQuestion {
     NewInboxQuestion {
+        delivery: MessageDelivery::Now,
         inbox: inbox.to_string(),
         recipient: recipient.to_string(),
         subject: "Migration risk".to_string(),

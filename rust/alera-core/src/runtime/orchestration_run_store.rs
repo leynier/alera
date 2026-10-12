@@ -6,15 +6,38 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 
 use super::orchestration_message_store::orchestration_id;
-use super::{
-    OrchestrationCoordinatorRun, OrchestrationCoordinatorStatus, OrchestrationPolicyStatus,
-    RuntimeStore,
-};
+use super::run_event_store::{record_run_event, NewRunEvent, RunEventKind};
+use super::{OrchestrationCoordinatorRun, OrchestrationCoordinatorStatus, RuntimeStore};
 
-pub(super) const RUN_COLUMNS: &str =
+/// Run columns for a query over `orchestrationCoordinatorRuns` without an alias.
+pub(super) fn run_columns() -> String {
     "id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at, \
      workspace_id, max_concurrent, last_activity_at, stop_reason, execution_policy, \
-     execution_policy_status, execution_policy_updated_at";
+     approval_required, stall_policy, paused_by, isolation, attention_reason, plan_revision, \
+     control_sequence, coordinator_tab_id"
+        .to_string()
+}
+
+/// Same predicate as `OrchestrationCoordinatorRun::holds_workspace`.
+pub(super) const RUN_HOLDS_WORKSPACE_SQL: &str = "(status IN ('planning','awaitingApproval',\
+     'running','paused') OR (status = 'cancelled' AND completed_at IS NULL))";
+
+/// How a shared run starts: whether its plan waits for a person's approval
+/// before any worker is dispatched, and how stalled workers are handled.
+#[derive(Debug, Clone, Copy)]
+pub struct NewRunPlan<'a> {
+    pub approval_required: bool,
+    pub stall_policy: &'a str,
+}
+
+impl Default for NewRunPlan<'_> {
+    fn default() -> Self {
+        Self {
+            approval_required: false,
+            stall_policy: "ask",
+        }
+    }
+}
 
 pub(super) fn run_from_row(row: SqliteRow) -> Result<OrchestrationCoordinatorRun> {
     let status_raw: String = row.try_get("status")?;
@@ -22,7 +45,7 @@ pub(super) fn run_from_row(row: SqliteRow) -> Result<OrchestrationCoordinatorRun
         id: row.try_get("id")?,
         spec: row.try_get("spec")?,
         status: OrchestrationCoordinatorStatus::parse(&status_raw)
-            .unwrap_or(OrchestrationCoordinatorStatus::Idle),
+            .unwrap_or(OrchestrationCoordinatorStatus::Paused),
         coordinator_handle: row.try_get("coordinator_handle")?,
         poll_interval_ms: row.try_get("poll_interval_ms")?,
         created_at: row.try_get("created_at")?,
@@ -32,11 +55,14 @@ pub(super) fn run_from_row(row: SqliteRow) -> Result<OrchestrationCoordinatorRun
         last_activity_at: row.try_get("last_activity_at")?,
         stop_reason: row.try_get("stop_reason")?,
         execution_policy: row.try_get("execution_policy")?,
-        execution_policy_status: row
-            .try_get::<Option<String>, _>("execution_policy_status")?
-            .and_then(|value| OrchestrationPolicyStatus::parse(&value))
-            .unwrap_or_default(),
-        execution_policy_updated_at: row.try_get("execution_policy_updated_at")?,
+        approval_required: row.try_get("approval_required")?,
+        stall_policy: row.try_get("stall_policy")?,
+        paused_by: row.try_get("paused_by")?,
+        isolation: row.try_get("isolation")?,
+        attention_reason: row.try_get("attention_reason")?,
+        plan_revision: row.try_get("plan_revision")?,
+        control_sequence: row.try_get("control_sequence")?,
+        coordinator_tab_id: row.try_get("coordinator_tab_id")?,
     })
 }
 
@@ -67,11 +93,33 @@ impl RuntimeStore {
         workspace_id: &str,
         max_concurrent: i64,
     ) -> Result<OrchestrationCoordinatorRun> {
-        let mut tx = self.pool().begin().await?;
-        let active: Option<String> = sqlx::query(
-            "SELECT id FROM orchestrationCoordinatorRuns \
-             WHERE workspace_id = ? AND status IN ('running','stopping') LIMIT 1",
+        self.create_planned_orchestration_coordinator_run(
+            spec,
+            coordinator_handle,
+            poll_interval_ms,
+            workspace_id,
+            max_concurrent,
+            NewRunPlan::default(),
         )
+        .await
+    }
+
+    /// Creates a shared run. With `approval_required` it starts `planning`
+    /// and waits for a plan; otherwise it starts `running`.
+    pub async fn create_planned_orchestration_coordinator_run(
+        &self,
+        spec: &str,
+        coordinator_handle: Option<&str>,
+        poll_interval_ms: i64,
+        workspace_id: &str,
+        max_concurrent: i64,
+        plan: NewRunPlan<'_>,
+    ) -> Result<OrchestrationCoordinatorRun> {
+        let mut tx = self.pool().begin().await?;
+        let active: Option<String> = sqlx::query(sqlx::AssertSqlSafe(format!(
+            "SELECT id FROM orchestrationCoordinatorRuns \
+             WHERE workspace_id = ? AND {RUN_HOLDS_WORKSPACE_SQL} LIMIT 1"
+        )))
         .bind(workspace_id)
         .fetch_optional(&mut *tx)
         .await?
@@ -83,17 +131,28 @@ impl RuntimeStore {
         let id = orchestration_id("run");
         sqlx::query(
             "INSERT INTO orchestrationCoordinatorRuns \
-             (id, spec, status, coordinator_handle, poll_interval_ms, workspace_id, max_concurrent) \
-             VALUES (?, ?, 'running', ?, ?, ?, ?)",
+             (id, spec, status, coordinator_handle, poll_interval_ms, workspace_id, max_concurrent, \
+              approval_required, stall_policy, isolation) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'shared')",
         )
         .bind(&id)
         .bind(spec)
+        .bind(if plan.approval_required {
+            OrchestrationCoordinatorStatus::Planning.as_str()
+        } else {
+            OrchestrationCoordinatorStatus::Running.as_str()
+        })
         .bind(coordinator_handle)
         .bind(poll_interval_ms)
         .bind(workspace_id)
         .bind(max_concurrent)
+        .bind(plan.approval_required)
+        .bind(plan.stall_policy)
         .execute(&mut *tx)
         .await?;
+        let mut created = NewRunEvent::new(&id, RunEventKind::Created);
+        created.summary = spec;
+        record_run_event(&mut tx, &created).await?;
         tx.commit().await?;
         self.orchestration_coordinator_run_by_id(&id)
             .await?
@@ -105,7 +164,8 @@ impl RuntimeStore {
         id: &str,
     ) -> Result<Option<OrchestrationCoordinatorRun>> {
         let row = sqlx::query(sqlx::AssertSqlSafe(format!(
-            "SELECT {RUN_COLUMNS} FROM orchestrationCoordinatorRuns WHERE id = ?"
+            "SELECT {} FROM orchestrationCoordinatorRuns WHERE id = ?",
+            run_columns()
         )))
         .bind(id)
         .fetch_optional(self.pool())
@@ -117,19 +177,35 @@ impl RuntimeStore {
         &self,
     ) -> Result<Option<OrchestrationCoordinatorRun>> {
         let row = sqlx::query(sqlx::AssertSqlSafe(format!(
-            "SELECT {RUN_COLUMNS} FROM orchestrationCoordinatorRuns \
-             WHERE status = 'running' ORDER BY created_at DESC LIMIT 1"
+            "SELECT {} FROM orchestrationCoordinatorRuns \
+             WHERE status = 'running' ORDER BY created_at DESC LIMIT 1",
+            run_columns()
         )))
         .fetch_optional(self.pool())
         .await?;
         row.map(run_from_row).transpose()
     }
 
+    /// Running shared runs whose coordinator the runtime did not launch.
+    pub async fn running_shared_runs(&self) -> Result<Vec<OrchestrationCoordinatorRun>> {
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "SELECT {} FROM orchestrationCoordinatorRuns \
+             WHERE status = 'running' AND isolation = 'shared' AND coordinator_tab_id IS NULL \
+             ORDER BY created_at LIMIT 200",
+            run_columns()
+        )))
+        .fetch_all(self.pool())
+        .await?
+        .into_iter()
+        .map(run_from_row)
+        .collect()
+    }
+
     pub async fn list_orchestration_coordinator_runs(
         &self,
         workspace_id: Option<&str>,
     ) -> Result<Vec<OrchestrationCoordinatorRun>> {
-        let mut sql = format!("SELECT {RUN_COLUMNS} FROM orchestrationCoordinatorRuns");
+        let mut sql = format!("SELECT {} FROM orchestrationCoordinatorRuns", run_columns());
         if workspace_id.is_some() {
             sql.push_str(" WHERE workspace_id = ?");
         }
@@ -151,21 +227,38 @@ impl RuntimeStore {
         id: &str,
         status: OrchestrationCoordinatorStatus,
     ) -> Result<()> {
-        sqlx::query(
+        let mut tx = self.pool().begin().await?;
+        let changed = sqlx::query(
             "UPDATE orchestrationCoordinatorRuns \
-             SET status = ?, completed_at = datetime('now') WHERE id = ?",
+             SET status = ?, completed_at = datetime('now'), paused_by = NULL \
+             WHERE id = ? AND status NOT IN ('completed','failed','cancelled')",
         )
         .bind(status.as_str())
         .bind(id)
-        .execute(self.pool())
-        .await?;
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        if changed == 1 {
+            let kind = match status {
+                OrchestrationCoordinatorStatus::Completed => Some(RunEventKind::Completed),
+                OrchestrationCoordinatorStatus::Failed => Some(RunEventKind::Failed),
+                OrchestrationCoordinatorStatus::Cancelled => Some(RunEventKind::Cancelled),
+                _ => None,
+            };
+            if let Some(kind) = kind {
+                let mut event = NewRunEvent::new(id, kind);
+                event.actor_kind = Some(super::RunActorKind::Runtime);
+                record_run_event(&mut tx, &event).await?;
+            }
+        }
+        tx.commit().await?;
         Ok(())
     }
 
     pub async fn stop_orchestration_coordinator_run(&self, id: &str, reason: &str) -> Result<()> {
         sqlx::query(
             "UPDATE orchestrationCoordinatorRuns \
-             SET status = 'stopped', completed_at = datetime('now'), stop_reason = ? \
+             SET status = 'cancelled', completed_at = datetime('now'), stop_reason = ? \
              WHERE id = ?",
         )
         .bind(reason)

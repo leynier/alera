@@ -1,28 +1,23 @@
 # Worker
 
-## Worker Contract
-
-The dispatch preamble installs a terminal-scoped context. Execute acceptance before doing work:
+There is no accept step and no heartbeat. Your first worker command (`context`, `ask`, `escalate`, or `complete`) tells Alera you started, and your terminal activity keeps the task alive.
 
 ```bash
-alera orchestration dispatch-accept
 alera orchestration --json context
+alera orchestration complete --summary "What was done and what remains"
 ```
 
-Use context-aware lifecycle commands:
+- `complete` records the result exactly once. Only `--summary` is required. Add `--kind failure` when the task could not be done; a failure consumes the task's failure budget and may return it to ready.
+- Optional evidence: `--files "path/a,path/b"`, `--artifacts '<json array>'`, `--validation '<json array>'`. When the task has a role contract or a result schema (shown by `context`), supply what it asks for, with `--result-extra '{"field":"value"}'` for extra schema fields.
+- After completing, end the turn. The terminal stays open for reuse.
+- Report a blocker the coordinator must act on:
 
 ```bash
-alera orchestration heartbeat --phase reviewing
-alera orchestration escalate --subject "Blocked" --body "Missing credentials"
-alera orchestration complete --summary "Review completed" --completion-kind success --artifacts '[]' --files-modified "path/a" --validation '[]'
+alera orchestration escalate --subject "Blocked: missing credentials" --body "Details"
 ```
 
-If the task defines a custom result schema, add its properties with `--result-extra '{"field":"value"}'`.
+- Ask the coordinator with `alera orchestration ask --to <coordinator-handle> --question "..." [--options "A,B"]`. While a dispatch is active the host routes the question to the dispatch's current coordinator, even after a transfer. Never open a local user-input prompt the coordinator cannot see. Add `--no-wait` to keep working (see [messaging](messaging.md)).
+- Read messages sent to you with `alera orchestration check`, or list recent ones with `alera orchestration messages`.
+- If the host marked you stalled, your next command or terminal output revives the dispatch, and `complete` still works.
 
-- `complete` is atomic and required exactly once. `completion-kind failure` consumes execution failure budget and may return the task to ready.
-- `worker-done --task --dispatch --summary` is the idempotent explicit recovery form.
-- Never use `send --type worker_done`, `send --type heartbeat`, or arbitrary task status mutation; protocol v2 rejects them.
-- After successful completion, stop the turn. Default policy returns immediately and leaves the terminal open for reuse.
-- Use `ask` for coordinator questions. While a dispatch is active, the host routes the question to the dispatch's current durable coordinator even if the run was transferred after its preamble was injected. Do not open a local user-input prompt the coordinator cannot see. Add `--no-wait` to keep working; the answer is pasted on your next turn (see [messaging](messaging.md)).
-
-For the installed compact command contract, use `alera orchestration worker-help`. For message and terminal inspection commands, read [messaging](messaging.md).
+Never send lifecycle state as a message or edit task status directly.

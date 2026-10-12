@@ -43,7 +43,7 @@ pub fn voice_home_contract_marker() -> String {
 
 pub fn voice_home_agents_markdown() -> String {
     format!(
-        "{}\n\n# Alera voice home\n\nYou are Alera's global voice home agent. This folder is not a product repository.\n\n- Speak to the human only with `alera voice speak --text \"...\"`. Keep those sentences short.\n- Do not patch product code from this folder. Delegate with `alera orchestration delegate --workspace <id> --profile <name>`.\n- Inspect work with `alera workspace list --json`, `alera orchestration status`, and `alera terminal read`.\n- If a turn says the human interrupted you, they did not hear the previous spoken message. Drop that oral plan.\n- Never invent agent profiles. Use only the catalog from `alera orchestration agent-profiles --json`.\n",
+        "{}\n\n# Alera voice home\n\nYou are Alera's global voice home agent. This folder is not a product repository.\n\n- Speak to the human only with `alera voice speak --text \"...\"`. Keep those sentences short.\n- Do not patch product code from this folder. Delegate with `alera orchestration delegate --workspace <id> --profile <name>`.\n- Inspect work with `alera workspace list --json`, `alera orchestration run list`, and `alera terminal read`.\n- If a turn says the human interrupted you, they did not hear the previous spoken message. Drop that oral plan.\n- Never invent agent profiles. Use only the catalog from `alera orchestration agent-profiles --json`.\n",
         voice_home_contract_marker()
     )
 }

@@ -2,6 +2,15 @@
 
 Fecha: 2026-10-10. Base: `c8b3d3984` (release v0.104.1). Alcance: código fuente real de la GUI desktop (`lib/`), la app mobile (`mobile/lib`), el CLI (`rust/alera-cli`), el runtime host (`rust/alera-cli/src/terminal_host`) y el edge (`edge/src/mcp`). Solo investigación: no se implementó ni se modificó código.
 
+> **Actualización, 2026-10-12 (orquestación v3):** las filas de orquestación de este documento describen la superficie anterior. Con el contrato v3 (protocolo del host 5, orquestación 3, skill 4) cambió lo siguiente; el resto del análisis no se ha rehecho.
+>
+> - Desaparecen `dispatch-accept`, `heartbeat`, `worker-done` y `worker-help`: el primer comando del worker acepta el dispatch y `complete` solo exige `--summary`. `orchestration inbox` pasa a `orchestration messages`.
+> - `task-create`, `agent-spawn`, `task-list`, `dispatch`, `board`, `run-snapshot`, `task-inspect`, `run`, `run-list`, `run-show`, `run-stop` y `status` dejan de existir en el CLI. Los sustituyen `delegate` y los grupos `run`, `plan`, `gate`, `task`, `terminal` y `recipe` (ver [orchestration.md](orchestration.md#cli)).
+> - La run policy y los `workflows.*` se fusionan en un solo run: RPCs `runs.*` (`runsV1`) y `recipes.*` (`recipesV1`), con gates unificados (`decision`, `stall`, `plan`, `stage`). Ver [runs.md](runs.md).
+> - El MCP expone las herramientas de runs y recipes (`list_runs`, `show_run`, `get_run_timeline`, `create_run`, `propose_run_plan`, `list_run_gates`, `cancel_run`, cleanup, `list_recipes`, ...). `resolve_run_gate` y aplicar, reintentar o abandonar un cleanup existen con nivel Admin, aunque la decisión U5 del plan dejaba las decisiones humanas fuera del MCP.
+> - El estado de pregunta `received` desaparece (se pliega en `delivered`), y las conversaciones entre agentes ya no se muestran en las apps ni están en la allowlist del teléfono; siguen disponibles por CLI y MCP.
+> - El Run Board, el diálogo Execution Plans y Settings > Workflows se sustituyen por la página Activity y Settings > Recipes.
+
 ## 1. Resumen ejecutivo
 
 - El MCP de Alera expone **31 herramientas** (21 de lectura, incluidas 3 esperas acotadas, y 10 de ejecución), más `list_runtimes`, que solo existe en el edge. El CLI tiene unos **200 subcomandos** y el runtime host atiende **más de 400 métodos RPC**. La cobertura del MCP es intencionalmente estrecha: se centra en descubrir, lanzar agentes, conversar con ellos y orquestar.

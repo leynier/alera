@@ -33,7 +33,8 @@ async fn question_defaults_to_five_hours_and_validates_its_inputs() {
     let expected = sqlite_timestamp(chrono::Utc::now() + chrono::Duration::hours(5));
     let expires_at = asked.expires_at.clone().unwrap();
     assert!(expires_at <= expected && expires_at.as_str() > &expected[..15]);
-    assert_eq!(asked.message_type, OrchestrationMessageType::DecisionGate);
+    assert_eq!(asked.message_type, OrchestrationMessageType::Question);
+    assert_eq!(asked.delivery, MessageDelivery::Now);
     assert_eq!(
         asked.external_meta.as_ref().unwrap()["origin"]["surface"],
         "cli"
@@ -87,6 +88,75 @@ async fn follow_ups_stay_on_the_same_recipient_and_inbox() {
 }
 
 #[tokio::test]
+async fn an_agent_may_open_a_thread_with_an_inbox_and_the_inbox_may_follow_up() {
+    let (_dir, store) = store().await;
+    let opened = store
+        .insert_orchestration_message(message(
+            "agent",
+            "ext:user",
+            OrchestrationMessageType::Status,
+        ))
+        .await
+        .unwrap();
+
+    let page = store
+        .inbox_threads(InboxThreadFilter {
+            inbox: Some("ext:user".to_string()),
+            limit: 10,
+            ..InboxThreadFilter::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(page.items.len(), 1);
+    let thread = &page.items[0];
+    assert_eq!(thread.thread_id, opened.id);
+    assert_eq!(thread.inbox, "ext:user");
+    assert_eq!(thread.recipient, "agent");
+    // Nothing waits on a thread the agent opened.
+    assert_eq!(thread.status, InboxQuestionStatus::Answered);
+    assert_eq!(thread.unread_reply_count, 1);
+
+    let mut follow_up = question("ext:user", "agent");
+    follow_up.thread_id = Some(opened.id.clone());
+    let follow_up = store.insert_inbox_question(follow_up).await.unwrap();
+    assert_eq!(follow_up.thread_id.as_deref(), Some(opened.id.as_str()));
+    let mut stranger = question("ext:ci", "agent");
+    stranger.thread_id = Some(opened.id.clone());
+    let error = store.insert_inbox_question(stranger).await.unwrap_err();
+    assert!(error.to_string().starts_with("inbox_thread_mismatch"));
+
+    let detail = store.inbox_thread(&opened.id).await.unwrap().unwrap();
+    assert_eq!(detail.thread.question_count, 1);
+    assert_eq!(detail.thread.status, InboxQuestionStatus::Pending);
+    assert_eq!(detail.messages[1].delivery, MessageDelivery::Now);
+}
+
+#[tokio::test]
+async fn a_question_records_how_it_was_delivered() {
+    let (_dir, store) = store().await;
+    let asked = store
+        .insert_inbox_question(question("ext:ci", "agent"))
+        .await
+        .unwrap();
+    store
+        .set_message_delivery_mode(&asked.id, "pasted_now")
+        .await
+        .unwrap();
+
+    let detail = store.inbox_thread(&asked.id).await.unwrap().unwrap();
+    assert_eq!(detail.thread.delivery_mode.as_deref(), Some("pasted_now"));
+    assert_eq!(
+        detail.messages[0].delivery_mode.as_deref(),
+        Some("pasted_now")
+    );
+    let encoded = serde_json::to_value(&detail.messages[0]).unwrap();
+    assert_eq!(encoded["delivery"], "now");
+    assert_eq!(encoded["deliveryMode"], "pasted_now");
+    assert!(encoded.get("deliveredAt").is_some());
+    assert_eq!(encoded["message"]["delivery"], "now");
+}
+
+#[tokio::test]
 async fn pending_limit_counts_only_undelivered_external_questions() {
     let (_dir, store) = store().await;
     let mut ids = Vec::new();
@@ -107,7 +177,11 @@ async fn pending_limit_counts_only_undelivered_external_questions() {
         .insert_inbox_question(question("ext:ci", "agent"))
         .await
         .unwrap_err();
-    assert!(refused.to_string().starts_with("inbox_pending_limit"));
+    assert_eq!(INBOX_PENDING_LIMIT, 100);
+    assert_eq!(
+        refused.to_string(),
+        "inbox_pending_limit: This agent already has 100 questions waiting. Wait for it to read them or cancel some."
+    );
     store
         .insert_inbox_question(question("ext:ci", "someone-else"))
         .await
@@ -157,7 +231,7 @@ async fn question_status_covers_every_state() {
         .unwrap();
     assert_eq!(
         status_of(&store, &received.id, &received.id).await,
-        InboxQuestionStatus::Received
+        InboxQuestionStatus::Delivered
     );
 
     reply(&store, &delivered).await;

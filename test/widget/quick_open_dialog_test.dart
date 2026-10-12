@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -31,7 +31,7 @@ void main() {
         service: _QuickOpenFileService(entries: ['main.dart']),
         viaKeyboard: true,
       );
-      final navigation = container.read(runBoardNavigationProvider.notifier);
+      final navigation = container.read(activityNavigationProvider.notifier);
       navigation.open();
       navigation.selectRun('run-1');
       navigation.selectTask('task-1');
@@ -46,17 +46,17 @@ void main() {
             : LogicalKeyboardKey.enter,
       );
       await tester.pumpAndSettle();
-      expect(container.read(runBoardNavigationProvider).visible, isTrue);
+      expect(container.read(activityNavigationProvider).visible, isTrue);
       if (outcome == 'success') {
         controller.openGate!.complete();
       } else if (outcome == 'failure') {
         controller.openGate!.completeError(StateError('cannot open'));
       }
       await tester.pumpAndSettle();
-      final location = container.read(runBoardNavigationProvider);
+      final location = container.read(activityNavigationProvider);
       expect(location.visible, outcome != 'success');
-      expect(location.runId, 'run-1');
-      expect(location.taskId, 'task-1');
+      expect(location.runs.runId, 'run-1');
+      expect(location.runs.taskId, 'task-1');
       expect(controller.openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
       if (outcome == 'failure') {
         expect(toasts.single.message, 'Could not open the selected file.');

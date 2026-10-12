@@ -1,7 +1,10 @@
 use chrono::Utc;
 use serde_json::json;
 
-use super::{AgentProfile, AgentProfileLaunchMode, RuntimeStore, WorkspaceTabRecord};
+use super::{
+    AgentProfile, AgentProfileLaunchMode, RunActor, RunPlanInput, RunPlanStageInput, RuntimeStore,
+    WorkspaceTabRecord,
+};
 use crate::runtime::{
     AutomationActor, AutomationActorKind, AutomationDefinition, AutomationMisfirePolicy,
     AutomationOverlapPolicy, AutomationSchedule, AutomationSetupPolicy, AutomationState,
@@ -189,14 +192,20 @@ async fn active_execution_policy_reference_exposes_only_run_id_and_blocks_remova
         .await
         .unwrap();
     store
-        .propose_orchestration_execution_policy(
+        .propose_run_plan(
             &run.id,
-            r#"{"version":1,"stages":[{"id":"impl","profile":"Codex Sol","fallbacks":[]}]}"#,
+            RunPlanInput {
+                stages: vec![RunPlanStageInput {
+                    id: "impl".into(),
+                    title: None,
+                    profile: Some("Codex Sol".into()),
+                    fallbacks: Vec::new(),
+                    gate: false,
+                }],
+                ..RunPlanInput::default()
+            },
+            &RunActor::runtime(),
         )
-        .await
-        .unwrap();
-    store
-        .resolve_orchestration_execution_policy(&run.id, true)
         .await
         .unwrap();
 
@@ -290,9 +299,19 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
         .await
         .unwrap();
     assert!(store
-        .propose_orchestration_execution_policy(
+        .propose_run_plan(
             &run.id,
-            r#"{"version":1,"stages":[{"id":"impl","profile":"Codex Sol","fallbacks":[]}]}"#,
+            RunPlanInput {
+                stages: vec![RunPlanStageInput {
+                    id: "impl".into(),
+                    title: None,
+                    profile: Some("Codex Sol".into()),
+                    fallbacks: Vec::new(),
+                    gate: false,
+                }],
+                ..RunPlanInput::default()
+            },
+            &RunActor::runtime(),
         )
         .await
         .is_err());

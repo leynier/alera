@@ -4,7 +4,8 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 
 use alera_core::runtime::{
-    AutomationDefinition, AutomationRun, AutomationRunStatus, OrchestrationMessage,
+    AutomationDefinition, AutomationRun, AutomationRunStatus, OrchestrationDecisionGate,
+    OrchestrationMessage,
 };
 
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
@@ -100,18 +101,33 @@ impl ServerActor {
         self.enqueue_push_event(PushEvent::terminal_exit(location, exit_code));
     }
 
-    pub(super) async fn queue_gate_push(&mut self, task_id: &str, question: &str) {
-        self.journal_task_attention("orchestration.gate.created", task_id)
-            .await;
-        let settings = match self.runtime_store.mobile_push_settings().await {
-            Ok(settings) if settings.enabled && settings.attention => settings,
+    /// A gate on a task points at the task's worker; a run-scoped gate
+    /// (plan or stage) points at the run's coordinator and workspace.
+    pub(super) async fn queue_gate_push(&mut self, gate: &OrchestrationDecisionGate) {
+        let task_id = (!gate.task_id.is_empty()).then_some(gate.task_id.as_str());
+        match task_id {
+            Some(task_id) => {
+                self.journal_task_attention("orchestration.gate.created", task_id)
+                    .await
+            }
+            None => {
+                self.journal_run_attention("orchestration.gate.created", gate.run_id.as_deref())
+                    .await
+            }
+        }
+        match self.runtime_store.mobile_push_settings().await {
+            Ok(settings) if settings.enabled && settings.attention => {}
             _ => return,
+        }
+        let location = match (task_id, gate.run_id.as_deref()) {
+            (Some(task_id), _) => self.push_location_for_task(task_id).await,
+            (None, Some(run_id)) => self.push_location_for_run(run_id).await,
+            (None, None) => None,
         };
-        let _ = settings;
-        let Some(location) = self.push_location_for_task(task_id).await else {
+        let Some(location) = location else {
             return;
         };
-        self.enqueue_push_event(PushEvent::decision_gate(task_id, question, location));
+        self.enqueue_push_event(PushEvent::decision_gate(gate, location));
     }
 
     /// One push per message an agent sends to an inbox, in the attention
@@ -322,6 +338,22 @@ impl ServerActor {
             Some(session.tab_id.clone()),
         )
         .await
+    }
+
+    async fn push_location_for_run(&self, run_id: &str) -> Option<PushLocation> {
+        let run = self
+            .runtime_store
+            .orchestration_coordinator_run_by_id(run_id)
+            .await
+            .ok()
+            .flatten()?;
+        let tab_id = run
+            .coordinator_handle
+            .as_ref()
+            .and_then(|handle| self.sessions.get(handle))
+            .map(|session| session.tab_id.clone());
+        self.push_location(run.coordinator_handle, run.workspace_id, tab_id)
+            .await
     }
 
     async fn push_location_for_task(&self, task_id: &str) -> Option<PushLocation> {

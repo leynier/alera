@@ -45,11 +45,11 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
     );
     if (selected == _automationsAction) {
       container
-          .read(automationsNavigationProvider.notifier)
-          .open(scope: workspaceScope);
+          .read(activityNavigationProvider.notifier)
+          .openAutomations(scope: workspaceScope);
     } else if (selected == _newAutomationAction) {
       container
-          .read(automationsNavigationProvider.notifier)
+          .read(activityNavigationProvider.notifier)
           .startAuthoring(
             AutomationAuthoringRequest(
               originWorkspaceId: widget.workspace.id,

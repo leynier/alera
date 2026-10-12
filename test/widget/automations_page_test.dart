@@ -1,4 +1,4 @@
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_view.dart';
 import 'package:alera/src/features/automations/presentation/catalog/automation_catalog_row.dart';
 import 'package:alera_automations/alera_automations.dart';
@@ -26,7 +26,7 @@ void main() {
     final container = automationContainer(runtime);
     addTearDown(container.dispose);
     addTearDown(runtime.dispose);
-    container.read(automationsNavigationProvider.notifier).open();
+    container.read(activityNavigationProvider.notifier).openAutomations();
     await tester.pumpWidget(AutomationsTestApp(container: container));
     await tester.pumpAndSettle();
     return (container: container, runtime: runtime);
@@ -82,7 +82,7 @@ void main() {
     expect(find.text('Alpha'), findsNothing);
     expect(find.text('Beta'), findsOneWidget);
     expect(
-      f.container.read(automationsNavigationProvider).collapsedGroups,
+      f.container.read(activityNavigationProvider).automations.collapsedGroups,
       <String>{'project-1'},
     );
   });
@@ -132,7 +132,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AutomationDetailView), findsNothing);
     expect(find.text('Nightly Review'), findsOneWidget);
-    expect(f.container.read(automationsNavigationProvider).selectedId, isNull);
+    expect(
+      f.container.read(activityNavigationProvider).automations.selectedId,
+      isNull,
+    );
   });
 
   testWidgets('a banner leads to the definitions that need attention', (
@@ -156,7 +159,7 @@ void main() {
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
     expect(
-      f.container.read(automationsNavigationProvider).filters.bucket,
+      f.container.read(activityNavigationProvider).automations.filters.bucket,
       AutomationBucket.needsAttention,
     );
     expect(find.text('1 automation needs attention.'), findsNothing);
@@ -184,8 +187,10 @@ void main() {
   ) async {
     final f = await mount(tester);
     f.container
-        .read(automationsNavigationProvider.notifier)
-        .setFilters(const AutomationCatalogFilters(search: 'no such thing'));
+        .read(activityNavigationProvider.notifier)
+        .setAutomationFilters(
+          const AutomationCatalogFilters(search: 'no such thing'),
+        );
     await tester.pumpAndSettle();
     expect(
       find.textContaining('No automations match these filters'),
@@ -242,8 +247,10 @@ void main() {
       ],
     );
     f.container
-        .read(automationsNavigationProvider.notifier)
-        .setScope(const AutomationScope(kind: .workspace, id: 'ws-1'));
+        .read(activityNavigationProvider.notifier)
+        .setAutomationScope(
+          const AutomationScope(kind: .workspace, id: 'ws-1'),
+        );
     await tester.pumpAndSettle();
     expect(find.text('SCHEDULED HERE'), findsOneWidget);
     expect(find.text('Workspace: Workflow Delivery'), findsOneWidget);

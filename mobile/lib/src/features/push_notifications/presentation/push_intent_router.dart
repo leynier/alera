@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
-import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
-import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_screen.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
+import 'package:alera_mobile/src/features/runs/application/activity_providers.dart';
+import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
+import 'package:alera_mobile/src/features/runs/presentation/activity_screen.dart';
 import 'package:alera_mobile/src/features/push_notifications/domain/push_navigation_intent.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
@@ -35,39 +34,29 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
     _showMessage('This host is not paired');
     return;
   }
-  if (intent.eventKind == PushEventKind.automation) {
+  if (activitySectionForPush(intent) case final section?) {
+    ref
+        .read(mobileActivitySectionControllerProvider(host.id).notifier)
+        .select(section);
     unawaited(
       navigator.push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => AutomationsScreen(
+          builder: (_) => ActivityScreen(
             hostId: host.id,
-            initialAutomationId: intent.automationId,
-            initialRunId: intent.runId,
+            initialSection: section,
+            initialRunId: section == ActivitySection.runs ? intent.runId : null,
+            initialGateId: intent.gateId,
+            initialThreadId: intent.threadId,
+            initialAutomationId: section == ActivitySection.automations
+                ? intent.automationId
+                : null,
+            initialAutomationRunId: section == ActivitySection.automations
+                ? intent.runId
+                : null,
           ),
         ),
       ),
     );
-    return;
-  }
-  if (intent.eventKind == PushEventKind.inboxReply) {
-    ref
-        .read(mobileInboxSectionControllerProvider(host.id).notifier)
-        .select(InboxSection.questions);
-    unawaited(
-      navigator.push<void>(
-        MaterialPageRoute<void>(builder: (_) => InboxScreen(hostId: host.id)),
-      ),
-    );
-    if (intent.threadId case final threadId?) {
-      unawaited(
-        navigator.push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                InboxThreadScreen(hostId: host.id, threadId: threadId),
-          ),
-        ),
-      );
-    }
     return;
   }
   unawaited(
@@ -119,6 +108,16 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
     _showMessage('Open the host to refresh this notification');
   }
 }
+
+/// Where in Activity a notification opens, or null when it belongs to a
+/// workspace or terminal instead.
+ActivitySection? activitySectionForPush(PushNavigationIntent intent) =>
+    switch (intent.eventKind) {
+      PushEventKind.runGate when intent.opensRun => ActivitySection.runs,
+      PushEventKind.inboxReply => ActivitySection.questions,
+      PushEventKind.automation => ActivitySection.automations,
+      _ => null,
+    };
 
 void _showMessage(String message) {
   final context = aleraNavigatorKey.currentContext;

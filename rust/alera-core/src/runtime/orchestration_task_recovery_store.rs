@@ -9,7 +9,7 @@ impl RuntimeStore {
             .execute(&mut *tx)
             .await?;
         let active_workflow: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM workflowLaunches l
+            "SELECT EXISTS(SELECT 1 FROM runLaunches l
             JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
             WHERE d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))",
         )
@@ -24,7 +24,10 @@ impl RuntimeStore {
         sqlx::query("DELETE FROM orchestrationDispatchContexts")
             .execute(&mut *tx)
             .await?;
-        sqlx::query("DELETE FROM orchestrationDecisionGates")
+        sqlx::query("DELETE FROM runGates")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM runEvents")
             .execute(&mut *tx)
             .await?;
         sqlx::query("DELETE FROM orchestrationCoordinatorRuns")
@@ -61,14 +64,16 @@ impl RuntimeStore {
             status,
             OrchestrationTaskStatus::Ready | OrchestrationTaskStatus::Failed
         ) {
-            let workflow_task: bool = sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM workflowPlanTasks WHERE task_id = ?)",
+            let isolated_task: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM orchestrationTasks t
+                    JOIN orchestrationCoordinatorRuns r ON r.id = t.run_id
+                    WHERE t.id = ? AND r.isolation = 'isolated')",
             )
             .bind(id)
             .fetch_one(self.pool())
             .await?;
-            if workflow_task {
-                bail!("stalled workflow recovery requires terminal settlement and a fresh attempt");
+            if isolated_task {
+                bail!("stalled isolated recovery requires terminal settlement and a fresh attempt");
             }
         }
         let result = if status == OrchestrationTaskStatus::Cancelled {

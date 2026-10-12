@@ -2,9 +2,10 @@ import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automation_detail_screen.dart';
-import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/composer/mobile_automation_composer_screen.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_run_sheet.dart';
+import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
+import 'package:alera_mobile/src/features/runs/presentation/activity_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -70,7 +71,13 @@ void main() {
     );
     addTearDown(client.dispose);
     await tester.pumpWidget(
-      _app(client, const AutomationsScreen(hostId: 'host')),
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.automations,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('ALERA'), findsOneWidget);
@@ -93,7 +100,13 @@ void main() {
     );
     addTearDown(client.dispose);
     await tester.pumpWidget(
-      _app(client, const AutomationsScreen(hostId: 'host')),
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.automations,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('Later Idea'), findsOneWidget);
@@ -116,7 +129,13 @@ void main() {
     );
     addTearDown(client.dispose);
     await tester.pumpWidget(
-      _app(client, const AutomationsScreen(hostId: 'host')),
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.automations,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('1 automation needs attention.'), findsOneWidget);
@@ -133,7 +152,13 @@ void main() {
     );
     addTearDown(client.dispose);
     await tester.pumpWidget(
-      _app(client, const AutomationsScreen(hostId: 'host')),
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.automations,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('No Automations Yet'), findsOneWidget);
@@ -150,9 +175,10 @@ void main() {
     await tester.pumpWidget(
       _app(
         client,
-        const AutomationsScreen(
+        const ActivityScreen(
           hostId: 'host',
-          initialScope: AutomationScope(kind: .workspace, id: 'elsewhere'),
+          initialSection: ActivitySection.automations,
+          automationScope: AutomationScope(kind: .workspace, id: 'elsewhere'),
         ),
       ),
     );

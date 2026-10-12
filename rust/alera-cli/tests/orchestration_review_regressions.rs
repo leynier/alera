@@ -11,7 +11,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 
 #[path = "orchestration_review_regressions/unread_output.rs"]
 mod unread_output;
@@ -26,6 +26,9 @@ mod orchestration_pain_point_cases;
 #[path = "orchestration_review_regressions/readiness_spawn_exit_cases.rs"]
 #[cfg(unix)]
 mod readiness_spawn_exit_cases;
+#[path = "orchestration_review_regressions/run_tab_identity_cases.rs"]
+#[cfg(unix)]
+mod run_tab_identity_cases;
 #[path = "orchestration_review_regressions/terminal_prune_cases.rs"]
 #[cfg(unix)]
 mod terminal_prune_cases;
@@ -498,7 +501,7 @@ fn stale_escalations_do_not_fail_current_dispatch() {
         &mut writer,
         &mut reader,
         52,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": first_context_token}),
     ));
     expect_ok(request(
@@ -626,7 +629,7 @@ fn stale_decision_gates_do_not_block_current_dispatch() {
         &mut writer,
         &mut reader,
         62,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": first_context_token}),
     ));
     expect_ok(request(
@@ -1090,7 +1093,7 @@ fn coordinator_run_exposes_taskless_question_through_documented_filter() {
         &mut reader,
         73,
         "orchestration.check",
-        json!({"terminal": "coord", "types": ["worker_done", "escalation", "decision_gate"]}),
+        json!({"terminal": "coord", "types": ["question", "escalation", "decision_gate"]}),
     ));
     assert_eq!(inbox["messages"].as_array().unwrap().len(), 1);
     assert_eq!(
@@ -1241,7 +1244,7 @@ fn coordinator_codex_spawn_respects_stale_base_skip() {
         &mut writer,
         &mut reader,
         92,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": &worker_handle, "contextToken": context_token}),
     ));
     let context = expect_ok(request(
@@ -1987,7 +1990,7 @@ fn lifecycle_mutations_enforce_coordinator_ownership() {
         &mut writer,
         &mut reader,
         8_102,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": context_token}),
     ));
 
@@ -2116,7 +2119,7 @@ fn forced_run_stop_preserves_administrative_actor_in_task_audit() {
         &mut writer,
         &mut reader,
         8_303,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": context_token}),
     ));
     expect_ok(request(
@@ -2165,7 +2168,7 @@ fn forced_run_stop_preserves_administrative_actor_in_task_audit() {
 }
 
 #[test]
-fn worker_done_recovery_enforces_task_result_schema() {
+fn completion_enforces_task_result_schema() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
@@ -2191,24 +2194,17 @@ fn worker_done_recovery_enforces_task_result_schema() {
         "orchestration.dispatch",
         json!({"task": task_id, "to": "worker", "from": "coord"}),
     ));
-    let dispatch_id = dispatch["dispatch"]["id"].as_str().unwrap();
+    let context_token = dispatch["contextToken"].as_str().unwrap();
 
     let rejected = request(
         &mut writer,
         &mut reader,
         85,
-        "orchestration.workerDone",
+        "orchestration.complete",
         json!({
             "terminal": "worker",
-            "task": task_id,
-            "dispatch": dispatch_id,
-            "result": {
-                "summary": "done",
-                "completionKind": "success",
-                "artifacts": [],
-                "filesModified": [],
-                "validation": []
-            }
+            "contextToken": context_token,
+            "result": { "summary": "done" }
         }),
     );
     assert_eq!(rejected["ok"], json!(false), "{rejected}");
@@ -2249,7 +2245,7 @@ fn context_aware_escalation_preserves_dispatch_authority() {
         &mut writer,
         &mut reader,
         89,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": context_token}),
     ));
     expect_ok(request(
@@ -2324,7 +2320,7 @@ fn stalled_task_keeps_coordinator_run_available_for_recovery() {
         &mut writer,
         &mut reader,
         96,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": context_token}),
     ));
     attach_shell_session(
@@ -2473,7 +2469,7 @@ fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
         &mut writer,
         &mut reader,
         104,
-        "orchestration.inbox",
+        "orchestration.messages",
         json!({"terminal": session_id, "direction": "inbound"}),
     ));
     assert_eq!(queued["items"][0]["subject"], json!("Task Cancelled"));
@@ -2491,7 +2487,7 @@ fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
         &mut writer,
         &mut reader,
         106,
-        "orchestration.inbox",
+        "orchestration.messages",
         json!({"terminal": session_id, "direction": "inbound"}),
     ));
     assert!(
@@ -2547,7 +2543,7 @@ fn pty_output_refreshes_active_dispatch_activity() {
         &mut writer,
         &mut reader,
         111,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": session_id, "contextToken": context_token}),
     ));
 
@@ -2704,7 +2700,7 @@ fn active_worker_questions_follow_run_coordinator_transfer() {
         &mut writer,
         &mut reader,
         8_233,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "worker", "contextToken": context_token}),
     ));
     expect_ok(request(
@@ -2737,7 +2733,7 @@ fn active_worker_questions_follow_run_coordinator_transfer() {
         &mut writer,
         &mut reader,
         8_236,
-        "orchestration.inbox",
+        "orchestration.messages",
         json!({"terminal": "new-coord"}),
     ));
     assert_eq!(
@@ -2754,7 +2750,7 @@ fn active_worker_questions_follow_run_coordinator_transfer() {
         &mut writer,
         &mut reader,
         8_237,
-        "orchestration.inbox",
+        "orchestration.messages",
         json!({"terminal": "old-coord"}),
     ));
     assert!(old_inbox["items"].as_array().unwrap().is_empty());
@@ -2864,7 +2860,7 @@ fn close_on_success_removes_the_persisted_worker_tab() {
         &mut writer,
         &mut reader,
         8_224,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "close-worker", "contextToken": context_token}),
     ));
     expect_ok(request(
@@ -2937,7 +2933,7 @@ fn completed_dispatch_does_not_hide_an_exited_terminal() {
         &mut writer,
         &mut reader,
         8_231,
-        "orchestration.dispatchAccept",
+        "orchestration.context",
         json!({"terminal": "exited-worker", "contextToken": context_token}),
     ));
     expect_ok(request(

@@ -16,7 +16,7 @@ void _registerAleraShellWorkspaceFocusTests() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(AleraShellPage)),
       );
-      container.read(runBoardNavigationProvider.notifier).open();
+      container.read(activityNavigationProvider.notifier).open();
       await tester.pump();
       expect(harness.controller.state.activeWorkspaceId, 'workspace-1');
       expect(_workbenchFor('workspace-2'), findsNothing);
@@ -26,7 +26,7 @@ void _registerAleraShellWorkspaceFocusTests() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(window.calls, 1);
-      expect(container.read(runBoardNavigationProvider).visible, isFalse);
+      expect(container.read(activityNavigationProvider).visible, isFalse);
       expect(harness.controller.state.activeWorkspaceId, 'workspace-2');
       expect(
         harness.controller.state.tabsFor('workspace-2').map((tab) => tab.id),

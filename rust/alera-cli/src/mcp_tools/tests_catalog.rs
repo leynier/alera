@@ -9,8 +9,8 @@ use super::{catalog, ToolAccess, ToolSpec, CLIENT_REQUEST_ID};
 use crate::cli::Cli;
 
 /// Commands no MCP tool may run: the security control plane, device pairing,
-/// SSH credentials and runtime installs, the runtime's own lifecycle, and the
-/// decisions that only a person makes in the Alera app.
+/// SSH credentials and runtime installs, and the runtime's own lifecycle. Gate
+/// decisions and resource removal are reachable only from admin tools.
 const EXCLUDED: &[(&str, Option<&str>)] = &[
     ("account", None),
     ("mcp", None),
@@ -32,9 +32,6 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
     ("runtime", Some("clear")),
     ("runtime", Some("rename")),
     ("runtime", Some("unlink-hub")),
-    ("orchestration", Some("gate-resolve")),
-    ("orchestration", Some("run-policy-approve")),
-    ("orchestration", Some("run-policy-reject")),
 ];
 
 /// Tools that need the `admin` class (F1 option B and F2).
@@ -56,12 +53,13 @@ const ADMIN_TOOLS: &[&str] = &[
     "recover_task",
     "transfer_coordinator",
     "prune_terminals",
-    "apply_workflow_cleanup",
-    "retry_workflow_cleanup",
-    "abandon_workflow_cleanup",
     "register_workspace_record",
     "unregister_workspace_record",
     "purge_inbox",
+    "resolve_run_gate",
+    "apply_run_cleanup",
+    "retry_run_cleanup",
+    "abandon_run_cleanup",
 ];
 
 /// Tools the user decided stay below `admin` (F1).

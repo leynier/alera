@@ -55,7 +55,7 @@ mod automation_recovery_case;
 #[path = "terminal_host_headless_runtime/automation_reuse_case.rs"]
 mod automation_reuse_case;
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 
 struct HostGuard(Child);
 

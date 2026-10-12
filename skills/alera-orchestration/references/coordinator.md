@@ -1,70 +1,46 @@
 # Coordinator
 
-## Coordinator Workflow
-
-```bash
-alera orchestration --json delegate --profile "Codex Sol" --spec "Review automated test coverage"
-alera orchestration --json delegate --profile "Codex Sol" --spec "Implement the API" --new-workspace
-alera orchestration --json task-create --task-title "Review Tests" --spec "Review automated test coverage"
-alera orchestration --json run --agent codex --spec "Audit the repository"
-alera orchestration --json run-list --workspace <workspace-id>
-alera orchestration --json status --id <run-id>
-```
-
-`delegate` creates the task and spawns the declared profile. `--new-workspace` creates a child worktree first, inferring project, source branch, and parent from `ALERA_WORKSPACE_ID` or `--from-workspace`. Keep `task-create` plus `agent-spawn` when you need the primitives.
-
-A failed delegation can leave a created workspace and task even when worker startup or acceptance fails. Preserve the returned IDs, inspect the current dispatch and terminal state, and retry the existing task only after confirming no worker is still executing. Do not repeat `delegate --new-workspace` blindly or remove the workspace automatically. Acceptance proves dispatch, while task completion and its validation establish the requested outcome.
-
-Use `--agent codex|claude|copilot|cursor|agy|opencode|opencode2|pi|amp|grok`. The runtime may create workers through the built-in adapter registry.
-
-To discover the launch configurations the user declared, read the catalog:
+## Delegating Tasks
 
 ```bash
 alera orchestration --json agent-profiles
+alera orchestration --json delegate --profile "Codex Sol" --spec "Review automated test coverage"
+alera orchestration --json delegate --profile "Codex Sol" --spec "Implement the API" --new-workspace
+alera orchestration --json delegate --profile "Opus" --spec-file brief.md --terminal <handle>
+alera orchestration --json delegate --profile "Codex Sol" --spec "Write docs" --depends-on <task-id>,<task-id>
 ```
 
-Each profile carries `name`, `agentType`, `command`, `description`, and an optional `quotaGroup`. Use `description` to choose a profile for a stage, and pass its `agentType` and `command` to `agent-spawn`. Coordinator discovery is read-only: use declared profiles and commands. Profile administration is a separate user-requested task handled by the `alera-agent-profiles` skill. Profiles sharing a `quotaGroup` drain the same usage bucket, so falling back inside one group buys nothing. Stop scheduling with `run-stop --id`; add `--cancel-active` only when active work should receive cooperative cancellation. Run stop, task recovery, and dispatch interruption require the owning coordinator; `--force` is the audited administrative recovery path.
+`delegate` creates the task, starts the profile in a new terminal, and waits until the agent is ready (`--timeout-ms`, at most 180000). The task joins your delegated run in the workspace, or starts one; pass `--run <run-id>` to add it to a run you coordinate, and `--stage <stage-id>` to bind it to a stage of that run's plan. `--terminal <handle>` hands the task to an agent already running in that terminal. `--new-workspace` creates a child worktree first, inferring project, source branch, and parent from `ALERA_WORKSPACE_ID` or `--from-workspace`. `--contract '<json>' --contract-inputs '<json>'` freezes a version 1 role contract with concrete inputs.
 
-### Planning A Run
+Choose profiles from `agent-profiles` only: each carries `name`, `agentType`, `description`, and an optional `quotaGroup`. Profiles sharing a `quotaGroup` drain the same usage bucket, so a fallback inside one group buys nothing. Profile administration is a separate user-requested task handled by the `alera-agent-profiles` skill.
 
-For a policy-managed run, propose its stage plan before creating stage-bound tasks. An existing approved policy remains valid; do not propose it again merely to repeat approval. Direct delegation already requested by the user does not need an additional policy proposal:
+A failed delegation can leave a created workspace and task even when the worker did not start. Keep the returned IDs, inspect the task and terminal (`task show`, `terminal show`), and retry only after confirming no worker is still executing. Do not repeat `delegate --new-workspace` blindly or remove the workspace automatically. A ready agent proves dispatch; task completion and its validation establish the outcome.
+
+Follow delegated work with `alera orchestration task wait --id <task-id> --timeout-ms 300000` and answer worker questions with `check` and `reply` (see [messaging](messaging.md)).
+
+## Starting A Planned Run
 
 ```bash
-alera orchestration --json run-policy-propose --run <run-id> --policy-file plan.json
-alera orchestration --json run-policy-show --run <run-id>
-alera orchestration --json task-create --run <run-id> --stage implementation --spec "..."
+alera orchestration --json run new --profile "Opus" --spec "Add audit logging" --template builtIn:feature-delivery
+alera orchestration --json run new --profile "Opus" --spec "Audit the repository" --isolation shared --approval
 ```
 
-```json
-{
-  "version": 1,
-  "stallPolicy": "ask",
-  "stages": [
-    {"id": "implementation", "title": "Implementation", "profile": "Codex GPT-5.6-Sol", "fallbacks": ["Claude Sonnet 5"]}
-  ]
-}
-```
+`run new` starts a coordinator agent with the given profile in its own terminal; it plans the run and the runtime carries the plan out.
 
-Pick each stage's profile by reading the catalog descriptions; every profile named, preferred or fallback, must already exist there. Prefer a fallback from a different `quotaGroup`, since a fallback inside the same bucket buys nothing. `stallPolicy` is `ask`, `auto-failover`, or `wait`.
+- `--isolation isolated` (default): each task runs in its own worktree and its result integrates as a squash commit, in order. The recipe (`--template builtIn:<id>`, `personal:<id>`, `project:<path>`; default `builtIn:freeform`) fixes the stages and roles. See `alera orchestration recipe list`.
+- `--isolation shared`: workers share the run's workspace; the coordinator declares stages with a profile each.
+- `--approval` holds the plan behind a plan gate until the user approves it. Without it the run starts as soon as a plan is proposed.
+- `--worker-profile` and `--role-profile role=profile` choose worker profiles; `--max-concurrent` and `--stall-policy ask|auto-failover|wait` tune scheduling.
 
-A proposed plan holds scheduling until the user resolves it, so propose before creating stage-bound tasks and then wait. Do not approve your own plan: approval is the user's decision. Prior explicit authorization can cover the same delegation or plan; do not ask for it again, but do not treat a pending runtime policy as approved or bypass its gate. A plan is revised by proposing again, not by re-approving.
-
-For direct assignment, prefer `delegate` when the profile already exists. The primitive form is:
+## Planning As A Run's Coordinator
 
 ```bash
-alera orchestration --json agent-spawn --agent codex --task <task-id> --title "Review Tests" --timeout-ms 90000
-alera terminal --json wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
+alera orchestration --json plan context --run <run-id>
+alera orchestration plan propose --run <run-id> --stdin < plan.json
 ```
 
-`agent-spawn --profile <name>` launches a declared profile, resolving the adapter and command host-side; it replaces `--agent` and cannot be combined with `--agent` or `--command`. For a task bound to a policy stage the coordinator selects the profile itself, preferring a fallback from a different quota group.
+`plan context` returns the objective, source, recipe, profiles, the current plan, any change request, and `planShape`, the JSON shape to propose. An isolated plan lists `tasks` (`id`, `title`, `spec`, `stageId`, optional `roleId`, `dependsOn`, `inputs`) against the recipe's stages. A shared plan also lists `stages` (`id`, `title`, `profile`, `fallbacks`, `gate`), whose profiles must exist in the catalog; prefer fallbacks from a different `quotaGroup`. Both accept `stallPolicy` and `maxConcurrent`.
 
-`agent-spawn` creates the dispatch before launching Codex and supplies a short first-turn bootstrap that tells the worker to accept and read its context. Other adapters use hook-based readiness injection. Its `--timeout-ms` value may not exceed the host acceptance limit of 90000 milliseconds. A startup failure removes only a terminal created by that spawn; add `--keep-on-failure` to retain it for diagnosis. Reused terminals are never removed.
+Each proposal creates the next plan revision; one made while a plan waits for approval supersedes it. An isolated run accepts proposals only while planning or awaiting approval; a shared run also while running or paused. Do not edit repository files or start workers while planning, and never approve your own plan: approval is the user's decision. When changes are requested, read `plan context` again (its `correction` names the reason and prior results) and propose a corrected plan.
 
-Manual fallback is:
-
-```bash
-alera orchestration dispatch --task <task-id> --to <handle>
-alera terminal write --handle <handle> --text "<returned bootstrap>" --submit
-```
-
-The default dispatch response returns the short bootstrap. Use `--return-preamble` only when the complete preamble is explicitly needed. If an agent is confirmed idle but its hooks are unavailable, `dispatch --inject --assume-agent codex` is an audited override.
+Stop scheduling with `alera orchestration run cancel --run <run-id>`; see [runs](runs.md).

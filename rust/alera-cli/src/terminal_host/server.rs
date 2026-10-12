@@ -136,6 +136,7 @@ mod mcp_requests;
 mod mobile_gateway_replacement;
 mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;
+mod pending_agent_prompt_delivery;
 mod project_checkout_file_requests;
 mod project_checkout_requests;
 mod project_host_requests;
@@ -155,8 +156,10 @@ use mobile_gateway_replacement::MobileGatewayReplacement;
 mod conversation_requests;
 #[cfg(test)]
 mod conversation_requests_tests;
+mod coordinator_dispatch;
 mod coordinator_requests;
 mod coordinator_stall_policy;
+mod coordinator_tick;
 mod declared_catalog_requests;
 mod deferred_requests;
 mod deferred_workspace_lifecycle;
@@ -174,6 +177,8 @@ mod host_status;
 mod hub_reverse_policy;
 mod hub_reverse_requests;
 mod hub_self_client;
+#[cfg(test)]
+mod inbox_delivery_tests;
 #[cfg(test)]
 mod inbox_guard_tests;
 mod inbox_guards;
@@ -220,10 +225,16 @@ mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
 mod mobile_workspace_search_requests;
 mod orchestration_agent_spawn_requests;
+mod orchestration_agent_status;
 mod orchestration_board_requests;
-#[cfg(test)]
-mod orchestration_board_tests;
 mod orchestration_completion;
+mod orchestration_dispatch_requests;
+mod orchestration_gate_requests;
+mod orchestration_lease_sweep;
+#[cfg(test)]
+mod orchestration_lease_sweep_tests;
+mod orchestration_message_delivery;
+mod orchestration_message_requests;
 #[cfg(test)]
 mod orchestration_mobile_access_tests;
 mod orchestration_owned_spawn;
@@ -233,10 +244,12 @@ mod orchestration_requests;
 #[cfg(test)]
 mod orchestration_role_contract_tests;
 mod orchestration_task_creation;
+mod orchestration_task_requests;
 mod orchestration_terminal_input;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod orchestration_wait_requests;
+mod orchestration_worker_requests;
 mod output_delivery;
 #[cfg(test)]
 mod output_resume_tests;
@@ -264,6 +277,20 @@ mod remote_relay;
 mod request_payloads;
 mod requests;
 mod resource_requests;
+mod run_attempt_context;
+mod run_catalog_requests;
+#[cfg(test)]
+mod run_catalog_tests;
+mod run_cleanup_execution;
+mod run_cleanup_requests;
+mod run_launch_recovery;
+mod run_launch_requests;
+mod run_workspace_requests;
+mod runs_lifecycle_requests;
+mod runs_requests;
+#[cfg(test)]
+mod runs_requests_tests;
+mod runs_retry_requests;
 mod runtime_change_broadcasts;
 mod runtime_event_forwarder;
 mod runtime_event_requests;
@@ -325,18 +352,6 @@ mod voice_transcript;
 mod voice_tts;
 mod voice_turn_jobs;
 mod webhook_requests;
-mod workflow_catalog_requests;
-#[cfg(test)]
-mod workflow_catalog_tests;
-mod workflow_cleanup_execution;
-mod workflow_cleanup_requests;
-mod workflow_launch_recovery;
-mod workflow_launch_requests;
-mod workflow_plan_requests;
-#[cfg(test)]
-mod workflow_plan_tests;
-mod workflow_worker_context;
-mod workflow_workspace_requests;
 mod workspace_archive_requests;
 mod workspace_blocking;
 mod workspace_file_mutation_requests;
@@ -422,7 +437,7 @@ struct ServerActor {
     prompt_workspace_operations: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
-    workflow_execution: workflow_launch_requests::execution::ExecutionPump,
+    workflow_execution: run_launch_requests::execution::ExecutionPump,
     workflow_workspace_jobs: usize,
     workflow_workspace_recovery_running: bool,
     automation_checkout_jobs: std::collections::HashSet<String>,
@@ -931,9 +946,8 @@ impl ServerActor {
                 source,
                 catalog_revision,
             } => {
-                self.broadcast_workflow_catalog_changed(&source, catalog_revision);
+                self.broadcast_recipes_changed(&source, catalog_revision);
             }
-            ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
             ServerCommand::WorkflowWorkspaceRecoveryFinished => {
                 self.handle_workflow_workspace_recovery_finished().await;
             }
@@ -1066,6 +1080,7 @@ impl ServerActor {
             ServerCommand::AgentPresenceSweepTick => {
                 self.reconcile_agent_presence().await;
                 self.sweep_inbox_expiry_if_due().await;
+                self.sweep_orchestration_leases_if_due().await;
             }
             ServerCommand::PullRequestWatchSnapshot {
                 watch,
@@ -1152,36 +1167,47 @@ impl ServerActor {
     /// after the deferred Enter succeeds. Active coordinators are excluded so
     /// auto-submit cannot steal their prompt.
     pub(super) async fn deliver_pending_messages(&mut self, handle: &str) {
+        self.paste_pending_messages(handle, false).await;
+    }
+
+    /// Pastes queued messages, only those sent with `delivery = now` when
+    /// `now_only`. Returns whether a paste was queued.
+    pub(super) async fn paste_pending_messages(&mut self, handle: &str, now_only: bool) -> bool {
         if self.is_active_coordinator_handle(handle) {
-            return;
+            return false;
         }
         let running = self.sessions.get(handle).is_some_and(Session::running);
         if !running {
-            return;
+            return false;
         }
         if self.orchestration_delivery_in_flight.contains(handle) {
-            return;
+            return false;
         }
         if self.voice.home_session_id.as_deref() == Some(handle)
             && (self.voice.home_inject.is_some() || self.voice.home_needs_fresh_ready)
         {
-            return;
+            return false;
         }
         self.orchestration_delivery_backpressured.remove(handle);
-        let messages = match self
-            .runtime_store
-            .undelivered_unread_orchestration_messages(handle)
-            .await
-        {
+        let pending = if now_only {
+            self.runtime_store
+                .undelivered_now_orchestration_messages(handle)
+                .await
+        } else {
+            self.runtime_store
+                .undelivered_unread_orchestration_messages(handle)
+                .await
+        };
+        let messages = match pending {
             Ok(messages) if !messages.is_empty() => messages,
-            _ => return,
+            _ => return false,
         };
         // A batch larger than one paste leaves the rest queued for the next
         // turn instead of stamping messages the agent never saw.
         let messages = &messages[..injected_message_count(&messages)];
         let formatted = format_messages_for_injection(messages);
         let Some(session) = self.sessions.get_mut(handle) else {
-            return;
+            return false;
         };
         let session_instance_id = session.instance_id();
         let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
@@ -1202,27 +1228,20 @@ impl ServerActor {
             } else {
                 self.broadcast_terminal_error(handle, message);
             }
-            return;
+            return false;
         }
         self.orchestration_delivery_in_flight
             .insert(handle.to_string());
         if self.voice.home_session_id.as_deref() == Some(handle) {
             self.voice.home_needs_fresh_ready = true;
         }
+        true
     }
 
-    fn is_active_coordinator_handle(&self, handle: &str) -> bool {
+    pub(super) fn is_active_coordinator_handle(&self, handle: &str) -> bool {
         self.coordinators
             .values()
             .any(|coordinator| coordinator.config.coordinator_handle.as_deref() == Some(handle))
-    }
-
-    /// Send-time hook: deliver immediately only when the recipient's agent is
-    /// already idle right now.
-    pub(super) async fn deliver_pending_messages_if_idle(&mut self, handle: &str) {
-        if self.agent_presence.is_injection_ready(handle) {
-            self.deliver_pending_messages(handle).await;
-        }
     }
 
     async fn retry_backpressured_delivery_if_idle(&mut self, handle: &str) {

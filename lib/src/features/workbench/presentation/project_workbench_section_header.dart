@@ -30,10 +30,9 @@ class _WorkspaceSectionHeader extends StatelessWidget {
       id: row.section!.id,
     );
     if (action == 'automations') {
-      ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(automationsNavigationProvider.notifier).open(scope: sectionScope);
+      ProviderScope.containerOf(context, listen: false)
+          .read(activityNavigationProvider.notifier)
+          .openAutomations(scope: sectionScope);
       return;
     }
     if (action == 'new-automation') {
@@ -50,7 +49,7 @@ class _WorkspaceSectionHeader extends StatelessWidget {
           .map((workspace) => workspace.projectId)
           .toSet();
       container
-          .read(automationsNavigationProvider.notifier)
+          .read(activityNavigationProvider.notifier)
           .startAuthoring(
             AutomationAuthoringRequest(
               sectionId: sectionId,

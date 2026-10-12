@@ -191,6 +191,22 @@ impl ServerActor {
             .await;
     }
 
+    pub(super) async fn journal_run_attention(&self, kind: &str, run_id: Option<&str>) {
+        let workspace_id = match run_id {
+            Some(run_id) => self
+                .runtime_store
+                .orchestration_coordinator_run_by_id(run_id)
+                .await
+                .ok()
+                .flatten()
+                .map(|run| run.workspace_id),
+            None => None,
+        };
+        let data = json!({ "runId": run_id });
+        self.record_event(kind, workspace_id.as_deref(), None, data)
+            .await;
+    }
+
     pub(super) async fn journal_inbox_reply(
         &self,
         message: &alera_core::runtime::OrchestrationMessage,

@@ -102,6 +102,8 @@ Typography and sizing:
 | `conversationMaxWidth` | Content width of the home composer and other centered conversations |
 | `controlHeight` | Height of compact single-line controls (`AleraDropdownField`, `AleraCompactInput`, the date button of `AleraDateTimeField`) so they line up in one row |
 | `keyValueLabelWidth` | Width of the muted label column in `AleraKeyValueRow` |
+| `keyValueListLabelWidth`, `keyValueStackBreakpoint` | Label column of `AleraKeyValueList` and the width under which it stacks labels above values |
+| `railWidth`, `railCompactWidth` | `AleraRail` width with labels (72px) and icon-only (48px) |
 
 ## Component Rules
 
@@ -171,12 +173,14 @@ Components are **presentational**: they take data and callbacks as parameters an
 
 | Role | Components |
 | --- | --- |
-| Buttons | `AleraIconButton`, `AleraSegmentedButton` |
-| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip`, `AleraPropertyChip` |
+| Buttons | `AleraIconButton`, `AleraSegmentedButton`, `AleraTabStrip` (underlined page tabs with an optional muted count) |
+| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip`, `AleraPropertyChip`, `AleraAttentionChip` (status-bar icon and count, capped at `999+`, in a warning, accent, or muted tone) |
 | Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail`, `AleraPopover` |
-| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast` (optional `actionLabel`/`onAction`), `AleraQrCode`, `AleraProgressSteps` |
-| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox`, `AleraCompactInput`, `AleraDurationField`, `AleraTimeOfDayField`, `AleraDateTimeField` |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup` (optional `collapsible`, `initiallyExpanded`, `trailing`), `AleraMasterDetail`, `AleraHorizontalScrollView`, `AleraSectionedPicker`, `AleraCollapsibleSection`, `AleraKeyValueRow` |
+| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast` (optional `actionLabel`/`onAction`), `AleraQrCode`, `AleraProgressSteps`, `AleraGateCard` (a decision a run owes a person: prompt, evidence links, notes, answers, stale and busy states) |
+| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField` (optional `group` headers and `detail` notes per entry), `AleraSegmentedChoice` (two or three options with the selected option's helper text and each disabled option's reason), `AleraCheckbox`, `AleraCompactInput`, `AleraDurationField`, `AleraTimeOfDayField`, `AleraDateTimeField` |
+| Chat | `AleraMessageBubble` (outgoing or incoming message with heading, status badge, New marker, and time) |
+| Lists | `AleraActivityRow` (optional `trailing` note), `AleraTimeline` (lazy day-grouped event log with open markers), `AleraKeyValueList` (selectable labelled facts with optional Copy) |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup` (optional `collapsible`, `initiallyExpanded`, `trailing`), `AleraMasterDetail`, `AleraHorizontalScrollView`, `AleraRail` (vertical section rail with icon, label, and count badge; icon-only with tooltips when compact), `AleraSectionedPicker`, `AleraCollapsibleSection`, `AleraKeyValueRow` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 | Iconography | `AleraIcons`, `AleraFileIcon`, `AleraLogo` |
 

@@ -2,11 +2,17 @@
 title: "Inter-Agent Orchestration In Alera"
 description: "Tabs full of agents are useful until they need to coordinate. How orchestration protocol v2 adds ownership, gates, and a real coordinator."
 pubDate: 2026-07-28T17:00:00.000Z
-updatedDate: 2026-09-28
+updatedDate: 2026-10-12
 tags: ["Orchestration", "Agents"]
-relatedDocs: ["orchestration", "run-board", "agent-profiles"]
+relatedDocs: ["orchestration", "runs", "agent-profiles"]
 ---
 
+> **Update, October 2026:** Alera now speaks orchestration protocol v3, and several commands below changed.
+>
+> - Workers no longer accept dispatches or send heartbeats. The first worker command (`context`, `ask`, `escalate`, or `complete`) accepts the task, terminal activity keeps it alive, and `complete` needs only `--summary`. `dispatch-accept`, `heartbeat`, and `worker-done` are gone.
+> - `delegate` replaces `task-create` and `agent-spawn`, and always starts a catalog profile. The minimal loop below is corrected.
+> - Execution policies became plans: `run new --approval` holds a run behind a plan gate you resolve, and the `run-policy-*` commands are gone. Runs, gates, and questions live in **Activity** (`Mod+Shift+A`), which replaces the Run Board. See [Runs And Activity](/docs/runs).
+>
 > **Update, September 2026:**
 >
 > - The adapter registry now also includes `opencode2` (OpenCode 2) and `fx`.
@@ -44,10 +50,10 @@ Here is the part we care about: only you create or edit profiles. A coordinator 
 ## A Minimal Loop
 
 ```bash
-alera orchestration task-create --workspace <workspace-id> --spec "Review tests"
-alera orchestration run --workspace <workspace-id> --agent codex --spec "Audit the repository"
-alera orchestration run-list --workspace <workspace-id>
-alera orchestration run-show --id <run-id>
+alera orchestration --json delegate --profile "Codex Sol" --spec "Review tests"
+alera orchestration --json run new --profile "Codex Sol" --spec "Audit the repository" --isolation shared
+alera orchestration --json run list --workspace <workspace-id>
+alera orchestration --json run show --run <run-id>
 ```
 
 Workers accept, heartbeat, escalate, and complete through the orchestration CLI, with context inferred from the active terminal. Completion validates structured results and promotes dependent work in a single response, so a finished task can unblock the next one without a human relay.
