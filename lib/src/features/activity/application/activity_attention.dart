@@ -1,7 +1,6 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
-import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/inbox/application/inbox_providers.dart';
 import 'package:alera/src/features/runs/application/run_board_pages.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

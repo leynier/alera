@@ -1,5 +1,5 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

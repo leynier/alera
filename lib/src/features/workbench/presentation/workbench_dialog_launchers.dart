@@ -1,3 +1,5 @@
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
@@ -66,6 +68,20 @@ Future<void> openSettingsDialog(
 void openActivityAutomations(WidgetRef ref) => ref
     .read(activityNavigationProvider.notifier)
     .open(ActivitySection.automations);
+
+/// Opens the automation composer seeded from the active workspace, or with
+/// no destination when none is active.
+void startNewAutomation(WidgetRef ref) {
+  final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
+  ref
+      .read(activityNavigationProvider.notifier)
+      .startAuthoring(
+        AutomationAuthoringRequest(
+          originWorkspaceId: workspace?.id,
+          sectionId: workspace?.sectionId,
+        ),
+      );
+}
 
 /// Opens Quick Open for the active workspace and restores the prior focus when
 /// the modal route closes.

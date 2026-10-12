@@ -333,6 +333,7 @@ bool _isTest(String path) {
 
 bool _isMobile(String path) {
   return path.startsWith('mobile/') ||
+      path.startsWith('packages/alera_automations/') ||
       path.startsWith('packages/alera_configuration/') ||
       path.startsWith('third_party/xterm');
 }

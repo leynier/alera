@@ -137,7 +137,6 @@ void main() {
         exists: true,
         isDefault: false,
         automationIds: <String>['automation-1'],
-        hasAutomationPolicy: false,
         executionPolicyRunIds: <String>[],
         tabs: <AgentProfileTabReference>[],
       ),
@@ -229,7 +228,6 @@ class _TestAgentProfiles(
             exists: true,
             isDefault: false,
             automationIds: <String>[],
-            hasAutomationPolicy: false,
             executionPolicyRunIds: <String>[],
             tabs: <AgentProfileTabReference>[],
           );

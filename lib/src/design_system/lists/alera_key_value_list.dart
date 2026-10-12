@@ -37,7 +37,7 @@ class const AleraKeyValueList({
               _AleraKeyValueRow(
                 entry: entry,
                 stacked: stacked,
-                labelWidth: labelWidth ?? AleraTokens.keyValueLabelWidth,
+                labelWidth: labelWidth ?? AleraTokens.keyValueListLabelWidth,
                 onCopied: onCopied,
               ),
           ],

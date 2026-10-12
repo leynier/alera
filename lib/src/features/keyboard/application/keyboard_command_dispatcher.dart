@@ -46,6 +46,8 @@ class const KeyboardCommandDispatcher({
         openActivityFromAppMenu(ref);
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
+      case KeyboardActionId.newAutomation:
+        startNewAutomation(ref);
       case KeyboardActionId.openQuickOpen:
         unawaited(showQuickOpenFlow(context, ref));
       case KeyboardActionId.openCommandPalette:

@@ -1,9 +1,10 @@
+import 'package:alera_automations/alera_automations.dart';
+
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automations_section_body.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_entry_points.dart';

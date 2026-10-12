@@ -1,3 +1,4 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/activity/application/activity_attention.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
@@ -6,7 +7,6 @@ import 'package:alera/src/features/activity/presentation/activity_attention_cont
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/automations/presentation/automations_section.dart';
 import 'package:alera/src/features/inbox/presentation/questions_section.dart';

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -19,7 +20,6 @@ import 'package:alera/src/features/agent_status/presentation/agent_identity_icon
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';

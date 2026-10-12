@@ -1,10 +1,10 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/design_system/badges/alera_attention_chip.dart';
 import 'package:alera/src/features/activity/application/activity_attention.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/activity/presentation/activity_attention_control.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/inbox/application/inbox_notifications.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/shell/application/shell_overlay_page.dart';

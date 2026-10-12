@@ -176,6 +176,10 @@ abstract interface class MobileAutomationClient {
   Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
   Future<List<WorkspaceTagSummary>> listWorkspaceTags();
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
+  Future<ProjectBranches> listBranches(
+    String projectId, {
+    String? checkoutHostId,
+  });
 }
 
 abstract interface class MobileTerminalClient {

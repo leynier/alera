@@ -117,7 +117,7 @@ pub(super) async fn validate_dependencies(
         .bind(workspace_id)
         .fetch_one(&mut **tx)
         .await?;
-    let active_targets: i64 = sqlx::query_scalar("SELECT count(*) FROM automations WHERE state = 'active' AND COALESCE(json_extract(dataJson, '$.target.existingTab.workspaceId'), json_extract(dataJson, '$.target.existingTab.workspace_id'), json_extract(dataJson, '$.target.freshTab.workspaceId'), json_extract(dataJson, '$.target.freshTab.workspace_id'), json_extract(dataJson, '$.target.managedWorkspace.sourceWorkspaceId'), json_extract(dataJson, '$.target.managedWorkspace.source_workspace_id')) = ?")
+    let active_targets: i64 = sqlx::query_scalar("SELECT count(*) FROM automations WHERE state = 'active' AND COALESCE(json_extract(dataJson, '$.target.existingTab.workspaceId'), json_extract(dataJson, '$.target.existingTab.workspace_id'), json_extract(dataJson, '$.target.freshTab.workspaceId'), json_extract(dataJson, '$.target.freshTab.workspace_id'), json_extract(dataJson, '$.target.managedWorkspace.sourceWorkspaceId'), json_extract(dataJson, '$.target.managedWorkspace.source_workspace_id'), json_extract(dataJson, '$.target.worktree.parentWorkspaceId')) = ?")
         .bind(workspace_id).fetch_one(&mut **tx).await?;
     if live_runs != 0 || active_targets != 0 {
         bail!("Another automation still depends on this task");

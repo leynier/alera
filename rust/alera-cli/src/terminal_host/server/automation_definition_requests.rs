@@ -21,21 +21,18 @@ impl ServerActor {
         let state = payload.get("state").and_then(Value::as_str);
         let project_id = payload.get("projectId").and_then(Value::as_str);
         let profile_id = payload.get("profileId").and_then(Value::as_str);
-        let tag = payload.get("tag").and_then(Value::as_str);
         let search = payload
             .get("search")
             .and_then(Value::as_str)
             .map(|value| value.trim().to_ascii_lowercase());
         let mut items = Vec::new();
+        let mut context = self.automation_catalog_context().await?;
         for mut definition in candidates {
             if state.is_some_and(|value| value != definition.state.as_str()) {
                 continue;
             }
             let definition_project_id = self.automation_definition_project(&definition).await?;
             if project_id.is_some_and(|value| definition_project_id.as_deref() != Some(value)) {
-                continue;
-            }
-            if tag.is_some_and(|value| !definition.tag_ids.iter().any(|tag_id| tag_id == value)) {
                 continue;
             }
             let target_profile = self.target_profile_id(&definition).await.ok().flatten();
@@ -56,7 +53,9 @@ impl ServerActor {
             if definition.project_id.is_none() {
                 definition.project_id = definition_project_id.clone();
             }
-            let item = self.automation_catalog_item(&definition).await?;
+            let item = self
+                .automation_catalog_item_in(&definition, &mut context)
+                .await?;
             if payload["workspaceId"]
                 .as_str()
                 .is_some_and(|id| item["association"]["workspaceId"].as_str() != Some(id))
@@ -89,12 +88,10 @@ impl ServerActor {
         Ok(json!({
             "kind": "automations",
             "items": items,
-            "effectivePolicies": [],
             "filters": {
                 "state": payload.get("state"),
                 "projectId": payload.get("projectId"),
                 "profileId": payload.get("profileId"),
-                "tag": payload.get("tag"),
                 "search": payload.get("search"),
             },
         }))
@@ -126,7 +123,6 @@ impl ServerActor {
             "runs": runs,
             "audit": audit,
             "occurrences": preview,
-            "effectivePolicies": [],
         }))
     }
 
@@ -136,7 +132,9 @@ impl ServerActor {
         payload: &Value,
         actor: AutomationActor,
     ) -> HostResult<Value> {
-        let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
+        let actor = self
+            .resolve_request_actor(client_id, payload, actor)
+            .await?;
         let value = payload.get("automation").unwrap_or(payload);
         let definition: AutomationDefinition = serde_json::from_value(value.clone())
             .map_err(|error| HostError::format(format!("invalid automation: {error}")))?;
@@ -167,10 +165,7 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({}),
-        ));
+        self.broadcast_automation_changed(Some(&saved.id));
         serde_json::to_value(saved).map_err(|error| HostError::state(error.to_string()))
     }
 
@@ -181,7 +176,9 @@ impl ServerActor {
         actor: AutomationActor,
         state: AutomationState,
     ) -> HostResult<Value> {
-        let actor = self.resolve_policy_actor(client_id, payload, actor).await?;
+        let actor = self
+            .resolve_request_actor(client_id, payload, actor)
+            .await?;
         let id = require_string_key(payload, "id")?;
         let reason = payload.get("reason").and_then(Value::as_str);
         let definition = self
@@ -232,10 +229,12 @@ impl ServerActor {
                             ));
                         }
                         for run in active_runs {
-                            self.runtime_store
+                            let cancelling = self
+                                .runtime_store
                                 .request_automation_cancel(&run.id, actor.clone())
                                 .await
                                 .map_err(|error| HostError::state(error.to_string()))?;
+                            self.broadcast_automation_run_changed(&cancelling);
                         }
                     }
                     _ => {
@@ -257,10 +256,7 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({}),
-        ));
+        self.broadcast_automation_changed(Some(&saved.id));
         serde_json::to_value(saved).map_err(|error| HostError::state(error.to_string()))
     }
 

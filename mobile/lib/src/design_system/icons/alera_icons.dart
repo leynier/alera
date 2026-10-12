@@ -118,4 +118,12 @@ abstract final class const AleraIcons._() {
   static const IconData archive = LucideIcons.archive;
   static const IconData unarchive = LucideIcons.archiveRestore;
   static const IconData generate = LucideIcons.sparkles;
+  // Automations, matching the desktop glyphs.
+  static const IconData schedule = LucideIcons.calendarClock;
+  static const IconData date = LucideIcons.calendar;
+  static const IconData time = LucideIcons.clock;
+  static const IconData play = LucideIcons.play;
+  static const IconData pause = LucideIcons.pause;
+  static const IconData account = LucideIcons.userRound;
+  static const IconData tab = LucideIcons.arrowRightToLine;
 }

@@ -19,15 +19,16 @@ pub(in crate::terminal_host::server) struct AutomationWorktree<'a> {
 }
 
 impl ServerActor {
-    /// The workspace a project worktree run executes in. A retried attempt
-    /// reuses the worktree its run already owns instead of creating another.
+    /// The workspace a worktree run executes in. A retried attempt reuses the
+    /// worktree its run already owns instead of creating another one with the
+    /// same branch.
     pub(in crate::terminal_host::server) async fn project_worktree_automation_workspace(
         &mut self,
         definition: &AutomationDefinition,
         run: &mut AutomationRun,
         target: AutomationWorktree<'_>,
     ) -> HostResult<Option<Workspace>> {
-        if let Some(workspace) = self.owned_project_worktree(run, target.project_id).await {
+        if let Some(workspace) = self.owned_project_worktree(run, &target).await {
             return Ok(Some(workspace));
         }
         self.create_automation_worktree(definition, run, target)
@@ -37,7 +38,7 @@ impl ServerActor {
     async fn owned_project_worktree(
         &self,
         run: &AutomationRun,
-        project_id: &str,
+        target: &AutomationWorktree<'_>,
     ) -> Option<Workspace> {
         if !run.owned_workspace {
             return None;
@@ -48,8 +49,8 @@ impl ServerActor {
             .await
             .ok()
             .flatten()?;
-        (workspace.project_id == project_id
-            && workspace.parent_workspace_id.is_none()
+        (workspace.project_id == target.project_id
+            && workspace.parent_workspace_id.as_deref() == target.parent_workspace_id
             && workspace.status == WorkspaceStatus::Active
             && !workspace.is_archived
             && workspace.branch.is_some()
@@ -59,7 +60,7 @@ impl ServerActor {
 
     /// Creates the run's own worktree and branch from the source branch. Returns
     /// `None` after blocking the run when setup failed under its policy.
-    pub(super) async fn create_automation_worktree(
+    async fn create_automation_worktree(
         &mut self,
         definition: &AutomationDefinition,
         run: &mut AutomationRun,

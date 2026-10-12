@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/automations/domain/automation_models.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -58,6 +58,7 @@ class AutomationRecentRuns extends _$AutomationRecentRuns {
 class const AutomationCapabilities({
   final bool authoring = false,
   final bool observe = false,
+  final bool reuse = false,
 });
 
 @Riverpod(keepAlive: true)
@@ -72,19 +73,12 @@ class AutomationRuntimeCapabilities extends _$AutomationRuntimeCapabilities {
     final results = await Future.wait(<Future<bool>>[
       repository.supports(automationsAuthoringCapability),
       repository.supports(automationTerminalObserveCapability),
+      repository.supports(automationReuseCapability),
     ]);
-    return AutomationCapabilities(authoring: results[0], observe: results[1]);
+    return AutomationCapabilities(
+      authoring: results[0],
+      observe: results[1],
+      reuse: results[2],
+    );
   }
-}
-
-/// Tag ids to names, refreshed with the catalog.
-@riverpod
-Future<Map<String, String>> automationTagNames(Ref ref) async {
-  ref.watch(automationCatalogProvider);
-  final tags = await ref.watch(automationRepositoryProvider).tags();
-  return <String, String>{
-    for (final tag in tags)
-      if (tag['id'] is String)
-        tag['id']! as String: '${tag['name'] ?? tag['id']}',
-  };
 }

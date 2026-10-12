@@ -234,19 +234,16 @@ impl ServerActor {
         {
             return false;
         }
-        let (parent_workspace_id, name_template) = match &automation.target {
-            alera_core::runtime::AutomationTarget::ManagedWorkspace {
-                source_workspace_id,
-                name_template,
-                ..
-            } => (Some(source_workspace_id.as_str()), name_template),
-            alera_core::runtime::AutomationTarget::ProjectWorktree {
-                project_id,
-                name_template,
-                ..
-            } if workspace.project_id == *project_id => (None, name_template),
-            _ => return false,
+        let Some(spec) = automation.target.worktree() else {
+            return false;
         };
+        if spec
+            .project_id
+            .is_some_and(|project_id| workspace.project_id != project_id)
+        {
+            return false;
+        }
+        let (parent_workspace_id, name_template) = (spec.parent_workspace_id, spec.name_template);
         if workspace.parent_workspace_id.as_deref() != parent_workspace_id
             || workspace.name != render_workspace_name(name_template, automation, run)
             || workspace.created_at < run.created_at

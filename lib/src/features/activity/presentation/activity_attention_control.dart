@@ -1,3 +1,5 @@
+import 'package:alera_automations/alera_automations.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -10,7 +12,6 @@ import 'package:alera/src/features/activity/application/activity_navigation.dart
 import 'package:alera/src/features/activity/application/run_attention_link.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/activity/presentation/activity_rail.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/runs/application/run_board_pages.dart';
 import 'package:alera/src/features/runs/application/run_providers.dart';
 import 'package:alera/src/features/runs/domain/run_summary.dart';

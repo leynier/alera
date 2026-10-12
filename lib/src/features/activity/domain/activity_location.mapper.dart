@@ -692,6 +692,15 @@ class AutomationsLocationMapper extends ClassMapperBase<AutomationsLocation> {
     opt: true,
     def: 0,
   );
+  static Set<String> _$collapsedGroups(AutomationsLocation v) =>
+      v.collapsedGroups;
+  static const Field<AutomationsLocation, Set<String>> _f$collapsedGroups =
+      Field(
+        'collapsedGroups',
+        _$collapsedGroups,
+        opt: true,
+        def: const <String>{},
+      );
 
   @override
   final MappableFields<AutomationsLocation> fields = const {
@@ -701,6 +710,7 @@ class AutomationsLocationMapper extends ClassMapperBase<AutomationsLocation> {
     #selectedRunId: _f$selectedRunId,
     #authoring: _f$authoring,
     #authoringSequence: _f$authoringSequence,
+    #collapsedGroups: _f$collapsedGroups,
   };
 
   static AutomationsLocation _instantiate(DecodingData data) {
@@ -711,6 +721,7 @@ class AutomationsLocationMapper extends ClassMapperBase<AutomationsLocation> {
       selectedRunId: data.dec(_f$selectedRunId),
       authoring: data.dec(_f$authoring),
       authoringSequence: data.dec(_f$authoringSequence),
+      collapsedGroups: data.dec(_f$collapsedGroups),
     );
   }
 
@@ -791,6 +802,7 @@ abstract class AutomationsLocationCopyWith<
     String? selectedRunId,
     AutomationAuthoringRequest? authoring,
     int? authoringSequence,
+    Set<String>? collapsedGroups,
   });
   AutomationsLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -813,6 +825,7 @@ class _AutomationsLocationCopyWithImpl<$R, $Out>
     Object? selectedRunId = $none,
     Object? authoring = $none,
     int? authoringSequence,
+    Set<String>? collapsedGroups,
   }) => $apply(
     FieldCopyWithData({
       if (scope != null) #scope: scope,
@@ -821,6 +834,7 @@ class _AutomationsLocationCopyWithImpl<$R, $Out>
       if (selectedRunId != $none) #selectedRunId: selectedRunId,
       if (authoring != $none) #authoring: authoring,
       if (authoringSequence != null) #authoringSequence: authoringSequence,
+      if (collapsedGroups != null) #collapsedGroups: collapsedGroups,
     }),
   );
   @override
@@ -834,6 +848,7 @@ class _AutomationsLocationCopyWithImpl<$R, $Out>
       #authoringSequence,
       or: $value.authoringSequence,
     ),
+    collapsedGroups: data.get(#collapsedGroups, or: $value.collapsedGroups),
   );
 
   @override

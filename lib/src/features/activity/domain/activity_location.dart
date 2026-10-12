@@ -1,6 +1,6 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/runs/domain/run_detail_tab.dart';
 import 'package:alera/src/features/runs/domain/run_summary.dart';
@@ -92,6 +92,7 @@ class AutomationsLocation with AutomationsLocationMappable {
     this.selectedRunId,
     this.authoring,
     this.authoringSequence = 0,
+    this.collapsedGroups = const <String>{},
   });
   final AutomationScope scope;
   final AutomationCatalogFilters filters;
@@ -99,4 +100,7 @@ class AutomationsLocation with AutomationsLocationMappable {
   final String? selectedRunId;
   final AutomationAuthoringRequest? authoring;
   final int authoringSequence;
+
+  /// Catalog group headers the user collapsed, by group key.
+  final Set<String> collapsedGroups;
 }

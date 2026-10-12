@@ -46,7 +46,6 @@ def verify_prechecks(root, cli, rpc, restart_home):
         "name": "Precheck Fixture", "agentType": "codex", "launchMode": "command",
         "command": "/usr/bin/false",
     })
-    rpc("automation.policy", {"kind": "agent", "profileId": profile["id"], "policy": {"mayExecute": True}})
     results = {}
     runs = []
     processes = []
@@ -69,7 +68,6 @@ def verify_prechecks(root, cli, rpc, restart_home):
                 remote = root / f"precheck-{scenario}-remote"
                 local.mkdir()
                 remote.mkdir()
-                (remote / "alera.toml").write_text("[automation]\ndeclared = true\n")
                 retained = remote / "retained.txt"
                 retained.write_text("shared fixture content\n")
                 project = cli("project", ["add", "--name", f"Precheck {scenario}", "--repo-path", str(local), "--kind", "folder"])["project"]

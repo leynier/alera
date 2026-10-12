@@ -57,19 +57,22 @@ impl ServerActor {
                 }
             };
             for tab in tabs.into_iter().filter(spawns_on_create) {
-                // The automation runner alone reconciles owner liveness and retry budgets.
-                if tab.payload["automationOwned"] == true
-                    && tab.payload["automationTakenOver"] != true
-                {
-                    let taken_over = match tab.payload["automationRunId"].as_str() {
+                // The automation runner alone reconciles owner liveness and
+                // retry budgets. The run decides whether a user took the tab
+                // over; the tab's own marker only speaks for a pruned run.
+                if tab.payload["automationOwned"] == true {
+                    let run = match tab.payload["automationRunId"].as_str() {
                         Some(id) => self
                             .runtime_store
                             .find_automation_run(id)
                             .await
                             .ok()
-                            .flatten()
-                            .is_some_and(|run| run.taken_over),
-                        None => false,
+                            .flatten(),
+                        None => None,
+                    };
+                    let taken_over = match run {
+                        Some(run) => run.taken_over,
+                        None => tab.payload["automationTakenOver"] == true,
                     };
                     if !taken_over {
                         continue;

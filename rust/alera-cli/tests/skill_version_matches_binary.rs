@@ -32,8 +32,8 @@ const DIGESTS: &[(&str, i64, &str)] = &[
     ),
     (
         "alera-automations",
-        1,
-        "757e9bfbfd48efa751bcb458f4d528b9781e4db03d2bd1f979e31a639614fff7",
+        4,
+        "7f4ddcc3970b58ff3550f350167594c7fc81dd9fd7635e7ceff02ff37f9ad6fc",
     ),
     (
         "alera-agent-profiles",

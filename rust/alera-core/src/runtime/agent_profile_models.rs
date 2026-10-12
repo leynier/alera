@@ -102,7 +102,6 @@ pub struct AgentProfileRemovalImpact {
     pub revision: Option<i64>,
     pub is_default: bool,
     pub automation_ids: Vec<String>,
-    pub has_automation_policy: bool,
     pub execution_policy_run_ids: Vec<String>,
     pub tabs: Vec<AgentProfileTabReference>,
 }
@@ -111,7 +110,6 @@ impl AgentProfileRemovalImpact {
     pub fn reference_count(&self) -> usize {
         usize::from(self.is_default)
             + self.automation_ids.len()
-            + usize::from(self.has_automation_policy)
             + self.execution_policy_run_ids.len()
             + self.tabs.len()
     }

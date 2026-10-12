@@ -335,12 +335,10 @@ pub async fn workspace_has_active_automation_owner(
                     workspace_id: target,
                     ..
                 } => target == workspace_id,
-                AutomationTarget::ManagedWorkspace {
-                    source_workspace_id,
-                    ..
-                } => source_workspace_id == workspace_id,
-                AutomationTarget::ProjectCheckout { .. }
-                | AutomationTarget::ProjectWorktree { .. } => false,
+                AutomationTarget::Worktree { .. } => {
+                    automation.target.source_workspace_id() == Some(workspace_id)
+                }
+                AutomationTarget::ProjectCheckout { .. } => false,
             }
     }) {
         return Ok(true);

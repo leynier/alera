@@ -1,7 +1,7 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/activity/domain/activity_location.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
-import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/runs/domain/run_detail_tab.dart';
 import 'package:alera/src/features/runs/domain/run_summary.dart';
@@ -135,6 +135,16 @@ class ActivityNavigation extends _$ActivityNavigation {
   void clearAutomationFilters() => state = state.copyWith.automations(
     filters: const AutomationCatalogFilters(),
   );
+
+  /// Catalog group headers the user collapsed, by group key.
+  void toggleAutomationGroup(String key) {
+    final collapsed = state.automations.collapsedGroups;
+    state = state.copyWith.automations(
+      collapsedGroups: collapsed.contains(key)
+          ? (Set<String>.of(collapsed)..remove(key))
+          : <String>{...collapsed, key},
+    );
+  }
 
   void selectAutomation(String? id) =>
       state = state.copyWith.automations(selectedId: id, selectedRunId: null);
