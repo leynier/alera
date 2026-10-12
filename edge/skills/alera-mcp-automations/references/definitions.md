@@ -21,7 +21,7 @@ The target is one of four:
 | `freshTab` | `workspaceId`, `agentProfileId` | A new agent tab in an existing workspace |
 | `existingTab` | `workspaceId`, `tabId`, optional `conversationId` | Sends to that tab's live conversation |
 | `worktree` | `projectId` and/or `parentWorkspaceId`, `sourceBranch`, `agentProfileId` | A new worktree and branch per run on this computer; with `parentWorkspaceId` it is a child of that workspace and the project comes from it |
-| `projectCheckout` | `projectId`, `hostId`, `agentProfileId` | A workspace in the project's local or SSH folder |
+| `projectCheckout` | `projectId`, `hostId`, `agentProfileId` | A workspace in the project's folder on that host: `local`, or a host from `list_project_hosts` |
 
 `worktree` needs `projectId`, `parentWorkspaceId`, or both. The older `managedWorkspace` (`sourceWorkspaceId`) and `projectWorktree` spellings are still accepted and come back as `worktree`. A retried attempt reuses the worktree its run already created.
 

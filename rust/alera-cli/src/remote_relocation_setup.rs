@@ -63,12 +63,8 @@ pub(crate) async fn execute<E: RemoteHostExecutor>(
         .install_dir
         .as_deref()
         .context("The owner installation directory is unknown")?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let quote = if windows {
-        crate::ssh_bootstrap::powershell_string
-    } else {
-        crate::ssh_bootstrap::shell_quote
-    };
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let quote = |value: &str| shell.quote(value);
     let action = match request.action {
         OwnerSetupAction::Run => "run",
         OwnerSetupAction::Cancel => "cancel",
@@ -78,14 +74,18 @@ pub(crate) async fn execute<E: RemoteHostExecutor>(
     if let Some(attempt) = &request.attempt_id {
         arguments.push_str(&format!(" --attempt-id {}", quote(attempt)));
     }
-    let script =
-        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
-    let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, windows, &script)).await
+    let script = crate::remote_sidecar_command::sidecar_command(
+        shell,
+        install,
+        &arguments,
+        crate::remote_sidecar_command::SidecarProfile::DataStateDir,
+    );
+    let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, shell, &script, crate::ssh_remote_command::RemoteCommandBudget::Command)).await
         .context("The SSH setup response timed out. Inspect owner recovery with the same relocation and attempt IDs; process closure is unverified")??;
     if output.len() > 4_194_304 {
         bail!("Owner setup response exceeds the limit; inspect recovery");
     }
-    let response: Value = serde_json::from_str(output.trim())?;
+    let response: Value = crate::remote_sidecar_command::parse_last_json_line(&output)?;
     let owner: Workspace = serde_json::from_value(response["workspace"].clone())?;
     let setup: RelocationSetupReceipt = serde_json::from_value(response["setup"].clone())?;
     if response["version"] != 1

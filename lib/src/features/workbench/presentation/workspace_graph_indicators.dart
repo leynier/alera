@@ -1,5 +1,4 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/icons/alera_linked_worktree_icon.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -25,93 +24,5 @@ class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
             )
           : const AleraLinkedWorktreeIcon(),
     );
-  }
-}
-
-/// Wrap of low-emphasis chips describing a workspace's place in the graph:
-/// host metadata when `hostId` is not local, how many children it has, and
-/// its tags. Renders nothing for a plain local workspace with no
-/// relationships or tags, so the common case adds no visual weight.
-class const WorkspaceGraphChips({super.key, required final Workspace workspace})
-    extends StatelessWidget {
-  static const int _maxVisibleTags = 3;
-
-  static String hostMetadataTooltip(String hostId) {
-    return 'Remote workspace on $hostId. Terminals attach over SSH.';
-  }
-
-  /// Whether [workspace] has any graph metadata to render. Lets callers gate
-  /// surrounding spacing without duplicating the chip logic.
-  static bool hasContent(Workspace workspace) {
-    final hostId = workspace.hostId.trim();
-    if (hostId.isNotEmpty && hostId != 'local') {
-      return true;
-    }
-    if (workspace.childCount > 0) {
-      return true;
-    }
-    return _tagsOf(workspace).isNotEmpty;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final chips = <Widget>[];
-
-    final hostId = workspace.hostId.trim();
-    if (hostId.isNotEmpty && hostId != 'local') {
-      chips.add(
-        AleraChip(
-          leading: AleraIcons.host,
-          label: hostId,
-          tooltip: hostMetadataTooltip(hostId),
-        ),
-      );
-    }
-
-    if (workspace.childCount > 0) {
-      chips.add(
-        AleraChip(
-          leading: AleraIcons.gitBranch,
-          label: workspace.childCount == 1
-              ? '1 Child'
-              : '${workspace.childCount} Children',
-        ),
-      );
-    }
-
-    final tags = _tagsOf(workspace);
-    for (final tag in tags.take(_maxVisibleTags)) {
-      chips.add(
-        AleraChip(leading: AleraIcons.tag, label: '#$tag', tooltip: tag),
-      );
-    }
-    final hidden = tags.skip(_maxVisibleTags).toList();
-    if (hidden.isNotEmpty) {
-      chips.add(
-        AleraChip(label: '+${hidden.length} Tags', tooltip: hidden.join(', ')),
-      );
-    }
-
-    if (chips.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Wrap(
-      spacing: AleraTokens.space4,
-      runSpacing: AleraTokens.space4,
-      children: chips,
-    );
-  }
-
-  /// Prefers human-readable [Workspace.tagNames]; falls back to
-  /// [Workspace.tagIds] when names are not available. Blank entries are
-  /// dropped before counting, so the `+N Tags` overflow stays accurate.
-  static List<String> _tagsOf(Workspace workspace) {
-    final source = workspace.tagNames.isNotEmpty
-        ? workspace.tagNames
-        : workspace.tagIds;
-    return source
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .toList(growable: false);
   }
 }

@@ -46,6 +46,7 @@ class const ResourceStatusPanel({
   final Set<String> collapsedProjectIds = const <String>{},
   final ValueChanged<String>? onToggleProject,
   final bool hostUnreachable = false,
+  final Map<String, String> hostLabels = const <String, String>{},
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -112,6 +113,7 @@ class const _PanelBody({required final ResourceStatusPanel panel})
               project: project,
               collapsed: panel.collapsedProjectIds.contains(project.projectId),
               onToggle: panel.onToggleProject,
+              hostLabels: panel.hostLabels,
               onOpenSession: panel.onOpenSession,
               onKillSession: panel.onKillSession,
             ),

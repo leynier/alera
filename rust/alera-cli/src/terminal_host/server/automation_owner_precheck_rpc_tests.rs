@@ -78,7 +78,7 @@ async fn owner_precheck_rpc_requires_no_declaration_and_runs_once() {
         &fixture,
         format!(
             "printf x >> {}; exit 1",
-            crate::ssh_bootstrap::shell_quote(marker.to_str().unwrap())
+            crate::ssh_remote_command::shell_quote(marker.to_str().unwrap())
         ),
     );
     let payload = serde_json::to_value(&request).unwrap();
@@ -124,7 +124,7 @@ async fn owner_precheck_rpc_keeps_running_after_disconnect_and_cancels_with_veri
         &fixture,
         format!(
             "sleep 60 & printf %s \"$!\" > {}; wait",
-            crate::ssh_bootstrap::shell_quote(marker.to_str().unwrap())
+            crate::ssh_remote_command::shell_quote(marker.to_str().unwrap())
         ),
     );
     let payload = serde_json::to_value(&request).unwrap();
@@ -276,8 +276,8 @@ async fn linked_owner_rpc_retains_storage_until_verified_command_closure() {
         &fixture,
         format!(
             "printf x >> {}; while [ ! -f {} ]; do sleep 0.05; done; exit 1",
-            crate::ssh_bootstrap::shell_quote(marker.to_str().unwrap()),
-            crate::ssh_bootstrap::shell_quote(release.to_str().unwrap())
+            crate::ssh_remote_command::shell_quote(marker.to_str().unwrap()),
+            crate::ssh_remote_command::shell_quote(release.to_str().unwrap())
         ),
     );
     request.path = task.path.clone();

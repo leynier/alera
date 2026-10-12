@@ -72,7 +72,6 @@ ResourceTree _tree({
           workspaceId: 'w1',
           name: 'Main',
           projectId: 'p1',
-          remote: false,
           sessions: <ResourceSessionRow>[
             _session('Codex Agent'),
             _session(
@@ -87,7 +86,7 @@ ResourceTree _tree({
             workspaceId: 'w2',
             name: 'Mini PC',
             projectId: 'p1',
-            remote: true,
+            hostId: 'build-box',
             sessions: <ResourceSessionRow>[
               _session(
                 'Remote Shell',
@@ -112,6 +111,7 @@ Widget _panel(
     tree: tree,
     sortColumn: .memory,
     hostUnreachable: host,
+    hostLabels: const <String, String>{'build-box': 'Build Box'},
     onSortColumnChanged: (_) {},
     onOpenSession: (_) {},
     onKillSession: (_) {},

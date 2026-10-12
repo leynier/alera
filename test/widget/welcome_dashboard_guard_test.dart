@@ -299,6 +299,44 @@ void main() {
     expect(jobs.request, isNull);
   });
 
+  testWidgets(
+    'a host that is not ready is listed with its reason and disabled',
+    (tester) async {
+      final jobs = await pumpWelcomeDashboard(
+        tester,
+        state: welcomeDashboardProjectState(),
+        profiles: <AgentProfile>[profile],
+        extraOverrides: <Override>[
+          sshTargetsProvider.overrideWith(
+            (ref) => Stream.value(<SshTarget>[
+              welcomeDashboardSshTarget(
+                bootstrapStatus: SshBootstrapStatus.notInstalled,
+              ),
+            ]),
+          ),
+        ],
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('home-composer-host')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Build Box (Needs Setup)'), findsOneWidget);
+
+      await tester.tap(
+        find.text('Build Box (Needs Setup)'),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle();
+      if (find.text('Build Box (Needs Setup)').evaluate().isNotEmpty) {
+        await tester.tapAt(Offset.zero);
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text('This Device'), findsOneWidget);
+      expect(jobs.request, isNull);
+    },
+  );
+
   testWidgets('a long worktree branch ellipsizes in the location chip', (
     tester,
   ) async {

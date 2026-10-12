@@ -1,5 +1,8 @@
 use super::server_actor_test_support::account_push_for_test;
+use super::ssh_bootstrap_jobs::SshBootstrapJobState;
 use super::*;
+use crate::ssh_bootstrap::SshTargetBootstrapProgress;
+use alera_core::runtime::SshBootstrapStatus;
 use std::net::Ipv6Addr;
 
 #[tokio::test]
@@ -26,6 +29,8 @@ async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
                 job_id: "active-job".to_string(),
                 target_id: "remote".to_string(),
                 status: SshBootstrapStatus::Installing,
+                stage: "auth".to_string(),
+                message: "Checking SSH Authentication".to_string(),
                 handle: tokio::spawn(async {}),
             },
         )]),
@@ -42,6 +47,7 @@ async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
         workflow_workspace_recovery_running: false,
         automation_checkout_jobs: Default::default(),
         automation_precheck_jobs: Default::default(),
+        automation_remote_owner_states: Default::default(),
         pending_terminal_lifecycle_shutdowns: Default::default(),
         checkout_buffer_guards: HashMap::new(),
         mutation_queue: Default::default(),
@@ -135,6 +141,7 @@ async fn mobile_gateway_rebinds_same_port_after_releasing_old_listener() {
         workflow_workspace_recovery_running: false,
         automation_checkout_jobs: Default::default(),
         automation_precheck_jobs: Default::default(),
+        automation_remote_owner_states: Default::default(),
         pending_terminal_lifecycle_shutdowns: Default::default(),
         checkout_buffer_guards: HashMap::new(),
         mutation_queue: Default::default(),
@@ -246,6 +253,7 @@ async fn run_stop_clears_persisted_run_without_in_memory_ticker() {
         workflow_workspace_recovery_running: false,
         automation_checkout_jobs: Default::default(),
         automation_precheck_jobs: Default::default(),
+        automation_remote_owner_states: Default::default(),
         pending_terminal_lifecycle_shutdowns: Default::default(),
         checkout_buffer_guards: HashMap::new(),
         mutation_queue: Default::default(),

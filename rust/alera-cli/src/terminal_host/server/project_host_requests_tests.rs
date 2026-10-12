@@ -112,7 +112,7 @@ async fn hosts_list_the_checkouts_with_their_workspace_counts() {
 }
 
 #[tokio::test]
-async fn add_registers_a_path_or_asks_the_host_to_clone_by_name() {
+async fn add_registers_a_path_clones_into_it_or_asks_the_host_to_clone_by_name() {
     let (_directory, store) = store_with_project("gitRepository", "/home/me/code/alera").await;
     let existing = add_request(
         &store,
@@ -123,6 +123,21 @@ async fn add_registers_a_path_or_asks_the_host_to_clone_by_name() {
     .unwrap();
     assert_eq!(existing.path, "/srv/alera");
     assert!(existing.clone_url.is_none() && existing.clone_name.is_none());
+
+    let cloned_into_path = add_request(
+        &store,
+        "project-1",
+        &json!({"hostId": "ssh-a", "path": "/srv/new-alera", "cloneUrl": " git@github.com:o/alera.git "}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(cloned_into_path.path, "/srv/new-alera");
+    assert_eq!(
+        cloned_into_path.clone_url.as_deref(),
+        Some("git@github.com:o/alera.git"),
+        "a path with a URL clones into exactly that folder"
+    );
+    assert!(cloned_into_path.clone_name.is_none());
 
     let cloned = add_request(
         &store,

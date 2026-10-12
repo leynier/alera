@@ -24,6 +24,7 @@ fn ssh_target(id: &str, alias: &str) -> SshTarget {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
@@ -102,4 +103,105 @@ async fn upsert_ssh_target_keeps_own_alias_and_accepts_a_free_alias() {
         .await
         .unwrap_err();
     assert_duplicate_alias(stolen, "build-linux");
+}
+
+#[tokio::test]
+async fn upsert_keeps_the_checked_status_and_stores_the_identity_file() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_ssh_target(ssh_target("remote", "Lab"))
+        .await
+        .unwrap();
+    store
+        .mark_ssh_target_checked("remote", super::SshTargetLastStatus::RuntimeReady)
+        .await
+        .unwrap();
+
+    let mut edited = ssh_target("remote", "Lab");
+    edited.last_status = Some("unreachable".into());
+    edited.identity_file = Some("~/.ssh/lab_ed25519".into());
+    let stored = store.upsert_ssh_target(edited).await.unwrap();
+
+    assert_eq!(stored.last_status.as_deref(), Some("runtimeReady"));
+    assert_eq!(stored.identity_file.as_deref(), Some("~/.ssh/lab_ed25519"));
+
+    let mut cleared = stored.clone();
+    cleared.identity_file = None;
+    let stored = store.upsert_ssh_target(cleared).await.unwrap();
+    assert_eq!(stored.identity_file, None);
+}
+
+#[tokio::test]
+async fn an_attach_records_the_runtime_that_answered() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_ssh_target(ssh_target("remote", "Lab"))
+        .await
+        .unwrap();
+
+    let attached = store
+        .mark_ssh_target_attached("remote", Some("1.4.0"), Some("macos"), Some("arm64"))
+        .await
+        .unwrap();
+    assert_eq!(attached.runtime_version.as_deref(), Some("1.4.0"));
+    assert_eq!(attached.runtime_platform.as_deref(), Some("macos"));
+    assert_eq!(attached.runtime_arch.as_deref(), Some("arm64"));
+
+    let unknown_version = store
+        .mark_ssh_target_attached("remote", Some(""), None, Some("x64"))
+        .await
+        .unwrap();
+    assert_eq!(unknown_version.runtime_version.as_deref(), Some("1.4.0"));
+    assert_eq!(unknown_version.runtime_platform.as_deref(), Some("macos"));
+    assert_eq!(unknown_version.runtime_arch.as_deref(), Some("x64"));
+
+    assert!(store
+        .mark_ssh_target_attached("missing", None, None, None)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn references_count_active_workspaces_and_project_checkouts_on_a_host() {
+    let (dir, store) = store().await;
+    for id in ["p1", "p2"] {
+        let project: super::Project = serde_json::from_value(serde_json::json!({
+            "id": id, "name": id, "repoPath": dir.path().join(id), "kind": "folder",
+            "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z"
+        }))
+        .unwrap();
+        store.upsert_project(project).await.unwrap();
+    }
+    assert!(store.ssh_target_references("lab").await.unwrap().is_empty());
+
+    store
+        .register_project_checkout("p1", "lab", "/srv/p1")
+        .await
+        .unwrap();
+    store
+        .register_project_checkout("p2", "other", "/srv/p2")
+        .await
+        .unwrap();
+    let workspace: super::Workspace = serde_json::from_value(serde_json::json!({
+        "id": "w1", "instanceId": "w1-instance", "hostId": "lab", "projectId": "p2",
+        "name": "Task", "branch": null, "path": "/srv/p2-task",
+        "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
+        "kind": "main", "status": "active", "sourceBranch": null,
+        "reusesExistingBranch": false, "isPinned": false, "tagIds": [], "tagNames": [],
+        "parentWorkspaceId": null, "childCount": 0
+    }))
+    .unwrap();
+    store.insert_workspace(workspace).await.unwrap();
+
+    let references = store.ssh_target_references("lab").await.unwrap();
+    assert_eq!(
+        references,
+        super::SshTargetReferences {
+            workspace_count: 1,
+            // A main workspace on a host records that host's checkout too.
+            checkout_count: 2,
+            project_ids: vec!["p1".into(), "p2".into()],
+        }
+    );
+    assert!(!references.is_empty());
 }

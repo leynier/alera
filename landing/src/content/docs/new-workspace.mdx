@@ -22,7 +22,7 @@ Both modes ask where the task lives:
 - **Source Branch**: where a new worktree branches from. It starts on `new_workspace.source_branch` from [`alera.toml`](/docs/alera-toml) or **Settings → Projects**, then `main` or `master`. On this device, when the branch tracks a remote, Alera first updates it from that remote and stops if the update fails, for example when the remote is unreachable or the branch has diverged.
 - **New Branch** or **Existing Branch** (Manual): branch fresh, or attach to a local branch no other workspace uses. **New Branch Name** is checked as you type, and **Workspace Name (Optional)** follows it until you type your own.
 - **Parent Workspace**: nests it under another workspace in the sidebar.
-- **Host**: **This Device** or an SSH host from **Settings → Remote Hosts**. When a Git project is not on that host yet, **Add to Host** clones it there or registers an **Existing Path** ([Remote Hosts](/docs/remote-hosts)).
+- **Host**: **This Device** or a host from **Settings → Remote Hosts**. Hosts that are not ready, such as **Needs Setup**, **Installing…**, or **Error**, stay in the list with their state in parentheses but cannot be picked. **Offline** and **Not Connected** hosts can be picked, because Alera connects when the workspace needs it. When a Git project is not on that host yet, **Add to Host** clones it there or registers an **Existing Path** ([Remote Hosts](/docs/remote-hosts)).
 - **Agent Profile** (From Prompt): starts on your default [agent profile](/docs/agent-profiles).
 - **Issue URL**: optional, covered below.
 - **Initial Prompt** (From Prompt): the task. Pasting an image inserts its saved path; `Ctrl+Enter`, or `⌘Enter` on macOS, submits.
@@ -55,7 +55,7 @@ Read a prefilled prompt before you start the agent: an issue body is text from t
 
 ## From The Phone
 
-The [companion](/docs/mobile) has a similar form behind **New Workspace** on a host's workspace list, with **Issue URL (Optional)** and, when the runtime supports it, **Add Attachment** for the prompt. Its **Host** lists only the hosts where the project already lives. As on the desktop, a card follows the job and nothing opens by itself.
+The [companion](/docs/mobile) has a similar form behind **New Workspace** on a host's workspace list, with **Issue URL (Optional)** and, when the runtime supports it, **Add Attachment** for the prompt. Its **Host** lists **Paired Device** and the hosts where the project already lives, each with its state, and hosts that are not ready cannot be picked. As on the desktop, a card follows the job and nothing opens by itself.
 
 ## From The CLI
 

@@ -7,7 +7,7 @@
 | `fresh-tab` | Workspace and profile | New agent tab in the existing workspace |
 | `existing-tab` | Workspace, tab, capturable conversation | Send to that live conversation |
 | `worktree` | Project and/or parent workspace, source branch, profile | New Git worktree per run on this computer; with a parent workspace it is that workspace's child |
-| `project-checkout` | Project, host, profile | Workspace in the registered local or SSH project folder |
+| `project-checkout` | Project, host, profile | Workspace in the project's folder on that host: `local`, or a host id from `alera ssh-target list` the project is on |
 
 For `worktree`, `--project-id` names the project and `--workspace-id` the parent workspace. Without `--project-id`, the current workspace is the parent. A retried attempt reuses the worktree its run created. `managed-workspace` and `project-worktree` are older names for `worktree` and still work. In JSON the target is `{"worktree": {"projectId": "...", "parentWorkspaceId": "...", "sourceBranch": "main", "agentProfileId": "..."}}` with either id optional; the older `managedWorkspace` and `projectWorktree` keys are still accepted.
 

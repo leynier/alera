@@ -30,7 +30,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                             ("profile", string("Agent profile id or unique name. Defaults to the runtime's default profile.")),
                             ("mode", one_of("Where the workspace lives.", &["auto", "worktree", "projectCheckout"])),
                             ("sourceBranch", string("Branch a new worktree starts from. Defaults to the project's preferred branch.")),
-                            ("hostId", string("SSH target that owns the worktree. Omit for this machine.")),
+                            ("hostId", string("Host the workspace is created on: a host id from list_ssh_targets, or `local` for the runtime's own machine. Omit for the project's primary host.")),
                             ("parentWorkspaceId", string("Workspace to set as the parent of the new one.")),
                             ("issueUrl", string("Issue URL to link to the workspace.")),
                             ("section", string("auto (default) lets AI Assist pick a section or none; none skips sections; any other value is a section name.")),

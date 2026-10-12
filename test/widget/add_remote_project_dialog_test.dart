@@ -5,14 +5,18 @@ import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/remote_project_request.dart';
 import 'package:alera/src/features/projects/presentation/add_remote_project_dialog.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/remote_hosts_widget_harness.dart';
 
 final DateTime _now = DateTime.utc(2026, 9, 21);
 
 void main() {
-  testWidgets('offers only bootstrapped hosts, with their OS icon', (
+  testWidgets('lists hosts that are not ready with the reason, unpickable', (
     tester,
   ) async {
     await _pumpDialog(tester, _FakeRegistration());
@@ -24,22 +28,67 @@ void main() {
 
     expect(find.text('Build Mac'), findsOneWidget);
     expect(find.text('Build PC'), findsOneWidget);
-    expect(find.textContaining('Staging'), findsNothing);
+    expect(find.text('Staging (Needs Setup)'), findsOneWidget);
     expect(
       tester
           .widgetList<AleraHostOsIcon>(find.byType(AleraHostOsIcon))
           .map((icon) => icon.os),
       containsAll(<HostOs>[HostOs.macos, HostOs.windows]),
     );
+
+    // A disabled entry does not pick the host; the menu stays open.
+    await tester.tap(find.text('Staging (Needs Setup)'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('Staging (Needs Setup)'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Select Host'), findsOneWidget);
   });
 
-  testWidgets('a single bootstrapped host is selected up front', (
+  testWidgets('with no ready host it offers Add Host instead of the form', (
     tester,
   ) async {
+    var addHost = 0;
     await _pumpDialog(
       tester,
       _FakeRegistration(),
-      targets: <SshTarget>[_target('ssh-mac', 'Build Mac')],
+      hosts: <RemoteHostView>[
+        remoteHostTestView(
+          'ssh-staging',
+          'Staging',
+          status: const RemoteHostNeedsSetup(),
+        ),
+      ],
+      onAddHost: () => addHost++,
+    );
+
+    expect(find.text('No host is ready'), findsOneWidget);
+    expect(
+      find.text(
+        'Install the Alera runtime on a host before adding projects there.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Folder on the Host'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Add Project'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Add Host'));
+    await tester.pump();
+    expect(addHost, 1);
+  });
+
+  testWidgets('a single ready host is selected up front', (tester) async {
+    await _pumpDialog(
+      tester,
+      _FakeRegistration(),
+      hosts: <RemoteHostView>[
+        remoteHostTestView('ssh-mac', 'Build Mac'),
+        remoteHostTestView(
+          'ssh-staging',
+          'Staging',
+          status: const RemoteHostNeedsSetup(),
+        ),
+      ],
     );
 
     expect(find.text('Build Mac'), findsOneWidget);
@@ -254,8 +303,9 @@ class _FakeRegistration {
 Future<void> _pumpDialog(
   WidgetTester tester,
   _FakeRegistration registration, {
-  List<SshTarget>? targets,
+  List<RemoteHostView>? hosts,
   ValueChanged<Project?>? onResult,
+  VoidCallback? onAddHost,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -266,22 +316,23 @@ Future<void> _pumpDialog(
               final result = await showDialog<Project>(
                 context: context,
                 builder: (_) => AddRemoteProjectDialog(
-                  sshTargets:
-                      targets ??
-                      <SshTarget>[
-                        _target('ssh-mac', 'Build Mac'),
-                        _target(
+                  hosts:
+                      hosts ??
+                      <RemoteHostView>[
+                        remoteHostTestView('ssh-mac', 'Build Mac'),
+                        remoteHostTestView(
                           'ssh-win',
                           'Build PC',
-                          runtimePlatform: 'windows',
+                          os: HostOs.windows,
                         ),
-                        _target(
+                        remoteHostTestView(
                           'ssh-staging',
                           'Staging',
-                          bootstrapStatus: SshBootstrapStatus.notInstalled,
+                          status: const RemoteHostNeedsSetup(),
                         ),
                       ],
                   registerRemoteProject: registration.call,
+                  onAddHost: onAddHost,
                 ),
               );
               onResult?.call(result);
@@ -304,25 +355,5 @@ Project _project() {
     createdAt: _now,
     updatedAt: _now,
     primaryHostId: 'ssh-mac',
-  );
-}
-
-SshTarget _target(
-  String id,
-  String alias, {
-  String runtimePlatform = 'macos',
-  SshBootstrapStatus bootstrapStatus = SshBootstrapStatus.installed,
-}) {
-  return SshTarget(
-    id: id,
-    alias: alias,
-    host: '$id.example.test',
-    port: 22,
-    username: 'leynier',
-    authKind: SshAuthKind.agent,
-    createdAt: _now,
-    updatedAt: _now,
-    runtimePlatform: runtimePlatform,
-    bootstrapStatus: bootstrapStatus,
   );
 }

@@ -17,8 +17,12 @@ import 'package:alera/src/features/projects/domain/project_host_enrollment.dart'
 import 'package:alera/src/features/projects/presentation/add_remote_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_hosts_dialog.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_controller.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/presentation/add_project_to_host_dialog.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
+import 'package:alera/src/features/remote_hosts/presentation/add_remote_host_dialog.dart';
 
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
@@ -41,6 +45,7 @@ import 'package:uuid/uuid.dart';
 
 part 'workbench_dialog_launchers_create_workspace.dart';
 part 'workbench_dialog_launchers_project_hosts.dart';
+part 'workbench_dialog_launchers_remote_hosts.dart';
 part 'workbench_dialog_launchers_remote_project.dart';
 
 /// Shared dialog flows for project/workspace creation and settings.
@@ -52,12 +57,14 @@ Future<void> openSettingsDialog(
   BuildContext context, {
   String initialSectionId = 'application',
   String? initialProjectId,
+  String? initialHostId,
 }) {
   return showDialog<void>(
     context: context,
     builder: (_) => SettingsDialog(
       initialSectionId: initialSectionId,
       initialProjectId: initialProjectId,
+      initialHostId: initialHostId,
     ),
   );
 }

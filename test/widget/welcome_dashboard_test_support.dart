@@ -145,7 +145,9 @@ WorkbenchState welcomeDashboardRemoteState() {
   );
 }
 
-SshTarget welcomeDashboardSshTarget() {
+SshTarget welcomeDashboardSshTarget({
+  SshBootstrapStatus bootstrapStatus = SshBootstrapStatus.installed,
+}) {
   final now = DateTime.utc(2026, 5, 22);
   return SshTarget(
     id: 'ssh-win',
@@ -156,7 +158,7 @@ SshTarget welcomeDashboardSshTarget() {
     authKind: SshAuthKind.agent,
     createdAt: now,
     updatedAt: now,
-    bootstrapStatus: SshBootstrapStatus.installed,
+    bootstrapStatus: bootstrapStatus,
   );
 }
 

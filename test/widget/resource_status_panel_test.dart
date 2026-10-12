@@ -71,7 +71,7 @@ ResourceTree _tree({
           workspaceId: 'w1',
           name: 'Main',
           projectId: 'p1',
-          remote: remote,
+          hostId: remote ? 'mini-pc' : 'local',
           sessions: sessions,
         ),
       ],
@@ -101,6 +101,7 @@ Future<void> _pump(
             tree: tree,
             sortColumn: sortColumn,
             hostUnreachable: hostUnreachable,
+            hostLabels: const <String, String>{'mini-pc': 'Mini PC'},
             onSortColumnChanged: onSortColumnChanged ?? (_) {},
             onOpenSession: onOpenSession ?? (_) {},
             onKillSession: onKillSession ?? (_) {},
@@ -203,7 +204,8 @@ void main() {
       ),
     );
 
-    expect(find.text('remote'), findsOneWidget);
+    expect(find.text('Mini PC'), findsOneWidget);
+    expect(find.text('remote'), findsNothing);
     // A dash for the session's CPU and memory, plus the workspace aggregate.
     expect(find.text('-'), findsWidgets);
     expect(find.text('0.0%'), findsNothing);

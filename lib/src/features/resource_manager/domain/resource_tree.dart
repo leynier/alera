@@ -10,6 +10,8 @@
 /// downstream has to remember which unit it is holding.
 library;
 
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
+
 enum ResourceSortColumn { name, cpu, memory }
 
 class const ResourceSessionRow({
@@ -35,13 +37,13 @@ class const ResourceWorkspaceRow({
   required final String workspaceId,
   required final String name,
   required final String projectId,
-  required this.remote,
+  final String hostId = localWorkspaceHostId,
   required final List<ResourceSessionRow> sessions,
 }) {
   /// Driven by the workspace's `hostId`, never by missing samples: a local
   /// session that reconnected to a warm host has no samples for a moment and
   /// must not be relabelled as remote.
-  final bool remote;
+  bool get remote => isRemoteWorkspaceHostId(hostId);
 
   double? get cpuMachinePercent =>
       _sumDoubles(sessions.map((session) => session.cpuMachinePercent));

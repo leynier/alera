@@ -1,4 +1,5 @@
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 
 /// Operating system of [target]. Bootstrap records what the sidecar probed in
@@ -24,6 +25,27 @@ String workspaceHostTooltip({required String hostId, SshTarget? target}) {
   final os = sshTargetHostOs(target);
   return os == HostOs.unknown ? target.alias : '${target.alias} (${os.label})';
 }
+
+/// Tooltip for a workspace row's host glyph: the state when the host cannot
+/// serve the workspace right now (`Build Mac · Offline`), otherwise the alias
+/// and operating system.
+String workspaceHostMarkerTooltip({
+  required String hostId,
+  SshTarget? target,
+  RemoteHostStatus? status,
+}) {
+  final alias = target?.alias ?? hostId;
+  return switch (status) {
+    RemoteHostOffline(:final label) ||
+    RemoteHostError(:final label) ||
+    RemoteHostInstalling(:final label) => '$alias · $label',
+    _ => workspaceHostTooltip(hostId: hostId, target: target),
+  };
+}
+
+/// Whether the host glyph fades: the host is offline or failing.
+bool workspaceHostMarkerDimmed(RemoteHostStatus? status) =>
+    status is RemoteHostOffline || status is RemoteHostError;
 
 /// Index of [targets] by id for row lookups.
 Map<String, SshTarget> sshTargetsById(Iterable<SshTarget> targets) {

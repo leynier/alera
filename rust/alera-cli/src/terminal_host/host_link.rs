@@ -19,12 +19,14 @@ use alera_core::runtime::SshTarget;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{mpsc, oneshot};
 
 use super::host_error::{HostError, HostResult};
 #[cfg(test)]
 use super::host_link_attach_command::attach_remote_command;
 pub(crate) use super::host_link_attach_command::attach_ssh_arguments;
+use super::host_link_close_signal::CloseSignal;
+use super::host_link_failure::{classify_attach_failure, AttachError, AttachFailureKind};
 use super::server::ServerCommand;
 
 /// How long the hub waits for `hostLink.attached` after spawning `ssh`.
@@ -70,37 +72,6 @@ pub(crate) fn ssh_launcher(target: &SshTarget) -> HostResult<tokio::process::Com
     Ok(command)
 }
 
-/// Latched close signal shared by the writer, the reader and the link handle.
-#[derive(Clone)]
-struct CloseSignal {
-    sender: watch::Sender<bool>,
-}
-
-impl CloseSignal {
-    fn new() -> Self {
-        Self {
-            sender: watch::channel(false).0,
-        }
-    }
-
-    fn cancel(&self) {
-        self.sender.send_replace(true);
-    }
-
-    fn is_cancelled(&self) -> bool {
-        *self.sender.borrow()
-    }
-
-    async fn cancelled(&self) {
-        let mut receiver = self.sender.subscribe();
-        while !*receiver.borrow_and_update() {
-            if receiver.changed().await.is_err() {
-                return;
-            }
-        }
-    }
-}
-
 impl std::fmt::Debug for HostLink {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HostLink")
@@ -118,6 +89,8 @@ pub(crate) struct HostLink {
     pending: PendingRequests,
     next_id: AtomicI64,
     closed: CloseSignal,
+    /// Why the pipe ended, with ssh's stderr tail, once it has.
+    close_reason: Arc<Mutex<Option<String>>>,
     child: Mutex<Option<tokio::process::Child>>,
 }
 
@@ -128,6 +101,18 @@ impl HostLink {
 
     pub(crate) fn is_closed(&self) -> bool {
         self.closed.is_cancelled()
+    }
+
+    /// Resolves once the link is closed, by either side.
+    pub(crate) async fn closed(&self) {
+        self.closed.cancelled().await;
+    }
+
+    pub(crate) fn close_reason(&self) -> Option<String> {
+        self.close_reason
+            .lock()
+            .expect("host link close reason poisoned")
+            .clone()
     }
 
     pub(crate) async fn request_with_timeout(
@@ -188,13 +173,32 @@ impl HostLink {
     /// Spawns the launcher's process (`ssh <target> alera runtime-attach
     /// --stdio` in production, a local stand-in for the satellite in tests) and
     /// waits for the attachment announcement.
+    #[cfg(test)]
     pub(crate) async fn connect_with(
         target: &SshTarget,
         inbox: crate::terminal_host::ServerInbox,
         launcher: &HostLinkLauncher,
     ) -> HostResult<Arc<HostLink>> {
+        Self::connect_classified(target, inbox, launcher)
+            .await
+            .map_err(|failure| failure.0)
+    }
+
+    /// [`Self::connect_with`], with the failure classified for the supervisor.
+    pub(crate) async fn connect_classified(
+        target: &SshTarget,
+        inbox: crate::terminal_host::ServerInbox,
+        launcher: &HostLinkLauncher,
+    ) -> Result<Arc<HostLink>, AttachError> {
         let host_id = target.id.clone();
-        let mut command = launcher(target)?;
+        let configuration = |error: HostError| -> AttachError {
+            Box::new((error, AttachFailureKind::Configuration))
+        };
+        let classified = |error: HostError| -> AttachError {
+            let kind = classify_attach_failure(&error.wire_message());
+            Box::new((error, kind))
+        };
+        let mut command = launcher(target).map_err(configuration)?;
         // The hub sidecar starts detached from a GUI launch with none of the
         // user's shell exports, so `ssh` and its agent socket come from here.
         crate::login_shell_environment::apply_login_shell_environment(
@@ -208,7 +212,11 @@ impl HostLink {
             .stderr(Stdio::piped())
             .kill_on_drop(true)
             .spawn()
-            .map_err(|error| HostError::state(format!("Failed to start the host link: {error}")))?;
+            .map_err(|error| {
+                configuration(HostError::state(format!(
+                    "Failed to start the host link: {error}"
+                )))
+            })?;
         let stdin = child.stdin.take().expect("piped stdin");
         let stdout = child.stdout.take().expect("piped stdout");
         let stderr = child.stderr.take().expect("piped stderr");
@@ -220,51 +228,55 @@ impl HostLink {
             Ok(Ok(Some(line))) => line,
             Ok(Ok(None)) => {
                 let _ = child.start_kill();
-                return Err(attach_failure(
-                    &host_id,
-                    "ssh closed before attaching",
-                    &stderr_tail,
-                    stderr_collector,
-                )
-                .await);
+                return Err(classified(
+                    attach_failure(
+                        &host_id,
+                        "ssh closed before attaching",
+                        &stderr_tail,
+                        stderr_collector,
+                    )
+                    .await,
+                ));
             }
             Ok(Err(error)) => {
                 let _ = child.start_kill();
-                return Err(attach_failure(
-                    &host_id,
-                    &error.to_string(),
-                    &stderr_tail,
-                    stderr_collector,
-                )
-                .await);
+                return Err(classified(
+                    attach_failure(&host_id, &error.to_string(), &stderr_tail, stderr_collector)
+                        .await,
+                ));
             }
             Err(_) => {
                 let _ = child.start_kill();
-                return Err(attach_failure(
-                    &host_id,
-                    &format!("no attachment within {}s", ATTACH_TIMEOUT.as_secs()),
-                    &stderr_tail,
-                    stderr_collector,
-                )
-                .await);
+                return Err(classified(
+                    attach_failure(
+                        &host_id,
+                        &format!("no attachment within {}s", ATTACH_TIMEOUT.as_secs()),
+                        &stderr_tail,
+                        stderr_collector,
+                    )
+                    .await,
+                ));
             }
         };
         let attachment = match parse_attached(&first) {
             Some(attachment) => attachment,
             None => {
                 let _ = child.start_kill();
-                return Err(attach_failure(
-                    &host_id,
-                    &format!("unexpected first frame: {}", truncate(&first, 200)),
-                    &stderr_tail,
-                    stderr_collector,
-                )
-                .await);
+                return Err(classified(
+                    attach_failure(
+                        &host_id,
+                        &format!("unexpected first frame: {}", truncate(&first, 200)),
+                        &stderr_tail,
+                        stderr_collector,
+                    )
+                    .await,
+                ));
             }
         };
 
         let pending: PendingRequests = Arc::new(Mutex::new(HashMap::new()));
         let closed = CloseSignal::new();
+        let close_reason = Arc::new(Mutex::new(None));
         let (outbound, outbound_rx) = mpsc::unbounded_channel::<String>();
         tokio::spawn(write_outbound(stdin, outbound_rx, closed.clone()));
         tokio::spawn(read_inbound(
@@ -274,6 +286,7 @@ impl HostLink {
             inbox,
             closed.clone(),
             stderr_tail,
+            close_reason.clone(),
         ));
         Ok(Arc::new(HostLink {
             host_id,
@@ -282,6 +295,7 @@ impl HostLink {
             pending,
             next_id: AtomicI64::new(1),
             closed,
+            close_reason,
             child: Mutex::new(Some(child)),
         }))
     }
@@ -378,6 +392,7 @@ async fn read_inbound(
     inbox: crate::terminal_host::ServerInbox,
     closed: CloseSignal,
     stderr_tail: Arc<Mutex<String>>,
+    close_reason: Arc<Mutex<Option<String>>>,
 ) {
     loop {
         let line = tokio::select! {
@@ -405,7 +420,6 @@ async fn read_inbound(
             });
         }
     }
-    closed.cancel();
     let error = {
         let tail = stderr_tail
             .lock()
@@ -417,6 +431,11 @@ async fn read_inbound(
             format!("The link to host {host_id} was closed. {tail}")
         }
     };
+    // Recorded before the signal fires, so whoever wakes on it reads why.
+    if let Ok(mut reason) = close_reason.lock() {
+        reason.get_or_insert_with(|| error.clone());
+    }
+    closed.cancel();
     let drained: Vec<_> = pending
         .lock()
         .expect("host link pending map poisoned")
@@ -454,4 +473,4 @@ pub(crate) fn response_result(frame: &Value) -> HostResult<Value> {
 
 #[cfg(test)]
 #[path = "host_link_tests.rs"]
-mod tests;
+pub(crate) mod tests;

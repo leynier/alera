@@ -1235,7 +1235,6 @@ fn runtime_failed_bootstrap_preserves_previous_runtime_metadata() {
             break;
         }
     }
-
     send(
         &mut writer,
         json!({"id": 3, "type": "sshTarget.list", "payload": {}}),
@@ -1250,7 +1249,8 @@ fn runtime_failed_bootstrap_preserves_previous_runtime_metadata() {
                 .find(|item| item["id"] == json!("remote-installed"))
         })
         .expect("saved target should be listed");
-    assert_eq!(target["bootstrapStatus"], json!("failed"));
+    assert_eq!(target["bootstrapStatus"], json!("installed"));
+    assert!(target["lastError"].is_string());
     assert_eq!(target["runtimeVersion"], json!("1.2.2"));
     assert_eq!(target["runtimePlatform"], json!("linux"));
     assert_eq!(target["runtimeArch"], json!("x64"));

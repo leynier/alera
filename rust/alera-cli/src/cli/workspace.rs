@@ -110,7 +110,9 @@ pub struct WorkspaceAddArgs {
     pub path: Option<String>,
     #[arg(long = "parent-workspace-id")]
     pub parent_workspace_id: Option<String>,
-    /// Bootstrapped SSH target that should own the Git worktree. Omit for the local host.
+    /// Host the workspace is created on: a host id from `ssh-target list`, or
+    /// `local` for this device. Omit for the project's primary host; in a
+    /// terminal on a remote host, omitting it means that host.
     #[arg(long = "host-id")]
     pub host_id: Option<String>,
     /// Issue URL to link to the new workspace (GitHub, GitLab, Azure DevOps, or any tracker URL).
@@ -159,7 +161,9 @@ pub struct WorkspaceStartArgs {
     /// Do not link the new workspace to the current workspace.
     #[arg(long = "no-parent")]
     pub no_parent: bool,
-    /// Bootstrapped SSH target that should own the Git worktree. Omit for the local host.
+    /// Host the workspace is created on: a host id from `ssh-target list`, or
+    /// `local` for this device. Omit for the project's primary host; in a
+    /// terminal on a remote host, omitting it means that host.
     #[arg(long = "host-id")]
     pub host_id: Option<String>,
     /// Stable mutation id used to retry the profile launch.

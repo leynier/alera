@@ -1,11 +1,13 @@
 use std::{collections::BTreeMap, process::Stdio};
 
 use alera_core::{child_process::windowless_async_command, runtime::SshTarget};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use tokio::io::AsyncWriteExt;
 
-use crate::ssh_bootstrap::{powershell_encoded, ssh_args, RemoteCommandOutput};
+use crate::ssh_remote_command::{
+    powershell_encoded, ssh_args, RemoteCommandBudget, RemoteCommandError, RemoteCommandOutput,
+};
 
 fn launcher() -> String {
     // OpenSSH on Windows may invoke cmd.exe, whose command line limit is 8191
@@ -17,7 +19,11 @@ fn launcher() -> String {
     )
 }
 
-pub(crate) async fn run(target: &SshTarget, script: &str) -> Result<RemoteCommandOutput> {
+pub(crate) async fn run(
+    target: &SshTarget,
+    script: &str,
+    budget: RemoteCommandBudget,
+) -> Result<RemoteCommandOutput> {
     let mut args = ssh_args(target);
     args.push(launcher());
     let mut command = windowless_async_command("ssh");
@@ -30,7 +36,10 @@ pub(crate) async fn run(target: &SshTarget, script: &str) -> Result<RemoteComman
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .context("failed to start ssh")?;
+        .map_err(|source| RemoteCommandError::Spawn {
+            program: "ssh".to_string(),
+            source,
+        })?;
     let mut stdin = child
         .stdin
         .take()
@@ -41,18 +50,20 @@ pub(crate) async fn run(target: &SshTarget, script: &str) -> Result<RemoteComman
         stdin.shutdown().await
     };
     // Drain both output streams concurrently with the payload write.
-    let (written, output) = tokio::join!(write, child.wait_with_output());
+    let (written, output) = tokio::time::timeout(budget.duration(), async {
+        tokio::join!(write, child.wait_with_output())
+    })
+    .await
+    .map_err(|_| RemoteCommandError::Timeout {
+        budget,
+        program: "ssh".to_string(),
+    })?;
     let output = output.context("failed waiting for ssh")?;
     if !output.status.success() {
-        let error = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stderr),
-            String::from_utf8_lossy(&output.stdout)
-        );
-        bail!(
-            "ssh failed: {}",
+        return Err(RemoteCommandError::exit("ssh", &output, |error| {
             error.chars().take(4096).collect::<String>()
-        );
+        })
+        .into());
     }
     written.context("failed sending remote Windows script")?;
     Ok(RemoteCommandOutput {

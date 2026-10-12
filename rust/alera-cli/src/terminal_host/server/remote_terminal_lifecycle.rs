@@ -309,7 +309,7 @@ async fn execute<E: RemoteHostExecutor>(
         .as_deref()
         .filter(|path| !path.is_empty())
         .context("Bootstrap the SSH host again to record its installation directory")?;
-    let windows = probe_or_unreachable(executor, &target).await?;
+    let shell = probe_or_unreachable(executor, &target).await?;
     let mut workspace = operation.workspace.clone();
     workspace.host_id = LOCAL_HOST_ID.into();
     let mut payload = json!({"operationId":operation.id,"workspace":workspace,"tabId":operation.tab_id,"sessionId":operation.session_id,"action":operation.action});
@@ -334,24 +334,29 @@ async fn execute<E: RemoteHostExecutor>(
         ));
     }
     let encoded = base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&payload)?);
-    let quote = if windows {
-        crate::ssh_bootstrap::powershell_string
-    } else {
-        crate::ssh_bootstrap::shell_quote
-    };
+    let quote = |value: &str| shell.quote(value);
     let arguments = format!(
         "project control-owner-terminal --request-base64 {}",
         quote(&encoded)
     );
-    let script =
-        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
+    let script = crate::remote_sidecar_command::sidecar_command(
+        shell,
+        install,
+        &arguments,
+        crate::remote_sidecar_command::SidecarProfile::DataStateDir,
+    );
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(60),
-        executor.run(&target, windows, &script),
+        executor.run(
+            &target,
+            shell,
+            &script,
+            crate::ssh_remote_command::RemoteCommandBudget::Command,
+        ),
     )
     .await
     .context("The owner terminal response timed out; retry to recover the original operation")??;
-    let value: Value = serde_json::from_str(output.trim())
+    let value: Value = crate::remote_sidecar_command::parse_last_json_line(&output)
         .context("The SSH owner returned invalid terminal closure evidence")?;
     if value["processClosureVerified"] != true {
         anyhow::bail!("The owner did not verify terminal process closure");
@@ -360,7 +365,7 @@ async fn execute<E: RemoteHostExecutor>(
 }
 
 fn state_error(error: anyhow::Error) -> HostError {
-    HostError::state(error.to_string())
+    HostError::from_anyhow(&error)
 }
 
 #[cfg(test)]

@@ -97,40 +97,56 @@ class _AleraToastHostState extends State<AleraToastHost> {
     }
   }
 
+  void _runAction(String id) {
+    final entry = _visible.where((entry) => entry.id == id).firstOrNull;
+    if (entry == null || entry.exiting) {
+      return;
+    }
+    entry.data.onAction?.call();
+    _startExit(id);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_visible.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return IgnorePointer(
-      ignoring: true,
-      child: Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: const EdgeInsets.only(
-            right: AleraTokens.space16,
-            bottom: AleraTokens.space16,
-          ),
-          child: Column(
-            mainAxisSize: .min,
-            crossAxisAlignment: .end,
-            children: <Widget>[
-              for (var i = 0; i < _visible.length; i++) ...<Widget>[
-                _ToastCard(entry: _visible[i]),
-                if (i < _visible.length - 1)
-                  const SizedBox(height: AleraTokens.space8),
-              ],
+    // Only a card with an action takes pointer input; the rest of the host,
+    // and every plain toast, lets clicks through to the workbench below.
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          right: AleraTokens.space16,
+          bottom: AleraTokens.space16,
+        ),
+        child: Column(
+          mainAxisSize: .min,
+          crossAxisAlignment: .end,
+          children: <Widget>[
+            for (final (i, entry) in _visible.indexed) ...<Widget>[
+              IgnorePointer(
+                ignoring: !entry.data.hasAction,
+                child: _ToastCard(
+                  entry: entry,
+                  onAction: () => _runAction(entry.id),
+                ),
+              ),
+              if (i < _visible.length - 1)
+                const SizedBox(height: AleraTokens.space8),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-class const _ToastCard({required final _ToastEntry entry})
-    extends StatelessWidget {
+class const _ToastCard({
+  required final _ToastEntry entry,
+  required final VoidCallback onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = _iconForTone(entry.data.tone);
@@ -167,7 +183,7 @@ class const _ToastCard({required final _ToastEntry entry})
               ),
               child: Row(
                 mainAxisSize: .min,
-                crossAxisAlignment: .start,
+                crossAxisAlignment: entry.data.hasAction ? .center : .start,
                 children: <Widget>[
                   Icon(icon, size: 16, color: iconColor),
                   const SizedBox(width: AleraTokens.space8),
@@ -178,6 +194,19 @@ class const _ToastCard({required final _ToastEntry entry})
                       softWrap: true,
                     ),
                   ),
+                  if (entry.data.hasAction) ...<Widget>[
+                    const SizedBox(width: AleraTokens.space8),
+                    TextButton(
+                      onPressed: entry.exiting ? null : onAction,
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AleraTokens.space8,
+                        ),
+                      ),
+                      child: Text(entry.data.actionLabel!),
+                    ),
+                  ],
                 ],
               ),
             ),

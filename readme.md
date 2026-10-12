@@ -96,12 +96,12 @@ flowchart LR
         agents[("CLI agents<br/><small>one Git worktree each</small>")]
     end
 
-    remote["SSH host<br/><small>satellite runtime</small>"]
+    remote["Remote host<br/><small>its own Alera runtime</small>"]
 
     desktop -->|"local socket"| runtime
     phone -->|"direct, Tailscale, or encrypted relay"| runtime
     runtime -->|"real PTYs"| agents
-    runtime -->|"one SSH link per host"| remote
+    runtime -->|"SSH: one link per host, one channel per terminal"| remote
 ```
 
 1. **Register a project.** Add a local folder or clone a Git repository. Open as many workspaces on it as you need, and give each one its own worktree when the project uses Git.
@@ -140,7 +140,7 @@ Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Aider, yo
 | **Source control** | Staged and unstaged changes as a tree or a flat list, unified diffs per file or for all changes, image diffs before and after, stage, commit, amend, stash, and discard, a history graph, and AI Assist commit messages. | [Source Control](https://alera.build/docs/source-control) |
 | **Pull requests** | Create, edit, comment, and merge on GitHub, GitLab, and Azure DevOps, with checks grouped by status, GitHub stacks, linked issues, and Watch and Fix handing failures back to an agent. | [Pull Requests And Checks](https://alera.build/docs/pull-requests) |
 | **Coordination** | Orchestration between agents with coordinator runs, task ownership, decision gates, and messaging, plus scheduled automations that can return to the same workspace or agent conversation. | [Orchestration](https://alera.build/docs/orchestration) · [Run Board](https://alera.build/docs/run-board) · [Automations](https://alera.build/docs/automations) |
-| **Remote and mobile** | Workspaces on SSH hosts, the Android companion with push when an agent needs you, and optional accounts. | [Remote Hosts](https://alera.build/docs/remote-hosts) · [Mobile Companion](https://alera.build/docs/mobile) · [Accounts](https://alera.build/docs/accounts) |
+| **Remote and mobile** | Workspaces on SSH hosts with one state per host, guided setup, automatic reconnect, and one-click Alera runtime updates, the Android companion with push when an agent needs you, and optional accounts. | [Remote Hosts](https://alera.build/docs/remote-hosts) · [Mobile Companion](https://alera.build/docs/mobile) · [Accounts](https://alera.build/docs/accounts) |
 | **Usage** | Remaining quota for Claude Code and CCS profiles, Codex, Kimi Code, Grok Build, Cursor, Antigravity, MiniMax, Z.ai, and OpenCode Go and Zen, and the Resource Manager. | [Quotas And Resources](https://alera.build/docs/quotas) |
 | **Dictation** | Dictate into terminals, prompts, commit messages, and pull request fields with local Whisper models, an OpenAI-compatible transcription API, or a Codex subscription. | [AI Assist And Dictation](https://alera.build/docs/ai-assist) |
 

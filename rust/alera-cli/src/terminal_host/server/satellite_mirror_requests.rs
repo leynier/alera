@@ -15,18 +15,36 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use super::ServerActor;
 
 impl ServerActor {
-    pub(super) fn try_start_satellite_mirror_request(
+    pub(super) async fn try_start_satellite_mirror_request(
         &mut self,
         client_id: u64,
         request_id: i64,
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
-        if !request_type.starts_with("hub.mirror.") {
+        if !request_type.starts_with("hub.mirror.") && request_type != "hub.unlink" {
             return Ok(false);
         }
         self.require_authenticated_local_request(client_id, request_type)?;
         match request_type {
+            "hub.unlink" => {
+                // The hub forgot this host (or the user ran `alera runtime
+                // unlink-hub`): the local records are no longer copies of a
+                // hub's, so the CLI answers from them again.
+                self.runtime_store
+                    .delete_metadata(crate::hub_federation::SATELLITE_METADATA_KEY)
+                    .await
+                    .map_err(|error| HostError::from_anyhow(&error))?;
+                self.forget_satellite_flag();
+                self.client_write(
+                    client_id,
+                    crate::terminal_host::protocol::ok_response(
+                        request_id,
+                        serde_json::json!({ "unlinked": true }),
+                    ),
+                );
+                Ok(true)
+            }
             "hub.mirror.workspace" => {
                 let registration = serde_json::from_value::<
                     crate::remote_workspace_owner::RemoteWorkspaceOwnerRegistration,

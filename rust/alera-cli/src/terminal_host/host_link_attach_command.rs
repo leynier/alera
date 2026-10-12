@@ -3,6 +3,8 @@
 use alera_core::runtime::SshTarget;
 
 use super::host_error::{HostError, HostResult};
+use crate::remote_shell::RemoteShell;
+use crate::remote_sidecar_command::posix_install_prelude;
 
 /// The `ssh` argument vector for the link. No PTY (`-T`), keep-alives so a
 /// dropped network fails the link instead of hanging it, and the remote
@@ -14,9 +16,8 @@ pub(crate) fn attach_ssh_arguments(target: &SshTarget) -> HostResult<Vec<String>
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| HostError::state(crate::ssh_remote::host_not_bootstrapped(target)))?;
-    let windows = crate::ssh_remote::terminal_platform_windows(target)
-        .map_err(|error| HostError::state(error.to_string()))?;
-    let mut args = crate::ssh_bootstrap::ssh_args(target);
+    let shell = RemoteShell::from_target(target).map_err(|error| HostError::from_anyhow(&error))?;
+    let mut args = crate::ssh_remote_command::ssh_args(target);
     let destination = args.pop().expect("ssh_args includes the destination");
     args.push("-T".to_string());
     args.push("-o".to_string());
@@ -24,7 +25,7 @@ pub(crate) fn attach_ssh_arguments(target: &SshTarget) -> HostResult<Vec<String>
     args.push("-o".to_string());
     args.push("ServerAliveCountMax=3".to_string());
     args.push(destination);
-    args.push(attach_remote_command(install_dir, windows));
+    args.push(attach_remote_command(install_dir, shell));
     Ok(args)
 }
 
@@ -37,8 +38,8 @@ pub(crate) fn attach_ssh_arguments(target: &SshTarget) -> HostResult<Vec<String>
 /// command is on the right side of `|`, so the frames the hub writes would
 /// never reach `alera.exe`. `cmd.exe` (the sshd default shell) passes the
 /// handles straight through and expands `%LOCALAPPDATA%` in the install dir.
-pub(crate) fn attach_remote_command(install_dir: &str, windows: bool) -> String {
-    if windows {
+pub(crate) fn attach_remote_command(install_dir: &str, shell: RemoteShell) -> String {
+    if shell.is_windows() {
         let wrapper = format!(
             "{}\\bin\\alera.cmd",
             install_dir.replace('/', "\\").trim_end_matches('\\')
@@ -47,11 +48,9 @@ pub(crate) fn attach_remote_command(install_dir: &str, windows: bool) -> String 
         // cmd strips only the outer pair, which leaves the wrapper path quoted.
         return format!("\"{wrapper}\" runtime-attach --stdio");
     }
-    format!(
-        "sh -lc {}",
-        crate::ssh_bootstrap::shell_quote(&format!(
-            "install={}; case \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac; exec \"$install/bin/alera\" runtime-attach --stdio",
-            crate::ssh_bootstrap::shell_quote(install_dir)
-        ))
-    )
+    let script = format!(
+        "{}exec \"$install/bin/alera\" runtime-attach --stdio",
+        posix_install_prelude(install_dir)
+    );
+    format!("sh -lc {}", shell.quote(&script))
 }

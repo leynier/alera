@@ -262,6 +262,10 @@ async fn retired_catalog_and_policy_verbs_are_unknown_requests() {
 #[path = "automation_experience_tests.rs"]
 mod experience;
 
+#[cfg(unix)]
+#[path = "automation_remote_owner_tests.rs"]
+mod remote_owner;
+
 #[path = "automation_event_tests.rs"]
 mod events;
 
