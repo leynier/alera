@@ -23,6 +23,8 @@ const STAGED_PATCH_BUDGET: usize = 200_000;
 const INSTRUCTIONS_BUDGET: usize = 4000;
 const MAX_SUBJECT_CHARS: usize = 72;
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CommitContext {
     branch: Option<String>,
     staged_summary: String,
@@ -39,12 +41,25 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let workspace_id = required_non_blank(payload, "workspaceId")?;
         let hub_settings = hub_ai_assist_settings(payload)?;
+        let selected_context: Option<CommitContext> = payload
+            .get("commitContext")
+            .map(|value| serde_json::from_value(value.clone()))
+            .transpose()
+            .map_err(|error| HostError::format(error.to_string()))?;
+        let root_override = super::requests::optional_string_key(payload, "path");
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         let (registration, cancel_rx) = active_generations().register(operation_id, None)?;
         tokio::spawn(async move {
-            let result =
-                generate_commit_message(&store, &workspace_id, hub_settings, cancel_rx).await;
+            let result = generate_commit_message_with_context(
+                &store,
+                &workspace_id,
+                hub_settings,
+                selected_context,
+                root_override,
+                cancel_rx,
+            )
+            .await;
             drop(registration);
             let _ = inbox
                 .send_wait(ServerCommand::AiAssistFinished {
@@ -73,6 +88,18 @@ pub(super) async fn generate_commit_message(
     hub_settings: Option<RuntimeAiAssistSettings>,
     cancel_rx: oneshot::Receiver<()>,
 ) -> HostResult<Value> {
+    generate_commit_message_with_context(store, workspace_id, hub_settings, None, None, cancel_rx)
+        .await
+}
+
+async fn generate_commit_message_with_context(
+    store: &RuntimeStore,
+    workspace_id: &str,
+    hub_settings: Option<RuntimeAiAssistSettings>,
+    selected_context: Option<CommitContext>,
+    root_override: Option<String>,
+    cancel_rx: oneshot::Receiver<()>,
+) -> HostResult<Value> {
     let workspace = store
         .find_workspace(workspace_id)
         .await
@@ -88,11 +115,18 @@ pub(super) async fn generate_commit_message(
     if !settings.enabled {
         return Err(HostError::state("AI Assist is disabled."));
     }
-    let root = workspace.path.clone();
-    let context = spawn_blocking_workspace("Commit context", move || commit_context(&root)).await?;
+    let working_directory = match root_override {
+        Some(path) => super::workspace_git_requests::git_path(&workspace, &json!({"path": path}))?,
+        None => workspace.path.clone(),
+    };
+    let root = working_directory.clone();
+    let context = match selected_context {
+        Some(context) => context,
+        None => spawn_blocking_workspace("Commit context", move || commit_context(&root)).await?,
+    };
     let prompt = commit_message_prompt(&context, instructions(&settings));
     let (output, label) =
-        generate_ai_assist_output(&settings, OPERATION, &prompt, &workspace.path, cancel_rx)
+        generate_ai_assist_output(&settings, OPERATION, &prompt, &working_directory, cancel_rx)
             .await?;
     Ok(json!({
         "message": clean_generated_commit_message(&output),

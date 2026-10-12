@@ -12,6 +12,9 @@
 }
 
 [data-alera-demo] {
+  --app-workspace-details-width: 312px;
+  --app-workspace-details-min-width: 240px;
+  --app-workspace-details-min-height: 160px;
   --app-bg: #101010;
   --app-surface: #181818;
   --app-surface-variant: #202020;

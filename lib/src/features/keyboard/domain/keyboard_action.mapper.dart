@@ -90,6 +90,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.toggleSidebar;
       case r'toggleContextPanel':
         return KeyboardActionId.toggleContextPanel;
+      case r'toggleWorkspaceDetails':
+        return KeyboardActionId.toggleWorkspaceDetails;
       case r'showExplorer':
         return KeyboardActionId.showExplorer;
       case r'showSourceControl':
@@ -178,6 +180,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'toggleSidebar';
       case KeyboardActionId.toggleContextPanel:
         return r'toggleContextPanel';
+      case KeyboardActionId.toggleWorkspaceDetails:
+        return r'toggleWorkspaceDetails';
       case KeyboardActionId.showExplorer:
         return r'showExplorer';
       case KeyboardActionId.showSourceControl:

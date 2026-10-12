@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
+import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
@@ -19,6 +24,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'fake_forge_provider.dart';
 import 'fake_git_backend.dart';
 
+part 'workspace_pull_request_revalidation_test_cases.dart';
+
 HostedReview _review(
   int number, {
   HostedReviewState state = HostedReviewState.open,
@@ -27,6 +34,7 @@ HostedReview _review(
   String? title,
 }) => HostedReview(
   provider: .github,
+  mergeable: .mergeable,
   number: number,
   title: title ?? 'feat: $number',
   state: state,
@@ -77,6 +85,7 @@ ProviderContainer _container({
 }
 
 void main() {
+  _registerWorkspacePullRequestRevalidationTests();
   test('auto-detects the review for the branch on open', () async {
     final forge = FakeForgeProvider()
       ..branchReview = _review(123)
@@ -275,6 +284,7 @@ void main() {
     );
     final updated = HostedReview(
       provider: .github,
+      mergeable: .mergeable,
       number: 123,
       title: 'feat: renamed',
       state: .open,
@@ -418,7 +428,7 @@ void main() {
         .read(workspacePullRequestControllerProvider(_scope))
         .value!;
     expect(forge.mergeCalls, 0);
-    expect(state.errorMessage, 'This pull request cannot be merged.');
+    expect(state.errorMessage, contains('Review the action again'));
     expect(state.review?.state, HostedReviewState.open);
   });
 

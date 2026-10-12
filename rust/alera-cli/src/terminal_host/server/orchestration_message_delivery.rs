@@ -61,11 +61,31 @@ pub(super) fn requested_delivery(
 }
 
 // No adapter has passed the manual check yet, so delivery tests mark the agent
-// types they exercise as if one had.
+// types they exercise as if one had, for as long as the guard lives.
 #[cfg(test)]
 thread_local! {
-    pub(super) static QUEUED_INPUT_AGENTS_FOR_TESTS: std::cell::RefCell<Vec<String>> =
+    static QUEUED_INPUT_AGENTS_FOR_TESTS: std::cell::RefCell<Vec<String>> =
         const { std::cell::RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+pub(super) struct QueuedInputForTests;
+
+#[cfg(test)]
+impl QueuedInputForTests {
+    pub(super) fn verify(agents: &[&str]) -> Self {
+        QUEUED_INPUT_AGENTS_FOR_TESTS.with(|verified| {
+            *verified.borrow_mut() = agents.iter().map(|agent| agent.to_string()).collect();
+        });
+        Self
+    }
+}
+
+#[cfg(test)]
+impl Drop for QueuedInputForTests {
+    fn drop(&mut self) {
+        QUEUED_INPUT_AGENTS_FOR_TESTS.with(|verified| verified.borrow_mut().clear());
+    }
 }
 
 impl ServerActor {

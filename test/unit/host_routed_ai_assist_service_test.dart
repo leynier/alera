@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/host_routed_ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -18,6 +19,42 @@ void main() {
     remoteWorkspaceIdFor: (path) =>
         path.startsWith('/srv/') ? 'workspace-remote' : null,
     newOperationId: () => 'operation-1',
+  );
+
+  test(
+    'reviewed context reaches the host and only the owning request starts',
+    () async {
+      final gate = Completer<Object?>();
+      final client = _FakeRuntimeHostClient()..pending = gate;
+      final routed = service(client, _FakeLocalService());
+      var started = 0;
+      final request = AiAssistRequest(
+        operation: .commitMessage,
+        workspacePath: '/srv/repo/nested',
+        settings: _settings,
+        onStarted: () => started++,
+        commitContext: const AiAssistCommitContext(
+          branch: 'feature',
+          stagedSummary: 'selected.txt',
+          stagedPatch: '+selected only',
+        ),
+      );
+      final generation = routed.generate(request);
+      await pumpEventQueue();
+      await expectLater(
+        routed.generate(request),
+        throwsA(isA<AiAssistException>()),
+      );
+      expect(started, 1);
+      expect(client.payloads.single['path'], '/srv/repo/nested');
+      expect(client.payloads.single['commitContext'], {
+        'branch': 'feature',
+        'stagedSummary': 'selected.txt',
+        'stagedPatch': '+selected only',
+      });
+      gate.complete({'message': 'fix: selected', 'agentLabel': 'Codex'});
+      expect((await generation).text, 'fix: selected');
+    },
   );
 
   test('a local checkout keeps the desktop implementation', () async {

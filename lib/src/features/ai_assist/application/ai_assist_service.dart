@@ -14,10 +14,14 @@ class const AiAssistRequest({
   required final AiAssistOperation operation,
   required final String workspacePath,
   required final AiAssistSettings settings,
+  this.onStarted,
+  this.commitContext,
   this.baseBranch,
   this.headBranch,
 }) {
   /// Required when [operation] is [AiAssistOperation.pullRequestDetails].
+  final void Function()? onStarted;
+  final AiAssistCommitContext? commitContext;
   final String? baseBranch;
 
   /// Optional head branch hint for pull-request prompts.
@@ -69,6 +73,7 @@ class CliAiAssistService({
     _pending.add(key);
 
     try {
+      request.onStarted?.call();
       final prompt = await _promptFor(request);
       if (_canceled.contains(key)) {
         throw const AiAssistCanceledException();
@@ -124,7 +129,9 @@ class CliAiAssistService({
   Future<String> _promptFor(AiAssistRequest request) async {
     return switch (request.operation) {
       AiAssistOperation.commitMessage => buildCommitMessagePrompt(
-        context: await _commitContext(request.workspacePath),
+        context:
+            request.commitContext ??
+            await _commitContext(request.workspacePath),
         customInstructions: promptInstructionsFor(
           request.settings,
           .commitMessage,

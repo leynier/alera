@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
+
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
@@ -73,6 +75,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   var _panelViewCount = 0;
   bool _visible = false;
   bool _disposed = false;
+  bool _validatingReviewAction = false;
 
   @override
   Future<WorkspacePullRequestState> build(
@@ -97,6 +100,63 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     final initial = _applyPendingCommentBodies(await _loader.load(scope));
     _schedulePoll(scope, snapshot: initial);
     return initial;
+  }
+
+  Future<WorkspacePullRequestState?> _validateReviewAction(
+    String expected,
+    WorkspaceReviewAction action, {
+    ReviewMergeMethod? method,
+  }) async {
+    if (_disposed ||
+        _validatingReviewAction ||
+        (state.value?.isBusy == true && state.value?.isRefreshing != true)) {
+      return null;
+    }
+    final refreshing = _refreshInFlight;
+    if (refreshing != null) await refreshing;
+    if (_disposed || _validatingReviewAction) return null;
+    _validatingReviewAction = true;
+    final lifetime = ref.keepAlive();
+    _pollTimer?.cancel();
+    final visible = state.value;
+    if (visible != null) {
+      state = AsyncData(
+        visible.copyWith(
+          action: action == .ready ? .draftStatus : .merge,
+          clearError: true,
+        ),
+      );
+    }
+    try {
+      final fresh = await _loader.load(scope);
+      if (_disposed) return null;
+      state = AsyncData(fresh);
+      if (reviewActionFingerprint(fresh) != expected ||
+          resolveWorkspaceReviewAction(fresh).action != action ||
+          (method != null && !fresh.mergeMethods.contains(method))) {
+        state = AsyncData(
+          fresh.copyWith(
+            errorMessage: 'The PR, checks or permissions changed. Review the action again.',
+          ),
+        );
+        return null;
+      }
+      return fresh;
+    } catch (error) {
+      if (!_disposed) {
+        state = AsyncData(
+          (state.value ?? const WorkspacePullRequestState()).copyWith(
+            clearAction: true,
+            errorMessage: 'Could not revalidate the PR. $error',
+          ),
+        );
+      }
+      return null;
+    } finally {
+      _validatingReviewAction = false;
+      lifetime.close();
+      if (!_disposed) _schedulePoll(scope);
+    }
   }
 
   /// Reloads review + checks now.

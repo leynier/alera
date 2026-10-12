@@ -1,3 +1,5 @@
+import 'package:alera/src/features/pull_requests/presentation/pull_request_action_confirmations.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -40,6 +42,7 @@ class const PullRequestReviewView({
   super.key,
   required final HostedReview review,
   final HostedReviewStack? stack,
+  final int? highlightedReviewNumber,
   final bool stackSupported = false,
   final String? stackErrorMessage,
   final Set<String> localWorkspaceBranches = const <String>{},
@@ -51,6 +54,9 @@ class const PullRequestReviewView({
   required final List<String> baseBranches,
   required final List<ReviewMergeMethod> mergeMethods,
   required final bool canCloseReview,
+  final bool mergeAllowed = false,
+  final bool readyAllowed = false,
+  final String? actionHint,
   required final bool canChangeDraftStatus,
   required final bool canComment,
   final bool canEditComments = false,
@@ -192,6 +198,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                   PullRequestStackSection(
                     stack: widget.stack,
                     currentReviewNumber: review.number,
+                    highlightedReviewNumber: widget.highlightedReviewNumber,
                     canManage: review.isOpen,
                     enabled: !_busy,
                     managing: widget.action == PullRequestAction.linkStack,
@@ -260,6 +267,9 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             stack: widget.stack,
             mergeMethods: widget.mergeMethods,
             canCloseReview: widget.canCloseReview,
+            mergeAllowed: widget.mergeAllowed,
+            readyAllowed: widget.readyAllowed,
+            actionHint: widget.actionHint,
             canChangeDraftStatus: widget.canChangeDraftStatus,
             action: widget.action,
             onMerge: widget.onMerge,

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -29,7 +28,6 @@ import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_r
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
-import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_status_indicator.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_watch_indicator.dart';
@@ -37,8 +35,6 @@ import 'package:alera/src/features/remote_hosts/application/ssh_target_providers
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
 import 'package:alera/src/features/runs/domain/run_tab_identity.dart';
-import 'package:alera/src/features/workbench/application/repository_browser_opener.dart';
-import 'package:alera/src/features/workbench/application/repository_browser_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
@@ -56,14 +52,15 @@ import 'package:alera/src/features/workbench/presentation/widgets/workbench_side
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_hand_off_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_external_actions.dart'
+    as external_actions;
 import 'package:alera/src/features/workbench/presentation/workspace_graph_dialogs.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_relocation_recovery_launcher.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';

@@ -23,6 +23,15 @@ Future<void> dispatchPullRequestFailedChecks({
   required String workspaceId,
   required HostedReview review,
 }) async {
+  if (_watchOwnsProblem(
+    context,
+    ref,
+    workspaceId,
+    review.number,
+    conflict: false,
+  )) {
+    return;
+  }
   final prompt =
       await ref
           .read(pullRequestAgentWatchRepositoryProvider)
@@ -206,5 +215,60 @@ Future<void> shipPullRequestWithFollowUp({
     ),
     onWatchFailed: (message) =>
         AleraToast.publish(message: message, tone: .error),
+  );
+}
+
+bool _watchOwnsProblem(
+  BuildContext context,
+  WidgetRef ref,
+  String workspaceId,
+  int reviewNumber, {
+  required bool conflict,
+}) {
+  final session = ref.read(
+    pullRequestAgentWatchControllerProvider,
+  )[workspaceId];
+  if (session?.reviewNumber != reviewNumber ||
+      !(conflict
+          ? session!.watchScope.conflicts
+          : session!.watchScope.checks)) {
+    return false;
+  }
+  AleraToast.show(
+    context,
+    message: 'An agent watch is already handling this PR. Open the PR panel to manage it.',
+    tone: .info,
+  );
+  return true;
+}
+
+Future<void> dispatchPullRequestConflicts({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String workspaceId,
+  required HostedReview review,
+}) async {
+  if (_watchOwnsProblem(
+    context,
+    ref,
+    workspaceId,
+    review.number,
+    conflict: true,
+  )) {
+    return;
+  }
+  await showAgentTaskDispatchFlow(
+    context,
+    ref,
+    request: AgentTaskDispatchRequest(
+      workspaceId: workspaceId,
+      prompt: pullRequestAgentWatchPrompt(
+        reviewNumber: review.number,
+        concerns: const PullRequestAgentWatchConcerns(conflict: true),
+        baseBranch: review.baseBranch,
+      ),
+      title: 'Resolve PR Conflicts',
+      message: _agentDispatchMessage,
+    ),
   );
 }

@@ -1,3 +1,5 @@
+import 'package:alera/src/features/workbench/application/workspace_details_toggle_signal.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
@@ -61,6 +63,11 @@ class const KeyboardCommandDispatcher({
         unawaited(showAddProjectFlow(context, ref));
       case KeyboardActionId.toggleSidebar:
         _toggleSidebar();
+      case KeyboardActionId.toggleWorkspaceDetails:
+        final id = ref.read(workbenchControllerProvider).activeWorkspaceId;
+        if (id != null) {
+          ref.read(workspaceDetailsToggleSignalProvider(id).notifier).toggle();
+        }
       case KeyboardActionId.toggleContextPanel:
         _toggleContextPanel();
       case KeyboardActionId.showExplorer:

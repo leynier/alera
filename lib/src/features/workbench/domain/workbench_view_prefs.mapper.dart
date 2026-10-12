@@ -429,6 +429,24 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final String id = 'WorkbenchViewPrefs';
 
+  static Set<String> _$workspaceDetailsHiddenIds(WorkbenchViewPrefs v) =>
+      v.workspaceDetailsHiddenIds;
+  static const Field<WorkbenchViewPrefs, Set<String>>
+  _f$workspaceDetailsHiddenIds = Field(
+    'workspaceDetailsHiddenIds',
+    _$workspaceDetailsHiddenIds,
+    opt: true,
+    def: const <String>{},
+  );
+  static Map<String, String> _$workspaceComparisonBases(WorkbenchViewPrefs v) =>
+      v.workspaceComparisonBases;
+  static const Field<WorkbenchViewPrefs, Map<String, String>>
+  _f$workspaceComparisonBases = Field(
+    'workspaceComparisonBases',
+    _$workspaceComparisonBases,
+    opt: true,
+    def: const <String, String>{},
+  );
   static Map<String, WorkspacePanel> _$workspacePanels(WorkbenchViewPrefs v) =>
       v.workspacePanels;
   static const Field<WorkbenchViewPrefs, Map<String, WorkspacePanel>>
@@ -678,6 +696,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
+    #workspaceDetailsHiddenIds: _f$workspaceDetailsHiddenIds,
+    #workspaceComparisonBases: _f$workspaceComparisonBases,
     #workspacePanels: _f$workspacePanels,
     #sectionSort: _f$sectionSort,
     #collapsedSectionIds: _f$collapsedSectionIds,
@@ -716,6 +736,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   final MappingHook hook = const WorkbenchViewPrefsDecodeHook();
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
+      workspaceDetailsHiddenIds: data.dec(_f$workspaceDetailsHiddenIds),
+      workspaceComparisonBases: data.dec(_f$workspaceComparisonBases),
       workspacePanels: data.dec(_f$workspacePanels),
       sectionSort: data.dec(_f$sectionSort),
       collapsedSectionIds: data.dec(_f$collapsedSectionIds),
@@ -826,6 +848,8 @@ abstract class WorkbenchViewPrefsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
+  MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
+  get workspaceComparisonBases;
   MapCopyWith<
     $R,
     String,
@@ -844,6 +868,8 @@ abstract class WorkbenchViewPrefsCopyWith<
   >
   get newWorkspaceTools;
   $R call({
+    Set<String>? workspaceDetailsHiddenIds,
+    Map<String, String>? workspaceComparisonBases,
     Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
@@ -891,6 +917,13 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<WorkbenchViewPrefs> $mapper =
       WorkbenchViewPrefsMapper.ensureInitialized();
   @override
+  MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
+  get workspaceComparisonBases => MapCopyWith(
+    $value.workspaceComparisonBases,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(workspaceComparisonBases: v),
+  );
+  @override
   MapCopyWith<
     $R,
     String,
@@ -929,6 +962,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   );
   @override
   $R call({
+    Set<String>? workspaceDetailsHiddenIds,
+    Map<String, String>? workspaceComparisonBases,
     Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
     Set<String>? collapsedSectionIds,
@@ -963,6 +998,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     List<WorkspaceTool>? newWorkspaceTools,
   }) => $apply(
     FieldCopyWithData({
+      if (workspaceDetailsHiddenIds != null)
+        #workspaceDetailsHiddenIds: workspaceDetailsHiddenIds,
+      if (workspaceComparisonBases != null)
+        #workspaceComparisonBases: workspaceComparisonBases,
       if (workspacePanels != null) #workspacePanels: workspacePanels,
       if (sectionSort != null) #sectionSort: sectionSort,
       if (collapsedSectionIds != null)
@@ -1016,6 +1055,14 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   );
   @override
   WorkbenchViewPrefs $make(CopyWithData data) => WorkbenchViewPrefs(
+    workspaceDetailsHiddenIds: data.get(
+      #workspaceDetailsHiddenIds,
+      or: $value.workspaceDetailsHiddenIds,
+    ),
+    workspaceComparisonBases: data.get(
+      #workspaceComparisonBases,
+      or: $value.workspaceComparisonBases,
+    ),
     workspacePanels: data.get(#workspacePanels, or: $value.workspacePanels),
     sectionSort: data.get(#sectionSort, or: $value.sectionSort),
     collapsedSectionIds: data.get(

@@ -1,14 +1,11 @@
 use serde_json::json;
 
 use super::inbox_test_fixture::*;
+use super::orchestration_message_delivery::QueuedInputForTests;
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::orchestration::coordinator_loop::{CoordinatorConfig, CoordinatorHandle};
 
 fn set_presence(fixture: &mut Fixture, handle: &str, agent: &str, state: AgentPresenceState) {
-    if matches!(agent, "claude" | "codex") {
-        super::orchestration_message_delivery::QUEUED_INPUT_AGENTS_FOR_TESTS
-            .with(|agents| agents.borrow_mut().push(agent.to_string()));
-    }
     fixture
         .actor
         .agent_presence
@@ -17,6 +14,7 @@ fn set_presence(fixture: &mut Fixture, handle: &str, agent: &str, state: AgentPr
 
 #[tokio::test]
 async fn a_now_question_is_pasted_into_a_working_agent_that_queues_input() {
+    let _verified = QueuedInputForTests::verify(&["claude", "codex"]);
     let mut fixture = fixture().await;
     set_presence(
         &mut fixture,
@@ -94,6 +92,7 @@ async fn a_now_question_waits_for_the_turn_of_an_agent_that_does_not_queue_input
 
 #[tokio::test]
 async fn a_turn_end_question_is_never_pasted_mid_turn() {
+    let _verified = QueuedInputForTests::verify(&["claude", "codex"]);
     let mut fixture = fixture().await;
     set_presence(
         &mut fixture,
@@ -124,6 +123,7 @@ async fn a_turn_end_question_is_never_pasted_mid_turn() {
 
 #[tokio::test]
 async fn targets_report_what_a_now_question_would_do() {
+    let _verified = QueuedInputForTests::verify(&["claude", "codex"]);
     let mut fixture = fixture().await;
     set_presence(
         &mut fixture,

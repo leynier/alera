@@ -1,0 +1,29 @@
+part of 'workbench_controller.dart';
+
+mixin _WorkbenchControllerWorkspaceDetails
+    on _$WorkbenchController, _WorkbenchControllerViewPrefs {
+  void toggleWorkspaceDetails(String workspaceId) {
+    final hidden = Set<String>.from(state.viewPrefs.workspaceDetailsHiddenIds);
+    if (!hidden.add(workspaceId)) hidden.remove(workspaceId);
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(workspaceDetailsHiddenIds: hidden),
+    );
+  }
+
+  void setWorkspaceComparisonBase(
+    String workspaceId,
+    String root,
+    String? base,
+  ) {
+    final bases = Map<String, String>.from(
+      state.viewPrefs.workspaceComparisonBases,
+    );
+    final key = '$workspaceId:$root';
+    if (base == null) {
+      bases.remove(key);
+    } else {
+      bases[key] = base;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(workspaceComparisonBases: bases));
+  }
+}

@@ -21,6 +21,7 @@ const _review = HostedReview(
   state: .open,
   url: 'https://github.com/leynier/alera/pull/42',
   author: 'leynier',
+  mergeable: .mergeable,
   baseBranch: 'main',
   headBranch: 'feature',
 );
@@ -64,6 +65,8 @@ Widget _wrap(
         baseBranches: const <String>['develop', 'main'],
         mergeMethods: mergeMethods,
         canCloseReview: canCloseReview,
+        mergeAllowed: review.mergeable == HostedReviewMergeable.mergeable,
+        readyAllowed: true,
         canChangeDraftStatus: canChangeDraftStatus,
         canComment: canComment,
         action: action,
