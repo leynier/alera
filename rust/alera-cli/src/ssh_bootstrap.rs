@@ -28,8 +28,8 @@ pub(crate) use ssh_bootstrap_prune::{installed_runtime_version, prune_remote_ver
 
 #[path = "ssh_bootstrap_status.rs"]
 mod ssh_bootstrap_status;
-use ssh_bootstrap_status::status_after_interrupted_install;
 pub(crate) use ssh_bootstrap_status::{cancel_ssh_bootstrap, mark_ssh_bootstrap_installing};
+use ssh_bootstrap_status::{status_after_interrupted_install, status_while_installing};
 
 #[path = "ssh_bootstrap_remote.rs"]
 mod ssh_bootstrap_remote;
@@ -262,11 +262,11 @@ where
     )?;
     let install_dir = resolve_remote_install_dir(&target, shell, &install_dir_input).await?;
 
-    let installing = store
+    store
         .update_ssh_target_bootstrap_state(
             &target.id,
             SshTargetBootstrapStateUpdate {
-                status: SshBootstrapStatus::Installing,
+                status: status_while_installing(target.bootstrap_status),
                 install_dir: Some(&install_dir),
                 runtime_version: None,
                 runtime_platform: None,
@@ -278,7 +278,7 @@ where
     emit(progress(
         &job_id,
         &target.id,
-        installing.bootstrap_status,
+        SshBootstrapStatus::Installing,
         "artifact",
         "Resolving Runtime Artifact",
         None,

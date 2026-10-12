@@ -21,6 +21,17 @@ pub(super) fn status_after_interrupted_install(
     }
 }
 
+/// The stored status while an install runs. An installed host stays
+/// `installed` for the whole job, so a cancel or a hub restart mid-update
+/// still finds the old runtime connectable.
+pub(super) fn status_while_installing(previous: SshBootstrapStatus) -> SshBootstrapStatus {
+    if previous == SshBootstrapStatus::Installed {
+        SshBootstrapStatus::Installed
+    } else {
+        SshBootstrapStatus::Installing
+    }
+}
+
 /// Records an install in flight. An update of an installed host leaves the
 /// stored status alone and lets the job carry the in-flight state, so a hub
 /// that restarts mid-update still finds the host installed.
@@ -29,7 +40,7 @@ pub(crate) async fn mark_ssh_bootstrap_installing(
     target_id: &str,
 ) -> Result<SshTarget> {
     let target = find_target(store, target_id).await?;
-    if target.bootstrap_status == SshBootstrapStatus::Installed {
+    if status_while_installing(target.bootstrap_status) == SshBootstrapStatus::Installed {
         return Ok(target);
     }
     store

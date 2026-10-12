@@ -117,3 +117,15 @@ async fn first_install_stores_installing_then_cancelled() {
         SshBootstrapStatus::Cancelled
     );
 }
+
+#[test]
+fn a_running_install_keeps_an_installed_host_installed() {
+    assert_eq!(
+        status_while_installing(SshBootstrapStatus::Installed),
+        SshBootstrapStatus::Installed
+    );
+    assert_eq!(
+        status_while_installing(SshBootstrapStatus::Failed),
+        SshBootstrapStatus::Installing
+    );
+}
