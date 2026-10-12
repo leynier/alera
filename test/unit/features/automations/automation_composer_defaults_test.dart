@@ -1,4 +1,3 @@
-import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/automations/application/automation_composer_defaults.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
@@ -8,15 +7,6 @@ import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/automation_test_harness.dart';
-
-AgentProfile _profile(String id) => AgentProfile(
-  id: id,
-  name: id,
-  agentType: 'codex',
-  command: 'codex',
-  createdAt: DateTime.utc(2026),
-  updatedAt: DateTime.utc(2026),
-);
 
 AutomationWorkbenchContext _context() {
   final base = automationTestContext();
@@ -130,28 +120,6 @@ void main() {
     );
     expect(draft.targetType, isNull);
     expect(draft.destinationError, 'Choose where the automation runs.');
-  });
-
-  test('the agent is the last used, then the default, then the only one', () {
-    final profiles = <AgentProfile>[_profile('a'), _profile('b')];
-    expect(
-      automationPreferredProfileId(
-        profiles,
-        lastUsed: 'b',
-        settingsDefault: 'a',
-      ),
-      'b',
-    );
-    expect(
-      automationPreferredProfileId(
-        profiles,
-        lastUsed: 'gone',
-        settingsDefault: 'a',
-      ),
-      'a',
-    );
-    expect(automationPreferredProfileId(profiles), isNull);
-    expect(automationPreferredProfileId(<AgentProfile>[_profile('a')]), 'a');
   });
 
   test('changing the destination keeps the agent and the section', () {

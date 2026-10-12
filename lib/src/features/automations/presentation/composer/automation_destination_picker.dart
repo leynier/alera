@@ -2,7 +2,6 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_sectioned_picker.dart';
 import 'package:alera/src/features/automations/application/automation_composer_controller.dart';
-import 'package:alera/src/features/automations/application/automation_composer_defaults.dart';
 import 'package:alera/src/features/automations/application/automation_project_checkouts.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/presentation/automation_popover_chip.dart';

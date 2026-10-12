@@ -1,12 +1,29 @@
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Scope and named filters. Every picker shows names, never ids.
+/// [filters] with the given fields replaced.
+AutomationCatalogFilters mobileAutomationFilters(
+  AutomationCatalogFilters filters, {
+  String? search,
+  String? Function()? projectId,
+  String? Function()? hostId,
+  String? Function()? profileId,
+  AutomationBucket? Function()? bucket,
+}) => AutomationCatalogFilters(
+  search: search ?? filters.search,
+  projectId: projectId == null ? filters.projectId : projectId(),
+  hostId: hostId == null ? filters.hostId : hostId(),
+  profileId: profileId == null ? filters.profileId : profileId(),
+  bucket: bucket == null ? filters.bucket : bucket(),
+);
+
+/// Project, Agent Profile and Host filters. Every picker shows names, never
+/// ids, and Host only appears once automations run on more than one host.
 Future<void> showMobileAutomationFilters(
   BuildContext context, {
   required String hostId,
@@ -26,57 +43,18 @@ class const _FiltersSheet({
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(mobileAutomationListControllerProvider(hostId));
+    final filters = ref
+        .watch(mobileAutomationListControllerProvider(hostId))
+        .filters;
     final controller = ref.read(
       mobileAutomationListControllerProvider(hostId).notifier,
-    );
-    final filters = state.filters;
-    AutomationCatalogFilters copy({
-      String? Function()? projectId,
-      String? Function()? profileId,
-    }) => AutomationCatalogFilters(
-      search: filters.search,
-      projectId: projectId == null ? filters.projectId : projectId(),
-      hostId: filters.hostId,
-      profileId: profileId == null ? filters.profileId : profileId(),
-      bucket: filters.bucket,
     );
     final profileIds = <String>{
       for (final automation in automations) ?automation.agentProfileId,
     };
-    final scopes = <AleraDropdownFieldEntry<AutomationScope>>[
-      const AleraDropdownFieldEntry(
-        value: AutomationScope.all,
-        label: 'All Automations',
-      ),
-      for (final project in names.projects)
-        AleraDropdownFieldEntry(
-          value: AutomationScope(kind: .project, id: project.id),
-          label: 'Project: ${project.name}',
-        ),
-      for (final section in names.sections)
-        AleraDropdownFieldEntry(
-          value: AutomationScope(kind: .section, id: section.id),
-          label: 'Section: ${section.name}',
-        ),
-      for (final workspace in names.workspaces)
-        AleraDropdownFieldEntry(
-          value: AutomationScope(kind: .workspace, id: workspace.id),
-          label: 'Workspace: ${workspace.name}',
-        ),
-    ];
-    if (!scopes.any((entry) => entry.value == state.scope)) {
-      scopes.add(
-        AleraDropdownFieldEntry(
-          value: state.scope,
-          label: switch (state.scope.kind) {
-            AutomationScopeKind.project => 'Unavailable Project',
-            AutomationScopeKind.section => 'Unavailable Section',
-            _ => 'Unavailable Workspace',
-          },
-        ),
-      );
-    }
+    final hostIds = <String>{
+      for (final automation in automations) ?automation.targetHostId,
+    };
     return SafeArea(
       child: Padding(
         padding: AleraTokens.pagePadding,
@@ -84,13 +62,7 @@ class const _FiltersSheet({
           mainAxisSize: .min,
           crossAxisAlignment: .stretch,
           children: <Widget>[
-            AleraDropdownField<AutomationScope>(
-              labelText: 'Scope',
-              value: state.scope,
-              entries: scopes,
-              filterable: true,
-              onChanged: controller.setScope,
-            ),
+            Text('Filters', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AleraTokens.spaceMd),
             AleraDropdownField<String?>(
               labelText: 'Project',
@@ -106,8 +78,9 @@ class const _FiltersSheet({
                     label: project.name,
                   ),
               ],
-              onChanged: (value) =>
-                  controller.setFilters(copy(projectId: () => value)),
+              onChanged: (value) => controller.setFilters(
+                mobileAutomationFilters(filters, projectId: () => value),
+              ),
             ),
             const SizedBox(height: AleraTokens.spaceMd),
             AleraDropdownField<String?>(
@@ -124,9 +97,31 @@ class const _FiltersSheet({
                     label: names.profileName(profile),
                   ),
               ],
-              onChanged: (value) =>
-                  controller.setFilters(copy(profileId: () => value)),
+              onChanged: (value) => controller.setFilters(
+                mobileAutomationFilters(filters, profileId: () => value),
+              ),
             ),
+            if (hostIds.length > 1 || filters.hostId != null) ...<Widget>[
+              const SizedBox(height: AleraTokens.spaceMd),
+              AleraDropdownField<String?>(
+                labelText: 'Host',
+                value: filters.hostId,
+                entries: <AleraDropdownFieldEntry<String?>>[
+                  const AleraDropdownFieldEntry(
+                    value: null,
+                    label: 'All Hosts',
+                  ),
+                  for (final host in hostIds)
+                    AleraDropdownFieldEntry(
+                      value: host,
+                      label: names.hostName(host),
+                    ),
+                ],
+                onChanged: (value) => controller.setFilters(
+                  mobileAutomationFilters(filters, hostId: () => value),
+                ),
+              ),
+            ],
             const SizedBox(height: AleraTokens.spaceMd),
             TextButton(
               onPressed: controller.clear,

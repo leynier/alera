@@ -5,7 +5,6 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
-import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'mobile_automation_context.g.dart';
@@ -51,6 +50,7 @@ class const MobileAutomationContext({
   String hostName(String? id) =>
       id == null || id.isEmpty || id == 'local' ? 'This Computer' : id;
 
+  /// A worktree can only start from a Git project on the paired computer.
   bool isGitProject(String? projectId) =>
       project(projectId)?.kind == 'gitRepository';
 }
@@ -78,87 +78,4 @@ Future<MobileAutomationContext> mobileAutomationContext(
     sections: results[3] as List<WorkspaceSectionSummary>,
     tags: results[4] as List<WorkspaceTagSummary>,
   );
-}
-
-/// Agent tabs whose native conversation can be resumed.
-@riverpod
-Future<List<WorkspaceTabSummary>> mobileAutomationConversationTabs(
-  Ref ref,
-  String hostId,
-  String workspaceId,
-) async {
-  final client = await ref.watch(mobileAutomationClientProvider(hostId).future);
-  final tabs = await client.listTabs(workspaceId);
-  return tabs
-      .where((tab) => (tab.agentNativeSessionId ?? '').trim().isNotEmpty)
-      .toList(growable: false);
-}
-
-/// Registered project folders of a project, from the runtime checkout list.
-@riverpod
-Future<List<({String hostId, String path})>> mobileAutomationProjectFolders(
-  Ref ref,
-  String hostId,
-  String projectId,
-) async {
-  final client = await ref.watch(mobileAutomationClientProvider(hostId).future);
-  final checkouts = await client.requestList('checkout.list', <String, Object?>{
-    'projectId': projectId,
-  });
-  return <({String hostId, String path})>[
-    for (final item in checkouts)
-      if (automationJsonMap(item)['kind'] == 'project')
-        (
-          hostId: automationJsonString(automationJsonMap(item)['hostId']),
-          path: automationJsonString(automationJsonMap(item)['path']),
-        ),
-  ];
-}
-
-/// Selects [choice] and fills only fields the origin determines without
-/// ambiguity. The target itself is always the user's choice.
-AutomationDraft chooseMobileAutomationTargetType(
-  AutomationDraft draft,
-  AutomationTargetChoice choice,
-  MobileAutomationContext context, {
-  String? originWorkspaceId,
-}) {
-  final type = choice.type;
-  final filled = <AutomationDraftField, String>{};
-  final origin = context.workspace(
-    originWorkspaceId ?? draft.originWorkspaceId,
-  );
-  switch (choice) {
-    case AutomationTargetChoice.freshTab:
-    case AutomationTargetChoice.existingTab:
-      if (origin != null) filled[.workspaceId] = origin.id;
-    case AutomationTargetChoice.workspaceWorktree:
-      if (origin != null && context.isGitProject(origin.projectId)) {
-        filled[.parentWorkspaceId] = origin.id;
-        final branch = origin.branch?.trim();
-        if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
-      }
-    case AutomationTargetChoice.projectWorktree:
-      if (origin != null && context.isGitProject(origin.projectId)) {
-        filled[.projectId] = origin.projectId;
-        final branch = origin.branch?.trim();
-        if (branch != null && branch.isNotEmpty) filled[.sourceBranch] = branch;
-      }
-    case AutomationTargetChoice.projectCheckout:
-      if (origin != null) filled[.projectId] = origin.projectId;
-  }
-  if (type != AutomationTargetType.existingTab &&
-      context.profiles.length == 1) {
-    filled[.agentProfileId] = context.profiles.single.id;
-  }
-  final fromContext = filled.keys.toSet();
-  // The section is the user's earlier choice, not context, and survives a
-  // switch between targets that create workspaces.
-  final section = draft.workspaceSectionId;
-  if (type.createsWorkspace && section != null) {
-    filled[.workspaceSectionId] = section;
-  }
-  return choice
-      .applyTo(draft)
-      .copyWith(targetFields: filled, fromContext: fromContext);
 }

@@ -27,6 +27,11 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
   bool get supportsObserve =>
       _client.runtimeCapabilities.contains(automationTerminalObserveCapability);
 
+  /// Whether the runtime keeps a reuse policy and a bound target. Without it
+  /// the composer hides Reuse and never sends the policy.
+  bool get supportsReuse =>
+      _client.runtimeCapabilities.contains(automationReuseCapability);
+
   Future<List<AutomationRecord>> list() async {
     try {
       final payload = await _client.requestMap(
@@ -141,12 +146,15 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
 
   Future<void> restore(String id) => _state('automation.restore', id);
 
-  /// `automation.approve` is the activation verb every runtime understands;
-  /// it no longer gates anything.
-  Future<void> activate(AutomationRecord automation) => _client.request(
-    'automation.approve',
-    <String, Object?>{'id': automation.id, 'revision': automation.revision},
-  );
+  /// Activates a draft. `automation.resume` runs the same readiness check as
+  /// the retired `automation.approve` and accepts a draft.
+  Future<void> activate(AutomationRecord automation) =>
+      _state('automation.resume', automation.id);
+
+  /// Forgets where a reusing automation returns to; the next run creates a
+  /// new destination. Requires [automationReuseCapability].
+  Future<void> unbind(String id, {String? reason}) =>
+      _state('automation.unbind', id, reason: reason);
 
   Future<AutomationRunRecord> runNow(
     String id, {
@@ -193,11 +201,17 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
   Future<void> takeOver(String runId) =>
       _client.request('automation.takeOver', <String, Object?>{'runId': runId});
 
-  Future<void> _state(String request, String id, {String? activeRuns}) async {
+  Future<void> _state(
+    String request,
+    String id, {
+    String? activeRuns,
+    String? reason,
+  }) async {
     try {
       await _client.request(request, <String, Object?>{
         'id': id,
         'activeRuns': ?activeRuns,
+        'reason': ?reason,
       });
     } on Object catch (error, stackTrace) {
       _logger.warning('could not update automation $id', error, stackTrace);

@@ -32,7 +32,7 @@ class MobileAutomationActions {
       show(success);
       return true;
     } on Object catch (error) {
-      show('$error', error: true);
+      show(automationErrorMessage(error), error: true);
       return false;
     }
   }
@@ -54,7 +54,7 @@ class MobileAutomationActions {
       show(message, error: isError);
       return run;
     } on Object catch (error) {
-      show('$error', error: true);
+      show(automationErrorMessage(error), error: true);
       return null;
     }
   }
@@ -76,6 +76,12 @@ class MobileAutomationActions {
   Future<bool> resume(AutomationRecord automation) => _attempt(
     () async => (await _repository).resume(automation.id),
     'Automation scheduled again.',
+  );
+
+  /// Forgets the workspace or conversation a reusing automation returns to.
+  Future<bool> unbind(AutomationRecord automation) => _attempt(
+    () async => (await _repository).unbind(automation.id),
+    'Unbound. The next run creates a new destination.',
   );
 
   Future<bool> trash(AutomationRecord automation) => _attempt(

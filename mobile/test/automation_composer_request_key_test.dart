@@ -1,6 +1,6 @@
-import 'package:alera_mobile/src/features/automations/application/mobile_automation_authoring_controller.dart';
-import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_automations/alera_automations.dart';
+import 'package:alera_mobile/src/features/automations/application/mobile_automation_composer_controller.dart';
+import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,15 +26,17 @@ class _AmbiguousClient extends FakeAutomationClient {
   }
 }
 
+/// The time zone is set so the runtime's preview does not fill it in
+/// between attempts, which would change the payload.
 AutomationDraft _draft(String prompt) =>
-    AutomationDraft(promptTemplate: prompt)
+    AutomationDraft(promptTemplate: prompt, timezone: 'UTC')
         .withTargetType(AutomationTargetType.freshTab)
         .withTargetField(.workspaceId, 'ws-1')
         .withTargetField(.agentProfileId, 'codex');
 
 void main() {
   Future<List<Object?>> keysAfter(
-    Future<void> Function(MobileAutomationAuthoringController controller) act,
+    Future<void> Function(MobileAutomationComposerController controller) act,
   ) async {
     final client = _AmbiguousClient();
     addTearDown(client.dispose);
@@ -45,7 +47,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final provider = mobileAutomationAuthoringControllerProvider('host', 1);
+    final provider = mobileAutomationComposerControllerProvider('host', 1);
     final subscription = container.listen(provider, (_, _) {});
     addTearDown(subscription.close);
     final controller = container.read(provider.notifier)
@@ -76,5 +78,27 @@ void main() {
     });
     expect(keys, hasLength(2));
     expect(keys.first, isNot(keys.last));
+  });
+
+  test('a failed save keeps the readable error and the dirty draft', () async {
+    final client = _AmbiguousClient();
+    addTearDown(client.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        mobileAutomationClientProvider('host')
+            .overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = mobileAutomationComposerControllerProvider('host', 2);
+    final subscription = container.listen(provider, (_, _) {});
+    addTearDown(subscription.close);
+    container.read(provider.notifier)
+      ..initialize(const AutomationDraft())
+      ..update((_) => _draft('Review'));
+    expect(container.read(provider).isDirty, isTrue);
+    expect(await container.read(provider.notifier).submit(), isNull);
+    expect(container.read(provider).error, 'connection lost');
+    expect(container.read(provider).isDirty, isTrue);
   });
 }

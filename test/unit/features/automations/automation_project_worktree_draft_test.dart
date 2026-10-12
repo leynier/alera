@@ -1,4 +1,3 @@
-import 'package:alera/src/features/automations/application/automation_composer_defaults.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 

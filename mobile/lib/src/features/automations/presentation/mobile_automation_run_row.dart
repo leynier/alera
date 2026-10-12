@@ -18,6 +18,7 @@ class const MobileAutomationRunRow({
       if (started != null) automationDateTimeLabel(started),
       if (!run.isFinal && run.lastActivityAt != null)
         'Last activity ${automationRelativeTime(run.lastActivityAt!)}',
+      if (run.reuse case final reuse?) reuse.label,
     ];
     return ListTile(
       contentPadding: EdgeInsets.zero,

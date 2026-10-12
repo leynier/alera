@@ -42,7 +42,7 @@ Future<AutomationRecord?> showAutomationComposerDialog(
           request,
           names,
           profileId: automationPreferredProfileId(
-            names.profiles,
+            names.profiles.map((profile) => profile.id),
             lastUsed: ref.read(automationLastAgentProfileProvider),
             settingsDefault: ref
                 .read(settingsControllerProvider)
