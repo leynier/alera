@@ -41,14 +41,41 @@ class const HostLinkAttachment({
       runtimeCapabilities.contains(capability);
 }
 
+/// When a supervised link tries again after it dropped or failed.
+class const HostLinkRetry({
+  required final int attempt,
+  final DateTime? nextRetryAt,
+}) {
+  static HostLinkRetry? fromJson(Object? json) {
+    if (json is! Map) {
+      return null;
+    }
+    final attempt = json['attempt'];
+    final nextRetryAt = json['nextRetryAt'];
+    return HostLinkRetry(
+      attempt: attempt is num ? attempt.toInt() : 0,
+      nextRetryAt: nextRetryAt is String
+          ? DateTime.tryParse(nextRetryAt)?.toUtc()
+          : null,
+    );
+  }
+}
+
+/// [retry], [failureKind], [hubVersion] and [runtimeUpdateAvailable] are
+/// additive fields a supervising runtime reports; an older one omits them.
 class const HostLinkState({
   required final String hostId,
   required final HostLinkPhase phase,
   final HostLinkAttachment? attachment,
   final String? error,
+  final HostLinkRetry? retry,
+  final String? failureKind,
+  final String? hubVersion,
+  final bool? runtimeUpdateAvailable,
 }) {
   factory fromJson(Map<String, Object?> json) {
     final attachment = json['attachment'];
+    final updateAvailable = json['runtimeUpdateAvailable'];
     return HostLinkState(
       hostId: (json['hostId'] as String?) ?? '',
       phase: HostLinkPhase.parse(json['state']),
@@ -56,6 +83,10 @@ class const HostLinkState({
           ? HostLinkAttachment.fromJson(Map<String, Object?>.from(attachment))
           : null,
       error: json['error'] as String?,
+      retry: HostLinkRetry.fromJson(json['retry']),
+      failureKind: json['failureKind'] as String?,
+      hubVersion: json['hubVersion'] as String?,
+      runtimeUpdateAvailable: updateAvailable is bool ? updateAvailable : null,
     );
   }
 

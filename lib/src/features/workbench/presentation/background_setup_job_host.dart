@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:alera/src/app/app_navigation.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_job_card.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_controller.dart';
+import 'package:alera/src/features/remote_hosts/presentation/remote_host_install_job_cards.dart';
 import 'package:alera/src/features/workbench/application/background_operations.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
@@ -16,7 +18,12 @@ class const BackgroundSetupJobHost({super.key}) extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final jobsState = ref.watch(backgroundSetupJobsProvider);
     final jobs = jobsState.visible;
-    if (jobs.isEmpty && ref.watch(backgroundOperationsProvider).isEmpty) {
+    final hostInstalls = ref.watch(
+      remoteHostsControllerProvider.select(remoteHostsHaveInstallCards),
+    );
+    if (jobs.isEmpty &&
+        !hostInstalls &&
+        ref.watch(backgroundOperationsProvider).isEmpty) {
       return const SizedBox.shrink();
     }
     return Align(
@@ -36,6 +43,7 @@ class const BackgroundSetupJobHost({super.key}) extends ConsumerWidget {
               crossAxisAlignment: .end,
               children: <Widget>[
                 const BackgroundOperationCards(),
+                if (hostInstalls) const RemoteHostInstallJobCards(),
                 for (var i = 0; i < jobs.length; i++) ...<Widget>[
                   _BackgroundSetupJobCard(
                     job: jobs[i],

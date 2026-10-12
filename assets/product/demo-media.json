@@ -1,12 +1,12 @@
 {
-  "fingerprint": "34e3a5d55f0abc23f0fa00360f456b78bd9ca35f31cff0e69f0a27cc90960fda",
+  "fingerprint": "08e348ef2a3ff405017dae5b393b92ca9e67c08b97fd7da7f954c72da7164b82",
   "animation": {
     "file": "alera-demo.webp",
     "width": 1376,
     "height": 720,
     "frames": 315,
     "durationMs": 31500,
-    "bytes": 1647754
+    "bytes": 1580660
   },
   "posters": [
     {
@@ -14,28 +14,28 @@
       "title": "Start From A Prompt",
       "file": "demo-prompt.webp",
       "at": 7300,
-      "bytes": 28412
+      "bytes": 27932
     },
     {
       "chapter": "parallel",
       "title": "Agents In Parallel",
       "file": "demo-parallel.webp",
       "at": 33600,
-      "bytes": 85984
+      "bytes": 86910
     },
     {
       "chapter": "phone",
       "title": "Answer From Your Phone",
       "file": "demo-phone.webp",
       "at": 44950,
-      "bytes": 100388
+      "bytes": 100756
     },
     {
       "chapter": "review",
       "title": "Review And Ship",
       "file": "demo-review.webp",
       "at": 79000,
-      "bytes": 72908
+      "bytes": 73892
     }
   ]
 }

@@ -1,4 +1,5 @@
 ---
+import { APP_COPY } from '../../../data/demo/app-copy';
 import AgentLogo from '../primitives/AgentLogo.astro';
 import AppIcon from '../primitives/AppIcon.astro';
 import ResourceManagerCard from './ResourceManagerCard.astro';
@@ -39,7 +40,7 @@ const QUOTAS: readonly { agent: 'claude' | 'codex'; profile?: string; readings: 
 <footer class="status-bar" data-demo-node="d-status-bar">
   <span class="status-segment status-host">
     <AppIcon name="host" size={13} />
-    <span class="status-mono">Local</span>
+    <span class="status-mono">{APP_COPY.localHost.text}</span>
   </span>
   <span class="status-divider"></span>
   <span class="status-segment status-gauge"><AppIcon name="quota" size={13} /></span>

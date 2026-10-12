@@ -7,11 +7,13 @@ import 'package:alera/src/features/orchestration/application/workflow_catalog_pr
 import 'package:alera/src/features/orchestration/infra/workflow_catalog_repository.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'workflow_recipe_detail.dart';
+import 'workflow_remote_workspaces_notice.dart';
 
 part 'workflow_catalog_actions.dart';
 part 'workflow_catalog_recovery.dart';
@@ -148,16 +150,18 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
       }
     });
     final state = ref.watch(workbenchControllerProvider);
-    final workspaces = state.workspacesByProject.values
+    final candidates = state.workspacesByProject.values
         .expand((items) => items)
         .where(
           (w) =>
               w.isActive &&
-              w.hostId == 'local' &&
               state.projects.any(
                 (p) => p.id == w.projectId && p.isGitRepository,
               ),
         )
+        .toList();
+    final workspaces = candidates
+        .where((w) => !isRemoteWorkspaceHostId(w.hostId))
         .toList();
     final workspaceExists = workspaces.any((w) => w.id == _workspaceId);
     final selected = _selected;
@@ -261,6 +265,10 @@ class _WorkflowCatalogPaneState extends ConsumerState<WorkflowCatalogPane> {
               ),
             ],
           ),
+          if (hidesRemoteWorkspaces(candidates)) ...[
+            const SizedBox(height: AleraTokens.space8),
+            const WorkflowRemoteWorkspacesNotice(),
+          ],
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) _message(_error!, error: true),
           if (_projectError != null) _message(_projectError!, error: true),

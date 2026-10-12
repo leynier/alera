@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,7 +30,9 @@ VoidCallback? runBoardWorkspaceAction(
       .expand((items) => items)
       .where(
         (item) =>
-            item.id == workspaceId && item.hostId == 'local' && item.isActive,
+            item.id == workspaceId &&
+            !isRemoteWorkspaceHostId(item.hostId) &&
+            item.isActive,
       )
       .firstOrNull;
   final project = state.projects

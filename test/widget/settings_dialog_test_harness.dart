@@ -171,12 +171,8 @@ class const _DirectoryRequest({
   required final bool? canCreateDirectories,
 });
 
-class _FakeRuntimeHostClient(
-  final List<SshTarget> targets, {
-  final Completer<void>? bootstrapPlanGate,
-  final Completer<void>? bootstrapStartGate,
-  final Completer<void>? bootstrapCancelGate,
-}) implements RuntimeHostClient {
+class _FakeRuntimeHostClient(final List<SshTarget> targets)
+    implements RuntimeHostClient {
   final List<_RuntimeRequest> requests = <_RuntimeRequest>[];
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -214,61 +210,6 @@ class _FakeRuntimeHostClient(
           const RuntimeHostEvent('sshTargetsChanged', <String, Object?>{}),
         );
         return target.toJson();
-      case 'sshTarget.bootstrap.plan':
-        await bootstrapPlanGate?.future;
-        return <String, Object?>{
-          'targetId': payload['targetId'],
-          'platform': payload['platform'] ?? 'linux',
-          'arch': payload['arch'] ?? 'x64',
-          'installDir':
-              payload['installDir'] ?? '/opt/alera/${payload['targetId']}',
-          'channel': payload['channel'] ?? 'stable',
-          'artifactSource': 'runtime-archive',
-          'trust': 'signedArchive',
-          'version': payload['version'],
-          'steps': <String>['Download Runtime'],
-        };
-      case 'sshTarget.bootstrap.start':
-        await bootstrapStartGate?.future;
-        return <String, Object?>{
-          'jobId': 'job-1',
-          'targetId': payload['targetId'],
-          'status': 'installing',
-        };
-      case 'sshTarget.bootstrap.cancel':
-        await bootstrapCancelGate?.future;
-        final targetId = payload['id'] as String;
-        final index = targets.indexWhere((target) => target.id == targetId);
-        if (index == -1) {
-          throw StateError('ssh target not found: $targetId');
-        }
-        final target = targets[index];
-        final cancelled = SshTarget(
-          id: target.id,
-          alias: target.alias,
-          host: target.host,
-          port: target.port,
-          username: target.username,
-          platform: target.platform,
-          arch: target.arch,
-          authKind: target.authKind,
-          createdAt: target.createdAt,
-          updatedAt: target.updatedAt,
-          lastStatus: target.lastStatus,
-          installDir: target.installDir,
-          runtimeVersion: target.runtimeVersion,
-          runtimePlatform: target.runtimePlatform,
-          runtimeArch: target.runtimeArch,
-          bootstrapStatus: .cancelled,
-          lastBootstrapAt: target.lastBootstrapAt,
-          lastCheckedAt: target.lastCheckedAt,
-          lastError: null,
-        );
-        targets[index] = cancelled;
-        _events.add(
-          const RuntimeHostEvent('sshTargetsChanged', <String, Object?>{}),
-        );
-        return cancelled.toJson();
       default:
         throw UnimplementedError(type);
     }

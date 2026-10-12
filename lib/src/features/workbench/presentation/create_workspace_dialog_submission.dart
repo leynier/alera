@@ -31,9 +31,9 @@ extension _CreateWorkspaceDialogSubmission on _CreateWorkspaceDialogState {
       return;
     }
 
-    final hostError = remoteWorkspaceHostSelectionError(
+    final hostError = remoteHostSelectionError(
       hostId: _selectedHostId,
-      targets: widget.sshTargets,
+      hosts: widget.hosts,
       supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
     );
     if (hostError != null) {

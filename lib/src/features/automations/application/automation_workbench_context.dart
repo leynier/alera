@@ -4,6 +4,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -45,12 +46,7 @@ class const AutomationWorkbenchContext({
   String profileName(String? id) =>
       profile(id)?.name ?? 'Unavailable Agent Profile';
 
-  String hostName(String? id) {
-    if (id == null || id.isEmpty || id == automationLocalHostId) {
-      return 'This Computer';
-    }
-    return hosts.where((host) => host.id == id).firstOrNull?.alias ?? id;
-  }
+  String hostName(String? id) => workspaceHostLabel(hosts, id);
 
   List<Workspace> workspacesOf(String projectId) => workspaces
       .where((item) => item.projectId == projectId)

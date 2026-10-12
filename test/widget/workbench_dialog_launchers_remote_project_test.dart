@@ -46,7 +46,7 @@ void main() {
     expect(find.text('Add Remote Project'), findsNothing);
   });
 
-  testWidgets('Add Remote Project is hidden without a bootstrapped host', (
+  testWidgets('Add Remote Project shows without a ready host and says why', (
     tester,
   ) async {
     await openAddProject(
@@ -62,7 +62,36 @@ void main() {
     );
 
     expect(find.text('Clone From URL'), findsOneWidget);
-    expect(find.text('Add Remote Project'), findsNothing);
+    await tester.tap(find.text('Add Remote Project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No host is ready'), findsOneWidget);
+    expect(
+      find.text(
+        'Install the Alera runtime on a host before adding projects there.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Add Host'), findsOneWidget);
+    expect(find.text('Folder on the Host'), findsNothing);
+  });
+
+  testWidgets('Add Remote Project shows with no host at all', (tester) async {
+    await openAddProject(
+      tester,
+      projectHostsSupported: true,
+      sshTargets: const <SshTarget>[],
+    );
+
+    await tester.tap(find.text('Add Remote Project'));
+    await tester.pumpAndSettle();
+    expect(find.text('No host is ready'), findsOneWidget);
+
+    // Add Host replaces this form rather than stacking a second one later.
+    await tester.tap(find.widgetWithText(FilledButton, 'Add Host'));
+    await tester.pumpAndSettle();
+    expect(find.text('No host is ready'), findsNothing);
+    expect(find.text('Connection'), findsWidgets);
   });
 
   testWidgets('registers the project on the host without navigating', (

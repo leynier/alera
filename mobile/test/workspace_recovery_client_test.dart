@@ -55,12 +55,12 @@ void main() {
     final remote = WorkspaceSummary.fromJson(task(host: 'ssh'));
     expect(remote.hostId, 'ssh');
     expect(remote.instanceId, 'instance');
-    expect(remote.isRemote, isTrue);
+    expect(remote.isOnRemoteHost, isTrue);
     final legacy = task()
       ..remove('hostId')
       ..remove('instanceId');
     final local = WorkspaceSummary.fromJson(legacy);
-    expect(local.isRemote, isFalse);
+    expect(local.isOnRemoteHost, isFalse);
     expect(local.instanceId, isNull);
   });
 

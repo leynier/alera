@@ -4,27 +4,32 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
+import 'package:alera/src/features/remote_hosts/presentation/remote_host_status_badge.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:flutter/material.dart';
 
-/// One host a project is on: where it lives there, how many workspaces use
-/// it, and the control that forgets it. [removalBlockedReason] disables that
-/// control and becomes its tooltip.
+/// One host a project is on: where it lives there, its state, how many
+/// workspaces use it, and the control that forgets it. [removalBlockedReason]
+/// disables that control and becomes its tooltip. [remoteHost] is null for
+/// This Device and for a host this app no longer lists; [onOpenHost] makes
+/// the row open that host's settings.
 class const ProjectHostRow({
   super.key,
   required final ProjectHost host,
-  required final SshTarget? target,
+  required final RemoteHostView? remoteHost,
   required final String? removalBlockedReason,
   required final bool removing,
   required final VoidCallback? onRemove,
+  final VoidCallback? onOpenHost,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLocal = !isRemoteWorkspaceHostId(host.hostId);
-    return Padding(
+    final remoteHost = this.remoteHost;
+    final onOpenHost = isLocal ? null : this.onOpenHost;
+    final row = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,
         vertical: AleraTokens.space8,
@@ -39,7 +44,7 @@ class const ProjectHostRow({
             )
           else
             AleraHostOsIcon(
-              os: sshTargetHostOs(target),
+              os: remoteHost?.os ?? HostOs.unknown,
               size: AleraTokens.iconLg,
             ),
           const SizedBox(width: AleraTokens.space12),
@@ -51,7 +56,9 @@ class const ProjectHostRow({
                   children: <Widget>[
                     Flexible(
                       child: Text(
-                        isLocal ? 'This Device' : target?.alias ?? host.hostId,
+                        isLocal
+                            ? 'This Device'
+                            : remoteHost?.alias ?? host.hostId,
                         maxLines: 1,
                         overflow: .ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -62,6 +69,10 @@ class const ProjectHostRow({
                     if (host.primary) ...<Widget>[
                       const SizedBox(width: AleraTokens.space8),
                       const AleraBadge(label: 'Primary'),
+                    ],
+                    if (remoteHost != null) ...<Widget>[
+                      const SizedBox(width: AleraTokens.space8),
+                      RemoteHostStatusBadge(status: remoteHost.status),
                     ],
                   ],
                 ),
@@ -102,8 +113,22 @@ class const ProjectHostRow({
                   : AleraTokens.foregroundFaint,
               onPressed: removalBlockedReason == null ? onRemove : null,
             ),
+          if (onOpenHost != null)
+            AleraIconButton(
+              tooltip: 'Open Host',
+              icon: AleraIcons.chevronRight,
+              iconColor: AleraTokens.foregroundMuted,
+              onPressed: onOpenHost,
+            ),
         ],
       ),
+    );
+    if (onOpenHost == null) {
+      return row;
+    }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(onTap: onOpenHost, child: row),
     );
   }
 }

@@ -207,6 +207,22 @@ void main() {
     ]);
   });
 
+  test('remote workspace context menu omits the file manager reveal', () {
+    final entries = workspaceContextMenuEntries(
+      fileManagerLabel: 'Files',
+      isRemote: true,
+      hasClearParent: false,
+      canRemove: true,
+      isPinned: false,
+    );
+
+    expect(_labels(entries), contains('Copy Path'));
+    expect(_labels(_submenu(entries, 'Open')!.items), <String>[
+      'In Browser',
+      'In Project Settings',
+    ]);
+  });
+
   test('workspace context menu omits archive when unsupported', () {
     final entries = workspaceContextMenuEntries(
       fileManagerLabel: 'Files',

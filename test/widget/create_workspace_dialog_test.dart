@@ -21,6 +21,8 @@ void main() {
   testWidgets('selects a project, filters source branches, and submits', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     MockSubmitResult? result;
     final projects = <Project>[_project(id: 'alera', name: 'Alera'), _orca()];
 
@@ -81,6 +83,8 @@ void main() {
   });
 
   testWidgets('can create a workspace from an existing branch', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     MockSubmitResult? result;
 
     await _pumpDialogLauncher(
