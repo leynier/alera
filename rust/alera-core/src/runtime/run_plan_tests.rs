@@ -147,6 +147,7 @@ pub(in crate::runtime) async fn resolve(
                 reason: Some("Reviewed the exact plan".into()),
                 task_ids: None,
                 expected_evidence_digest: gate.evidence_digest.clone(),
+                caller_terminal: None,
             },
             &desktop(),
         )
@@ -175,6 +176,7 @@ pub(super) async fn decision(
         reason: Some("Reviewed the exact plan".into()),
         task_ids: None,
         expected_evidence_digest: gate.evidence_digest.clone(),
+        caller_terminal: None,
     };
     let receipt = store.resolve_run_gate(&request, &desktop()).await.unwrap();
     // Response loss and reconnect return the same receipt, never duplicate tasks.
@@ -375,6 +377,7 @@ async fn a_stale_digest_cannot_decide_and_a_finished_gate_cannot_be_decided_agai
                 reason: None,
                 task_ids: None,
                 expected_evidence_digest: Some("0".repeat(64)),
+                caller_terminal: None,
             },
             &desktop(),
         )
@@ -390,6 +393,7 @@ async fn a_stale_digest_cannot_decide_and_a_finished_gate_cannot_be_decided_agai
                 reason: None,
                 task_ids: None,
                 expected_evidence_digest: None,
+                caller_terminal: None,
             },
             &desktop(),
         )

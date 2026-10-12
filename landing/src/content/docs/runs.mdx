@@ -70,7 +70,7 @@ Nothing is deleted automatically. On **Resources**, once the run has finished, s
 
 **Questions** lists what you asked running agents and their replies. **Ask Agent** picks a running agent, grouped by project and workspace, and shows how the question will reach it:
 
-- **Delivers now**: the question is pasted into the agent's terminal right away, even mid-turn for agents that queue input (Claude Code and Codex).
+- **Delivers now**: the question is pasted into the agent's terminal right away, or, for a working agent, as soon as its turn ends until its CLI is verified to queue input mid-turn.
 - **Delivers when its turn ends**: the agent gets it when it finishes what it is doing.
 - **Reads on its next check**: a coordinator reads it with its own check.
 

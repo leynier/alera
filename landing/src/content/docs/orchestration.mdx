@@ -60,7 +60,7 @@ A worker reads its task with `context`, does it, and completes once with `--summ
 
 ## Questions And Messages
 
-`ask`, `send`, and `reply` carry messages between agents, and `messages` lists them. A question to a working agent is pasted at once when its CLI queues input mid-turn (Claude Code and Codex today); otherwise it waits for the turn to end. An agent waiting on a prompt is never typed into. `alera inbox ask` lets a script or another session ask from outside Alera, and **Activity → Questions** does the same from the app and the phone. Agents always answer with an explicit `alera orchestration reply`; nothing is read from their terminal.
+`ask`, `send`, and `reply` carry messages between agents, and `messages` lists them. A question to a working agent is pasted at once only when its CLI is verified to queue input mid-turn, which none is yet; otherwise it waits for the turn to end. An agent waiting on a prompt is never typed into. `alera inbox ask` lets a script or another session ask from outside Alera, and **Activity → Questions** does the same from the app and the phone. Agents always answer with an explicit `alera orchestration reply`; nothing is read from their terminal.
 
 <Callout>
 Orchestration protocol v3 changed the commands: `dispatch-accept`, `heartbeat`, `worker-done`, `task-create`, `agent-spawn`, and the `run-policy-*` commands are gone. Update the Alera skills from **Settings → Agents** so your agents use the current ones.

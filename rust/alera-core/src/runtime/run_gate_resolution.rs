@@ -29,6 +29,9 @@ pub struct ResolveRunGate {
     pub task_ids: Option<Vec<String>>,
     #[serde(default)]
     pub expected_evidence_digest: Option<String>,
+    /// The Alera terminal the request came from, when a CLI runs inside one.
+    #[serde(default)]
+    pub caller_terminal: Option<String>,
 }
 
 /// A gate as clients see it (`runs.gates`, `runs.gate`).
@@ -183,9 +186,27 @@ impl RuntimeStore {
         if decision.is_empty() {
             bail!("gate_invalid_resolution: a decision is required");
         }
-        if let Some(expected) = &request.expected_evidence_digest {
-            if gate.evidence_digest.as_deref() != Some(expected.as_str()) {
-                bail!("gate_stale: this gate changed; refresh before deciding");
+        if let Some(terminal) = request.caller_terminal.as_deref() {
+            let person_gate = matches!(
+                gate.kind,
+                RunGateKind::Plan | RunGateKind::Stage | RunGateKind::Stall
+            );
+            if person_gate && is_run_participant(&mut tx, gate.run_id.as_deref(), terminal).await? {
+                bail!(
+                    "gate_not_resolvable: a person decides {} gates; the run's own terminals \
+                     cannot resolve them",
+                    gate.kind.as_str()
+                );
+            }
+        }
+        if let Some(stored) = gate.evidence_digest.as_deref() {
+            match request.expected_evidence_digest.as_deref() {
+                Some(expected) if expected == stored => {}
+                Some(_) => bail!("gate_stale: this gate changed; refresh before deciding"),
+                None => bail!(
+                    "gate_stale: send the gate's evidenceDigest as expectedEvidenceDigest so a \
+                     gate that changed is not decided"
+                ),
             }
         }
         if gate.kind == RunGateKind::Stage {
@@ -415,6 +436,10 @@ impl RuntimeStore {
         resolution: &str,
         reason: Option<&str>,
     ) -> Result<super::OrchestrationDecisionGate> {
+        let digest = self
+            .run_gate(gate_id)
+            .await?
+            .and_then(|gate| gate.evidence_digest);
         self.resolve_run_gate(
             &ResolveRunGate {
                 request_id: uuid::Uuid::new_v4().to_string(),
@@ -422,7 +447,8 @@ impl RuntimeStore {
                 decision: resolution.into(),
                 reason: reason.map(str::to_string),
                 task_ids: None,
-                expected_evidence_digest: None,
+                expected_evidence_digest: digest,
+                caller_terminal: None,
             },
             &RunActor::new(super::RunActorKind::Cli, None),
         )
@@ -431,4 +457,28 @@ impl RuntimeStore {
             .await?
             .ok_or_else(|| anyhow!("gate not found after resolution: {gate_id}"))
     }
+}
+
+/// Whether `terminal` coordinates, works for, or created tasks in the run.
+async fn is_run_participant(
+    tx: &mut sqlx::SqliteConnection,
+    run_id: Option<&str>,
+    terminal: &str,
+) -> Result<bool> {
+    let Some(run_id) = run_id else {
+        return Ok(false);
+    };
+    Ok(sqlx::query_scalar(
+        "SELECT EXISTS(
+            SELECT 1 FROM orchestrationCoordinatorRuns WHERE id = ?1 AND coordinator_handle = ?2
+            UNION ALL SELECT 1 FROM orchestrationDispatchContexts
+                WHERE run_id = ?1 AND assignee_handle = ?2
+            UNION ALL SELECT 1 FROM runLaunches WHERE run_id = ?1 AND terminal_handle = ?2
+            UNION ALL SELECT 1 FROM orchestrationTasks
+                WHERE run_id = ?1 AND created_by_terminal_handle = ?2)",
+    )
+    .bind(run_id)
+    .bind(terminal)
+    .fetch_one(&mut *tx)
+    .await?)
 }

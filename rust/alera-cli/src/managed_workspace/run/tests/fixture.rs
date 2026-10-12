@@ -288,6 +288,7 @@ pub(crate) async fn approve_gate(
                 reason: Some("Reviewed".into()),
                 task_ids: None,
                 expected_evidence_digest: gate.evidence_digest,
+                caller_terminal: None,
             },
             &desktop(),
         )

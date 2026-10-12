@@ -66,7 +66,9 @@ async fn legacy_v1_orchestration_schema_resets_to_v3() {
     store.pool().close().await;
     drop(store);
 
-    let migrated = RuntimeStore::open(dir.path()).await.unwrap();
+    let migrated = RuntimeStore::open_as_runtime_owner(dir.path())
+        .await
+        .unwrap();
     assert_eq!(
         migrated
             .get_metadata("orchestration.schemaVersion")

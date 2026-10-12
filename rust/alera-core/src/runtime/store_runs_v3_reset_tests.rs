@@ -184,7 +184,9 @@ async fn v2_store_resets_to_v3_keeping_profiles_recipes_and_the_inbox() {
     let key = dir.path().join("desktop-workflow-approval.key");
     std::fs::write(&key, b"retired").unwrap();
 
-    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let store = RuntimeStore::open_as_runtime_owner(dir.path())
+        .await
+        .unwrap();
     assert_eq!(
         store.get_metadata(VERSION_KEY).await.unwrap().as_deref(),
         Some("3")
@@ -310,4 +312,49 @@ async fn unknown_schema_version_fails_closed() {
             .await
             .unwrap();
     assert_eq!(kept, 1);
+}
+
+#[tokio::test]
+async fn only_the_runtime_owner_resets_a_pre_v3_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    store.upsert_agent_profile(profile(), None).await.unwrap();
+    rewind_to_v2(&store).await;
+    store.pool().close().await;
+    drop(store);
+
+    let error = match RuntimeStore::open(dir.path()).await {
+        Ok(_) => panic!("a CLI open must not reset a store a live host may be using"),
+        Err(error) => error.to_string(),
+    };
+    assert!(error.contains("only the Alera runtime"), "{error}");
+    assert!(!dir.path().join(RUNS_V3_BACKUP_FILE_NAME).exists());
+
+    let store = RuntimeStore::open_read_only(dir.path()).await.unwrap();
+    assert_eq!(
+        store.get_metadata(VERSION_KEY).await.unwrap().as_deref(),
+        Some("2")
+    );
+}
+
+#[tokio::test]
+async fn a_backup_left_by_an_earlier_attempt_is_kept_beside_a_fresh_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    rewind_to_v2(&store).await;
+    store.pool().close().await;
+    drop(store);
+    let stale = dir.path().join(RUNS_V3_BACKUP_FILE_NAME);
+    std::fs::write(&stale, b"stale").unwrap();
+
+    let store = RuntimeStore::open_as_runtime_owner(dir.path())
+        .await
+        .unwrap();
+    assert_eq!(
+        store.get_metadata(VERSION_KEY).await.unwrap().as_deref(),
+        Some("3")
+    );
+    assert_eq!(std::fs::read(&stale).unwrap(), b"stale");
+    let fresh = dir.path().join("runtime-pre-runs-v3-1.sqlite");
+    assert!(std::fs::metadata(&fresh).unwrap().len() > 5);
 }

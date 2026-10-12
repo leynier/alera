@@ -2,7 +2,7 @@
 name: alera-mcp
 description: Work with Alera through this MCP server. Covers runtimes, projects, workspaces, agents and terminals, inbox questions, pull requests, events, and runtime settings. Read it before the first Alera task of a conversation.
 metadata:
-  version: 2
+  version: 3
 ---
 
 # Alera Through MCP

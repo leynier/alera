@@ -34,7 +34,7 @@ The inbox lets you ask a running agent a question and read its answer later. The
 2. `ask_agent` asks by terminal `to`, or by `workspaceId` when the workspace runs one agent (add `agent` to choose among several). It returns the question id, thread id, and `deliveryMode`. Pass `threadId` to follow up in the same thread.
 3. `wait_for_reply` waits for news about one question. `wait_for_inbox` waits for any reply to this client's questions, so one call covers every open question. Pass the returned cursor as `after`.
 
-An idle agent gets the question at once. With `delivery` `now` (the default), a working agent that queues input mid-turn (Claude Code and Codex) gets it at once too; otherwise, or with `turnEnd`, it arrives when the agent's turn ends. `list_inbox_targets` shows what asking now would do for each agent. `expiresIn` drops a question that is never delivered. `cancel_question` cancels it only before the agent sees it.
+An idle agent gets the question at once. With `delivery` `now` (the default), a working agent gets it at once too only when its adapter is verified to queue input mid-turn, which none is yet; otherwise, or with `turnEnd`, it arrives when the agent's turn ends. `list_inbox_targets` shows what asking now would do for each agent. `expiresIn` drops a question that is never delivered. `cancel_question` cancels it only before the agent sees it.
 
 - `list_inbox_threads` lists threads asked by every MCP client sharing this inbox; `isOwn` marks this client's. `show_inbox_thread` shows one thread whole.
 - `mark_thread_read` marks a thread's replies as read for everyone sharing the inbox.

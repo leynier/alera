@@ -274,11 +274,22 @@ async fn a_pending_plan_gate_holds_scheduling_until_it_is_approved() {
         .await
         .unwrap()
         .remove(0);
+    let digest = actor
+        .runtime_store
+        .run_gate(&gate.id)
+        .await
+        .unwrap()
+        .and_then(|gate| gate.evidence_digest);
     let desktop =
         alera_core::runtime::RunActor::new(alera_core::runtime::RunActorKind::Desktop, None);
     actor
         .runs_resolve_gate(
-            &json!({"requestId": "approve-plan", "gateId": gate.id, "decision": "approve"}),
+            &json!({
+                "requestId": "approve-plan",
+                "gateId": gate.id,
+                "decision": "approve",
+                "expectedEvidenceDigest": digest,
+            }),
             &desktop,
         )
         .await

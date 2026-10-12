@@ -56,7 +56,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
         session_resume: Some(AgentSessionResumeShape::Subcommand(&["resume"])),
-        accepts_queued_input: true,
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "claude",
@@ -65,7 +65,7 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
         session_resume: Some(AgentSessionResumeShape::Flag("--resume")),
-        accepts_queued_input: true,
+        accepts_queued_input: false,
     },
     AgentAdapter {
         agent_type: "copilot",
@@ -226,8 +226,8 @@ mod tests {
         assert_eq!(
             queued,
             [
-                ("codex", true),
-                ("claude", true),
+                ("codex", false),
+                ("claude", false),
                 ("copilot", false),
                 ("cursor", false),
                 ("agy", false),

@@ -2,7 +2,7 @@
 name: alera-orchestration
 description: Dispatch, coordinate, and complete agent tasks through Alera orchestration.
 metadata:
-  version: 4
+  version: 5
 ---
 
 # Alera Orchestration

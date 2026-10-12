@@ -11,7 +11,7 @@ alera orchestration reply --id <message-id> --body "..."
 
 ## Delivery
 
-A message reaches an idle agent at once. For a working agent, `--delivery now` pastes it mid-turn when that agent queues input (Claude Code and Codex); otherwise it waits for the turn to end. `ask` defaults to `now`, `send` and `reply` to `turn-end`. An agent waiting on a prompt never gets a paste. Responses report `deliveryMode`: `pasted_now`, `queued_at_turn_end`, `check` (a coordinator reads it with `check`), or `unavailable`.
+A message reaches an idle agent at once. For a working agent, `--delivery now` pastes it mid-turn only when that agent's adapter is verified to queue input, which none is yet; otherwise it waits for the turn to end. `ask` defaults to `now`, `send` and `reply` to `turn-end`. An agent waiting on a prompt never gets a paste. Responses report `deliveryMode`: `pasted_now`, `queued_at_turn_end`, `check` (a coordinator reads it with `check`), or `unavailable`.
 
 `ask` waits for the answer. `--no-wait` prints the question id at once; the answer reaches your terminal on its next turn, or read it earlier with `alera inbox wait --question <id> --timeout 10m`.
 

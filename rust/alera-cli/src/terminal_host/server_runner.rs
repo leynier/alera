@@ -26,7 +26,7 @@ pub async fn run_terminal_host_server(
     };
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     chatgpt_session::initialize(runtime_dir.clone());
-    let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    let runtime_store = RuntimeStore::open_as_runtime_owner(&runtime_dir).await?;
     runtime_store.retire_removed_features().await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
 

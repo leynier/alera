@@ -153,6 +153,7 @@ pub(super) async fn gate(runtime: &RuntimeDirArgs, action: GateAction, json: boo
             payload.insert("decision".into(), json!(args.decision));
             insert_opt(&mut payload, "reason", args.reason);
             insert_opt(&mut payload, "expectedEvidenceDigest", args.expected_digest);
+            insert_opt(&mut payload, "callerTerminal", terminal_handle_env());
             if !args.tasks.is_empty() {
                 payload.insert("taskIds".into(), json!(args.tasks));
             }

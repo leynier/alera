@@ -56,9 +56,13 @@ pub struct RunsV3Reset {
 impl RuntimeStore {
     /// Brings the orchestration schema to v3. `backup_dir` is where the
     /// pre-reset copy goes; `None` skips the copy (an in-memory store).
+    /// Only the runtime owner may reset: any other process (a CLI command, an
+    /// agent's `alera` after the binary was replaced) fails closed, because
+    /// the host that still runs may be using the tables the reset drops.
     pub(super) async fn migrate_orchestration_v3(
         &self,
         backup_dir: Option<&Path>,
+        owns_runtime: bool,
     ) -> Result<Option<RunsV3Reset>> {
         let version = self.get_metadata(ORCHESTRATION_SCHEMA_VERSION_KEY).await?;
         let legacy = match version.as_deref() {
@@ -70,6 +74,12 @@ impl RuntimeStore {
                  {ORCHESTRATION_SCHEMA_VERSION} and refuses to modify a newer store"
             ),
         };
+        if legacy && !owns_runtime {
+            bail!(
+                "the runtime store predates orchestration schema v3 and only the Alera runtime \
+                 can upgrade it; stop any running Alera runtime, start Alera, then retry"
+            );
+        }
         if legacy {
             if let Some(directory) = backup_dir {
                 self.back_up_before_runs_v3(directory).await?;
@@ -124,13 +134,12 @@ impl RuntimeStore {
         .await?)
     }
 
-    /// An earlier copy wins: a reset interrupted after its backup must not
-    /// replace the original with an already reduced store.
+    /// The drop is one transaction, so a store that is still pre-v3 holds
+    /// everything: a backup left by an attempt that did not commit may be
+    /// older than the store and is kept beside a fresh copy, never trusted as
+    /// the only one.
     async fn back_up_before_runs_v3(&self, directory: &Path) -> Result<()> {
-        let path = directory.join(RUNS_V3_BACKUP_FILE_NAME);
-        if path.exists() {
-            return Ok(());
-        }
+        let path = runs_v3_backup_path(directory);
         let Some(target) = path.to_str() else {
             bail!("runtime directory is not valid UTF-8; cannot back up the store");
         };
@@ -141,6 +150,20 @@ impl RuntimeStore {
         super::set_private_file_permissions(&path)?;
         Ok(())
     }
+}
+
+/// The canonical backup name, or a numbered one when an earlier attempt
+/// already left a copy there.
+fn runs_v3_backup_path(directory: &Path) -> std::path::PathBuf {
+    let canonical = directory.join(RUNS_V3_BACKUP_FILE_NAME);
+    if !canonical.exists() {
+        return canonical;
+    }
+    let stem = RUNS_V3_BACKUP_FILE_NAME.trim_end_matches(".sqlite");
+    (1..)
+        .map(|attempt| directory.join(format!("{stem}-{attempt}.sqlite")))
+        .find(|path| !path.exists())
+        .expect("an unbounded range yields a free name")
 }
 
 /// Drops every pre-v3 orchestration and workflow object except the external

@@ -60,11 +60,25 @@ pub(super) fn requested_delivery(
     }
 }
 
+// No adapter has passed the manual check yet, so delivery tests mark the agent
+// types they exercise as if one had.
+#[cfg(test)]
+thread_local! {
+    pub(super) static QUEUED_INPUT_AGENTS_FOR_TESTS: std::cell::RefCell<Vec<String>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
 impl ServerActor {
     /// Whether the agent in `handle` queues input submitted while it works.
     pub(super) fn accepts_queued_input(&self, handle: &str) -> bool {
-        self.agent_presence
-            .agent_type(handle)
+        let agent_type = self.agent_presence.agent_type(handle);
+        #[cfg(test)]
+        if agent_type.is_some_and(|agent| {
+            QUEUED_INPUT_AGENTS_FOR_TESTS.with(|agents| agents.borrow().iter().any(|a| a == agent))
+        }) {
+            return true;
+        }
+        agent_type
             .and_then(adapter_for)
             .is_some_and(|adapter| adapter.accepts_queued_input)
     }

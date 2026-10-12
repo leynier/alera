@@ -26,7 +26,7 @@ Gate kinds and their option ids:
 - `stall` (opened when the run's stall policy is `ask`): `killAndFailover`, `keepWaiting`, `abortStage`.
 - `decision` (from `gate create`): one of its options, or free text when it has none.
 
-A gate with options accepts only one of them. Pass `--expected-digest` with the `evidenceDigest` from `gate show`, so a gate whose evidence changed is refused as stale. Plan, stage, and stall gates are the user's decisions: never resolve them on the user's behalf, and never approve a plan you proposed. A stalled worker may still be running, so it is not killed or replaced without that decision.
+A gate with options accepts only one of them. Pass `--expected-digest` with the `evidenceDigest` from `gate show`; a gate with a digest is refused as stale without it, or when its evidence changed. Plan, stage, and stall gates are the user's decisions: never resolve them on the user's behalf, and never approve a plan you proposed. The runtime refuses those gates from the run's own terminals. A stalled worker may still be running, so it is not killed or replaced without that decision.
 
 ## Ownership
 

@@ -23,7 +23,7 @@ A run moves through `planning`, `awaitingApproval` (only when it requires approv
 
 `list_run_gates` lists plan approval, stage, decision, and stall gates; `show_run_gate` shows one with its options, `evidenceDigest`, and what it decides on.
 
-`resolve_run_gate` needs administrative access and the user's explicit decision; never decide for the user. Plan and stage gates take `approve`, `requestChanges` (with `reason`), or `reject`; stall gates take `killAndFailover`, `keepWaiting`, or `abortStage`; decision gates take one of their options. Pass `expectedEvidenceDigest` so a gate whose evidence changed is refused as stale, then read the gate again.
+`resolve_run_gate` needs administrative access and the user's explicit decision; never decide for the user. Plan and stage gates take `approve`, `requestChanges` (with `reason`), or `reject`; stall gates take `killAndFailover`, `keepWaiting`, or `abortStage`; decision gates take one of their options. Pass `expectedEvidenceDigest` from `show_run_gate`: a gate with a digest is refused as stale without it or when its evidence changed, so read the gate again and decide again.
 
 ## Control
 

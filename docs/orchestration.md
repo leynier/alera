@@ -97,7 +97,7 @@ Gates live in one table for every kind (`decision`, `stall`, `plan`, `stage`); [
 
 - `alera orchestration gate create --task <id> --question "..." [--options '["A","B"]']` opens a decision gate that closes the task's dispatch and blocks the task until a person answers.
 - `gate list --run <id>` reads `runs.gates`; without `--run` it reads `orchestration.gateList`, the decision gates of tasks outside runs.
-- `gate resolve --id <id> --decision <option> [--reason] [--tasks] [--expected-digest]` calls `runs.resolveGate`. A gate with options accepts only one of them.
+- `gate resolve --id <id> --decision <option> [--reason] [--tasks] [--expected-digest]` calls `runs.resolveGate`. A gate with options accepts only one of them. `--expected-digest` is required for a gate that has an `evidenceDigest` (`gate_stale` otherwise), and plan, stage, and stall gates are refused from the run's own terminals (`gate_not_resolvable`).
 
 A coordinator's loop turns only an explicit `send --type decision_gate` naming a task into a gate; a worker's `ask` is a `question` the coordinator agent answers with `check` and `reply`. Gate pushes carry `{kind: "decisionGate", gateId, gateKind, runId, taskId?}`, titled "Plan Needs Approval" for plan gates and "Decision Needed" otherwise; run-scoped gates are located at the run's coordinator terminal and workspace.
 
@@ -129,7 +129,7 @@ When a message is sent the host decides, per recipient (`deliver_after_send`):
 
 Responses report that outcome as `deliveryMode` (`pasted_now`, `queued_at_turn_end`, `check`, `unavailable`): `send` per recipient in `deliveries` (and top-level for exactly one non-inbox recipient), `reply`, `ask --no-wait`, `inbox.ask`, every inbox thread, and every `inbox.targets` item, where it describes what `now` would do right now next to `acceptsQueuedInput`.
 
-`accepts_queued_input` is declared per adapter in `agent_registry.rs` and pinned by `only_verified_agents_accept_input_queued_mid_turn`. Today `claude` and `codex` are `true`; `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok` and `fx` are `false`. Before setting it for another adapter, verify it by hand against the installed CLI, twice in a row:
+`accepts_queued_input` is declared per adapter in `agent_registry.rs` and pinned by `only_verified_agents_accept_input_queued_mid_turn`. Today every adapter is `false`, so a `now` message to a working agent waits for its turn to end; `claude` and `codex` are the first candidates. Before setting it for an adapter, verify it by hand against the installed CLI, twice in a row:
 
 1. Start the agent in an Alera tab and give it a long turn, for example running `sleep 90` through its shell tool.
 2. While it works, run `alera orchestration send --to <handle> --delivery now --body "reply with the word pong"`.

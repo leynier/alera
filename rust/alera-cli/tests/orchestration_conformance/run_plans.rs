@@ -82,6 +82,7 @@ fn resolve(
             "gateId": gate["id"],
             "decision": decision,
             "reason": reason,
+            "expectedEvidenceDigest": gate["evidenceDigest"],
         }),
     )
 }
@@ -96,8 +97,8 @@ fn pending_plan_gate(
         writer,
         reader,
         id,
-        "orchestration.gateList",
-        json!({"run": run_id, "kind": "plan", "status": "pending"}),
+        "runs.gates",
+        json!({"runId": run_id, "kind": "plan", "status": "pending"}),
     ));
     let items = gates["items"].as_array().unwrap();
     assert_eq!(items.len(), 1, "{gates}");

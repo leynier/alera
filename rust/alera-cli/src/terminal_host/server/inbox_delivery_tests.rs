@@ -5,6 +5,10 @@ use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::orchestration::coordinator_loop::{CoordinatorConfig, CoordinatorHandle};
 
 fn set_presence(fixture: &mut Fixture, handle: &str, agent: &str, state: AgentPresenceState) {
+    if matches!(agent, "claude" | "codex") {
+        super::orchestration_message_delivery::QUEUED_INPUT_AGENTS_FOR_TESTS
+            .with(|agents| agents.borrow_mut().push(agent.to_string()));
+    }
     fixture
         .actor
         .agent_presence

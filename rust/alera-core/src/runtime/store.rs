@@ -49,7 +49,21 @@ impl RuntimeStore {
         })
     }
 
+    /// Opens the store for a process that does not own the runtime. A store
+    /// that still needs the orchestration v3 reset is refused rather than
+    /// reset, because a live host may be using the tables it would drop.
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
+        Self::open_with_reset(runtime_dir, false).await
+    }
+
+    /// Opens the store for the runtime host. The caller MUST hold the runtime
+    /// owner lock: only the owner may run the destructive orchestration v3
+    /// reset.
+    pub async fn open_as_runtime_owner(runtime_dir: &Path) -> Result<Self> {
+        Self::open_with_reset(runtime_dir, true).await
+    }
+
+    async fn open_with_reset(runtime_dir: &Path, owns_runtime: bool) -> Result<Self> {
         prepare_private_runtime_directory(runtime_dir)?;
         let path = runtime_dir.join(RUNTIME_DATABASE_FILE_NAME);
         open_private_runtime_file(&path)?;
@@ -75,7 +89,9 @@ impl RuntimeStore {
             conversation_notification_revision: Default::default(),
         };
         store.migrate().await?;
-        store.migrate_orchestration_v3(Some(runtime_dir)).await?;
+        store
+            .migrate_orchestration_v3(Some(runtime_dir), owns_runtime)
+            .await?;
         store.install_runtime_event_triggers().await?;
         harden_sqlite_files(&path)?;
         Ok(store)

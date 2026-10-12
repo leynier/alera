@@ -66,6 +66,10 @@ async fn resolve(
     decision: &str,
     reason: Option<&str>,
 ) -> anyhow::Result<RunGate> {
+    let digest = store
+        .run_gate(gate_id)
+        .await?
+        .and_then(|gate| gate.evidence_digest);
     store
         .resolve_run_gate(
             &ResolveRunGate {
@@ -74,7 +78,8 @@ async fn resolve(
                 decision: decision.into(),
                 reason: reason.map(str::to_string),
                 task_ids: None,
-                expected_evidence_digest: None,
+                expected_evidence_digest: digest,
+                caller_terminal: None,
             },
             &RunActor::new(RunActorKind::Cli, None),
         )
@@ -449,4 +454,46 @@ async fn a_task_can_be_bound_to_a_stage() {
         .set_orchestration_task_stage("task_missing", Some("impl"))
         .await
         .is_err());
+}
+
+#[tokio::test]
+async fn a_digest_gate_needs_the_digest_and_a_person_outside_the_run() {
+    let (_dir, store) = store().await;
+    let created = approval_run(&store).await;
+    let proposed = propose(&store, &created.id, "ask").await;
+    let gate_id = proposed.plan_gate_id.unwrap();
+    let digest = store
+        .run_gate(&gate_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .evidence_digest;
+    let request = |digest: Option<String>, caller: Option<&str>| ResolveRunGate {
+        request_id: uuid::Uuid::new_v4().to_string(),
+        gate_id: gate_id.clone(),
+        decision: "approve".into(),
+        reason: None,
+        task_ids: None,
+        expected_evidence_digest: digest,
+        caller_terminal: caller.map(str::to_string),
+    };
+    let cli = RunActor::new(RunActorKind::Cli, None);
+
+    let missing = store
+        .resolve_run_gate(&request(None, None), &cli)
+        .await
+        .unwrap_err();
+    assert!(missing.to_string().starts_with("gate_stale:"), "{missing}");
+
+    let own = store
+        .resolve_run_gate(&request(digest.clone(), Some("coord")), &cli)
+        .await
+        .unwrap_err();
+    assert!(own.to_string().starts_with("gate_not_resolvable:"), "{own}");
+
+    let outsider = store
+        .resolve_run_gate(&request(digest, Some("term-person")), &cli)
+        .await
+        .unwrap();
+    assert_eq!(outsider.gate.status, OrchestrationGateStatus::Resolved);
 }
