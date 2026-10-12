@@ -9,18 +9,16 @@ part of 'mobile_automation_composer_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// One composer screen, for creating and editing. Every edit is checked
-/// locally at once; once the draft is complete the runtime checks it too
-/// (`automation.readiness`) shortly after the user stops editing, so target,
-/// profile and host problems show before saving. Nothing asks for approval.
+/// locally at once; a complete draft is also checked by the runtime
+/// (`automation.readiness`) shortly after the user stops editing.
 
 @ProviderFor(MobileAutomationComposerController)
 final mobileAutomationComposerControllerProvider =
     MobileAutomationComposerControllerFamily._();
 
 /// One composer screen, for creating and editing. Every edit is checked
-/// locally at once; once the draft is complete the runtime checks it too
-/// (`automation.readiness`) shortly after the user stops editing, so target,
-/// profile and host problems show before saving. Nothing asks for approval.
+/// locally at once; a complete draft is also checked by the runtime
+/// (`automation.readiness`) shortly after the user stops editing.
 final class MobileAutomationComposerControllerProvider
     extends
         $NotifierProvider<
@@ -28,9 +26,8 @@ final class MobileAutomationComposerControllerProvider
           MobileAutomationComposerState
         > {
   /// One composer screen, for creating and editing. Every edit is checked
-  /// locally at once; once the draft is complete the runtime checks it too
-  /// (`automation.readiness`) shortly after the user stops editing, so target,
-  /// profile and host problems show before saving. Nothing asks for approval.
+  /// locally at once; a complete draft is also checked by the runtime
+  /// (`automation.readiness`) shortly after the user stops editing.
   MobileAutomationComposerControllerProvider._({
     required MobileAutomationComposerControllerFamily super.from,
     required (String, int) super.argument,
@@ -84,9 +81,8 @@ String _$mobileAutomationComposerControllerHash() =>
     r'd2dfd6848bcde052f0129605d450a13bec8a397a';
 
 /// One composer screen, for creating and editing. Every edit is checked
-/// locally at once; once the draft is complete the runtime checks it too
-/// (`automation.readiness`) shortly after the user stops editing, so target,
-/// profile and host problems show before saving. Nothing asks for approval.
+/// locally at once; a complete draft is also checked by the runtime
+/// (`automation.readiness`) shortly after the user stops editing.
 
 final class MobileAutomationComposerControllerFamily extends $Family
     with
@@ -107,9 +103,8 @@ final class MobileAutomationComposerControllerFamily extends $Family
       );
 
   /// One composer screen, for creating and editing. Every edit is checked
-  /// locally at once; once the draft is complete the runtime checks it too
-  /// (`automation.readiness`) shortly after the user stops editing, so target,
-  /// profile and host problems show before saving. Nothing asks for approval.
+  /// locally at once; a complete draft is also checked by the runtime
+  /// (`automation.readiness`) shortly after the user stops editing.
 
   MobileAutomationComposerControllerProvider call(String hostId, int session) =>
       MobileAutomationComposerControllerProvider._(
@@ -122,9 +117,8 @@ final class MobileAutomationComposerControllerFamily extends $Family
 }
 
 /// One composer screen, for creating and editing. Every edit is checked
-/// locally at once; once the draft is complete the runtime checks it too
-/// (`automation.readiness`) shortly after the user stops editing, so target,
-/// profile and host problems show before saving. Nothing asks for approval.
+/// locally at once; a complete draft is also checked by the runtime
+/// (`automation.readiness`) shortly after the user stops editing.
 
 abstract class _$MobileAutomationComposerController
     extends $Notifier<MobileAutomationComposerState> {
