@@ -28,4 +28,33 @@ void main() {
     );
     expect(freshTab.workspaceSectionId, isNull);
   });
+
+  test(
+    'worktree targets parse by parent workspace and serialize as worktree',
+    () {
+      AutomationRecord record(Map<String, Object?> details) =>
+          AutomationRecord.fromJson(<String, Object?>{
+            'target': <String, Object?>{'worktree': details},
+          });
+      final fromWorkspace = record(<String, Object?>{
+        'parentWorkspaceId': 'w1',
+        'sourceBranch': 'main',
+        'agentProfileId': 'codex',
+      });
+      expect(fromWorkspace.targetType, AutomationTargetType.managedWorkspace);
+      expect(fromWorkspace.targetWorkspaceId, 'w1');
+      expect(
+        AutomationDraft.fromRecord(fromWorkspace).targetJson?['worktree'],
+        <String, Object?>{
+          'parentWorkspaceId': 'w1',
+          'sourceBranch': 'main',
+          'nameTemplate': 'auto-{{automation.slug}}-{{run.number}}',
+          'agentProfileId': 'codex',
+        },
+      );
+      final fromProject = record(<String, Object?>{'projectId': 'p1'});
+      expect(fromProject.targetType, AutomationTargetType.projectWorktree);
+      expect(fromProject.targetDetails['projectId'], 'p1');
+    },
+  );
 }

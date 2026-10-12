@@ -179,7 +179,7 @@ impl ServerActor {
                             run.recovery = None;
                         }
                         let _ = self.runtime_store.save_automation_run(&run).await;
-                        self.automation_run_event(&run);
+                        self.broadcast_automation_run_changed(&run);
                     }
                     continue;
                 }
@@ -324,7 +324,7 @@ impl ServerActor {
         });
         if changed {
             let _ = self.runtime_store.save_automation_run(run).await;
-            self.automation_run_event(run);
+            self.broadcast_automation_run_changed(run);
         }
     }
 

@@ -295,3 +295,57 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
         .await
         .is_err());
 }
+
+#[tokio::test]
+async fn worktree_targets_guard_their_profile_in_both_spellings() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
+        .await
+        .unwrap();
+    let mut definition = automation("prof_a");
+    definition.target = AutomationTarget::Worktree {
+        project_id: Some("project-1".into()),
+        parent_workspace_id: None,
+        source_branch: "main".into(),
+        name_template: "task".into(),
+        agent_profile_id: "prof_a".into(),
+    };
+    store
+        .upsert_automation(definition.clone(), definition.created_by.clone())
+        .await
+        .unwrap();
+    assert!(store.remove_agent_profile("prof_a", 0).await.is_err());
+
+    let now = crate::runtime::format_timestamp(Utc::now());
+    for (id, target) in [
+        (
+            "new-spelling",
+            json!({"worktree": {"projectId": "p", "sourceBranch": "main", "agentProfileId": "missing"}}),
+        ),
+        (
+            "legacy-managed",
+            json!({"managedWorkspace": {"sourceWorkspaceId": "w", "sourceBranch": "main", "agentProfileId": "missing"}}),
+        ),
+        (
+            "legacy-project",
+            json!({"projectWorktree": {"projectId": "p", "sourceBranch": "main", "agentProfileId": "missing"}}),
+        ),
+    ] {
+        let error = sqlx::query(
+            "INSERT INTO automations (id, slug, state, revision, dataJson, createdAt, updatedAt) VALUES (?, ?, 'draft', 1, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(id)
+        .bind(json!({ "target": target }).to_string())
+        .bind(&now)
+        .bind(&now)
+        .execute(store.pool())
+        .await
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("reference does not exist"),
+            "{id}: {error}"
+        );
+    }
+}

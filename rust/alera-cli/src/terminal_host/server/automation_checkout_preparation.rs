@@ -99,8 +99,7 @@ impl ServerActor {
         }
         if current.cancel_requested_at.is_some() {
             let _ = self
-                .runtime_store
-                .update_automation_run_status(
+                .set_automation_run_status(
                     &current.id,
                     AutomationRunStatus::Cancelled,
                     Some("Automation cancelled during checkout preparation".into()),

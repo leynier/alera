@@ -115,18 +115,14 @@ impl ServerActor {
                 .await
             }
             "automation.purge" => {
-                let retention_days = self
-                    .runtime_store
-                    .automation_settings()
-                    .await
-                    .map(|settings| settings.trash_retention_days)
-                    .unwrap_or(30);
-                let before = Utc::now() - chrono::Duration::days(retention_days.max(1));
                 let purged = self
                     .runtime_store
-                    .purge_trashed_automations(before)
+                    .purge_trashed_automations(Utc::now())
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
+                if purged > 0 {
+                    self.broadcast_automation_changed(None);
+                }
                 Ok(json!({ "purged": purged }))
             }
             "automation.runNow" => {

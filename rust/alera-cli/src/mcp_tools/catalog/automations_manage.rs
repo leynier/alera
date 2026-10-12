@@ -68,7 +68,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 || {
                     object(
                         &[
-                            ("definition", json_object("Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target, and optional policies and projectId.")),
+                            ("definition", json_object("Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target (freshTab, existingTab, worktree with projectId and/or parentWorkspaceId, or projectCheckout), and optional policies and projectId.")),
                             ("draft", boolean("Save as a draft instead of activating it.")),
                         ],
                         &["definition"],

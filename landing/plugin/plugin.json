@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "alera",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Manage Alera runtimes, workspaces, coding agents, and automations through MCP.",
   "author": {
     "name": "Leynier Gutiérrez González",

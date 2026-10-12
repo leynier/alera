@@ -202,7 +202,7 @@ impl ServerActor {
         if removed {
             self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
             self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
-            self.broadcast_authenticated(event("automationsChanged", json!({})));
+            self.broadcast_automation_changed(None);
         }
         Ok(json!({ "removed": removed }))
     }

@@ -95,13 +95,9 @@ impl ServerActor {
                 "Choose an active workspace for this automation",
             ));
         }
-        if matches!(
-            definition.target,
-            AutomationTarget::ManagedWorkspace { .. } | AutomationTarget::ProjectWorktree { .. }
-        ) && location.project.kind == ProjectKind::Folder
-        {
+        if definition.target.worktree().is_some() && location.project.kind == ProjectKind::Folder {
             return Err(HostError::state(
-                "managed workspace automations require a git repository project",
+                "worktree automations require a git repository project",
             ));
         }
         Ok(())
@@ -124,13 +120,10 @@ impl ServerActor {
             AutomationTarget::FreshTab {
                 agent_profile_id, ..
             }
-            | AutomationTarget::ManagedWorkspace {
+            | AutomationTarget::Worktree {
                 agent_profile_id, ..
             }
             | AutomationTarget::ProjectCheckout {
-                agent_profile_id, ..
-            }
-            | AutomationTarget::ProjectWorktree {
                 agent_profile_id, ..
             } => Ok(Some(agent_profile_id.clone())),
         }

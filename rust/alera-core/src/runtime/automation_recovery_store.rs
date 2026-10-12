@@ -155,6 +155,24 @@ impl RuntimeStore {
             .collect()
     }
 
+    /// The newest tab that carries `run_id`, which is the agent tab when the
+    /// run also opened a Setup tab before it.
+    pub async fn find_workspace_tab_by_automation_run(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<super::WorkspaceTabRecord>> {
+        sqlx::query(
+            "SELECT id, workspaceId, kind, title, createdAt, updatedAt, payloadJson \
+             FROM workspaceTabs WHERE json_extract(payloadJson, '$.automationRunId') = ? \
+             ORDER BY createdAt DESC, rowid DESC LIMIT 1",
+        )
+        .bind(run_id)
+        .fetch_optional(self.pool())
+        .await?
+        .map(super::store::tab_from_row)
+        .transpose()
+    }
+
     pub async fn record_automation_runtime_started(&self) -> Result<DateTime<Utc>> {
         let now = Utc::now();
         self.set_metadata(

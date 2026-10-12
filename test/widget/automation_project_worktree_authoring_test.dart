@@ -105,7 +105,7 @@ void main() {
             as Map<String, Object?>;
     expect(sent['projectId'], 'project-1');
     expect(sent['target'], <String, Object?>{
-      'projectWorktree': <String, Object?>{
+      'worktree': <String, Object?>{
         'projectId': 'project-1',
         'sourceBranch': 'develop',
         'nameTemplate': 'auto-{{automation.slug}}-{{run.number}}',

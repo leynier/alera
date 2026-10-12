@@ -4,6 +4,7 @@ use alera_core::runtime::{
 };
 use chrono::Utc;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 use super::ServerActor;
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -154,10 +155,7 @@ impl ServerActor {
             .await
             .map_err(state_error)?;
         self.automation_wake.notify_one();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({"automationId":saved.id}),
-        ));
+        self.broadcast_automation_changed(Some(&saved.id));
         self.automation_catalog_item(&saved).await
     }
 
@@ -165,6 +163,18 @@ impl ServerActor {
         &self,
         definition: &AutomationDefinition,
         require_future: bool,
+    ) -> Value {
+        self.automation_readiness_in(definition, require_future, None)
+            .await
+    }
+
+    /// `profile_readiness` caches the launch probe per agent profile across
+    /// the items of one listing.
+    pub(super) async fn automation_readiness_in(
+        &self,
+        definition: &AutomationDefinition,
+        require_future: bool,
+        profile_readiness: Option<&mut HashMap<String, Result<(), String>>>,
     ) -> Value {
         let mut issues = Vec::new();
         if let Err(error) = RuntimeStore::validate_automation_definition(definition) {
@@ -248,10 +258,24 @@ impl ServerActor {
                         .ok()
                         .is_some_and(|location| location.host_id == LOCAL_HOST_ID)
                     {
-                        if let Err(error) =
-                            super::automation_profile_readiness::profile_executable_ready(&profile)
-                                .await
-                        {
+                        let cached = profile_readiness
+                            .as_deref()
+                            .and_then(|cache| cache.get(&profile.id).cloned());
+                        let ready = match cached {
+                            Some(ready) => ready,
+                            None => {
+                                let ready =
+                                    super::automation_profile_readiness::profile_executable_ready(
+                                        &profile,
+                                    )
+                                    .await;
+                                if let Some(cache) = profile_readiness {
+                                    cache.insert(profile.id.clone(), ready.clone());
+                                }
+                                ready
+                            }
+                        };
+                        if let Err(error) = ready {
                             issues.push(issue(
                                 "profileNotLaunchable",
                                 &error,
@@ -356,6 +380,7 @@ impl ServerActor {
                 .await
                 .is_ok()
             {
+                self.broadcast_automation_changed(Some(&definition.id));
                 let _ = self.runtime_store.insert_automation_audit_event(Some(&definition.id), None, "retiredGatesMigrated", definition.modified_by, Some(definition.revision), json!({"reactivated":state == AutomationState::Active,"readiness":readiness})).await;
             }
         }

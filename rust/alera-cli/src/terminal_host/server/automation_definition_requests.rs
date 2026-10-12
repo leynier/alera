@@ -26,6 +26,7 @@ impl ServerActor {
             .and_then(Value::as_str)
             .map(|value| value.trim().to_ascii_lowercase());
         let mut items = Vec::new();
+        let mut context = self.automation_catalog_context().await?;
         for mut definition in candidates {
             if state.is_some_and(|value| value != definition.state.as_str()) {
                 continue;
@@ -52,7 +53,9 @@ impl ServerActor {
             if definition.project_id.is_none() {
                 definition.project_id = definition_project_id.clone();
             }
-            let item = self.automation_catalog_item(&definition).await?;
+            let item = self
+                .automation_catalog_item_in(&definition, &mut context)
+                .await?;
             if payload["workspaceId"]
                 .as_str()
                 .is_some_and(|id| item["association"]["workspaceId"].as_str() != Some(id))
@@ -162,10 +165,7 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({}),
-        ));
+        self.broadcast_automation_changed(Some(&saved.id));
         serde_json::to_value(saved).map_err(|error| HostError::state(error.to_string()))
     }
 
@@ -229,10 +229,12 @@ impl ServerActor {
                             ));
                         }
                         for run in active_runs {
-                            self.runtime_store
+                            let cancelling = self
+                                .runtime_store
                                 .request_automation_cancel(&run.id, actor.clone())
                                 .await
                                 .map_err(|error| HostError::state(error.to_string()))?;
+                            self.broadcast_automation_run_changed(&cancelling);
                         }
                     }
                     _ => {
@@ -254,10 +256,7 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({}),
-        ));
+        self.broadcast_automation_changed(Some(&saved.id));
         serde_json::to_value(saved).map_err(|error| HostError::state(error.to_string()))
     }
 

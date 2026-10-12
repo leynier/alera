@@ -1,6 +1,6 @@
 use alera_core::runtime::{
-    AutomationActor, AutomationOccurrence, AutomationRunStatus, AutomationRunTrigger,
-    AutomationState,
+    AutomationActor, AutomationOccurrence, AutomationOverlapDecision, AutomationRun,
+    AutomationRunTrigger, AutomationState,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -118,19 +118,13 @@ impl ServerActor {
             .create_automation_run(&definition, &occurrence, AutomationRunTrigger::Manual)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.broadcast_automation_run_changed(&run);
         run.continue_from_run_id = previous.as_ref().map(|r| r.id.clone());
         match self.target_identity(&definition.target).await {
             Ok(identity) => run.target_identity = Some(identity),
             Err(reason) => {
                 self.block_run(&run, &reason).await;
-                return serde_json::to_value(
-                    self.runtime_store
-                        .find_automation_run(&run.id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                        .unwrap_or(run),
-                )
-                .map_err(|error| HostError::state(error.to_string()));
+                return self.manual_run_value(run).await;
             }
         }
         run.overlap_policy = Some(chosen_overlap);
@@ -140,122 +134,42 @@ impl ServerActor {
             .save_automation_run(&run)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let active_runs = self
-            .runtime_store
-            .list_active_automation_runs()
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .into_iter()
-            .filter(|active| active.automation_id == definition.id && active.id != run.id)
-            .collect::<Vec<_>>();
-        if !active_runs.is_empty() {
-            match chosen_overlap {
-                alera_core::runtime::AutomationOverlapPolicy::Skip => {
-                    let run = self
-                        .runtime_store
-                        .update_automation_run_status(
-                            &run.id,
-                            AutomationRunStatus::OverlapSkipped,
-                            Some("manual overlap decision skipped the run".to_string()),
-                        )
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?;
-                    return serde_json::to_value(run)
-                        .map_err(|error| HostError::state(error.to_string()));
-                }
-                alera_core::runtime::AutomationOverlapPolicy::Queue => {
-                    let pending = active_runs
-                        .iter()
-                        .filter(|active| active.status == AutomationRunStatus::Pending)
-                        .count();
-                    if pending >= definition.queue_cap.clamp(1, 10) as usize {
-                        let run = self
-                            .runtime_store
-                            .update_automation_run_status(
-                                &run.id,
-                                AutomationRunStatus::QueueLimitSkipped,
-                                Some("manual queue cap reached".to_string()),
-                            )
-                            .await
-                            .map_err(|error| HostError::state(error.to_string()))?;
-                        return serde_json::to_value(run)
-                            .map_err(|error| HostError::state(error.to_string()));
-                    }
-                    let run = self
-                        .runtime_store
-                        .find_automation_run(&run.id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                        .unwrap_or(run);
-                    self.runtime_store
-                        .insert_automation_audit_event(
-                            Some(&definition.id),
-                            Some(&run.id),
-                            "runNowQueued",
-                            actor.clone(),
-                            Some(definition.revision),
-                            json!({ "overlap": chosen_overlap.as_str() }),
-                        )
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?;
-                    return serde_json::to_value(run)
-                        .map_err(|error| HostError::state(error.to_string()));
-                }
-                alera_core::runtime::AutomationOverlapPolicy::RunLatestOnce => {
-                    for active in active_runs
-                        .iter()
-                        .filter(|active| active.status == AutomationRunStatus::Pending)
-                    {
-                        let _ = self
-                            .runtime_store
-                            .update_automation_run_status(
-                                &active.id,
-                                AutomationRunStatus::OverlapSkipped,
-                                Some("a newer manual run replaced this queued run".to_string()),
-                            )
-                            .await;
-                    }
-                    let run = self
-                        .runtime_store
-                        .find_automation_run(&run.id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                        .unwrap_or(run);
-                    self.runtime_store
-                        .insert_automation_audit_event(
-                            Some(&definition.id),
-                            Some(&run.id),
-                            "runNowQueued",
-                            actor.clone(),
-                            Some(definition.revision),
-                            json!({ "overlap": chosen_overlap.as_str() }),
-                        )
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?;
-                    return serde_json::to_value(run)
-                        .map_err(|error| HostError::state(error.to_string()));
-                }
-                alera_core::runtime::AutomationOverlapPolicy::ForceParallel => {}
-            }
-        }
-        self.start_automation_run(&definition, run.clone(), precheck)
+        let decision = self
+            .start_automation_run(&definition, run.clone(), precheck)
             .await;
-        self.runtime_store
-            .insert_automation_audit_event(
-                Some(&definition.id),
-                Some(&run.id),
+        let audit = match decision {
+            AutomationOverlapDecision::Proceed => Some((
                 "runNow",
-                actor,
-                Some(definition.revision),
                 json!({
                     "precheck": precheck,
                     "overlap": chosen_overlap.as_str(),
                     "draftTest": definition.state == AutomationState::Draft,
                     "definitionRevision": definition.revision,
                 }),
-            )
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            )),
+            AutomationOverlapDecision::Wait => Some((
+                "runNowQueued",
+                json!({ "overlap": chosen_overlap.as_str() }),
+            )),
+            AutomationOverlapDecision::Skip(_) | AutomationOverlapDecision::QueueLimit => None,
+        };
+        if let Some((kind, details)) = audit {
+            self.runtime_store
+                .insert_automation_audit_event(
+                    Some(&definition.id),
+                    Some(&run.id),
+                    kind,
+                    actor,
+                    Some(definition.revision),
+                    details,
+                )
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+        }
+        self.manual_run_value(run).await
+    }
+
+    async fn manual_run_value(&self, run: AutomationRun) -> HostResult<Value> {
         serde_json::to_value(
             self.runtime_store
                 .find_automation_run(&run.id)

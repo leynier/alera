@@ -217,8 +217,9 @@ async fn project_worktree_automation_records_and_protects_its_project() {
     super::tests::seed_profile(&store).await;
     let mut definition = super::tests::definition();
     definition.project_id = None;
-    definition.target = AutomationTarget::ProjectWorktree {
-        project_id: "project".into(),
+    definition.target = AutomationTarget::Worktree {
+        project_id: Some("project".into()),
+        parent_workspace_id: None,
         source_branch: "main".into(),
         name_template: "task".into(),
         agent_profile_id: "profile".into(),
@@ -247,8 +248,9 @@ async fn project_worktree_automation_records_and_protects_its_project() {
     let mut missing_branch = definition;
     missing_branch.id = "branchless".into();
     missing_branch.slug = "branchless".into();
-    missing_branch.target = AutomationTarget::ProjectWorktree {
-        project_id: "project".into(),
+    missing_branch.target = AutomationTarget::Worktree {
+        project_id: Some("project".into()),
+        parent_workspace_id: None,
         source_branch: " ".into(),
         name_template: "task".into(),
         agent_profile_id: "profile".into(),
@@ -258,4 +260,34 @@ async fn project_worktree_automation_records_and_protects_its_project() {
         .await
         .unwrap_err();
     assert!(error.to_string().contains("source branch"));
+}
+
+#[tokio::test]
+async fn parent_worktree_automation_depends_on_its_parent_project() {
+    let (_directory, store, _) = fixture().await;
+    super::tests::seed_profile(&store).await;
+    store
+        .upsert_workspace(workspace("parent", "local", "/parent", WorkspaceKind::Main))
+        .await
+        .unwrap();
+    let mut definition = super::tests::definition();
+    definition.project_id = None;
+    definition.target = AutomationTarget::Worktree {
+        project_id: None,
+        parent_workspace_id: Some("parent".into()),
+        source_branch: "main".into(),
+        name_template: "task".into(),
+        agent_profile_id: "profile".into(),
+    };
+    let saved = store
+        .upsert_automation(definition.clone(), definition.created_by.clone())
+        .await
+        .unwrap();
+    assert!(saved.project_id.is_none());
+    let dependencies = store
+        .project_automation_dependencies("project")
+        .await
+        .unwrap();
+    assert_eq!(dependencies.len(), 1);
+    assert_eq!(dependencies[0].id, saved.id);
 }

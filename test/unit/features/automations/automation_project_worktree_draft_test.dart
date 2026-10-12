@@ -28,7 +28,7 @@ void main() {
     final definition = projectWorktree().toDefinition();
     expect(definition['projectId'], 'project-1');
     expect(definition['target'], <String, Object?>{
-      'projectWorktree': <String, Object?>{
+      'worktree': <String, Object?>{
         'projectId': 'project-1',
         'sourceBranch': 'develop',
         'nameTemplate': 'auto-{{automation.slug}}-{{run.number}}',

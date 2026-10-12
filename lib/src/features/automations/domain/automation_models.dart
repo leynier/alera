@@ -22,7 +22,24 @@ enum AutomationTargetType(final String key, final String label) {
     freshTab || existingTab => false,
   };
 
+  /// The runtime writes both worktree types under one `worktree` key and
+  /// tells them apart by `parentWorkspaceId`. The legacy `managedWorkspace`
+  /// and `projectWorktree` keys are still read.
+  static const String worktreeKey = 'worktree';
+
+  /// The key this type is written under in a target sent to the runtime.
+  String get wireKey => switch (this) {
+    managedWorkspace || projectWorktree => worktreeKey,
+    freshTab || projectCheckout || existingTab => key,
+  };
+
   static AutomationTargetType? fromTarget(JsonMap target) {
+    if (target.containsKey(worktreeKey)) {
+      final details = automationJsonMap(target[worktreeKey]);
+      return automationJsonOptionalString(details['parentWorkspaceId']) == null
+          ? projectWorktree
+          : managedWorkspace;
+    }
     for (final type in values) {
       if (target.containsKey(type.key)) return type;
     }
@@ -136,7 +153,7 @@ class const AutomationRecord({
     final type = targetType;
     return type == null
         ? const <String, Object?>{}
-        : automationJsonMap(target[type.key]);
+        : automationJsonMap(target[type.wireKey] ?? target[type.key]);
   }
 
   String? get agentProfileId =>
@@ -145,6 +162,7 @@ class const AutomationRecord({
   /// The workspace the target runs in or derives from, when it has one.
   String? get targetWorkspaceId =>
       automationJsonOptionalString(targetDetails['workspaceId']) ??
+      automationJsonOptionalString(targetDetails['parentWorkspaceId']) ??
       automationJsonOptionalString(targetDetails['sourceWorkspaceId']);
 
   String? get effectiveProjectId => association?.projectId ?? projectId;

@@ -79,6 +79,6 @@ describe('independent Claude web plugin', () => {
   });
 
   test('preserves the existing ChatGPT package byte for byte', () => {
-    expect(buildPluginBundle(root).sha256).toBe('83e5253627ce3424029eb118990ae09903ca978734e94cdd8e59bb57ca82d81d');
+    expect(buildPluginBundle(root).sha256).toBe('bb9a208f75e5ae66732be0ebc80023919369c35ac9f817d21c4480587d4c9a15');
   });
 });

@@ -171,8 +171,9 @@ fn round_trips_existing_tab_and_managed_workspace_camel_case() {
     .unwrap();
     assert_eq!(
         managed,
-        AutomationTarget::ManagedWorkspace {
-            source_workspace_id: "workspace-1".into(),
+        AutomationTarget::Worktree {
+            project_id: None,
+            parent_workspace_id: Some("workspace-1".into()),
             source_branch: "main".into(),
             name_template: AUTOMATION_DEFAULT_NAME_TEMPLATE.into(),
             agent_profile_id: "profile-1".into(),
@@ -180,18 +181,18 @@ fn round_trips_existing_tab_and_managed_workspace_camel_case() {
     );
     let encoded = serde_json::to_value(&managed).unwrap();
     assert_eq!(
-        encoded.pointer("/managedWorkspace/sourceWorkspaceId"),
+        encoded.pointer("/worktree/parentWorkspaceId"),
         Some(&json!("workspace-1"))
     );
     assert_eq!(
-        encoded.pointer("/managedWorkspace/sourceBranch"),
+        encoded.pointer("/worktree/sourceBranch"),
         Some(&json!("main"))
     );
     assert_eq!(
-        encoded.pointer("/managedWorkspace/agentProfileId"),
+        encoded.pointer("/worktree/agentProfileId"),
         Some(&json!("profile-1"))
     );
-    assert_camel_case_object(&encoded, "/managedWorkspace");
+    assert_camel_case_object(&encoded, "/worktree");
 }
 
 #[test]

@@ -23,13 +23,16 @@ struct Harness {
     _runtime_dir: tempfile::TempDir,
     repo_path: PathBuf,
     actor: ServerActor,
+    // Kept open so broadcasts reach the client instead of queueing a
+    // disconnect into the actor inbox the tests read.
+    events: tokio::sync::mpsc::UnboundedReceiver<crate::terminal_host::client::ClientFrame>,
 }
 
 async fn harness() -> Harness {
     let runtime_dir = tempfile::tempdir().unwrap();
     let repo_path = runtime_dir.path().join("repo");
     std::fs::create_dir(&repo_path).unwrap();
-    let (handle, _events) = ClientHandle::test_channels();
+    let (handle, events) = ClientHandle::test_channels();
     let actor = test_actor(
         &runtime_dir,
         HashMap::from([(1, local_client(handle))]),
@@ -92,6 +95,7 @@ async fn harness() -> Harness {
         _runtime_dir: runtime_dir,
         repo_path,
         actor,
+        events,
     }
 }
 
@@ -255,3 +259,6 @@ async fn retired_catalog_and_policy_verbs_are_unknown_requests() {
 
 #[path = "automation_experience_tests.rs"]
 mod experience;
+
+#[path = "automation_event_tests.rs"]
+mod events;

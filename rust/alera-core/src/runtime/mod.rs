@@ -29,12 +29,18 @@ mod automation_circuit_store;
 mod automation_models;
 #[cfg(test)]
 mod automation_models_serde_tests;
+mod automation_overlap;
 mod automation_run_store;
 mod automation_target;
 mod automation_workspace_placement;
 mod project_automation_dependencies;
 mod project_registration_store;
-pub use automation_target::AutomationTarget;
+pub use automation_overlap::{
+    busy_target_decision, decide_overlap, AutomationOverlapDecision,
+    AUTOMATION_OVERLAP_SKIP_REASON, AUTOMATION_OVERLAP_SUPERSEDED_REASON,
+    AUTOMATION_QUEUE_LIMIT_REASON,
+};
+pub use automation_target::{AutomationTarget, AutomationWorktreeSpec};
 pub use automation_workspace_placement::AutomationWorkspacePlacement;
 pub use project_automation_dependencies::ProjectAutomationDependency;
 mod automation_authoring;

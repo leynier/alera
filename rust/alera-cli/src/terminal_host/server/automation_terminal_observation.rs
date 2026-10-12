@@ -130,7 +130,7 @@ impl ServerActor {
             session.observer_clients.remove(&client_id);
         }
         self.broadcast_workspace_tabs_changed(run.workspace_id.as_deref());
-        self.automation_run_event(&run);
+        self.broadcast_automation_run_changed(&run);
         Ok(
             json!({"run":run,"sessionId":run.session_id,"workspaceId":run.workspace_id,"tabId":run.tab_id}),
         )

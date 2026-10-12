@@ -1,7 +1,8 @@
 use super::ServerActor;
 use alera_core::runtime::{
     next_occurrence, AutomationActor, AutomationActorKind, AutomationDefinition,
-    AutomationOccurrence, AutomationRunStatus, AutomationRunTrigger, AutomationState,
+    AutomationMisfirePolicy, AutomationOccurrence, AutomationRunStatus, AutomationRunTrigger,
+    AutomationState,
 };
 use chrono::Utc;
 use std::time::{Duration as StdDuration, Instant};
@@ -28,6 +29,29 @@ fn next_due_occurrence(
         .is_some_and(|next| next.scheduled_at <= now)
 }
 
+/// Whether the misfire policy drops this occurrence instead of running it.
+/// `queue` runs every missed occurrence; `runLatestOnce` runs only the last
+/// one that is due.
+fn skips_misfire(
+    definition: &AutomationDefinition,
+    occurrence: &AutomationOccurrence,
+    now: chrono::DateTime<Utc>,
+    runtime_started_at: Option<chrono::DateTime<Utc>>,
+) -> bool {
+    let is_misfire = runtime_started_at.is_some_and(|at| occurrence.scheduled_at < at)
+        || now
+            .signed_duration_since(occurrence.scheduled_at)
+            .num_seconds()
+            > definition.misfire_grace_seconds;
+    match definition.misfire_policy {
+        AutomationMisfirePolicy::Skip => is_misfire,
+        AutomationMisfirePolicy::RunLatestOnce => {
+            is_misfire && next_due_occurrence(definition, occurrence.scheduled_at, now)
+        }
+        AutomationMisfirePolicy::Queue => false,
+    }
+}
+
 impl ServerActor {
     pub(super) async fn handle_automation_tick(&mut self) {
         // Runtime mutations may delete a workspace on a worker while this
@@ -45,19 +69,14 @@ impl ServerActor {
         {
             tracing::warn!("automation history maintenance failed: {error}");
         }
-        if let Err(error) = self
+        match self
             .runtime_store
-            .purge_trashed_automations_with_retention(
-                maintenance_now,
-                self.runtime_store
-                    .automation_settings()
-                    .await
-                    .map(|settings| settings.trash_retention_days)
-                    .unwrap_or(30),
-            )
+            .purge_trashed_automations(maintenance_now)
             .await
         {
-            tracing::warn!("automation trash maintenance failed: {error}");
+            Ok(0) => {}
+            Ok(_) => self.broadcast_automation_changed(None),
+            Err(error) => tracing::warn!("automation trash maintenance failed: {error}"),
         }
         match self
             .runtime_store
@@ -70,10 +89,7 @@ impl ServerActor {
                 }
                 if reset > 0 {
                     self.automation_wake.notify_one();
-                    self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                        "automationsChanged",
-                        serde_json::json!({}),
-                    ));
+                    self.broadcast_automation_changed(None);
                 }
             }
             Err(error) => tracing::warn!("automation circuit reset failed: {error}"),
@@ -146,6 +162,15 @@ impl ServerActor {
                 .ok()
                 .flatten(),
         );
+        let runtime_started_at = self
+            .runtime_store
+            .get_metadata("automations.runtimeStartedAt")
+            .await
+            .ok()
+            .flatten()
+            .and_then(|at| chrono::DateTime::parse_from_rfc3339(&at).ok())
+            .map(|at| at.with_timezone(&Utc));
+        let mut missed = Vec::new();
         let started = Instant::now();
         loop {
             if started.elapsed() >= AUTOMATION_CATCH_UP_BUDGET {
@@ -157,7 +182,7 @@ impl ServerActor {
                 Ok(Some(_)) | Ok(None) => break,
                 Err(error) => {
                     tracing::warn!(automation_id = %definition.id, "invalid automation occurrence: {error}");
-                    let _ = self
+                    if self
                         .runtime_store
                         .set_automation_state(
                             &definition.id,
@@ -165,13 +190,21 @@ impl ServerActor {
                             managed_actor(),
                             Some(&error),
                         )
-                        .await;
+                        .await
+                        .is_ok()
+                    {
+                        self.broadcast_automation_changed(Some(&definition.id));
+                    }
                     break;
                 }
             };
             cursor = occurrence.scheduled_at;
+            if skips_misfire(&definition, &occurrence, now, runtime_started_at) {
+                missed.push(occurrence);
+                continue;
+            }
             if !self
-                .claim_and_start_scheduled(&definition, occurrence, now)
+                .claim_and_start_scheduled(&definition, occurrence)
                 .await
             {
                 continue;
@@ -181,14 +214,57 @@ impl ServerActor {
                 break;
             }
         }
+        self.record_skipped_misfires(&definition, &missed).await;
         self.resume_pending_runs(&definition).await;
+    }
+
+    /// Claims occurrences the misfire policy drops without creating a run for
+    /// each one, and leaves one audit entry for the whole batch.
+    async fn record_skipped_misfires(
+        &self,
+        definition: &AutomationDefinition,
+        missed: &[AutomationOccurrence],
+    ) {
+        let (Some(first), Some(last)) = (missed.first(), missed.last()) else {
+            return;
+        };
+        let count = match self
+            .runtime_store
+            .claim_skipped_automation_occurrences(&definition.id, missed)
+            .await
+        {
+            Ok(0) => return,
+            Ok(count) => count,
+            Err(error) => {
+                tracing::error!(automation_id = %definition.id, "could not claim missed automation occurrences: {error}");
+                return;
+            }
+        };
+        if let Err(error) = self
+            .runtime_store
+            .insert_automation_audit_event(
+                Some(&definition.id),
+                None,
+                "misfiresSkipped",
+                managed_actor(),
+                Some(definition.revision),
+                serde_json::json!({
+                    "count": count,
+                    "from": first.scheduled_at,
+                    "to": last.scheduled_at,
+                }),
+            )
+            .await
+        {
+            tracing::warn!(automation_id = %definition.id, "could not audit missed automation occurrences: {error}");
+        }
+        self.broadcast_automation_changed(Some(&definition.id));
     }
 
     async fn claim_and_start_scheduled(
         &mut self,
         definition: &AutomationDefinition,
         occurrence: AutomationOccurrence,
-        now: chrono::DateTime<Utc>,
     ) -> bool {
         if let Some(maximum) = definition.schedule.max_scheduled_runs() {
             if self
@@ -198,7 +274,7 @@ impl ServerActor {
                 .unwrap_or(maximum)
                 >= maximum
             {
-                let _ = self
+                if self
                     .runtime_store
                     .set_automation_state(
                         &definition.id,
@@ -206,7 +282,11 @@ impl ServerActor {
                         managed_actor(),
                         Some("maximum scheduled runs reached"),
                     )
-                    .await;
+                    .await
+                    .is_ok()
+                {
+                    self.broadcast_automation_changed(Some(&definition.id));
+                }
                 return false;
             }
         }
@@ -227,37 +307,7 @@ impl ServerActor {
                 return false;
             }
         };
-        let before_restart = self
-            .runtime_store
-            .get_metadata("automations.runtimeStartedAt")
-            .await
-            .ok()
-            .flatten()
-            .and_then(|at| chrono::DateTime::parse_from_rfc3339(&at).ok())
-            .is_some_and(|at| occurrence.scheduled_at < at);
-        let is_misfire = before_restart
-            || now
-                .signed_duration_since(occurrence.scheduled_at)
-                .num_seconds()
-                > definition.misfire_grace_seconds;
-        let skip_misfire = match definition.misfire_policy {
-            alera_core::runtime::AutomationMisfirePolicy::Skip => is_misfire,
-            alera_core::runtime::AutomationMisfirePolicy::RunLatestOnce => {
-                is_misfire && next_due_occurrence(definition, occurrence.scheduled_at, now)
-            }
-            alera_core::runtime::AutomationMisfirePolicy::Queue => false,
-        };
-        if skip_misfire {
-            let _ = self
-                .runtime_store
-                .update_automation_run_status(
-                    &run.id,
-                    AutomationRunStatus::MisfireSkipped,
-                    Some("scheduled occurrence exceeded its misfire grace window".to_string()),
-                )
-                .await;
-            return true;
-        }
+        self.broadcast_automation_run_changed(&run);
         match self.target_identity(&definition.target).await {
             Ok(identity) => {
                 run.target_identity = Some(identity);
@@ -274,62 +324,6 @@ impl ServerActor {
                 self.block_run(&run, &reason).await;
                 return true;
             }
-        }
-        let active_runs = self
-            .runtime_store
-            .list_active_automation_runs()
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|active| active.automation_id == definition.id && active.id != run.id)
-            .collect::<Vec<_>>();
-        match definition.overlap_policy {
-            alera_core::runtime::AutomationOverlapPolicy::Skip if !active_runs.is_empty() => {
-                let _ = self
-                    .runtime_store
-                    .update_automation_run_status(
-                        &run.id,
-                        AutomationRunStatus::OverlapSkipped,
-                        Some("an automation run is already active".to_string()),
-                    )
-                    .await;
-                return true;
-            }
-            alera_core::runtime::AutomationOverlapPolicy::RunLatestOnce
-                if !active_runs.is_empty() =>
-            {
-                for active in active_runs
-                    .iter()
-                    .filter(|active| active.status == AutomationRunStatus::Pending)
-                {
-                    let _ = self
-                        .runtime_store
-                        .update_automation_run_status(
-                            &active.id,
-                            AutomationRunStatus::OverlapSkipped,
-                            Some("a newer occurrence replaced this queued run".to_string()),
-                        )
-                        .await;
-                }
-            }
-            alera_core::runtime::AutomationOverlapPolicy::Queue
-                if active_runs
-                    .iter()
-                    .filter(|active| active.status == AutomationRunStatus::Pending)
-                    .count()
-                    >= definition.queue_cap.clamp(1, 10) as usize =>
-            {
-                let _ = self
-                    .runtime_store
-                    .update_automation_run_status(
-                        &run.id,
-                        AutomationRunStatus::QueueLimitSkipped,
-                        Some("automation queue cap reached".to_string()),
-                    )
-                    .await;
-                return true;
-            }
-            _ => {}
         }
         Box::pin(self.start_automation_run(definition, run, true)).await;
         true

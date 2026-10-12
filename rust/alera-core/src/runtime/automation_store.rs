@@ -188,7 +188,11 @@ impl RuntimeStore {
             .map(str::to_string);
         // Project references resolve through the top-level project id, so a
         // project worktree target always records the project it names.
-        if let Some((project_id, _)) = definition.target.project_worktree() {
+        if let Some(project_id) = definition
+            .target
+            .worktree()
+            .and_then(|spec| spec.project_id)
+        {
             if definition.project_id.is_none() {
                 definition.project_id = Some(project_id.to_string());
             }
@@ -334,20 +338,12 @@ impl RuntimeStore {
         Ok(definition)
     }
 
-    pub async fn purge_trashed_automations(&self, before: chrono::DateTime<Utc>) -> Result<u64> {
-        let result =
-            sqlx::query("DELETE FROM automations WHERE state = 'trashed' AND trashedAt < ?")
-                .bind(format_timestamp(before))
-                .execute(self.pool())
-                .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn purge_trashed_automations_with_retention(
-        &self,
-        now: chrono::DateTime<Utc>,
-        retention_days: i64,
-    ) -> Result<u64> {
+    /// Deletes trashed automations older than the configured retention.
+    pub async fn purge_trashed_automations(&self, now: chrono::DateTime<Utc>) -> Result<u64> {
+        let retention_days = self
+            .automation_settings()
+            .await
+            .map_or(30, |settings| settings.trash_retention_days);
         let before = now - chrono::Duration::days(retention_days.max(1));
         let result =
             sqlx::query("DELETE FROM automations WHERE state = 'trashed' AND trashedAt < ?")

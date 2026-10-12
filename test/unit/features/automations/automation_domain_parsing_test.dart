@@ -1,4 +1,5 @@
 import 'package:alera/src/features/automations/domain/automation_catalog_query.dart';
+import 'package:alera/src/features/automations/domain/automation_draft.dart';
 import 'package:alera/src/features/automations/domain/automation_field_bounds.dart';
 import 'package:alera/src/features/automations/domain/automation_json_fields.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
@@ -27,6 +28,70 @@ void main() {
     expect(record.precheck, <String, Object?>{'command': 'true'});
     expect(record.createdByAgent, isTrue);
     expect(record.createdByLabel, 'Codex Daily');
+  });
+
+  test('a worktree target with a parent workspace is workspace based', () {
+    final record = AutomationRecord.fromJson(<String, Object?>{
+      'target': <String, Object?>{
+        'worktree': <String, Object?>{
+          'projectId': 'p1',
+          'parentWorkspaceId': 'w1',
+          'sourceBranch': 'main',
+          'agentProfileId': 'codex',
+        },
+      },
+    });
+    expect(record.targetType, AutomationTargetType.managedWorkspace);
+    expect(record.targetDetails['sourceBranch'], 'main');
+    expect(record.targetWorkspaceId, 'w1');
+    expect(record.agentProfileId, 'codex');
+    final draft = AutomationDraft.fromRecord(record);
+    expect(draft.field(.workspaceId), 'w1');
+    expect(draft.whereError, isNull);
+    expect(draft.targetJson, <String, Object?>{
+      'worktree': <String, Object?>{
+        'parentWorkspaceId': 'w1',
+        'sourceBranch': 'main',
+        'nameTemplate': 'auto-{{automation.slug}}-{{run.number}}',
+        'agentProfileId': 'codex',
+      },
+    });
+  });
+
+  test('a worktree target without a parent workspace is project based', () {
+    final record = AutomationRecord.fromJson(<String, Object?>{
+      'target': <String, Object?>{
+        'worktree': <String, Object?>{
+          'projectId': 'p1',
+          'sourceBranch': 'develop',
+          'nameTemplate': 'run-{{run.number}}',
+          'agentProfileId': 'codex',
+        },
+      },
+    });
+    expect(record.targetType, AutomationTargetType.projectWorktree);
+    expect(record.targetDetails['projectId'], 'p1');
+    expect(record.targetWorkspaceId, isNull);
+    final draft = AutomationDraft.fromRecord(record);
+    expect(draft.field(.projectId), 'p1');
+    expect(draft.nameTemplate, 'run-{{run.number}}');
+    expect(draft.targetJson, <String, Object?>{
+      'worktree': <String, Object?>{
+        'projectId': 'p1',
+        'sourceBranch': 'develop',
+        'nameTemplate': 'run-{{run.number}}',
+        'agentProfileId': 'codex',
+      },
+    });
+  });
+
+  test('legacy worktree target keys still parse', () {
+    AutomationTargetType? typeOf(String key) =>
+        AutomationRecord.fromJson(<String, Object?>{
+          'target': <String, Object?>{key: <String, Object?>{}},
+        }).targetType;
+    expect(typeOf('managedWorkspace'), AutomationTargetType.managedWorkspace);
+    expect(typeOf('projectWorktree'), AutomationTargetType.projectWorktree);
   });
 
   test('a definition without a target or schedule degrades safely', () {

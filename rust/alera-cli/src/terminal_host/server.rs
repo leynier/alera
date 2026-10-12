@@ -99,6 +99,7 @@ mod ai_dictation_requests;
 mod automation_actor;
 mod automation_authoring_requests;
 mod automation_catalog_projection;
+mod automation_change_broadcasts;
 mod automation_definition_requests;
 #[cfg(test)]
 mod automation_definition_requests_tests;

@@ -14,17 +14,18 @@
 
 A one-time schedule is `{"oneTime": {"at": "2026-11-02T09:00:00Z", "timezone": "UTC"}}`; `at` is an RFC 3339 date and time. A recurring schedule may add `startAt`, `endAt`, and `maxScheduledRuns`.
 
-The target is one of five:
+The target is one of four:
 
 | Target | Fields | Behavior |
 | --- | --- | --- |
 | `freshTab` | `workspaceId`, `agentProfileId` | A new agent tab in an existing workspace |
 | `existingTab` | `workspaceId`, `tabId`, optional `conversationId` | Sends to that tab's live conversation |
-| `managedWorkspace` | `sourceWorkspaceId`, `sourceBranch`, `agentProfileId` | A new worktree per run, child of the source workspace |
-| `projectWorktree` | `projectId`, `sourceBranch`, `agentProfileId` | A new worktree per run from the project, with no parent |
+| `worktree` | `projectId` and/or `parentWorkspaceId`, `sourceBranch`, `agentProfileId` | A new worktree and branch per run on this computer; with `parentWorkspaceId` it is a child of that workspace and the project comes from it |
 | `projectCheckout` | `projectId`, `hostId`, `agentProfileId` | A workspace in the project's local or SSH folder |
 
-The three targets that create a workspace also take an optional `nameTemplate`.
+`worktree` needs `projectId`, `parentWorkspaceId`, or both. The older `managedWorkspace` (`sourceWorkspaceId`) and `projectWorktree` spellings are still accepted and come back as `worktree`. A retried attempt reuses the worktree its run already created.
+
+The targets that create a workspace also take an optional `nameTemplate`.
 
 Find ids with `list_workspaces`, `list_projects`, `list_agent_profiles`, `list_tabs`, and `list_project_branches`. `originWorkspaceId` decides where the definition appears in the app, independent of the target.
 

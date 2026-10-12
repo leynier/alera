@@ -123,8 +123,8 @@ void main() {
         .withTargetField(.sourceBranch, 'main')
         .withTargetField(.agentProfileId, 'codex');
     expect(worktree.targetJson, <String, Object?>{
-      'managedWorkspace': <String, Object?>{
-        'sourceWorkspaceId': 'ws-1',
+      'worktree': <String, Object?>{
+        'parentWorkspaceId': 'ws-1',
         'sourceBranch': 'main',
         'nameTemplate': 'auto-{{automation.slug}}-{{run.number}}',
         'agentProfileId': 'codex',

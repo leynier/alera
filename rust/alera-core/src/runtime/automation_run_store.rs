@@ -186,6 +186,18 @@ impl RuntimeStore {
         rows.into_iter().map(decode_run).collect()
     }
 
+    /// The error of the newest run that recorded one.
+    pub async fn latest_automation_run_error(&self, automation_id: &str) -> Result<Option<String>> {
+        Ok(sqlx::query(
+            "SELECT json_extract(dataJson, '$.error') AS error FROM automationRuns WHERE automationId = ? AND json_extract(dataJson, '$.error') IS NOT NULL ORDER BY createdAt DESC, runNumber DESC LIMIT 1",
+        )
+        .bind(automation_id)
+        .fetch_optional(self.pool())
+        .await?
+        .map(|row| row.try_get("error"))
+        .transpose()?)
+    }
+
     pub async fn save_automation_run(&self, run: &AutomationRun) -> Result<AutomationRun> {
         let existing = self
             .find_automation_run(&run.id)
@@ -219,13 +231,55 @@ impl RuntimeStore {
         Ok(saved)
     }
 
-    pub async fn count_automation_failure_streak(&self, automation_id: &str) -> Result<i64> {
-        let runs = self.list_automation_runs(Some(automation_id), 1000).await?;
-        Ok(runs
-            .into_iter()
-            .filter(|run| run.trigger == AutomationRunTrigger::Scheduled)
-            .take_while(|run| run.status.counts_as_failure())
-            .count() as i64)
+    /// Counts consecutive failed scheduled runs, newest first. Reading stops at
+    /// `threshold` (at most 10) because the circuit breaker only compares
+    /// the streak with it.
+    pub async fn count_automation_failure_streak(
+        &self,
+        automation_id: &str,
+        threshold: i64,
+    ) -> Result<i64> {
+        let rows = sqlx::query(
+            "SELECT status FROM automationRuns WHERE automationId = ? AND trigger = 'scheduled' ORDER BY createdAt DESC, runNumber DESC LIMIT ?",
+        )
+        .bind(automation_id)
+        .bind(threshold.clamp(1, 10))
+        .fetch_all(self.pool())
+        .await?;
+        let mut streak = 0;
+        for row in rows {
+            if !AutomationRunStatus::from_db(&row.try_get::<String, _>("status")?)
+                .counts_as_failure()
+            {
+                break;
+            }
+            streak += 1;
+        }
+        Ok(streak)
+    }
+
+    /// Claims scheduled occurrences that will never run, without run rows, so
+    /// the schedule cursor moves past them. Returns how many were new.
+    pub async fn claim_skipped_automation_occurrences(
+        &self,
+        automation_id: &str,
+        occurrences: &[AutomationOccurrence],
+    ) -> Result<u64> {
+        let mut tx = self.pool().begin().await?;
+        let claimed_at = format_timestamp(Utc::now());
+        let mut claimed = 0;
+        for occurrence in occurrences {
+            claimed += sqlx::query("INSERT INTO automationOccurrences (automationId, occurrenceKey, scheduledAt, claimedAt) VALUES (?, ?, ?, ?) ON CONFLICT(automationId, occurrenceKey) DO NOTHING")
+                .bind(automation_id)
+                .bind(&occurrence.key)
+                .bind(format_timestamp(occurrence.scheduled_at))
+                .bind(&claimed_at)
+                .execute(&mut *tx)
+                .await?
+                .rows_affected();
+        }
+        tx.commit().await?;
+        Ok(claimed)
     }
 
     pub async fn list_active_automation_runs(&self) -> Result<Vec<AutomationRun>> {

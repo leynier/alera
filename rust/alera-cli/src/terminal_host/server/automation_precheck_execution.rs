@@ -91,7 +91,7 @@ impl ServerActor {
             Err(_) => true,
         };
         if unresolved && run.status != AutomationRunStatus::WaitingForUser {
-            let _ = self.runtime_store.update_automation_run_status(
+            let _ = self.set_automation_run_status(
                 &run.id, AutomationRunStatus::WaitingForUser,
                 Some("Automation precheck process closure is unverified; its run and dependencies are retained".into()),
             ).await;
@@ -204,8 +204,7 @@ impl ServerActor {
             Ok(Some(live)) if live.state != AutomationState::Trashed => false,
             Ok(_) => {
                 let _ = self
-                    .runtime_store
-                    .update_automation_run_status(
+                    .set_automation_run_status(
                         &run.id,
                         AutomationRunStatus::Cancelled,
                         Some(format!("Automation was deleted during {stage}")),
@@ -243,8 +242,7 @@ impl ServerActor {
         }
         if current.cancel_requested_at.is_some() {
             let _ = self
-                .runtime_store
-                .update_automation_run_status(
+                .set_automation_run_status(
                     &current.id,
                     AutomationRunStatus::Cancelled,
                     Some("Automation cancelled during precheck".into()),
@@ -290,8 +288,7 @@ impl ServerActor {
             self.block_run(&current, &error).await;
         } else {
             let _ = self
-                .runtime_store
-                .update_automation_run_status(
+                .set_automation_run_status(
                     &current.id,
                     AutomationRunStatus::PrecheckSkipped,
                     Some(error),

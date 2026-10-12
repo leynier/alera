@@ -2,7 +2,7 @@
 name: alera-mcp-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through this MCP server, and follow their runs. Use for recurring or one-time agent work.
 metadata:
-  version: 3
+  version: 4
 ---
 
 # Alera Automations Through MCP

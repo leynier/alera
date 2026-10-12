@@ -27,9 +27,6 @@ impl ServerActor {
         match target {
             AutomationTarget::ProjectCheckout {
                 agent_profile_id, ..
-            }
-            | AutomationTarget::ProjectWorktree {
-                agent_profile_id, ..
             } => Ok(AutomationTargetIdentity {
                 workspace_id: None,
                 tab_id: None,
@@ -78,12 +75,10 @@ impl ServerActor {
                 conversation_id: None,
                 terminal_handle: None,
             }),
-            AutomationTarget::ManagedWorkspace {
-                source_workspace_id,
-                agent_profile_id,
-                ..
+            AutomationTarget::Worktree {
+                agent_profile_id, ..
             } => Ok(AutomationTargetIdentity {
-                workspace_id: Some(source_workspace_id.clone()),
+                workspace_id: workspace_id.map(str::to_string),
                 tab_id: None,
                 session_id: None,
                 profile_id: Some(agent_profile_id.clone()),
@@ -135,10 +130,12 @@ impl ServerActor {
             run.retry_after = Some(Utc::now() + Duration::seconds(5));
             run.started_at = None;
             run.updated_at = Utc::now();
-            self.runtime_store
+            let parked = self
+                .runtime_store
                 .save_automation_run(run)
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?;
+            self.broadcast_automation_run_changed(&parked);
             return Ok(());
         }
         self.queue_orchestration_paste(&session_id, prompt, Vec::new(), true)?;
@@ -154,8 +151,7 @@ impl ServerActor {
         reason: &str,
     ) {
         let _ = self
-            .runtime_store
-            .update_automation_run_status(
+            .set_automation_run_status(
                 &run.id,
                 AutomationRunStatus::Blocked,
                 Some(reason.to_string()),
@@ -233,7 +229,7 @@ impl ServerActor {
                         + Duration::seconds(
                             definition.retry_backoff_seconds.saturating_mul(multiplier),
                         );
-                    if self
+                    if let Ok(retrying) = self
                         .runtime_store
                         .schedule_automation_retry(
                             &run.id,
@@ -242,12 +238,8 @@ impl ServerActor {
                             managed_actor(),
                         )
                         .await
-                        .is_ok()
                     {
-                        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                            "automationRunChanged",
-                            json!({ "automationId": run.automation_id, "runId": run.id, "retryAt": retry_after }),
-                        ));
+                        self.broadcast_automation_run_changed(&retrying);
                         return;
                     }
                 }
@@ -259,21 +251,18 @@ impl ServerActor {
         }
         let _ = self.runtime_store.save_automation_run(&exhausted).await;
         let _ = self
-            .runtime_store
-            .update_automation_run_status(
-                &run.id,
-                AutomationRunStatus::Failure,
-                Some(reason.clone()),
-            )
+            .set_automation_run_status(&run.id, AutomationRunStatus::Failure, Some(reason.clone()))
             .await;
-        self.automation_run_event(&exhausted);
         if run.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled {
             if let Ok(Some(definition)) =
                 self.runtime_store.find_automation(&run.automation_id).await
             {
                 if self
                     .runtime_store
-                    .count_automation_failure_streak(&run.automation_id)
+                    .count_automation_failure_streak(
+                        &run.automation_id,
+                        definition.circuit_failure_threshold,
+                    )
                     .await
                     .unwrap_or_default()
                     >= definition.circuit_failure_threshold
@@ -322,8 +311,7 @@ impl ServerActor {
             }
             if run.cancel_requested_at.is_some() && run.started_at.is_none() {
                 let _ = self
-                    .runtime_store
-                    .update_automation_run_status(
+                    .set_automation_run_status(
                         &run.id,
                         AutomationRunStatus::Cancelled,
                         Some("automation cancellation requested before dispatch".to_string()),
@@ -369,8 +357,7 @@ impl ServerActor {
                     self.terminate_owned_automation_sessions(&run).await;
                 }
                 let _ = self
-                    .runtime_store
-                    .update_automation_run_status(
+                    .set_automation_run_status(
                         &run.id,
                         status,
                         Some(if cancellation_expired {
@@ -403,7 +390,10 @@ impl ServerActor {
                     && run.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
                     && self
                         .runtime_store
-                        .count_automation_failure_streak(&run.automation_id)
+                        .count_automation_failure_streak(
+                            &run.automation_id,
+                            definition.circuit_failure_threshold,
+                        )
                         .await
                         .unwrap_or_default()
                         >= definition.circuit_failure_threshold
@@ -433,6 +423,7 @@ impl ServerActor {
             tracing::warn!(automation_id, "could not open automation circuit: {error}");
             return;
         }
+        self.broadcast_automation_changed(Some(automation_id));
         self.automations_active = true;
         self.automation_wake.notify_one();
     }
@@ -449,10 +440,14 @@ impl ServerActor {
         if definition.state != AutomationState::Active {
             return;
         }
-        let _ = self
+        if self
             .runtime_store
             .set_automation_state(automation_id, AutomationState::Blocked, actor, reason)
-            .await;
+            .await
+            .is_ok()
+        {
+            self.broadcast_automation_changed(Some(automation_id));
+        }
     }
 
     async fn terminate_owned_automation_sessions(&mut self, run: &AutomationRun) {

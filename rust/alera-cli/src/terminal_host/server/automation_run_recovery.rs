@@ -31,7 +31,7 @@ impl ServerActor {
                 .set_automation_run_waiting(&run.id, actor, true)
                 .await
             {
-                self.automation_run_event(&waiting);
+                self.broadcast_automation_run_changed(&waiting);
                 self.broadcast_authenticated(crate::terminal_host::protocol::event("automationAttentionRequired",json!({"automationId":run.automation_id,"runId":run.id,"reason":"Agent is waiting for input"})));
                 if let Some(definition) = run.definition_snapshot.as_ref() {
                     self.queue_automation_push(
@@ -152,15 +152,8 @@ impl ServerActor {
             }
             let _ = self.runtime_store.save_automation_run(&run).await;
             self.record_automation_process(&run).await;
-            self.automation_run_event(&run);
+            self.broadcast_automation_run_changed(&run);
         }
-    }
-
-    pub(super) fn automation_run_event(&self, run: &AutomationRun) {
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationRunChanged",
-            json!({"automationId":run.automation_id,"runId":run.id}),
-        ));
     }
 
     pub(super) async fn resume_interrupted_automation_run(
@@ -282,14 +275,14 @@ impl ServerActor {
                 started.updated_at = Utc::now();
                 let _ = self.runtime_store.save_automation_run(&started).await;
                 self.record_automation_process(&started).await;
-                self.automation_run_event(&started);
+                self.broadcast_automation_run_changed(&started);
             }
             Err(error) => {
                 self.fail_run(&started, error.wire_message()).await;
             }
         }
         run = started;
-        self.automation_run_event(&run);
+        self.broadcast_automation_run_changed(&run);
     }
 
     pub(super) async fn automation_recovery_tab(
@@ -304,19 +297,11 @@ impl ServerActor {
                 .ok()
                 .flatten();
         }
-        for workspace in self.runtime_store.list_all_workspaces().await.ok()? {
-            for tab in self
-                .runtime_store
-                .list_workspace_tabs(&workspace.id)
-                .await
-                .ok()?
-            {
-                if tab.payload["automationRunId"].as_str() == Some(run.id.as_str()) {
-                    return Some(tab);
-                }
-            }
-        }
-        None
+        self.runtime_store
+            .find_workspace_tab_by_automation_run(&run.id)
+            .await
+            .ok()
+            .flatten()
     }
 }
 

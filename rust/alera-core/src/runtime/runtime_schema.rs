@@ -343,7 +343,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
@@ -354,7 +355,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
          )
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
@@ -368,7 +370,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
@@ -379,7 +382,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
          )
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",

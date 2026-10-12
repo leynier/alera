@@ -105,7 +105,9 @@ pub struct AutomationDefinitionFileArgs {
     #[arg(long)]
     pub timezone: Option<String>,
     /// Required for flag-based creation; never inferred from context.
-    #[arg(long, value_parser = ["fresh-tab", "existing-tab", "managed-workspace", "project-worktree", "project-checkout"])]
+    /// `managed-workspace` and `project-worktree` are older names for
+    /// `worktree`.
+    #[arg(long, value_parser = ["fresh-tab", "existing-tab", "worktree", "managed-workspace", "project-worktree", "project-checkout"])]
     pub target: Option<String>,
     #[arg(long)]
     pub workspace_id: Option<String>,

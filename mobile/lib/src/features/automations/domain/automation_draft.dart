@@ -49,6 +49,7 @@ class const AutomationDraft({
       for (final (field, key) in <(AutomationDraftField, String)>[
         (.workspaceId, 'workspaceId'),
         (.workspaceId, 'sourceWorkspaceId'),
+        (.workspaceId, 'parentWorkspaceId'),
         (.sourceBranch, 'sourceBranch'),
         (.projectId, 'projectId'),
         (.hostId, 'hostId'),
@@ -288,7 +289,7 @@ class const AutomationDraft({
         'agentProfileId': value(.agentProfileId),
       },
       AutomationTargetType.managedWorkspace => <String, Object?>{
-        'sourceWorkspaceId': value(.workspaceId),
+        'parentWorkspaceId': value(.workspaceId),
         'sourceBranch': value(.sourceBranch),
         'nameTemplate': nameTemplate.trim(),
         'agentProfileId': value(.agentProfileId),
@@ -312,7 +313,7 @@ class const AutomationDraft({
       },
     };
     return <String, Object?>{
-      type.key: <String, Object?>{
+      type.wireKey: <String, Object?>{
         for (final entry in details.entries)
           if (entry.value != null) entry.key: entry.value,
       },

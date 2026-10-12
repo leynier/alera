@@ -2,7 +2,7 @@
 name: alera-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through the CLI, and report the lifecycle of an automation run. Use for recurring or one-time agent work in an Alera runtime.
 metadata:
-  version: 2
+  version: 3
 ---
 
 # Alera Automations

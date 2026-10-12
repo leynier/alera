@@ -93,8 +93,9 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
             workspace_id: workspace.id.clone(),
             agent_profile_id: "profile".into(),
         },
-        AutomationTarget::ManagedWorkspace {
-            source_workspace_id: workspace.id.clone(),
+        AutomationTarget::Worktree {
+            project_id: None,
+            parent_workspace_id: Some(workspace.id.clone()),
             source_branch: "main".into(),
             name_template: "automation-workspace".into(),
             agent_profile_id: "profile".into(),
