@@ -10,10 +10,17 @@ struct Remote {
 }
 
 impl RemoteHostExecutor for Remote {
-    async fn probe_windows(&self, _: &SshTarget) -> Option<bool> {
-        self.online.then_some(false)
+    async fn probe_shell(&self, _: &SshTarget) -> Option<crate::remote_shell::RemoteShell> {
+        self.online
+            .then_some(crate::remote_shell::RemoteShell::Posix)
     }
-    async fn run(&self, _: &SshTarget, _: bool, script: &str) -> Result<String> {
+    async fn run(
+        &self,
+        _: &SshTarget,
+        _: crate::remote_shell::RemoteShell,
+        script: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
+    ) -> Result<String> {
         self.scripts.lock().unwrap().push(script.into());
         Ok(self.receipt.to_string())
     }

@@ -20,3 +20,16 @@ where
             serde_json::to_value(value).map_err(|error| HostError::format(error.to_string()))
         })
 }
+
+/// [`json_result`] for `anyhow` errors, which keeps the context chain and
+/// types a failed remote command (see [`HostError::from_anyhow`]).
+pub(super) fn anyhow_json_result<T>(result: anyhow::Result<T>) -> HostResult<Value>
+where
+    T: serde::Serialize,
+{
+    result
+        .map_err(|error| HostError::from_anyhow(&error))
+        .and_then(|value| {
+            serde_json::to_value(value).map_err(|error| HostError::format(error.to_string()))
+        })
+}

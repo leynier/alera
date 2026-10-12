@@ -4,6 +4,10 @@ use std::os::unix::fs::{symlink, PermissionsExt};
 
 pub(super) struct HubAndSatellite {
     _directory: tempfile::TempDir,
+    pub(super) hub: std::path::PathBuf,
+    /// One line per host link the fake `ssh` started: the pid that ends up
+    /// running `alera runtime-attach`.
+    pub(super) link_pids: std::path::PathBuf,
     pub(super) remote: std::path::PathBuf,
     pub(super) satellite: std::path::PathBuf,
     _satellite_guard: HostGuard,
@@ -25,6 +29,15 @@ pub(super) fn hub_and_satellite() -> HubAndSatellite {
 /// configured identity at both checkouts, so the satellite's mirror validation
 /// and the `git.*` verbs see what a real clone would give them.
 pub(super) fn hub_and_satellite_with_kind(kind: &str) -> HubAndSatellite {
+    hub_and_satellite_with_options(kind, true)
+}
+
+/// Without `remote_workspace` the hub knows the host but has nothing on it,
+/// so its supervisor has no reason to open a link.
+pub(super) fn hub_and_satellite_with_options(
+    kind: &str,
+    remote_workspace: bool,
+) -> HubAndSatellite {
     let directory = tempfile::tempdir().unwrap();
     let hub = directory.path().join("hub-runtime");
     let local = directory.path().join("local-project");
@@ -66,9 +79,15 @@ pub(super) fn hub_and_satellite_with_kind(kind: &str) -> HubAndSatellite {
             install.join("current/alera").display()
         ),
     );
+    let link_pids = commands.join("link.pids");
+    // The attach command is exec'd all the way down, so the recorded pid is
+    // the process whose stdout carries the link.
     executable(
         &commands.join("ssh"),
-        "#!/bin/sh\nfor argument do command=$argument; done\nexec /bin/sh -c \"$command\"\n".into(),
+        format!(
+            "#!/bin/sh\nfor argument do command=$argument; done\ncase \"$command\" in *runtime-attach*) echo $$ >> '{}'; exec /bin/sh -c \"exec $command\" ;; esac\nexec /bin/sh -c \"$command\"\n",
+            link_pids.display()
+        ),
     );
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
@@ -80,10 +99,12 @@ pub(super) fn hub_and_satellite_with_kind(kind: &str) -> HubAndSatellite {
             .register_project_checkout("project-1", "ssh", remote.to_str().unwrap())
             .await
             .unwrap();
-        let mut task: Workspace =
-            serde_json::from_value(workspace_payload("task", &remote)).unwrap();
-        task.host_id = "ssh".into();
-        store.insert_workspace(task).await.unwrap();
+        if remote_workspace {
+            let mut task: Workspace =
+                serde_json::from_value(workspace_payload("task", &remote)).unwrap();
+            task.host_id = "ssh".into();
+            store.insert_workspace(task).await.unwrap();
+        }
         let target: SshTarget = serde_json::from_value(json!({"id":"ssh","alias":"Lab","host":"test.invalid","port":22,"username":"test","authKind":"agent",
             "createdAt":"2026-07-19T00:00:00Z","updatedAt":"2026-07-19T00:00:00Z","installDir":install,"bootstrapStatus":"installed","runtimePlatform":"linux"})).unwrap();
         store.upsert_ssh_target(target).await.unwrap();
@@ -96,6 +117,8 @@ pub(super) fn hub_and_satellite_with_kind(kind: &str) -> HubAndSatellite {
     let (hub_guard, hub_port) = spawn_host_with_path(&hub, "hub-token", Some(path));
     HubAndSatellite {
         _directory: directory,
+        hub,
+        link_pids,
         remote,
         satellite,
         _satellite_guard: satellite_guard,

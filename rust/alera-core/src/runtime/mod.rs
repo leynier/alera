@@ -334,7 +334,7 @@ pub use runtime_event_store::{
 };
 pub use runtime_file_security::*;
 pub use settings_models::*;
-pub use ssh_target_store::SshTargetBootstrapStateUpdate;
+pub use ssh_target_store::{SshTargetBootstrapStateUpdate, SshTargetReferences};
 pub use store::*;
 pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};

@@ -29,8 +29,11 @@ impl ServerActor {
             return;
         }
         job.status = progress.status;
+        job.stage = progress.stage.clone();
+        job.message = progress.message.clone();
+        let target_id = progress.target_id.clone();
         self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        self.broadcast_ssh_targets_changed(Some(&target_id));
     }
 
     pub(super) fn handle_ssh_bootstrap_finished(
@@ -49,7 +52,7 @@ impl ServerActor {
                 "sshTargetBootstrapProgress",
                 json!(SshTargetBootstrapProgress {
                     job_id,
-                    target_id,
+                    target_id: target_id.clone(),
                     status,
                     stage: status.as_str().to_string(),
                     message: match status {
@@ -62,7 +65,10 @@ impl ServerActor {
                     error: None,
                 }),
             ));
-            self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+            self.broadcast_ssh_targets_changed(Some(&target_id));
+            if status == SshBootstrapStatus::Installed {
+                self.host_links.clear_configuration_failure(&target_id);
+            }
             self.schedule_shutdown_if_idle();
         }
     }

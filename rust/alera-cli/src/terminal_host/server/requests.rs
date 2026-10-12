@@ -20,7 +20,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::SessionDriver;
 
 use super::host_service_requests::required_non_blank;
-pub(super) use super::request_payloads::{json_result, parse_payload};
+pub(super) use super::request_payloads::{anyhow_json_result, json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
 

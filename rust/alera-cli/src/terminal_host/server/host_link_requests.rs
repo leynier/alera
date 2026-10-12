@@ -4,7 +4,9 @@
 //! runs in a spawned task and answers through
 //! [`super::ServerCommand::HostLinkRequestFinished`]; only `hostLink.status` is
 //! answered inline. `hostLink.mirrorWorkspace` registers a remote workspace on
-//! its satellite (see [`super::host_link_routing`]).
+//! its satellite (see [`super::host_link_routing`]). `hostLink.connect` marks
+//! the host explicit and `hostLink.disconnect` pauses it, so the supervisor
+//! ([`crate::terminal_host::host_link_supervisor`]) follows the user's choice.
 
 use serde_json::{json, Value};
 
@@ -41,8 +43,8 @@ impl ServerActor {
                 let host_id = require_remote_host_id(payload)?;
                 let links = self.host_links.clone();
                 self.spawn_deferred_request(client_id, request_id, async move {
-                    links.link(&host_id).await?;
-                    Ok(link_state_payload(&links, &host_id))
+                    links.connect_explicitly(&host_id).await?;
+                    Ok(links.status_payload(&host_id))
                 });
                 Ok(true)
             }
@@ -51,7 +53,7 @@ impl ServerActor {
                 let links = self.host_links.clone();
                 self.spawn_deferred_request(client_id, request_id, async move {
                     links.disconnect(&host_id).await;
-                    Ok(link_state_payload(&links, &host_id))
+                    Ok(links.status_payload(&host_id))
                 });
                 Ok(true)
             }
@@ -111,20 +113,25 @@ impl ServerActor {
         }
     }
 
-    pub(super) fn handle_host_link_state_changed(&mut self, host_id: String) {
-        let payload = link_state_payload(&self.host_links, &host_id);
+    pub(super) fn handle_host_link_state_changed(&mut self, host_id: String, newly_attached: bool) {
         // Whatever changed while the link was down is read once it is back.
-        if payload.get("state").and_then(Value::as_str) == Some("attached") {
-            self.push_agent_hook_settings_to_satellite(&host_id);
-            self.start_remote_agent_presence_sync(&host_id);
+        if newly_attached {
+            if let crate::terminal_host::host_link::HostLinkState::Attached { attachment } =
+                self.host_links.state(&host_id)
+            {
+                self.push_agent_hook_settings_to_satellite(&host_id);
+                self.start_remote_agent_presence_sync(&host_id);
+                self.record_host_attachment(&host_id, &attachment);
+            }
         }
+        let payload = self.host_links.status_payload(&host_id);
         self.broadcast_authenticated_local(event(HOST_LINK_CHANGED_EVENT, payload));
     }
 
     pub(super) fn handle_host_link_closed(&mut self, host_id: String, error: String) {
         tracing::warn!(target: "host_link", host_id, "host link closed: {error}");
         self.host_links.note_closed(&host_id, &error);
-        self.handle_host_link_state_changed(host_id);
+        self.handle_host_link_state_changed(host_id, false);
     }
 
     /// Satellite events are re-published wrapped with their host id. Terminal
@@ -151,17 +158,6 @@ fn require_remote_host_id(payload: &Value) -> HostResult<String> {
         ));
     }
     Ok(host_id)
-}
-
-pub(crate) fn link_state_payload(
-    links: &crate::terminal_host::host_link_registry::HostLinkRegistry,
-    host_id: &str,
-) -> Value {
-    let mut value = serde_json::to_value(links.state(host_id)).unwrap_or(Value::Null);
-    if let Some(object) = value.as_object_mut() {
-        object.insert("hostId".into(), json!(host_id));
-    }
-    value
 }
 
 #[cfg(test)]

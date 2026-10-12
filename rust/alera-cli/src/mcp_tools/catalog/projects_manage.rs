@@ -1,5 +1,5 @@
 //! Project registration, cloning, hosts, branches, and configuration, and the
-//! SSH targets projects can live on.
+//! remote hosts projects can live on.
 
 use serde_json::Value;
 
@@ -35,7 +35,7 @@ fn host_schema() -> Value {
     object(
         &[
             ("projectId", project_id()),
-            ("hostId", string("SSH target id from list_ssh_targets.")),
+            ("hostId", string("Host id from list_ssh_targets.")),
         ],
         &["projectId", "hostId"],
     )
@@ -149,11 +149,11 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         long(execute(
             "register_remote_project",
             "Register Remote Project",
-            "Add a project that lives only on an SSH host, from an existing folder there (path) or by cloning a repository into the host's projects folder (cloneUrl).",
+            "Add a project that lives only on a remote host, from an existing folder there (path) or by cloning a repository into the host's projects folder (cloneUrl).",
             || {
                 object(
                     &[
-                        ("hostId", string("SSH target id from list_ssh_targets.")),
+                        ("hostId", string("Host id from list_ssh_targets.")),
                         ("path", string("Existing folder on the host.")),
                         ("cloneUrl", text("Repository URL to clone on the host.", 2_048)),
                         ("name", string("Display name.")),
@@ -173,28 +173,6 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option_if("--clone-url", clone_url)
                     .option_if("--name", arguments.string("name"))
                     .option_if("--kind", kind_flag(arguments)))
-            },
-        )),
-        long(execute(
-            "register_project_checkout",
-            "Register Project Checkout",
-            "Register an existing folder on an SSH host as a project's checkout there, or clone into that new folder first with cloneUrl.",
-            || {
-                object(
-                    &[
-                        ("projectId", project_id()),
-                        ("hostId", string("SSH target id from list_ssh_targets.")),
-                        ("path", string("Folder on the host.")),
-                        ("cloneUrl", text("Repository URL to clone into path first.", 2_048)),
-                    ],
-                    &["projectId", "hostId", "path"],
-                )
-            },
-            |arguments| {
-                Ok(project(&["register-checkout"], "--project-id", arguments)?
-                    .option("--host-id", arguments.required("hostId")?)
-                    .option("--path", arguments.required("path")?)
-                    .option_if("--clone-url", arguments.string("cloneUrl")))
             },
         )),
         idempotent(execute(
@@ -234,13 +212,13 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         long(execute(
             "add_project_host",
             "Add Project Host",
-            "Add a project to an SSH host: register an existing folder there (path), or clone the project's Git remote (or cloneUrl) into the host's projects folder.",
+            "Put a project on a remote host in one of three ways: register an existing checkout there (path), clone into a new folder (path with cloneUrl), or let the host clone the project's Git remote, or cloneUrl, into its projects folder (no path). The host must have the Alera runtime installed.",
             || {
                 object(
                     &[
                         ("projectId", project_id()),
-                        ("hostId", string("SSH target id from list_ssh_targets.")),
-                        ("path", string("Existing folder on the host.")),
+                        ("hostId", string("Host id from list_ssh_targets.")),
+                        ("path", string("Absolute folder on the host. Alone it must already hold the checkout; with cloneUrl it must not exist yet and the clone goes there.")),
                         ("cloneUrl", text("Repository URL to clone instead of the project's remote.", 2_048)),
                     ],
                     &["projectId", "hostId"],
@@ -274,7 +252,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 object(
                     &[
                         ("projectId", project_id()),
-                        ("hostId", string("SSH target id, or `local` (default).")),
+                        ("hostId", string("Host id from list_ssh_targets, or `local` (default).")),
                     ],
                     &["projectId"],
                 )
@@ -323,18 +301,28 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "list_ssh_targets",
             "List SSH Targets",
-            "List the SSH hosts this runtime knows, with their platform, installed runtime, and bootstrap state. Credentials are never included.",
+            "List the remote hosts this runtime reaches over SSH, with their platform, installed Alera runtime, and bootstrap state. Credentials are never included.",
             no_arguments,
             |_| Ok(Invocation::new("ssh-target", &["list"])),
         ),
         long(read(
             "ssh_target_status",
             "SSH Target Status",
-            "Check whether SSH hosts are reachable and which runtime they have installed: one host by targetId, or all of them.",
-            || object(&[("targetId", string("SSH target id from list_ssh_targets."))], &[]),
+            "Check whether remote hosts are reachable over SSH and which Alera runtime they have installed: one host by hostId, or all of them.",
+            || {
+                object(
+                    &[
+                        ("hostId", string("Host id from list_ssh_targets.")),
+                        ("targetId", string("Older name for hostId; hostId wins when both are given.")),
+                    ],
+                    &[],
+                )
+            },
             |arguments| {
-                Ok(Invocation::new("ssh-target", &["status"])
-                    .option_if("--id", arguments.string("targetId")))
+                Ok(Invocation::new("ssh-target", &["status"]).option_if(
+                    "--id",
+                    arguments.string("hostId").or_else(|| arguments.string("targetId")),
+                ))
             },
         )),
     ]

@@ -3,10 +3,19 @@ use super::*;
 struct Declaration(Option<bool>);
 
 impl crate::ssh_remote::RemoteHostExecutor for Declaration {
-    async fn probe_windows(&self, _: &alera_core::runtime::SshTarget) -> Option<bool> {
-        Some(false)
+    async fn probe_shell(
+        &self,
+        _: &alera_core::runtime::SshTarget,
+    ) -> Option<crate::remote_shell::RemoteShell> {
+        Some(crate::remote_shell::RemoteShell::Posix)
     }
-    async fn run(&self, _: &alera_core::runtime::SshTarget, _: bool, _: &str) -> Result<String> {
+    async fn run(
+        &self,
+        _: &alera_core::runtime::SshTarget,
+        _: crate::remote_shell::RemoteShell,
+        _: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
+    ) -> Result<String> {
         Ok(
             serde_json::json!({"version":1,"path":"/fixture/remote","kind":"folder",
             "branch":null,"automationDeclared":self.0})

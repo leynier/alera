@@ -34,16 +34,14 @@ pub enum ProjectAction {
     /// Retire a shared task after its running owner verifies process shutdown.
     #[command(hide = true)]
     RetireOwnerWorkspace(crate::remote_owner_retirement::RemoteOwnerRetirementArgs),
-    /// Register stable task ownership in the remote runtime profile.
-    #[command(hide = true)]
-    RegisterOwnerWorkspace(crate::remote_workspace_owner::RemoteWorkspaceOwnerArgs),
     /// Clone into a new directory on the owning host without starting a runtime.
     #[command(hide = true)]
     CloneCheckoutFolder(crate::project_checkout_clone::CloneCheckoutArgs),
     /// Create a linked worktree using only this host's repository.
     #[command(hide = true)]
     CreateCheckoutWorktree(crate::project_checkout_worktree::CreateCheckoutWorktreeArgs),
-    /// Register an existing project folder on an SSH host.
+    /// Legacy spelling of `project hosts add --path [--clone-url]`.
+    #[command(hide = true)]
     RegisterCheckout(ProjectCheckoutRegisterArgs),
     /// Inspect a checkout on its owning host without starting a runtime.
     #[command(hide = true)]
@@ -63,8 +61,8 @@ pub enum ProjectAction {
     Hosts(ProjectHostsCommand),
     /// Register a local project path.
     Add(ProjectAddArgs),
-    /// Register a project that lives only on an SSH host, from an existing
-    /// folder there or by cloning a repository into its default projects folder.
+    /// Register a project that lives only on a remote host, from an existing
+    /// folder there or by cloning a repository into its projects folder.
     AddRemote(ProjectAddRemoteArgs),
     /// Remove a project and runtime-owned child records.
     Remove(ProjectRemoveArgs),
@@ -90,8 +88,9 @@ pub struct ProjectHostsCommand {
 pub enum ProjectHostsAction {
     /// List the hosts a project is on, with its path on each.
     List(ProjectHostsListArgs),
-    /// Add a project to an SSH host. Without --path the host clones the
-    /// project's Git remote into its default projects folder.
+    /// Put a project on a remote host: register an existing checkout
+    /// (--path), clone into a new folder (--path with --clone-url), or let the
+    /// host clone into its projects folder (no --path).
     Add(ProjectHostsAddArgs),
     /// Forget a project's checkout on a host. Files are never deleted.
     Remove(ProjectHostsRemoveArgs),
@@ -107,9 +106,11 @@ pub struct ProjectHostsListArgs {
 pub struct ProjectHostsAddArgs {
     #[arg(long)]
     pub project_id: String,
+    /// Host id from `ssh-target list`.
     #[arg(long)]
     pub host_id: String,
-    /// Register this existing checkout instead of cloning.
+    /// Absolute folder on the host. Alone it must already hold the checkout;
+    /// with --clone-url it must not exist yet and the clone goes there.
     #[arg(long)]
     pub path: Option<String>,
     /// Clone this source instead of the project's own Git remote.
@@ -136,7 +137,7 @@ pub struct ProjectRemoveArgs {
 
 #[derive(Debug, Args)]
 pub struct ProjectCheckoutRegisterArgs {
-    /// Clone this source into the new path on the SSH host before registration.
+    /// Clone this source into the new path on the host before registration.
     #[arg(long)]
     pub clone_url: Option<String>,
     #[arg(long)]
@@ -248,7 +249,7 @@ pub struct ProjectCloneStartArgs {
 pub struct ProjectBranchesArgs {
     #[arg(long)]
     pub project_id: String,
-    /// SSH target id, or `local` (the default).
+    /// Host id from `ssh-target list`, or `local` (the default) for this device.
     #[arg(long)]
     pub host_id: Option<String>,
 }

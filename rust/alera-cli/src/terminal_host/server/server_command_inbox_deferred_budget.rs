@@ -18,6 +18,9 @@ pub(super) fn command_bytes(command: &ServerCommand) -> Option<usize> {
         ServerCommand::SshBootstrapFinished {
             target_id, job_id, ..
         } => string_bytes(target_id) + string_bytes(job_id),
+        ServerCommand::SshTargetsChanged { host_id } => {
+            host_id.as_deref().map(string_bytes).unwrap_or_default()
+        }
         ServerCommand::PullRequestWatchSnapshot { watch, result, .. } => {
             serialized_bytes(watch) + host_result_value_bytes(result)
         }

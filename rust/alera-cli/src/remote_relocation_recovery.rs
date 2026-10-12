@@ -63,25 +63,30 @@ async fn inspect_owner<E: RemoteHostExecutor>(
         .install_dir
         .as_deref()
         .context("The SSH owner installation is unknown")?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let quote = if windows {
-        crate::ssh_bootstrap::powershell_string
-    } else {
-        crate::ssh_bootstrap::shell_quote
-    };
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let quote = |value: &str| shell.quote(value);
     let arguments = format!("project inspect-owner-recovery --workspace-id {} --instance-id {} --project-id {} --limit {}", quote(&workspace.id), quote(&workspace.instance_id), quote(&workspace.project_id), limit.clamp(1, 100));
-    let script =
-        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
+    let script = crate::remote_sidecar_command::sidecar_command(
+        shell,
+        install,
+        &arguments,
+        crate::remote_sidecar_command::SidecarProfile::DataStateDir,
+    );
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        executor.run(&target, windows, &script),
+        executor.run(
+            &target,
+            shell,
+            &script,
+            crate::ssh_remote_command::RemoteCommandBudget::Command,
+        ),
     )
     .await
     .context("SSH owner recovery inspection timed out")??;
     if output.len() > 4_194_304 {
         bail!("Owner recovery response exceeds the inspection limit");
     }
-    let owner: OwnerRecovery = serde_json::from_str(output.trim())?;
+    let owner: OwnerRecovery = crate::remote_sidecar_command::parse_last_json_line(&output)?;
     if owner.version != 1
         || owner.workspace.id != workspace.id
         || owner.workspace.instance_id != workspace.instance_id

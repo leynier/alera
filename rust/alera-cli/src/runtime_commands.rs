@@ -112,7 +112,27 @@ pub(crate) async fn run_runtime_command(command: RuntimeCommand) -> i32 {
             crate::runtime_settings_commands::run_resources(&command.runtime, command.output.json)
                 .await
         }
+        RuntimeAction::UnlinkHub => match unlink_hub(&command.runtime).await {
+            Ok(value) => {
+                print_value(&value, command.output.json, "runtime unlinked from its hub");
+                0
+            }
+            Err(error) => print_error(error),
+        },
     }
+}
+
+/// Through the running host when there is one, so its cached satellite flag
+/// is dropped too; otherwise straight in the store.
+async fn unlink_hub(runtime: &RuntimeDirArgs) -> anyhow::Result<Value> {
+    if let Some(mut client) = RuntimeHostRpcClient::connect(&runtime_dir(runtime)).await? {
+        return client.request_value("hub.unlink", &json!({})).await;
+    }
+    open_store(runtime)
+        .await?
+        .delete_metadata(crate::hub_federation::SATELLITE_METADATA_KEY)
+        .await?;
+    Ok(json!({ "unlinked": true }))
 }
 
 async fn run_runtime_agents_command(

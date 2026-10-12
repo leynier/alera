@@ -66,12 +66,8 @@ async fn request_owner<E: RemoteHostExecutor>(
         .as_deref()
         .filter(|path| !path.is_empty())
         .context("Bootstrap the SSH host again to record its installation directory")?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let quote = if windows {
-        crate::ssh_bootstrap::powershell_string
-    } else {
-        crate::ssh_bootstrap::shell_quote
-    };
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let quote = |value: &str| shell.quote(value);
     let mut owner = workspace.clone();
     owner.host_id = LOCAL_HOST_ID.into();
     let mut intent = pending.intent.clone();
@@ -118,14 +114,18 @@ async fn request_owner<E: RemoteHostExecutor>(
             quote(&metadata)
         ));
     }
-    let script =
-        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
-    let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, windows, &script)).await
+    let script = crate::remote_sidecar_command::sidecar_command(
+        shell,
+        install,
+        &arguments,
+        crate::remote_sidecar_command::SidecarProfile::DataStateDir,
+    );
+    let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, shell, &script, crate::ssh_remote_command::RemoteCommandBudget::Command)).await
         .context("The SSH relocation response timed out. Retain both locations and retry the same relocation ID to recover the owner journal")??;
     if output.len() > 2_097_152 {
         bail!("The owner relocation response is too large; Home location was preserved");
     }
-    serde_json::from_str(output.trim())
+    crate::remote_sidecar_command::parse_last_json_line(&output)
         .context("The SSH owner did not return a relocation response")
 }
 

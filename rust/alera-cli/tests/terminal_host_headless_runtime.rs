@@ -17,10 +17,16 @@ use serde_json::{json, Value};
 mod home_owner_retirement_case;
 #[path = "terminal_host_headless_runtime/host_link_git_case.rs"]
 mod host_link_git_case;
+#[path = "terminal_host_headless_runtime/host_link_link_status.rs"]
+mod host_link_link_status;
 #[path = "terminal_host_headless_runtime/host_link_mirror_case.rs"]
 mod host_link_mirror_case;
 #[path = "terminal_host_headless_runtime/host_link_process_case.rs"]
 mod host_link_process_case;
+#[path = "terminal_host_headless_runtime/host_link_reconnect_case.rs"]
+mod host_link_reconnect_case;
+#[path = "terminal_host_headless_runtime/host_link_startup_case.rs"]
+mod host_link_startup_case;
 #[cfg(unix)]
 #[path = "terminal_host_headless_runtime/hub_federation_case.rs"]
 mod hub_federation_case;
@@ -33,6 +39,10 @@ mod profile_snapshot_restart_cases;
 #[cfg(unix)]
 #[path = "terminal_host_headless_runtime/project_hosts_case.rs"]
 mod project_hosts_case;
+#[path = "terminal_host_headless_runtime/ssh_target_check_case.rs"]
+mod ssh_target_check_case;
+#[path = "terminal_host_headless_runtime/ssh_target_remove_case.rs"]
+mod ssh_target_remove_case;
 #[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
 mod startup_command_cases;
 #[path = "terminal_host_headless_runtime/startup_reconciliation_case.rs"]

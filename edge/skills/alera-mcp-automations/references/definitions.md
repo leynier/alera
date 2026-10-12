@@ -22,7 +22,7 @@ The target is one of five:
 | `existingTab` | `workspaceId`, `tabId`, optional `conversationId` | Sends to that tab's live conversation |
 | `managedWorkspace` | `sourceWorkspaceId`, `sourceBranch`, `agentProfileId` | A new worktree per run, child of the source workspace |
 | `projectWorktree` | `projectId`, `sourceBranch`, `agentProfileId` | A new worktree per run from the project, with no parent |
-| `projectCheckout` | `projectId`, `hostId`, `agentProfileId` | A workspace in the project's local or SSH folder |
+| `projectCheckout` | `projectId`, `hostId`, `agentProfileId` | A workspace in the project's folder on that host: `local`, or a host from `list_project_hosts` |
 
 The three targets that create a workspace also take an optional `nameTemplate`.
 

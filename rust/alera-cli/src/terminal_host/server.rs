@@ -112,6 +112,7 @@ mod automation_policy_requests;
 #[cfg(test)]
 mod automation_policy_requests_tests;
 mod automation_profile_readiness;
+mod automation_remote_owner_status;
 mod automation_request_authorization;
 mod automation_request_routes;
 mod automation_requests;
@@ -172,6 +173,7 @@ mod history_request_retry;
 mod history_writer;
 mod host_link_requests;
 mod host_link_routing;
+mod host_link_supervision;
 mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
@@ -289,6 +291,8 @@ mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
 mod ssh_bootstrap_job_events;
+mod ssh_target_removal;
+mod ssh_target_status_requests;
 mod tab_compatibility;
 #[cfg(test)]
 mod tab_compatibility_tests;
@@ -356,7 +360,7 @@ mod workspace_sleep_requests;
 pub use server_command::ServerCommand;
 #[cfg(test)]
 pub(crate) use server_command_inbox::ServerInboxReceiver;
-pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox};
+pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox, ServerInboxSendError};
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
@@ -404,6 +408,9 @@ struct SshBootstrapJobState {
     job_id: String,
     target_id: String,
     status: SshBootstrapStatus,
+    /// Last progress stage and message, for the host status.
+    stage: String,
+    message: String,
     handle: JoinHandle<()>,
 }
 
@@ -432,6 +439,10 @@ struct ServerActor {
     workflow_workspace_recovery_running: bool,
     automation_checkout_jobs: std::collections::HashSet<String>,
     automation_precheck_jobs: std::collections::HashSet<String>,
+    /// Last `automation.ownerStatus` answer per remote run, read by the next
+    /// reconciliation so the actor never waits on a host link.
+    automation_remote_owner_states:
+        HashMap<String, automation_remote_owner_status::RemoteOwnerState>,
     pending_terminal_lifecycle_shutdowns:
         HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
@@ -786,9 +797,19 @@ impl ServerActor {
             ServerCommand::HostLinkClosed { host_id, error } => {
                 self.handle_host_link_closed(host_id, error)
             }
-            ServerCommand::HostLinkStateChanged { host_id } => {
-                self.handle_host_link_state_changed(host_id)
+            ServerCommand::HostLinkStateChanged {
+                host_id,
+                newly_attached,
+            } => self.handle_host_link_state_changed(host_id, newly_attached),
+            ServerCommand::HostLinkSupervisorTick => self.handle_host_link_supervisor_tick().await,
+            ServerCommand::SshTargetsChanged { host_id } => {
+                self.broadcast_ssh_targets_changed(host_id.as_deref())
             }
+            ServerCommand::AutomationRemoteOwnerStatus {
+                run_id,
+                host_id,
+                state,
+            } => Box::pin(self.finish_automation_remote_owner_status(run_id, host_id, state)).await,
             ServerCommand::HostLinkRequestFinished {
                 client_id,
                 request_id,
@@ -1323,16 +1344,16 @@ impl ServerActor {
             .runtime_store
             .find_ssh_target(&request.target_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
             .ok_or_else(|| {
                 HostError::state(format!("ssh target not found: {}", request.target_id))
             })?;
         reject_password_ssh_bootstrap_auth(target.auth_kind)
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         let job_id = new_bootstrap_job_id();
         mark_ssh_bootstrap_installing(&self.runtime_store, &target.id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         self.broadcast_authenticated(event(
             "sshTargetBootstrapProgress",
             json!(SshTargetBootstrapProgress {
@@ -1344,7 +1365,7 @@ impl ServerActor {
                 error: None,
             }),
         ));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        self.broadcast_ssh_targets_changed(Some(&target.id));
         let target_id = request.target_id.clone();
         let store = self.runtime_store.clone();
         let cache_dir = self.runtime_dir.join("runtime-artifacts");
@@ -1374,6 +1395,8 @@ impl ServerActor {
             job_id: job_id.clone(),
             target_id: target_id.clone(),
             status: SshBootstrapStatus::Installing,
+            stage: "auth".to_string(),
+            message: "Checking SSH Authentication".to_string(),
             handle,
         };
         self.ssh_bootstrap_jobs.insert(target_id.clone(), job);
@@ -1455,7 +1478,7 @@ impl ServerActor {
             error: None,
         };
         self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        self.broadcast_ssh_targets_changed(Some(target_id));
         Ok(target)
     }
 }

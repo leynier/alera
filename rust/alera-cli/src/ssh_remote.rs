@@ -1,17 +1,16 @@
 //! SSH helpers shared by remote workspace create, terminal attach, and files.
 //!
-//! Reuses the OpenSSH path from sidecar bootstrap (`ssh_args`, posix/windows
-//! remote scripts, sftp). Does not invent a new bootstrap.
+//! Reuses the one-shot command layer in `ssh_remote_command` (`ssh_args`,
+//! POSIX and PowerShell scripts, budgets). Does not invent a new bootstrap.
 
 use std::future::Future;
 
 use alera_core::runtime::{RuntimeStore, SshBootstrapStatus, SshTarget, LOCAL_HOST_ID};
 use anyhow::{anyhow, bail, Result};
 
-use crate::ssh_bootstrap::{
-    normalize_platform, reject_password_ssh_bootstrap_auth, run_remote_command, shell_quote,
-    ssh_args, ssh_target_answers_posix, ssh_target_answers_windows,
-};
+use crate::remote_shell::RemoteShell;
+use crate::ssh_bootstrap::reject_password_ssh_bootstrap_auth;
+use crate::ssh_remote_command::{run_remote_command, ssh_args, RemoteCommandBudget};
 use crate::terminal_host::protocol::TerminalHostLaunch;
 
 pub(crate) fn is_remote_host_id(host_id: Option<&str>) -> bool {
@@ -64,37 +63,46 @@ pub(crate) async fn require_bootstrapped_ssh_target(
     Ok(target)
 }
 
-/// `true` when the remote answers Windows PowerShell, `false` for posix `sh`.
+/// Runs one-shot scripts on a host; tests substitute a fake.
 pub(crate) trait RemoteHostExecutor {
-    fn probe_windows(&self, target: &SshTarget) -> impl Future<Output = Option<bool>> + Send;
+    /// The shell the host answers in, or `None` when it does not answer.
+    fn probe_shell(&self, target: &SshTarget) -> impl Future<Output = Option<RemoteShell>> + Send;
 
     fn run(
         &self,
         target: &SshTarget,
-        windows: bool,
+        shell: RemoteShell,
         script: &str,
+        budget: RemoteCommandBudget,
     ) -> impl Future<Output = Result<String>> + Send;
 }
 
 pub(crate) struct LiveSshRemoteHost;
 
 impl RemoteHostExecutor for LiveSshRemoteHost {
-    async fn probe_windows(&self, target: &SshTarget) -> Option<bool> {
-        live_probe_windows(target).await
+    async fn probe_shell(&self, target: &SshTarget) -> Option<RemoteShell> {
+        crate::ssh_remote_command::probe_shell(target).await
     }
 
-    async fn run(&self, target: &SshTarget, windows: bool, script: &str) -> Result<String> {
-        let platform = if windows { "windows" } else { "posix" };
-        Ok(run_remote_command(target, platform, script).await?.stdout)
+    async fn run(
+        &self,
+        target: &SshTarget,
+        shell: RemoteShell,
+        script: &str,
+        budget: RemoteCommandBudget,
+    ) -> Result<String> {
+        Ok(run_remote_command(target, shell, script, budget)
+            .await?
+            .stdout)
     }
 }
 
 pub(crate) async fn probe_or_unreachable<E: RemoteHostExecutor>(
     executor: &E,
     target: &SshTarget,
-) -> Result<bool> {
+) -> Result<RemoteShell> {
     executor
-        .probe_windows(target)
+        .probe_shell(target)
         .await
         .ok_or_else(|| anyhow!(host_unreachable(target)))
 }
@@ -102,18 +110,17 @@ pub(crate) async fn probe_or_unreachable<E: RemoteHostExecutor>(
 pub(crate) fn ssh_terminal_launch(
     target: &SshTarget,
     remote_cwd: &str,
-    windows: bool,
+    shell: RemoteShell,
 ) -> TerminalHostLaunch {
-    let remote_command = if windows {
-        format!(
+    let remote_command = match shell {
+        RemoteShell::Windows => format!(
             "powershell -NoProfile -NoExit -Command Set-Location -LiteralPath {}",
-            crate::ssh_bootstrap::powershell_string(remote_cwd)
-        )
-    } else {
-        format!(
+            shell.quote(remote_cwd)
+        ),
+        RemoteShell::Posix => format!(
             "cd {} || true; exec ${{SHELL:-/bin/sh}} -l",
-            shell_quote(remote_cwd)
-        )
+            shell.quote(remote_cwd)
+        ),
     };
     TerminalHostLaunch {
         label: "ssh".to_string(),
@@ -135,16 +142,18 @@ pub(crate) async fn remote_workspace_terminal_override(
         return Ok(None);
     }
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
-    let windows = terminal_platform_windows(&target)?;
+    // Bootstrap validates and persists this platform. Terminal launch runs on
+    // the server actor, so probing SSH here would stall unrelated sessions.
+    let shell = RemoteShell::from_target(&target)?;
     if uses_owner_terminal(store, &workspace).await? {
         let launch = crate::remote_owner_terminal_launch::owned_launch(
-            store, &target, &workspace, identity, windows,
+            store, &target, &workspace, identity, shell,
         )
         .await?;
         return Ok(Some((launch, workspace.path.clone())));
     }
     Ok(Some((
-        ssh_terminal_launch(&target, &workspace.path, windows),
+        ssh_terminal_launch(&target, &workspace.path, shell),
         workspace.path.clone(),
     )))
 }
@@ -191,55 +200,6 @@ pub(crate) fn ssh_pty_arguments(target: &SshTarget, remote_command: &str) -> Vec
     args
 }
 
-async fn live_probe_windows(target: &SshTarget) -> Option<bool> {
-    let windows_first = configured_windows(target);
-    let order = if windows_first {
-        [true, false]
-    } else {
-        [false, true]
-    };
-    for windows in order {
-        let answered = if windows {
-            ssh_target_answers_windows(target).await
-        } else {
-            ssh_target_answers_posix(target).await
-        };
-        if answered {
-            return Some(windows);
-        }
-    }
-    None
-}
-
-fn configured_windows(target: &SshTarget) -> bool {
-    target
-        .runtime_platform
-        .as_deref()
-        .or(target.platform.as_deref())
-        .map(normalize_platform)
-        .as_deref()
-        == Some("windows")
-}
-
-pub(crate) fn terminal_platform_windows(target: &SshTarget) -> Result<bool> {
-    // Bootstrap validates and persists this platform. Terminal launch runs on
-    // the server actor, so probing SSH here would stall unrelated sessions.
-    let platform = target
-        .runtime_platform
-        .as_deref()
-        .or(target.platform.as_deref())
-        .map(normalize_platform);
-    match platform.as_deref() {
-        Some("windows") => Ok(true),
-        Some("linux" | "macos") => Ok(false),
-        _ => bail!(
-            "The platform of SSH host '{}' is unknown. Run `alera ssh-target bootstrap --id {}` before opening its terminal.",
-            target.alias,
-            target.id
-        ),
-    }
-}
-
 #[cfg(test)]
 #[path = "ssh_workspace_routing_tests.rs"]
 mod workspace_routing_tests;
@@ -266,6 +226,7 @@ mod tests {
             last_status: None,
             install_dir: None,
             projects_dir: None,
+            identity_file: None,
             runtime_version: None,
             runtime_platform: Some("macos".to_string()),
             runtime_arch: None,
@@ -286,29 +247,8 @@ mod tests {
     }
 
     #[test]
-    fn terminal_platform_uses_bootstrap_metadata_without_connecting() {
-        let mut remote = target();
-        remote.host = "unreachable.invalid".into();
-        for (platform, windows) in [("linux", false), ("darwin", false), ("win32", true)] {
-            remote.runtime_platform = Some(platform.into());
-            assert_eq!(terminal_platform_windows(&remote).unwrap(), windows);
-        }
-        remote.runtime_platform = None;
-        remote.platform = Some("windows".into());
-        assert!(terminal_platform_windows(&remote).unwrap());
-        remote.platform = None;
-        assert!(terminal_platform_windows(&remote)
-            .unwrap_err()
-            .to_string()
-            .contains("bootstrap --id build-mac"));
-        remote.runtime_platform = Some("unknown".into());
-        remote.platform = Some("windows".into());
-        assert!(terminal_platform_windows(&remote).is_err());
-    }
-
-    #[test]
     fn posix_ssh_pty_forces_a_tty_and_cds() {
-        let launch = ssh_terminal_launch(&target(), "/Users/leynier/ws", false);
+        let launch = ssh_terminal_launch(&target(), "/Users/leynier/ws", RemoteShell::Posix);
         assert_eq!(launch.shell, "ssh");
         assert!(launch.arguments.contains(&"-tt".to_string()));
         let command = launch.arguments.last().expect("remote command");
@@ -318,7 +258,7 @@ mod tests {
 
     #[test]
     fn windows_ssh_pty_uses_powershell_location() {
-        let launch = ssh_terminal_launch(&target(), r"C:\work\ws", true);
+        let launch = ssh_terminal_launch(&target(), r"C:\work\ws", RemoteShell::Windows);
         let command = launch.arguments.last().expect("remote command");
         assert!(command.contains("powershell"));
         assert!(command.contains("Set-Location"));

@@ -60,6 +60,8 @@ pub enum Command {
     /// Start the automation host from a native user-login entry.
     #[command(name = "automation-host", hide = true)]
     AutomationHost(AutomationHostArgs),
+    /// Answer agent quota queries for the app over stdio (run by the app).
+    #[command(name = "runtime-proxy", hide = true)]
     RuntimeProxy,
     /// Attach a hub host link to this machine's runtime over stdio (run by the hub over ssh).
     #[command(name = "runtime-attach", hide = true)]
@@ -91,7 +93,7 @@ pub enum Command {
     /// Inspect and write live terminal sessions.
     Terminal(TerminalCommand),
 
-    /// Manage SSH targets known by the Home Runtime. Bootstrap installs the runtime sidecar only; it does not create remote workspaces.
+    /// Manage the remote hosts this runtime reaches over SSH. Bootstrap installs the Alera runtime only; it does not create remote workspaces.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
 
@@ -330,6 +332,9 @@ pub enum RuntimeAction {
     Settings(RuntimeSettingsCommand),
     /// Show CPU and memory use of the host and its terminal sessions.
     Resources,
+    /// On a remote host, stop asking a desktop hub: the CLI lists this
+    /// runtime's own records again. The hub's next mirror links it back.
+    UnlinkHub,
 }
 
 #[derive(Debug, Args)]
@@ -483,21 +488,23 @@ pub struct SshTargetCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum SshTargetAction {
-    /// List saved SSH targets.
+    /// List saved hosts.
     List,
-    /// Add an SSH target record. Does not install a sidecar or create a remote workspace.
+    /// Save a new host. Does not install the Alera runtime or create a remote workspace. Fails when the id is already saved.
     Add(SshTargetAddArgs),
-    /// Remove a saved SSH target.
+    /// Change a saved host. Only the flags given change; the installed Alera runtime and its status are kept.
+    Update(SshTargetUpdateArgs),
+    /// Remove a saved host.
     Remove(IdArgs),
-    /// Probe SSH connectivity and, when known, the installed sidecar.
+    /// Probe SSH connectivity and, when installed, the Alera runtime on a host.
     Status(SshTargetStatusArgs),
-    /// Preview sidecar install steps. Does not create a remote worktree.
+    /// Preview the steps that install the Alera runtime on a host. Does not create a remote worktree.
     BootstrapPlan(SshTargetBootstrapPlanArgs),
-    /// Install the runtime sidecar. Does not create a remote Git worktree.
+    /// Install the Alera runtime on a host. Does not create a remote Git worktree.
     Bootstrap(SshTargetBootstrapArgs),
-    /// Cancel an in-progress sidecar bootstrap job.
+    /// Cancel an Alera runtime install in progress.
     BootstrapCancel(IdArgs),
-    /// Show, open, or close the hub's persistent link to a bootstrapped host.
+    /// Show, open, or close this runtime's persistent link to a host's Alera runtime.
     Link(SshTargetLinkArgs),
 }
 
@@ -506,7 +513,7 @@ pub struct SshTargetLinkArgs {
     /// Host id. Omit to list every link the runtime knows.
     #[arg(long)]
     pub id: Option<String>,
-    /// Open the link (starts the satellite runtime when needed).
+    /// Open the link (starts the host's Alera runtime when needed).
     #[arg(long, conflicts_with = "disconnect")]
     pub connect: bool,
     /// Close the link.
@@ -516,18 +523,23 @@ pub struct SshTargetLinkArgs {
 
 #[derive(Debug, Args)]
 pub struct SshTargetAddArgs {
+    /// Host id. Defaults to a new UUID.
     #[arg(long)]
     pub id: Option<String>,
+    /// Display name, unique among saved hosts.
     #[arg(long)]
     pub alias: String,
+    /// Hostname or address ssh connects to.
     #[arg(long)]
     pub host: String,
     #[arg(long, default_value_t = 22)]
     pub port: i64,
     #[arg(long)]
     pub username: String,
+    /// `macos`, `linux`, or `windows`. Detected during bootstrap when omitted.
     #[arg(long)]
     pub platform: Option<String>,
+    /// `x64` or `arm64`. Detected during bootstrap when omitted.
     #[arg(long)]
     pub arch: Option<String>,
     #[arg(long = "auth", value_enum, default_value_t = SshAuthKindArg::Agent)]
@@ -537,6 +549,42 @@ pub struct SshTargetAddArgs {
     /// expanded on the host.
     #[arg(long)]
     pub projects_dir: Option<String>,
+    /// Private key ssh uses for this host (`ssh -i`, with IdentitiesOnly).
+    #[arg(long)]
+    pub identity_file: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetUpdateArgs {
+    /// Saved host to change.
+    #[arg(long)]
+    pub id: String,
+    /// New display name, unique among saved hosts.
+    #[arg(long)]
+    pub alias: Option<String>,
+    /// New hostname or address. Bootstrap again when it names another machine.
+    #[arg(long)]
+    pub host: Option<String>,
+    #[arg(long)]
+    pub port: Option<i64>,
+    #[arg(long)]
+    pub username: Option<String>,
+    /// `macos`, `linux`, or `windows`; an empty value clears it.
+    #[arg(long)]
+    pub platform: Option<String>,
+    /// `x64` or `arm64`; an empty value clears it.
+    #[arg(long)]
+    pub arch: Option<String>,
+    #[arg(long = "auth", value_enum)]
+    pub auth_kind: Option<SshAuthKindArg>,
+    /// Folder on the host where projects are cloned; an empty value restores
+    /// the default (alera-projects under the remote home).
+    #[arg(long)]
+    pub projects_dir: Option<String>,
+    /// Private key ssh uses for this host; an empty value goes back to the
+    /// SSH agent and ~/.ssh/config.
+    #[arg(long)]
+    pub identity_file: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

@@ -74,8 +74,8 @@ Control de acceso:
 |---|---|---|---|---|---|
 | Listar proyectos | D, M | `project list` | `list_projects` | Cubierta | — |
 | Registrar proyecto local | D, M | `project add` | — | Brecha | P2 |
-| Clonar proyecto desde URL | D, M (`project.clone.*`) | Solo `project add-remote` (SSH) | — | Brecha. El clon local solo existe en la GUI | P2 |
-| Registrar proyecto remoto o checkout SSH | D | `project add-remote`, `project register-checkout` | — | Brecha | P3 |
+| Clonar proyecto desde URL | D, M (`project.clone.*`) | `project clone start/list/show/cancel`; `project add-remote --clone-url` en un host | `clone_project`, `get_project_clone`, `list_project_clones`, `cancel_project_clone` | Cubierta | - |
+| Registrar proyecto remoto o ponerlo en un host | D | `project add-remote`, `project hosts add` (`--path`, `--clone-url` o ambos; `register-checkout` queda como alias oculto) | `register_remote_project`, `add_project_host` | Cubierta | - |
 | Renombrar proyecto | D, M (`project.rename`) | — | — | Brecha, solo GUI | P3 |
 | Eliminar proyecto | D, M | `project remove` | — | Por diseño (destructivo), o como mucho con confirmación explícita | — |
 | Hosts del proyecto | D | `project hosts list/add/remove` | — | Brecha. `list` es lectura útil | P2 (list) / P3 |

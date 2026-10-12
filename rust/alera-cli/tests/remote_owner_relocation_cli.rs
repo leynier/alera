@@ -123,21 +123,28 @@ async fn owner_relocation_keeps_identity_retries_and_rejects_superseded_receipts
         alera_core::git::current_branch(folder.to_str().unwrap()).unwrap(),
         "main"
     );
-    let owner_metadata = base64::engine::general_purpose::STANDARD.encode(
-        serde_json::to_vec(
-            &json!({"project":registration["project"],"workspace":off["workspace"]}),
-        )
-        .unwrap(),
-    );
+    // Registering the relocated record again, as an owner that reconnects
+    // does, keeps the identity the relocation receipt names.
+    let relocated = &off["workspace"];
     let reconnected = success(cli(
         &state,
-        "project",
+        "workspace",
         &[
-            "register-owner-workspace",
-            "--state-dir",
-            state.to_str().unwrap(),
-            "--metadata-base64",
-            &owner_metadata,
+            "register",
+            "--id",
+            relocated["id"].as_str().unwrap(),
+            "--instance-id",
+            relocated["instanceId"].as_str().unwrap(),
+            "--project-id",
+            project_id,
+            "--name",
+            relocated["name"].as_str().unwrap(),
+            "--path",
+            relocated["path"].as_str().unwrap(),
+            "--branch",
+            relocated["branch"].as_str().unwrap(),
+            "--kind",
+            "linked",
         ],
     ));
     assert_eq!(reconnected["id"], workspace["id"]);

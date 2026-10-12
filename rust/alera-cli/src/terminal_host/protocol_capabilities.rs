@@ -19,6 +19,16 @@ pub const RUNTIME_HOST_REMOTE_HOST_LINK_CAPABILITY: &str = "remoteHostLinkV1";
 /// This runtime can be the satellite end of a host link: it accepts
 /// `runtime-attach --stdio` and serves the hub as a local client. Additive.
 pub const RUNTIME_HOST_REMOTE_SATELLITE_CAPABILITY: &str = "remoteSatelliteV1";
+/// The satellite answers `hub.unlink {}` by forgetting that it serves a hub
+/// (`satelliteOfHub`), which a hub sends when the host is removed. Additive.
+pub const RUNTIME_HOST_REMOTE_SATELLITE_UNLINK_CAPABILITY: &str = "remoteSatelliteUnlinkV1";
+/// `hostStatus` on every `sshTarget.list` / `upsert` / `check` target, the
+/// `sshTarget.check` verb, the `sshTargetInUse` conflict on remove and the
+/// `hostId` scope on `sshTargetsChanged`. Additive.
+pub const RUNTIME_HOST_REMOTE_HOST_STATUS_CAPABILITY: &str = "remoteHostStatusV1";
+/// `identityFile` on SSH targets, passed to ssh as `-i` with
+/// `IdentitiesOnly=yes`. Additive.
+pub const RUNTIME_HOST_SSH_TARGET_IDENTITY_FILE_CAPABILITY: &str = "sshTargetIdentityFileV1";
 /// `git.*`: the desktop `GitBackend` surface served for a workspace on this
 /// host and forwarded by the hub over the host link. Additive.
 pub const RUNTIME_HOST_REMOTE_GIT_CAPABILITY: &str = "remoteGitV1";

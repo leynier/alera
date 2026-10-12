@@ -3,10 +3,12 @@ use anyhow::{anyhow, bail, Context, Result};
 use serde::Deserialize;
 
 use crate::project_checkout_inspection::{CheckoutInspection, INSPECTION_VERSION};
-use crate::ssh_bootstrap::{powershell_string, shell_quote};
+use crate::remote_shell::RemoteShell;
+use crate::remote_sidecar_command::{parse_last_json_line, sidecar_command, SidecarProfile};
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
 };
+use crate::ssh_remote_command::RemoteCommandBudget;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -130,12 +132,7 @@ pub(crate) async fn register_remote_project<E: RemoteHostExecutor>(
         .filter(|name| !name.is_empty())
         .map(str::to_string)
         .unwrap_or_else(|| {
-            checkout
-                .path
-                .trim_end_matches(['/', '\\'])
-                .rsplit(['/', '\\'])
-                .next()
-                .filter(|segment| !segment.is_empty())
+            crate::project_hosts::folder_name(&checkout.path)
                 .unwrap_or("Project")
                 .to_string()
         });
@@ -246,37 +243,36 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
         .ok_or_else(|| {
             anyhow!("Bootstrap this SSH host again to record its sidecar installation directory")
         })?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let script = match clone_url {
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let (script, budget) = match clone_url {
         Some(url) if !url.trim().is_empty() => match clone_name {
-            Some(name) if path.trim().is_empty() => clone_by_name_script(
-                windows,
-                install_dir,
-                name,
-                url,
-                target.projects_dir.as_deref(),
+            Some(name) if path.trim().is_empty() => (
+                clone_by_name_script(
+                    shell,
+                    install_dir,
+                    name,
+                    url,
+                    target.projects_dir.as_deref(),
+                ),
+                RemoteCommandBudget::Provision,
             ),
-            _ => clone_script(windows, install_dir, path, url),
+            _ => (
+                clone_script(shell, install_dir, path, url),
+                RemoteCommandBudget::Provision,
+            ),
         },
         Some(_) => bail!("A clone source is required"),
-        None => inspection_script(windows, install_dir, path, kind),
+        None => (
+            inspection_script(shell, install_dir, path, kind),
+            RemoteCommandBudget::Command,
+        ),
     };
-    let stdout = executor.run(&target, windows, &script).await
+    let stdout = executor.run(&target, shell, &script, budget).await
         .context("Could not inspect or clone the SSH checkout. Verify access, use a new destination when cloning, and update the remote sidecar if the checkout command is unsupported. No existing checkout was replaced; inspect the destination before retrying")?;
-    let result: CheckoutInspection = serde_json::from_str(stdout.trim()).context(
+    let result: CheckoutInspection = parse_last_json_line(&stdout).context(
         "The SSH sidecar did not return a supported checkout inspection; update the remote sidecar",
     )?;
-    let absolute = if windows {
-        result.path.starts_with("\\\\") || result.path.starts_with("//") || {
-            let bytes = result.path.as_bytes();
-            bytes.len() >= 3
-                && bytes[0].is_ascii_alphabetic()
-                && bytes[1] == b':'
-                && matches!(bytes[2], b'/' | b'\\')
-        }
-    } else {
-        result.path.starts_with('/')
-    };
+    let absolute = is_absolute_remote_path(shell, &result.path);
     if result.version != INSPECTION_VERSION
         || result.kind != kind
         || !absolute
@@ -289,55 +285,62 @@ async fn inspect_remote_with_clone<E: RemoteHostExecutor>(
     Ok(result)
 }
 
-fn inspection_script(windows: bool, install_dir: &str, path: &str, kind: ProjectKind) -> String {
+/// Whether `path` is absolute on the host: a drive or UNC path on Windows.
+fn is_absolute_remote_path(shell: RemoteShell, path: &str) -> bool {
+    if !shell.is_windows() {
+        return path.starts_with('/');
+    }
+    let bytes = path.as_bytes();
+    path.starts_with("\\\\")
+        || path.starts_with("//")
+        || (bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && matches!(bytes[2], b'/' | b'\\'))
+}
+
+fn inspection_script(
+    shell: RemoteShell,
+    install_dir: &str,
+    path: &str,
+    kind: ProjectKind,
+) -> String {
     let kind = match kind {
         ProjectKind::Folder => "folder",
         ProjectKind::GitRepository => "git-repository",
     };
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
-    checkout_command_script(
-        windows,
+    sidecar_command(
+        shell,
         install_dir,
         &format!(
             "project inspect-checkout --path {} --kind {kind}",
-            quote(path)
+            shell.quote(path)
         ),
+        SidecarProfile::Bare,
     )
 }
 
-fn clone_script(windows: bool, install_dir: &str, path: &str, url: &str) -> String {
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
-    checkout_command_script(
-        windows,
+fn clone_script(shell: RemoteShell, install_dir: &str, path: &str, url: &str) -> String {
+    sidecar_command(
+        shell,
         install_dir,
         &format!(
             "project clone-checkout-folder --path {} --url {}",
-            quote(path),
-            quote(url)
+            shell.quote(path),
+            shell.quote(url)
         ),
+        SidecarProfile::Bare,
     )
 }
 
 fn clone_by_name_script(
-    windows: bool,
+    shell: RemoteShell,
     install_dir: &str,
     name: &str,
     url: &str,
     projects_dir: Option<&str>,
 ) -> String {
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
+    let quote = |value: &str| shell.quote(value);
     let mut arguments = format!(
         "project clone-checkout-folder --name {} --url {}",
         quote(name),
@@ -350,22 +353,14 @@ fn clone_by_name_script(
     {
         arguments.push_str(&format!(" --projects-dir {}", quote(projects_dir)));
     }
-    checkout_command_script(windows, install_dir, &arguments)
-}
-
-pub(crate) fn checkout_command_script(windows: bool, install_dir: &str, arguments: &str) -> String {
-    if windows {
-        format!("$ErrorActionPreference = 'Stop'\n$install = [Environment]::ExpandEnvironmentVariables({})\n$current = (Get-Content -Raw -LiteralPath (Join-Path $install 'current.txt')).Trim()\n& (Join-Path $current 'alera.exe') {arguments}\nif ($LASTEXITCODE -ne 0) {{ throw 'Remote checkout operation failed' }}\n", powershell_string(install_dir))
-    } else {
-        format!("set -eu\ninstall={}\ncase \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac\nexec \"$install/current/alera\" {arguments}\n", shell_quote(install_dir))
-    }
+    sidecar_command(shell, install_dir, &arguments, SidecarProfile::Bare)
 }
 
 pub(crate) async fn ensure_linked_origin<E: RemoteHostExecutor>(
     store: &RuntimeStore,
     workspace: &alera_core::runtime::Workspace,
     target: &alera_core::runtime::SshTarget,
-    windows: bool,
+    shell: RemoteShell,
     install: &str,
     executor: &E,
 ) -> Result<()> {
@@ -382,22 +377,18 @@ pub(crate) async fn ensure_linked_origin<E: RemoteHostExecutor>(
     if checkout.repository_path.is_some() {
         return Ok(());
     }
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
-    let script = checkout_command_script(
-        windows,
+    let script = sidecar_command(
+        shell,
         install,
         &format!(
             "project inspect-linked-checkout --path {}",
-            quote(&workspace.path)
+            shell.quote(&workspace.path)
         ),
+        SidecarProfile::Bare,
     );
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        executor.run(target, windows, &script),
+        executor.run(target, shell, &script, RemoteCommandBudget::Command),
     )
     .await
     .context("Linked repository inspection timed out")??;
@@ -405,20 +396,10 @@ pub(crate) async fn ensure_linked_origin<E: RemoteHostExecutor>(
         bail!("Linked repository inspection exceeds the response limit");
     }
     let inspection: crate::project_checkout_inspection::LinkedCheckoutInspection =
-        serde_json::from_str(output.trim())
+        parse_last_json_line(&output)
             .context("Update the SSH runtime to inspect the legacy linked repository origin")?;
     let origin = &inspection.repository_path;
-    let absolute = if windows {
-        origin.starts_with("\\\\") || origin.starts_with("//") || {
-            let bytes = origin.as_bytes();
-            bytes.len() >= 3
-                && bytes[0].is_ascii_alphabetic()
-                && bytes[1] == b':'
-                && matches!(bytes[2], b'/' | b'\\')
-        }
-    } else {
-        origin.starts_with('/')
-    };
+    let absolute = is_absolute_remote_path(shell, origin);
     if inspection.version != 1
         || !crate::windows_path_form::same_path(&inspection.path, &checkout.path)
         || !absolute

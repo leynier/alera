@@ -7,11 +7,12 @@ use alera_core::workspace_files::{
 use anyhow::{anyhow, Context, Result};
 use serde_json::{json, Value};
 
-use crate::ssh_bootstrap::{powershell_string, shell_quote};
+use crate::remote_shell::RemoteShell;
 use crate::ssh_remote::{
     is_remote_host_id, probe_or_unreachable, require_bootstrapped_ssh_target, LiveSshRemoteHost,
     RemoteHostExecutor,
 };
+use crate::ssh_remote_command::{powershell_string, shell_quote, RemoteCommandBudget};
 
 const MAX_LIST_ENTRIES: usize = 500;
 const MAX_READ_BYTES: u64 = alera_core::workspace_files::MAX_REMOTE_READ_BYTES;
@@ -149,10 +150,15 @@ pub(crate) async fn list_remote_workspace_files<E: RemoteHostExecutor>(
 ) -> Result<Vec<WorkspaceExplorerEntry>> {
     validate_relative(relative_path)?;
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let directory = join_remote(&workspace.path, relative_path, windows);
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let directory = join_remote(&workspace.path, relative_path, shell);
     let stdout = executor
-        .run(&target, windows, &list_script(windows, &directory))
+        .run(
+            &target,
+            shell,
+            &list_script(shell, &directory),
+            RemoteCommandBudget::Command,
+        )
         .await
         .with_context(|| {
             format!(
@@ -178,14 +184,15 @@ pub(crate) async fn read_remote_workspace_file<E: RemoteHostExecutor>(
 ) -> Result<RemoteFileRange> {
     validate_relative(relative_path)?;
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let file_path = join_remote(&workspace.path, relative_path, windows);
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let file_path = join_remote(&workspace.path, relative_path, shell);
     let length = length.min(MAX_READ_BYTES);
     let stdout = executor
         .run(
             &target,
-            windows,
-            &read_script(windows, &file_path, offset, length),
+            shell,
+            &read_script(shell, &file_path, offset, length),
+            RemoteCommandBudget::Command,
         )
         .await
         .with_context(|| {
@@ -212,15 +219,15 @@ fn bail_invalid_path(relative_path: &str) -> Result<()> {
     anyhow::bail!("workspace path is invalid: {relative_path}")
 }
 
-fn join_remote(root: &str, relative: &str, windows: bool) -> String {
+fn join_remote(root: &str, relative: &str, shell: RemoteShell) -> String {
     if relative.is_empty() {
         return root.to_string();
     }
-    crate::ssh_bootstrap::remote_join(if windows { "windows" } else { "posix" }, root, &[relative])
+    shell.join(root, &[relative])
 }
 
-fn list_script(windows: bool, directory: &str) -> String {
-    if windows {
+fn list_script(shell: RemoteShell, directory: &str) -> String {
+    if shell.is_windows() {
         format!(
             r#"$ErrorActionPreference = 'Stop'
 $path = {path}
@@ -259,8 +266,8 @@ done
     }
 }
 
-fn read_script(windows: bool, file_path: &str, offset: u64, length: u64) -> String {
-    if windows {
+fn read_script(shell: RemoteShell, file_path: &str, offset: u64, length: u64) -> String {
+    if shell.is_windows() {
         format!(
             r#"$ErrorActionPreference = 'Stop'
 $path = {path}
@@ -385,7 +392,7 @@ mod tests {
 
     #[test]
     fn posix_list_script_emits_numeric_size_for_directories() {
-        let script = list_script(false, "/tmp");
+        let script = list_script(RemoteShell::Posix, "/tmp");
         assert!(
             script.contains(r#"case "$size" in ''|*[!0-9]*) size=0 ;; esac"#),
             "posix list script must coerce empty wc output to 0: {script}"

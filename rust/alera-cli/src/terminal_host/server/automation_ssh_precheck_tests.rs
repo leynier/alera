@@ -15,14 +15,18 @@ struct Owner {
 }
 
 impl crate::ssh_remote::RemoteHostExecutor for Owner {
-    async fn probe_windows(&self, _: &alera_core::runtime::SshTarget) -> Option<bool> {
+    async fn probe_shell(
+        &self,
+        _: &alera_core::runtime::SshTarget,
+    ) -> Option<crate::remote_shell::RemoteShell> {
         panic!("The persisted bootstrap platform must avoid actor-side SSH probing")
     }
     async fn run(
         &self,
         _: &alera_core::runtime::SshTarget,
-        windows: bool,
+        shell: crate::remote_shell::RemoteShell,
         script: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
     ) -> anyhow::Result<String> {
         let encoded = script
             .split("--metadata-base64 '")
@@ -52,8 +56,8 @@ impl crate::ssh_remote::RemoteHostExecutor for Owner {
         };
         assert!(script.contains("project control-owner-precheck"));
         assert!(!script.contains("fixture-never-run-directly"));
-        assert_eq!(windows, self.scenario == "windows");
-        if windows {
+        assert_eq!(shell.is_windows(), self.scenario == "windows");
+        if shell.is_windows() {
             assert!(script.contains("alera.exe"));
         } else {
             assert!(script.contains("exec \"$install/current/alera\""));

@@ -57,14 +57,14 @@ Create a new Git worktree workspace from a source branch. `--source-branch` may 
 This command is the same from Bash, PowerShell, and CMD when no explicit path is passed:
 
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --name "<display-name>"
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --host-id <ssh-target-id>
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --name "<display-name>"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --host-id <host-id>
 ```
 
 Create and link a child workspace in the same atomic operation:
 
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --parent-workspace-id <parent-workspace-id>
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --parent-workspace-id <parent-workspace-id>
 ```
 
 Use an exact destination path only when the user requests it:
@@ -72,19 +72,19 @@ Use an exact destination path only when the user requests it:
 From Linux, macOS, or WSL:
 
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path "$HOME/Projects/workspaces/new-workspace"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --path "$HOME/Projects/workspaces/new-workspace"
 ```
 
 From PowerShell:
 
 ```powershell
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path "$HOME\Projects\workspaces\new-workspace"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --path "$HOME\Projects\workspaces\new-workspace"
 ```
 
 From `cmd.exe`:
 
 ```cmd
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path "%USERPROFILE%\Projects\workspaces\new-workspace"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --path "%USERPROFILE%\Projects\workspaces\new-workspace"
 ```
 
 Use a temporary root override when the user wants the default naming scheme under a different root:
@@ -92,19 +92,19 @@ Use a temporary root override when the user wants the default naming scheme unde
 From Linux, macOS, or WSL:
 
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root "$HOME/Projects/workspaces"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --workspace-root "$HOME/Projects/workspaces"
 ```
 
 From PowerShell:
 
 ```powershell
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root "$HOME\Projects\workspaces"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --workspace-root "$HOME\Projects\workspaces"
 ```
 
 From `cmd.exe`:
 
 ```cmd
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root "%USERPROFILE%\Projects\workspaces"
+alera workspace add --project-id <project-id> --worktree --branch <new-branch> --source-branch <source-branch> --workspace-root "%USERPROFILE%\Projects\workspaces"
 ```
 
 `--path` and `--workspace-root` are mutually exclusive. Without either flag, Alera uses the runtime workspace directory setting, then falls back to the user's `.alera/workspaces` directory (`$HOME/.alera/workspaces` on Unix-like shells, `$HOME\.alera\workspaces` in PowerShell, or `%USERPROFILE%\.alera\workspaces` in CMD).
@@ -114,7 +114,7 @@ Focus a workspace on an existing local branch:
 This command is the same from Bash, PowerShell, and CMD:
 
 ```bash
-alera workspace add --project-id <project-id> --branch <existing-branch> --reuse-existing-branch --name "<display-name>"
+alera workspace add --project-id <project-id> --worktree --branch <existing-branch> --reuse-existing-branch --name "<display-name>"
 ```
 
 Create a managed workspace and launch a declared agent profile in one step. From an Alera terminal this infers project, source branch, and parent from `ALERA_WORKSPACE_ID`. Pass `--branch` and `--name` to skip identity generation, and `--no-parent` to skip the parent link:
@@ -180,7 +180,7 @@ A workspace can link one issue by URL. GitHub, GitLab, and Azure DevOps issues a
 Create a workspace for an issue, or link one later. From an Alera terminal `--workspace-id` defaults to `ALERA_WORKSPACE_ID`:
 
 ```bash
-alera workspace add --project-id <project-id> --branch 758-link-issues --source-branch main --issue https://github.com/leynier/alera/issues/758
+alera workspace add --project-id <project-id> --worktree --branch 758-link-issues --source-branch main --issue https://github.com/leynier/alera/issues/758
 alera workspace issue link https://gitlab.com/group/project/-/issues/12
 alera workspace issue unlink --workspace-id <workspace-id>
 ```
@@ -229,7 +229,7 @@ alera tab list --workspace-id <workspace-id>
 alera tab create --workspace-id <workspace-id> --title "Terminal" --kind terminal
 ```
 
-`workspace sleep` is the CLI form of the app's Sleep action and sends the same `workspace.sleep` host verb: it stops that workspace's terminal sessions and their child processes while the workspace stays visible in the sidebar, and keeps its tabs, layout, branch, and files so agent sessions resume when it is opened again. Other workspaces keep running. It is not `workspace archive`, which also hides the workspace, nor `workspace remove`/`unregister`, which delete state. `--id` is required and is never inferred from the current terminal; the command refuses the workspace of the terminal it runs in, and fails for an unknown, removed, or archived workspace. `--json` returns the workspace, the stopped terminal tab ids (`sleptTabIds`), and `runtimeHost`; without a running host there are no live sessions, so it only records the sleep in the runtime store. It fails instead when a host is alive but does not answer, because its terminals would keep running. Workspaces on an SSH host are refused for now, because their terminals belong to that host's runtime, which this command cannot stop yet.
+`workspace sleep` is the CLI form of the app's Sleep action and sends the same `workspace.sleep` host verb: it stops that workspace's terminal sessions and their child processes while the workspace stays visible in the sidebar, and keeps its tabs, layout, branch, and files so agent sessions resume when it is opened again. Other workspaces keep running. It is not `workspace archive`, which also hides the workspace, nor `workspace remove`/`unregister`, which delete state. `--id` is required and is never inferred from the current terminal; the command refuses the workspace of the terminal it runs in, and fails for an unknown, removed, or archived workspace. `--json` returns the workspace, the stopped terminal tab ids (`sleptTabIds`), and `runtimeHost`; without a running host there are no live sessions, so it only records the sleep in the runtime store. It fails instead when a host is alive but does not answer, because its terminals would keep running. Workspaces on a remote host are refused for now, because their terminals belong to that host's runtime, which this command cannot stop yet.
 
 Read retained terminal output or write input without opening the UI:
 
@@ -242,7 +242,7 @@ alera terminal write --handle <terminal-handle> --stdin --enter
 
 `workspace rename` changes only the display name shown on desktop and mobile; the branch and worktree folder stay as they are. `--id` defaults to the workspace of the current Alera terminal, and `--name` is trimmed and must not be empty. With a live runtime host, connected apps refresh immediately.
 
-`workspace focus` selects an existing workspace in the running Alera desktop app and brings its window forward, the same as clicking it in the sidebar: it leaves the Run Board or Automations page, keeps the workspace's open tabs and terminals, and never creates, wakes, or removes anything. `--id` defaults to the workspace of the current Alera terminal. It needs a running Alera desktop app on the same runtime and fails with a non-zero exit when Alera is not running, when no desktop app is connected (a phone or a CLI does not count), when the app is too old to handle the request, or when the workspace does not exist or is archived (unarchive it first). Success means the request reached the app; every connected desktop app selects it. A focus request is not forwarded from a remote SSH host to the desktop. Modal dialogs stay open, and the desktop environment may refuse to raise the window (Wayland focus-stealing prevention), in which case the selection still changes.
+`workspace focus` selects an existing workspace in the running Alera desktop app and brings its window forward, the same as clicking it in the sidebar: it leaves the Run Board or Automations page, keeps the workspace's open tabs and terminals, and never creates, wakes, or removes anything. `--id` defaults to the workspace of the current Alera terminal. It needs a running Alera desktop app on the same runtime and fails with a non-zero exit when Alera is not running, when no desktop app is connected (a phone or a CLI does not count), when the app is too old to handle the request, or when the workspace does not exist or is archived (unarchive it first). Success means the request reached the app; every connected desktop app selects it. A focus request is not forwarded from a remote host to the desktop. Modal dialogs stay open, and the desktop environment may refuse to raise the window (Wayland focus-stealing prevention), in which case the selection still changes.
 
 JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
 
