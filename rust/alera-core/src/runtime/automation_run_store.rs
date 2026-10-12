@@ -334,6 +334,7 @@ fn new_run(
         summary: None,
         error: None,
         rendered_prompt: None,
+        reuse: None,
         workspace_id: definition.target.workspace_id().map(str::to_string),
         tab_id: None,
         setup_tab_id: None,

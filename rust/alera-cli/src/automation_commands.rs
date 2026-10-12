@@ -13,6 +13,7 @@ use crate::cli::{
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::terminal_host::protocol::{
     RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+    RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
 };
 
 pub(crate) async fn run(command: AutomationCommand) -> i32 {
@@ -25,7 +26,14 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
     let result = match action {
         AutomationAction::List(args) => list(&runtime, args).await,
         AutomationAction::Show(args) => {
-            request(&runtime, "automation.show", json!({"id": args.id})).await
+            let shown = request(&runtime, "automation.show", json!({"id": args.id})).await;
+            if !json_output {
+                if let Ok(value) = &shown {
+                    println!("{}", automation_run_commands::show_summary(value));
+                    return 0;
+                }
+            }
+            shown
         }
         AutomationAction::Create(args) => author(&runtime, args, "automation.create").await,
         AutomationAction::Readiness(args) => author(&runtime, args, "automation.readiness").await,
@@ -48,6 +56,17 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
         AutomationAction::TakeOver(args) => {
             automation_run_commands::take_over(&runtime, args).await
         }
+        AutomationAction::Unbind(args) => {
+            let mut payload = json!({"id": args.id, "reason": args.reason});
+            add_automation_context(&mut payload);
+            request_requiring(
+                &runtime,
+                "automation.unbind",
+                payload,
+                RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
+            )
+            .await
+        }
         AutomationAction::Cancel(args) => lifecycle(&runtime, "automation.cancel", &args).await,
         AutomationAction::Context(args) => lifecycle(&runtime, "automation.context", &args).await,
         AutomationAction::Heartbeat(args) => {
@@ -66,30 +85,38 @@ pub(crate) async fn run(command: AutomationCommand) -> i32 {
     }
 }
 
-async fn request(
+async fn request(runtime: &RuntimeDirArgs, request_type: &str, payload: Value) -> Result<Value> {
+    let capability = if matches!(
+        request_type,
+        "automation.create"
+            | "automation.patch"
+            | "automation.readiness"
+            | "automation.previewSchedule"
+    ) {
+        RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY
+    } else {
+        RUNTIME_HOST_AUTOMATIONS_CAPABILITY
+    };
+    request_requiring(runtime, request_type, payload, capability).await
+}
+
+async fn request_requiring(
     runtime: &RuntimeDirArgs,
     request_type: &str,
     mut payload: Value,
+    capability: &str,
 ) -> Result<Value> {
     if let Ok(handle) = std::env::var("ALERA_TERMINAL_HANDLE") {
         payload["terminalHandle"] = json!(handle);
     }
-    if let Ok(attempt) = std::env::var("ALERA_AUTOMATION_ATTEMPT_ID") {
+    if let Some(attempt) =
+        effective_attempt_id(&payload, std::env::var("ALERA_AUTOMATION_ATTEMPT_ID").ok())
+    {
         payload["attemptId"] = json!(attempt);
     }
     let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
         &crate::runtime_dir(runtime),
-        if matches!(
-            request_type,
-            "automation.create"
-                | "automation.patch"
-                | "automation.readiness"
-                | "automation.previewSchedule"
-        ) {
-            RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY
-        } else {
-            RUNTIME_HOST_AUTOMATIONS_CAPABILITY
-        },
+        capability,
     )
     .await?;
     client.request_value(request_type, &payload).await
@@ -239,6 +266,16 @@ async fn complete(runtime: &RuntimeDirArgs, args: AutomationCompleteArgs) -> Res
     .await
 }
 
+/// An attempt id the caller passed wins over the terminal's: a conversation
+/// an automation reuses keeps the environment of the run that launched it.
+fn effective_attempt_id(payload: &Value, environment: Option<String>) -> Option<String> {
+    payload["targetIdentity"]["attemptId"]
+        .as_str()
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .or(environment)
+}
+
 fn read_json(path: &str) -> Result<Value> {
     let mut contents = String::new();
     if path == "-" {
@@ -292,6 +329,26 @@ fn add_automation_context(payload: &mut Value) {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+
+    #[test]
+    fn an_explicit_attempt_id_wins_over_the_terminal_environment() {
+        use super::effective_attempt_id;
+        use serde_json::json;
+        let environment = Some("launching-attempt".to_string());
+        assert_eq!(
+            effective_attempt_id(
+                &json!({"targetIdentity": {"attemptId": "current-attempt"}}),
+                environment.clone()
+            )
+            .as_deref(),
+            Some("current-attempt")
+        );
+        assert_eq!(
+            effective_attempt_id(&json!({"id": "automation"}), environment.clone()).as_deref(),
+            Some("launching-attempt")
+        );
+        assert_eq!(effective_attempt_id(&json!({}), None), None);
+    }
 
     use super::{target_identity_with, AutomationTargetArgs};
 

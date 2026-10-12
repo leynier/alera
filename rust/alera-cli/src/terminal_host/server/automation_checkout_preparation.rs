@@ -137,8 +137,14 @@ impl ServerActor {
                     self.apply_automation_workspace_placement(&latest, &workspace)
                         .await;
                 }
-                self.continue_automation_dispatch(&latest, run, workspace, &project)
-                    .await
+                self.continue_automation_dispatch(
+                    &latest,
+                    run,
+                    workspace,
+                    &project,
+                    super::super::automation_bound_target_resolution::BoundTargetPlan::CreateNew,
+                )
+                .await
             }
             Err(error) => self.block_run(&current, &error.to_string()).await,
         }

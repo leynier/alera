@@ -129,6 +129,7 @@ impl ServerActor {
         {
             session.observer_clients.remove(&client_id);
         }
+        self.release_bound_tab_for_run(&run, "takenOver").await;
         self.broadcast_workspace_tabs_changed(run.workspace_id.as_deref());
         self.broadcast_automation_run_changed(&run);
         Ok(

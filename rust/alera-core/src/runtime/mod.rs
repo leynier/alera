@@ -30,6 +30,14 @@ mod automation_models;
 #[cfg(test)]
 mod automation_models_serde_tests;
 mod automation_overlap;
+mod automation_reuse;
+pub use automation_reuse::{
+    validate_reuse, AutomationBoundTarget, AutomationReusePolicy, AutomationRunReuse,
+    AUTOMATION_REUSE_CLEANUP_ERROR, AUTOMATION_REUSE_WORKSPACE_EXISTING_TAB_ERROR,
+};
+mod automation_binding_store;
+#[cfg(test)]
+mod automation_binding_store_tests;
 mod automation_run_store;
 mod automation_target;
 mod automation_workspace_placement;

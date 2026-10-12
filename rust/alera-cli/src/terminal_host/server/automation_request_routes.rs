@@ -64,6 +64,7 @@ impl ServerActor {
                     .await
             }
             "automation.takeOver" => self.automation_take_over_request(client_id, payload).await,
+            "automation.unbind" => self.automation_unbind_request(client_id, payload).await,
             "automation.list" => self.automation_list_request(payload).await,
             "automation.show" => self.automation_show_request(payload).await,
             "automation.upsert" => {

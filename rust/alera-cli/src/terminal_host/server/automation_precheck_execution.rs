@@ -278,7 +278,8 @@ impl ServerActor {
         }
         let error = match result {
             Ok(true) => {
-                Box::pin(self.dispatch_prechecked_automation(&latest, current, location)).await;
+                self.dispatch_prechecked_automation(&latest, current, location)
+                    .await;
                 return;
             }
             Ok(false) => "automation precheck did not pass".to_string(),

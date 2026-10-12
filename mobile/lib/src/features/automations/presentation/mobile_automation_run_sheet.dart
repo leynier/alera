@@ -26,6 +26,8 @@ const Set<String> _runAgainStatuses = <String>{
 String mobileLaunchKindLabel(String? kind) => switch (kind) {
   'resume' => 'Resumed Conversation',
   'contextRetry' => 'Retried With Context',
+  'reusePaste' => 'Continued Conversation',
+  'reuseRelaunch' => 'Relaunched Conversation',
   _ => 'Started',
 };
 

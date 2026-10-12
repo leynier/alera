@@ -28,6 +28,7 @@ const RECORD_FIELDS: &[&str] = &[
     "circuitOpened",
     "circuitOpenedAt",
     "tagIds",
+    "boundTarget",
 ];
 
 /// The target identity for a run lifecycle call. With `use_run_identity` it
@@ -70,6 +71,26 @@ fn recorded_identity(run: &Value, target: &AutomationTargetArgs) -> Result<Value
         }
     }
     Ok(Value::Object(identity))
+}
+
+/// The plain-text form of `automation show`: the automation, its state and
+/// where a reusing automation is bound.
+pub(super) fn show_summary(shown: &Value) -> String {
+    let automation = &shown["automation"];
+    let mut lines = vec![format!(
+        "{} ({})",
+        automation["name"].as_str().unwrap_or("Automation"),
+        automation["state"].as_str().unwrap_or("unknown"),
+    )];
+    let policy = automation["reusePolicy"].as_str().unwrap_or("newEachRun");
+    lines.push(format!("Reuse: {policy}"));
+    if policy != "newEachRun" {
+        lines.push(match automation["boundTargetSummary"].as_str() {
+            Some(summary) => format!("Bound to: {summary}"),
+            None => "Bound to: nothing yet; the next run binds".to_string(),
+        });
+    }
+    lines.join("\n")
 }
 
 /// Creates a new automation with the settings and target of an existing

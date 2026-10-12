@@ -308,7 +308,10 @@ impl ServerActor {
             }
         };
         self.broadcast_automation_run_changed(&run);
-        match self.target_identity(&definition.target).await {
+        match self
+            .target_identity(&definition.target, definition.reuse_policy)
+            .await
+        {
             Ok(identity) => {
                 run.target_identity = Some(identity);
                 if let Err(error) = self.runtime_store.save_automation_run(&run).await {
@@ -345,7 +348,11 @@ impl ServerActor {
                 .definition_snapshot
                 .clone()
                 .unwrap_or_else(|| definition.clone());
-            if run.recovery.is_some()
+            // A run parked behind a busy bound target was never interrupted.
+            if run
+                .recovery
+                .as_ref()
+                .is_some_and(|recovery| recovery.status != "waiting")
                 && run.attempt_count > 0
                 && (run.tab_id.is_some() || run.session_id.is_some())
             {

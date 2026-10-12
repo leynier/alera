@@ -37,6 +37,7 @@ impl AutomationDefinition {
             self.circuit_open_seconds,
             &self.precheck,
             self.notify_on_success,
+            &self.reuse_policy,
         ]))
         .unwrap_or_default()
     }

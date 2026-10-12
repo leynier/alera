@@ -149,6 +149,8 @@ fn draft_definition() -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: None,
         created_by: actor.clone(),
         modified_by: actor,
@@ -262,3 +264,15 @@ mod experience;
 
 #[path = "automation_event_tests.rs"]
 mod events;
+
+#[path = "automation_reuse_test_fixture.rs"]
+mod reuse_fixture;
+
+#[path = "automation_reuse_resolution_tests.rs"]
+mod reuse_resolution;
+
+#[path = "automation_reuse_lifecycle_tests.rs"]
+mod reuse_lifecycle;
+
+#[path = "automation_reuse_dispatch_tests.rs"]
+mod reuse_dispatch;

@@ -31,6 +31,12 @@ pub(super) async fn remove_workspace_in_transaction(
     .await?;
     sqlx::query("UPDATE automations SET dataJson = json_set(dataJson, '$.originWorkspaceId', NULL) WHERE json_extract(dataJson, '$.originWorkspaceId') = ?")
         .bind(workspace_id).execute(&mut **tx).await?;
+    super::automation_binding_store::clear_bound_targets_for_workspace_in(
+        tx,
+        workspace_id,
+        "workspaceGone",
+    )
+    .await?;
     sqlx::query("DELETE FROM workspaces WHERE id = ?")
         .bind(workspace_id)
         .execute(&mut **tx)

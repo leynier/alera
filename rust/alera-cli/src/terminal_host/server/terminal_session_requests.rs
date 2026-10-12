@@ -122,6 +122,7 @@ impl ServerActor {
                             .mark_automation_run_taken_over(run_id, actor)
                             .await
                         {
+                            self.release_bound_tab_for_run(&run, "takenOver").await;
                             self.broadcast_automation_run_changed(&run);
                         }
                         self.broadcast_workspace_tabs_changed(Some(&workspace_id));

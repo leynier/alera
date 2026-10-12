@@ -73,6 +73,7 @@ impl ServerActor {
                             | "creationRequestFingerprint"
                             | "scheduleCursorAt"
                             | "stateBeforeTrash"
+                            | "boundTarget"
                     ) {
                         merged[key] = value.clone();
                     }
@@ -239,7 +240,9 @@ impl ServerActor {
                 }
             }
         }
-        match self.target_profile_id(definition).await {
+        let profile_id = self.target_profile_id(definition).await;
+        let profile_resolvable = matches!(profile_id, Ok(Some(_)));
+        match profile_id {
             Ok(Some(id)) => match self.runtime_store.find_agent_profile(&id).await {
                 Ok(Some(profile)) => {
                     if let Err(error) =
@@ -325,11 +328,16 @@ impl ServerActor {
                     .as_deref()
                     .is_none_or(|id| id.trim().is_empty())
             {
+                // Conversation reuse opens a new tab with the profile when the
+                // chosen conversation is gone, so it only warns.
+                let recoverable = profile_resolvable
+                    && definition.reuse_policy
+                        == alera_core::runtime::AutomationReusePolicy::ReuseConversation;
                 issues.push(issue(
                     "missingConversation",
                     "Choose a live agent conversation",
                     "target",
-                    "error",
+                    if recoverable { "warning" } else { "error" },
                     "ChooseTarget",
                 ));
             }
@@ -395,7 +403,12 @@ fn state_error(error: impl std::fmt::Display) -> HostError {
 }
 
 fn validation_field(error: &str) -> &'static str {
-    if error.contains("prompt") || error.contains("variable") || error.contains("delimiter") {
+    if error == alera_core::runtime::AUTOMATION_REUSE_CLEANUP_ERROR {
+        "cleanupPolicy"
+    } else if error == alera_core::runtime::AUTOMATION_REUSE_WORKSPACE_EXISTING_TAB_ERROR {
+        "reusePolicy"
+    } else if error.contains("prompt") || error.contains("variable") || error.contains("delimiter")
+    {
         "promptTemplate"
     } else if error.contains("cron") || error.contains("timezone") || error.contains("schedule") {
         "schedule"

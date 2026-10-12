@@ -93,6 +93,8 @@ pub struct AutomationRun {
     pub error: Option<String>,
     #[serde(default)]
     pub rendered_prompt: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reuse: Option<crate::runtime::AutomationRunReuse>,
     #[serde(default)]
     pub workspace_id: Option<String>,
     #[serde(default)]

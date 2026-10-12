@@ -113,9 +113,20 @@ impl ServerActor {
                     .runtime_store
                     .find_workspace_tab(tab_id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .ok_or_else(|| HostError::state("automation existing tab is missing"))?;
-                Ok(agent_profile_id(&tab).map(str::to_string))
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let bound = || {
+                    definition
+                        .bound_target
+                        .as_ref()
+                        .and_then(|binding| binding.agent_profile_id.clone())
+                };
+                match tab {
+                    Some(tab) => Ok(agent_profile_id(&tab).map(str::to_string).or_else(bound)),
+                    None => match bound() {
+                        Some(profile) => Ok(Some(profile)),
+                        None => Err(HostError::state("automation existing tab is missing")),
+                    },
+                }
             }
             AutomationTarget::FreshTab {
                 agent_profile_id, ..

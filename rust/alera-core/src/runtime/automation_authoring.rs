@@ -45,6 +45,7 @@ pub fn automation_from_input(
                 | "modifiedBy"
                 | "createdAt"
                 | "updatedAt"
+                | "boundTarget"
         ) {
             value[key] = field.clone();
         }

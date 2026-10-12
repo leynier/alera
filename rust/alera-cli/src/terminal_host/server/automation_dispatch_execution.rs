@@ -1,10 +1,13 @@
 use alera_core::runtime::{
     decide_overlap, prompt_value_map, render_prompt_template, AutomationActorKind,
     AutomationDefinition, AutomationOverlapDecision, AutomationRun, AutomationRunStatus,
-    AutomationTarget, AUTOMATION_OVERLAP_SUPERSEDED_REASON, AUTOMATION_QUEUE_LIMIT_REASON,
+    AUTOMATION_OVERLAP_SUPERSEDED_REASON, AUTOMATION_QUEUE_LIMIT_REASON,
 };
 use chrono::Utc;
+use std::future::Future;
+use std::pin::Pin;
 
+use super::super::automation_bound_target_resolution::BoundTargetPlan;
 use super::automation_run_lifecycle::is_non_retryable_dispatch_error;
 use super::{automation_prompt, ServerActor};
 pub(in crate::terminal_host::server) use automation_worktree_dispatch::AutomationWorktree;
@@ -105,7 +108,10 @@ impl ServerActor {
         }
         // Bind the durable target before a workspace or project lookup can
         // fail, so attention notifications still have a useful location.
-        let target_identity = match self.target_identity(&definition.target).await {
+        let target_identity = match self
+            .target_identity(&definition.target, definition.reuse_policy)
+            .await
+        {
             Ok(identity) => identity,
             Err(error) => {
                 self.block_run(&run, &error).await;
@@ -159,32 +165,46 @@ impl ServerActor {
             );
             return;
         }
-        Box::pin(self.dispatch_prechecked_automation(definition, run, location)).await;
+        self.dispatch_prechecked_automation(definition, run, location)
+            .await;
     }
 
-    pub(in crate::terminal_host::server) async fn dispatch_prechecked_automation(
+    // The two dispatch steps return their futures already boxed: the chain
+    // down to the PTY spawn is deep, and an unoptimized build keeps a future
+    // in the poll frame of whatever function constructs it.
+    pub(in crate::terminal_host::server) fn dispatch_prechecked_automation<'a>(
+        &'a mut self,
+        definition: &'a AutomationDefinition,
+        run: AutomationRun,
+        location: super::super::automation_target_location::AutomationTargetLocation,
+    ) -> Pin<Box<impl Future<Output = ()> + 'a>> {
+        Box::pin(self.dispatch_prechecked_inner(definition, run, location))
+    }
+
+    async fn dispatch_prechecked_inner(
         &mut self,
         definition: &AutomationDefinition,
         mut run: AutomationRun,
         location: super::super::automation_target_location::AutomationTargetLocation,
     ) {
-        if let AutomationTarget::ExistingTab { tab_id, .. } = &definition.target {
-            let session = self
-                .runtime_store
-                .find_workspace_tab(tab_id)
-                .await
-                .ok()
-                .flatten()
-                .and_then(|tab| super::super::requests::terminal_session_id_from_tab(&tab));
-            if session.as_deref().is_some_and(|id| {
-                self.sessions.get(id).is_some_and(|s| s.running())
-                    && !self.agent_presence.is_injection_ready(id)
-            }) {
-                run.retry_after = Some(Utc::now() + chrono::Duration::seconds(5));
-                let _ = self.runtime_store.save_automation_run(&run).await;
+        let plan = match self.plan_bound_target_task(definition, &run).await {
+            Ok(BoundTargetPlan::Busy { code, session_id }) => {
+                tracing::debug!(run_id = %run.id, ?session_id, code, "automation bound target is busy");
+                match self.park_task(definition, &mut run, code).await {
+                    Some(plan) => plan,
+                    None => return,
+                }
+            }
+            Ok(plan) => plan,
+            Err(error) if is_non_retryable_dispatch_error(&error) => {
+                self.block_run(&run, &error.wire_message()).await;
                 return;
             }
-        }
+            Err(error) => {
+                self.fail_run(&run, error.wire_message()).await;
+                return;
+            }
+        };
         let project = &location.project;
         run = match self
             .runtime_store
@@ -198,13 +218,17 @@ impl ServerActor {
             }
         };
         self.broadcast_automation_run_changed(&run);
-        if definition.target.project_checkout().is_some()
+        let reused = plan.reused_workspace().cloned();
+        if reused.is_none()
+            && definition.target.project_checkout().is_some()
             && location.host_id != alera_core::runtime::LOCAL_HOST_ID
         {
             self.start_automation_checkout_preparation(definition.clone(), run, project.clone());
             return;
         }
-        let source_workspace = if let Some(spec) = definition.target.worktree() {
+        let source_workspace = if let Some(workspace) = reused {
+            workspace
+        } else if let Some(spec) = definition.target.worktree() {
             if spec.parent_workspace_id.is_some()
                 && location.host_id != alera_core::runtime::LOCAL_HOST_ID
             {
@@ -257,16 +281,28 @@ impl ServerActor {
         };
         // Dispatch includes workspace setup and profile launch. Keep that large
         // future off the actor's stack, including deferred precheck completions.
-        Box::pin(self.continue_automation_dispatch(definition, run, source_workspace, project))
+        self.continue_automation_dispatch(definition, run, source_workspace, project, plan)
             .await;
     }
 
-    pub(in crate::terminal_host::server) async fn continue_automation_dispatch(
+    pub(in crate::terminal_host::server) fn continue_automation_dispatch<'a>(
+        &'a mut self,
+        definition: &'a AutomationDefinition,
+        run: AutomationRun,
+        source_workspace: alera_core::runtime::Workspace,
+        project: &'a alera_core::runtime::Project,
+        plan: BoundTargetPlan,
+    ) -> Pin<Box<impl Future<Output = ()> + 'a>> {
+        Box::pin(self.continue_dispatch_inner(definition, run, source_workspace, project, plan))
+    }
+
+    async fn continue_dispatch_inner(
         &mut self,
         definition: &AutomationDefinition,
         mut run: AutomationRun,
         source_workspace: alera_core::runtime::Workspace,
         project: &alera_core::runtime::Project,
+        plan: BoundTargetPlan,
     ) {
         let workspace_values = (
             source_workspace.id.as_str(),
@@ -287,6 +323,9 @@ impl ServerActor {
                 return;
             }
         };
+        let rendered = self
+            .reuse_preface_task(definition, &run, &plan, rendered)
+            .await;
         let prompt = super::super::automation_run_recovery::automation_attempt_prompt(
             automation_prompt(&rendered, &run.id, definition.heartbeat_interval_seconds),
             &run,
@@ -296,54 +335,10 @@ impl ServerActor {
             self.fail_run(&run, error.to_string()).await;
             return;
         }
-        let result = match &definition.target {
-            AutomationTarget::ProjectCheckout {
-                agent_profile_id, ..
-            } => {
-                self.dispatch_fresh_tab(
-                    &mut run,
-                    &source_workspace.id,
-                    agent_profile_id,
-                    &prompt,
-                    true,
-                )
-                .await
-            }
-
-            AutomationTarget::ExistingTab {
-                workspace_id,
-                tab_id,
-                conversation_id,
-            } => {
-                self.dispatch_existing_tab(
-                    &mut run,
-                    workspace_id,
-                    tab_id,
-                    conversation_id.as_deref(),
-                    &prompt,
-                )
-                .await
-            }
-            AutomationTarget::FreshTab {
-                workspace_id,
-                agent_profile_id,
-            } => {
-                self.dispatch_fresh_tab(&mut run, workspace_id, agent_profile_id, &prompt, false)
-                    .await
-            }
-            AutomationTarget::Worktree {
-                agent_profile_id, ..
-            } => {
-                self.dispatch_fresh_tab(
-                    &mut run,
-                    &source_workspace.id,
-                    agent_profile_id,
-                    &prompt,
-                    true,
-                )
-                .await
-            }
-        };
+        run.reuse = super::super::automation_bound_target_dispatch::run_reuse(definition, &plan);
+        let result = self
+            .dispatch_plan_task(definition, &mut run, &plan, &source_workspace, &prompt)
+            .await;
         match result {
             Ok(()) => {
                 // Keep the first-attachment marker until a user client really
@@ -364,6 +359,7 @@ impl ServerActor {
                     run.updated_at = Utc::now();
                     let _ = self.runtime_store.save_automation_run(&run).await;
                     self.record_automation_process(&run).await;
+                    self.record_bound_target_task(definition, &run, &plan).await;
                 }
                 self.broadcast_automation_run_changed(&run);
             }

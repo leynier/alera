@@ -40,6 +40,35 @@ impl ServerActor {
             .await
     }
 
+    /// "Workspace API · tab Codex", with "(missing)" for whatever the binding
+    /// names that no longer exists.
+    async fn bound_target_summary(&self, definition: &AutomationDefinition) -> Option<String> {
+        let binding = definition.bound_target.as_ref()?;
+        let Some(workspace) = self
+            .runtime_store
+            .find_workspace(&binding.workspace_id)
+            .await
+            .ok()
+            .flatten()
+        else {
+            return Some("Workspace (missing)".into());
+        };
+        let Some(tab_id) = binding.tab_id.as_deref() else {
+            return Some(format!("Workspace {}", workspace.name));
+        };
+        let tab = self
+            .runtime_store
+            .find_workspace_tab(tab_id)
+            .await
+            .ok()
+            .flatten()
+            .filter(|tab| tab.workspace_id == workspace.id);
+        Some(match tab {
+            Some(tab) => format!("Workspace {} · tab {}", workspace.name, tab.title),
+            None => format!("Workspace {} · tab (missing)", workspace.name),
+        })
+    }
+
     pub(super) async fn automation_catalog_item_in(
         &self,
         definition: &AutomationDefinition,
@@ -58,6 +87,9 @@ impl ServerActor {
         let location = self.automation_target_location(definition).await.ok();
         let project_id = location.as_ref().map(|loc| loc.project.id.as_str());
         value["association"] = json!({"workspaceId":workspace.as_ref().map(|w| &w.id),"sectionId":workspace.as_ref().and_then(|w| w.section_id.as_ref()),"projectId":project_id,"source":if definition.origin_workspace_id.is_some() {"origin"} else if workspace.is_some() {"targetWorkspace"} else {"project"}});
+        value["reusePolicy"] = json!(definition.reuse_policy.as_str());
+        value["boundTarget"] = json!(definition.bound_target);
+        value["boundTargetSummary"] = json!(self.bound_target_summary(definition).await);
         value["targetHostId"] = json!(location.as_ref().map(|loc| &loc.host_id));
         value["targetSummary"] = json!(location
             .as_ref()

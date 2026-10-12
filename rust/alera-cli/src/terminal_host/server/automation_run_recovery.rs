@@ -5,7 +5,7 @@ use alera_core::runtime::{
     AutomationRunStatus, LOCAL_HOST_ID,
 };
 use chrono::Utc;
-use serde_json::{json, Value};
+use serde_json::json;
 
 impl ServerActor {
     pub(super) async fn mark_automation_agent_waiting(&mut self, session: &str) {
@@ -164,7 +164,7 @@ impl ServerActor {
         if run.taken_over || run.owner_reserved || run.cancel_requested_at.is_some() {
             return;
         }
-        let Some(mut tab) = self.automation_recovery_tab(&run).await else {
+        let Some(tab) = self.automation_recovery_tab(&run).await else {
             // Never reconstruct a changed legacy target or allocate another worktree.
             self.block_run(&run, "The interrupted run's terminal is missing; choose Run Again to continue its preserved work").await;
             return;
@@ -212,45 +212,6 @@ impl ServerActor {
             "{}\n\nPrevious attempt workspace state:\n{context}",
             automation_recovery_prompt(&started, definition)
         );
-        if resuming {
-            tab.payload["agentNativeSessionId"] = json!(native);
-            let agent = super::terminal_startup_commands::tab_agent_type(&tab)
-                .unwrap_or("")
-                .to_string();
-            tab.payload["pendingAgentPrompt"] = json!({"agent":agent,"prompt":prompt});
-        } else {
-            tab.payload["agentNativeSessionId"] = Value::Null;
-            tab.payload["initialPrompt"] = json!(prompt);
-            tab.payload["initialPromptOnce"] = json!(false);
-            let agent = super::terminal_startup_commands::tab_agent_type(&tab)
-                .unwrap_or("")
-                .to_string();
-            if super::terminal_startup_commands::initial_delivery_mechanism(&tab).ok().flatten().is_some_and(|m| matches!(m, crate::terminal_host::orchestration::agent_profile_launch_snapshot::AgentInitialDeliveryMechanismV1::TerminalAfterReady)) {
-                tab.payload["pendingAgentPrompt"] = json!({"agent":agent,"prompt":prompt});
-            }
-        }
-        tab.id = uuid::Uuid::new_v4().to_string();
-        tab.created_at = Utc::now();
-        tab.updated_at = tab.created_at;
-        tab.payload["terminalSessionId"] = json!(tab.id);
-        tab.payload["conversationId"] = json!(uuid::Uuid::new_v4().to_string());
-        started.tab_id = Some(tab.id.clone());
-        started.session_id = Some(tab.id.clone());
-        started.owned_tab = true;
-        if let Some(identity) = started.target_identity.as_mut() {
-            identity.tab_id = Some(tab.id.clone());
-            identity.session_id = Some(tab.id.clone());
-            identity.terminal_handle = Some(tab.id.clone());
-            identity.conversation_id = tab.payload["conversationId"].as_str().map(str::to_string);
-        }
-        let _ = self
-            .runtime_store
-            .bind_automation_attempt(&started, if resuming { "resume" } else { "contextRetry" })
-            .await;
-        tab.payload["spawnOnCreate"] = json!(true);
-        tab.payload["automationOwned"] = json!(true);
-        tab.payload["automationRunId"] = json!(run.id);
-        tab.payload["automationAttemptId"] = json!(started.attempt_id);
         started.recovery = Some(AutomationRecovery {
             status: if resuming {
                 "resuming"
@@ -263,18 +224,24 @@ impl ServerActor {
             interrupted_at: run.recovery.as_ref().and_then(|r| r.interrupted_at),
             code: Some("runtimeRestart".into()),
         });
-        let _ = self.runtime_store.save_automation_run(&started).await;
-        if let Err(error) = self.runtime_store.upsert_workspace_tab(tab.clone()).await {
-            self.fail_run(&started, error.to_string()).await;
-            return;
-        }
-
-        match self.ensure_spawn_on_create_terminal(&tab).await {
-            Ok(_) => {
+        let relaunched = Box::pin(self.relaunch_automation_tab(
+            &tab,
+            &mut started,
+            super::automation_tab_relaunch::AutomationTabRelaunch {
+                prompt: &prompt,
+                native_session_id: if resuming { native } else { None },
+                launch_kind: if resuming { "resume" } else { "contextRetry" },
+            },
+        ))
+        .await;
+        match relaunched {
+            Ok(clone) => {
                 started.status = AutomationRunStatus::Dispatched;
                 started.updated_at = Utc::now();
                 let _ = self.runtime_store.save_automation_run(&started).await;
                 self.record_automation_process(&started).await;
+                self.rebind_relaunched_tab(&started.automation_id, &tab.id, &clone, &started.id)
+                    .await;
                 self.broadcast_automation_run_changed(&started);
             }
             Err(error) => {

@@ -55,6 +55,13 @@ impl ServerActor {
                     "Run Again requires a finished run of this automation",
                 ));
             }
+            // A reusing automation returns to its bound target on its own,
+            // and the reuse preface already describes the previous run.
+            if definition.reuse_policy.reuses() {
+                return self
+                    .start_manual_run(client_id, payload, actor, definition, Some(previous))
+                    .await;
+            }
             let workspace = previous.workspace_id.as_deref().ok_or_else(|| {
                 HostError::state("Previous workspace is missing; choose Start Fresh")
             })?;
@@ -87,6 +94,18 @@ impl ServerActor {
         } else {
             None
         };
+        self.start_manual_run(client_id, payload, actor, definition, previous)
+            .await
+    }
+
+    async fn start_manual_run(
+        &mut self,
+        _client_id: u64,
+        payload: &Value,
+        actor: AutomationActor,
+        definition: alera_core::runtime::AutomationDefinition,
+        previous: Option<AutomationRun>,
+    ) -> HostResult<Value> {
         let readiness = self.automation_readiness(&definition, false).await;
         if readiness["ready"] != true {
             return Err(HostError::conflict(
@@ -120,7 +139,10 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.broadcast_automation_run_changed(&run);
         run.continue_from_run_id = previous.as_ref().map(|r| r.id.clone());
-        match self.target_identity(&definition.target).await {
+        match self
+            .target_identity(&definition.target, definition.reuse_policy)
+            .await
+        {
             Ok(identity) => run.target_identity = Some(identity),
             Err(reason) => {
                 self.block_run(&run, &reason).await;

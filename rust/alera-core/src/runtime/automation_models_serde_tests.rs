@@ -271,3 +271,49 @@ fn snake_case_nested_payloads_still_deserialize_and_emit_camel_case() {
     .unwrap();
     assert_eq!(managed.agent_profile_id(), Some("profile-1"));
 }
+
+#[test]
+fn reuse_fields_default_when_absent_and_new_each_run_is_not_written() {
+    let value = json!({
+        "id": "reuse",
+        "slug": "reuse",
+        "name": "Reuse",
+        "promptTemplate": "ping",
+        "schedule": { "oneTime": { "at": "2027-01-01T00:00:00Z", "timezone": "UTC" } },
+        "target": { "freshTab": { "workspaceId": "workspace-1", "agentProfileId": "profile-1" } },
+        "state": "draft",
+        "revision": 0,
+        "createdBy": { "kind": "localCli" },
+        "modifiedBy": { "kind": "localCli" },
+        "createdAt": "2026-09-08T00:00:00Z",
+        "updatedAt": "2026-09-08T00:00:00Z"
+    });
+    let definition: AutomationDefinition = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(
+        definition.reuse_policy,
+        super::AutomationReusePolicy::NewEachRun
+    );
+    assert_eq!(definition.bound_target, None);
+    let encoded = serde_json::to_value(&definition).unwrap();
+    assert!(encoded.get("reusePolicy").is_none());
+    assert!(encoded.get("boundTarget").is_none());
+
+    let mut reusing = value;
+    reusing["reusePolicy"] = json!("reuseConversation");
+    reusing["boundTarget"] = json!({
+        "workspaceId": "workspace-1",
+        "tabId": "tab-1",
+        "boundRunId": "run-1",
+        "boundAt": "2026-09-08T00:00:00Z"
+    });
+    let definition: AutomationDefinition = serde_json::from_value(reusing).unwrap();
+    assert_eq!(
+        definition.reuse_policy,
+        super::AutomationReusePolicy::ReuseConversation
+    );
+    let encoded = serde_json::to_value(&definition).unwrap();
+    assert_eq!(encoded["reusePolicy"], "reuseConversation");
+    assert_eq!(encoded["boundTarget"]["tabId"], "tab-1");
+    let reread: AutomationDefinition = serde_json::from_value(encoded).unwrap();
+    assert_eq!(reread, definition);
+}

@@ -19,6 +19,11 @@ pub(super) fn validate_definition(definition: &AutomationDefinition) -> Result<(
     definition
         .target
         .validate_project_target(definition.project_id.as_deref())?;
+    super::validate_reuse(
+        definition.reuse_policy,
+        &definition.target,
+        definition.cleanup_policy,
+    )?;
     if definition.id.trim().is_empty() {
         bail!(RuntimeStoreError::Message(
             "automation id is required".to_string()
@@ -198,6 +203,7 @@ impl RuntimeStore {
             }
         }
         let existing = self.find_automation(&definition.id).await?;
+        let unbound = take_stored_binding(&mut definition, existing.as_ref());
         if let Some(conflict) = sqlx::query(
             "SELECT id FROM automations WHERE slug = ? COLLATE NOCASE AND id <> ? LIMIT 1",
         )
@@ -274,6 +280,17 @@ impl RuntimeStore {
             }),
         )
         .await?;
+        if let Some((binding, reason)) = unbound {
+            self.insert_automation_audit_event(
+                Some(&definition.id),
+                None,
+                "targetUnbound",
+                definition.modified_by.clone(),
+                Some(definition.revision),
+                serde_json::json!({ "reason": reason, "workspaceId": binding.workspace_id }),
+            )
+            .await?;
+        }
         self.find_automation(&definition.id)
             .await?
             .ok_or_else(|| anyhow!("automation disappeared after upsert"))
@@ -424,5 +441,29 @@ fn material_fields(
     if previous.cleanup_policy != current.cleanup_policy {
         fields.push("cleanupPolicy");
     }
+    if previous.reuse_policy != current.reuse_policy {
+        fields.push("reusePolicy");
+    }
     fields
+}
+
+/// The binding is runtime-owned: a client's value is always replaced by the
+/// stored one, which survives only while the target is unchanged and the
+/// automation still reuses it. Returns the binding this edit dropped.
+fn take_stored_binding(
+    definition: &mut AutomationDefinition,
+    existing: Option<&AutomationDefinition>,
+) -> Option<(super::AutomationBoundTarget, &'static str)> {
+    definition.bound_target = None;
+    let previous = existing?;
+    let binding = previous.bound_target.clone()?;
+    let reason = if !definition.reuse_policy.reuses() {
+        "reuseDisabled"
+    } else if previous.target != definition.target {
+        "targetChanged"
+    } else {
+        definition.bound_target = Some(binding);
+        return None;
+    };
+    Some((binding, reason))
 }

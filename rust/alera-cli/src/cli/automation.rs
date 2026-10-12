@@ -48,6 +48,8 @@ pub enum AutomationAction {
     Clone(AutomationCloneArgs),
     /// Take over the terminal of a run so the automation stops driving it.
     TakeOver(AutomationTakeOverArgs),
+    /// Forget the workspace or conversation a reusing automation returns to.
+    Unbind(AutomationUnbindArgs),
     /// Cancel one non-final run.
     Cancel(AutomationRunIdArgs),
     /// Show the context and lifecycle contract for a run.
@@ -123,6 +125,10 @@ pub struct AutomationDefinitionFileArgs {
     pub conversation_id: Option<String>,
     #[arg(long)]
     pub source_branch: Option<String>,
+    /// Where later runs go: a new target each run, the workspace the first
+    /// run created, or its conversation.
+    #[arg(long, value_parser = ["none", "workspace", "conversation"])]
+    pub reuse: Option<String>,
     #[arg(long)]
     pub origin_workspace_id: Option<String>,
     #[arg(long)]
@@ -133,6 +139,15 @@ pub struct AutomationDefinitionFileArgs {
     pub request_key: Option<String>,
     #[arg(long)]
     pub expected_revision: Option<i64>,
+}
+
+#[derive(Debug, Args)]
+pub struct AutomationUnbindArgs {
+    #[arg(long)]
+    pub id: String,
+    /// Why, recorded in the audit history.
+    #[arg(long)]
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Args)]

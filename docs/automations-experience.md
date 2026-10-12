@@ -13,6 +13,7 @@
 | Recovery | Reconcile the owner before launching. Resume a captured native conversation once, then continue with context in the preserved workspace. Persist three total launches by default, 60/120 second backoff, and the original 24-hour deadline. |
 | Observation | Watch Terminal attaches read-only to a live session or retained checkpoint. It cannot write, resize, reclaim, terminate, or restart that session. Take Over explicitly stops automatic recovery. |
 | Uncertain Owners | Reserve targets until process closure is proven. A timed-out run can retain its reservation; new work waits for the previous owner. A healthy SSH owner is reattached without injecting another startup command. |
+| Reuse | `reusePolicy` is `newEachRun` by default. `reuseWorkspace` opens a new tab in the workspace the first run created or used; `reuseConversation` pastes into its idle agent, waits while it works, relaunches it in a copy of its tab when the terminal or agent is gone, and opens a new tab after a takeover. The runtime owns `boundTarget`, shows it as `boundTargetSummary`, clears it when the target changes or the workspace goes away, and `automation.unbind` forgets it. Busy past the misfire grace window, the overlap policy skips the run or, under force-parallel, opens a parallel tab. |
 | History | Preserve attempt terminals and output by default. Run Again creates a new linked run and retains the original final history. Successful later runs clear historical failure attention. |
 
 ## Runtime Boundaries

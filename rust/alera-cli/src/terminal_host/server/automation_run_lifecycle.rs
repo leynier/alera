@@ -1,19 +1,22 @@
 use alera_core::runtime::{
-    AutomationRun, AutomationRunStatus, AutomationRunTrigger, AutomationState, AutomationTarget,
-    AutomationTargetIdentity,
+    AutomationReusePolicy, AutomationRun, AutomationRunStatus, AutomationRunTrigger,
+    AutomationState, AutomationTarget, AutomationTargetIdentity,
 };
 use chrono::{Duration, Utc};
-use serde_json::{json, Value};
+use serde_json::json;
+use std::future::Future;
+use std::pin::Pin;
 
 use super::super::requests::terminal_session_id_from_tab;
 use super::super::terminal_startup_commands::agent_profile_id;
 use super::{managed_actor, ServerActor};
-use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::host_error::HostError;
 
 impl ServerActor {
     pub(in crate::terminal_host::server) async fn target_identity(
         &self,
         target: &AutomationTarget,
+        reuse_policy: AutomationReusePolicy,
     ) -> Result<AutomationTargetIdentity, String> {
         let workspace_id = target.source_workspace_id();
         // Fence prechecks and managed source reads as well as eventual PTY
@@ -35,6 +38,30 @@ impl ServerActor {
                 conversation_id: None,
                 terminal_handle: None,
             }),
+            AutomationTarget::ExistingTab {
+                workspace_id,
+                tab_id,
+                conversation_id,
+            } if reuse_policy == AutomationReusePolicy::ReuseConversation => {
+                // The resolver may move a reusing run to another tab of the
+                // workspace, so a missing tab or conversation is not an error.
+                let tab = self
+                    .runtime_store
+                    .find_workspace_tab(tab_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .filter(|tab| tab.workspace_id == *workspace_id);
+                let session_id = tab.as_ref().and_then(terminal_session_id_from_tab);
+                Ok(AutomationTargetIdentity {
+                    workspace_id: Some(workspace_id.clone()),
+                    tab_id: Some(tab_id.clone()),
+                    session_id: session_id.clone(),
+                    profile_id: tab.as_ref().and_then(agent_profile_id).map(str::to_string),
+                    conversation_id: conversation_id.clone(),
+                    terminal_handle: session_id,
+                })
+            }
             AutomationTarget::ExistingTab {
                 workspace_id,
                 tab_id,
@@ -88,68 +115,26 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn dispatch_existing_tab(
-        &mut self,
-        run: &mut AutomationRun,
-        workspace_id: &str,
-        tab_id: &str,
-        conversation_id: Option<&str>,
-        prompt: &str,
-    ) -> HostResult<()> {
-        let tab = self
-            .runtime_store
-            .find_workspace_tab(tab_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state("automation existing tab is missing"))?;
-        if tab.workspace_id != workspace_id {
-            return Err(HostError::state(
-                "automation existing tab workspace changed",
-            ));
-        }
-        let session_id = terminal_session_id_from_tab(&tab)
-            .ok_or_else(|| HostError::state("automation existing tab has no terminal identity"))?;
-        let Some(expected) = conversation_id else {
-            return Err(HostError::state(
-                "automation conversation continuity cannot be proven",
-            ));
-        };
-        {
-            let actual = tab.payload.get("conversationId").and_then(Value::as_str);
-            if actual != Some(expected) {
-                return Err(HostError::state("automation conversation identity changed"));
-            }
-        }
-        if !self.sessions.contains_key(&session_id) {
-            return Err(HostError::state(
-                "automation existing tab has no live PTY after restart",
-            ));
-        }
-        if !self.agent_presence.is_injection_ready(&session_id) {
-            run.status = AutomationRunStatus::Pending;
-            run.retry_after = Some(Utc::now() + Duration::seconds(5));
-            run.started_at = None;
-            run.updated_at = Utc::now();
-            let parked = self
-                .runtime_store
-                .save_automation_run(run)
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?;
-            self.broadcast_automation_run_changed(&parked);
-            return Ok(());
-        }
-        self.queue_orchestration_paste(&session_id, prompt, Vec::new(), true)?;
-        run.workspace_id = Some(workspace_id.to_string());
-        run.tab_id = Some(tab_id.to_string());
-        run.session_id = Some(session_id);
-        Ok(())
+    // `block_run` and `fail_run` are awaited from most dispatch steps.
+    // Returning the future boxed keeps it out of each caller's poll frame,
+    // which an unoptimized build would otherwise grow once per call site.
+    pub(in crate::terminal_host::server) fn block_run<'a>(
+        &'a mut self,
+        run: &'a AutomationRun,
+        reason: &'a str,
+    ) -> Pin<Box<impl Future<Output = ()> + 'a>> {
+        Box::pin(self.block_run_inner(run, reason))
     }
 
-    pub(in crate::terminal_host::server) async fn block_run(
-        &mut self,
-        run: &AutomationRun,
-        reason: &str,
-    ) {
+    pub(in crate::terminal_host::server) fn fail_run<'a>(
+        &'a mut self,
+        run: &'a AutomationRun,
+        reason: String,
+    ) -> Pin<Box<impl Future<Output = ()> + 'a>> {
+        Box::pin(self.fail_run_inner(run, reason))
+    }
+
+    async fn block_run_inner(&mut self, run: &AutomationRun, reason: &str) {
         let _ = self
             .set_automation_run_status(
                 &run.id,
@@ -181,11 +166,7 @@ impl ServerActor {
         }
     }
 
-    pub(in crate::terminal_host::server) async fn fail_run(
-        &mut self,
-        run: &AutomationRun,
-        reason: String,
-    ) {
+    async fn fail_run_inner(&mut self, run: &AutomationRun, reason: String) {
         let mut recovering = self
             .runtime_store
             .find_automation_run(&run.id)
@@ -354,7 +335,12 @@ impl ServerActor {
                     AutomationRunStatus::Timeout
                 };
                 if !run.owner_reserved {
-                    self.terminate_owned_automation_sessions(&run).await;
+                    let reason = if cancellation_expired {
+                        "cancelled"
+                    } else {
+                        "timedOut"
+                    };
+                    self.terminate_owned_automation_sessions(&run, reason).await;
                 }
                 let _ = self
                     .set_automation_run_status(
@@ -450,12 +436,13 @@ impl ServerActor {
         }
     }
 
-    async fn terminate_owned_automation_sessions(&mut self, run: &AutomationRun) {
+    async fn terminate_owned_automation_sessions(&mut self, run: &AutomationRun, reason: &str) {
         if !run.owned_tab || run.taken_over {
             return;
         }
         if let Some(tab_id) = &run.tab_id {
             self.terminate_sessions_for_tab(tab_id).await;
+            self.release_bound_tab_for_run(run, reason).await;
         }
         if let Some(tab_id) = &run.setup_tab_id {
             self.terminate_sessions_for_tab(tab_id).await;

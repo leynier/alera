@@ -313,7 +313,7 @@ async fn parent_worktree_run_nests_under_its_parent_and_reuses_it_on_retry() {
     assert_eq!(retried.workspace_id.as_deref(), Some(workspace.id.as_str()));
     let identity = fixture
         .actor
-        .target_identity(&definition.target)
+        .target_identity(&definition.target, definition.reuse_policy)
         .await
         .unwrap();
     assert_eq!(identity.workspace_id.as_deref(), Some("workspace-1"));

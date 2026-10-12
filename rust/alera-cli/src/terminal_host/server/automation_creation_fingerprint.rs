@@ -31,6 +31,7 @@ pub(super) fn fingerprint(definition: &AutomationDefinition, input: &Value) -> S
         "stateBeforeTrash",
         "circuitOpened",
         "circuitOpenedAt",
+        "boundTarget",
     ] {
         fields.remove(field);
     }

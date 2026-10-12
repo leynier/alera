@@ -357,6 +357,15 @@ pub struct AutomationDefinition {
         skip_serializing_if = "super::AutomationWorkspacePlacement::is_empty"
     )]
     pub workspace_placement: super::AutomationWorkspacePlacement,
+    #[serde(
+        default,
+        skip_serializing_if = "super::AutomationReusePolicy::is_default"
+    )]
+    pub reuse_policy: super::AutomationReusePolicy,
+    /// Runtime-owned: written only by the dispatcher and the binding store,
+    /// never taken from a client.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound_target: Option<super::AutomationBoundTarget>,
     pub created_by: AutomationActor,
     pub modified_by: AutomationActor,
     pub created_at: DateTime<Utc>,

@@ -102,16 +102,19 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
         },
     ] {
         assert!(actor
-            .target_identity(&target)
+            .target_identity(&target, Default::default())
             .await
             .unwrap_err()
             .contains("reserved for reviewed cleanup"));
     }
     assert!(actor
-        .target_identity(&AutomationTarget::FreshTab {
-            workspace_id: "owner".into(),
-            agent_profile_id: "profile".into(),
-        })
+        .target_identity(
+            &AutomationTarget::FreshTab {
+                workspace_id: "owner".into(),
+                agent_profile_id: "profile".into(),
+            },
+            Default::default(),
+        )
         .await
         .is_ok());
     let error = actor

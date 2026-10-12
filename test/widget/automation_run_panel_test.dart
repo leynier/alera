@@ -56,6 +56,14 @@ void main() {
     return (runtime: runtime, workbench: workbench);
   }
 
+  test('reuse attempts have their own launch labels', () {
+    expect(automationLaunchKindLabel('reusePaste'), 'Continued Conversation');
+    expect(
+      automationLaunchKindLabel('reuseRelaunch'),
+      'Relaunched Conversation',
+    );
+  });
+
   testWidgets('Watch Terminal opens the tab without taking the run over', (
     tester,
   ) async {

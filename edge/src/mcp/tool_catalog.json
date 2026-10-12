@@ -6649,7 +6649,7 @@
             "type": "string"
           },
           "definition": {
-            "description": "Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target (freshTab, existingTab, worktree with projectId and/or parentWorkspaceId, or projectCheckout), and optional policies and projectId.",
+            "description": "Automation definition: name, promptTemplate, schedule ({recurring: {cron, timezone}} or {oneTime: {at, timezone}}), target (freshTab, existingTab, worktree with projectId and/or parentWorkspaceId, or projectCheckout), and optional policies and projectId. reusePolicy (newEachRun by default, reuseWorkspace, or reuseConversation) sends later runs to the workspace or conversation the first run created.",
             "type": "object"
           },
           "draft": {
@@ -6685,7 +6685,7 @@
             "type": "string"
           },
           "changes": {
-            "description": "Definition fields to replace, such as name, promptTemplate, schedule, or target.",
+            "description": "Definition fields to replace, such as name, promptTemplate, schedule, target, or reusePolicy. Changing the target or setting reusePolicy to newEachRun drops the bound target.",
             "type": "object"
           },
           "expectedRevision": {
@@ -6980,6 +6980,39 @@
       "name": "restore_automation",
       "timeoutSeconds": 30,
       "title": "Restore Automation"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Unbind Automation Target"
+      },
+      "description": "Forget the workspace or conversation an automation with reusePolicy reuseWorkspace or reuseConversation returns to. Its next run creates a new target and binds to that one.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "automationId": {
+            "description": "Automation id from list_automations.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why, recorded in the audit history.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "automationId"
+        ],
+        "type": "object"
+      },
+      "name": "unbind_automation_target",
+      "timeoutSeconds": 30,
+      "title": "Unbind Automation Target"
     },
     {
       "access": "execute",
