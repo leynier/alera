@@ -254,3 +254,65 @@ ButtonStyle _homeInlineButtonStyle(Color foreground) {
     visualDensity: .compact,
   );
 }
+
+class _HomeComposerChip extends StatelessWidget {
+  const _HomeComposerChip({
+    super.key,
+    required this.label,
+    this.leading,
+    this.onPressed,
+    this.ellipsize = false,
+  });
+
+  final String label;
+  final Widget? leading;
+  final void Function(BuildContext context)? onPressed;
+  final bool ellipsize;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: AleraTokens.foregroundMuted);
+    final pressed = onPressed;
+    return TextButton(
+      style: TextButton.styleFrom(
+        foregroundColor: AleraTokens.foregroundMuted,
+        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space8,
+          vertical: AleraTokens.space4,
+        ),
+        tapTargetSize: .shrinkWrap,
+        visualDensity: .compact,
+      ),
+      onPressed: pressed == null ? null : () => pressed(context),
+      child: Row(
+        mainAxisSize: .min,
+        children: <Widget>[
+          if (leading != null) ...<Widget>[
+            leading!,
+            const SizedBox(width: AleraTokens.space4),
+          ],
+          ellipsize
+              ? Flexible(
+                  child: Text(
+                    label,
+                    style: style,
+                    maxLines: 1,
+                    overflow: .ellipsis,
+                  ),
+                )
+              : Text(label, style: style),
+          if (onPressed != null) ...<Widget>[
+            const SizedBox(width: AleraTokens.space4),
+            const Icon(
+              AleraIcons.chevronDown,
+              size: AleraTokens.iconSm,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

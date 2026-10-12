@@ -235,6 +235,13 @@ class _HomeComposerCardState extends State<_HomeComposerCard> {
                       maxLines: 8,
                       textInputAction: .newline,
                       style: theme.textTheme.bodyMedium,
+                      contextMenuBuilder: (context, editableTextState) {
+                        return AleraTextActionsScope.buildContextMenu(
+                          context,
+                          editableTextState,
+                          onPaste: widget.onPaste,
+                        );
+                      },
                       decoration: InputDecoration(
                         hintText: 'Describe what the agent should build or paste an image',
                         hintStyle: theme.textTheme.bodyMedium?.copyWith(
@@ -320,64 +327,80 @@ class _HomeComposerCardState extends State<_HomeComposerCard> {
                       horizontal: AleraTokens.space8,
                       vertical: AleraTokens.space8,
                     ),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: AleraHorizontalScrollView(
-                            child: Row(
-                              children: <Widget>[
-                                _HomeComposerChip(
-                                  key: const ValueKey<String>(
-                                    'home-composer-host',
-                                  ),
-                                  label: widget.hostLabel,
-                                  leading: Icon(
-                                    widget.hostIsLocal
-                                        ? AleraIcons.workspaceMain
-                                        : AleraIcons.host,
-                                    size: AleraTokens.iconMd,
-                                    color: AleraTokens.foregroundMuted,
-                                  ),
-                                  onPressed: widget.onPickHost,
-                                ),
-                                if (widget.showParent) ...<Widget>[
-                                  const SizedBox(width: AleraTokens.space8),
-                                  _HomeComposerChip(
-                                    key: const ValueKey<String>(
-                                      'home-composer-parent',
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // A flex share shifts the resting Project Folder chip.
+                        final maxLocation =
+                            (constraints.maxWidth - AleraTokens.space8) / 2;
+                        return Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: AleraHorizontalScrollView(
+                                child: Row(
+                                  children: <Widget>[
+                                    _HomeComposerChip(
+                                      key: const ValueKey<String>(
+                                        'home-composer-host',
+                                      ),
+                                      label: widget.hostLabel,
+                                      leading: Icon(
+                                        widget.hostIsLocal
+                                            ? AleraIcons.workspaceMain
+                                            : AleraIcons.host,
+                                        size: AleraTokens.iconMd,
+                                        color: AleraTokens.foregroundMuted,
+                                      ),
+                                      onPressed: widget.onPickHost,
                                     ),
-                                    label: widget.parentLabel,
-                                    onPressed: widget.onPickParent,
-                                  ),
-                                ],
-                              ],
+                                    if (widget.showParent) ...<Widget>[
+                                      const SizedBox(width: AleraTokens.space8),
+                                      _HomeComposerChip(
+                                        key: const ValueKey<String>(
+                                          'home-composer-parent',
+                                        ),
+                                        label: widget.parentLabel,
+                                        onPressed: widget.onPickParent,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: AleraTokens.space8),
-                        if (widget.canChangeLocation)
-                          _HomeComposerChip(
-                            key: const ValueKey<String>(
-                              'home-composer-location',
+                            const SizedBox(width: AleraTokens.space8),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: maxLocation < 0 ? 0 : maxLocation,
+                              ),
+                              child: widget.canChangeLocation
+                                  ? _HomeComposerChip(
+                                      key: const ValueKey<String>(
+                                        'home-composer-location',
+                                      ),
+                                      label: widget.locationLabel,
+                                      ellipsize: true,
+                                      leading: widget.locationIsWorktree
+                                          ? const Icon(
+                                              AleraIcons.gitBranch,
+                                              size: AleraTokens.iconMd,
+                                              color:
+                                                  AleraTokens.foregroundMuted,
+                                            )
+                                          : null,
+                                      onPressed: widget.onPickLocation,
+                                    )
+                                  : Text(
+                                      widget.locationLabel,
+                                      maxLines: 1,
+                                      overflow: .ellipsis,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: AleraTokens.foregroundMuted,
+                                          ),
+                                    ),
                             ),
-                            label: widget.locationLabel,
-                            leading: widget.locationIsWorktree
-                                ? const Icon(
-                                    AleraIcons.gitBranch,
-                                    size: AleraTokens.iconMd,
-                                    color: AleraTokens.foregroundMuted,
-                                  )
-                                : null,
-                            onPressed: widget.onPickLocation,
-                          )
-                        else
-                          Text(
-                            widget.locationLabel,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AleraTokens.foregroundMuted,
-                            ),
-                          ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -385,57 +408,6 @@ class _HomeComposerCardState extends State<_HomeComposerCard> {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _HomeComposerChip extends StatelessWidget {
-  const _HomeComposerChip({
-    super.key,
-    required this.label,
-    this.leading,
-    this.onPressed,
-  });
-
-  final String label;
-  final Widget? leading;
-  final void Function(BuildContext context)? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall
-        ?.copyWith(color: AleraTokens.foregroundMuted);
-    final pressed = onPressed;
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: AleraTokens.foregroundMuted,
-        minimumSize: Size.zero,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space8,
-          vertical: AleraTokens.space4,
-        ),
-        tapTargetSize: .shrinkWrap,
-        visualDensity: .compact,
-      ),
-      onPressed: pressed == null ? null : () => pressed(context),
-      child: Row(
-        mainAxisSize: .min,
-        children: <Widget>[
-          if (leading != null) ...<Widget>[
-            leading!,
-            const SizedBox(width: AleraTokens.space4),
-          ],
-          Text(label, style: style),
-          if (onPressed != null) ...<Widget>[
-            const SizedBox(width: AleraTokens.space4),
-            const Icon(
-              AleraIcons.chevronDown,
-              size: AleraTokens.iconSm,
-              color: AleraTokens.foregroundMuted,
-            ),
-          ],
-        ],
       ),
     );
   }

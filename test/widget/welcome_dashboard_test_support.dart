@@ -179,6 +179,7 @@ class WelcomeDashboardRecordedPrompt {
 class WelcomeDashboardBranchSource {
   Completer<List<String>>? hang;
   Object? error;
+  List<String> names = const <String>['main'];
 }
 
 class WelcomeDashboardTestController extends WorkbenchController {
@@ -206,7 +207,7 @@ class WelcomeDashboardTestController extends WorkbenchController {
     if (error != null) {
       throw error;
     }
-    return const <String>['main'];
+    return _branches.names;
   }
 }
 

@@ -298,4 +298,30 @@ void main() {
     expect(find.text('/kept'), findsOneWidget);
     expect(jobs.request, isNull);
   });
+
+  testWidgets('a long worktree branch ellipsizes in the location chip', (
+    tester,
+  ) async {
+    const branch = 'feature/home-composer-location-chip-should-ellipsis';
+    final state = welcomeDashboardProjectState();
+    final branches = WelcomeDashboardBranchSource()
+      ..names = const <String>[branch];
+    await pumpWelcomeDashboard(
+      tester,
+      state: state,
+      size: const Size(390, 760),
+      profiles: <AgentProfile>[profile],
+      controller: WelcomeDashboardTestController(state, branches: branches),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-location')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(branch));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('From $branch'), findsOneWidget);
+    expect(find.text('This Device'), findsOneWidget);
+  });
 }
