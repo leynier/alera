@@ -97,9 +97,9 @@ Typography and sizing:
 | --- | --- |
 | `statusBarTextStyle` | Labels in the bottom status bar (mono, 10px), with `iconStatusBar` (13px) and `iconStatusBarSm` (11px) beside them |
 | `monoMicroStyle`, `monoCaptionFaintStyle` | Dense mono values (10px) and faint mono captions (9px) in hover cards and panels |
-| `logoSm`, `logoMd`, `logoLg` | `AleraLogo` sizes for the sidebar brand row, welcome and loading screens, and About dialog |
+| `logoSm`, `logoMd`, `logoLg` | `AleraLogo` sizes for the sidebar brand row, loading screens, and About dialog |
 | `iconButtonXs`, `iconButtonSm` | Hit areas for compact `AleraIconButton`s inside chips and row headers |
-| `welcomeDashboardMaxWidth` | Content width of the welcome dashboard |
+| `conversationMaxWidth` | Content width of the home composer and other centered conversations |
 
 ## Component Rules
 

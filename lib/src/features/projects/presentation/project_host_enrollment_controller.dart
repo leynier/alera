@@ -15,9 +15,10 @@ typedef AddProjectToHost = Future<Project> Function(
 /// another host while the request is still running, and the owner still has to
 /// know that it is.
 class ProjectHostEnrollmentController extends ChangeNotifier {
-  ProjectHostEnrollmentController(this._addProjectToHost);
+  ProjectHostEnrollmentController(AddProjectToHost? addProjectToHost)
+    : _addProjectToHost = addProjectToHost;
 
-  final AddProjectToHost? _addProjectToHost;
+  AddProjectToHost? _addProjectToHost;
   final TextEditingController pathController = TextEditingController();
   final Map<String, Project> _refreshedProjects = <String, Project>{};
   bool _adding = false;
@@ -26,6 +27,19 @@ class ProjectHostEnrollmentController extends ChangeNotifier {
 
   /// False when the runtime cannot put a project on more hosts.
   bool get supported => _addProjectToHost != null;
+
+  /// Swaps the runtime adder without disposing [pathController].
+  ///
+  /// The home watches a capability that is false on the first frame and again
+  /// after a failed re-check. Replacing the controller there disposes the
+  /// path field while Add to Host is still mounted. Does not notify: the
+  /// caller is already rebuilding because that capability changed.
+  void replaceAdder(AddProjectToHost? addProjectToHost) {
+    if (_disposed) {
+      return;
+    }
+    _addProjectToHost = addProjectToHost;
+  }
 
   bool get adding => _adding;
 

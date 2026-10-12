@@ -1,186 +1,203 @@
-import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
-import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
-import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'welcome_dashboard_test_support.dart';
+
 void main() {
-  Future<void> pumpDashboard(
+  final profile = _profile();
+
+  Future<WelcomeDashboardRecordedPrompt> pumpDashboard(
     WidgetTester tester, {
     required WorkbenchState state,
-    _WelcomeDashboardController? controller,
+    List<AgentProfile> profiles = const <AgentProfile>[],
     Size size = const Size(1200, 900),
-  }) async {
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          workbenchControllerProvider.overrideWith(
-            () => controller ?? _WelcomeDashboardController(state),
-          ),
-          settingsControllerProvider.overrideWith(
-            () => _WelcomeDashboardSettingsController(.defaults),
-          ),
-          agentProfilesProvider.overrideWith(
-            () => _WelcomeDashboardAgentProfiles(),
-          ),
-          sshTargetRepositoryProvider.overrideWithValue(
-            RuntimeSshTargetRepository(_WelcomeDashboardRuntimeHostClient()),
-          ),
-        ],
-        child: const MaterialApp(home: WelcomeDashboard()),
-      ),
+  }) {
+    return pumpWelcomeDashboard(
+      tester,
+      state: state,
+      profiles: profiles,
+      size: size,
     );
-    await tester.pumpAndSettle();
   }
 
   testWidgets(
-    'renders the empty dashboard and opens add-project and settings flows',
+    'offers add project and create profile when nothing is configured',
     (tester) async {
       await pumpDashboard(
         tester,
         state: const WorkbenchState(bootstrapped: true),
-        size: const Size(720, 900),
+        size: const Size(1440, 1000),
       );
 
-      expect(find.text('Welcome to Alera'), findsOneWidget);
-      expect(find.text('Quick Start'), findsOneWidget);
-      expect(find.text('Keyboard Shortcuts'), findsOneWidget);
-      expect(find.text('Projects & Workspaces'), findsNothing);
-      expect(find.text('No Projects Registered Yet'), findsNothing);
+      expect(find.text('Welcome to Alera'), findsNothing);
+      expect(find.text('Quick Start'), findsNothing);
+      expect(find.text('What should we build?'), findsOneWidget);
+      expect(find.text('No projects yet'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('home-composer-send')),
+        findsNothing,
+      );
 
-      await tester.tap(find.text('Add Project').first);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('home-composer-add-project')),
+      );
       await tester.pumpAndSettle();
       expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
       await tester.tap(find.text('Cancel').first);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open Settings').first);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('home-composer-create-profile')),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Application'), findsWidgets);
+      expect(find.text('Agent Profiles'), findsWidgets);
     },
   );
 
-  testWidgets('renders quick start and opens the create-workspace flow', (
+  testWidgets('shows the composer for a project and an agent profile', (
+    tester,
+  ) async {
+    await pumpDashboard(
+      tester,
+      state: _projectState(),
+      profiles: <AgentProfile>[profile],
+    );
+
+    expect(find.text('What should we build in '), findsOneWidget);
+    expect(find.text('Alera'), findsWidgets);
+    expect(find.text('Create a Worktree'), findsNothing);
+    expect(find.text('Project Folder'), findsOneWidget);
+    expect(find.text('This Device'), findsOneWidget);
+    expect(find.text('No Parent'), findsOneWidget);
+    expect(find.text(profile.name), findsOneWidget);
+    expect(find.text('New Workspace'), findsNothing);
+  });
+
+  testWidgets('enqueues a checkout workspace from the prompt', (tester) async {
+    final jobs = await pumpDashboard(
+      tester,
+      state: _projectState(),
+      profiles: <AgentProfile>[profile],
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('home-composer-prompt')),
+      '  Build the home composer  ',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey<String>('home-composer-send')));
+    await tester.pump();
+
+    final request = jobs.request;
+    expect(request, isNotNull);
+    expect(request!.useProjectCheckout, isTrue);
+    expect(request.sourceBranch, isEmpty);
+    expect(request.prompt, 'Build the home composer');
+    expect(request.profileId, profile.id);
+    expect(request.project.id, 'project-1');
+    expect(request.hostId, isNull);
+    expect(request.parentWorkspaceId, isNull);
+    expect(request.autoAssignSection, isFalse);
+    expect(find.text('Build the home composer'), findsNothing);
+  });
+
+  testWidgets('project folder chip switches to a worktree branch', (
+    tester,
+  ) async {
+    final jobs = await pumpDashboard(
+      tester,
+      state: _projectState(),
+      profiles: <AgentProfile>[profile],
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-location')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('main'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('From main'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('home-composer-prompt')),
+      'Build it on a branch',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey<String>('home-composer-send')));
+    await tester.pump();
+
+    final request = jobs.request;
+    expect(request, isNotNull);
+    expect(request!.useProjectCheckout, isFalse);
+    expect(request.sourceBranch, 'main');
+  });
+
+  testWidgets('a folder project keeps project folder static', (tester) async {
+    await pumpDashboard(
+      tester,
+      state: _projectState(kind: .folder),
+      profiles: <AgentProfile>[profile],
+    );
+
+    expect(find.text('Project Folder'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('home-composer-location')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('asks for an agent profile when the project has none', (
+    tester,
+  ) async {
+    await pumpDashboard(tester, state: _projectState());
+
+    expect(find.text('No agent profiles'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('home-composer-create-profile')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('home-composer-send')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('switches the heading when another project is picked', (
     tester,
   ) async {
     final now = DateTime.utc(2026, 5, 22);
-    final project = Project(
-      id: 'project-1',
-      name: 'Alera',
-      repoPath: '/repo/alera',
+    final other = Project(
+      id: 'project-2',
+      name: 'Other',
+      repoPath: '/repo/other',
       createdAt: now,
       updatedAt: now,
     );
-    final workspace = Workspace(
-      id: 'workspace-1',
-      projectId: project.id,
-      name: 'Main',
-      branch: 'main',
-      path: project.repoPath,
-      createdAt: now,
-      updatedAt: now,
-      kind: .main,
-      status: .active,
-    );
-
-    final controller = _WelcomeDashboardController(
-      WorkbenchState(
-        projects: <Project>[project],
-        workspacesByProject: <String, List<Workspace>>{
-          project.id: <Workspace>[workspace],
-        },
-        activeProjectId: project.id,
-        activeWorkspaceId: workspace.id,
-        bootstrapped: true,
-      ),
-    );
+    final state = _projectState();
     await pumpDashboard(
       tester,
-      controller: controller,
-      state: WorkbenchState(
-        projects: <Project>[project],
-        workspacesByProject: <String, List<Workspace>>{
-          project.id: <Workspace>[workspace],
-        },
-        activeProjectId: project.id,
-        activeWorkspaceId: workspace.id,
-        bootstrapped: true,
-      ),
+      state: state.copyWith(projects: <Project>[...state.projects, other]),
+      profiles: <AgentProfile>[profile],
     );
 
-    expect(find.text('Quick Start'), findsOneWidget);
-    expect(find.text('Keyboard Shortcuts'), findsOneWidget);
-    expect(find.text('Projects & Workspaces'), findsNothing);
-    expect(find.text('Main'), findsNothing);
-
-    await tester.tap(find.text('New Workspace').first);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Manual'));
-    await tester.pumpAndSettle();
-
-    // Tap Continue to go to Step 2
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.widgetWithText(FilledButton, 'Create Workspace'),
-      findsOneWidget,
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-project')),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Other').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Other'), findsWidgets);
+    expect(find.text('Alera'), findsNothing);
   });
 }
 
-class _WelcomeDashboardAgentProfiles extends AgentProfiles {
-  @override
-  Future<List<AgentProfile>> build() async => const <AgentProfile>[];
-}
+AgentProfile _profile() => welcomeDashboardProfile();
 
-class _WelcomeDashboardController(final WorkbenchState _seed)
-    extends WorkbenchController {
-  @override
-  WorkbenchState build() => _seed;
-
-  @override
-  Future<void> bootstrap() async {}
-
-  @override
-  Future<List<String>> listSourceBranches(Project project) async {
-    return const <String>['main'];
-  }
-}
-
-class _WelcomeDashboardSettingsController(final AleraSettings _seed)
-    extends SettingsController {
-  @override
-  AleraSettings build() => _seed;
-}
-
-class _WelcomeDashboardRuntimeHostClient implements RuntimeHostClient {
-  @override
-  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
-
-  @override
-  Future<Object?> runtimeRequest(
-    String type, [
-    Map<String, Object?> payload = const <String, Object?>{},
-    Duration? timeout,
-  ]) async {
-    if (type == 'sshTarget.list') {
-      return const <Object?>[];
-    }
-    return <String, Object?>{};
-  }
+WorkbenchState _projectState({ProjectKind kind = ProjectKind.gitRepository}) {
+  return welcomeDashboardProjectState(kind: kind);
 }

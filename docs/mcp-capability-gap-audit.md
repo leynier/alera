@@ -223,11 +223,11 @@ Estas capacidades no tienen comando CLI. Exponerlas por MCP exige primero un com
 
 ### 6.1 Cómo lo implementa la UI desktop
 
-Puntos de entrada (los tres abren `showCreateWorkspaceFlow`):
+Puntos de entrada:
 
-- Atajo `Mod+Shift+N` (`KeyboardActionId.createWorkspace`): `lib/src/features/keyboard/application/keyboard_command_dispatcher.dart:73`. El proyecto inicial es el proyecto activo.
-- Sidebar (botón y menú del proyecto, "New Workspace"): `lib/src/features/workbench/presentation/project_workbench_sidebar_actions.dart:41`.
-- Dashboard de bienvenida: `lib/src/features/workbench/presentation/welcome_dashboard_columns.dart:89`.
+- Atajo `Mod+Shift+N` (`KeyboardActionId.createWorkspace`): `lib/src/features/keyboard/application/keyboard_command_dispatcher.dart:73`. El proyecto inicial es el proyecto activo. Abre `showCreateWorkspaceFlow`.
+- Sidebar (botón y menú del proyecto, "New Workspace"): `lib/src/features/workbench/presentation/project_workbench_sidebar_actions.dart:41`. Abre `showCreateWorkspaceFlow`.
+- Home composer: `lib/src/features/workbench/presentation/welcome_dashboard.dart`. Envía el mismo `PromptWorkspaceCreateRequest` con `enqueuePromptWorkspace` y no abre el diálogo. Arranca en la carpeta del proyecto; el chip Project Folder cambia a un worktree y su rama. No ofrece issue vinculado ni el checkbox de auto-asignación; la auto-asignación queda activa cuando hay secciones.
 - El reintento de un job fallido reabre el formulario con el snapshot guardado: `background_setup_job_host.dart:72-83`.
 
 Flujo (`workbench_dialog_launchers_create_workspace.dart:32-250`, `prompt_workspace_dialog.dart`, `application/background_setup_jobs.dart:100-260`, `application/prompt_workspace_pipeline.dart`):
