@@ -29,6 +29,7 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
     ("runtime", Some("stop")),
     ("runtime", Some("clear")),
     ("runtime", Some("rename")),
+    ("runtime", Some("unlink-hub")),
     ("orchestration", Some("gate-resolve")),
     ("orchestration", Some("run-policy-approve")),
     ("orchestration", Some("run-policy-reject")),

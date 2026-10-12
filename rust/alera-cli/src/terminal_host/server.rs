@@ -291,6 +291,8 @@ mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
 mod ssh_bootstrap_job_events;
+mod ssh_target_removal;
+mod ssh_target_status_requests;
 mod tab_compatibility;
 #[cfg(test)]
 mod tab_compatibility_tests;
@@ -406,6 +408,9 @@ struct SshBootstrapJobState {
     job_id: String,
     target_id: String,
     status: SshBootstrapStatus,
+    /// Last progress stage and message, for the host status.
+    stage: String,
+    message: String,
     handle: JoinHandle<()>,
 }
 
@@ -797,6 +802,9 @@ impl ServerActor {
                 newly_attached,
             } => self.handle_host_link_state_changed(host_id, newly_attached),
             ServerCommand::HostLinkSupervisorTick => self.handle_host_link_supervisor_tick().await,
+            ServerCommand::SshTargetsChanged { host_id } => {
+                self.broadcast_ssh_targets_changed(host_id.as_deref())
+            }
             ServerCommand::AutomationRemoteOwnerStatus {
                 run_id,
                 host_id,
@@ -1357,7 +1365,7 @@ impl ServerActor {
                 error: None,
             }),
         ));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        self.broadcast_ssh_targets_changed(Some(&target.id));
         let target_id = request.target_id.clone();
         let store = self.runtime_store.clone();
         let cache_dir = self.runtime_dir.join("runtime-artifacts");
@@ -1387,6 +1395,8 @@ impl ServerActor {
             job_id: job_id.clone(),
             target_id: target_id.clone(),
             status: SshBootstrapStatus::Installing,
+            stage: "auth".to_string(),
+            message: "Checking SSH Authentication".to_string(),
             handle,
         };
         self.ssh_bootstrap_jobs.insert(target_id.clone(), job);
@@ -1468,7 +1478,7 @@ impl ServerActor {
             error: None,
         };
         self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        self.broadcast_ssh_targets_changed(Some(target_id));
         Ok(target)
     }
 }

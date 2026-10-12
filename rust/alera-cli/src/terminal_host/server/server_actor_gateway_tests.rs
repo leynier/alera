@@ -26,6 +26,8 @@ async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
                 job_id: "active-job".to_string(),
                 target_id: "remote".to_string(),
                 status: SshBootstrapStatus::Installing,
+                stage: "auth".to_string(),
+                message: "Checking SSH Authentication".to_string(),
                 handle: tokio::spawn(async {}),
             },
         )]),

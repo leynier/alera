@@ -173,6 +173,11 @@ impl ServerActor {
         satellite
     }
 
+    /// `satelliteOfHub` was cleared; the next question reads it again.
+    pub(super) fn forget_satellite_flag(&mut self) {
+        self.hub_reverse.satellite = None;
+    }
+
     fn forget_negative_satellite_flag(&mut self) {
         self.hub_reverse.satellite = self.hub_reverse.satellite.filter(|&satellite| satellite);
     }

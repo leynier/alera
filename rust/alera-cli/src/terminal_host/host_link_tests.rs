@@ -32,6 +32,7 @@ pub(crate) fn target(platform: &str, install_dir: Option<&str>) -> SshTarget {
         last_status: None,
         install_dir: install_dir.map(str::to_string),
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: Some(platform.into()),
         runtime_arch: None,

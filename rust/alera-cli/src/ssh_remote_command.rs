@@ -261,6 +261,7 @@ pub(crate) async fn run_sftp_put(
 pub(crate) fn ssh_args(target: &SshTarget) -> Vec<String> {
     let mut args = vec!["-p".to_string(), target.port.to_string()];
     args.extend(connection_options());
+    args.extend(identity_options(target));
     args.push(ssh_destination(target));
     args
 }
@@ -269,8 +270,29 @@ pub(crate) fn ssh_args(target: &SshTarget) -> Vec<String> {
 pub(crate) fn sftp_args(target: &SshTarget) -> Vec<String> {
     let mut args = vec!["-P".to_string(), target.port.to_string()];
     args.extend(connection_options());
+    args.extend(identity_options(target));
     args.push(ssh_destination(target));
     args
+}
+
+/// A configured key is the only one offered: without `IdentitiesOnly` ssh
+/// tries every agent key first and a server with a low `MaxAuthTries` refuses
+/// the connection before it reaches the right one.
+fn identity_options(target: &SshTarget) -> Vec<String> {
+    match target
+        .identity_file
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        Some(path) => vec![
+            "-i".to_string(),
+            path.to_string(),
+            "-o".to_string(),
+            "IdentitiesOnly=yes".to_string(),
+        ],
+        None => Vec::new(),
+    }
 }
 
 fn connection_options() -> [String; 6] {

@@ -403,7 +403,7 @@ fn default_install_dir(platform: &str) -> String {
     }
 }
 
-fn normalize_arch(value: &str) -> String {
+pub(crate) fn normalize_arch(value: &str) -> String {
     match value.trim().to_lowercase().as_str() {
         "x86_64" | "amd64" | "x64" => "x64".to_string(),
         "aarch64" | "arm64" => "arm64".to_string(),

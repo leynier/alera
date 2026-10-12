@@ -68,6 +68,7 @@ fn target(id: &str) -> SshTarget {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,

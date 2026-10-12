@@ -115,14 +115,14 @@ impl ServerActor {
 
     pub(super) fn handle_host_link_state_changed(&mut self, host_id: String, newly_attached: bool) {
         // Whatever changed while the link was down is read once it is back.
-        if newly_attached
-            && matches!(
-                self.host_links.state(&host_id),
-                crate::terminal_host::host_link::HostLinkState::Attached { .. }
-            )
-        {
-            self.push_agent_hook_settings_to_satellite(&host_id);
-            self.start_remote_agent_presence_sync(&host_id);
+        if newly_attached {
+            if let crate::terminal_host::host_link::HostLinkState::Attached { attachment } =
+                self.host_links.state(&host_id)
+            {
+                self.push_agent_hook_settings_to_satellite(&host_id);
+                self.start_remote_agent_presence_sync(&host_id);
+                self.record_host_attachment(&host_id, &attachment);
+            }
         }
         let payload = self.host_links.status_payload(&host_id);
         self.broadcast_authenticated_local(event(HOST_LINK_CHANGED_EVENT, payload));

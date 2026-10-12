@@ -170,6 +170,10 @@ pub enum ServerCommand {
     },
     /// Time for the host link supervisor to compare desired hosts with links.
     HostLinkSupervisorTick,
+    /// A background write changed SSH targets (a probe, an attach record).
+    SshTargetsChanged {
+        host_id: Option<String>,
+    },
     /// A satellite answered `automation.ownerStatus` for a run, off the actor.
     AutomationRemoteOwnerStatus {
         run_id: String,

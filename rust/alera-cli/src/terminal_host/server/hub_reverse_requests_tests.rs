@@ -338,6 +338,40 @@ async fn a_satellite_without_a_hub_refuses_instead_of_acting_on_its_copies() {
 }
 
 #[tokio::test]
+async fn hub_unlink_turns_a_satellite_back_into_an_ordinary_runtime() {
+    let (_root, mut actor, mut hub_frames, _cli_frames) = satellite().await;
+    register_hub(&mut actor);
+    mark_as_satellite(&actor).await;
+    assert!(actor
+        .try_forward_to_hub(CLI, 30, "workspace.list", &json!({}))
+        .await
+        .unwrap());
+    hub_frames.try_recv().unwrap();
+
+    assert!(actor
+        .try_start_deferred_request(HUB, 31, "hub.unlink", &json!({}))
+        .await
+        .unwrap());
+    let answer = hub_frames.try_recv().unwrap().as_json().unwrap();
+    assert_eq!(answer["id"], 31, "{answer}");
+    assert_eq!(answer["ok"], true, "{answer}");
+    assert_eq!(answer["payload"]["unlinked"], true, "{answer}");
+    assert!(!crate::hub_federation::is_satellite(&actor.runtime_store).await);
+    assert!(
+        !actor
+            .try_forward_to_hub(CLI, 32, "workspace.list", &json!({}))
+            .await
+            .unwrap(),
+        "the cached satellite flag is dropped with the metadata"
+    );
+
+    let phone = actor
+        .try_start_deferred_request(PHONE, 33, "hub.unlink", &json!({}))
+        .await;
+    assert!(phone.is_err(), "a phone cannot unlink the runtime");
+}
+
+#[tokio::test]
 async fn a_hub_reply_keeps_the_error_shape_of_a_normal_response() {
     let (_root, mut actor, mut hub_frames, mut cli_frames) = satellite().await;
     register_hub(&mut actor);

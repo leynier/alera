@@ -43,20 +43,32 @@ pub(crate) async fn collect_ssh_target_status<P: SshTargetProbe>(
     id: Option<&str>,
     probe: &P,
 ) -> Result<Value> {
-    if let Some(id) = id {
-        let target = store
+    let refreshed = check_ssh_targets(store, id, probe).await?;
+    match id {
+        Some(_) => Ok(json!(refreshed.into_iter().next())),
+        None => Ok(json!(refreshed)),
+    }
+}
+
+/// Probes one target (or every target without an id) and persists what it
+/// found as `lastStatus` / `lastCheckedAt`.
+pub(crate) async fn check_ssh_targets<P: SshTargetProbe>(
+    store: &RuntimeStore,
+    id: Option<&str>,
+    probe: &P,
+) -> Result<Vec<SshTarget>> {
+    let targets = match id {
+        Some(id) => vec![store
             .find_ssh_target(id)
             .await?
-            .ok_or_else(|| anyhow!("ssh target not found: {id}"))?;
-        let target = refresh_ssh_target_status(store, target, probe).await?;
-        return Ok(json!(target));
-    }
-    let targets = store.list_ssh_targets().await?;
+            .ok_or_else(|| anyhow!("ssh target not found: {id}"))?],
+        None => store.list_ssh_targets().await?,
+    };
     let mut refreshed = Vec::with_capacity(targets.len());
     for target in targets {
         refreshed.push(refresh_ssh_target_status(store, target, probe).await?);
     }
-    Ok(json!(refreshed))
+    Ok(refreshed)
 }
 
 pub(crate) async fn refresh_ssh_target_status<P: SshTargetProbe>(

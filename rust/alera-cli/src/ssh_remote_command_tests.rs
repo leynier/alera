@@ -21,6 +21,7 @@ fn target() -> SshTarget {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
@@ -55,6 +56,28 @@ fn ssh_and_sftp_share_the_connection_policy() {
     let mut anonymous = target();
     anonymous.username = " ".to_string();
     assert_eq!(sftp_args(&anonymous).last().unwrap(), "build.invalid");
+}
+
+#[test]
+fn an_identity_file_is_the_only_key_ssh_and_sftp_offer() {
+    for args in [ssh_args(&target()), sftp_args(&target())] {
+        assert!(!args.contains(&"-i".to_string()), "{args:?}");
+        assert!(
+            !args.contains(&"IdentitiesOnly=yes".to_string()),
+            "{args:?}"
+        );
+    }
+    let mut keyed = target();
+    keyed.identity_file = Some(" ~/.ssh/build key ".to_string());
+    for args in [ssh_args(&keyed), sftp_args(&keyed)] {
+        let at = args.iter().position(|arg| arg == "-i").unwrap();
+        assert_eq!(args[at + 1], "~/.ssh/build key");
+        assert_eq!(args[at + 2], "-o");
+        assert_eq!(args[at + 3], "IdentitiesOnly=yes");
+        assert_eq!(args.last().unwrap(), "dev@build.invalid");
+    }
+    keyed.identity_file = Some("  ".to_string());
+    assert!(!ssh_args(&keyed).contains(&"-i".to_string()));
 }
 
 #[test]

@@ -18,6 +18,7 @@ fn target(platform: Option<&str>, runtime_platform: Option<&str>) -> SshTarget {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: runtime_platform.map(str::to_string),
         runtime_arch: None,

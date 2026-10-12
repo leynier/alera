@@ -88,7 +88,16 @@ fn advertises_remote_workspaces_and_names_hosts_without_exposing_them() {
     assert!(mobile_request_allowed("mobile.hosts.list"));
     // The full target record says how to reach a host, and running a tool
     // on one is a desktop power.
-    for request in ["sshTarget.list", "host.process.run", "project.hosts.add"] {
+    // `project.checkout.register` registers a hub-side checkout record; the
+    // phone never sends it.
+    for request in [
+        "sshTarget.list",
+        "sshTarget.check",
+        "host.process.run",
+        "project.hosts.add",
+        "project.checkout.register",
+        "hub.unlink",
+    ] {
         assert!(!mobile_request_allowed(request), "{request}");
     }
 }

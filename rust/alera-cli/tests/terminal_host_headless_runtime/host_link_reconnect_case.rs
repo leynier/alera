@@ -36,6 +36,18 @@ fn a_dropped_link_to_a_desired_host_reconnects_with_backoff() {
             break;
         }
     }
+    // The attach records the runtime that answered and says so, scoped to
+    // the host.
+    loop {
+        assert!(
+            Instant::now() < deadline,
+            "the reattach never refreshed the target"
+        );
+        let message = read_message(&mut reader);
+        if message["event"] == "sshTargetsChanged" && message["payload"]["hostId"] == "ssh" {
+            break;
+        }
+    }
     let retry = saw_retry.unwrap();
     assert_eq!(retry["retry"]["attempt"], 1, "{retry}");
     assert!(retry["retry"]["nextRetryAt"].is_string(), "{retry}");

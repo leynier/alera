@@ -82,6 +82,26 @@ impl HostLinkRegistry {
         self.reevaluate();
     }
 
+    /// The user checked the host (`sshTarget.check`): a Disconnect no longer
+    /// holds, and a host that should be linked connects now rather than
+    /// after its backoff or a failure that had stopped retries.
+    pub(crate) fn check_requested(&self, host_id: &str) {
+        let Some(slot) = self.existing_slot(host_id) else {
+            self.reevaluate();
+            return;
+        };
+        {
+            let mut state = slot.lock();
+            state.paused = false;
+            if state.wants_link() && state.live_link().is_none() && state.attempt.is_none() {
+                state.cancel_retry();
+                self.start_attempt(host_id, &slot, &mut state);
+            }
+        }
+        self.publish(host_id, false);
+        self.reevaluate();
+    }
+
     /// Runs until the inbox closes: one tick right away, then one per sweep
     /// interval or [`Self::reevaluate`].
     pub(crate) fn spawn_supervisor(

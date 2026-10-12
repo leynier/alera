@@ -17,15 +17,12 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
     match command.action {
-        SshTargetAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_ssh_targets().await {
-                Ok(targets) => print_value(
-                    &json!({ "kind": "sshTargets", "items": targets, "filters": {} }),
-                    json_output,
-                    "ssh targets listed",
-                ),
-                Err(error) => return print_error(error),
-            },
+        SshTargetAction::List => match list_ssh_targets(&runtime).await {
+            Ok(targets) => print_value(
+                &json!({ "kind": "sshTargets", "items": targets, "filters": {} }),
+                json_output,
+                "ssh targets listed",
+            ),
             Err(error) => return print_error(error),
         },
         SshTargetAction::Add(args) => {
@@ -92,15 +89,10 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
             }
         }
         SshTargetAction::Status(SshTargetStatusArgs { id }) => {
-            let store = match open_store(&runtime).await {
-                Ok(store) => store,
+            let value = match check_ssh_targets(&runtime, id).await {
+                Ok(value) => value,
                 Err(error) => return print_error(error),
             };
-            let value =
-                match collect_ssh_target_status(&store, id.as_deref(), &LiveSshTargetProbe).await {
-                    Ok(value) => value,
-                    Err(error) => return print_error(error),
-                };
             print_value(&value, json_output, "ssh target status ready");
         }
         SshTargetAction::BootstrapPlan(args) => {
@@ -186,6 +178,33 @@ pub(super) async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
         }
     }
     0
+}
+
+/// A running runtime answers with each host's `hostStatus` as well.
+async fn list_ssh_targets(runtime: &RuntimeDirArgs) -> anyhow::Result<Value> {
+    runtime_host_or_store(runtime, "sshTarget.list", &json!({}), |store| async move {
+        Ok(json!(store.list_ssh_targets().await?))
+    })
+    .await
+}
+
+/// Probes through the running runtime (`sshTarget.check`), so it records the
+/// result, refreshes the app and reconnects a host that should be linked;
+/// without one the store is probed directly. Either way `--id` prints one
+/// target and no id prints them all.
+async fn check_ssh_targets(runtime: &RuntimeDirArgs, id: Option<String>) -> anyhow::Result<Value> {
+    if let Some(mut client) = RuntimeHostRpcClient::connect(&runtime_dir(runtime)).await? {
+        let answer = client
+            .request_value("sshTarget.check", &json!({ "id": id }))
+            .await?;
+        let targets = answer.get("targets").cloned().unwrap_or(json!([]));
+        return Ok(match id {
+            Some(_) => targets.get(0).cloned().unwrap_or(Value::Null),
+            None => targets,
+        });
+    }
+    let store = open_store(runtime).await?;
+    collect_ssh_target_status(&store, id.as_deref(), &LiveSshTargetProbe).await
 }
 
 /// Saved hosts are read and written through the running runtime when there is
@@ -282,6 +301,9 @@ pub(super) fn apply_ssh_target_update(
     if let Some(projects_dir) = update.projects_dir {
         target.projects_dir = non_empty(projects_dir);
     }
+    if let Some(identity_file) = update.identity_file {
+        target.identity_file = non_empty(identity_file);
+    }
     target.updated_at = now;
     target
 }
@@ -314,6 +336,7 @@ fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {
         last_status: None,
         install_dir: None,
         projects_dir: args.projects_dir.and_then(non_empty),
+        identity_file: args.identity_file.and_then(non_empty),
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,

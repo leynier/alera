@@ -143,7 +143,7 @@ Settings also includes a **Mobile Devices** section covering the full mobile com
 
 ## Non-Goals For This Version
 
-Bootstrap installs and validates the runtime sidecar only. It does not install launchd, systemd, or Windows services; it does not persist identity-file paths; and it does not repair missing remote prerequisites beyond returning actionable failures.
+Bootstrap installs and validates the runtime sidecar only. It does not install launchd, systemd, or Windows services, and it does not repair missing remote prerequisites beyond returning actionable failures.
 
 Managed remote workspaces are created with `alera workspace add --host-id` or Desktop New Workspace after the sidecar is installed. Those flows fail with an actionable error when the host is missing, not bootstrapped, or unreachable. The local runtime host rewrites terminal launches for those workspaces to SSH and serves `workspace.files.list` / `workspace.files.read` over the same path. The Desktop explorer uses those verbs for a workspace whose `hostId` is not local.
 

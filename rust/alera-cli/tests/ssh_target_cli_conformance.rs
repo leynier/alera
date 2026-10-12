@@ -96,6 +96,7 @@ fn seed_password_target(runtime_dir: &Path, id: &str) {
         last_status: None,
         install_dir: None,
         projects_dir: None,
+        identity_file: None,
         runtime_version: None,
         runtime_platform: None,
         runtime_arch: None,
@@ -306,8 +307,12 @@ fn seed_install_state(runtime_dir: &Path, id: &str) {
                 .unwrap();
             let mut target = store.find_ssh_target(id).await.unwrap().unwrap();
             target.install_dir = Some("/home/alera/.alera/runtime".to_string());
-            target.last_status = Some("ready".to_string());
             store.upsert_ssh_target(target).await.unwrap();
+            // An upsert never writes the probe result; only a check does.
+            store
+                .mark_ssh_target_checked(id, alera_core::runtime::SshTargetLastStatus::RuntimeReady)
+                .await
+                .unwrap();
         });
 }
 
@@ -334,7 +339,11 @@ fn add_existing_then_update(runtime_dir: &Path) {
         json!("/home/alera/.alera/runtime"),
         "the installed runtime is kept"
     );
-    assert_eq!(updated["lastStatus"], json!("ready"), "status is kept");
+    assert_eq!(
+        updated["lastStatus"],
+        json!("runtimeReady"),
+        "status is kept"
+    );
 
     let missing = run_ssh_target(
         runtime_dir,

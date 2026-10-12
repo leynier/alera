@@ -19,6 +19,7 @@ fn saved_target() -> SshTarget {
         last_status: Some("ready".into()),
         install_dir: Some("/Users/alera/.alera/runtime".into()),
         projects_dir: Some("~/code".into()),
+        identity_file: None,
         runtime_version: Some("0.105.0".into()),
         runtime_platform: Some("macos".into()),
         runtime_arch: Some("arm64".into()),
@@ -40,6 +41,7 @@ fn no_changes() -> SshTargetUpdateArgs {
         arch: None,
         auth_kind: None,
         projects_dir: None,
+        identity_file: None,
     }
 }
 
@@ -76,6 +78,7 @@ fn an_empty_value_clears_an_optional_field() {
         saved_target(),
         SshTargetUpdateArgs {
             projects_dir: Some("  ".into()),
+            identity_file: None,
             platform: Some(String::new()),
             auth_kind: Some(SshAuthKindArg::Key),
             ..no_changes()

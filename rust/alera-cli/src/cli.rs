@@ -332,6 +332,9 @@ pub enum RuntimeAction {
     Settings(RuntimeSettingsCommand),
     /// Show CPU and memory use of the host and its terminal sessions.
     Resources,
+    /// On a remote host, stop asking a desktop hub: the CLI lists this
+    /// runtime's own records again. The hub's next mirror links it back.
+    UnlinkHub,
 }
 
 #[derive(Debug, Args)]
@@ -546,6 +549,9 @@ pub struct SshTargetAddArgs {
     /// expanded on the host.
     #[arg(long)]
     pub projects_dir: Option<String>,
+    /// Private key ssh uses for this host (`ssh -i`, with IdentitiesOnly).
+    #[arg(long)]
+    pub identity_file: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -575,6 +581,10 @@ pub struct SshTargetUpdateArgs {
     /// the default (alera-projects under the remote home).
     #[arg(long)]
     pub projects_dir: Option<String>,
+    /// Private key ssh uses for this host; an empty value goes back to the
+    /// SSH agent and ~/.ssh/config.
+    #[arg(long)]
+    pub identity_file: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

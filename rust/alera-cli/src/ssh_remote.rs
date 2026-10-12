@@ -226,6 +226,7 @@ mod tests {
             last_status: None,
             install_dir: None,
             projects_dir: None,
+            identity_file: None,
             runtime_version: None,
             runtime_platform: Some("macos".to_string()),
             runtime_arch: None,

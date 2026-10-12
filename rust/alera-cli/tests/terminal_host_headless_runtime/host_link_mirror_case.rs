@@ -4,6 +4,7 @@ use std::os::unix::fs::{symlink, PermissionsExt};
 
 pub(super) struct HubAndSatellite {
     _directory: tempfile::TempDir,
+    pub(super) hub: std::path::PathBuf,
     /// One line per host link the fake `ssh` started: the pid that ends up
     /// running `alera runtime-attach`.
     pub(super) link_pids: std::path::PathBuf,
@@ -116,6 +117,7 @@ pub(super) fn hub_and_satellite_with_options(
     let (hub_guard, hub_port) = spawn_host_with_path(&hub, "hub-token", Some(path));
     HubAndSatellite {
         _directory: directory,
+        hub,
         link_pids,
         remote,
         satellite,
