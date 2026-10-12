@@ -1,5 +1,4 @@
-import 'package:alera/src/features/automations/application/automation_target_context.dart';
-import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
+import 'package:alera/src/features/automations/application/automation_composer_defaults.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -77,11 +76,10 @@ void main() {
     AutomationDraft choose(
       AutomationDraft draft,
       AutomationTargetChoice choice,
-    ) => chooseAutomationTargetType(
+    ) => applyAutomationDestination(
       draft,
       choice,
-      const AutomationWorkbenchContext(),
-      null,
+      const <AutomationDraftField, String>{},
     );
     final switched = choose(placed, AutomationTargetChoice.projectCheckout);
     expect(switched.workspaceSectionId, 'section-1');
@@ -92,8 +90,14 @@ void main() {
     final reselected = choose(placed, AutomationTargetChoice.projectWorktree);
     expect(reselected.workspaceSectionId, 'section-1');
     final freshTab = choose(placed, AutomationTargetChoice.freshTab);
-    expect(freshTab.workspaceSectionId, isNull);
     expect(freshTab.toDefinition()['workspacePlacement'], isEmpty);
+    expect(
+      choose(
+        freshTab,
+        AutomationTargetChoice.projectWorktree,
+      ).workspaceSectionId,
+      'section-1',
+    );
   });
 
   test('a saved placement reopens with its tags and section', () {

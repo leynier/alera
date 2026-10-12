@@ -6,6 +6,10 @@ import 'package:alera_automations/src/automation_models.dart';
 import 'package:alera_automations/src/automation_reuse_policy.dart';
 import 'package:alera_automations/src/automation_schedule_preset.dart';
 
+/// Name of each workspace a run creates unless the user sets another one.
+const String automationDefaultNameTemplate =
+    'auto-{{automation.slug}}-{{run.number}}';
+
 enum AutomationDraftField {
   workspaceId,
   parentWorkspaceId,
@@ -35,7 +39,7 @@ class const AutomationDraft({
   final Map<AutomationDraftField, String> targetFields =
       const <AutomationDraftField, String>{},
   final Set<AutomationDraftField> fromContext = const <AutomationDraftField>{},
-  final String nameTemplate = 'auto-{{automation.slug}}-{{run.number}}',
+  final String nameTemplate = automationDefaultNameTemplate,
   final String? originWorkspaceId,
   final Map<AutomationNumericField, String> numbers =
       const <AutomationNumericField, String>{},
@@ -83,7 +87,7 @@ class const AutomationDraft({
       targetFields: fields,
       nameTemplate:
           automationJsonOptionalString(details['nameTemplate']) ??
-          'auto-{{automation.slug}}-{{run.number}}',
+          automationDefaultNameTemplate,
       originWorkspaceId: record.originWorkspaceId,
       numbers: <AutomationNumericField, String>{
         .queueCap: '${record.queueCap}',

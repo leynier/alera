@@ -5,11 +5,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'automations_navigation.g.dart';
 
-/// Where "New Automation" was started from. The origin is only context: it
-/// never selects an execution target type.
+/// Where "New Automation" was started from. The composer seeds its
+/// destination from this context and marks those fields From Context; the
+/// user can change every one of them.
 class const AutomationAuthoringRequest({
   final String? originWorkspaceId,
   final String? projectId,
+  final String? sectionId,
   final String? editId,
   final String? cloneId,
 });
@@ -22,6 +24,7 @@ class const AutomationsLocation({
   final String? selectedRunId,
   final AutomationAuthoringRequest? authoring,
   final int authoringSequence = 0,
+  final Set<String> collapsedGroups = const <String>{},
 }) {
   AutomationsLocation copyWith({
     bool? visible,
@@ -31,6 +34,7 @@ class const AutomationsLocation({
     String? Function()? selectedRunId,
     AutomationAuthoringRequest? Function()? authoring,
     int? authoringSequence,
+    Set<String>? collapsedGroups,
   }) => AutomationsLocation(
     visible: visible ?? this.visible,
     scope: scope ?? this.scope,
@@ -39,6 +43,7 @@ class const AutomationsLocation({
     selectedRunId: selectedRunId == null ? this.selectedRunId : selectedRunId(),
     authoring: authoring == null ? this.authoring : authoring(),
     authoringSequence: authoringSequence ?? this.authoringSequence,
+    collapsedGroups: collapsedGroups ?? this.collapsedGroups,
   );
 }
 
@@ -70,6 +75,13 @@ class AutomationsNavigation extends _$AutomationsNavigation {
 
   void clearFilters() =>
       state = state.copyWith(filters: const AutomationCatalogFilters());
+
+  /// Catalog group headers the user collapsed, by group key.
+  void toggleGroup(String key) => state = state.copyWith(
+    collapsedGroups: state.collapsedGroups.contains(key)
+        ? (Set<String>.of(state.collapsedGroups)..remove(key))
+        : <String>{...state.collapsedGroups, key},
+  );
 
   void select(String? id) =>
       state = state.copyWith(selectedId: () => id, selectedRunId: () => null);

@@ -30,7 +30,9 @@ class const AutomationWorkspaceRuns({
         if (runs.value == null && runs.hasError)
           Padding(
             padding: const EdgeInsets.all(AleraTokens.space16),
-            child: Text('Runs are unavailable: ${runs.error}'),
+            child: Text(
+              'Runs are unavailable: ${automationErrorMessage(runs.error)}',
+            ),
           )
         else if (here.isEmpty)
           Padding(

@@ -5,19 +5,15 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
-import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera_automations/alera_automations.dart';
-import 'package:alera/src/features/automations/presentation/authoring/automation_authoring_dialog.dart';
-import 'package:alera/src/features/automations/presentation/automation_catalog_filters.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_view.dart';
-import 'package:alera/src/features/automations/presentation/automation_list_tile.dart';
-import 'package:alera/src/features/automations/presentation/automation_workspace_runs.dart';
-import 'package:alera/src/features/workbench/application/workbench_controller.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/automations/presentation/catalog/automation_catalog_bar.dart';
+import 'package:alera/src/features/automations/presentation/catalog/automation_catalog_list.dart';
+import 'package:alera/src/features/automations/presentation/composer/automation_composer_dialog.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,7 +46,7 @@ class _AutomationsPageState extends ConsumerState<AutomationsPage> {
     }
     _handledAuthoring = location.authoringSequence;
     ref.read(automationsNavigationProvider.notifier).consumeAuthoring();
-    unawaited(showAutomationAuthoringDialog(context, ref, request: request));
+    unawaited(showAutomationComposerDialog(context, ref, request: request));
   }
 
   @override
@@ -69,25 +65,32 @@ class _AutomationsPageState extends ConsumerState<AutomationsPage> {
     final selected = automations
         .where((item) => item.id == location.selectedId)
         .firstOrNull;
-    final master = _AutomationCatalogPane(
+    final attention =
+        automationBucketCounts(
+          automations,
+          location.scope,
+        )[AutomationBucket.needsAttention] ??
+        0;
+    final master = AutomationCatalogList(
       catalog: catalog,
       location: location,
       names: names,
     );
-    final detail = selected == null
+    Widget detail({VoidCallback? onBack}) => selected == null
         ? AleraEmptyState(
-            icon: AleraIcons.checks,
+            icon: AleraIcons.schedule,
             title: location.selectedId == null
                 ? 'Select An Automation'
                 : 'Automation Unavailable',
             message: location.selectedId == null
-                ? 'Inspect schedules, targets, runs and recovery. Opening this page does not change your workspace.'
+                ? 'Inspect schedules, destinations, runs and recovery. Opening this page does not change your workspace.'
                 : 'It may have been deleted. Choose another automation.',
           )
         : AutomationDetailView(
             key: ValueKey<String>(selected.id),
             automation: selected,
             selectedRunId: location.selectedRunId,
+            onBack: onBack,
           );
     return FocusTraversalGroup(
       child: Padding(
@@ -107,7 +110,7 @@ class _AutomationsPageState extends ConsumerState<AutomationsPage> {
                 ),
                 FilledButton.icon(
                   onPressed: () => unawaited(
-                    showAutomationAuthoringDialog(
+                    showAutomationComposerDialog(
                       context,
                       ref,
                       request: _requestForScope(location.scope, names),
@@ -130,6 +133,31 @@ class _AutomationsPageState extends ConsumerState<AutomationsPage> {
             ),
             const SizedBox(height: AleraTokens.space8),
             _RuntimeAvailabilityNotice(unreachable: catalog.hasError),
+            if (attention > 0 &&
+                location.filters.bucket != AutomationBucket.needsAttention)
+              Padding(
+                padding: const EdgeInsets.only(top: AleraTokens.space8),
+                child: AleraInlineNotice(
+                  tone: .warning,
+                  message: attention == 1
+                      ? '1 automation needs attention.'
+                      : '$attention automations need attention.',
+                  child: TextButton(
+                    onPressed: () => navigation.setFilters(
+                      const AutomationCatalogFilters(
+                        bucket: AutomationBucket.needsAttention,
+                      ),
+                    ),
+                    child: const Text('Show'),
+                  ),
+                ),
+              ),
+            const SizedBox(height: AleraTokens.space8),
+            AutomationCatalogBar(
+              automations: automations,
+              location: location,
+              names: names,
+            ),
             const SizedBox(height: AleraTokens.space8),
             Expanded(
               child: LayoutBuilder(
@@ -137,14 +165,16 @@ class _AutomationsPageState extends ConsumerState<AutomationsPage> {
                   final scale = MediaQuery.textScalerOf(context).scale(1);
                   if (constraints.maxWidth <
                       AleraTokens.wideContentBreakpoint * scale) {
-                    return selected == null ? master : detail;
+                    return selected == null
+                        ? master
+                        : detail(onBack: () => navigation.select(null));
                   }
                   return AleraMasterDetail(
                     masterTitle: 'Automations',
-                    masterWidth: AleraTokens.sidebarDefaultWidth,
+                    masterWidth: AleraTokens.masterDetailMaxWidth,
                     masterMaxWidth: AleraTokens.masterDetailMaxWidth,
                     master: master,
-                    detail: detail,
+                    detail: detail(),
                   );
                 },
               ),
@@ -166,8 +196,24 @@ AutomationAuthoringRequest _requestForScope(
   AutomationScopeKind.project => AutomationAuthoringRequest(
     projectId: scope.id,
   ),
-  _ => const AutomationAuthoringRequest(),
+  AutomationScopeKind.section => AutomationAuthoringRequest(
+    sectionId: scope.id,
+    projectId: _onlyProjectInSection(scope.id, names),
+  ),
+  AutomationScopeKind.all => const AutomationAuthoringRequest(),
 };
+
+String? _onlyProjectInSection(
+  String? sectionId,
+  AutomationWorkbenchContext names,
+) {
+  if (sectionId == null) return null;
+  final projects = names
+      .workspacesInSection(sectionId)
+      .map((workspace) => workspace.projectId)
+      .toSet();
+  return projects.length == 1 ? projects.single : null;
+}
 
 /// The runtime owns schedules. Nothing here starts it or changes autostart.
 class const _RuntimeAvailabilityNotice({required final bool unreachable})
@@ -185,101 +231,5 @@ class const _RuntimeAvailabilityNotice({required final bool unreachable})
       style: Theme.of(context).textTheme.bodySmall
           ?.copyWith(color: AleraTokens.foregroundMuted),
     );
-  }
-}
-
-class const _AutomationCatalogPane({
-  required final AsyncValue<List<AutomationRecord>> catalog,
-  required final AutomationsLocation location,
-  required final AutomationWorkbenchContext names,
-}) extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final navigation = ref.read(automationsNavigationProvider.notifier);
-    final automations = catalog.value ?? const <AutomationRecord>[];
-    final visible = visibleAutomations(
-      automations,
-      location.scope,
-      location.filters,
-    );
-    final groupBy = ref.watch(
-      workbenchControllerProvider.select((state) => state.viewPrefs.groupBy),
-    );
-    final filtersBar = AutomationCatalogFiltersBar(
-      scope: location.scope,
-      filters: location.filters,
-      counts: automationBucketCounts(automations, location.scope),
-      automations: automations,
-      context: names,
-      onScope: navigation.setScope,
-      onFilters: navigation.setFilters,
-      onClear: () {
-        navigation.clearFilters();
-        navigation.setScope(AutomationScope.all);
-      },
-    );
-    final workspaceScope =
-        location.scope.kind == AutomationScopeKind.workspace &&
-        location.scope.id != null;
-    final rows = <Widget>[
-      filtersBar,
-      if (workspaceScope) const AleraSectionHeader(label: 'Scheduled Here'),
-    ];
-    if (catalog.value == null) {
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.all(AleraTokens.space16),
-          child: catalog.hasError
-              ? Text('Automations are unavailable: ${catalog.error}')
-              : const Center(child: CircularProgressIndicator()),
-        ),
-      );
-    } else if (visible.isEmpty) {
-      final filtered =
-          location.filters.isFiltered || location.scope != AutomationScope.all;
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.all(AleraTokens.space16),
-          child: Text(
-            filtered
-                ? 'No automations match these filters. Clear or adjust them to see other automations.'
-                : 'No automations yet. Choose New Automation to schedule an agent.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-      );
-    } else {
-      String? currentGroup;
-      for (final automation in visible) {
-        final group = workspaceScope
-            ? null
-            : switch (groupBy) {
-                WorkbenchGroupBy.project => names.projectName(
-                  automation.effectiveProjectId,
-                ),
-                WorkbenchGroupBy.section =>
-                  automation.association?.sectionId == null
-                      ? 'Others'
-                      : names.sectionName(automation.association?.sectionId),
-                WorkbenchGroupBy.none => null,
-              };
-        if (group != null && group != currentGroup) {
-          currentGroup = group;
-          rows.add(AleraSectionHeader(label: group));
-        }
-        rows.add(
-          AutomationListTile(
-            automation: automation,
-            names: names,
-            selected: automation.id == location.selectedId,
-            onTap: () => navigation.select(automation.id),
-          ),
-        );
-      }
-    }
-    if (workspaceScope) {
-      rows.add(AutomationWorkspaceRuns(workspaceId: location.scope.id!));
-    }
-    return ListView(children: rows);
   }
 }

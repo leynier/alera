@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_collapsible_section.dart';
+import 'package:alera/src/design_system/layout/alera_key_value_row.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
@@ -144,22 +146,17 @@ class const AutomationRunPanel({
                 const SizedBox(height: AleraTokens.space12),
                 Text('Attempts', style: theme.textTheme.labelMedium),
                 for (final attempt in attempts)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Attempt ${attempt.number} · ${automationLaunchKindLabel(attempt.launchKind)}',
-                    ),
-                    subtitle: Text(
-                      <String>[
-                        attempt.status,
-                        if (attempt.interruptionCode case final code?)
-                          'Interrupted: $code',
-                        if (attempt.startedAt case final started?)
-                          automationDateTimeLabel(started),
-                        ?attempt.error,
-                      ].join(' · '),
-                    ),
+                  AleraKeyValueRow(
+                    label: 'Attempt ${attempt.number}',
+                    value: <String>[
+                      automationLaunchKindLabel(attempt.launchKind),
+                      attempt.status,
+                      if (attempt.interruptionCode case final code?)
+                        'Interrupted: $code',
+                      if (attempt.startedAt case final started?)
+                        automationDateTimeLabel(started),
+                      ?attempt.error,
+                    ].join(' · '),
                     trailing: attempt.tabId == null || !observe
                         ? null
                         : TextButton(
@@ -174,12 +171,16 @@ class const AutomationRunPanel({
                           ),
                   ),
               ],
-              if (run.renderedPrompt case final prompt?)
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  title: const Text('Prompt Sent'),
-                  children: <Widget>[SelectableText(prompt)],
+              if (run.renderedPrompt case final prompt?) ...<Widget>[
+                const SizedBox(height: AleraTokens.space8),
+                AleraCollapsibleSection(
+                  title: 'Prompt Sent',
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AleraTokens.space8),
+                    child: SelectableText(prompt),
+                  ),
                 ),
+              ],
               if (buttons.isNotEmpty) ...<Widget>[
                 const SizedBox(height: AleraTokens.space12),
                 Wrap(

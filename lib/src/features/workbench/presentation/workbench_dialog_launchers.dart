@@ -66,6 +66,20 @@ Future<void> openSettingsDialog(
 void openAutomationsPage(WidgetRef ref) =>
     ref.read(automationsNavigationProvider.notifier).open();
 
+/// Opens the automation composer seeded from the active workspace, or with
+/// no destination when none is active.
+void startNewAutomation(WidgetRef ref) {
+  final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
+  ref
+      .read(automationsNavigationProvider.notifier)
+      .startAuthoring(
+        AutomationAuthoringRequest(
+          originWorkspaceId: workspace?.id,
+          sectionId: workspace?.sectionId,
+        ),
+      );
+}
+
 /// Opens Quick Open for the active workspace and restores the prior focus when
 /// the modal route closes.
 Future<void> showQuickOpenFlow(BuildContext context, WidgetRef ref) async {

@@ -60,31 +60,3 @@ class const AutomationRunRow({
     );
   }
 }
-
-class const AutomationMissedRunsRow({
-  required final AutomationRunHistoryMissed missed,
-  super.key,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final from = missed.from;
-    final to = missed.to;
-    final range = from == null || to == null
-        ? ''
-        : ' · ${automationDateTimeLabel(from)} to ${automationDateTimeLabel(to)}';
-    return ListTile(
-      dense: true,
-      leading: Icon(
-        automationStatusIcon(
-          const AutomationStatusLabel(label: '', tone: AutomationTone.neutral),
-        ),
-        size: AleraTokens.iconSm,
-        color: AleraTokens.foregroundMuted,
-      ),
-      title: Text('Missed While Runtime Was Off$range'),
-      subtitle: Text(
-        '${missed.runs.length} scheduled runs missed their start window and were skipped.',
-      ),
-    );
-  }
-}

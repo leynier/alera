@@ -50,7 +50,6 @@ abstract final class AleraTokens {
   static const double desktopPreviewWidth = 980.0;
   static const double automationAuthoringWidth = 720.0;
   static const double automationAuthoringMaxHeight = 760.0;
-  static const double automationInfoLabelWidth = 100.0;
 
   /// Width of the muted label column in `AleraKeyValueRow` fact lists.
   static const double keyValueLabelWidth = 120.0;

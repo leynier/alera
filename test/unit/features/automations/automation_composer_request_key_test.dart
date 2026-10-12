@@ -1,4 +1,4 @@
-import 'package:alera/src/features/automations/application/automation_authoring_controller.dart';
+import 'package:alera/src/features/automations/application/automation_composer_controller.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,7 +25,7 @@ class _AmbiguousRuntime extends FakeAutomationRuntime {
 }
 
 AutomationDraft _draft(String prompt) =>
-    AutomationDraft(promptTemplate: prompt)
+    AutomationDraft(promptTemplate: prompt, timezone: 'UTC')
         .withTargetType(AutomationTargetType.freshTab)
         .withTargetField(.workspaceId, 'ws-1')
         .withTargetField(.agentProfileId, 'codex');
@@ -44,14 +44,14 @@ void main() {
   test('retrying the same draft reuses its request key', () async {
     final container = automationContainer(runtime);
     addTearDown(container.dispose);
-    final provider = automationAuthoringControllerProvider(1);
+    final provider = automationComposerControllerProvider(1);
     final subscription = container.listen(provider, (_, _) {});
     addTearDown(subscription.close);
     final controller = container.read(provider.notifier)
       ..initialize(_draft('Review'));
 
     expect(await controller.submit(), isNull);
-    expect(container.read(provider).error, contains('connection lost'));
+    expect(container.read(provider).error, 'connection lost');
     expect(await controller.submit(), isNotNull);
     expect(keys(), hasLength(2));
     expect(keys().first, keys().last);
@@ -60,7 +60,7 @@ void main() {
   test('a changed draft gets a new key so it is saved, not matched', () async {
     final container = automationContainer(runtime);
     addTearDown(container.dispose);
-    final provider = automationAuthoringControllerProvider(2);
+    final provider = automationComposerControllerProvider(2);
     final subscription = container.listen(provider, (_, _) {});
     addTearDown(subscription.close);
     final controller = container.read(provider.notifier)

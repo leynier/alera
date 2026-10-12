@@ -224,3 +224,18 @@ String automationDateTimeLabel(DateTime moment) {
   return '${_months[local.month - 1]} ${local.day}, ${local.year} '
       '${automationClockLabel(local.hour, local.minute)}';
 }
+
+/// One previewed occurrence as "Mon 13 09:00", from the wall-clock time the
+/// runtime reports in the automation's zone, or that text unchanged when it
+/// cannot be read.
+String automationOccurrenceLabel(JsonMap occurrence) {
+  final text = automationJsonString(
+    occurrence['localTime'] ?? occurrence['scheduledAt'],
+  ).trim();
+  final local = DateTime.tryParse(text);
+  if (local == null) return text;
+  final weekday = automationWeekdays
+      .firstWhere((entry) => entry.$1 == local.weekday % 7)
+      .$2;
+  return '$weekday ${local.day} ${automationClockLabel(local.hour, local.minute)}';
+}

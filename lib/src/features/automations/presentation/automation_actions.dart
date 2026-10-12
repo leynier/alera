@@ -82,11 +82,17 @@ extension type const AutomationActions(WidgetRef ref) {
     success: 'Automation scheduled again.',
   );
 
-  /// Activates a draft. `automation.approve` is the activation verb every
-  /// runtime understands; it no longer gates anything.
+  /// Activates a draft through `automation.resume`, which checks readiness
+  /// like any other activation.
   Future<void> activate(AutomationRecord automation) => _attempt(
     () => _repository.activate(automation),
     success: 'Automation is active.',
+  );
+
+  /// Forgets the workspace or conversation a reusing automation returns to.
+  Future<void> unbind(AutomationRecord automation) => _attempt(
+    () => _repository.unbind(automation.id),
+    success: 'Unbound. The next run creates a new destination.',
   );
 
   Future<void> trash(AutomationRecord automation) => _attempt(
@@ -153,18 +159,27 @@ extension type const AutomationActions(WidgetRef ref) {
     );
   }
 
-  Future<void> openRunWorkspace(AutomationRunRecord run) async {
+  Future<void> openRunWorkspace(AutomationRunRecord run) => openWorkspace(
+    run.workspaceId,
+    label: 'The workspace of run #${run.number}',
+  );
+
+  /// Opens [workspaceId], or reports that [label] is gone.
+  Future<void> openWorkspace(
+    String? workspaceId, {
+    required String label,
+  }) async {
     final workbench = ref.read(workbenchControllerProvider);
     final workspace = workbench.workspacesByProject.values
         .expand((items) => items)
-        .where((item) => item.id == run.workspaceId)
+        .where((item) => item.id == workspaceId)
         .firstOrNull;
     final project = workbench.projects
         .where((item) => item.id == workspace?.projectId)
         .firstOrNull;
     if (workspace == null || project == null) {
       AleraToast.publish(
-        message: 'The workspace of run #${run.number} is no longer available.',
+        message: '$label is no longer available.',
         tone: AleraToastTone.info,
       );
       return;
@@ -173,6 +188,23 @@ extension type const AutomationActions(WidgetRef ref) {
     await ref
         .read(workbenchControllerProvider.notifier)
         .selectWorkspace(project: project, workspace: workspace);
+  }
+
+  /// Opens the bound tab when it is still open, else its workspace.
+  Future<void> openBoundTarget(AutomationBoundTarget bound) {
+    final tabOpen =
+        bound.tabId != null &&
+        ref
+            .read(workbenchControllerProvider)
+            .tabsFor(bound.workspaceId)
+            .any((tab) => tab.id == bound.tabId);
+    return tabOpen
+        ? openTerminalTab(
+            bound.workspaceId,
+            bound.tabId,
+            label: 'the bound conversation',
+          )
+        : openWorkspace(bound.workspaceId, label: 'The bound workspace');
   }
 
   /// Explicit takeover: input becomes available and recovery stops for this

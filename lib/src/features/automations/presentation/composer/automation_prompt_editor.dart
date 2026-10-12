@@ -60,7 +60,7 @@ class AutomationTemplateTextController extends TextEditingController {
   }
 }
 
-/// The prompt field of the What step. Typing `{{` lists the variables the
+/// The prompt field of the composer. Typing `{{` lists the variables the
 /// runtime fills; Tab or Enter inserts the highlighted one. The chips below
 /// insert the common ones at the caret.
 class AutomationPromptEditor extends StatefulWidget {
@@ -70,12 +70,20 @@ class AutomationPromptEditor extends StatefulWidget {
     required this.onChanged,
     this.errorText,
     this.autofocus = false,
+    this.minLines = 8,
+    this.maxLines = 14,
+    this.onCommandEnter,
   });
 
   final AutomationTemplateTextController controller;
   final ValueChanged<String> onChanged;
   final String? errorText;
   final bool autofocus;
+  final int minLines;
+  final int maxLines;
+
+  /// Submits the surrounding form on Control+Enter or Cmd+Enter.
+  final VoidCallback? onCommandEnter;
 
   @override
   State<AutomationPromptEditor> createState() => _AutomationPromptEditorState();
@@ -191,14 +199,14 @@ class _AutomationPromptEditorState extends State<AutomationPromptEditor> {
           child: AleraTextField(
             controller: widget.controller,
             focusNode: _focusNode,
-            labelText: 'What Should The Agent Do?',
-            hintText:
-                'Review open pull requests and summarize what needs attention.',
-            minLines: 5,
-            maxLines: 12,
+            labelText: 'Prompt',
+            hintText: 'What should the agent do? For example, review open pull requests and summarize what needs attention.',
+            minLines: widget.minLines,
+            maxLines: widget.maxLines,
             autofocus: widget.autofocus,
             errorText: widget.errorText,
             onChanged: widget.onChanged,
+            onCommandEnter: widget.onCommandEnter,
           ),
         ),
         const SizedBox(height: AleraTokens.space8),
@@ -215,7 +223,7 @@ class _AutomationPromptEditorState extends State<AutomationPromptEditor> {
             runSpacing: AleraTokens.space6,
             crossAxisAlignment: .center,
             children: <Widget>[
-              Text('Insert Variable', style: muted),
+              Text('Insert a variable:', style: muted),
               for (final variable in _quickVariables)
                 AleraChip(
                   label: variable.label,

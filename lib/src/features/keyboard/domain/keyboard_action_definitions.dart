@@ -22,6 +22,16 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     allowInTerminal: true,
   ),
   KeybindingDefinition(
+    id: .newAutomation,
+    label: 'New Automation',
+    group: .global,
+    description:
+        'Schedule a prompt for an agent, starting from the active workspace.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['schedule', 'prompt', 'cron'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
     id: .openRunBoard,
     label: 'Open Run Board',
     group: .global,

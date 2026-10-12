@@ -1,9 +1,5 @@
-import 'package:alera/src/features/automations/application/automation_target_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../../../support/automation_test_harness.dart';
 
 void main() {
   test('a new draft has no target type and cannot continue past Where', () {
@@ -68,56 +64,6 @@ void main() {
       isFalse,
     );
     expect(draft.toDefinition()['circuitFailureThreshold'], 11);
-  });
-
-  test('choosing a target type only fills unambiguous context', () {
-    final context = automationTestContext();
-    const request = AutomationAuthoringRequest(originWorkspaceId: 'ws-1');
-    final draft = chooseAutomationTargetType(
-      const AutomationDraft(originWorkspaceId: 'ws-1'),
-      AutomationTargetChoice.freshTab,
-      context,
-      request,
-    );
-    expect(draft.targetType, AutomationTargetType.freshTab);
-    expect(draft.field(.workspaceId), 'ws-1');
-    expect(draft.field(.agentProfileId), 'codex');
-    expect(draft.fromContext, {
-      AutomationDraftField.workspaceId,
-      AutomationDraftField.agentProfileId,
-    });
-    final edited = draft.withTargetField(.workspaceId, 'ws-2');
-    expect(edited.fromContext, {AutomationDraftField.agentProfileId});
-  });
-
-  test('switching target type drops the previous type fields', () {
-    final context = automationTestContext();
-    final freshTab = chooseAutomationTargetType(
-      const AutomationDraft(),
-      AutomationTargetChoice.freshTab,
-      context,
-      const AutomationAuthoringRequest(originWorkspaceId: 'ws-1'),
-    );
-    final checkout = chooseAutomationTargetType(
-      freshTab,
-      AutomationTargetChoice.projectCheckout,
-      context,
-      null,
-    );
-    expect(checkout.field(.workspaceId), isNull);
-    expect(checkout.field(.projectId), isNull);
-    expect(checkout.whereError, isNotNull);
-  });
-
-  test('without context nothing but an only profile is filled', () {
-    final draft = chooseAutomationTargetType(
-      const AutomationDraft(),
-      AutomationTargetChoice.workspaceWorktree,
-      automationTestContext(),
-      null,
-    );
-    expect(draft.field(.parentWorkspaceId), isNull);
-    expect(draft.field(.sourceBranch), isNull);
   });
 
   test('each step explains what it still needs', () {

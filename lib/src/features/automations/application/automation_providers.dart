@@ -58,6 +58,7 @@ class AutomationRecentRuns extends _$AutomationRecentRuns {
 class const AutomationCapabilities({
   final bool authoring = false,
   final bool observe = false,
+  final bool reuse = false,
 });
 
 @Riverpod(keepAlive: true)
@@ -72,7 +73,12 @@ class AutomationRuntimeCapabilities extends _$AutomationRuntimeCapabilities {
     final results = await Future.wait(<Future<bool>>[
       repository.supports(automationsAuthoringCapability),
       repository.supports(automationTerminalObserveCapability),
+      repository.supports(automationReuseCapability),
     ]);
-    return AutomationCapabilities(authoring: results[0], observe: results[1]);
+    return AutomationCapabilities(
+      authoring: results[0],
+      observe: results[1],
+      reuse: results[2],
+    );
   }
 }

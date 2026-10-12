@@ -143,12 +143,19 @@ class RuntimeAutomationRepository(final RuntimeHostClient _client) {
     return AutomationRecord.fromJson(payload);
   }
 
-  Future<AutomationRecord> activate(AutomationRecord automation) async {
+  /// Activates a draft. `automation.resume` runs the same readiness check as
+  /// the deprecated `automation.approve` and accepts a draft.
+  Future<AutomationRecord> activate(AutomationRecord automation) =>
+      setState('automation.resume', automation.id);
+
+  /// Forgets where a reusing automation returns to; the next run creates a
+  /// new destination. Requires [automationReuseCapability].
+  Future<AutomationRecord> unbind(String id, {String? reason}) async {
     final payload = await _client.runtimeRequest(
-      'automation.approve',
-      <String, Object?>{'id': automation.id, 'revision': automation.revision},
+      'automation.unbind',
+      <String, Object?>{'id': id, 'reason': ?reason},
     );
-    return AutomationRecord.fromJson(payload);
+    return AutomationRecord.fromJson(_automationOf(payload));
   }
 
   /// Manual runs use the definition's own precheck and overlap policy unless

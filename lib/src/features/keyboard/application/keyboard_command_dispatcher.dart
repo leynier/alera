@@ -48,6 +48,8 @@ class const KeyboardCommandDispatcher({
         unawaited(openSettingsDialog(context));
       case KeyboardActionId.openAutomations:
         openAutomationsPage(ref);
+      case KeyboardActionId.newAutomation:
+        startNewAutomation(ref);
       case KeyboardActionId.openQuickOpen:
         unawaited(showQuickOpenFlow(context, ref));
       case KeyboardActionId.openCommandPalette:

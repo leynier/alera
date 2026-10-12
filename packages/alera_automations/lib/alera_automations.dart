@@ -1,6 +1,7 @@
 export 'src/automation_binding.dart';
 export 'src/automation_catalog_grouping.dart';
 export 'src/automation_catalog_query.dart';
+export 'src/automation_composer_properties.dart';
 export 'src/automation_draft.dart';
 export 'src/automation_error_message.dart';
 export 'src/automation_field_bounds.dart';

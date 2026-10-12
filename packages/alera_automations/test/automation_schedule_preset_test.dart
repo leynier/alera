@@ -159,4 +159,17 @@ void main() {
       isNotNull,
     );
   });
+
+  test('previewed occurrences read as weekday, day and time', () {
+    expect(
+      automationOccurrenceLabel(<String, Object?>{
+        'localTime': '2026-10-05T09:00:00',
+      }),
+      'Mon 5 09:00',
+    );
+    expect(
+      automationOccurrenceLabel(<String, Object?>{'localTime': 'soon'}),
+      'soon',
+    );
+  });
 }
