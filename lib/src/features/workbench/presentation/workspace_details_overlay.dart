@@ -2,6 +2,7 @@ import 'package:alera/src/design_system/surfaces/workspace_details_density.dart'
 import 'package:alera/src/features/workbench/application/workspace_git_progress.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_review_rows.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_presence.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_source_control_presence.dart';
 import 'package:flutter/services.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/workbench/application/background_operations.dart';
@@ -10,6 +11,8 @@ import 'package:alera/src/features/workbench/application/workspace_details_toggl
 
 import 'dart:async';
 import 'dart:io';
+
+import 'package:alera/src/features/workbench/presentation/workspace_details_toolbar_scope.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -78,6 +81,34 @@ class _WorkspaceDetailsOverlayState
     super.dispose();
   }
 
+  int _terminalToolbarCount = 0;
+  Rect? _toolbarAnchor;
+  FocusScopeNode? _toolbarToggleFocus;
+
+  void _toolbarAvailabilityChanged(bool available) {
+    _terminalToolbarCount += available ? 1 : -1;
+    if (_terminalToolbarCount == 0) {
+      _toolbarAnchor = null;
+      _toolbarToggleFocus = null;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _toggleFromToolbar(BuildContext context) {
+    _toolbarToggleFocus = FocusScope.of(context);
+    final box = context.findRenderObject() as RenderBox?;
+    _toolbarAnchor = box == null
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
+    ref
+        .read(
+          workspaceDetailsToggleSignalProvider(widget.workspace.id).notifier,
+        )
+        .toggle();
+  }
+
   bool _popupOpen = false;
   bool _inline = false;
   bool _running = false;
@@ -113,7 +144,10 @@ class _WorkspaceDetailsOverlayState
   void _changeState(VoidCallback action) => setState(action);
 
   void _closePopup() {
-    final restore = _popupFocus.hasFocus || _toggleFocus.hasFocus;
+    final restore =
+        _popupFocus.hasFocus ||
+        _toggleFocus.hasFocus ||
+        (_toolbarToggleFocus?.hasFocus ?? false);
     _portal.hide();
     setState(() => _popupOpen = false);
     if (restore) {
@@ -137,7 +171,10 @@ class _WorkspaceDetailsOverlayState
       if (previous == next) return;
       if (_inline) {
         final restore =
-            !hidden && (_inlineFocus.hasFocus || _toggleFocus.hasFocus);
+            !hidden &&
+            (_inlineFocus.hasFocus ||
+                _toggleFocus.hasFocus ||
+                (_toolbarToggleFocus?.hasFocus ?? false));
         ref
             .read(workbenchControllerProvider.notifier)
             .toggleWorkspaceDetails(widget.workspace.id);
@@ -160,159 +197,173 @@ class _WorkspaceDetailsOverlayState
       for (final tab in state.tabsFor(widget.workspace.id))
         ?runtime.peekSession(tab.id)?.searchController,
     ];
-    return AnimatedBuilder(
-      animation: Listenable.merge(searches),
-      child: widget.child,
-      builder: (context, child) => LayoutBuilder(
-        builder: (context, constraints) {
-          final searchOpen = searches.any((search) => search.isOpen);
-          const toggleTop =
-              AleraTokens.sidebarHeaderHeight + AleraTokens.space4;
-          const cardTop = toggleTop + AleraTokens.space32 + AleraTokens.space8;
-          final inline =
-              !searchOpen &&
-              constraints.maxWidth >= AleraTokens.wideContentBreakpoint &&
-              constraints.maxHeight >=
-                  AleraTokens.workspaceDetailsMinHeight +
-                      cardTop +
-                      AleraTokens.space16;
-          if (inline != _inline) {
-            _inline = inline;
-            _popupOpen = false;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _portal.hide();
-            });
-          }
-          final showCard = inline && !hidden;
-          final cardWidth = (constraints.maxWidth - AleraTokens.space16 * 2)
-              .clamp(0.0, AleraTokens.workspaceDetailsWidth);
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              child!,
-              Positioned(
-                top:
-                    searchOpen ||
-                        constraints.maxWidth < AleraTokens.workspaceDetailsWidth
-                    ? null
-                    : toggleTop,
-                bottom:
-                    searchOpen ||
-                        constraints.maxWidth < AleraTokens.workspaceDetailsWidth
-                    ? AleraTokens.space4
-                    : null,
-                left: constraints.maxWidth < AleraTokens.workspaceDetailsWidth
-                    ? AleraTokens.space8
-                    : null,
-                right: constraints.maxWidth < AleraTokens.workspaceDetailsWidth
-                    ? null
-                    : AleraTokens.space48 * 3 + AleraTokens.space8,
-                child: FocusScope(
-                  node: _toggleFocus,
-                  child: OverlayPortal(
-                    controller: _portal,
-                    overlayChildBuilder: (context) {
-                      final overlaySize = MediaQuery.sizeOf(context);
-                      final box =
-                          _anchor.currentContext?.findRenderObject()
-                              as RenderBox?;
-                      final anchor = box == null
-                          ? Offset.zero
-                          : box.localToGlobal(Offset.zero);
-                      final width =
-                          (overlaySize.width - AleraTokens.space16 * 2).clamp(
-                            0.0,
-                            AleraTokens.workspaceDetailsWidth,
-                          );
-                      final left = (anchor.dx + (box?.size.width ?? 0) - width)
-                          .clamp(
-                            AleraTokens.space8,
-                            overlaySize.width - width - AleraTokens.space8,
-                          );
-                      final topLimit =
-                          (overlaySize.height -
-                                  AleraTokens.workspaceDetailsMinHeight -
-                                  AleraTokens.space8)
-                              .clamp(AleraTokens.space8, double.infinity);
-                      final top =
-                          (anchor.dy +
-                                  (box?.size.height ?? 0) +
-                                  AleraTokens.space8)
-                              .clamp(AleraTokens.space8, topLimit);
-                      return Stack(
-                        children: [
-                          Positioned.fill(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _closePopup,
-                            ),
-                          ),
-                          Positioned(
-                            left: left,
-                            top: top,
-                            width: width,
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight:
-                                    overlaySize.height -
-                                    top -
-                                    AleraTokens.space8,
+    return WorkspaceDetailsToolbarScope(
+      onAvailabilityChanged: _toolbarAvailabilityChanged,
+      onToggle: _toggleFromToolbar,
+      child: AnimatedBuilder(
+        animation: Listenable.merge(searches),
+        child: widget.child,
+        builder: (context, child) => LayoutBuilder(
+          builder: (context, constraints) {
+            final searchOpen = searches.any((search) => search.isOpen);
+            const toggleTop =
+                AleraTokens.sidebarHeaderHeight + AleraTokens.space4;
+            const cardTop =
+                toggleTop + AleraTokens.space32 + AleraTokens.space8;
+            final inline =
+                !searchOpen &&
+                constraints.maxWidth >= AleraTokens.wideContentBreakpoint &&
+                constraints.maxHeight >=
+                    AleraTokens.workspaceDetailsMinHeight +
+                        cardTop +
+                        AleraTokens.space16;
+            if (inline != _inline) {
+              _inline = inline;
+              _popupOpen = false;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _portal.hide();
+              });
+            }
+            final showCard = inline && !hidden;
+            final cardWidth = (constraints.maxWidth - AleraTokens.space16 * 2)
+                .clamp(0.0, AleraTokens.workspaceDetailsWidth);
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                child!,
+                Positioned(
+                  top:
+                      searchOpen ||
+                          constraints.maxWidth <
+                              AleraTokens.workspaceDetailsWidth
+                      ? null
+                      : toggleTop,
+                  bottom:
+                      searchOpen ||
+                          constraints.maxWidth <
+                              AleraTokens.workspaceDetailsWidth
+                      ? AleraTokens.space4
+                      : null,
+                  left: constraints.maxWidth < AleraTokens.workspaceDetailsWidth
+                      ? AleraTokens.space8
+                      : null,
+                  right:
+                      constraints.maxWidth < AleraTokens.workspaceDetailsWidth
+                      ? null
+                      : AleraTokens.space48 * 3 + AleraTokens.space8,
+                  child: FocusScope(
+                    node: _toggleFocus,
+                    child: OverlayPortal(
+                      controller: _portal,
+                      overlayChildBuilder: (context) {
+                        final overlaySize = MediaQuery.sizeOf(context);
+                        final box =
+                            _anchor.currentContext?.findRenderObject()
+                                as RenderBox?;
+                        final anchorRect =
+                            _toolbarAnchor ??
+                            (box == null
+                                ? Rect.zero
+                                : box.localToGlobal(Offset.zero) & box.size);
+                        final anchor = anchorRect.topLeft;
+                        final width =
+                            (overlaySize.width - AleraTokens.space16 * 2).clamp(
+                              0.0,
+                              AleraTokens.workspaceDetailsWidth,
+                            );
+                        final left = (anchor.dx + anchorRect.width - width)
+                            .clamp(
+                              AleraTokens.space8,
+                              overlaySize.width - width - AleraTokens.space8,
+                            );
+                        final topLimit =
+                            (overlaySize.height -
+                                    AleraTokens.workspaceDetailsMinHeight -
+                                    AleraTokens.space8)
+                                .clamp(AleraTokens.space8, double.infinity);
+                        final top =
+                            (anchor.dy + anchorRect.height + AleraTokens.space8)
+                                .clamp(AleraTokens.space8, topLimit);
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _closePopup,
                               ),
-                              child: SingleChildScrollView(
-                                child: Consumer(
-                                  builder: (context, cardRef, _) => _card(
-                                    cardRef,
-                                    popup: true,
-                                    availableHeight:
-                                        overlaySize.height -
-                                        top -
-                                        AleraTokens.space8,
+                            ),
+                            Positioned(
+                              left: left,
+                              top: top,
+                              width: width,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight:
+                                      overlaySize.height -
+                                      top -
+                                      AleraTokens.space8,
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Consumer(
+                                    builder: (context, cardRef, _) => _card(
+                                      cardRef,
+                                      popup: true,
+                                      availableHeight:
+                                          overlaySize.height -
+                                          top -
+                                          AleraTokens.space8,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                    child: AleraIconButton(
-                      key: _anchor,
-                      icon: AleraIcons.review,
-                      tooltip: 'Toggle Workspace Details',
-                      onPressed: () => KeyboardCommandDispatcher(
-                        ref: ref,
-                        context: context,
-                      ).dispatch(.toggleWorkspaceDetails),
+                          ],
+                        );
+                      },
+                      child: _terminalToolbarCount > 0
+                          ? SizedBox.shrink(key: _anchor)
+                          : AleraIconButton(
+                              key: _anchor,
+                              icon: AleraIcons.review,
+                              tooltip: 'Toggle Workspace Details',
+                              onPressed: () => KeyboardCommandDispatcher(
+                                ref: ref,
+                                context: context,
+                              ).dispatch(.toggleWorkspaceDetails),
+                            ),
                     ),
                   ),
                 ),
-              ),
-              if (showCard && cardWidth >= AleraTokens.workspaceDetailsMinWidth)
-                Positioned(
-                  top: cardTop,
-                  right: AleraTokens.space8,
-                  width: cardWidth,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight:
-                          constraints.maxHeight - cardTop - AleraTokens.space8,
-                    ),
-                    child: SingleChildScrollView(
-                      child: Consumer(
-                        builder: (context, cardRef, _) => _card(
-                          cardRef,
-                          availableHeight:
-                              constraints.maxHeight -
-                              cardTop -
-                              AleraTokens.space8,
+                if (showCard &&
+                    cardWidth >= AleraTokens.workspaceDetailsMinWidth)
+                  Positioned(
+                    top: cardTop,
+                    right: AleraTokens.space8,
+                    width: cardWidth,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight:
+                            constraints.maxHeight -
+                            cardTop -
+                            AleraTokens.space8,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Consumer(
+                          builder: (context, cardRef, _) => _card(
+                            cardRef,
+                            availableHeight:
+                                constraints.maxHeight -
+                                cardTop -
+                                AleraTokens.space8,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

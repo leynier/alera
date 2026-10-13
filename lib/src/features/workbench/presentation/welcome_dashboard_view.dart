@@ -1,48 +1,5 @@
 part of 'welcome_dashboard.dart';
 
-class const HomeComposerMenuChoice({
-  required final String value,
-  required final String label,
-  final Widget? leading,
-  final bool selected = false,
-  final bool enabled = true,
-});
-
-Future<String?> showHomeComposerMenu({
-  required BuildContext context,
-  required List<HomeComposerMenuChoice> choices,
-}) {
-  final box = context.findRenderObject()! as RenderBox;
-  final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-  final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
-  final position = RelativeRect.fromLTRB(
-    origin.dx,
-    origin.dy + box.size.height + AleraTokens.space4,
-    overlay.size.width - origin.dx - box.size.width,
-    overlay.size.height - origin.dy,
-  );
-  return showMenu<String>(
-    context: context,
-    position: position,
-    constraints: BoxConstraints(minWidth: box.size.width),
-    color: AleraTokens.surface,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-      side: const BorderSide(color: AleraTokens.border),
-    ),
-    items: <PopupMenuEntry<String>>[
-      for (final choice in choices)
-        AleraDropdownEntry<String>(
-          value: choice.value,
-          label: choice.label,
-          leading: choice.leading,
-          selected: choice.selected,
-          enabled: choice.enabled,
-        ),
-    ],
-  );
-}
-
 class const _HomeComposerFrame({required final Widget child})
     extends StatelessWidget {
   @override

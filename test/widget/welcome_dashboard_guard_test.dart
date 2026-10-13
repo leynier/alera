@@ -17,7 +17,7 @@ import 'welcome_dashboard_test_support.dart';
 void main() {
   final profile = welcomeDashboardProfile();
 
-  testWidgets('project folder stays reachable while branches reload', (
+  testWidgets('current checkout stays reachable while branches reload', (
     tester,
   ) async {
     final state = welcomeDashboardProjectState();
@@ -32,7 +32,7 @@ void main() {
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('main'));
+    await tester.tap(find.text('New Worktree').last);
     await tester.pumpAndSettle();
     expect(find.text('From main'), findsOneWidget);
 
@@ -53,9 +53,9 @@ void main() {
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Project Folder').last);
+    await tester.tap(find.text('Current Checkout').last);
     await tester.pump();
-    expect(find.text('Project Folder'), findsWidgets);
+    expect(find.text('Current Checkout'), findsWidgets);
     expect(find.text('From develop'), findsNothing);
 
     hang.complete(const <String>['develop']);
@@ -74,7 +74,7 @@ void main() {
     expect(jobs.request!.sourceBranch, isEmpty);
   });
 
-  testWidgets('a host change drops a project folder catalog still loading', (
+  testWidgets('a host change drops a canceled worktree catalog', (
     tester,
   ) async {
     final state = welcomeDashboardProjectState();
@@ -96,7 +96,15 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Worktree').last);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-location')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Current Checkout').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey<String>('home-composer-host')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('This Device').last);
@@ -106,16 +114,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('branch catalog failed'), findsNothing);
     expect(find.text('Loading Branches'), findsNothing);
-    // The original tap still opens its menu once the stale load returns.
-    await tester.tapAt(const Offset(8, 8));
-    await tester.pumpAndSettle();
-
     branches.hang = null;
     await tester.tap(
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('main'), findsOneWidget);
+    expect(find.text('New Worktree'), findsOneWidget);
   });
 
   testWidgets('a catalog error clears when the project changes', (
@@ -142,7 +146,7 @@ void main() {
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('main'));
+    await tester.tap(find.text('New Worktree').last);
     await tester.pumpAndSettle();
     branches.error = Exception('branch catalog failed');
     await tester.tap(find.byKey(const ValueKey<String>('home-composer-host')));
@@ -175,7 +179,7 @@ void main() {
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('main'));
+    await tester.tap(find.text('New Worktree').last);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey<String>('home-composer-prompt')),
@@ -200,7 +204,7 @@ void main() {
 
     branches.error = null;
     await tester.tap(
-      find.byKey(const ValueKey<String>('home-composer-location')),
+      find.byKey(const ValueKey<String>('home-composer-source')),
     );
     await tester.pumpAndSettle();
     expect(find.text('branch catalog failed'), findsNothing);
@@ -337,7 +341,7 @@ void main() {
     },
   );
 
-  testWidgets('a long worktree branch ellipsizes in the location chip', (
+  testWidgets('a long worktree branch ellipsizes in the source chip', (
     tester,
   ) async {
     const branch = 'feature/home-composer-location-chip-should-ellipsis';
@@ -353,6 +357,12 @@ void main() {
     );
     await tester.tap(
       find.byKey(const ValueKey<String>('home-composer-location')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Worktree').last);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-source')),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text(branch));
