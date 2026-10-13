@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 
 #[test]
-fn session_start_fixture_round_trips_t3_camel_case_and_policy_names() {
+fn session_start_fixture_round_trips_camel_case_and_policy_names() {
     let fixture = json!({
         "threadId": "app-thread-1",
         "resumeThreadId": "native-thread-0",
@@ -88,7 +88,7 @@ fn turn_fixture_round_trips_attachments_and_interaction_mode() {
 }
 
 #[test]
-fn approval_runtime_and_sandbox_policies_use_t3_wire_values() {
+fn approval_runtime_and_sandbox_policies_use_native_wire_values() {
     let approval_policies = [
         (ApprovalPolicy::Untrusted, "untrusted"),
         (ApprovalPolicy::OnFailure, "on-failure"),

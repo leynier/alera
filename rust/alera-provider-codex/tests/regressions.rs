@@ -159,7 +159,7 @@ async fn unsupported_file_attachment_fails_before_turn_start() {
 }
 
 #[tokio::test]
-async fn core_notifications_use_t3_payload_shapes() {
+async fn core_notifications_use_canonical_payload_shapes() {
     let transport = MockTransport::new([
         initialize_response(1),
         thread_response(2, "native-core"),

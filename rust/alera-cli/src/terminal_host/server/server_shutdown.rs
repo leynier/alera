@@ -18,6 +18,9 @@ impl ServerActor {
             }
         }
         self.voice.stop_realtime();
+        if let Some(agent_chat_runtime) = &self.agent_chat_runtime {
+            agent_chat_runtime.shutdown().await;
+        }
         self.pull_request_watches = Default::default();
         for tab_id in self.agent_title_jobs.keys().cloned().collect::<Vec<_>>() {
             self.cancel_agent_title_job(&tab_id);

@@ -7,11 +7,13 @@
 
 mod error;
 mod framing;
+mod managed_process;
 mod mock;
 mod process;
 
 pub use error::TransportError;
 pub use framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};
+pub use managed_process::ManagedProcess;
 pub use mock::MockTransport;
 pub use process::{JsonLineProcess, ProcessConfig};
 

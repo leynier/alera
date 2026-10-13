@@ -12,6 +12,18 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
     );
     if (title == null || !mounted) return;
     try {
+      final chatId = tab.agentChatId;
+      if (tab.isAgentChat && chatId != null) {
+        final actions = await ref.read(
+          agentChatTabActionsProvider(widget.hostId).future,
+        );
+        await actions.rename(
+          workspaceId: tab.workspaceId,
+          chatId: chatId,
+          title: title,
+        );
+        return;
+      }
       await ref
           .read(
             tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
@@ -47,7 +59,7 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
             label: 'View Run',
             leading: Icon(AleraIcons.workspaceChildren),
           ),
-        if (canRename)
+        if (canRename || tab.isAgentChat)
           const AleraActionSheetEntry<_TabAction>(
             value: .rename,
             label: 'Rename Tab',
@@ -64,7 +76,7 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
             leading: const Icon(AleraIcons.generate),
             enabled: !generating,
           ),
-        if (tab.isTerminal)
+        if (tab.isTerminal || tab.isAgentChat)
           const AleraActionSheetEntry<_TabAction>(
             value: .close,
             label: 'Close Tab',

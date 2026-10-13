@@ -60,10 +60,33 @@ fn cli_hello_identifies_the_cli_client() {
         RUNTIME_HOST_CAPABILITY,
         RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    ]));
+    ]))
+    .unwrap();
 
     assert_eq!(payload["clientKind"], json!("cli"));
-    assert!(payload.get("supportedTabKinds").is_none());
+    assert_eq!(payload["supportedTabKinds"], json!(["agentChat"]));
+    assert_eq!(payload["capabilities"], json!(["agentChatV1"]));
+}
+
+#[test]
+fn chat_hello_carries_the_trimmed_private_credential() {
+    let payload = control_hello_payload_with_credential(&control(&[]), Some("chat-secret"));
+
+    assert_eq!(payload["clientKind"], json!("chat-mcp"));
+    assert_eq!(payload["chatCredential"], json!("chat-secret"));
+    assert_eq!(payload["supportedTabKinds"], json!([]));
+    assert_eq!(payload["capabilities"], json!([]));
+}
+
+#[test]
+fn chat_credential_files_are_trimmed_and_empty_files_are_rejected() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("chat.token");
+    std::fs::write(&path, "  chat-secret\n").unwrap();
+    assert_eq!(read_chat_credential(&path).unwrap(), "chat-secret");
+
+    std::fs::write(&path, " \n").unwrap();
+    assert!(read_chat_credential(&path).is_err());
 }
 
 #[tokio::test]

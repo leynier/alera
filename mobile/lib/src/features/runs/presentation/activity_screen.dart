@@ -6,6 +6,10 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/presentation/automations_section_body.dart';
+import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_detail_screen.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_tasks_section_body.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/delegate_chat_task_screen.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_entry_points.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
@@ -32,6 +36,7 @@ Future<void> openActivity(
   String? automationId,
   String? automationRunId,
   bool startAutomationAuthoring = false,
+  String? chatTaskId,
 }) => Navigator.of(context).push<void>(
   MaterialPageRoute<void>(
     builder: (_) => ActivityScreen(
@@ -44,11 +49,13 @@ Future<void> openActivity(
       initialAutomationId: automationId,
       initialAutomationRunId: automationRunId,
       startAutomationAuthoring: startAutomationAuthoring,
+      initialChatTaskId: chatTaskId,
     ),
   ),
 );
 
-/// Runs, Questions and Automations of one host behind one segmented control.
+/// Runs, Questions, Automations and Chat Tasks of one host behind one
+/// segmented control.
 /// The open part is kept per host, so coming back shows where the user was.
 class const ActivityScreen({
   super.key,
@@ -61,6 +68,7 @@ class const ActivityScreen({
   final String? initialAutomationId,
   final String? initialAutomationRunId,
   final bool startAutomationAuthoring = false,
+  final String? initialChatTaskId,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<ActivityScreen> createState() => _ActivityScreenState();
@@ -115,6 +123,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       );
     } else if (widget.startAutomationAuthoring) {
       unawaited(startAutomationAuthoring(context, ref, _hostId));
+    } else if (widget.initialChatTaskId case final taskId?) {
+      unawaited(openChatTaskDetail(context, _hostId, taskId));
     }
   }
 
@@ -138,6 +148,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             ActivitySection.automations => AutomationsSectionActions(
               hostId: _hostId,
             ),
+            ActivitySection.chatTasks => IconButton(
+              tooltip: 'Refresh',
+              icon: const Icon(AleraIcons.refresh),
+              onPressed: () => ref.invalidate(mobileChatTaskListProvider),
+            ),
           },
         ],
       ),
@@ -152,19 +167,27 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 AleraTokens.space16,
                 0,
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ActivitySection>(
-                  segments: <ButtonSegment<ActivitySection>>[
-                    for (final value in ActivitySection.values)
-                      ButtonSegment(value: value, label: Text(value.label)),
-                  ],
-                  selected: <ActivitySection>{section},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) {
-                    setState(() => _pending = null);
-                    ref.read(controller.notifier).select(selection.first);
-                  },
+              // Four parts outgrow a narrow phone: the control then scales
+              // down to fit instead of scrolling, and fills the width when it
+              // fits, so the screen keeps a single scrollable.
+              child: LayoutBuilder(
+                builder: (context, constraints) => FittedBox(
+                  fit: .scaleDown,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: SegmentedButton<ActivitySection>(
+                      segments: <ButtonSegment<ActivitySection>>[
+                        for (final value in ActivitySection.values)
+                          ButtonSegment(value: value, label: Text(value.label)),
+                      ],
+                      selected: <ActivitySection>{section},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) {
+                        setState(() => _pending = null);
+                        ref.read(controller.notifier).select(selection.first);
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -175,6 +198,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                   hostId: _hostId,
                 ),
                 ActivitySection.automations => AutomationsSectionBody(
+                  hostId: _hostId,
+                ),
+                ActivitySection.chatTasks => ChatTasksSectionBody(
                   hostId: _hostId,
                 ),
               },
@@ -217,6 +243,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               unawaited(startAutomationAuthoring(context, ref, _hostId)),
           icon: const Icon(AleraIcons.add),
           label: const Text('New Automation'),
+        );
+      case ActivitySection.chatTasks:
+        if (ref.watch(mobileChatTasksSupportedProvider(_hostId)).value !=
+            true) {
+          return null;
+        }
+        return FloatingActionButton.extended(
+          key: const ValueKey<String>('delegateChatTask'),
+          onPressed: () => unawaited(openDelegateChatTask(context, _hostId)),
+          icon: const Icon(AleraIcons.add),
+          label: const Text('Delegate Task'),
         );
     }
   }

@@ -114,6 +114,9 @@ abstract final class AleraTokens {
   static const Duration durationSlow = Duration(milliseconds: 280);
   static const Duration durationSpin = Duration(milliseconds: 1200);
 
+  /// Refresh cadence of live elapsed-time labels such as "Working for 12s".
+  static const Duration elapsedTimeTick = Duration(seconds: 1);
+
   static const double monoFontSize = 12;
 
   static const TextStyle monoStyle = TextStyle(

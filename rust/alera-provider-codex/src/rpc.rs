@@ -66,7 +66,10 @@ impl<T: JsonTransport> CodexProvider<T> {
             .unwrap_or_else(|| input.thread_id.clone())
     }
 
-    pub(crate) fn thread_params(&self, input: &SessionStartInput) -> Map<String, Value> {
+    pub(crate) fn thread_params(
+        &self,
+        input: &SessionStartInput,
+    ) -> Result<Map<String, Value>, ProviderError> {
         let mut params = input.options.clone();
         // The native thread id is controlled by the start/resume operation.
         params.remove("threadId");
@@ -101,7 +104,8 @@ impl<T: JsonTransport> CodexProvider<T> {
             "approvalsReviewer".into(),
             Value::String(defaults.approvals_reviewer.to_owned()),
         );
-        params
+        crate::mcp::merge_thread_config(&mut params, &input.mcp_servers)?;
+        Ok(params)
     }
 
     pub(crate) fn turn_params(

@@ -113,10 +113,19 @@ impl RuntimeHostRpcClient {
         runtime_dir: &Path,
         required_capability: &str,
     ) -> Result<Self> {
+        let chat_credential_path = std::env::var_os(crate::mcp_tools::CHAT_CREDENTIAL_FILE_ENV);
+        if let Some(path) = chat_credential_path.as_ref() {
+            read_chat_credential(Path::new(path))?;
+        }
         if let Some(client) =
             Self::connect_with_required_capability(runtime_dir, required_capability).await?
         {
             return Ok(client);
+        }
+        if chat_credential_path.is_some() {
+            return Err(anyhow!(
+                "the chat-bound runtime host is unavailable; refusing an unbound connection"
+            ));
         }
         Self::start(runtime_dir, Some(required_capability), false).await
     }
@@ -151,7 +160,8 @@ impl RuntimeHostRpcClient {
             .stderr(Stdio::null())
             // A host started by an MCP tool call outlives that call, and its
             // terminals must not claim the call's origin.
-            .env_remove(crate::mcp_tools::ORIGIN_VARIABLE);
+            .env_remove(crate::mcp_tools::ORIGIN_VARIABLE)
+            .env_remove(crate::mcp_tools::CHAT_CREDENTIAL_FILE_ENV);
         if persistent {
             command.arg("--persistent");
         }
@@ -220,7 +230,7 @@ impl RuntimeHostRpcClient {
                     == crate::terminal_host::protocol::RUNTIME_HOST_SHARED_CHECKOUT_CAPABILITY
             }),
         };
-        let hello = control_hello_payload(control);
+        let hello = control_hello_payload(control)?;
         match timeout(REQUEST_TIMEOUT, client.request_value("hello", &hello)).await {
             Ok(Ok(_)) => Ok(Some(client)),
             Ok(Err(_)) | Err(_) => Ok(None),
@@ -349,13 +359,46 @@ impl RuntimeHostControl {
     }
 }
 
-fn control_hello_payload(control: &RuntimeHostControl) -> Value {
-    json!({
+fn read_chat_credential(path: &Path) -> Result<String> {
+    let value = std::fs::read_to_string(path)
+        .with_context(|| format!("could not read chat credential file {}", path.display()))?;
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(anyhow!("chat credential file is empty"));
+    }
+    Ok(value.to_owned())
+}
+
+fn chat_credential_from_environment() -> Result<Option<String>> {
+    std::env::var_os(crate::mcp_tools::CHAT_CREDENTIAL_FILE_ENV)
+        .map(|path| read_chat_credential(Path::new(&path)))
+        .transpose()
+}
+
+fn control_hello_payload(control: &RuntimeHostControl) -> Result<Value> {
+    let credential = chat_credential_from_environment()?;
+    Ok(control_hello_payload_with_credential(
+        control,
+        credential.as_deref(),
+    ))
+}
+
+fn control_hello_payload_with_credential(
+    control: &RuntimeHostControl,
+    credential: Option<&str>,
+) -> Value {
+    let mut payload = json!({
         "protocolVersion": PROTOCOL_VERSION,
         "token": control.token,
-        "clientKind": "cli",
+        "clientKind": credential.map_or("cli", |_| "chat-mcp"),
         "sharedCheckoutWorkspacesV1": true,
-    })
+        "supportedTabKinds": if credential.is_some() { Vec::<&str>::new() } else { vec!["agentChat"] },
+        "capabilities": if credential.is_some() { Vec::<&str>::new() } else { vec!["agentChatV1"] },
+    });
+    if let Some(credential) = credential {
+        payload["chatCredential"] = json!(credential);
+    }
+    payload
 }
 
 #[cfg(test)]

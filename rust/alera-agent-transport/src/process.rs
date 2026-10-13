@@ -19,6 +19,9 @@ use crate::framing::{
 };
 use crate::{JsonTransport, TransportError};
 
+mod write;
+use write::{FrameWriteError, PendingFrame};
+
 const READ_CHUNK_BYTES: usize = 8 * 1024;
 const STDOUT_QUEUE_CAPACITY: usize = 32;
 type FrameResult = Result<Option<serde_json::Value>, TransportError>;
@@ -179,9 +182,13 @@ async fn drain_stdout(
 }
 
 /// A bounded NDJSON transport backed by a child process.
+///
+/// Cancelled sends retain their frame and original deadline. Sending that same
+/// encoded frame resumes it once; a different frame follows it in FIFO order.
 pub struct JsonLineProcess {
     child: Option<Child>,
     stdin: Option<ChildStdin>,
+    pending_frame: Option<PendingFrame>,
     messages: Receiver<FrameResult>,
     stdout_task: Option<JoinHandle<()>>,
     stderr_task: Option<JoinHandle<()>>,
@@ -253,6 +260,7 @@ impl JsonLineProcess {
         Ok(Self {
             child: Some(child),
             stdin: Some(stdin),
+            pending_frame: None,
             messages,
             stdout_task: Some(stdout_task),
             stderr_task: Some(stderr_task),
@@ -293,38 +301,46 @@ impl JsonLineProcess {
 
     async fn close_child(&mut self) -> Result<(), TransportError> {
         let mut first_error = None;
-        if let Some(mut stdin) = self.stdin.take() {
+        if let Some(stdin) = self.stdin.as_mut() {
             if let Err(source) = stdin.shutdown().await {
                 if source.kind() != std::io::ErrorKind::BrokenPipe {
                     first_error = Some(TransportError::io("close stdin", source));
                 }
             }
         }
+        self.stdin.take();
 
-        if let Some(mut child) = self.child.take() {
+        if let Some(child) = self.child.as_mut() {
             let wait = child.wait();
-            match tokio::time::timeout(self.shutdown_timeout, wait).await {
-                Ok(Ok(status)) => self.record_status(status),
+            let status = match tokio::time::timeout(self.shutdown_timeout, wait).await {
+                Ok(Ok(status)) => Some(status),
                 Ok(Err(source)) => {
                     first_error.get_or_insert_with(|| TransportError::io("wait child", source));
+                    let _ = child.start_kill();
+                    child.wait().await.ok()
                 }
                 Err(_) => {
-                    let _ = child.kill().await;
-                    let _ = tokio::time::timeout(self.shutdown_timeout, child.wait()).await;
+                    let _ = child.start_kill();
+                    let status = child.wait().await.ok();
                     first_error.get_or_insert(TransportError::ShutdownTimeout {
                         timeout: self.shutdown_timeout,
                     });
+                    status
                 }
+            };
+            if let Some(status) = status {
+                self.record_status(status);
             }
         }
+        self.child.take();
 
         self.messages.close();
         if let Some(task) = self.stdout_task.take() {
             task.abort();
         }
 
-        if let Some(mut task) = self.stderr_task.take() {
-            if tokio::time::timeout(self.shutdown_timeout, &mut task)
+        if let Some(task) = self.stderr_task.as_mut() {
+            if tokio::time::timeout(self.shutdown_timeout, &mut *task)
                 .await
                 .is_err()
             {
@@ -336,12 +352,55 @@ impl JsonLineProcess {
                 });
             }
         }
+        self.stderr_task.take();
         first_error.map_or(Ok(()), Err)
     }
 
     async fn fail<T>(&mut self, error: TransportError) -> Result<T, TransportError> {
-        let _ = self.close().await;
+        // A cancelled cleanup must never expose the damaged pipe as open.
+        self.closed = true;
+        self.pending_frame.take();
+        self.stdin.take();
+        if let Some(child) = self.child.as_mut() {
+            let _ = child.start_kill();
+        }
+        let _ = self.close_child().await;
         Err(error)
+    }
+
+    async fn finish_pending_frame(&mut self) -> Result<(), TransportError> {
+        let Some(frame) = self.pending_frame.as_mut() else {
+            return Ok(());
+        };
+        let stdin = self.stdin.as_mut().ok_or(TransportError::Closed)?;
+        match frame.complete(stdin).await {
+            Ok(()) => {
+                self.pending_frame.take();
+                Ok(())
+            }
+            Err(FrameWriteError::Io(source)) => {
+                let status = self
+                    .child
+                    .as_mut()
+                    .and_then(|child| child.try_wait().ok().flatten());
+                let error = if let Some(status) = status {
+                    self.record_status(status);
+                    self.process_exit_error()
+                } else if source.kind() == std::io::ErrorKind::BrokenPipe {
+                    self.process_exit_error()
+                } else {
+                    TransportError::io("write stdin", source)
+                };
+                self.fail(error).await
+            }
+            Err(FrameWriteError::Timeout) => {
+                self.fail(TransportError::IoTimeout {
+                    operation: "write stdin",
+                    timeout: self.shutdown_timeout,
+                })
+                .await
+            }
+        }
     }
 }
 
@@ -362,39 +421,14 @@ impl JsonTransport for JsonLineProcess {
                 .await;
         }
         frame.push(b'\n');
-        let io_result = {
-            let stdin = self.stdin.as_mut().ok_or(TransportError::Closed)?;
-            tokio::time::timeout(self.shutdown_timeout, async {
-                stdin.write_all(&frame).await?;
-                stdin.flush().await
-            })
-            .await
-        };
-        match io_result {
-            Ok(Ok(())) => {}
-            Ok(Err(source)) => {
-                let status = self
-                    .child
-                    .as_mut()
-                    .and_then(|child| child.try_wait().ok().flatten());
-                let error = if let Some(status) = status {
-                    self.record_status(status);
-                    self.process_exit_error()
-                } else if source.kind() == std::io::ErrorKind::BrokenPipe {
-                    self.process_exit_error()
-                } else {
-                    TransportError::io("write stdin", source)
-                };
-                return self.fail(error).await;
-            }
-            Err(_) => {
-                return self
-                    .fail(TransportError::IoTimeout {
-                        operation: "write stdin",
-                        timeout: self.shutdown_timeout,
-                    })
-                    .await;
-            }
+        let retry = self
+            .pending_frame
+            .as_ref()
+            .is_some_and(|pending| pending.matches(&frame));
+        self.finish_pending_frame().await?;
+        if !retry {
+            self.pending_frame = Some(PendingFrame::new(frame, self.shutdown_timeout));
+            self.finish_pending_frame().await?;
         }
         Ok(())
     }
@@ -423,12 +457,9 @@ impl JsonTransport for JsonLineProcess {
     }
 
     async fn close(&mut self) -> Result<(), TransportError> {
-        if self.closed {
-            return Ok(());
-        }
-        let result = self.close_child().await;
         self.closed = true;
-        result
+        self.finish_pending_frame().await?;
+        self.close_child().await
     }
 }
 

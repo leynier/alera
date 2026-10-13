@@ -122,6 +122,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.saveFile;
       case r'newTerminalTab':
         return KeyboardActionId.newTerminalTab;
+      case r'newAgentChatTab':
+        return KeyboardActionId.newAgentChatTab;
       case r'closeTab':
         return KeyboardActionId.closeTab;
       case r'nextTab':
@@ -212,6 +214,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'saveFile';
       case KeyboardActionId.newTerminalTab:
         return r'newTerminalTab';
+      case KeyboardActionId.newAgentChatTab:
+        return r'newAgentChatTab';
       case KeyboardActionId.closeTab:
         return r'closeTab';
       case KeyboardActionId.nextTab:

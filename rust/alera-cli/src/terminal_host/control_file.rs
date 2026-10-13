@@ -75,6 +75,8 @@ pub fn write_control_file(
         "port": port,
         "token": token,
         "runtimeCapabilities": [
+            "agentChatV1",
+            "chatOrchestrationV1",
             "workspaceDetailsV1",
             "gitOperationsProgressV1",
             super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
@@ -227,6 +229,8 @@ mod tests {
         assert_eq!(
             value["runtimeCapabilities"],
             json!([
+                "agentChatV1",
+                "chatOrchestrationV1",
                 "workspaceDetailsV1",
                 "gitOperationsProgressV1",
                 super::super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,

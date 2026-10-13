@@ -60,6 +60,7 @@ impl ServerActor {
     /// Reads the satellite's presence list on a spawned task: the actor never
     /// waits on a link.
     pub(super) fn start_remote_agent_presence_sync(&self, host_id: &str) {
+        self.start_remote_agent_chat_sync(host_id);
         let links = self.host_links.clone();
         let inbox = self.inbox.clone();
         let host_id = host_id.to_string();
@@ -123,6 +124,9 @@ impl ServerActor {
 
     pub(super) fn relay_host_link_event(&self, host_id: &str, event_name: &str, payload: &Value) {
         match event_name {
+            "agentChatChanged" | "agentChatsChanged" | "workspaceTabsChanged" => {
+                self.relay_remote_agent_chat_event(host_id, event_name, payload);
+            }
             AGENT_HOOK_EVENT => {
                 // `handle_agent_hook_event` only accepts a hook whose session,
                 // tab and workspace match a session this runtime owns, which is

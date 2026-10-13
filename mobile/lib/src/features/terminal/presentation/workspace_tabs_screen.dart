@@ -5,6 +5,11 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_automations/alera_automations.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_tab_actions.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_provider_identity.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_view.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/new_agent_chat_sheet.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
@@ -77,6 +82,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     switch (action) {
       case _NewTerminalTabAction():
         await _createTab();
+      case _NewAgentChatTabAction():
+        await _createAgentChat();
       case _NewAgentProfileTabAction(:final profile):
         await _launchProfileTab(profile);
     }
@@ -151,6 +158,19 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     }
   }
 
+  /// The person picked an agent and started a chat, so its tab opens.
+  Future<void> _createAgentChat() async {
+    if (_creating) return;
+    final tabId = await showNewAgentChatSheet(
+      context,
+      hostId: widget.hostId,
+      workspaceId: widget.workspace.id,
+    );
+    if (tabId == null || !mounted) return;
+    ref.invalidate(tabsControllerProvider(widget.hostId, widget.workspace.id));
+    setState(() => _selectedTabId = tabId);
+  }
+
   /// A desktop Markdown viewer tab opens its preview on top of the terminal
   /// rather than replacing it, so the selected terminal stays attached.
   void _openMarkdownTab(WorkspaceTabSummary tab) {
@@ -172,7 +192,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
   }
 
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
-    final supported = tabs.where((tab) => tab.isTerminal).toList();
+    final supported = tabs
+        .where((tab) => tab.isTerminal || tab.isAgentChat)
+        .toList();
     if (supported.isEmpty) {
       return null;
     }
@@ -315,6 +337,11 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   ),
                   onNewTab: (action) => unawaited(_createTabOfKind(action)),
                   loadNewTabProfiles: _newTabMenuProfiles,
+                  canCreateAgentChats:
+                      ref
+                          .watch(agentChatSupportedProvider(widget.hostId))
+                          .value ??
+                      false,
                 ),
               )
             : null,
@@ -340,6 +367,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     // dropped an attachment whose upload was still in flight.
     return switch (tabs) {
       AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
+        final WorkspaceTabSummary tab when tab.isAgentChat => _agentChatBody(
+          tab,
+        ),
         final WorkspaceTabSummary tab => TerminalTabView(
           key: ValueKey<String>(tab.id),
           hostId: widget.hostId,

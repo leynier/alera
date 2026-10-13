@@ -8,6 +8,8 @@ mod lifecycle;
 mod mapping;
 #[path = "mapping_stream.rs"]
 mod mapping_stream;
+#[path = "mcp.rs"]
+mod mcp;
 #[path = "runtime_response.rs"]
 mod runtime_response;
 
@@ -30,7 +32,7 @@ use tokio::sync::{mpsc, Mutex};
 
 const MESSAGE_SOURCE: &str = "claude.sdk.message";
 const PERMISSION_SOURCE: &str = "claude.sdk.permission";
-// T3 groups SDK MCP control frames under the SDK message source.
+// SDK MCP control frames share the SDK message source.
 const MCP_SOURCE: &str = MESSAGE_SOURCE;
 
 struct BoxedTransport(Box<dyn JsonTransport>);
@@ -108,6 +110,10 @@ impl Provider for ClaudeProvider {
 
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities {
+            mcp_injection: alera_provider_protocol::McpInjectionCapabilities {
+                stdio: true,
+                http: true,
+            },
             resume: true,
             interrupt: true,
             approvals: true,

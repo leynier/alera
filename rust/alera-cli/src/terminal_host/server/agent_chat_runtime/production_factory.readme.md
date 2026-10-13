@@ -1,0 +1,15 @@
+# production provider factory
+
+The host constructs all nine adapters through their existing SDK, process, and connection boundaries. It never downloads a provider executable or copies a proprietary SDK. Process helpers remain external installation dependencies.
+
+The login-shell command environment supplies the base environment. Instance overrides follow, and per-chat hook overrides apply last. Explicit executable paths, working directories, instance identities, and model choices reach their adapter's native boundary. Muse applies its model and runtime policy through session startup. Pi receives its private typed MCP specifications before its process starts; the other adapters receive them through session startup.
+
+Instance `args` augment required native launch arguments. An argument list already starting with the complete native prefix preserves that prefix once. Empty lists preserve the native defaults: Codex `app-server`, Pi `--mode rpc`, and Muse/OpenCode `serve`. Grok derives `agent stdio` and permission arguments from the requested chat runtime mode, and its adapter rejects arbitrary arguments. Claude's SDK options boundary also rejects arbitrary argument lists.
+
+Cursor defaults to an externally installed `cursor-sdk-bridge`. A local bridge receives process environment and owns one chat session. Its helper stays alive until adapter close. A configured `bridgeUrl` plus bearer token attaches to an external bridge; process executable, arguments, and environment overrides are unsupported for external endpoints and produce explicit errors. OpenCode similarly distinguishes a chat-owned local server from an external `serverUrl`. A local server uses an ephemeral port and keeps per-chat MCP ownership; an external server cannot receive chat-scoped MCP servers.
+
+Private option keys are validated rather than ignored. Supported keys are Grok `authMethod` (`api_key` or `cached_token`), Antigravity `profileDir`/`authMethodId`, local ACP recipes `agentId`/`authMethodId`, Cursor `bridgeUrl`/`bridgeBearerToken`/`bearerToken`/`allowRemoteBridge`/`apiKey`, and OpenCode `serverUrl`/`serverPassword`/`generation` (`legacy1` or `v2`). Unsupported policy overrides cannot replace the chat's requested runtime mode.
+
+Catalog capabilities describe expected adapter support; `capabilitiesSource` marks that scope. ACP and Muse negotiate MCP injection during initialization, and `mcpInjectionSource` identifies that requirement. The initialized adapter remains authoritative. External OpenCode endpoints report no MCP injection. Model lists come from configuration or explicit cheap discovery; absent both, the catalog reports the provider default without inventing model identifiers or starting inference.
+
+Pure builder and catalog tests cover all nine launch shapes, environment precedence, required arguments, runtime mode support, private option validation, Pi's pre-spawn MCP configuration, local OpenCode ownership, executable availability, and model-list provenance. They do not start provider processes or call models.

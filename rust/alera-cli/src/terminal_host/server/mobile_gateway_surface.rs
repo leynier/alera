@@ -54,6 +54,8 @@ use crate::terminal_host::protocol::{
 /// match, so an omission here is invisible and silently leaves every phone on
 /// the older code path with no version to blame.
 pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
+    "agentChatV1",
+    "chatOrchestrationV1",
     "configurationSyncV1",
     "relayAuthorizationRenewalV1",
     RUNTIME_HOST_CAPABILITY,
@@ -146,6 +148,34 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.status.get"
             | "mobile.relayAuthorization.renew"
             | "project.list"
+            | "agentChat.providers"
+            | "agentChat.list"
+            | "agentChat.create"
+            | "agentChat.snapshot"
+            | "agentChat.payload"
+            | "agentChat.history"
+            | "agentChat.send"
+            | "agentChat.interrupt"
+            | "agentChat.respond"
+            | "agentChat.configure"
+            | "agentChat.rename"
+            | "agentChat.recover"
+            | "agentChat.close"
+            | "agentChat.reopen"
+            | "agentChat.queueCancel"
+            | "chatOrchestration.capabilities"
+            | "chatOrchestration.delegate"
+            | "chatOrchestration.send"
+            | "chatOrchestration.task"
+            | "chatOrchestration.tasks.list"
+            | "chatOrchestration.wait"
+            | "chatOrchestration.cancel"
+            | "chatOrchestration.interrupt"
+            | "chatOrchestration.requests"
+            | "chatOrchestration.respond"
+            | "chatOrchestration.configure"
+            | "chatOrchestration.read"
+            | "chatOrchestration.list"
             | "mobile.hosts.list"
             | "hostDirectory.roots"
             | "hostDirectory.list"

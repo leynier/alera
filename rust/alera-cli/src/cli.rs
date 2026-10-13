@@ -1,3 +1,4 @@
+use crate::chat_orchestration_commands_args::ChatCommand;
 use crate::cli_orchestration::OrchestrationCommand;
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
@@ -115,6 +116,9 @@ pub enum Command {
 
     /// Runs, delegated tasks, the worker protocol, messages between agents, gates, and recipes.
     Orchestration(OrchestrationCommand),
+
+    /// Delegate work and exchange messages between agent chats.
+    Chat(ChatCommand),
 
     /// Ask agents questions from outside a terminal and read their replies.
     Inbox(crate::cli_inbox::InboxCommand),

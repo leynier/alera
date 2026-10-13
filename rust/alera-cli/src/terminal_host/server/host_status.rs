@@ -70,6 +70,8 @@ impl ServerActor {
                     "skillVersion": crate::terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
                     "runtime": "alera",
                     "runtimeCapabilities": [
+                        "agentChatV1",
+                        "chatOrchestrationV1",
                         "workspaceDetailsV1",
                         "gitOperationsProgressV1",
                         crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,

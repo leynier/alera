@@ -1,8 +1,9 @@
-//! UI-independent provider contract derived from T3 Code's provider runtime.
+//! UI-independent provider lifecycle and normalized runtime event contract.
 
 mod command;
 mod error;
 mod event;
+mod mcp;
 mod payload;
 mod provider;
 mod request;
@@ -12,6 +13,7 @@ mod validation;
 pub use command::*;
 pub use error::*;
 pub use event::*;
+pub use mcp::*;
 pub use payload::*;
 pub use provider::*;
 pub use request::*;

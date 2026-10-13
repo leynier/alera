@@ -7,6 +7,7 @@
 
 mod config;
 mod events;
+mod mcp;
 mod payloads;
 mod policy;
 mod provider;

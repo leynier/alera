@@ -234,6 +234,14 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     searchKeywords: <String>['terminal', 'shell'],
   ),
   KeybindingDefinition(
+    id: .newAgentChatTab,
+    label: 'New Agent Chat',
+    group: .tabs,
+    description: 'Start an agent chat tab in the active workspace.',
+    defaultBindings: .uniform(<String>['Mod+Shift+T']),
+    searchKeywords: <String>['agent', 'chat', 'assistant'],
+  ),
+  KeybindingDefinition(
     id: .closeTab,
     label: 'Close Tab',
     group: .tabs,

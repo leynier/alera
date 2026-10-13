@@ -12,6 +12,7 @@ class const _TabStrip({
   required final ValueChanged<_NewTabAction> onNewTab,
   required final Future<List<AgentProfileSummary>> Function()
   loadNewTabProfiles,
+  final bool canCreateAgentChats = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -56,6 +57,7 @@ class const _TabStrip({
               creating: creating,
               onSelected: onNewTab,
               loadProfiles: loadNewTabProfiles,
+              canCreateAgentChats: canCreateAgentChats,
             ),
           ),
         ],
@@ -71,6 +73,7 @@ class const _NewTabButton({
   required final bool creating,
   required final ValueChanged<_NewTabAction> onSelected,
   required final Future<List<AgentProfileSummary>> Function() loadProfiles,
+  final bool canCreateAgentChats = false,
 }) extends StatefulWidget {
   @override
   State<_NewTabButton> createState() => _NewTabButtonState();
@@ -120,6 +123,15 @@ class _NewTabButtonState extends State<_NewTabButton> {
             label: 'New Terminal',
           ),
         ),
+        if (widget.canCreateAgentChats)
+          const PopupMenuItem<_NewTabAction>(
+            value: _NewAgentChatTabAction(),
+            height: AleraTokens.minTapTarget,
+            child: _NewTabMenuRow(
+              leading: Icon(AleraIcons.comment, size: AleraTokens.space20),
+              label: 'New Chat',
+            ),
+          ),
         for (final profile in profiles)
           PopupMenuItem<_NewTabAction>(
             value: _NewAgentProfileTabAction(profile),
@@ -199,8 +211,10 @@ class const _TabChip({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final interactive = tab.isTerminal || opensPreview;
+    final interactive = tab.isTerminal || tab.isAgentChat || opensPreview;
+    final closable = tab.isTerminal || tab.isAgentChat;
     final status = presence;
+    final chatProvider = tab.agentChatProvider;
     // Horizontal selection rule: the active chip takes the elevated fill (from
     // the chip theme) and an accent foreground, never the vertical-list rail.
     final foreground = selected
@@ -215,7 +229,16 @@ class const _TabChip({
         labelStyle: Theme.of(context).textTheme.labelLarge
             ?.copyWith(color: foreground),
         deleteIconColor: foreground,
-        avatar: status != null ? AgentRunStateIndicator(status: status) : null,
+        avatar: status != null
+            ? AgentRunStateIndicator(status: status)
+            : tab.isAgentChat
+            ? AgentIdentityIcon(
+                agentType: agentChatAgentType(chatProvider ?? ''),
+                size: AleraTokens.space16,
+                color: foreground,
+                showTooltip: false,
+              )
+            : null,
         label: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _tabTitleMaxWidth(tab.kind)),
           child: Row(
@@ -250,7 +273,7 @@ class const _TabChip({
         onSelected: interactive ? (_) => onSelect(tab) : null,
         // Only the open tab offers Close: on an unselected chip the target sits
         // next to the one that selects it, and the two are a thumb-width apart.
-        onDeleted: tab.isTerminal && selected ? () => onClose(tab) : null,
+        onDeleted: closable && selected ? () => onClose(tab) : null,
         deleteButtonTooltipMessage: 'Close Tab',
       ),
     );

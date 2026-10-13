@@ -65,6 +65,8 @@ part 'mobile_runtime_codex_workspace_requests.dart';
 part 'mobile_runtime_workspace_panel_requests.dart';
 part 'mobile_runtime_pull_request_requests.dart';
 
+const List<String> _supportedTabKinds = <String>['agentChat'];
+
 class MobileRuntimeClient._(
   this._channel, {
   this._requestTimeout = _defaultRequestTimeout,
@@ -104,7 +106,8 @@ class MobileRuntimeClient._(
         MobilePullRequestWatchClient,
         MobilePullRequestActionsClient,
         MobileWorkspacePullRequestSummariesClient,
-        MobilePromptWorkspaceServiceClient {
+        MobilePromptWorkspaceServiceClient,
+        MobileAgentChatClient {
   this {
     _subscription = _channel.stream.listen(
       _handleMessage,
@@ -245,7 +248,7 @@ class MobileRuntimeClient._(
       'deviceToken': deviceToken,
       'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
-      'supportedTabKinds': const <String>[],
+      'supportedTabKinds': _supportedTabKinds,
     });
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
     // The response decides, not the request: an older runtime simply omits it

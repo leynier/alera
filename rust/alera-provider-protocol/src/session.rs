@@ -98,6 +98,11 @@ pub struct ProviderSession {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderCapabilities {
+    #[serde(
+        default,
+        skip_serializing_if = "crate::McpInjectionCapabilities::is_empty"
+    )]
+    pub mcp_injection: crate::McpInjectionCapabilities,
     pub resume: bool,
     pub interrupt: bool,
     pub approvals: bool,

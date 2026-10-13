@@ -95,6 +95,10 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
 
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities {
+            mcp_injection: alera_provider_protocol::McpInjectionCapabilities {
+                stdio: true,
+                http: true,
+            },
             resume: true,
             interrupt: true,
             approvals: true,
@@ -144,7 +148,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         } else {
             "thread/start"
         };
-        let mut params = self.thread_params(&input);
+        let mut params = self.thread_params(&input)?;
         if method == "thread/resume" {
             params.insert("threadId".into(), Value::String(native_requested.clone()));
         }

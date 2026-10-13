@@ -1,4 +1,5 @@
-use std::io::Write;
+use std::io::{BufRead, Read, Write};
+use std::path::Path;
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -6,6 +7,14 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 #[tokio::main]
 async fn main() {
+    let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    if args
+        .first()
+        .is_some_and(|arg| arg == "--partial-write-gate")
+    {
+        gated_input(Path::new(&args[1]), Path::new(&args[2]));
+        return;
+    }
     let stdin = tokio::io::stdin();
     let mut lines = BufReader::new(stdin).lines();
     let mut stdout = tokio::io::stdout();
@@ -105,6 +114,56 @@ async fn main() {
             _ => write_json(&mut stdout, json!({"unknown": true}), true).await,
         }
     }
+}
+
+fn gated_input(prefix_received: &Path, resume: &Path) {
+    let stdin = std::io::stdin();
+    let mut stdin = stdin.lock();
+    let mut prefix = [0_u8; 1];
+    stdin.read_exact(&mut prefix).unwrap();
+    std::fs::write(prefix_received, b"prefix received").unwrap();
+    while !resume.exists() {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+
+    let input = std::io::Cursor::new(prefix).chain(stdin);
+    let mut stdout = std::io::stdout().lock();
+    let mut count = 0;
+    let mut received = Vec::new();
+    for line in std::io::BufReader::new(input).lines() {
+        let request = match serde_json::from_str::<Value>(&line.unwrap()) {
+            Ok(request) => request,
+            Err(error) => {
+                writeln!(stdout, "{}", json!({"invalid_frame": error.to_string()})).unwrap();
+                stdout.flush().unwrap();
+                return;
+            }
+        };
+        if request["op"] == "exit" {
+            writeln!(stdout, "{}", json!({"finished": count})).unwrap();
+            stdout.flush().unwrap();
+            return;
+        }
+        count += 1;
+        let summary = json!({
+            "id": request["id"],
+            "received_bytes": request["value"].as_str().map_or(0, str::len)
+        });
+        writeln!(stdout, "{summary}").unwrap();
+        received.push(summary);
+        stdout.flush().unwrap();
+    }
+    std::fs::write(
+        resume.parent().unwrap().join("completed"),
+        serde_json::to_vec(&received).unwrap(),
+    )
+    .unwrap();
+    while resume.parent().unwrap().join("hold-after-eof").exists() {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    std::fs::write(resume.parent().unwrap().join("exit-ready"), b"exit ready").unwrap();
+    writeln!(stdout, "{}", json!({"eof_frames": count})).unwrap();
+    stdout.flush().unwrap();
 }
 
 async fn write_json(stdout: &mut tokio::io::Stdout, value: Value, newline: bool) {

@@ -33,6 +33,8 @@ class ActivitySectionMapper extends EnumMapper<ActivitySection> {
         return ActivitySection.questions;
       case r'automations':
         return ActivitySection.automations;
+      case r'chatTasks':
+        return ActivitySection.chatTasks;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -47,6 +49,8 @@ class ActivitySectionMapper extends EnumMapper<ActivitySection> {
         return r'questions';
       case ActivitySection.automations:
         return r'automations';
+      case ActivitySection.chatTasks:
+        return r'chatTasks';
     }
   }
 }

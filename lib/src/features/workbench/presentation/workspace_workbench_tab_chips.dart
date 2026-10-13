@@ -141,6 +141,12 @@ class const _WorkspaceTabChip({
                       ? AleraTokens.foreground
                       : AleraTokens.foregroundMuted,
                 ),
+                if (tab.kind == WorkspaceTabKind.agentChat)
+                  if (tab.agentChatId case final String chatId)
+                    AgentChatTabStatusDot(
+                      workspaceId: tab.workspaceId,
+                      chatId: chatId,
+                    ),
                 if (status case final entry?) ...<Widget>[
                   const SizedBox(width: AleraTokens.space4),
                   Tooltip(
@@ -238,6 +244,11 @@ class const _WorkspaceTabLeadingIcon({
         size: AleraTokens.iconSm,
         color: color,
       ),
+      WorkspaceTabKind.agentChat => AgentChatProviderIcon(
+        key: ValueKey<String>('workspace-tab-agent-chat-icon-${tab.id}'),
+        provider: tab.agentChatProvider ?? '',
+        color: color,
+      ),
     };
   }
 }
@@ -260,6 +271,7 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
     WorkspaceTabKind.terminal => 92,
+    WorkspaceTabKind.agentChat => 132,
   };
 }
 

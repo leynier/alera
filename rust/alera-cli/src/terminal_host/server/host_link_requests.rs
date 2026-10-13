@@ -146,6 +146,15 @@ impl ServerActor {
         };
         let payload = frame.get("payload").cloned().unwrap_or(Value::Null);
         self.relay_host_link_event(&host_id, name, &payload);
+        if matches!(
+            name,
+            "agentChatChanged"
+                | "agentChatsChanged"
+                | "workspaceTabsChanged"
+                | super::hub_reverse_requests::HUB_REQUEST_EVENT
+        ) {
+            return;
+        }
         self.broadcast_authenticated_local(event(
             HOST_LINK_EVENT,
             json!({ "hostId": host_id, "event": name, "payload": payload }),

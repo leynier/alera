@@ -10,6 +10,8 @@ import 'package:alera/src/features/shell/presentation/shell_overlay_page_view.da
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_close_confirmation.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/application/runtime_agent_status_sync.dart';

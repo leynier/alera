@@ -9,6 +9,8 @@ mod agent_status;
 mod automation_autostart;
 mod automation_commands;
 mod automation_ssh_precheck;
+mod chat_orchestration_commands;
+mod chat_orchestration_commands_args;
 mod cli;
 mod cli_async_runtime;
 #[cfg(test)]
@@ -233,6 +235,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
+        Command::Chat(command) => chat_orchestration_commands::run(command).await,
         Command::Voice(command) => voice_commands::run(command).await,
         Command::Inbox(command) => inbox_commands::run(command).await,
         Command::Events(command) => events_commands::run(command).await,

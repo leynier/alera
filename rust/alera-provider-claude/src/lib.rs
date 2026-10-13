@@ -6,4 +6,5 @@
 
 mod provider;
 
+pub use claude_agent_sdk::ClaudeAgentOptions;
 pub use provider::{ClaudeProvider, ClaudeProviderConfig};

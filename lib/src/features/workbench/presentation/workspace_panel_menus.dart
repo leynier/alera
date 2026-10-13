@@ -272,6 +272,9 @@ sealed class _WorkspaceAddTabMenuAction {
 class const _WorkspaceAddToolMenuAction(final String key)
     extends _WorkspaceAddTabMenuAction {}
 
+class const _WorkspaceAddAgentChatMenuAction()
+    extends _WorkspaceAddTabMenuAction {}
+
 class const _WorkspaceAddTerminalMenuAction()
     extends _WorkspaceAddTabMenuAction {}
 
@@ -284,6 +287,7 @@ class const _WorkspacePanelAddButton({
   required final ValueChanged<String> onSelect,
   required final VoidCallback onNewTerminal,
   required final ValueChanged<String>? onLaunchAgentProfile,
+  final VoidCallback? onNewAgentChat,
 }) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final button = context.findRenderObject()! as RenderBox;
@@ -323,6 +327,16 @@ class const _WorkspacePanelAddButton({
             color: AleraTokens.foregroundMuted,
           ),
         ),
+        if (onNewAgentChat != null)
+          const AleraDropdownEntry(
+            value: _WorkspaceAddAgentChatMenuAction(),
+            label: 'Agent Chat',
+            leading: Icon(
+              AleraIcons.agent,
+              size: AleraTokens.iconLg,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
         for (final profile in profiles)
           if (profile.showInNewTabMenu)
             AleraDropdownEntry(
@@ -345,6 +359,8 @@ class const _WorkspacePanelAddButton({
         onSelect(key);
       case _WorkspaceAddTerminalMenuAction():
         onNewTerminal();
+      case _WorkspaceAddAgentChatMenuAction():
+        onNewAgentChat?.call();
       case _WorkspaceAddAgentProfileMenuAction(:final profileId):
         onLaunchAgentProfile?.call(profileId);
     }

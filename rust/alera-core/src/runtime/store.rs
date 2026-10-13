@@ -203,6 +203,11 @@ impl RuntimeStore {
         self.migrate_relocation_setup_processes().await?;
         self.migrate_relocation_setup_cancellations().await?;
         self.migrate_setup_descendants().await?;
+        // Check the orchestration schema stamp before creating any of its
+        // tables. A newer runtime must fail closed without partially touching
+        // this feature's schema.
+        self.migrate_chat_orchestration().await?;
+        self.migrate_agent_chats().await?;
         Ok(())
     }
 

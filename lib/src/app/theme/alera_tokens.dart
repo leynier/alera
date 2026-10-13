@@ -33,6 +33,18 @@ abstract final class AleraTokens {
   static const double emptyStateMaxWidth = 520.0;
   static const double emptyStateActionMaxWidth = 360.0;
   static const double conversationMaxWidth = 760.0;
+  static const double agentChatConversationMaxWidth = 720.0;
+  static const double agentChatDockMaxWidth =
+      agentChatConversationMaxWidth - (space16 * 2);
+  static const double agentChatQuestionCardMaxHeight = 340.0;
+  // Keeps an inline plan near ten body lines; expanding reveals all of it.
+  static const double agentChatPlanPreviewMaxHeight = 200.0;
+  static const double agentChatPlanProgressMaxHeight = 280.0;
+  static const double agentChatUserMessageLeftInset = 80.0;
+  static const double agentChatRequestMaxHeight = 320.0;
+  static const double agentChatDetailsMaxHeight = 360.0;
+  static const double agentChatAttachmentThumbnailSize = 60.0;
+  static const double agentChatStatusDotSize = 7.0;
   static const double imagePreviewMaxScale = 5.0;
   static const double chatBubbleMaxWidth = 620.0;
   static const double activityLogHeight = 160.0;
@@ -85,6 +97,8 @@ abstract final class AleraTokens {
   static const double logoMd = space32;
   static const double logoLg = 64.0;
   static const double disabledOpacity = 0.4;
+  // An agent chat message the runtime has not stamped into the timeline yet.
+  static const double agentChatPendingOpacity = 0.6;
   static const double strokeHairline = 1.4;
   static const double strokeThin = 1.5;
   static const double strokeIndicator = 1.6;

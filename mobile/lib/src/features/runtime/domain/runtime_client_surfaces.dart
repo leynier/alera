@@ -149,6 +149,19 @@ abstract interface class MobileRunsClient {
   ]);
 }
 
+/// What agent chats need from a paired runtime: generic requests and the
+/// event stream. Verbs, payloads and reduction live in `alera_agent_chat`.
+abstract interface class MobileAgentChatClient {
+  Stream<MobileRuntimeEvent> get events;
+  Set<String> get runtimeCapabilities;
+
+  Future<Map<String, Object?>> requestMap(
+    String type, [
+    Map<String, Object?> payload,
+    Duration? timeout,
+  ]);
+}
+
 /// What the Automations screens need from a paired runtime.
 abstract interface class MobileAutomationClient {
   Stream<MobileRuntimeEvent> get events;

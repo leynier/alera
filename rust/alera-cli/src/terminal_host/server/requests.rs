@@ -50,7 +50,7 @@ impl ServerActor {
                 .await;
         }
         match request_type {
-            "hello" => self.handle_hello(client_id, payload),
+            "hello" => self.handle_hello_request(client_id, payload).await,
             "mobile.relayAuthorization.renew" => Err(HostError::state(
                 "Relay authorization renewal requires an encrypted relay connection",
             )),
@@ -77,6 +77,16 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<Value> {
+        if request_type.starts_with("chatOrchestration.") {
+            return self
+                .handle_chat_orchestration_request(client_id, request_type, payload)
+                .await;
+        }
+        if request_type.starts_with("agentChat.") {
+            return self
+                .handle_agent_chat_request(client_id, request_type, payload)
+                .await;
+        }
         match request_type {
             request if request.starts_with("configuration.") => {
                 self.handle_configuration_request(client_id, request, payload)
@@ -726,6 +736,15 @@ impl ServerActor {
             "tab.upsert" => {
                 self.require_auth(client_id)?;
                 let mut tab: WorkspaceTabRecord = parse_payload(payload)?;
+                if tab.kind == alera_core::runtime::AGENT_CHAT_TAB_KIND
+                    && !self.agent_chat_client_enabled(client_id)
+                {
+                    return Err(HostError::conflict(
+                        "unsupported",
+                        "This client has not negotiated agent chat tabs.",
+                        json!({}),
+                    ));
+                }
                 if let Some(stored) = self
                     .runtime_store
                     .find_workspace_tab(&tab.id)

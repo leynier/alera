@@ -1,5 +1,6 @@
 use crate::{
-    error::nonempty, ApprovalPolicy, InteractionMode, ProviderError, RuntimeMode, SandboxMode,
+    error::nonempty, ApprovalPolicy, InteractionMode, McpServerSpec, ProviderError, RuntimeMode,
+    SandboxMode,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -21,6 +22,9 @@ pub struct SessionStartInput {
     pub sandbox_mode: Option<SandboxMode>,
     #[serde(default)]
     pub options: Map<String, Value>,
+    /// Set by the runtime host, not by a client command payload.
+    #[serde(skip)]
+    pub mcp_servers: Vec<McpServerSpec>,
 }
 
 impl SessionStartInput {
@@ -37,6 +41,15 @@ impl SessionStartInput {
         }
         if let Some(model) = &self.model {
             nonempty(model, "model")?;
+        }
+        let mut names = std::collections::BTreeSet::new();
+        for server in &self.mcp_servers {
+            server.validate()?;
+            if !names.insert(&server.name) {
+                return Err(ProviderError::Validation(
+                    "duplicate MCP server name".into(),
+                ));
+            }
         }
         Ok(())
     }

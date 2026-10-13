@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::managed_workspace::ManagedWorkspaceRemoveRequest;
 use crate::managed_workspace_handoff::{
@@ -269,6 +269,81 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let tab_id = require_string_key(payload, "id")?;
+                if let Some(tab) = self
+                    .runtime_store
+                    .find_workspace_tab(&tab_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?
+                {
+                    if tab.kind == alera_core::runtime::AGENT_CHAT_TAB_KIND {
+                        if !self.agent_chat_client_enabled(client_id) {
+                            return Err(HostError::conflict(
+                                "unsupported",
+                                "This client has not negotiated agent chat tabs.",
+                                serde_json::json!({}),
+                            ));
+                        }
+                        let chat_id = tab
+                            .payload
+                            .get("chatId")
+                            .and_then(Value::as_str)
+                            .ok_or_else(|| HostError::state("Agent chat tab has no chatId."))?;
+                        let remote_router = self.remote_chat_router();
+                        if remote_router
+                            .remote_workspace(&tab.workspace_id)
+                            .await?
+                            .is_some()
+                        {
+                            let close_payload = json!({
+                                "chatId": chat_id,
+                                "requestId": format!("tab-remove:{}:{request_id}", tab.id),
+                            });
+                            let result = remote_router
+                                .forward_wire(
+                                    "agentChat.close",
+                                    &close_payload,
+                                    self.agent_chat_caller(client_id),
+                                )
+                                .await?
+                                .ok_or_else(|| {
+                                    HostError::conflict(
+                                        "chat_not_found",
+                                        "Remote agent chat was not found.",
+                                        json!({}),
+                                    )
+                                })?;
+                            self.client_write(
+                                client_id,
+                                crate::terminal_host::protocol::ok_response(request_id, result),
+                            );
+                            return Ok(true);
+                        }
+                        let runtime = self.agent_chat_runtime().ok_or_else(|| {
+                            HostError::conflict(
+                                "unsupported",
+                                "Agent chats are unavailable.",
+                                serde_json::json!({}),
+                            )
+                        })?;
+                        let result = runtime
+                            .command(
+                                chat_id,
+                                super::agent_chat_runtime::commands::ChatOp::Close,
+                                self.agent_chat_caller(client_id),
+                                Some(super::agent_chat_runtime::commands::ReceiptKey {
+                                    verb: request_type.to_string(),
+                                    request_id: request_id.to_string(),
+                                    digest: super::agent_chat_runtime::ids::payload_digest(payload),
+                                }),
+                            )
+                            .await?;
+                        self.client_write(
+                            client_id,
+                            crate::terminal_host::protocol::ok_response(request_id, result),
+                        );
+                        return Ok(true);
+                    }
+                }
                 if self
                     .runtime_store
                     .workflow_launch_for_terminal(&tab_id)

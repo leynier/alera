@@ -1,0 +1,254 @@
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_view.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_agent_chat_client.dart';
+import 'support/fake_ai_dictation_settings.dart';
+import 'support/fake_terminal_client.dart';
+
+Future<FakeAgentChatClient> _pumpChat(
+  WidgetTester tester,
+  Map<String, Object?> snapshot, {
+  Set<String>? capabilities,
+}) async {
+  final client = FakeAgentChatClient(capabilities: capabilities);
+  client.handlers['agentChat.snapshot'] = (_) => snapshot;
+  final workspace = FakeTerminalClient();
+  addTearDown(workspace.dispose);
+  await tester.binding.setSurfaceSize(const Size(420, 900));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        mobileAgentChatClientProvider('host')
+            .overrideWith((ref) async => client),
+        workspaceClientProvider('host').overrideWith((ref) async => workspace),
+        mobileAiDictationSettingsControllerProvider.overrideWith(
+          FakeMobileAiDictationSettingsController.new,
+        ),
+      ],
+      child: const MaterialApp(
+        home: Scaffold(
+          body: AgentChatTabView(
+            hostId: 'host',
+            workspaceId: 'workspace-1',
+            chatId: 'chat-1',
+            provider: 'codex',
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return client;
+}
+
+Map<String, Object?> _request(
+  String kind, {
+  List<String> decisions = const <String>[],
+  List<Map<String, Object?>> questions = const <Map<String, Object?>>[],
+}) => <String, Object?>{
+  'requestId': 'request-1',
+  'kind': kind,
+  'turnId': 'turn-1',
+  'createdAt': '2026-10-12T10:00:01Z',
+  'command': 'rm -rf build',
+  'decisions': decisions,
+  'questions': questions,
+};
+
+void main() {
+  testWidgets('a finished turn shows its prompt, folded work and answer', (
+    tester,
+  ) async {
+    await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        turns: <Map<String, Object?>>[agentChatTurn('turn-1')],
+        items: <Map<String, Object?>>[
+          agentChatItem('prompt', type: 'user_message', text: 'Fix the build'),
+          agentChatItem(
+            'command',
+            type: 'command_execution',
+            normalized: <String, Object?>{'command': 'npm test', 'exitCode': 0},
+          ),
+          agentChatItem(
+            'edit',
+            type: 'file_change',
+            normalized: <String, Object?>{
+              'changes': <Object?>[
+                <String, Object?>{'path': 'lib/main.dart', 'kind': 'update'},
+              ],
+            },
+          ),
+          agentChatItem('answer', text: 'The build passes now.'),
+        ],
+      ),
+    );
+    expect(find.text('Fix the build'), findsOneWidget);
+    expect(
+      find.textContaining('The build passes now.', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Worked for 4s'), findsOneWidget);
+    expect(find.text('Ran npm test'), findsNothing);
+
+    await tester.tap(find.text('Worked for 4s'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edited 1 file, ran 1 command'), findsOneWidget);
+  });
+
+  testWidgets('an approval offers only the runtime decisions', (tester) async {
+    final client = await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        pendingRequests: <Map<String, Object?>>[
+          _request(
+            'command_execution_approval',
+            decisions: <String>['accept', 'acceptForSession', 'decline'],
+          ),
+        ],
+      ),
+    );
+    client.handlers['agentChat.respond'] = (_) => <String, Object?>{
+      'resolved': true,
+    };
+    expect(find.text('Run this command?'), findsOneWidget);
+    expect(find.text(r'$ rm -rf build'), findsOneWidget);
+    expect(find.text('Allow For Session'), findsOneWidget);
+    expect(find.text('Cancel Turn'), findsNothing);
+
+    await tester.tap(find.text('Allow'));
+    await tester.pumpAndSettle();
+    final payload = client.payloadsOf('agentChat.respond').single;
+    expect(payload['runtimeRequestId'], 'request-1');
+    expect(payload['workspaceId'], 'workspace-1');
+    expect(payload['response'], <String, Object?>{
+      'type': 'approval',
+      'decision': 'accept',
+    });
+  });
+
+  testWidgets('a docked question answers with the chosen option', (
+    tester,
+  ) async {
+    final client = await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        pendingRequests: <Map<String, Object?>>[
+          _request(
+            'tool_user_input',
+            questions: <Map<String, Object?>>[
+              <String, Object?>{
+                'id': 'target',
+                'header': 'Deploy target',
+                'question': 'Where should this go?',
+                'options': <Object?>[
+                  <String, Object?>{'label': 'Staging', 'value': 'staging'},
+                  <String, Object?>{'label': 'Production'},
+                ],
+              },
+            ],
+          ),
+        ],
+      ),
+    );
+    client.handlers['agentChat.respond'] = (_) => <String, Object?>{
+      'resolved': true,
+    };
+    expect(find.text('Deploy target'), findsOneWidget);
+    await tester.tap(find.text('Staging'));
+    await tester.pumpAndSettle();
+    expect(
+      client.payloadsOf('agentChat.respond').single['response'],
+      <String, Object?>{
+        'type': 'userInput',
+        'answers': <String, Object?>{
+          'target': <String>['staging'],
+        },
+      },
+    );
+  });
+
+  testWidgets('input another chat sent reads as a notice, not a prompt', (
+    tester,
+  ) async {
+    await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        items: <Map<String, Object?>>[
+          agentChatItem(
+            'relay',
+            type: 'user_message',
+            text: 'Please review the migration.',
+            origin: <String, Object?>{
+              'kind': 'chatMessage',
+              'senderChatId': 'chat-2',
+            },
+          ),
+        ],
+      ),
+    );
+    expect(find.text('Message from another chat'), findsOneWidget);
+    expect(
+      find.textContaining('Please review the migration.', findRichText: true),
+      findsNothing,
+    );
+    await tester.tap(find.text('Message from another chat'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Please review the migration.', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('an archived chat is read-only and offers Reopen', (
+    tester,
+  ) async {
+    final client = await _pumpChat(tester, agentChatSnapshot(archived: true));
+    client.handlers['agentChat.reopen'] = (_) => <String, Object?>{
+      'chatId': 'chat-1',
+      'tabId': 'tab-new',
+      'snapshot': agentChatSnapshot(),
+    };
+    expect(
+      find.text('This chat is archived. Its history is kept on the host.'),
+      findsOneWidget,
+    );
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    await tester.tap(find.text('Reopen'));
+    await tester.pumpAndSettle();
+    expect(client.payloadsOf('agentChat.reopen'), hasLength(1));
+  });
+
+  testWidgets('Send clears the composer and asks the runtime', (tester) async {
+    final client = await _pumpChat(tester, agentChatSnapshot());
+    client.handlers['agentChat.send'] = (_) => <String, Object?>{
+      'delivery': 'started',
+    };
+    await tester.enterText(find.byType(TextField), 'Add a changelog entry');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pump();
+    expect(
+      client.payloadsOf('agentChat.send').single['text'],
+      'Add a changelog entry',
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '',
+    );
+    expect(find.text('Add a changelog entry'), findsOneWidget);
+  });
+
+  testWidgets('an older runtime explains that it needs an update', (
+    tester,
+  ) async {
+    await _pumpChat(tester, agentChatSnapshot(), capabilities: <String>{});
+    expect(find.text('Update required'), findsOneWidget);
+  });
+}
