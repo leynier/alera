@@ -151,17 +151,32 @@ extension on _WorkspaceDetailsOverlayState {
     if (mounted && choice != null) _issueAction(choice);
   }
 
+  /// Workspace-level actions, the same ones the sidebar row menu offers.
   Future<void> _hostMenu(Rect anchor) async {
     final workspace = widget.workspace;
+    final state = ref.read(workbenchControllerProvider);
+    final project = findProjectById(state, workspace.projectId);
+    final relocates = project?.supportsLinkedWorkspaces ?? false;
     final canLink =
         ref.read(linkedIssuesSupportedProvider) &&
         ref.read(workspaceLinkedIssueProvider(workspace.id)) == null;
     final choice = await _menu(anchor, [
-      AleraDropdownEntry(
-        value: 'handoff',
-        label: 'Hand Off',
-        leading: const _MenuIcon(AleraIcons.send),
-        enabled: workspace.isMain,
+      if (relocates && workspace.isMain)
+        const AleraDropdownEntry(
+          value: 'handoff',
+          label: 'Hand Off',
+          leading: _MenuIcon(AleraIcons.gitFork),
+        ),
+      if (relocates && !workspace.isMain)
+        const AleraDropdownEntry(
+          value: 'handon',
+          label: 'Hand On',
+          leading: _MenuIcon(AleraIcons.workspaceMain),
+        ),
+      const AleraDropdownEntry(
+        value: 'rename',
+        label: 'Rename',
+        leading: _MenuIcon(AleraIcons.edit),
       ),
       if (canLink)
         const AleraDropdownEntry(
@@ -169,13 +184,75 @@ extension on _WorkspaceDetailsOverlayState {
           label: 'Link Issue',
           leading: _MenuIcon(AleraIcons.link),
         ),
+      const PopupMenuDivider(),
+      const AleraDropdownEntry(
+        value: 'sleep',
+        label: 'Sleep',
+        leading: _MenuIcon(AleraIcons.theme),
+      ),
+      if (state.supportsArchive)
+        AleraDropdownEntry(
+          value: 'archive',
+          label: workspace.isArchived ? 'Unarchive' : 'Archive',
+          leading: _MenuIcon(
+            workspace.isArchived ? AleraIcons.unarchive : AleraIcons.archive,
+          ),
+        ),
+      if (project != null)
+        const AleraDropdownEntry(
+          value: 'remove',
+          label: 'Remove',
+          leading: _MenuIcon(AleraIcons.delete),
+        ),
     ]);
-    if (choice == linkIssueMenuAction && mounted) {
-      _issueAction(linkIssueMenuAction);
-      return;
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case linkIssueMenuAction:
+        _issueAction(linkIssueMenuAction);
+      case 'handoff':
+        await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
+      case 'handon' when project != null:
+        await showHandOnWorkspaceFlow(
+          context,
+          ref,
+          project: project,
+          workspace: workspace,
+        );
+      case 'rename':
+        await _renameWorkspace();
+      case 'sleep':
+        await showSleepWorkspaceFlow(context, ref, workspace);
+      case 'archive':
+        await showToggleWorkspaceArchivedFlow(context, ref, workspace);
+      case 'remove' when project != null:
+        await showWorkspaceRemovalFlow(
+          context: context,
+          ref: ref,
+          project: project,
+          workspace: workspace,
+        );
     }
-    if (choice == 'handoff' && mounted) {
-      await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
+  }
+
+  Future<void> _renameWorkspace() async {
+    final workspace = widget.workspace;
+    final name = await showRenameDialog(
+      context,
+      title: 'Rename Workspace',
+      labelText: 'Workspace Name',
+      initialValue: workspace.name,
+      confirmLabel: 'Rename',
+    );
+    if (name == null || !mounted) return;
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .renameWorkspace(workspaceId: workspace.id, name: name);
+    } catch (error) {
+      AleraToast.publish(
+        message: 'Could not rename workspace: $error',
+        tone: .error,
+      );
     }
   }
 

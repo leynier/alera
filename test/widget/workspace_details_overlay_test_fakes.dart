@@ -5,6 +5,10 @@ class _Workbench extends WorkbenchController {
   final WorkbenchState seed;
   final selectedTabs = <String>[];
   final selectedWorkspaces = <String>[];
+  final sleptWorkspaces = <String>[];
+  @override
+  Future<void> sleepWorkspace(Workspace workspace) async =>
+      sleptWorkspaces.add(workspace.id);
   @override
   Future<void> selectWorkspace({
     required Project project,

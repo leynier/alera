@@ -52,6 +52,7 @@ part 'workspace_details_agents_test_cases.dart';
 part 'workspace_details_issue_test_cases.dart';
 part 'workspace_details_sync_test_cases.dart';
 part 'workspace_details_related_test_cases.dart';
+part 'workspace_details_actions_test_cases.dart';
 part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
 
@@ -170,6 +171,7 @@ void main() {
   _registerWorkspaceDetailsIssueTests();
   _registerWorkspaceDetailsSyncTests();
   _registerWorkspaceDetailsRelatedTests();
+  _registerWorkspaceDetailsActionTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,
