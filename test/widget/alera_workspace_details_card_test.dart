@@ -45,7 +45,7 @@ Widget _card(
           width: width,
           child: AleraWorkspaceDetailsCard(
             density: density,
-            onOptions: calls('options'),
+            onOptions: (_) => calls('options')(),
             afterBranch: AleraWorkspaceReviewRow(
               label: long ? _longTitle : '#123: Add Workspace Details',
               stateLabel: 'Open',
@@ -53,7 +53,7 @@ Widget _card(
               stateColor: AleraTokens.success,
               tooltip: 'feature/workspace-details → main',
               onOpen: calls('pr'),
-              onMenu: calls('pr-menu'),
+              onMenu: (_) => calls('pr-menu')(),
               checksLabel: critical ? '5 Checks' : '2 Checks',
               checksIcon: critical ? AleraIcons.cancel : AleraIcons.success,
               checksColor: critical ? AleraTokens.error : AleraTokens.success,
@@ -68,7 +68,7 @@ Widget _card(
               onAction: pending ? null : calls('action'),
               compact: density != .full,
             ),
-            rows: [
+            workspaceRows: [
               AleraWorkspaceDetailRow(
                 label: long ? 'build-server-with-a-long-hostname.lan' : 'host',
                 leading: const AleraHostOsIcon(
@@ -76,21 +76,23 @@ Widget _card(
                   size: AleraTokens.iconMd,
                 ),
                 onPressed: calls('host'),
-                onMenu: calls('host-menu'),
+                onMenu: (_) => calls('host-menu')(),
               ),
               AleraWorkspaceDetailRow(
                 label: 'Open In File Manager',
                 leading: const Icon(AleraIcons.folder),
                 onPressed: calls('open'),
-                onMenu: calls('open-menu'),
+                onMenu: (_) => calls('open-menu')(),
               ),
+            ],
+            gitRows: [
               AleraWorkspaceDetailRow(
                 label: long ? _longBranch : 'feature/workspace-details',
                 subtitle: 'Compare against origin/main',
                 leading: const Icon(AleraIcons.gitBranch),
                 hasMenu: true,
                 onPressed: running ? null : calls('branch'),
-                onMenu: running ? null : calls('branch-menu'),
+                onMenu: running ? null : (_) => calls('branch-menu')(),
               ),
               AleraWorkspaceDetailRow(
                 label: running
@@ -108,7 +110,7 @@ Widget _card(
                     : const Icon(AleraIcons.gitPush),
                 hasMenu: true,
                 onPressed: running ? null : calls('git'),
-                onMenu: running ? null : calls('git-menu'),
+                onMenu: running ? null : (_) => calls('git-menu')(),
               ),
               AleraWorkspaceDetailRow(
                 label: 'Changes',

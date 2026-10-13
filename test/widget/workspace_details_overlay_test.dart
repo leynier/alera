@@ -24,7 +24,22 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_details_provider.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
+import 'package:flutter_riverpod/misc.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/application/automation_providers.dart';
+import 'package:alera_automations/alera_automations.dart';
+
+import '../support/automation_test_harness.dart';
+
+import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_state.dart';
+import 'package:alera/src/features/linked_issues/domain/linked_issue.dart';
 import 'package:alera/src/features/workbench/domain/workspace_git_quick_action.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -39,46 +54,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'workspace_details_agents_test_cases.dart';
+part 'workspace_details_issue_test_cases.dart';
+part 'workspace_details_sync_test_cases.dart';
+part 'workspace_details_related_test_cases.dart';
+part 'workspace_details_actions_test_cases.dart';
+part 'workspace_details_automations_test_cases.dart';
+part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
-
-class _Workbench extends WorkbenchController {
-  @override
-  WorkbenchState build() => const WorkbenchState(activeWorkspaceId: 'w');
-  @override
-  void toggleWorkspaceDetails(String id) {
-    final hidden = {...state.viewPrefs.workspaceDetailsHiddenIds};
-    if (!hidden.add(id)) hidden.remove(id);
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(workspaceDetailsHiddenIds: hidden),
-    );
-  }
-}
-
-class _Reviews extends WorkspacePullRequestController {
-  _Reviews(this.snapshot);
-  final WorkspacePullRequestState snapshot;
-  @override
-  Future<WorkspacePullRequestState> build(
-    WorkspacePullRequestScope scope,
-  ) async => snapshot;
-  @override
-  void attachPanel() {}
-  @override
-  void detachPanel() {}
-}
-
-class _Sources extends WorkspaceSourceControlController {
-  @override
-  Future<WorkspaceSourceControlState> build(String workspacePath) async =>
-      details.sourceControl;
-}
-
-class _Runtime implements TerminalRuntime {
-  @override
-  TerminalSessionHandle? peekSession(String tabId) => null;
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 final workspace = Workspace(
   id: 'w',
@@ -106,12 +89,30 @@ const comparison = GitWorkspaceComparison(
   treeOid: 'tree',
   indexOid: 'index',
   entries: [],
-  added: 42,
-  removed: 8,
+  added: 100,
+  removed: 20,
 );
 final details = WorkspaceDetailsState(
   sourceControl: const WorkspaceSourceControlState(
-    status: GitStatusResult(entries: []),
+    // Working-tree lines differ from the base comparison below, so a test
+    // can tell which one the Changes row shows.
+    status: GitStatusResult(
+      entries: [
+        GitChangeEntry(
+          path: 'lib/a.dart',
+          area: GitChangeArea.unstaged,
+          status: GitChangeStatus.modified,
+          added: 40,
+          removed: 8,
+        ),
+        GitChangeEntry(
+          path: 'lib/b.dart',
+          area: GitChangeArea.untracked,
+          status: GitChangeStatus.untracked,
+          added: 2,
+        ),
+      ],
+    ),
     repositoryState: GitRepositoryState(branch: 'feature/details'),
     stashes: [],
   ),
@@ -130,14 +131,25 @@ Future<void> pumpOverlay(
   Widget? child,
   Future<WorkspaceDetailsState> Function()? loadDetails,
   WorkspacePullRequestState reviewState = const WorkspacePullRequestState(),
+  WorkbenchState? workbench,
+  TerminalRuntime? runtime,
+  LinkedIssue? linkedIssue,
+  List<AutomationRecord> automations = const [],
+  List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        workbenchControllerProvider.overrideWith(_Workbench.new),
-        terminalRuntimeProvider.overrideWithValue(_Runtime()),
+        workbenchControllerProvider.overrideWith(
+          () => workbench == null ? _Workbench() : _Workbench(workbench),
+        ),
+        terminalRuntimeProvider.overrideWithValue(runtime ?? _Runtime()),
+        linkedIssuesSupportedProvider.overrideWithValue(true),
+        automationCatalogProvider.overrideWith(() => _Catalog(automations)),
+        workspaceLinkedIssueProvider('w').overrideWithValue(linkedIssue),
+        ...overrides,
         workspaceSourceControlControllerProvider('/repo')
             .overrideWith(_Sources.new),
         sshTargetsProvider.overrideWith(
@@ -182,6 +194,12 @@ void main() {
     }
   });
   _registerWorkspaceDetailsControlTests();
+  _registerWorkspaceDetailsAgentTests();
+  _registerWorkspaceDetailsIssueTests();
+  _registerWorkspaceDetailsSyncTests();
+  _registerWorkspaceDetailsRelatedTests();
+  _registerWorkspaceDetailsActionTests();
+  _registerWorkspaceDetailsAutomationTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,
@@ -365,7 +383,7 @@ void main() {
                       tooltip:
                           'feature/workspace-details → main\n2 checks passed',
                       onOpen: action,
-                      onMenu: action,
+                      onMenu: (_) => action(),
                       checksLabel: '2 Checks',
                       checksIcon: AleraIcons.success,
                       checksColor: AleraTokens.success,
@@ -373,12 +391,12 @@ void main() {
                       actionLabel: 'Merge',
                       onAction: action,
                     ),
-                    rows: [
+                    workspaceRows: [
                       AleraWorkspaceDetailRow(
                         label: 'leynier-minipc',
                         leading: AleraHostOsIcon(os: os),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'Open In $label',
@@ -387,8 +405,10 @@ void main() {
                           size: AleraTokens.iconMd,
                         ),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
+                    ],
+                    gitRows: [
                       AleraWorkspaceDetailRow(
                         label: 'feature/workspace-details',
                         subtitle: 'Compare against origin/main',
@@ -397,7 +417,7 @@ void main() {
                           size: AleraTokens.iconMd,
                         ),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'Commit, Push & Create PR',
@@ -406,7 +426,7 @@ void main() {
                           size: AleraTokens.iconMd,
                         ),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'Changes',

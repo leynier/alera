@@ -18,6 +18,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_agent
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_list.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_review_launcher.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
+import 'package:alera/src/design_system/menus/alera_menu_position.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -178,7 +179,7 @@ class _WorkspaceDetailsReviewRowsState
           '#${review.number}: ${review.title}\n${review.state.name}\n${review.headBranch ?? '?'} → ${review.baseBranch ?? '?'}${primary ? '\n$checkSummary\n${action.hint ?? ''}' : ''}',
       onOpen: () =>
           revealWorkspaceReview(ref, widget.scope.workspaceId, review.number),
-      onMenu: () => unawaited(_menu(review)),
+      onMenu: (anchor) => unawaited(_menu(review, anchor)),
       compact: widget.compact,
       checksLabel: primary ? checks : null,
       checksIcon: checkIcon,
@@ -196,20 +197,31 @@ class _WorkspaceDetailsReviewRowsState
     );
   }
 
-  Future<void> _menu(HostedReview review) async {
+  Future<void> _menu(HostedReview review, Rect anchor) async {
     final scope = widget.scope;
     final launcher = ref.read(externalUriLauncherProvider);
-    final box = context.findRenderObject() as RenderBox;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final choice = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        box.localToGlobal(Offset.zero) & box.size,
-        Offset.zero & overlay.size,
-      ),
+      position: aleraMenuBelow(context, anchor),
       items: const [
-        AleraDropdownEntry(value: 'panel', label: 'Open PR Panel'),
-        AleraDropdownEntry(value: 'browser', label: 'Open In Browser'),
+        AleraDropdownEntry(
+          value: 'panel',
+          label: 'Open PR Panel',
+          leading: Icon(
+            AleraIcons.gitPullRequest,
+            size: AleraTokens.iconMd,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
+        AleraDropdownEntry(
+          value: 'browser',
+          label: 'Open In Browser',
+          leading: Icon(
+            AleraIcons.external,
+            size: AleraTokens.iconMd,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
       ],
     );
     if (!mounted) return;

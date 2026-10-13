@@ -157,7 +157,12 @@ mixin _WorkbenchControllerSync
         Map<String, WorkspacePanel>.from(prefs.workspacePanels)..removeWhere(
           (workspaceId, _) => removedProjectWorkspaceIds.contains(workspaceId),
         );
+    final prunedHomeComposerProjects =
+        Map<String, HomeComposerProjectPrefs>.from(prefs.homeComposer.projects)
+          ..removeWhere((projectId, _) => !validProjectIds.contains(projectId));
     final prefsChanged =
+        prunedHomeComposerProjects.length !=
+            prefs.homeComposer.projects.length ||
         prunedDetailsHidden.length != prefs.workspaceDetailsHiddenIds.length ||
         prunedComparisonBases.length != prefs.workspaceComparisonBases.length ||
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
@@ -176,6 +181,9 @@ mixin _WorkbenchControllerSync
             sourceControlRootByWorkspaceId: prunedSourceControlRoots,
             rightSidebarWidthByWorkspaceId: prunedRightSidebarWidths,
             workspacePanels: prunedWorkspacePanels,
+            homeComposer: prefs.homeComposer.copyWith(
+              projects: prunedHomeComposerProjects,
+            ),
           )
         : prefs;
     final updatedWorkspaces = <String, List<Workspace>>{

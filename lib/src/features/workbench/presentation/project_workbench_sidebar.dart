@@ -62,6 +62,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_relocation_r
 import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 import 'package:alera_automations/alera_automations.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_lifecycle_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

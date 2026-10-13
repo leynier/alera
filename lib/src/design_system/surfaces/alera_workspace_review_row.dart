@@ -36,7 +36,9 @@ class const AleraWorkspaceReviewRow({
   final Color stateColor;
   final String tooltip;
   final VoidCallback onOpen;
-  final VoidCallback onMenu;
+
+  /// Opens the review's menu below the row's global bounds.
+  final ValueChanged<Rect> onMenu;
   final String? checksLabel;
   final IconData? checksIcon;
   final Color? checksColor;

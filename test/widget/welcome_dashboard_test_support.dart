@@ -13,6 +13,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
+import 'package:alera/src/features/workbench/domain/home_composer_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
@@ -198,6 +199,14 @@ class WelcomeDashboardTestController extends WorkbenchController {
 
   @override
   Future<void> bootstrap() async {}
+
+  /// Keeps Home selections in memory; the widget tests have no database.
+  @override
+  void setHomeComposerPrefs(HomeComposerPrefs prefs) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(homeComposer: prefs),
+    );
+  }
 
   @override
   Future<List<String>> listSourceBranches(Project project) async {

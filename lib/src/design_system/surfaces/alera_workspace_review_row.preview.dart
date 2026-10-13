@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/alera_preview.dart';
 import 'package:flutter/material.dart';
 
 void _action() {}
+void _menu(Rect _) {}
 
 @AleraPreview(name: 'Workspace Pull Request')
 Widget workspaceReviewPreview() => const SizedBox(
@@ -16,7 +17,7 @@ Widget workspaceReviewPreview() => const SizedBox(
     stateColor: AleraTokens.success,
     tooltip: 'feature/details → main\n2 checks passed',
     onOpen: _action,
-    onMenu: _action,
+    onMenu: _menu,
     checksLabel: '2 Checks',
     checksIcon: AleraIcons.success,
     checksColor: AleraTokens.success,
@@ -36,7 +37,7 @@ Widget workspaceReviewFailingPreview() => const SizedBox(
     stateColor: AleraTokens.success,
     tooltip: 'feature/isolate → main\nChecks failed',
     onOpen: _action,
-    onMenu: _action,
+    onMenu: _menu,
     checksLabel: '5 Checks',
     checksIcon: AleraIcons.cancel,
     checksColor: AleraTokens.error,
@@ -57,7 +58,7 @@ Widget workspaceReviewMergingPreview() => const SizedBox(
     stateColor: AleraTokens.success,
     tooltip: 'feature/details → main',
     onOpen: _action,
-    onMenu: _action,
+    onMenu: _menu,
     checksLabel: '2 Checks',
     checksIcon: AleraIcons.success,
     checksColor: AleraTokens.success,

@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/surfaces/workspace_details_density.dart'
 import 'package:flutter/material.dart';
 
 void _action() {}
+void _menu(Rect _) {}
 
 final _changes = Row(
   mainAxisSize: MainAxisSize.min,
@@ -31,7 +32,7 @@ Widget _card({
   width: AleraTokens.workspaceDetailsWidth,
   child: AleraWorkspaceDetailsCard(
     density: density,
-    onOptions: _action,
+    onOptions: _menu,
     afterBranch: AleraWorkspaceReviewRow(
       label: '#123: Add Workspace Details',
       stateLabel: 'Open',
@@ -39,7 +40,7 @@ Widget _card({
       stateColor: AleraTokens.success,
       tooltip: 'feature/details → main\n2 checks passed',
       onOpen: _action,
-      onMenu: _action,
+      onMenu: _menu,
       checksLabel: '2 Checks',
       checksIcon: AleraIcons.success,
       checksColor: AleraTokens.success,
@@ -48,25 +49,27 @@ Widget _card({
       onAction: _action,
       compact: density != .full,
     ),
-    rows: [
+    workspaceRows: [
       const AleraWorkspaceDetailRow(
         label: 'This Device',
         leading: Icon(AleraIcons.workspaceMain),
         onPressed: _action,
-        onMenu: _action,
+        onMenu: _menu,
       ),
       const AleraWorkspaceDetailRow(
         label: 'Open In File Manager',
         leading: Icon(AleraIcons.folder),
         onPressed: _action,
-        onMenu: _action,
+        onMenu: _menu,
       ),
+    ],
+    gitRows: [
       const AleraWorkspaceDetailRow(
         label: 'feature/workspace-details',
         subtitle: 'Compare against origin/main',
         leading: Icon(AleraIcons.gitBranch),
         onPressed: _action,
-        onMenu: _action,
+        onMenu: _menu,
       ),
       AleraWorkspaceDetailRow(
         label: running ? 'Pushing' : 'Commit, Push & Create PR',
@@ -79,7 +82,7 @@ Widget _card({
             : const Icon(AleraIcons.gitPush),
         hasMenu: true,
         onPressed: running ? null : _action,
-        onMenu: running ? null : _action,
+        onMenu: running ? null : _menu,
       ),
       AleraWorkspaceDetailRow(
         label: 'Changes',

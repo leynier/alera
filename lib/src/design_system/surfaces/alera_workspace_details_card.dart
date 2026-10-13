@@ -12,6 +12,7 @@ class const AleraWorkspaceDetailRow({
   this.trailing,
   this.onPressed,
   this.onMenu,
+  this.pressOpensMenu = false,
   this.hasMenu = false,
   this.hint,
 }) {
@@ -21,7 +22,12 @@ class const AleraWorkspaceDetailRow({
   final Color? subtitleColor;
   final Widget? trailing;
   final VoidCallback? onPressed;
-  final VoidCallback? onMenu;
+
+  /// Opens the row's menu below [anchor], the row's global bounds.
+  final ValueChanged<Rect>? onMenu;
+
+  /// Routes the primary segment to [onMenu] instead of [onPressed].
+  final bool pressOpensMenu;
 
   /// Keeps a disabled menu segment in place while [onMenu] is temporarily
   /// unavailable, so a busy row does not change width.
@@ -32,42 +38,51 @@ class const AleraWorkspaceDetailRow({
 
 class const AleraWorkspaceDetailsCard({
   super.key,
-  required this.rows,
+  required this.workspaceRows,
+  this.gitRows = const [],
   this.afterBranch,
+  this.afterWorkspace,
   this.density = WorkspaceDetailsDensity.full,
   this.onOptions,
 }) extends StatelessWidget {
-  final List<AleraWorkspaceDetailRow> rows;
+  /// Host and Open In first, then any workspace context such as its issue.
+  final List<AleraWorkspaceDetailRow> workspaceRows;
+
+  /// Branch first; [afterBranch] goes right below it.
+  final List<AleraWorkspaceDetailRow> gitRows;
   final Widget? afterBranch;
+
+  /// Extra sections between the workspace and Git sections. Each one draws its
+  /// own [AleraWorkspaceDetailsSection], so an empty one takes no space.
+  final Widget? afterWorkspace;
   final WorkspaceDetailsDensity density;
-  final VoidCallback? onOptions;
+  final ValueChanged<Rect>? onOptions;
 
   @override
   Widget build(BuildContext context) {
     final essential = density == WorkspaceDetailsDensity.essential;
     final compact = density != WorkspaceDetailsDensity.full;
-    // Essential density folds Host and Open In into one options row that
+    // Essential density folds the workspace rows into one options row that
     // keeps the host visible, so the card never spends a row on a lone icon.
     final workspace = <Widget>[
       if (!essential)
-        for (var i = 0; i < rows.length && i < 2; i++)
-          _DetailRow(row: rows[i], compact: compact)
-      else if (onOptions != null && rows.isNotEmpty)
+        for (final row in workspaceRows) _DetailRow(row: row, compact: compact)
+      else if (onOptions != null && workspaceRows.isNotEmpty)
         _DetailRow(
           compact: true,
           row: AleraWorkspaceDetailRow(
-            label: rows.first.label,
-            leading: rows.first.leading,
+            label: workspaceRows.first.label,
+            leading: workspaceRows.first.leading,
             hint: 'Workspace Options',
-            onPressed: onOptions,
             onMenu: onOptions,
+            pressOpensMenu: true,
           ),
         ),
     ];
     final git = <Widget>[
-      for (var i = 2; i < rows.length; i++) ...[
-        _DetailRow(row: rows[i], compact: compact),
-        if (i == 2 && afterBranch != null) afterBranch!,
+      for (var i = 0; i < gitRows.length; i++) ...[
+        _DetailRow(row: gitRows[i], compact: compact),
+        if (i == 0 && afterBranch != null) afterBranch!,
       ],
     ];
     Widget section(List<Widget> children) => Padding(
@@ -78,6 +93,7 @@ class const AleraWorkspaceDetailsCard({
         children: children,
       ),
     );
+    final extra = afterWorkspace;
     return Material(
       color: AleraTokens.surface,
       shape: RoundedRectangleBorder(
@@ -90,6 +106,7 @@ class const AleraWorkspaceDetailsCard({
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (workspace.isNotEmpty) section(workspace),
+          ?extra,
           if (workspace.isNotEmpty && git.isNotEmpty)
             const Divider(
               height: AleraTokens.dividerExtent,
@@ -157,12 +174,14 @@ class const AleraWorkspaceDetailControl({
   required this.tooltip,
   this.onPressed,
   this.onMenu,
+  this.pressOpensMenu = false,
   this.menuTooltip,
 }) extends StatefulWidget {
   final Widget child;
   final String tooltip;
   final VoidCallback? onPressed;
-  final VoidCallback? onMenu;
+  final ValueChanged<Rect>? onMenu;
+  final bool pressOpensMenu;
   final String? menuTooltip;
   @override
   State<AleraWorkspaceDetailControl> createState() =>
@@ -173,11 +192,20 @@ class _AleraWorkspaceDetailControlState
     extends State<AleraWorkspaceDetailControl> {
   bool _hovered = false;
 
+  void _openMenu() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    widget.onMenu?.call(box.localToGlobal(Offset.zero) & box.size);
+  }
+
   @override
   Widget build(BuildContext context) {
     const radius = Radius.circular(AleraTokens.radiusMd);
     final split = widget.menuTooltip != null;
-    final interactive = widget.onPressed != null || widget.onMenu != null;
+    final onPressed = widget.pressOpensMenu
+        ? (widget.onMenu == null ? null : _openMenu)
+        : widget.onPressed;
+    final interactive = onPressed != null || widget.onMenu != null;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -198,7 +226,7 @@ class _AleraWorkspaceDetailControlState
               Expanded(
                 child: AleraWorkspaceDetailSegment(
                   tooltip: widget.tooltip,
-                  onPressed: widget.onPressed,
+                  onPressed: onPressed,
                   borderRadius: split
                       ? const BorderRadius.horizontal(left: radius)
                       : const BorderRadius.all(radius),
@@ -219,7 +247,7 @@ class _AleraWorkspaceDetailControlState
                 ),
                 AleraWorkspaceDetailSegment(
                   tooltip: widget.menuTooltip,
-                  onPressed: widget.onMenu,
+                  onPressed: widget.onMenu == null ? null : _openMenu,
                   borderRadius: const BorderRadius.horizontal(right: radius),
                   child: SizedBox(
                     width: AleraTokens.space32,
@@ -336,12 +364,15 @@ class const _DetailRow({required this.row, this.compact = false})
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final enabled = row.onPressed != null;
+    final enabled = row.pressOpensMenu
+        ? row.onMenu != null
+        : row.onPressed != null;
     final subtitle = compact ? null : row.subtitle;
     return AleraWorkspaceDetailControl(
       tooltip: row.hint ?? row.label,
       onPressed: row.onPressed,
       onMenu: row.onMenu,
+      pressOpensMenu: row.pressOpensMenu,
       menuTooltip: row.showsMenu ? '${row.label} Options' : null,
       child: Row(
         children: [
@@ -382,4 +413,30 @@ class const _DetailRow({required this.row, this.compact = false})
       ),
     );
   }
+}
+
+/// A card section after the first one: a hairline divider above, then rows.
+class const AleraWorkspaceDetailsSection({super.key, required this.children})
+    extends StatelessWidget {
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Divider(
+        height: AleraTokens.dividerExtent,
+        thickness: AleraTokens.dividerExtent,
+        color: AleraTokens.borderSubtle,
+      ),
+      Padding(
+        padding: const EdgeInsets.all(AleraTokens.space6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ),
+    ],
+  );
 }
