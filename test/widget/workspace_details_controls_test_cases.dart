@@ -245,5 +245,7 @@ void _registerWorkspaceDetailsControlTests() {
 
 class _ToolbarSession extends TerminalSessionHandle {
   @override
+  void requestFocus() {}
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -1,5 +1,6 @@
 import 'package:alera/src/design_system/surfaces/workspace_details_density.dart';
 import 'package:alera/src/features/workbench/application/workspace_git_progress.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_details_agent_rows.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_review_rows.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_presence.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_source_control_presence.dart';

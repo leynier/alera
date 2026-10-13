@@ -48,6 +48,10 @@ extension on _WorkspaceDetailsOverlayState {
       child: AleraWorkspaceDetailsCard(
         density: density,
         onOptions: (anchor) => unawaited(_detailsOptions(anchor)),
+        afterWorkspace: WorkspaceDetailsAgentRows(
+          workspace: workspace,
+          density: density,
+        ),
         afterBranch: widget.sourceControlScope == null
             ? null
             : WorkspaceDetailsReviewRows(

@@ -40,11 +40,16 @@ class const AleraWorkspaceDetailsCard({
   super.key,
   required this.rows,
   this.afterBranch,
+  this.afterWorkspace,
   this.density = WorkspaceDetailsDensity.full,
   this.onOptions,
 }) extends StatelessWidget {
   final List<AleraWorkspaceDetailRow> rows;
   final Widget? afterBranch;
+
+  /// Extra sections between the workspace and Git sections. Each one draws its
+  /// own [AleraWorkspaceDetailsSection], so an empty one takes no space.
+  final Widget? afterWorkspace;
   final WorkspaceDetailsDensity density;
   final ValueChanged<Rect>? onOptions;
 
@@ -84,6 +89,7 @@ class const AleraWorkspaceDetailsCard({
         children: children,
       ),
     );
+    final extra = afterWorkspace;
     return Material(
       color: AleraTokens.surface,
       shape: RoundedRectangleBorder(
@@ -96,6 +102,7 @@ class const AleraWorkspaceDetailsCard({
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (workspace.isNotEmpty) section(workspace),
+          ?extra,
           if (workspace.isNotEmpty && git.isNotEmpty)
             const Divider(
               height: AleraTokens.dividerExtent,
@@ -402,4 +409,30 @@ class const _DetailRow({required this.row, this.compact = false})
       ),
     );
   }
+}
+
+/// A card section after the first one: a hairline divider above, then rows.
+class const AleraWorkspaceDetailsSection({super.key, required this.children})
+    extends StatelessWidget {
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Divider(
+        height: AleraTokens.dividerExtent,
+        thickness: AleraTokens.dividerExtent,
+        color: AleraTokens.borderSubtle,
+      ),
+      Padding(
+        padding: const EdgeInsets.all(AleraTokens.space6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ),
+    ],
+  );
 }

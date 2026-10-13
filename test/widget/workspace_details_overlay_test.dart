@@ -26,6 +26,10 @@ import 'package:alera/src/features/workbench/application/workspace_details_provi
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:alera/src/features/workbench/domain/workspace_git_quick_action.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -40,55 +44,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'workspace_details_agents_test_cases.dart';
+part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
-
-class _Workbench extends WorkbenchController {
-  @override
-  WorkbenchState build() => const WorkbenchState(activeWorkspaceId: 'w');
-  @override
-  void setRightSidebarVisible(bool visible) => state = state.copyWith(
-    viewPrefs: state.viewPrefs.copyWith(rightSidebarVisible: visible),
-  );
-  @override
-  void setContextPanelTab(WorkbenchContextPanelTab tab) =>
-      state = state.copyWith(
-        viewPrefs: state.viewPrefs.copyWith(activeContextPanelTab: tab),
-      );
-  @override
-  void toggleWorkspaceDetails(String id) {
-    final hidden = {...state.viewPrefs.workspaceDetailsHiddenIds};
-    if (!hidden.add(id)) hidden.remove(id);
-    state = state.copyWith(
-      viewPrefs: state.viewPrefs.copyWith(workspaceDetailsHiddenIds: hidden),
-    );
-  }
-}
-
-class _Reviews extends WorkspacePullRequestController {
-  _Reviews(this.snapshot);
-  final WorkspacePullRequestState snapshot;
-  @override
-  Future<WorkspacePullRequestState> build(
-    WorkspacePullRequestScope scope,
-  ) async => snapshot;
-  @override
-  void attachPanel() {}
-  @override
-  void detachPanel() {}
-}
-
-class _Sources extends WorkspaceSourceControlController {
-  @override
-  Future<WorkspaceSourceControlState> build(String workspacePath) async =>
-      details.sourceControl;
-}
-
-class _Runtime implements TerminalRuntime {
-  @override
-  TerminalSessionHandle? peekSession(String tabId) => null;
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 final workspace = Workspace(
   id: 'w',
@@ -140,14 +98,20 @@ Future<void> pumpOverlay(
   Widget? child,
   Future<WorkspaceDetailsState> Function()? loadDetails,
   WorkspacePullRequestState reviewState = const WorkspacePullRequestState(),
+  WorkbenchState? workbench,
+  TerminalRuntime? runtime,
+  List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        workbenchControllerProvider.overrideWith(_Workbench.new),
-        terminalRuntimeProvider.overrideWithValue(_Runtime()),
+        workbenchControllerProvider.overrideWith(
+          () => workbench == null ? _Workbench() : _Workbench(workbench),
+        ),
+        terminalRuntimeProvider.overrideWithValue(runtime ?? _Runtime()),
+        ...overrides,
         workspaceSourceControlControllerProvider('/repo')
             .overrideWith(_Sources.new),
         sshTargetsProvider.overrideWith(
@@ -192,6 +156,7 @@ void main() {
     }
   });
   _registerWorkspaceDetailsControlTests();
+  _registerWorkspaceDetailsAgentTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,
