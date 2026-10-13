@@ -150,11 +150,16 @@ async fn missed_occurrences_are_claimed_without_runs_and_audited_once() {
     definition.state = AutomationState::Active;
     definition.misfire_grace_seconds = 0;
     definition.misfire_policy = AutomationMisfirePolicy::Skip;
+    // The schedule ends in the past: an open-ended one would make the current
+    // minute due, and a tick within a second of the boundary runs it on time.
+    let now = Utc::now();
+    let start = now - chrono::Duration::minutes(501);
+    let end = now - chrono::Duration::minutes(1);
     definition.schedule = AutomationSchedule::Recurring {
         cron: "* * * * *".into(),
         timezone: "UTC".into(),
-        start_at: Some(Utc::now() - chrono::Duration::minutes(500)),
-        end_at: None,
+        start_at: Some(start),
+        end_at: Some(end),
         max_scheduled_runs: None,
     };
     let definition = fixture
@@ -163,7 +168,6 @@ async fn missed_occurrences_are_claimed_without_runs_and_audited_once() {
         .upsert_automation(definition.clone(), definition.created_by.clone())
         .await
         .unwrap();
-    let start = Utc::now() - chrono::Duration::minutes(500);
     let audit_batches = |audit: &[alera_core::runtime::AutomationAuditEvent]| {
         audit
             .iter()
@@ -195,7 +199,7 @@ async fn missed_occurrences_are_claimed_without_runs_and_audited_once() {
             .await
             .unwrap()
             .unwrap();
-        if latest > Utc::now() - chrono::Duration::minutes(2) || ticks == 20 {
+        if latest > end - chrono::Duration::minutes(1) || ticks == 20 {
             break latest;
         }
     };

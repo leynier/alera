@@ -349,21 +349,24 @@ async fn additive_migration_keeps_existing_chats_and_replaces_old_cleanup_trigge
     let (dir, store) = store_with_workspace("ws").await;
     let chat_id = create_chat(&store, "ws", "tab").await;
     let before = store.agent_chat(&chat_id).await.unwrap().unwrap();
+    // Keep the fixture DDL on one connection so CREATE sees the preceding DROP.
+    let mut connection = store.pool().acquire().await.unwrap();
     sqlx::query("DROP TRIGGER agentChatDeleteChildren")
-        .execute(store.pool())
+        .execute(&mut *connection)
         .await
         .unwrap();
     sqlx::query("DROP TABLE agentChatCancelledMessages")
-        .execute(store.pool())
+        .execute(&mut *connection)
         .await
         .unwrap();
     sqlx::query(
         "CREATE TRIGGER agentChatDeleteChildren AFTER DELETE ON agentChatSessions BEGIN \
          DELETE FROM agentChatItems WHERE chatId = OLD.chatId; END;",
     )
-    .execute(store.pool())
+    .execute(&mut *connection)
     .await
     .unwrap();
+    drop(connection);
     store.pool().close().await;
     let migrated = RuntimeStore::open(dir.path()).await.unwrap();
     assert_eq!(

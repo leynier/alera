@@ -196,7 +196,7 @@ Every component ships a co-located `*.preview.dart` file so it can be developed 
 
 ## Workspace Details
 
-The central workbench overlays the workspace details card in its upper-right corner without resizing terminal content. It is initially visible when the central pane meets `wideContentBreakpoint` and the minimum available height. Visibility persists per workspace. Smaller panes and an open terminal search use a closed-by-default popover; its contents scroll in short windows. Toggle Workspace Details is registered in the command registry without a default shortcut.
+The central workbench overlays the workspace details card in its upper-right corner without resizing terminal content. It is initially visible when the central pane meets `wideContentBreakpoint` and the minimum available height. Visibility persists per workspace. Smaller panes and an open terminal search use a closed-by-default popover; its contents scroll in short windows. Toggle Workspace Details is part of the movable terminal toolbar and is registered in the command registry without a default shortcut. Surfaces without a terminal retain an overlay toggle. Changes retains its label and last counts during background refreshes.
 
 `AleraWorkspaceDetailsCard` is presentational and has a co-located widget preview. Host, Open In, Branch, Git action and Changes rows use the existing Inter typography, semantic icons and surface tokens. Added and removed counts use success and error tokens. Provider reads, host routing, preferences and dialog launchers live in the feature wrapper. Opening the card preserves pane focus; closing restores pane focus only when the details controls owned it.
 

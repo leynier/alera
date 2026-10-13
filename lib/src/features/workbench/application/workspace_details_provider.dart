@@ -6,7 +6,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace_git_quick_action.dart';
 import 'package:alera/src/features/workbench/domain/workspace_comparison_base.dart';
-import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/features/workbench/application/workspace_git_snapshots.dart';
 import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -60,11 +60,13 @@ Future<WorkspaceDetailsState> workspaceDetails(
           .workspaceComparisonBases['${scope.workspaceId}:${scope.repoPath}'],
     ),
   );
-  final git = ref.read(gitBackendProvider);
+  final catalogFuture = ref.watch(
+    workspaceGitCatalogProvider(scope.repoPath).future,
+  );
   final source = await sourceFuture;
-  final branches = await git.listBranches(scope.repoPath);
-  final defaultBranch = await git.workspaceDefaultBranch(scope.repoPath);
-  final remotes = await git.listRemotes(scope.repoPath);
+  final catalog = await catalogFuture;
+  final branches = catalog.branches;
+  final defaultBranch = catalog.defaultBranch;
   final resolvedBase = resolveWorkspaceComparisonBase(
     branches: branches,
     defaultBranch: defaultBranch,
@@ -73,11 +75,13 @@ Future<WorkspaceDetailsState> workspaceDetails(
         ? pullRequest?.review?.baseBranch
         : null,
     sourceBranch: scope.sourceBranch,
-    remoteNames: remotes.map((remote) => remote.name).toList(growable: false),
+    remoteNames: catalog.remoteNames,
   );
-  final comparison = await git.workspaceComparison(
-    scope.repoPath,
-    baseRef: resolvedBase,
+  if (!ref.mounted) {
+    throw StateError('Workspace details are no longer observed.');
+  }
+  final comparison = await ref.watch(
+    workspaceGitComparisonProvider(scope.repoPath, resolvedBase).future,
   );
   final current = source.repositoryState;
   final defaultShort = defaultBranch.startsWith('origin/')
@@ -89,12 +93,12 @@ Future<WorkspaceDetailsState> workspaceDetails(
     branches: branches,
     defaultBranch: defaultShort,
     pullRequest: pullRequest,
-    hasRemote: remotes.isNotEmpty,
-    remoteNames: remotes.map((remote) => remote.name).toList(growable: false),
+    hasRemote: catalog.remoteNames.isNotEmpty,
+    remoteNames: catalog.remoteNames,
     quickAction: resolveWorkspaceGitQuickAction(
       repository: current,
       hasChanges: source.hasChanges,
-      hasRemote: remotes.isNotEmpty,
+      hasRemote: catalog.remoteNames.isNotEmpty,
       hasOpenPr: pullRequest?.review?.isOpen == true,
       canCreatePr: pullRequest?.supportsCreation == true,
       isDefaultBranch: current.branch == defaultShort,

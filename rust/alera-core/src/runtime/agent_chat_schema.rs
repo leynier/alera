@@ -138,15 +138,110 @@ impl RuntimeStore {
             .await?;
         let mut tx = self.pool().begin().await?;
         super::agent_chat_turns::migrate_turn_headers_in(&mut tx).await?;
-        sqlx::query("DROP TRIGGER IF EXISTS agentChatDeleteChildren")
-            .execute(&mut *tx)
-            .await?;
         for statement in triggers() {
-            sqlx::query(sqlx::AssertSqlSafe(statement))
-                .execute(&mut *tx)
-                .await?;
+            super::schema_object_replacement::replace_schema_object(&mut tx, &statement).await?;
         }
         tx.commit().await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::agent_chat_test_support::{create_chat, store_with_workspace};
+    use super::*;
+
+    async fn data_version(connection: &mut sqlx::SqliteConnection) -> i64 {
+        sqlx::query_scalar("PRAGMA data_version")
+            .fetch_one(connection)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_current_chat_store_reopen_preserves_the_live_read_to_write_snapshot() {
+        let (dir, store) = store_with_workspace("ws").await;
+        let chat_id = create_chat(&store, "ws", "tab").await;
+        let mut transaction = store.pool().begin().await.unwrap();
+        let stored_chat: String =
+            sqlx::query_scalar("SELECT chatId FROM agentChatSessions WHERE chatId = ?")
+                .bind(&chat_id)
+                .fetch_one(&mut *transaction)
+                .await
+                .unwrap();
+        assert_eq!(stored_chat, chat_id);
+
+        let cli = RuntimeStore::open(dir.path()).await.unwrap();
+        cli.pool().close().await;
+
+        sqlx::query("UPDATE workspaces SET name = 'Live Runtime Write' WHERE id = 'ws'")
+            .execute(&mut *transaction)
+            .await
+            .unwrap();
+        transaction.commit().await.unwrap();
+        assert_eq!(
+            store.find_workspace("ws").await.unwrap().unwrap().name,
+            "Live Runtime Write"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_outdated_chat_cleanup_trigger_upgrades_once_and_then_reopens_without_writes() {
+        let (dir, store) = store_with_workspace("ws").await;
+        let chat_id = create_chat(&store, "ws", "tab").await;
+        let before = store.agent_chat(&chat_id).await.unwrap().unwrap();
+        store
+            .cancel_agent_chat_message(&chat_id, "cancelled-message")
+            .await
+            .unwrap();
+        let mut connection = store.pool().acquire().await.unwrap();
+        for statement in [
+            "DROP TRIGGER agentChatDeleteChildren",
+            "CREATE TRIGGER agentChatDeleteChildren AFTER DELETE ON agentChatSessions BEGIN \
+             DELETE FROM agentChatItems WHERE chatId = OLD.chatId; END;",
+        ] {
+            sqlx::query(statement)
+                .execute(&mut *connection)
+                .await
+                .unwrap();
+        }
+        let version_before = data_version(&mut connection).await;
+        let migrated = RuntimeStore::open(dir.path()).await.unwrap();
+        migrated.pool().close().await;
+        let version_after = data_version(&mut connection).await;
+        assert_eq!(version_after, version_before + 1);
+        assert_eq!(store.agent_chat(&chat_id).await.unwrap().unwrap(), before);
+        let retained_markers: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM agentChatCancelledMessages WHERE chatId = ?")
+                .bind(&chat_id)
+                .fetch_one(&mut *connection)
+                .await
+                .unwrap();
+        assert_eq!(retained_markers, 1);
+
+        let reopened = RuntimeStore::open(dir.path()).await.unwrap();
+        reopened.pool().close().await;
+        assert_eq!(data_version(&mut connection).await, version_after);
+
+        sqlx::query("PRAGMA foreign_keys = OFF")
+            .execute(&mut *connection)
+            .await
+            .unwrap();
+        sqlx::query("DELETE FROM agentChatSessions WHERE chatId = ?")
+            .bind(&chat_id)
+            .execute(&mut *connection)
+            .await
+            .unwrap();
+        let markers: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM agentChatCancelledMessages WHERE chatId = ?")
+                .bind(&chat_id)
+                .fetch_one(&mut *connection)
+                .await
+                .unwrap();
+        assert_eq!(markers, 0);
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut *connection)
+            .await
+            .unwrap();
     }
 }

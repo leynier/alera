@@ -1,13 +1,14 @@
 ---
 import type { Block } from '../../../data/demo/terminal-lines';
 import AppIcon from './AppIcon.astro';
+import { APP_COPY } from '../../../data/demo/app-copy';
 import TerminalBlocks from './TerminalBlocks.astro';
 
 /**
  * One terminal surface: the Alera Dark screen with its 12 px padding, and the
  * floating toolbar the app always draws in the top-right corner
  * (terminal_surface_toolbar.dart): Move Toolbar, Configure Terminal Pulse,
- * Show Terminal Composer and Refresh Terminal. Extra content, such as a
+ * Show Terminal Composer, Toggle Workspace Details and Refresh Terminal. Extra content, such as a
  * group of blocks shown later, goes in the slot after the blocks.
  */
 interface Props {
@@ -31,6 +32,7 @@ const { blocks, class: className } = Astro.props;
     <span class="term-tool"><AppIcon name="dragHandle" size={16} /></span>
     <span class="term-tool"><AppIcon name="pulse" size={16} /></span>
     <span class="term-tool"><AppIcon name="composer" size={16} /></span>
+    <span class="term-tool" title={APP_COPY.workspaceDetailsToggle.text}><AppIcon name="review" size={16} /></span>
     <span class="term-tool"><AppIcon name="refresh" size={16} /></span>
   </div>
 </div>

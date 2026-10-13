@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/app_window/domain/app_foreground.dart';
+import 'package:alera/src/features/workbench/domain/source_control_changes.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -9,35 +12,31 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_source_control_controller.g.dart';
+part 'workspace_source_control_actions.dart';
 
 class const WorkspaceSourceControlState({
   required final GitStatusResult status,
   required final GitRepositoryState repositoryState,
   required final List<GitStashEntry> stashes,
   final WorkspaceSourceControlAction? action,
+  final int comparisonRevision = 0,
+  final int catalogRevision = 0,
 }) {
   bool get isBusy => action != null;
-
   List<GitChangeEntry> get stagedEntries => status.entries
       .where((entry) => entry.area == GitChangeArea.staged)
       .toList(growable: false);
-
   bool get hasStagedChanges => stagedEntries.isNotEmpty;
-
   bool get hasStageableChanges =>
       status.entries.any((entry) => entry.canStageFromParent);
-
   bool get hasDiscardableChanges =>
       status.entries.any((entry) => entry.canDiscardFromParent);
-
   bool get hasChanges => status.entries.isNotEmpty;
-
   bool get hasUnstagedOrUntrackedChanges => status.entries.any(
     (entry) =>
         entry.area == GitChangeArea.unstaged ||
         entry.area == GitChangeArea.untracked,
   );
-
   bool get hasStashableChanges => status.entries.any(
     (entry) =>
         entry.area == GitChangeArea.staged ||
@@ -67,200 +66,95 @@ enum WorkspaceSourceControlAction {
 
 @riverpod
 class WorkspaceSourceControlController
-    extends _$WorkspaceSourceControlController {
+    extends _$WorkspaceSourceControlController
+    with _WorkspaceSourceControlActions {
   static const Duration _watcherReloadDebounce = Duration(milliseconds: 250);
-
   SourceControlWatcher? _watcher;
   StreamSubscription<native.SourceControlWatchSignal>? _watchSubscription;
   native.SourceControlWatcherHandle? _watcherHandle;
   Timer? _watcherReloadDebounceTimer;
   bool _watcherReloadInFlight = false;
-  bool _watcherReloadQueued = false;
+  bool _initialLoadInFlight = false;
+  bool _actionInFlight = false;
+  Future<WorkspaceSourceControlState>? _initialRead;
+  Future<WorkspaceSourceControlState>? _watcherRead;
+  SourceControlChanges _pendingChanges = const SourceControlChanges();
+  WorkspaceSourceControlState? _lastSnapshot;
+  int _comparisonRevision = 0;
+  int _catalogRevision = 0;
+  int _operationGeneration = 0;
+  int _buildGeneration = 0;
+  int _viewCount = 0;
+  int _watchGeneration = 0;
+  bool _observing = false;
+  AppForeground? _foreground;
+  StreamSubscription<bool>? _foregroundSubscription;
   bool _disposed = false;
 
   @override
   Future<WorkspaceSourceControlState> build(String workspacePath) {
-    // Capture the watcher now: `onDispose` runs in a lifecycle where reading
-    // providers via `ref` is disallowed.
+    final previousRead = _watcherRead ?? _initialRead;
+    final buildGeneration = ++_buildGeneration;
+    _disposed = false;
     _watcher = ref.read(sourceControlWatcherProvider);
     ref.onDispose(_stopWatching);
-    // Best-effort: file watching keeps the panel live without blocking the
-    // initial load; manual refresh remains available if it fails to start.
-    unawaited(_startWatching());
-    return _load();
-  }
-
-  Future<void> runReviewedAction(
-    Future<void> Function(GitBackend backend) operation,
-  ) async {
-    if (state.asData?.value.isBusy ?? false) {
-      throw const GitConflictException(
-        'Another Git action is already running.',
+    _initialLoadInFlight = true;
+    if (_viewCount > 0) {
+      _foreground = ref.read(appForegroundProvider);
+      _foregroundSubscription = _foreground!.changes.listen(
+        (_) => _syncObservation(),
       );
+      _syncObservation();
     }
-    await _run(.commitPush, operation);
+    _initialRead = previousRead == null
+        ? _load()
+        : previousRead
+              .then<void>((_) {}, onError: (Object error, StackTrace stack) {})
+              .then((_) => _load());
+    return _initialRead!
+        .then((snapshot) {
+          if (buildGeneration == _buildGeneration) _lastSnapshot = snapshot;
+          return snapshot;
+        })
+        .whenComplete(() {
+          if (buildGeneration != _buildGeneration) return;
+          _initialLoadInFlight = false;
+          _schedulePendingReload();
+        });
   }
 
-  Future<void> refresh() => _run(.refresh, (_) async {});
-
-  Future<void> stage(String? filePath) => _run(
-    .stage,
-    (backend) => backend.stage(path: workspacePath, filePath: filePath),
-  );
-
-  Future<void> stageArea(GitChangeArea area, {String? filePath}) => _run(
-    .stage,
-    (backend) =>
-        backend.stageArea(path: workspacePath, area: area, filePath: filePath),
-  );
-
-  Future<void> stageEntry(GitChangeEntry entry) {
-    if (!entry.canStageFromParent) {
-      return Future<void>.value();
-    }
-    return _run(.stage, (backend) async {
-      for (final filePath in _actionPaths(entry)) {
-        await backend.stage(path: workspacePath, filePath: filePath);
-      }
-    });
-  }
-
-  Future<void> unstage(String? filePath) => _run(
-    .unstage,
-    (backend) => backend.unstage(path: workspacePath, filePath: filePath),
-  );
-
-  Future<void> unstageArea(GitChangeArea area, {String? filePath}) => _run(
-    .unstage,
-    (backend) => backend.unstageArea(
-      path: workspacePath,
-      area: area,
-      filePath: filePath,
-    ),
-  );
-
-  Future<void> unstageEntry(GitChangeEntry entry) {
-    if (!entry.canUnstageFromParent) {
-      return Future<void>.value();
-    }
-    return _run(.unstage, (backend) async {
-      for (final filePath in _actionPaths(entry)) {
-        await backend.unstage(path: workspacePath, filePath: filePath);
-      }
-    });
-  }
-
-  Future<void> discard(String? filePath) => _run(
-    .discard,
-    (backend) => backend.discard(path: workspacePath, filePath: filePath),
-  );
-
-  Future<void> discardArea(GitChangeArea area, {String? filePath}) => _run(
-    .discard,
-    (backend) => backend.discardArea(
-      path: workspacePath,
-      area: area,
-      filePath: filePath,
-    ),
-  );
-
-  Future<void> discardEntry(GitChangeEntry entry) {
-    if (!entry.canDiscardFromParent) {
-      return Future<void>.value();
-    }
-    return _run(.discard, (backend) async {
-      for (final filePath in _actionPaths(entry)) {
-        await backend.discard(path: workspacePath, filePath: filePath);
-      }
-    });
-  }
-
-  Future<void> commit(String message) => _run(
-    .commit,
-    (backend) => backend.commit(path: workspacePath, message: message.trim()),
-  );
-
-  Future<void> commitAndPush(String message) =>
-      _run(.commitPush, (backend) async {
-        await backend.commit(path: workspacePath, message: message.trim());
-        await backend.push(workspacePath);
-      });
-
-  Future<void> commitAndSync(String message) =>
-      _run(.commitSync, (backend) async {
-        await backend.commit(path: workspacePath, message: message.trim());
-        if (!(state.asData?.value.repositoryState.hasUpstream ?? false)) {
-          throw const NoUpstreamException('set an upstream before syncing');
-        }
-        await backend.pull(workspacePath);
-        await backend.push(workspacePath);
-      });
-
-  Future<void> amendCommit(String message) => _run(
-    .amend,
-    (backend) =>
-        backend.amendCommit(path: workspacePath, message: message.trim()),
-  );
-
-  Future<void> fetch() =>
-      _run(.fetch, (backend) => backend.fetch(workspacePath));
-
-  Future<void> pull() => _run(.pull, (backend) => backend.pull(workspacePath));
-
-  Future<void> push() => _run(.push, (backend) => backend.push(workspacePath));
-
-  Future<void> sync() => _run(.sync, (backend) async {
-    if (!(state.asData?.value.repositoryState.hasUpstream ?? false)) {
-      throw const NoUpstreamException('set an upstream before syncing');
-    }
-    await backend.pull(workspacePath);
-    await backend.push(workspacePath);
-  });
-
-  Future<void> stash() =>
-      _run(.stash, (backend) => backend.stash(workspacePath));
-
-  Future<void> stashPop(int stashIndex) => _run(
-    .stashPop,
-    (backend) => backend.stashPop(path: workspacePath, stashIndex: stashIndex),
-  );
-
-  Future<String> checkoutBranch(String branch) async {
-    await _run(
-      .checkout,
-      (backend) => backend.checkoutBranch(path: workspacePath, branch: branch),
-    );
-    return state.requireValue.repositoryState.branch;
-  }
-
-  Future<void> createAndCheckoutBranch(String branch) => _run(
-    .createBranch,
-    (backend) =>
-        backend.createAndCheckoutBranch(path: workspacePath, branch: branch),
-  );
-
-  Future<WorkspaceSourceControlState> _load() async {
+  Future<WorkspaceSourceControlState> _load({
+    SourceControlChanges changes = SourceControlChanges.all,
+  }) async {
+    final previous = _lastSnapshot;
     final backend = ref.read(gitBackendProvider);
+    final metadata = previous == null || changes.repository || changes.catalog;
     final results = await Future.wait<Object>([
       backend.status(workspacePath),
-      backend.repositoryState(workspacePath),
-      backend.listStashes(workspacePath),
+      metadata
+          ? backend.repositoryState(workspacePath)
+          : Future.value(previous.repositoryState),
+      metadata
+          ? backend.listStashes(workspacePath)
+          : Future.value(previous.stashes),
     ]);
     return WorkspaceSourceControlState(
       status: results[0] as GitStatusResult,
       repositoryState: results[1] as GitRepositoryState,
       stashes: results[2] as List<GitStashEntry>,
+      comparisonRevision: ++_comparisonRevision,
+      catalogRevision: changes.catalog ? ++_catalogRevision : _catalogRevision,
     );
   }
 
+  @override
   Future<void> _run(
     WorkspaceSourceControlAction action,
     Future<void> Function(GitBackend backend) operation,
   ) async {
     final previous = state.asData?.value;
-    if (previous?.isBusy ?? false) {
-      return;
-    }
+    if (_actionInFlight || (previous?.isBusy ?? false)) return;
+    _actionInFlight = true;
     if (previous != null) {
       state = AsyncData(
         WorkspaceSourceControlState(
@@ -268,64 +162,138 @@ class WorkspaceSourceControlController
           repositoryState: previous.repositoryState,
           stashes: previous.stashes,
           action: action,
+          comparisonRevision: previous.comparisonRevision,
+          catalogRevision: previous.catalogRevision,
         ),
       );
     }
+    _operationGeneration++;
     final keepAlive = ref.keepAlive();
     try {
+      await _initialRead?.then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stack) {},
+      );
+      await _watcherRead?.then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stack) {},
+      );
       await operation(ref.read(gitBackendProvider));
-      state = AsyncData(await _load());
+      final changes = switch (action) {
+        WorkspaceSourceControlAction.stage ||
+        WorkspaceSourceControlAction.unstage ||
+        WorkspaceSourceControlAction.discard ||
+        WorkspaceSourceControlAction.stash ||
+        WorkspaceSourceControlAction.stashPop => SourceControlChanges.index,
+        _ => SourceControlChanges.all,
+      };
+      final snapshot = await _load(changes: changes);
+      _lastSnapshot = snapshot;
+      state = AsyncData(snapshot);
     } catch (error, stackTrace) {
       final recovered = await _recoverAfterFailure(previous);
       if (recovered != null) {
+        _lastSnapshot = recovered;
         state = AsyncData(recovered);
       } else {
         state = AsyncError(error, stackTrace);
       }
       rethrow;
     } finally {
+      _actionInFlight = false;
       keepAlive.close();
-      _scheduleQueuedWatcherReload();
+      _schedulePendingReload();
     }
   }
 
-  Future<void> _startWatching() async {
-    final watcher = _watcher;
-    if (watcher == null) {
-      return;
+  /// Observation belongs to visible UI, never to a background Git operation.
+  void attachView() {
+    if (_disposed) return;
+    _viewCount++;
+    _foreground ??= ref.read(appForegroundProvider);
+    _foregroundSubscription ??= _foreground!.changes.listen(
+      (_) => _syncObservation(),
+    );
+    _syncObservation();
+  }
+
+  void detachView() {
+    if (_viewCount > 0) _viewCount--;
+    _syncObservation();
+  }
+
+  void _syncObservation() {
+    final visible =
+        !_disposed && _viewCount > 0 && (_foreground?.isForeground ?? false);
+    if (visible == _observing) return;
+    _observing = visible;
+    final generation = ++_watchGeneration;
+    if (visible) {
+      unawaited(_startWatching(generation));
+    } else {
+      _parkWatcher();
     }
+  }
+
+  Future<void> _startWatching(int generation) async {
+    final watcher = _watcher;
+    if (watcher == null) return;
     try {
       final handle = await watcher.start(workspacePath: workspacePath);
-      if (_disposed) {
+      if (_disposed || !_observing || generation != _watchGeneration) {
         await watcher.stop(handle: handle);
         return;
       }
       _watcherHandle = handle;
-      _watchSubscription = watcher
-          .events(handle: handle)
-          .listen((_) => _scheduleWatcherReload(), onError: (_) {});
+      _watchSubscription = watcher.events(handle: handle).listen((signal) {
+        if (!_observing || generation != _watchGeneration) return;
+        _queueReload(
+          SourceControlChanges(
+            worktree: signal.worktreeChanged,
+            repository: signal.repositoryChanged,
+            catalog: signal.catalogChanged,
+          ),
+        );
+      }, onError: (_) {});
+      // Watch first, then catch changes made while this UI was parked.
+      _queueReload(SourceControlChanges.all);
     } catch (_) {
-      // File watching is best-effort; explicit refresh still works.
+      if (!_disposed && _observing && generation == _watchGeneration) {
+        _queueReload(SourceControlChanges.all);
+      }
     }
   }
 
   void _stopWatching() {
     _disposed = true;
-    _watcherReloadQueued = false;
+    _observing = false;
+    _watchGeneration++;
+    unawaited(_foregroundSubscription?.cancel());
+    _foregroundSubscription = null;
+    _parkWatcher();
+  }
+
+  void _parkWatcher() {
+    _pendingChanges = const SourceControlChanges();
     _watcherReloadDebounceTimer?.cancel();
     _watcherReloadDebounceTimer = null;
-    final subscription = _watchSubscription;
+    unawaited(_watchSubscription?.cancel());
     _watchSubscription = null;
-    unawaited(subscription?.cancel());
     final handle = _watcherHandle;
     _watcherHandle = null;
-    final watcher = _watcher;
-    if (handle != null && watcher != null) {
-      unawaited(watcher.stop(handle: handle));
+    if (handle != null && _watcher != null) {
+      unawaited(_watcher!.stop(handle: handle));
     }
   }
 
-  void _scheduleWatcherReload() {
+  void _queueReload(SourceControlChanges changes) {
+    if (_disposed || !_observing || !changes.any) return;
+    _pendingChanges = _pendingChanges.merge(changes);
+    _schedulePendingReload();
+  }
+
+  void _schedulePendingReload() {
+    if (_disposed || !_observing || !_pendingChanges.any) return;
     _watcherReloadDebounceTimer?.cancel();
     _watcherReloadDebounceTimer = Timer(
       _watcherReloadDebounce,
@@ -334,40 +302,40 @@ class WorkspaceSourceControlController
   }
 
   Future<void> _reloadFromWatcher() async {
-    if (_disposed) {
+    _watcherReloadDebounceTimer = null;
+    if (_disposed ||
+        !_observing ||
+        !_pendingChanges.any ||
+        _initialLoadInFlight ||
+        _actionInFlight ||
+        _watcherReloadInFlight) {
       return;
     }
-    if (_watcherReloadInFlight) {
-      _watcherReloadQueued = true;
-      return;
-    }
-    // Defer while an action runs: `_run` reloads when it finishes, and skipping
-    // here avoids clobbering its optimistic busy state.
-    if (state.asData?.value.isBusy ?? false) {
-      _watcherReloadQueued = true;
-      return;
-    }
+    if (state.value?.isBusy ?? false) return;
+    final generation = _watchGeneration;
+    final operation = _operationGeneration;
+    final changes = _pendingChanges;
+    _pendingChanges = const SourceControlChanges();
     _watcherReloadInFlight = true;
     try {
-      final next = await _load();
-      if (_disposed || (state.asData?.value.isBusy ?? false)) {
+      _watcherRead = _load(changes: changes);
+      final snapshot = await _watcherRead!;
+      if (_disposed ||
+          !_observing ||
+          generation != _watchGeneration ||
+          operation != _operationGeneration ||
+          (state.value?.isBusy ?? false)) {
         return;
       }
-      state = AsyncData(next);
+      _lastSnapshot = snapshot;
+      state = AsyncData(snapshot);
     } catch (_) {
-      // Best-effort background refresh: keep the current state on failure.
+      // Keep the last successful snapshot on background refresh failure.
     } finally {
+      _watcherRead = null;
       _watcherReloadInFlight = false;
-      _scheduleQueuedWatcherReload();
+      _schedulePendingReload();
     }
-  }
-
-  void _scheduleQueuedWatcherReload() {
-    if (_disposed || !_watcherReloadQueued) {
-      return;
-    }
-    _watcherReloadQueued = false;
-    _scheduleWatcherReload();
   }
 
   Future<WorkspaceSourceControlState?> _recoverAfterFailure(
@@ -380,6 +348,7 @@ class WorkspaceSourceControlController
     }
   }
 
+  @override
   List<String> _actionPaths(GitChangeEntry entry) {
     final paths = <String>[];
     final oldPath = entry.oldPath;

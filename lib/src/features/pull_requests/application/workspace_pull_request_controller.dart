@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/app_window/domain/app_foreground.dart';
+
 import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
 
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
@@ -74,6 +77,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   final Set<String> _savingCommentIds = <String>{};
   var _panelViewCount = 0;
   bool _visible = false;
+  AppForeground _foreground = const AlwaysForeground();
+  StreamSubscription<bool>? _foregroundSubscription;
   bool _disposed = false;
   bool _validatingReviewAction = false;
 
@@ -81,6 +86,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   Future<WorkspacePullRequestState> build(
     WorkspacePullRequestScope scope,
   ) async {
+    _disposed = false;
     invalidateWhenWorkspaceRetired(ref, scope.workspaceId);
     _gitBackend = ref.read(gitBackendProvider);
     _registry = ref.read(forgeProviderRegistryProvider);
@@ -90,9 +96,19 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       _registry,
       _linkedReviews,
     );
-    _visible = false;
+    _visible = _panelViewCount > 0;
+    _foreground = ref.read(appForegroundProvider);
+    _foregroundSubscription = _foreground.changes.listen((visible) {
+      if (_disposed) return;
+      if (!_shouldPoll) {
+        _pollTimer?.cancel();
+      } else if (visible && _visible && _watcherCount == 0) {
+        unawaited(_refresh(origin: .resume));
+      }
+    });
     ref.onDispose(() {
       _disposed = true;
+      unawaited(_foregroundSubscription?.cancel());
       _pollTimer?.cancel();
       _pendingCommentSaves.clear();
       _savingCommentIds.clear();
@@ -175,7 +191,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     _resetPollInterval();
     if (state.value != null) {
       Timer.run(() {
-        if (!_disposed && _visible) {
+        if (_shouldPoll) {
           unawaited(_refresh(origin: .resume));
         }
       });
@@ -191,7 +207,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }
 
   Future<void> _recoverFromError() async {
-    if (_disposed || !_visible) {
+    if (!_shouldPoll) {
       return;
     }
     try {
@@ -204,7 +220,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         state = AsyncError<WorkspacePullRequestState>(error, stackTrace);
       }
     } finally {
-      if (!_disposed && _visible) {
+      if (_shouldPoll) {
         if (state.value != null) {
           _schedulePoll(scope);
         } else {

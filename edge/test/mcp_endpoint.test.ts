@@ -372,6 +372,7 @@ describe('OAuth routing', () => {
       ...environment(),
       EDGE_BURST_LIMITER: limiter(false),
       OAUTH_LIMITER: limiter(true),
+      OAUTH_REGISTRATION_LIMITER: limiter(true),
       BROWSER_LIMITER: limiter(false),
     };
     const send = (path: string, init: RequestInit = {}) =>

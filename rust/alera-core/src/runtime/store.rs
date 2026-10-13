@@ -8,7 +8,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use super::runtime_schema::RUNTIME_SCHEMA;
+use super::runtime_schema::{RUNTIME_REPLACED_TRIGGERS, RUNTIME_SCHEMA};
 use super::store_error::RuntimeStoreError;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
@@ -105,6 +105,11 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
+        let mut conn = self.pool.acquire().await?;
+        for statement in RUNTIME_REPLACED_TRIGGERS {
+            super::schema_object_replacement::replace_schema_object(&mut conn, statement).await?;
+        }
+        drop(conn);
         for statement in super::workspace_section_store::SECTION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }

@@ -332,8 +332,22 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
          WHERE id = json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id')
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "DROP TRIGGER IF EXISTS automationsAgentProfileInsertGuard;",
-    "DROP TRIGGER IF EXISTS automationsAgentProfileUpdateGuard;",
+    "CREATE TRIGGER IF NOT EXISTS defaultAgentProfileInsertGuard
+     BEFORE INSERT ON runtimeMetadata
+     WHEN NEW.key = 'settings.agents.defaultAgentProfileId'
+       AND trim(NEW.value) <> ''
+       AND NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = trim(NEW.value))
+     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
+    "CREATE TRIGGER IF NOT EXISTS defaultAgentProfileUpdateGuard
+     BEFORE UPDATE OF value ON runtimeMetadata
+     WHEN NEW.key = 'settings.agents.defaultAgentProfileId'
+       AND trim(NEW.value) <> ''
+       AND NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = trim(NEW.value))
+     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
+];
+
+// Recreated when an automation target gains another agent profile spelling.
+pub(super) const RUNTIME_REPLACED_TRIGGERS: &[&str] = &[
     "CREATE TRIGGER IF NOT EXISTS automationsAgentProfileInsertGuard
      BEFORE INSERT ON automations
      WHEN COALESCE(
@@ -387,17 +401,5 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
          )
        )
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS defaultAgentProfileInsertGuard
-     BEFORE INSERT ON runtimeMetadata
-     WHEN NEW.key = 'settings.agents.defaultAgentProfileId'
-       AND trim(NEW.value) <> ''
-       AND NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = trim(NEW.value))
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS defaultAgentProfileUpdateGuard
-     BEFORE UPDATE OF value ON runtimeMetadata
-     WHEN NEW.key = 'settings.agents.defaultAgentProfileId'
-       AND trim(NEW.value) <> ''
-       AND NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = trim(NEW.value))
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
 ];

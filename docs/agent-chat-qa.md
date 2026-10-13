@@ -33,6 +33,7 @@ The next native macro created one chat, typed once and pressed Return once. The 
 ## Repairs and regression coverage
 
 - Chat-store writes acquire the SQLite writer lock before reading. Five deterministic concurrent-write cases and two rollback cases cover the previously observed `SQLITE_BUSY_SNAPSHOT`; the complete core suite passed 857 tests.
+- Integration with the newer base preserves its no-op store reopen contract. Chat triggers are replaced only when their definitions change, and the orchestration schema stamp is written only when absent or outdated. Regression cases cover live read-to-write snapshots, one-time stale-trigger upgrades, unchanged stamp timestamps and rejection of unsupported schema versions. All 100 focused reopen, chat and orchestration tests passed after these repairs.
 - Configure/recover command replies have one snapshot envelope and the final receipt cursor. Seven real socket regressions cover replay, conflict, restart, native resume, errors and orchestration forwarding; focused runtime and orchestration checks passed.
 - The injected MCP command places global runtime arguments before `serve`. A real stdio test verifies handshake, scoped tools, read access and credential revocation.
 - JSONL transport backpressure permits healthy bursts within a bounded deadline, and cancellation retains the original receive error. The shared transport and consumer regression run passed 173 tests.

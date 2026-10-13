@@ -9,7 +9,8 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
-import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_filter_popover.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
@@ -41,7 +42,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'welcome_dashboard_actions.dart';
+part 'welcome_dashboard_location_selection.dart';
 part 'welcome_dashboard_view.dart';
+part 'welcome_dashboard_menu.dart';
 part 'welcome_dashboard_composer.dart';
 
 /// Home shown when no workspace is open.
@@ -250,7 +253,9 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
       parentLabel: _selectedParentLabel(parents, workbench),
       showParent: parents.isNotEmpty,
       onPickParent: (context) => _pickParent(context, parents, workbench),
-      locationLabel: _locationLabel(project),
+      locationLabel: checkout ? 'Current Checkout' : 'New Worktree',
+      sourceLabel: _sourceLabel(),
+      onPickSource: _pickSource,
       canChangeLocation: project.isGitRepository,
       locationIsWorktree: !checkout,
       onPickLocation: _pickLocation,

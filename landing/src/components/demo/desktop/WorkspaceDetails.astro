@@ -6,7 +6,6 @@ import Codicon from '../primitives/Codicon.astro';
 interface Props { branch: string }
 const { branch } = Astro.props;
 ---
-<span class="workspace-details-toggle app-button" title={APP_COPY.workspaceDetailsToggle.text}><AppIcon name="review" size={16} /></span>
 <aside class="workspace-details" aria-label="Workspace Details">
   <div class="workspace-details-section">
     <div class="workspace-detail-row"><Codicon name="terminalLinux" size={14} /><span>{SAMPLE.host}</span><i class="workspace-detail-split"></i><AppIcon name="chevronDown" size={14} /></div>

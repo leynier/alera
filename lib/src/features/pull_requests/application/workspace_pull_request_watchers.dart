@@ -7,7 +7,9 @@ mixin _WorkspacePullRequestWatchers on _WorkspacePullRequestPolling {
   var _watcherCount = 0;
 
   bool get _shouldPoll =>
-      !_watchers._disposed && (_watchers._visible || _watcherCount > 0);
+      !_watchers._disposed &&
+      ((_watchers._visible && _watchers._foreground.isForeground) ||
+          _watcherCount > 0);
 
   /// Keeps check polling alive for Watch and Fix after the panel closes.
   void attachWatcher() {

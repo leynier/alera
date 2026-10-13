@@ -2,8 +2,6 @@ part of 'welcome_dashboard.dart';
 
 const String _localHostMenuValue = 'local';
 const String _noParentMenuValue = '';
-const String _projectFolderMenuValue = '';
-const String _loadingBranchesMenuValue = 'loading-branches';
 
 extension _WelcomeDashboardActions on _WelcomeDashboardState {
   void _onHostEnrollmentChanged() {
@@ -107,20 +105,6 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     return workspaces;
   }
 
-  String _locationLabel(Project project) {
-    if (_useProjectCheckout || !project.isGitRepository) {
-      return 'Project Folder';
-    }
-    if (_loadingBranches) {
-      return 'Loading Branches';
-    }
-    final branch = _sourceBranch?.trim() ?? '';
-    if (branch.isEmpty) {
-      return 'Select Branch';
-    }
-    return 'From $branch';
-  }
-
   Future<void> _loadBranches(Project project) async {
     if (!mounted) {
       return;
@@ -216,67 +200,6 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     } catch (_) {
       return null;
     }
-  }
-
-  Future<void> _pickLocation(BuildContext context) async {
-    final project = _boundProject;
-    if (project == null || !project.isGitRepository) {
-      return;
-    }
-    // Keep Project Folder reachable while a worktree catalog request is in flight.
-    final showWhileLoading = !_useProjectCheckout || _loadingBranches;
-    if (_branches.isEmpty && !_loadingBranches) {
-      final load = _loadBranches(project);
-      if (showWhileLoading) {
-        unawaited(load);
-      } else {
-        await load;
-      }
-    }
-    if (!context.mounted || !mounted) {
-      return;
-    }
-    final selected = await showHomeComposerMenu(
-      context: context,
-      choices: <HomeComposerMenuChoice>[
-        HomeComposerMenuChoice(
-          value: _projectFolderMenuValue,
-          label: 'Project Folder',
-          selected: _useProjectCheckout,
-        ),
-        if (_loadingBranches && _branches.isEmpty)
-          const HomeComposerMenuChoice(
-            value: _loadingBranchesMenuValue,
-            label: 'Loading Branches',
-            enabled: false,
-          ),
-        for (final branch in _branches)
-          if (branch.isNotEmpty)
-            HomeComposerMenuChoice(
-              value: branch,
-              label: branch,
-              selected: !_useProjectCheckout && branch == _sourceBranch,
-            ),
-      ],
-    );
-    if (!mounted || selected == null || selected == _loadingBranchesMenuValue) {
-      return;
-    }
-    if (selected.isEmpty) {
-      _branchGeneration++;
-      _update(() {
-        _useProjectCheckout = true;
-        _loadingBranches = false;
-        _branchesAwaitEnrollment = false;
-        _error = null;
-      });
-      return;
-    }
-    _update(() {
-      _useProjectCheckout = false;
-      _sourceBranch = selected;
-      _error = null;
-    });
   }
 
   void _addProjectToSelectedHost() {

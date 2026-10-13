@@ -17,22 +17,60 @@ class const WorkspaceDetailsPresence({
 
 class _WorkspaceDetailsPresenceState
     extends ConsumerState<WorkspaceDetailsPresence> {
-  late final WorkspacePullRequestController _controller;
+  WorkspacePullRequestController? _controller;
+  bool _attached = false;
+
   @override
-  void initState() {
-    super.initState();
-    _controller = ref.read(
-      workspacePullRequestControllerProvider(widget.scope).notifier,
-    );
-    _controller.attachPanel();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(WorkspaceDetailsPresence oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scope != widget.scope) {
+      _release();
+      _controller = null;
+    }
+    _sync();
+  }
+
+  void _sync() {
+    if (TickerMode.valuesOf(context).enabled == _attached) return;
+    if (TickerMode.valuesOf(context).enabled) {
+      _controller ??= ref.read(
+        workspacePullRequestControllerProvider(widget.scope).notifier,
+      );
+      _controller!.attachPanel();
+      _attached = true;
+    } else {
+      _release();
+    }
+  }
+
+  void _release() {
+    if (_attached) _controller?.detachPanel();
+    _attached = false;
   }
 
   @override
   void dispose() {
-    _controller.detachPanel();
+    _release();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    ref.listen(workspacePullRequestControllerProvider(widget.scope).notifier, (
+      previous,
+      next,
+    ) {
+      if (identical(_controller, next)) return;
+      _release();
+      _controller = next;
+      _sync();
+    });
+    return widget.child;
+  }
 }

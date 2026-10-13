@@ -3,6 +3,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 
 import 'welcome_dashboard_test_support.dart';
 
@@ -70,7 +71,7 @@ void main() {
     expect(find.text('What should we build in '), findsOneWidget);
     expect(find.text('Alera'), findsWidgets);
     expect(find.text('Create a Worktree'), findsNothing);
-    expect(find.text('Project Folder'), findsOneWidget);
+    expect(find.text('Current Checkout'), findsOneWidget);
     expect(find.text('This Device'), findsOneWidget);
     expect(find.text('No Parent'), findsOneWidget);
     expect(find.text(profile.name), findsOneWidget);
@@ -105,23 +106,37 @@ void main() {
     expect(find.text('Build the home composer'), findsNothing);
   });
 
-  testWidgets('project folder chip switches to a worktree branch', (
+  testWidgets('checkout mode and source branch are separate selectors', (
     tester,
   ) async {
-    final jobs = await pumpDashboard(
+    final state = _projectState();
+    final branches = WelcomeDashboardBranchSource()
+      ..names = const ['main', 'origin/main', 'develop'];
+    final jobs = await pumpWelcomeDashboard(
       tester,
-      state: _projectState(),
-      profiles: <AgentProfile>[profile],
+      state: state,
+      profiles: [profile],
+      controller: WelcomeDashboardTestController(state, branches: branches),
     );
 
     await tester.tap(
       find.byKey(const ValueKey<String>('home-composer-location')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('main'));
+    await tester.tap(find.text('New Worktree').last);
     await tester.pumpAndSettle();
 
     expect(find.text('From main'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-source')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Search'), 'origin');
+    await tester.pump();
+    expect(find.text('develop'), findsNothing);
+    await tester.tap(find.text('origin/main'));
+    await tester.pumpAndSettle();
+    expect(find.text('From origin/main'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey<String>('home-composer-prompt')),
       'Build it on a branch',
@@ -133,7 +148,45 @@ void main() {
     final request = jobs.request;
     expect(request, isNotNull);
     expect(request!.useProjectCheckout, isFalse);
-    expect(request.sourceBranch, 'main');
+    expect(request.sourceBranch, 'origin/main');
+  });
+
+  testWidgets('every Home composer selector filters and keeps its selection', (
+    tester,
+  ) async {
+    await pumpDashboard(tester, state: _projectState(), profiles: [profile]);
+    for (final name in ['project', 'profile', 'host', 'parent', 'location']) {
+      await tester.tap(find.byKey(ValueKey<String>('home-composer-$name')));
+      await tester.pumpAndSettle();
+      final search = find.widgetWithText(TextField, 'Search');
+      expect(search, findsOneWidget);
+      await tester.enterText(search, 'no-such-option');
+      await tester.pump();
+      expect(find.text('No matching options'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-location')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Search'), 'work');
+    await tester.pump();
+    expect(find.text('New Worktree'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('New Worktree'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('home-composer-source')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Search'), 'mai');
+    await tester.pump();
+    expect(find.text('main'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('From main'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a folder project keeps project folder static', (tester) async {
@@ -143,7 +196,7 @@ void main() {
       profiles: <AgentProfile>[profile],
     );
 
-    expect(find.text('Project Folder'), findsOneWidget);
+    expect(find.text('Current Checkout'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('home-composer-location')),
       findsNothing,

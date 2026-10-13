@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use notify::{RecursiveMode, Watcher};
 
@@ -13,14 +13,20 @@ use super::{
     WorkspaceFileErrorKind,
 };
 
+#[path = "source_control_watch_paths.rs"]
+mod watch_paths;
+use watch_paths::{all_changes, SourceControlWatchPaths};
+
 const WATCH_DEBOUNCE_MILLIS: u64 = 180;
+const WATCH_MAX_BATCH_MILLIS: u64 = 750;
 const WATCH_IDLE_POLL_MILLIS: u64 = 100;
 
 static NEXT_WATCHER_ID: AtomicU64 = AtomicU64::new(1);
 static WATCHERS: OnceLock<Mutex<HashMap<String, SourceControlWatcherSession>>> = OnceLock::new();
 
+type PendingChanges = Arc<Mutex<SourceControlWatchSignal>>;
+
 struct SourceControlWatcherSession {
-    // Held only to keep the OS watch alive; dropping it stops file notifications.
     #[allow(dead_code)]
     watcher: notify::RecommendedWatcher,
     sink: Arc<Mutex<Option<StreamSink<SourceControlWatchSignal>>>>,
@@ -40,80 +46,68 @@ impl SourceControlWatcherSession {
 pub(super) fn start_source_control_watcher(
     workspace_path: String,
 ) -> Result<SourceControlWatcherHandle, WorkspaceFileError> {
-    let root = workspace_root(&workspace_path)?;
+    let paths = SourceControlWatchPaths::discover(workspace_root(&workspace_path)?)?;
+    let roots = paths.roots();
     let id = NEXT_WATCHER_ID.fetch_add(1, Ordering::Relaxed).to_string();
-    let (event_tx, event_rx) = mpsc::channel::<notify::Result<notify::Event>>();
+    // Only one wake token is queued. Categories accumulate independently, so a
+    // busy build cannot grow an event queue or lose a Git metadata change.
+    let (wake_tx, wake_rx) = mpsc::sync_channel::<()>(1);
+    let pending = Arc::new(Mutex::new(SourceControlWatchSignal::default()));
+    let callback_pending = pending.clone();
     let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
     let sink = Arc::new(Mutex::new(None));
-    let event_root = root.clone();
     let mut watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
-        if result
-            .as_ref()
-            .is_ok_and(|event| !event_is_relevant(&event_root, event))
-        {
-            return;
+        let signal = match result {
+            Ok(event) => paths.classify(&event),
+            Err(_) => Some(all_changes()),
+        };
+        if let Some(signal) = signal {
+            queue_changes(&callback_pending, &wake_tx, signal);
         }
-        let _ = event_tx.send(result);
     })
     .map_err(notify_error)?;
-    // Recursive watch of the whole working tree, including `.git/`, so commits,
-    // branch switches, staging and out-of-app file edits all surface here.
-    watcher
-        .watch(&root, RecursiveMode::Recursive)
-        .map_err(notify_error)?;
+    for root in roots {
+        watcher
+            .watch(&root, RecursiveMode::Recursive)
+            .map_err(notify_error)?;
+    }
 
     let thread_sink = sink.clone();
     let thread = thread::Builder::new()
         .name(format!("alera-source-control-watch-{id}"))
-        .spawn(move || {
-            event_loop(thread_sink, event_rx, shutdown_rx);
-        })
+        .spawn(move || event_loop(thread_sink, pending, wake_rx, shutdown_rx))
         .map_err(|error| WorkspaceFileError::from_io(error, "source control watcher"))?;
 
-    let session = SourceControlWatcherSession {
-        watcher,
-        sink,
-        shutdown_tx,
-        thread: Some(thread),
-    };
     watchers()
         .lock()
         .map_err(|_| WorkspaceFileError::new(WorkspaceFileErrorKind::Io, "watcher lock poisoned"))?
-        .insert(id.clone(), session);
+        .insert(
+            id.clone(),
+            SourceControlWatcherSession {
+                watcher,
+                sink,
+                shutdown_tx,
+                thread: Some(thread),
+            },
+        );
     Ok(SourceControlWatcherHandle { id })
 }
 
-fn event_is_relevant(root: &std::path::Path, event: &notify::Event) -> bool {
-    event
-        .paths
-        .iter()
-        .any(|path| path_is_relevant(root, path.as_path()))
-}
-
-fn path_is_relevant(root: &std::path::Path, path: &std::path::Path) -> bool {
-    let Ok(relative) = path.strip_prefix(root) else {
-        return false;
+fn queue_changes(
+    pending: &PendingChanges,
+    wake: &mpsc::SyncSender<()>,
+    signal: SourceControlWatchSignal,
+) {
+    let Ok(mut pending) = pending.lock() else {
+        return;
     };
-    let components = relative
-        .components()
-        .filter_map(|component| component.as_os_str().to_str())
-        .collect::<Vec<_>>();
-    let Some(first) = components.first().copied() else {
-        return true;
-    };
-    if matches!(first, ".dart_tool" | "build" | "node_modules" | "target") {
-        return false;
-    }
-    if components.contains(&"node_modules") {
-        return false;
-    }
-    if first != ".git" {
-        return true;
-    }
-    matches!(
-        components.get(1).copied(),
-        Some("HEAD" | "index" | "packed-refs" | "config" | "refs" | "worktrees")
-    )
+    pending.coalesced_event_count = pending
+        .coalesced_event_count
+        .saturating_add(signal.coalesced_event_count);
+    pending.worktree_changed |= signal.worktree_changed;
+    pending.repository_changed |= signal.repository_changed;
+    pending.catalog_changed |= signal.catalog_changed;
+    let _ = wake.try_send(());
 }
 
 pub(super) fn watch_source_control_events(
@@ -126,13 +120,10 @@ pub(super) fn watch_source_control_events(
         };
         watchers.get(&handle.id).map(|session| session.sink.clone())
     };
-    let Some(session_sink) = session_sink else {
-        return;
-    };
-    {
+    if let Some(session_sink) = session_sink {
         if let Ok(mut current_sink) = session_sink.lock() {
             *current_sink = Some(sink);
-        };
+        }
     }
 }
 
@@ -148,11 +139,12 @@ pub(super) fn stop_source_control_watcher(handle: SourceControlWatcherHandle) {
 
 fn event_loop(
     sink: Arc<Mutex<Option<StreamSink<SourceControlWatchSignal>>>>,
-    event_rx: mpsc::Receiver<notify::Result<notify::Event>>,
+    pending: PendingChanges,
+    wake_rx: mpsc::Receiver<()>,
     shutdown_rx: mpsc::Receiver<()>,
 ) {
     loop {
-        match collect_signal(&event_rx, &shutdown_rx) {
+        match collect_signal(&pending, &wake_rx, &shutdown_rx) {
             CollectOutcome::Signal(signal) => emit_signal(&sink, signal),
             CollectOutcome::Idle => continue,
             CollectOutcome::Shutdown => return,
@@ -166,60 +158,56 @@ enum CollectOutcome {
     Shutdown,
 }
 
-/// Runs one debounce cycle: blocks (with idle polling) for a first event, then
-/// coalesces any further events arriving within the debounce window into a
-/// single signal. Kept independent of `notify` and `StreamSink` so the
-/// coalescing logic is unit-testable.
 fn collect_signal(
-    event_rx: &mpsc::Receiver<notify::Result<notify::Event>>,
+    pending: &PendingChanges,
+    wake_rx: &mpsc::Receiver<()>,
     shutdown_rx: &mpsc::Receiver<()>,
 ) -> CollectOutcome {
     if shutdown_rx.try_recv().is_ok() {
         return CollectOutcome::Shutdown;
     }
-    let first_event = match event_rx.recv_timeout(Duration::from_millis(WATCH_IDLE_POLL_MILLIS)) {
-        Ok(result) => result,
+    match wake_rx.recv_timeout(Duration::from_millis(WATCH_IDLE_POLL_MILLIS)) {
+        Ok(()) => {}
         Err(mpsc::RecvTimeoutError::Timeout) => return CollectOutcome::Idle,
         Err(mpsc::RecvTimeoutError::Disconnected) => return CollectOutcome::Shutdown,
-    };
-    let mut coalesced_event_count = u32::from(first_event.is_ok());
-
+    }
+    let deadline = Instant::now() + Duration::from_millis(WATCH_MAX_BATCH_MILLIS);
     loop {
         if shutdown_rx.try_recv().is_ok() {
             return CollectOutcome::Shutdown;
         }
-        match event_rx.recv_timeout(Duration::from_millis(WATCH_DEBOUNCE_MILLIS)) {
-            Ok(result) => {
-                if result.is_ok() {
-                    coalesced_event_count += 1;
-                }
-            }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match wake_rx.recv_timeout(remaining.min(Duration::from_millis(WATCH_DEBOUNCE_MILLIS))) {
+            Ok(()) => {}
             Err(mpsc::RecvTimeoutError::Timeout) => break,
             Err(mpsc::RecvTimeoutError::Disconnected) => return CollectOutcome::Shutdown,
         }
     }
-
-    if coalesced_event_count == 0 {
+    let Ok(mut pending) = pending.lock() else {
         return CollectOutcome::Idle;
+    };
+    let signal = std::mem::take(&mut *pending);
+    if signal.coalesced_event_count == 0 {
+        CollectOutcome::Idle
+    } else {
+        CollectOutcome::Signal(signal)
     }
-    CollectOutcome::Signal(SourceControlWatchSignal {
-        coalesced_event_count,
-    })
 }
 
 fn emit_signal(
     sink: &Arc<Mutex<Option<StreamSink<SourceControlWatchSignal>>>>,
     signal: SourceControlWatchSignal,
 ) {
-    // Closed Flutter sinks must not poison the watcher thread: drop the sink
-    // and keep the OS watch alive until the client re-subscribes or stops.
     let Ok(mut sink) = sink.lock() else {
         return;
     };
-    let Some(current_sink) = sink.as_ref() else {
-        return;
-    };
-    if current_sink.add(signal).is_err() {
+    if sink
+        .as_ref()
+        .is_some_and(|current| current.add(signal).is_err())
+    {
         *sink = None;
     }
 }
@@ -233,68 +221,5 @@ fn notify_error(error: notify::Error) -> WorkspaceFileError {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use notify::{Event, EventKind};
-
-    fn ok_event() -> notify::Result<Event> {
-        Ok(Event::new(EventKind::Modify(
-            notify::event::ModifyKind::Any,
-        )))
-    }
-
-    #[test]
-    fn coalesces_a_burst_into_one_signal() {
-        let (event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
-        let (_shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
-        for _ in 0..4 {
-            event_tx.send(ok_event()).unwrap();
-        }
-
-        match collect_signal(&event_rx, &shutdown_rx) {
-            CollectOutcome::Signal(signal) => {
-                assert_eq!(signal.coalesced_event_count, 4);
-            }
-            _ => panic!("expected a coalesced signal"),
-        }
-    }
-
-    #[test]
-    fn idles_when_no_events_arrive() {
-        let (_event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
-        let (_shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
-
-        assert!(matches!(
-            collect_signal(&event_rx, &shutdown_rx),
-            CollectOutcome::Idle
-        ));
-    }
-
-    #[test]
-    fn shuts_down_when_event_channel_disconnects() {
-        let (event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
-        let (_shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
-        drop(event_tx);
-
-        assert!(matches!(
-            collect_signal(&event_rx, &shutdown_rx),
-            CollectOutcome::Shutdown
-        ));
-    }
-
-    #[test]
-    fn filters_generated_output_but_keeps_worktree_and_git_state_changes() {
-        let root = std::path::PathBuf::from("repo");
-        let event = |path: &str| Event {
-            paths: vec![root.join(path)],
-            ..Event::new(EventKind::Any)
-        };
-
-        assert!(!event_is_relevant(&root, &event(".dart_tool/cache")));
-        assert!(!event_is_relevant(&root, &event("app/node_modules/pkg")));
-        assert!(!event_is_relevant(&root, &event(".git/objects/aa/bb")));
-        assert!(event_is_relevant(&root, &event("lib/main.dart")));
-        assert!(event_is_relevant(&root, &event(".git/index")));
-        assert!(event_is_relevant(&root, &event(".git/refs/heads/main")));
-    }
-}
+#[path = "source_control_watcher_tests.rs"]
+mod tests;

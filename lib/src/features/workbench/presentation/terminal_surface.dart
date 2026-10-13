@@ -13,6 +13,7 @@ import 'package:alera/src/features/workbench/domain/terminal_toolbar_placement.d
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_details_toolbar_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface_toolbar.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -293,6 +294,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   }) {
     final toolbarButtonCount = terminalToolbarButtonCount(
       supportsPulse: widget.session.supportsTerminalPulse,
+      supportsWorkspaceDetails:
+          WorkspaceDetailsToolbarScope.maybeOf(context) != null,
     );
     return LayoutBuilder(
       builder: (context, constraints) {

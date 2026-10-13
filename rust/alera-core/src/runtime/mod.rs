@@ -247,6 +247,7 @@ mod runtime_schema;
 mod schema_migrations;
 #[cfg(test)]
 mod schema_migrations_tests;
+mod schema_object_replacement;
 mod settings_models;
 mod settings_store;
 #[cfg(test)]
@@ -319,6 +320,8 @@ mod run_schema;
 #[cfg(test)]
 mod run_summary_links_tests;
 mod runs_v3_schema;
+#[cfg(test)]
+mod store_reopen_tests;
 mod store_runs_v3_reset;
 #[cfg(test)]
 mod store_runs_v3_reset_tests;

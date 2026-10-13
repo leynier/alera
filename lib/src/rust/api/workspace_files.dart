@@ -256,18 +256,36 @@ enum CodexSavedPromptScope { user, repo }
 
 class SourceControlWatchSignal {
   final int coalescedEventCount;
+  final bool worktreeChanged;
+  final bool repositoryChanged;
+  final bool catalogChanged;
 
-  const SourceControlWatchSignal({required this.coalescedEventCount});
+  const SourceControlWatchSignal({
+    required this.coalescedEventCount,
+    required this.worktreeChanged,
+    required this.repositoryChanged,
+    required this.catalogChanged,
+  });
+
+  static Future<SourceControlWatchSignal> default_() => RustLib.instance.api
+      .crateApiWorkspaceFilesSourceControlWatchSignalDefault();
 
   @override
-  int get hashCode => coalescedEventCount.hashCode;
+  int get hashCode =>
+      coalescedEventCount.hashCode ^
+      worktreeChanged.hashCode ^
+      repositoryChanged.hashCode ^
+      catalogChanged.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SourceControlWatchSignal &&
           runtimeType == other.runtimeType &&
-          coalescedEventCount == other.coalescedEventCount;
+          coalescedEventCount == other.coalescedEventCount &&
+          worktreeChanged == other.worktreeChanged &&
+          repositoryChanged == other.repositoryChanged &&
+          catalogChanged == other.catalogChanged;
 }
 
 class SourceControlWatcherHandle {

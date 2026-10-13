@@ -13,9 +13,19 @@ class FakeSourceControlWatcher() extends SourceControlWatcher {
   int stopCount = 0;
 
   /// Emits a watch signal, mimicking an external file or `.git/` change.
-  void emitChange({int coalescedEventCount = 1}) {
+  void emitChange({
+    int coalescedEventCount = 1,
+    bool worktree = true,
+    bool repository = true,
+    bool catalog = true,
+  }) {
     _signals.add(
-      native.SourceControlWatchSignal(coalescedEventCount: coalescedEventCount),
+      native.SourceControlWatchSignal(
+        coalescedEventCount: coalescedEventCount,
+        worktreeChanged: worktree,
+        repositoryChanged: repository,
+        catalogChanged: catalog,
+      ),
     );
   }
 
