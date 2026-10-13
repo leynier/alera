@@ -36,67 +36,7 @@ extension on _WorkspaceDetailsOverlayState {
     }
   }
 
-  Future<String?> _menu(List<PopupMenuEntry<String>> entries) {
-    final anchor = _anchor.currentContext?.findRenderObject() as RenderBox?;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final rect = anchor == null
-        ? Rect.zero
-        : anchor.localToGlobal(Offset.zero) & anchor.size;
-    return showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
-      items: entries,
-    );
-  }
-
-  Future<void> _detailsOptions() async {
-    final choice = await _menu(const [
-      AleraDropdownEntry(value: 'host', label: 'Host And Hand Off'),
-      AleraDropdownEntry(value: 'open', label: 'Open In'),
-    ]);
-    if (!mounted) return;
-    if (choice == 'host') await _hostMenu();
-    if (choice == 'open') await _openMenu();
-  }
-
-  Future<void> _hostMenu() async {
-    final workspace = widget.workspace;
-    final choice = await _menu([
-      AleraDropdownEntry(
-        value: 'handoff',
-        label: 'Hand Off',
-        enabled: workspace.isMain,
-      ),
-    ]);
-    if (choice == 'handoff' && mounted) {
-      await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
-    }
-  }
-
-  Future<void> _openMenu() async {
-    final workspace = widget.workspace;
-    final choice = await _menu([
-      AleraDropdownEntry(
-        value: 'folder',
-        label:
-            'Open In ${ref.read(workspaceFolderOpenerProvider).fileManagerLabel}',
-        enabled: !workspace.isRemote,
-      ),
-      const AleraDropdownEntry(value: 'copy', label: 'Copy Path'),
-      const AleraDropdownEntry(value: 'browser', label: 'Open In Browser'),
-    ]);
-    if (!mounted) return;
-    switch (choice) {
-      case 'folder':
-        await external_actions.openWorkspaceFolder(context, ref, workspace);
-      case 'copy':
-        await external_actions.copyWorkspacePath(context, workspace);
-      case 'browser':
-        await external_actions.openWorkspaceInBrowser(context, ref, workspace);
-    }
-  }
-
-  Future<void> _branchMenu(WorkspaceDetailsState data) async {
+  Future<void> _branchMenu(WorkspaceDetailsState data, Rect anchor) async {
     final workspace = widget.workspace;
     final scope = _scope;
     final source = ref.read(
@@ -106,12 +46,17 @@ extension on _WorkspaceDetailsOverlayState {
     final reviewController = ref.read(
       workspacePullRequestControllerProvider(scope).notifier,
     );
-    final choice = await _menu([
-      const AleraDropdownEntry(
+    final choice = await _menu(anchor, const [
+      AleraDropdownEntry(
         value: 'switch',
         label: 'Switch Or Create Branch',
+        leading: _MenuIcon(AleraIcons.gitBranch),
       ),
-      const AleraDropdownEntry(value: 'base', label: 'Compare Against'),
+      AleraDropdownEntry(
+        value: 'base',
+        label: 'Compare Against',
+        leading: _MenuIcon(AleraIcons.diff),
+      ),
     ]);
     if (!mounted || choice == null) return;
     if (choice == 'base') {
@@ -165,28 +110,52 @@ extension on _WorkspaceDetailsOverlayState {
   Future<void> _gitMenu(
     WorkspaceDetailsState data,
     WorkspacePullRequestScope scope,
+    Rect anchor,
   ) async {
     final repo = data.sourceControl.repositoryState;
-    final choice = await _menu([
-      for (final action in WorkspaceGitQuickAction.values)
-        AleraDropdownEntry(
-          value: action.name,
-          label: action.label,
-          enabled:
-              !repo.hasConflicts &&
-              repo.branch != 'HEAD' &&
-              (action == WorkspaceGitQuickAction.commit ||
-                  repo.behind == 0 ||
-                  (action == WorkspaceGitQuickAction.pull &&
-                      repo.ahead == 0)) &&
-              (!action.includesCommit || data.sourceControl.hasChanges) &&
-              (action == WorkspaceGitQuickAction.commit || data.hasRemote) &&
-              (!action.includesPr ||
-                  data.pullRequest?.supportsCreation == true) &&
-              (action != WorkspaceGitQuickAction.pull || repo.hasUpstream),
-        ),
-      const PopupMenuDivider(),
-      const AleraDropdownEntry(value: 'refresh', label: 'Refresh'),
+    // Grouped by what the action starts from: local changes, then commits
+    // already on the branch, then the remote.
+    const groups = [
+      [
+        WorkspaceGitQuickAction.commit,
+        WorkspaceGitQuickAction.commitPush,
+        WorkspaceGitQuickAction.commitPushPr,
+      ],
+      [WorkspaceGitQuickAction.push, WorkspaceGitQuickAction.createPr],
+      [WorkspaceGitQuickAction.pull],
+    ];
+    AleraDropdownEntry<String> entry(
+      WorkspaceGitQuickAction action,
+    ) => AleraDropdownEntry(
+      value: action.name,
+      label: action.label,
+      leading: _MenuIcon(switch (action) {
+        .commit => AleraIcons.gitCommit,
+        .commitPush || .push => AleraIcons.gitPush,
+        .commitPushPr || .createPr => AleraIcons.gitPullRequest,
+        .pull => AleraIcons.gitPull,
+      }),
+      enabled:
+          !repo.hasConflicts &&
+          repo.branch != 'HEAD' &&
+          (action == WorkspaceGitQuickAction.commit ||
+              repo.behind == 0 ||
+              (action == WorkspaceGitQuickAction.pull && repo.ahead == 0)) &&
+          (!action.includesCommit || data.sourceControl.hasChanges) &&
+          (action == WorkspaceGitQuickAction.commit || data.hasRemote) &&
+          (!action.includesPr || data.pullRequest?.supportsCreation == true) &&
+          (action != WorkspaceGitQuickAction.pull || repo.hasUpstream),
+    );
+    final choice = await _menu(anchor, [
+      for (final group in groups) ...[
+        for (final action in group) entry(action),
+        const PopupMenuDivider(),
+      ],
+      const AleraDropdownEntry(
+        value: 'refresh',
+        label: 'Refresh',
+        leading: _MenuIcon(AleraIcons.gitRefresh),
+      ),
     ]);
     if (!mounted || choice == null) return;
     if (choice == 'refresh') {

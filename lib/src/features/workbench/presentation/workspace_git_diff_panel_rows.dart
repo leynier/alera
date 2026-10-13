@@ -159,14 +159,7 @@ class const _GitStatusLabel({
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      GitChangeStatus.added => ('A', AleraTokens.success),
-      GitChangeStatus.untracked => ('U', AleraTokens.success),
-      GitChangeStatus.deleted => ('D', AleraTokens.error),
-      GitChangeStatus.renamed => ('R', AleraTokens.warning),
-      GitChangeStatus.copied => ('C', AleraTokens.warning),
-      GitChangeStatus.modified => ('M', AleraTokens.warning),
-    };
+    final (label, color) = gitChangeStatusStyle(status);
     final areaMarker = showAreaMarker ? _areaMarker(area) : null;
     final tooltip = showAreaMarker ? _areaTooltip(area) : null;
     final content = Row(

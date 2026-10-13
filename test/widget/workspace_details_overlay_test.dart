@@ -24,6 +24,7 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_details_provider.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_git_quick_action.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
@@ -44,6 +45,15 @@ part 'workspace_details_controls_test_cases.dart';
 class _Workbench extends WorkbenchController {
   @override
   WorkbenchState build() => const WorkbenchState(activeWorkspaceId: 'w');
+  @override
+  void setRightSidebarVisible(bool visible) => state = state.copyWith(
+    viewPrefs: state.viewPrefs.copyWith(rightSidebarVisible: visible),
+  );
+  @override
+  void setContextPanelTab(WorkbenchContextPanelTab tab) =>
+      state = state.copyWith(
+        viewPrefs: state.viewPrefs.copyWith(activeContextPanelTab: tab),
+      );
   @override
   void toggleWorkspaceDetails(String id) {
     final hidden = {...state.viewPrefs.workspaceDetailsHiddenIds};
@@ -365,7 +375,7 @@ void main() {
                       tooltip:
                           'feature/workspace-details → main\n2 checks passed',
                       onOpen: action,
-                      onMenu: action,
+                      onMenu: (_) => action(),
                       checksLabel: '2 Checks',
                       checksIcon: AleraIcons.success,
                       checksColor: AleraTokens.success,
@@ -378,7 +388,7 @@ void main() {
                         label: 'leynier-minipc',
                         leading: AleraHostOsIcon(os: os),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'Open In $label',
@@ -387,7 +397,7 @@ void main() {
                           size: AleraTokens.iconMd,
                         ),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'feature/workspace-details',
@@ -397,7 +407,7 @@ void main() {
                           size: AleraTokens.iconMd,
                         ),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'Commit, Push & Create PR',
@@ -406,7 +416,7 @@ void main() {
                           size: AleraTokens.iconMd,
                         ),
                         onPressed: action,
-                        onMenu: action,
+                        onMenu: (_) => action(),
                       ),
                       AleraWorkspaceDetailRow(
                         label: 'Changes',

@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
+import 'home_composer_prefs.dart';
 import 'workspace_panel.dart';
 
 part 'workbench_view_prefs.mapper.dart';
@@ -165,6 +166,7 @@ class const WorkbenchViewPrefs({
   this.showActiveWorkspacesOnly = false,
   this.showArchivedWorkspaces = false,
   this.newWorkspaceTools = const <WorkspaceTool>[],
+  this.homeComposer = HomeComposerPrefs.empty,
 }) with WorkbenchViewPrefsMappable {
   final Set<String> workspaceDetailsHiddenIds;
   final Map<String, String> workspaceComparisonBases;
@@ -273,6 +275,9 @@ class const WorkbenchViewPrefs({
   /// created. Empty keeps that panel empty until the user adds a tool.
   /// Existing workspaces keep their own saved panel.
   final List<WorkspaceTool> newWorkspaceTools;
+
+  /// Last Home composer selection. Desktop-only; never shared with phones.
+  final HomeComposerPrefs homeComposer;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: .project,

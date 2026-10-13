@@ -422,6 +422,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       PullRequestCreateActionMapper.ensureInitialized();
       WorkspaceKindFilterMapper.ensureInitialized();
       WorkspaceToolMapper.ensureInitialized();
+      HomeComposerPrefsMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -693,6 +694,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: const <WorkspaceTool>[],
   );
+  static HomeComposerPrefs _$homeComposer(WorkbenchViewPrefs v) =>
+      v.homeComposer;
+  static const Field<WorkbenchViewPrefs, HomeComposerPrefs> _f$homeComposer =
+      Field(
+        'homeComposer',
+        _$homeComposer,
+        opt: true,
+        def: HomeComposerPrefs.empty,
+      );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -730,6 +740,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
     #showArchivedWorkspaces: _f$showArchivedWorkspaces,
     #newWorkspaceTools: _f$newWorkspaceTools,
+    #homeComposer: _f$homeComposer,
   };
 
   @override
@@ -774,6 +785,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       showActiveWorkspacesOnly: data.dec(_f$showActiveWorkspacesOnly),
       showArchivedWorkspaces: data.dec(_f$showArchivedWorkspaces),
       newWorkspaceTools: data.dec(_f$newWorkspaceTools),
+      homeComposer: data.dec(_f$homeComposer),
     );
   }
 
@@ -867,6 +879,8 @@ abstract class WorkbenchViewPrefsCopyWith<
     ObjectCopyWith<$R, WorkspaceTool, WorkspaceTool>
   >
   get newWorkspaceTools;
+  HomeComposerPrefsCopyWith<$R, HomeComposerPrefs, HomeComposerPrefs>
+  get homeComposer;
   $R call({
     Set<String>? workspaceDetailsHiddenIds,
     Map<String, String>? workspaceComparisonBases,
@@ -902,6 +916,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     bool? showActiveWorkspacesOnly,
     bool? showArchivedWorkspaces,
     List<WorkspaceTool>? newWorkspaceTools,
+    HomeComposerPrefs? homeComposer,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -961,6 +976,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     (v) => call(newWorkspaceTools: v),
   );
   @override
+  HomeComposerPrefsCopyWith<$R, HomeComposerPrefs, HomeComposerPrefs>
+  get homeComposer =>
+      $value.homeComposer.copyWith.$chain((v) => call(homeComposer: v));
+  @override
   $R call({
     Set<String>? workspaceDetailsHiddenIds,
     Map<String, String>? workspaceComparisonBases,
@@ -996,6 +1015,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     bool? showActiveWorkspacesOnly,
     bool? showArchivedWorkspaces,
     List<WorkspaceTool>? newWorkspaceTools,
+    HomeComposerPrefs? homeComposer,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDetailsHiddenIds != null)
@@ -1051,6 +1071,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       if (showArchivedWorkspaces != null)
         #showArchivedWorkspaces: showArchivedWorkspaces,
       if (newWorkspaceTools != null) #newWorkspaceTools: newWorkspaceTools,
+      if (homeComposer != null) #homeComposer: homeComposer,
     }),
   );
   @override
@@ -1158,6 +1179,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       #newWorkspaceTools,
       or: $value.newWorkspaceTools,
     ),
+    homeComposer: data.get(#homeComposer, or: $value.homeComposer),
   );
 
   @override

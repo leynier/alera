@@ -31,6 +31,7 @@ import 'package:alera/src/features/workbench/application/workspace_service.dart'
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_transfer_layout.dart';
+import 'package:alera/src/features/workbench/domain/home_composer_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
@@ -71,6 +72,7 @@ part 'workbench_controller_transfer.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_workspace_details.dart';
+part 'workbench_controller_local_prefs.dart';
 part 'workbench_controller_source_control_root.dart';
 part 'workbench_controller_sync.dart';
 part 'workbench_controller_sync_apply.dart';
@@ -100,6 +102,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerWorkspaceDetails,
+        _WorkbenchControllerLocalPrefs,
         _WorkbenchControllerSourceControlRoot,
         _WorkbenchControllerSync,
         _WorkbenchControllerSyncApply,

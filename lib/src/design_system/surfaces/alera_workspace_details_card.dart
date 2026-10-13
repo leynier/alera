@@ -12,6 +12,7 @@ class const AleraWorkspaceDetailRow({
   this.trailing,
   this.onPressed,
   this.onMenu,
+  this.pressOpensMenu = false,
   this.hasMenu = false,
   this.hint,
 }) {
@@ -21,7 +22,12 @@ class const AleraWorkspaceDetailRow({
   final Color? subtitleColor;
   final Widget? trailing;
   final VoidCallback? onPressed;
-  final VoidCallback? onMenu;
+
+  /// Opens the row's menu below [anchor], the row's global bounds.
+  final ValueChanged<Rect>? onMenu;
+
+  /// Routes the primary segment to [onMenu] instead of [onPressed].
+  final bool pressOpensMenu;
 
   /// Keeps a disabled menu segment in place while [onMenu] is temporarily
   /// unavailable, so a busy row does not change width.
@@ -40,7 +46,7 @@ class const AleraWorkspaceDetailsCard({
   final List<AleraWorkspaceDetailRow> rows;
   final Widget? afterBranch;
   final WorkspaceDetailsDensity density;
-  final VoidCallback? onOptions;
+  final ValueChanged<Rect>? onOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -59,8 +65,8 @@ class const AleraWorkspaceDetailsCard({
             label: rows.first.label,
             leading: rows.first.leading,
             hint: 'Workspace Options',
-            onPressed: onOptions,
             onMenu: onOptions,
+            pressOpensMenu: true,
           ),
         ),
     ];
@@ -157,12 +163,14 @@ class const AleraWorkspaceDetailControl({
   required this.tooltip,
   this.onPressed,
   this.onMenu,
+  this.pressOpensMenu = false,
   this.menuTooltip,
 }) extends StatefulWidget {
   final Widget child;
   final String tooltip;
   final VoidCallback? onPressed;
-  final VoidCallback? onMenu;
+  final ValueChanged<Rect>? onMenu;
+  final bool pressOpensMenu;
   final String? menuTooltip;
   @override
   State<AleraWorkspaceDetailControl> createState() =>
@@ -173,11 +181,20 @@ class _AleraWorkspaceDetailControlState
     extends State<AleraWorkspaceDetailControl> {
   bool _hovered = false;
 
+  void _openMenu() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    widget.onMenu?.call(box.localToGlobal(Offset.zero) & box.size);
+  }
+
   @override
   Widget build(BuildContext context) {
     const radius = Radius.circular(AleraTokens.radiusMd);
     final split = widget.menuTooltip != null;
-    final interactive = widget.onPressed != null || widget.onMenu != null;
+    final onPressed = widget.pressOpensMenu
+        ? (widget.onMenu == null ? null : _openMenu)
+        : widget.onPressed;
+    final interactive = onPressed != null || widget.onMenu != null;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -198,7 +215,7 @@ class _AleraWorkspaceDetailControlState
               Expanded(
                 child: AleraWorkspaceDetailSegment(
                   tooltip: widget.tooltip,
-                  onPressed: widget.onPressed,
+                  onPressed: onPressed,
                   borderRadius: split
                       ? const BorderRadius.horizontal(left: radius)
                       : const BorderRadius.all(radius),
@@ -219,7 +236,7 @@ class _AleraWorkspaceDetailControlState
                 ),
                 AleraWorkspaceDetailSegment(
                   tooltip: widget.menuTooltip,
-                  onPressed: widget.onMenu,
+                  onPressed: widget.onMenu == null ? null : _openMenu,
                   borderRadius: const BorderRadius.horizontal(right: radius),
                   child: SizedBox(
                     width: AleraTokens.space32,
@@ -336,12 +353,15 @@ class const _DetailRow({required this.row, this.compact = false})
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final enabled = row.onPressed != null;
+    final enabled = row.pressOpensMenu
+        ? row.onMenu != null
+        : row.onPressed != null;
     final subtitle = compact ? null : row.subtitle;
     return AleraWorkspaceDetailControl(
       tooltip: row.hint ?? row.label,
       onPressed: row.onPressed,
       onMenu: row.onMenu,
+      pressOpensMenu: row.pressOpensMenu,
       menuTooltip: row.showsMenu ? '${row.label} Options' : null,
       child: Row(
         children: [

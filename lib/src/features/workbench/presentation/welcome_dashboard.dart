@@ -32,6 +32,7 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
+import 'package:alera/src/features/workbench/domain/home_composer_prefs.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -108,11 +109,14 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
     }
   }
 
+  HomeComposerPrefs get _savedSelection =>
+      ref.read(workbenchControllerProvider).viewPrefs.homeComposer;
+
   Project? _projectFor(List<Project> projects, String? activeProjectId) {
-    final explicit = _explicitProjectId;
-    if (explicit != null) {
+    for (final id in <String?>[_explicitProjectId, _savedSelection.projectId]) {
+      if (id == null) continue;
       for (final project in projects) {
-        if (project.id == explicit) {
+        if (project.id == id) {
           return project;
         }
       }
@@ -128,10 +132,10 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
   }
 
   AgentProfile? _profileFor(List<AgentProfile> profiles, String? defaultId) {
-    final explicit = _explicitProfileId;
-    if (explicit != null) {
+    for (final id in <String?>[_explicitProfileId, _savedSelection.profileId]) {
+      if (id == null) continue;
       for (final profile in profiles) {
-        if (profile.id == explicit) {
+        if (profile.id == id) {
           return profile;
         }
       }
