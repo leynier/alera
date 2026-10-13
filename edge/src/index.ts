@@ -26,6 +26,7 @@ export interface EdgeEnvironment {
   EVENT_DELIVERY_PUMP?: string;
   MCP_LIMITER?: RateLimitBinding;
   OAUTH_LIMITER?: RateLimitBinding;
+  OAUTH_REGISTRATION_LIMITER?: RateLimitBinding;
   BROWSER_LIMITER?: RateLimitBinding;
   MCP_RESOURCE?: string;
   ORIGIN_BASE_URL: string;
@@ -68,7 +69,7 @@ const CORS_EXACT_PATHS = new Set(['/oauth/token', '/oauth/register', '/oauth/rev
 // Machine-to-machine sign-in calls carry no bearer, so the burst limiter would key
 // them by address alone: a device poll every five seconds, or a hosted client
 // refreshing for many users from shared addresses, would trip it.
-const OAUTH_CLIENT_PATHS = new Set(['/oauth/token', '/oauth/register', '/oauth/revoke', '/v1/auth/device/token']);
+const OAUTH_CLIENT_PATHS = new Set(['/oauth/token', '/oauth/revoke', '/v1/auth/device/token']);
 // Pages a person opens. Limited even for GET because each one writes a request
 // row, and the device page must not allow guessing user codes.
 const BROWSER_PATHS = new Set(['/device', '/oauth/authorize', '/oauth/login', '/oauth/callback', '/oauth/consent']);
@@ -311,11 +312,13 @@ export async function handleRequest(
     return jsonError(405, 'method_not_allowed', 'The request method is not allowed.');
   }
 
-  const signInLimiter = OAUTH_CLIENT_PATHS.has(url.pathname)
-    ? env.OAUTH_LIMITER
-    : BROWSER_PATHS.has(url.pathname)
-      ? env.BROWSER_LIMITER
-      : undefined;
+  const signInLimiter = url.pathname === '/oauth/register'
+    ? env.OAUTH_REGISTRATION_LIMITER ?? env.EDGE_BURST_LIMITER
+    : OAUTH_CLIENT_PATHS.has(url.pathname)
+      ? env.OAUTH_LIMITER
+      : BROWSER_PATHS.has(url.pathname)
+        ? env.BROWSER_LIMITER
+        : undefined;
   if (signInLimiter && request.method !== 'OPTIONS') {
     const address = request.headers.get('cf-connecting-ip') ?? 'unknown';
     const result = await signInLimiter.limit({ key: `address:${address}:${url.pathname}` });

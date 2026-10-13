@@ -134,6 +134,12 @@ async fn mcp_oauth_authorization_code_refresh_and_revocation() -> anyhow::Result
         reach_consent(&app, &client_id, "mcp:read mcp:execute").await?;
     let page = consent.text();
     assert!(page.contains("Test &lt;Client&gt;"));
+    assert!(page.contains("Application name (self-reported)"));
+    assert!(page.contains("Unverified Application"));
+    assert!(page.contains("Authorization will be sent to <strong>client.example</strong>"));
+    assert!(page.contains("name=\"execute\" value=\"1\">"));
+    assert!(!page.contains("name=\"execute\" value=\"1\" checked"));
+    assert!(page.contains("run commands and access files with your runtime user's permissions"));
     assert!(page.contains(&runtime_id));
     assert!(page.contains("All runtimes, including ones added later"));
     assert!(consent
@@ -219,6 +225,16 @@ async fn mcp_oauth_authorization_code_refresh_and_revocation() -> anyhow::Result
     assert_eq!(account.status, StatusCode::UNAUTHORIZED);
     let runtimes = get(&app, "/v1/mcp/runtimes", Some(access)).await?;
     assert_eq!(runtimes.status, StatusCode::OK, "{}", runtimes.text());
+    report_runtime(&app, runtime_token, &runtime_id, "full", true).await?;
+    let execute = post_json(
+        &app,
+        "/v1/mcp/calls",
+        Some(access),
+        json!({"runtime": runtime_id, "tool": "write_terminal", "access": "execute"}),
+    )
+    .await?;
+    assert_eq!(execute.status, StatusCode::FORBIDDEN);
+    assert_eq!(execute.error_code(), "insufficient_scope");
     assert!(get(&app, "/v1/mcp/runtimes", Some(runtime_token))
         .await?
         .status
@@ -325,6 +341,16 @@ async fn mcp_client_metadata_documents_authorize() -> anyhow::Result<()> {
     let page = get(&app, &authorize_uri(CIMD_CLIENT, "mcp:read"), None).await?;
     assert_eq!(page.status, StatusCode::OK, "{}", page.text());
     assert!(page.text().contains("Metadata Client"));
+    let (consent, _, _) = reach_consent(&app, CIMD_CLIENT, "mcp:read mcp:execute").await?;
+    assert!(consent
+        .text()
+        .contains("name=\"execute\" value=\"1\" checked"));
+    assert!(consent
+        .text()
+        .contains("Alera has not reviewed this application"));
+    assert!(consent
+        .text()
+        .contains("Published by <strong>cimd.example</strong>"));
     let mismatched = get(
         &app,
         &authorize_uri("https://cimd.example/mismatch.json", "mcp:read"),

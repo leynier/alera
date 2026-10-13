@@ -135,12 +135,13 @@ async fn render(
     if runtimes.is_empty() {
         runtime_rows.push_str("<p class=\"muted\">No runtimes are signed in to this account yet. Choose all runtimes to include the ones you add later.</p>");
     }
-    let permissions = permission_fields(view.scope);
+    let permissions = permission_fields(view.scope, view.client_id);
     let error = error
         .map(|message| format!("<p class=\"error\">{}</p>", escape(message)))
         .unwrap_or_default();
     let body = format!(
-        "<h1>Allow {client} to use Alera?</h1>\
+        "<h1>Allow access to Alera?</h1>\
+<p>Application name (self-reported): <strong>{client}</strong>.</p>\
 <p>Signed in as <strong>{email}</strong>.</p>{origin}{error}\
 <form method=\"post\" action=\"/oauth/consent\">{request}{token}\
 <fieldset><legend>Runtimes</legend>\
@@ -300,9 +301,9 @@ async fn submit_consent(state: &AppState, form: &FormFields) -> Result<Response,
     Ok(redirect.send(&[("code", &code)]))
 }
 
-/// The optional permission boxes for the requested scope. Execute starts checked, as it
-/// always has; administrative tools start unchecked and need an explicit tick.
-fn permission_fields(scope: &str) -> String {
+/// Self-registered clients need an explicit execute choice. Metadata-document clients
+/// retain the existing default; administrative tools always need an explicit tick.
+fn permission_fields(scope: &str, client_id: &str) -> String {
     let requested = |wanted: &str| scope.split_whitespace().any(|value| value == wanted);
     if !requested(SCOPE_EXECUTE) {
         return String::new();
@@ -312,8 +313,13 @@ fn permission_fields(scope: &str) -> String {
     } else {
         ""
     };
+    let checked = if client_publisher(client_id).is_some() {
+        " checked"
+    } else {
+        ""
+    };
     format!(
-        "<fieldset><legend>Permissions</legend><label><input type=\"checkbox\" name=\"execute\" value=\"1\" checked><span>Run commands and change workspaces (mcp:execute). Without it the client can only read.</span></label>{admin}</fieldset>"
+        "<fieldset><legend>Permissions</legend><label><input type=\"checkbox\" name=\"execute\" value=\"1\"{checked}><span>Run Commands And Change Workspaces (mcp:execute)<span class=\"muted\">This lets the application run commands and access files with your runtime user's permissions when MCP Control is Full or Admin. Without it the application can only read.</span></span></label>{admin}</fieldset>"
     )
 }
 
@@ -348,26 +354,28 @@ async fn mark_completed(
     Ok(())
 }
 
-/// Client names are self-asserted, so the page says who actually published the
-/// client and flags a redirect that leaves that publisher.
-fn client_origin_notice(client_id: &str, redirect_uri: &str) -> String {
-    let redirect = redirect_host(redirect_uri);
-    match url::Url::parse(client_id)
+fn client_publisher(client_id: &str) -> Option<String> {
+    url::Url::parse(client_id)
         .ok()
         .filter(|url| url.scheme() == "https")
         .and_then(|url| url.host_str().map(str::to_owned))
-    {
+}
+
+/// A publisher domain identifies the metadata source, not an Alera endorsement.
+fn client_origin_notice(client_id: &str, redirect_uri: &str) -> String {
+    let redirect = redirect_host(redirect_uri);
+    match client_publisher(client_id) {
         Some(publisher) if publisher == redirect => format!(
-            "<p class=\"muted\">Published by {}.</p>",
+            "<p>Published by <strong>{}</strong>. Alera has not reviewed this application.</p>",
             escape(&publisher)
         ),
         Some(publisher) => format!(
-            "<p class=\"error\">Published by {} but returns to {}. Continue only if you trust both.</p>",
+            "<p class=\"error\">Published by <strong>{}</strong> but authorization returns to <strong>{}</strong>. Alera has not reviewed this application. Continue only if you trust both.</p>",
             escape(&publisher),
             escape(&redirect)
         ),
         None => format!(
-            "<p class=\"muted\">This client registered itself, so Alera has not verified its name. It returns to {}.</p>",
+            "<p class=\"error\"><strong>Unverified Application</strong></p><p>This application registered itself. Alera has not verified its identity or reviewed it. Its name is not proof that it is trustworthy.</p><p>Authorization will be sent to <strong>{}</strong>. Allow access only if you trust this application and destination.</p>",
             escape(&redirect)
         ),
     }
@@ -375,7 +383,7 @@ fn client_origin_notice(client_id: &str, redirect_uri: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{consent_scopes, permission_fields};
+    use super::{client_origin_notice, consent_scopes, permission_fields};
 
     #[test]
     fn admin_needs_the_request_and_an_explicit_tick() {
@@ -398,13 +406,49 @@ mod tests {
 
     #[test]
     fn the_admin_box_is_offered_unchecked_only_when_requested() {
-        assert!(permission_fields("mcp:read").is_empty());
-        let full = permission_fields("mcp:read mcp:execute");
+        let client_id = "https://client.example/metadata.json";
+        assert!(permission_fields("mcp:read", client_id).is_empty());
+        let full = permission_fields("mcp:read mcp:execute", client_id);
         assert!(full.contains("name=\"execute\" value=\"1\" checked"));
         assert!(!full.contains("name=\"admin\""));
-        let admin = permission_fields("mcp:read mcp:execute mcp:admin");
+        let admin = permission_fields("mcp:read mcp:execute mcp:admin", client_id);
         assert!(admin.contains("<input type=\"checkbox\" name=\"admin\" value=\"1\">"));
         assert!(!admin.contains("name=\"admin\" value=\"1\" checked"));
         assert!(admin.contains("Allow administrative tools"));
+    }
+
+    #[test]
+    fn self_registered_clients_need_an_explicit_execute_choice() {
+        for scope in ["mcp:read mcp:execute", "mcp:read mcp:execute mcp:admin"] {
+            let fields = permission_fields(scope, "mcp_unverified");
+            assert!(fields.contains("name=\"execute\" value=\"1\">"));
+            assert!(!fields.contains(" checked"));
+            assert!(fields.contains("run commands and access files"));
+            assert!(fields.contains("runtime user's permissions"));
+        }
+        assert!(permission_fields("mcp:read", "mcp_unverified").is_empty());
+    }
+
+    #[test]
+    fn identity_notices_distinguish_a_publisher_from_verification() {
+        let dynamic = client_origin_notice("mcp_unverified", "https://destination.example/cb");
+        assert!(dynamic.contains("Unverified Application"));
+        assert!(dynamic.contains("Its name is not proof"));
+        assert!(dynamic.contains("<strong>destination.example</strong>"));
+        let metadata = client_origin_notice(
+            "https://publisher.example/client.json",
+            "https://publisher.example/cb",
+        );
+        assert!(metadata.contains("Published by <strong>publisher.example</strong>"));
+        assert!(metadata.contains("Alera has not reviewed this application"));
+        let mismatch = client_origin_notice(
+            "https://publisher.example/client.json",
+            "https://destination.example/cb",
+        );
+        assert!(mismatch.contains("authorization returns to <strong>destination.example</strong>"));
+        assert!(mismatch.contains("Continue only if you trust both"));
+        let escaped = client_origin_notice("mcp_unverified", "<script>alert('x')</script>");
+        assert!(!escaped.contains("<script>"));
+        assert!(escaped.contains("&lt;script&gt;"));
     }
 }
