@@ -1,6 +1,5 @@
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:alera/src/features/app_window/infra/lifecycle_app_foreground.dart';
-import 'package:alera/src/features/inbox/domain/conversation_models.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/inbox/infra/runtime_inbox_repository.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -38,6 +37,12 @@ Stream<InboxThreadDetail> inboxThreadDetail(Ref ref, String threadId) =>
 Future<List<InboxRecipient>> inboxTargets(Ref ref) =>
     ref.watch(inboxRepositoryProvider).readTargets();
 
+/// Whether the host takes a delivery choice (`inboxV2`). False while unknown,
+/// so the old turn-end behavior shows until the host says otherwise.
+@Riverpod(retry: _noInboxRetry)
+Future<bool> inboxDeliverySupported(Ref ref) =>
+    ref.watch(inboxRepositoryProvider).supportsDelivery();
+
 /// Unread replies across every inbox, or null when the host cannot answer.
 @riverpod
 int? inboxUnreadReplyCount(Ref ref) {
@@ -53,13 +58,3 @@ AppForeground inboxWindowFocus(Ref ref) {
   ref.onDispose(focus.dispose);
   return focus;
 }
-
-@Riverpod(retry: _noInboxRetry)
-Stream<ConversationPage> agentConversations(Ref ref, {String? workspaceId}) =>
-    ref
-        .watch(inboxRepositoryProvider)
-        .watchConversations(workspaceId: workspaceId);
-
-@Riverpod(retry: _noInboxRetry)
-Stream<ConversationDetail> agentConversation(Ref ref, String threadId) =>
-    ref.watch(inboxRepositoryProvider).watchConversation(threadId);

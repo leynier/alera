@@ -1,3 +1,5 @@
+import 'package:alera/src/features/pull_requests/application/forge_review_action_access_provider.dart';
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment_load.dart';
 
 import 'dart:convert';
@@ -27,6 +29,7 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 part 'github_cli_runner.dart';
 part 'github_review_actions.dart';
+part 'github_review_action_access.dart';
 part 'github_review_batch.dart';
 part 'github_stack_actions.dart';
 part 'github_review_comments.dart';
@@ -38,11 +41,16 @@ part 'github_review_comments.dart';
 class const GitHubForgeProvider(@override final ProcessRunner _processRunner)
     with
         _GitHubCliRunner,
+        _GitHubReviewActionAccess,
         _GitHubReviewActions,
         _GitHubReviewBatch,
         _GitHubReviewComments,
         _GitHubStackActions
-    implements ForgeProvider, ForgeReviewBatchProvider, ForgeStackProvider {
+    implements
+        ForgeReviewActionAccessProvider,
+        ForgeProvider,
+        ForgeReviewBatchProvider,
+        ForgeStackProvider {
   static const List<String> _reviewJsonFields = <String>[
     'number',
     'title',

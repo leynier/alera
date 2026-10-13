@@ -1,13 +1,21 @@
+import 'package:alera_automations/alera_automations.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/automations/application/automation_project_branches.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_attention.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/presentation/activity_page.dart';
+import 'package:alera/src/features/automations/application/automation_workspace_tags.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
-import 'package:alera/src/features/automations/presentation/automations_page.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -15,7 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 
-import 'run_board_widget_harness.dart';
+import 'workbench_fixture.dart';
 
 typedef AutomationRequest = ({String type, Map<String, Object?> payload});
 
@@ -42,6 +50,9 @@ class FakeAutomationRuntime
     'issues': <Object?>[],
   };
   List<Map<String, Object?>> runs = <Map<String, Object?>>[];
+
+  /// `checkout.list` rows, which the destination picker reads per project.
+  List<Map<String, Object?>> checkouts = <Map<String, Object?>>[];
 
   void emit(String name, [Map<String, Object?> payload = const {}]) =>
       _events.add(RuntimeHostEvent(name, payload));
@@ -98,8 +109,8 @@ class FakeAutomationRuntime
       'automation.patch' => <String, Object?>{
         'automation': automationJson(id: '${payload['id']}'),
       },
-      'automation.tags' ||
-      'automation.templates' => <String, Object?>{'items': <Object?>[]},
+      'automation.unbind' => automationJson(id: '${payload['id']}'),
+      'checkout.list' => checkouts,
       _ => automationJson(id: '${payload['id'] ?? 'automation'}'),
     };
   }
@@ -114,6 +125,12 @@ Map<String, Object?> automationJson({
   Map<String, Object?>? attention,
   Map<String, Object?>? readiness,
   String? schedule,
+  String? projectId,
+  String? reusePolicy,
+  Map<String, Object?>? boundTarget,
+  String? boundTargetSummary,
+  Map<String, Object?>? lastRun,
+  Map<String, Object?>? createdBy,
 }) => <String, Object?>{
   'id': id,
   'slug': id,
@@ -139,6 +156,12 @@ Map<String, Object?> automationJson({
   'association': ?association,
   'attention': ?attention,
   'readiness': ?readiness,
+  'projectId': ?projectId,
+  'reusePolicy': ?reusePolicy,
+  'boundTarget': ?boundTarget,
+  'boundTargetSummary': ?boundTargetSummary,
+  'lastRun': ?lastRun,
+  'createdBy': ?createdBy,
 };
 
 Map<String, Object?> automationRunJson({
@@ -192,9 +215,20 @@ ProviderContainer automationContainer(
   BoardTestWorkbench? workbench,
   AutomationWorkbenchContext? context,
   List<Override> overrides = const <Override>[],
+  AutomationProjectBranches branches = (
+    branches: const <String>['main', 'develop'],
+    initial: 'develop',
+  ),
 }) => ProviderContainer(
   overrides: [
     ...overrides,
+    settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+    automationProjectBranchesProvider.overrideWith(
+      (ref, projectId) async => branches,
+    ),
+    automationWorkspaceTagsProvider.overrideWith(
+      (ref) async => const <WorkspaceTag>[],
+    ),
     automationRepositoryProvider.overrideWithValue(
       RuntimeAutomationRepository(runtime),
     ),
@@ -208,6 +242,15 @@ ProviderContainer automationContainer(
     }),
     workbenchControllerProvider.overrideWith(
       () => workbench ?? BoardTestWorkbench(),
+    ),
+    // Only automations are under test here; runs and questions would reach
+    // for a real runtime.
+    activityAttentionProvider.overrideWith(
+      (ref) => ActivityAttention(
+        automations: (ref.watch(automationCatalogProvider).value ?? const [])
+            .where(AutomationBucket.needsAttention.contains)
+            .length,
+      ),
     ),
   ],
 );
@@ -226,8 +269,8 @@ class AutomationsTestApp extends StatelessWidget {
       home: Scaffold(
         body: Consumer(
           builder: (context, ref, _) =>
-              ref.watch(automationsNavigationProvider).visible
-              ? const AutomationsPage()
+              ref.watch(activityNavigationProvider).visible
+              ? const ActivityPage()
               : const Center(child: Text('Workspace')),
         ),
       ),

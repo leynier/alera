@@ -31,7 +31,7 @@ void _registerTerminalHostClientRunBoardTests() {
         addTearDown(client.dispose);
         expect(
           await client.supportsRuntimeCapability(
-            aleraRuntimeHostRunBoardCapability,
+            aleraRuntimeHostRunsCapability,
           ),
           supported,
         );
@@ -47,7 +47,7 @@ void _registerTerminalHostClientRunBoardTests() {
         );
         expect(
           await client.supportsRuntimeCapability(
-            aleraRuntimeHostWorkflowPlansCapability,
+            aleraRuntimeHostRecipesCapability,
           ),
           workflows,
         );
@@ -75,10 +75,7 @@ void _registerTerminalHostClientRunBoardTests() {
     );
   }
 
-  for (final eventName in [
-    'orchestrationBoardChanged',
-    'workflowCatalogChanged',
-  ]) {
+  for (final eventName in ['runsChanged', 'recipesChanged']) {
     for (final binaryFrames in [false, true]) {
       test('forwards $eventName over socket frames: $binaryFrames', () async {
         final directory = await Directory.systemTemp.createTemp(
@@ -103,12 +100,12 @@ void _registerTerminalHostClientRunBoardTests() {
         addTearDown(client.dispose);
         expect(
           await client.supportsRuntimeCapability(
-            aleraRuntimeHostRunBoardCapability,
+            aleraRuntimeHostRunsCapability,
           ),
           isTrue,
         );
         expect(server.usingBinaryFrames, binaryFrames);
-        final payload = eventName == 'workflowCatalogChanged'
+        final payload = eventName == 'recipesChanged'
             ? <String, Object?>{
                 'source': {'origin': 'personal', 'id': 'quick-fix'},
                 'catalogRevision': 42,

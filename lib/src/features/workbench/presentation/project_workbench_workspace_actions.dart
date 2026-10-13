@@ -4,87 +4,12 @@ part of 'project_workbench_sidebar.dart';
 /// the sidebar state so they share its [ref], [context], and [mounted] guard
 /// without carrying a [BuildContext] across async gaps.
 mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
-  Future<void> openWorkspaceFolder(Workspace workspace) async {
-    final result = await ref
-        .read(workspaceFolderOpenerProvider)
-        .open(workspace.path);
-    if (!result.ok && mounted) {
-      AleraToast.show(
-        context,
-        message: result.message ?? 'Could not open workspace folder.',
-        tone: .error,
-      );
-    }
-  }
-
-  Future<void> copyWorkspacePath(Workspace workspace) async {
-    await Clipboard.setData(ClipboardData(text: workspace.path));
-    if (!mounted) {
-      return;
-    }
-    AleraToast.show(context, message: 'Workspace path copied', tone: .success);
-  }
-
-  /// Opens the workspace's repository home page in the system browser. The
-  /// project-level hosting override is best-effort: a timeout or error falls
-  /// back to auto-detection instead of blocking or breaking the click.
-  Future<void> openWorkspaceInBrowser(Workspace workspace) async {
-    GitHostingProvider? override;
-    try {
-      override = await ref
-          .read(
-            effectiveHostingProviderOverrideProvider(workspace.projectId)
-                .future,
-          )
-          .timeout(const Duration(seconds: 2));
-    } catch (_) {
-      override = null;
-    }
-
-    final OpenRepositoryOutcome outcome;
-    try {
-      outcome = await ref
-          .read(repositoryBrowserOpenerProvider)
-          .open(repoPath: workspace.path, override: override);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Could not open the repository: $error',
-        tone: .error,
-      );
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-    switch (outcome) {
-      case OpenRepositoryOutcome.opened:
-        break;
-      case OpenRepositoryOutcome.noRemote:
-        AleraToast.show(
-          context,
-          message: 'No git remote configured for this workspace.',
-          tone: .info,
-        );
-      case OpenRepositoryOutcome.undetectable:
-        AleraToast.show(
-          context,
-          message:
-              'Could not detect a supported git hosting provider '
-              '(GitHub or Azure DevOps).',
-          tone: .info,
-        );
-      case OpenRepositoryOutcome.openFailed:
-        AleraToast.show(
-          context,
-          message: 'Could not open the browser.',
-          tone: .error,
-        );
-    }
-  }
+  Future<void> openWorkspaceFolder(Workspace workspace) =>
+      external_actions.openWorkspaceFolder(context, ref, workspace);
+  Future<void> copyWorkspacePath(Workspace workspace) =>
+      external_actions.copyWorkspacePath(context, workspace);
+  Future<void> openWorkspaceInBrowser(Workspace workspace) =>
+      external_actions.openWorkspaceInBrowser(context, ref, workspace);
 
   Future<void> sleepWorkspace(Workspace workspace) async {
     final confirmed = await showDialog<bool>(

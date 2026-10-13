@@ -16,31 +16,9 @@ use crate::terminal_host::orchestration::managed_agent_launch::build_managed_age
 use crate::terminal_host::orchestration::managed_launch_shell_rendering::managed_launch_preview;
 use crate::terminal_host::protocol::event;
 
-use super::requests::require_string_key;
 use super::ServerActor;
 
 impl ServerActor {
-    pub(super) async fn ssh_target_list(&mut self) -> HostResult<Value> {
-        let targets = self
-            .runtime_store
-            .list_ssh_targets()
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        serde_json::to_value(targets).map_err(|error| HostError::format(error.to_string()))
-    }
-
-    /// The hosts a phone may need to label a remote workspace: a name and an
-    /// operating system. How to reach a host (address, user, port, install
-    /// directory) stays on the hub; the phone never connects to one.
-    pub(super) async fn mobile_host_list(&mut self) -> HostResult<Value> {
-        let targets = self
-            .runtime_store
-            .list_ssh_targets()
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        Ok(mobile_hosts_payload(&targets))
-    }
-
     pub(super) async fn ssh_target_upsert(&mut self, payload: &Value) -> HostResult<Value> {
         let mut target: SshTarget = serde_json::from_value(payload.clone())
             .map_err(|error| HostError::format(error.to_string()))?;
@@ -54,33 +32,26 @@ impl ServerActor {
             existing.as_ref().map(|existing| existing.auth_kind),
         )
         .map_err(|error| HostError::state(error.to_string()))?;
-        // An omitted installDir means "leave it alone", not "clear it": the app
-        // only sends it when the user edited the bootstrap location.
-        if payload.get("installDir").is_none() {
-            if let Some(existing) = existing {
-                target.install_dir = existing.install_dir;
-            }
-        }
+        keep_server_owned_fields(&mut target, existing.as_ref(), payload);
+        let endpoint_changed = existing
+            .as_ref()
+            .is_some_and(|existing| ssh_endpoint_changed(existing, &target));
         let stored = self
             .runtime_store
             .upsert_ssh_target(target)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let value =
-            serde_json::to_value(stored).map_err(|error| HostError::format(error.to_string()))?;
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        let host_id = stored.id.clone();
+        let value = self.ssh_target_value(&stored)?;
+        if endpoint_changed {
+            // A link to the old address is stale, and a pause or a failure
+            // recorded against it no longer describes the host.
+            let links = self.host_links.clone();
+            let changed = host_id.clone();
+            tokio::spawn(async move { links.target_changed(&changed).await });
+        }
+        self.broadcast_ssh_targets_changed(Some(&host_id));
         Ok(value)
-    }
-
-    pub(super) async fn ssh_target_remove(&mut self, payload: &Value) -> HostResult<Value> {
-        let id = require_string_key(payload, "id")?;
-        self.cancel_ssh_bootstrap_job_before_remove(&id).await?;
-        self.runtime_store
-            .remove_ssh_target(&id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-        Ok(json!({}))
     }
 
     pub(super) async fn agent_profile_list(&mut self) -> HostResult<Value> {
@@ -202,7 +173,7 @@ impl ServerActor {
         if removed {
             self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
             self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
-            self.broadcast_authenticated(event("automationsChanged", json!({})));
+            self.broadcast_automation_changed(None);
         }
         Ok(json!({ "removed": removed }))
     }
@@ -402,39 +373,124 @@ mod tests {
     }
 }
 
-fn mobile_hosts_payload(targets: &[SshTarget]) -> Value {
-    Value::Array(
-        targets
-            .iter()
-            .map(|target| {
-                serde_json::json!({
-                    "id": target.id,
-                    "alias": target.alias,
-                    "platform": target.runtime_platform.as_ref().or(target.platform.as_ref()),
-                })
-            })
-            .collect(),
-    )
+/// What the hub owns on a target: the install record, the last probe and
+/// what the runtime reported. A client sends the whole record back on every
+/// edit, so for an existing target these come from the stored row, never
+/// from the payload.
+fn keep_server_owned_fields(target: &mut SshTarget, existing: Option<&SshTarget>, payload: &Value) {
+    let Some(stored) = existing.cloned() else {
+        return;
+    };
+    target.last_status = stored.last_status;
+    target.runtime_version = stored.runtime_version;
+    target.runtime_platform = stored.runtime_platform;
+    target.runtime_arch = stored.runtime_arch;
+    target.bootstrap_status = stored.bootstrap_status;
+    target.last_bootstrap_at = stored.last_bootstrap_at;
+    target.last_checked_at = stored.last_checked_at;
+    target.last_error = stored.last_error;
+    target.created_at = stored.created_at;
+    // An omitted field means "leave it alone", not "clear it": older apps
+    // only send installDir when the user edited the bootstrap location, and
+    // know nothing of identityFile.
+    if payload.get("installDir").is_none() {
+        target.install_dir = stored.install_dir;
+    }
+    if payload.get("identityFile").is_none() {
+        target.identity_file = stored.identity_file;
+    }
+}
+
+/// Whether an edit changes how the hub reaches the host. A new alias or
+/// projects folder does not.
+fn ssh_endpoint_changed(existing: &SshTarget, next: &SshTarget) -> bool {
+    existing.host != next.host
+        || existing.port != next.port
+        || existing.username != next.username
+        || existing.auth_kind != next.auth_kind
+        || existing.install_dir != next.install_dir
+        || existing.identity_file != next.identity_file
 }
 
 #[cfg(test)]
-mod mobile_host_tests {
+mod ssh_target_upsert_tests {
     use super::*;
 
     #[test]
-    fn a_phone_learns_a_host_name_and_system_and_nothing_about_reaching_it() {
+    fn only_reaching_the_host_differently_changes_its_endpoint() {
         let target: SshTarget = serde_json::from_value(serde_json::json!({
-            "id": "ssh-1", "alias": "Studio Mac", "host": "10.0.0.7", "port": 2222,
-            "username": "leynier", "authKind": "agent", "platform": "linux",
-            "runtimePlatform": "macos", "installDir": "~/.alera-sidecar",
+            "id": "ssh-1", "alias": "Lab", "host": "10.0.0.7", "port": 22,
+            "username": "dev", "authKind": "agent",
             "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
         }))
         .unwrap();
-        let payload = mobile_hosts_payload(&[target]);
+        let mut renamed = target.clone();
+        renamed.alias = "Studio".into();
+        renamed.projects_dir = Some("~/code".into());
+        assert!(!ssh_endpoint_changed(&target, &renamed));
+        let mut moved = target.clone();
+        moved.host = "10.0.0.8".into();
+        assert!(ssh_endpoint_changed(&target, &moved));
+        let mut port = target.clone();
+        port.port = 2222;
+        assert!(ssh_endpoint_changed(&target, &port));
+    }
+
+    fn stored_target() -> SshTarget {
+        serde_json::from_value(serde_json::json!({
+            "id": "ssh-1", "alias": "Lab", "host": "10.0.0.7", "port": 22,
+            "username": "dev", "authKind": "agent", "lastStatus": "runtimeReady",
+            "installDir": "~/.alera", "identityFile": "~/.ssh/lab", "runtimeVersion": "1.4.0",
+            "runtimePlatform": "linux", "runtimeArch": "x64", "bootstrapStatus": "installed",
+            "lastCheckedAt": "2026-07-20T00:00:00Z", "lastError": "old failure",
+            "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn an_upsert_cannot_overwrite_what_the_hub_owns() {
+        let existing = stored_target();
+        let payload = serde_json::json!({
+            "id": "ssh-1", "alias": "Studio", "host": "10.0.0.7", "port": 22,
+            "username": "dev", "authKind": "agent", "lastStatus": "unreachable",
+            "runtimeVersion": "0.0.1", "bootstrapStatus": "notInstalled",
+            "lastError": null, "lastCheckedAt": null,
+            "createdAt": "2026-08-01T00:00:00Z", "updatedAt": "2026-08-01T00:00:00Z",
+        });
+        let mut target: SshTarget = serde_json::from_value(payload.clone()).unwrap();
+        keep_server_owned_fields(&mut target, Some(&existing), &payload);
+        assert_eq!(target.alias, "Studio");
+        assert_eq!(target.last_status.as_deref(), Some("runtimeReady"));
+        assert_eq!(target.runtime_version.as_deref(), Some("1.4.0"));
+        assert_eq!(target.bootstrap_status, existing.bootstrap_status);
+        assert_eq!(target.last_checked_at, existing.last_checked_at);
+        assert_eq!(target.last_error.as_deref(), Some("old failure"));
+        assert_eq!(target.created_at, existing.created_at);
+        assert_eq!(target.install_dir.as_deref(), Some("~/.alera"));
+        assert_eq!(target.identity_file.as_deref(), Some("~/.ssh/lab"));
+        assert!(!ssh_endpoint_changed(&existing, &target));
+
+        let mut fresh: SshTarget = serde_json::from_value(payload.clone()).unwrap();
+        keep_server_owned_fields(&mut fresh, None, &payload);
         assert_eq!(
-            payload,
-            serde_json::json!([{"id": "ssh-1", "alias": "Studio Mac", "platform": "macos"}]),
-            "the probed platform wins over the declared one"
+            fresh.runtime_version.as_deref(),
+            Some("0.0.1"),
+            "a new target has nothing stored to keep"
         );
+    }
+
+    #[test]
+    fn a_new_identity_file_changes_the_endpoint() {
+        let existing = stored_target();
+        let payload = serde_json::json!({
+            "id": "ssh-1", "alias": "Lab", "host": "10.0.0.7", "port": 22,
+            "username": "dev", "authKind": "key", "identityFile": null,
+            "createdAt": "2026-07-19T00:00:00Z", "updatedAt": "2026-07-19T00:00:00Z",
+        });
+        let mut target: SshTarget = serde_json::from_value(payload.clone()).unwrap();
+        keep_server_owned_fields(&mut target, Some(&existing), &payload);
+        assert_eq!(target.identity_file, None, "an explicit null clears it");
+        assert!(ssh_endpoint_changed(&existing, &target));
     }
 }

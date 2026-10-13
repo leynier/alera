@@ -19,26 +19,6 @@ const KNOWN_VARIABLES: &[&str] = &[
     "project.name",
 ];
 
-pub fn template_variables(template: &str) -> Vec<String> {
-    let mut variables = Vec::new();
-    let mut cursor = 0;
-    while let Some(start) = template[cursor..].find("{{") {
-        let start = cursor + start;
-        let Some(end) = template[start + 2..]
-            .find("}}")
-            .map(|value| start + 2 + value)
-        else {
-            break;
-        };
-        let value = template[start + 2..end].trim();
-        if !variables.iter().any(|item| item == value) {
-            variables.push(value.to_string());
-        }
-        cursor = end + 2;
-    }
-    variables
-}
-
 pub fn validate_prompt_template(template: &str) -> Result<(), String> {
     if template.trim().is_empty() {
         return Err("prompt template is required".to_string());
@@ -67,7 +47,6 @@ pub fn validate_prompt_template(template: &str) -> Result<(), String> {
 
 pub fn render_prompt_template(
     definition: &AutomationDefinition,
-    _run: &AutomationRun,
     values: &BTreeMap<String, String>,
 ) -> Result<String, String> {
     validate_prompt_template(&definition.prompt_template)?;
@@ -145,7 +124,7 @@ pub fn prompt_value_map(
 
 #[cfg(test)]
 mod tests {
-    use super::{redact_known_patterns, template_variables, validate_prompt_template};
+    use super::{redact_known_patterns, validate_prompt_template};
 
     #[test]
     fn rejects_unknown_and_unbalanced_variables() {
@@ -156,11 +135,7 @@ mod tests {
     }
 
     #[test]
-    fn lists_variables_once_and_redacts_known_patterns() {
-        assert_eq!(
-            template_variables("{{run.id}} {{run.id}} {{workspace.name}}"),
-            vec!["run.id", "workspace.name"]
-        );
+    fn redacts_known_patterns() {
         assert_eq!(
             redact_known_patterns("token=abc sk-secret value"),
             "[redacted] [redacted] value"

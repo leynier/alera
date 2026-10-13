@@ -11,8 +11,6 @@ pub(crate) struct CheckoutInspection {
     pub path: String,
     pub kind: ProjectKind,
     pub branch: Option<String>,
-    #[serde(default)]
-    pub automation_declared: Option<bool>,
 }
 
 pub(crate) async fn inspect(path: String, kind: ProjectKind) -> Result<CheckoutInspection> {
@@ -37,8 +35,7 @@ pub(crate) async fn inspect(path: String, kind: ProjectKind) -> Result<CheckoutI
                 None
             }
         };
-        let automation_declared = Some(crate::automation_declaration::repository_declares_automation(&path, &path));
-        Ok(CheckoutInspection { version: INSPECTION_VERSION, path, kind, branch, automation_declared })
+        Ok(CheckoutInspection { version: INSPECTION_VERSION, path, kind, branch })
     }).await?
 }
 
@@ -84,19 +81,6 @@ mod tests {
             dir.path().canonicalize().unwrap().to_str().unwrap()
         );
         assert!(result.branch.is_none());
-        assert_eq!(result.automation_declared, Some(false));
-        std::fs::write(
-            dir.path().join("alera.toml"),
-            "[automation]\ndeclared = true\n",
-        )
-        .unwrap();
-        assert_eq!(
-            inspect(path.clone(), ProjectKind::Folder)
-                .await
-                .unwrap()
-                .automation_declared,
-            Some(true)
-        );
         assert!(inspect(path, ProjectKind::GitRepository).await.is_err());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("keep")).unwrap(),

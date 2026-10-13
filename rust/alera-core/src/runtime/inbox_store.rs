@@ -16,46 +16,32 @@ const INBOX_SCHEMA: &[&str] = &[
     "INSERT OR IGNORE INTO inboxRevision VALUES (1, 0)",
 ];
 
-// Indexes come after `ensure_column`: an existing database gets the columns
-// first, so no index can reference a column that does not exist yet.
-const INBOX_INDEXES: &[&str] = &[
-    "CREATE INDEX IF NOT EXISTS orchestrationMessagesFromIdx ON orchestrationMessages(from_handle, sequence)",
-    "CREATE INDEX IF NOT EXISTS orchestrationMessagesReplyToIdx ON orchestrationMessages(reply_to_id)",
-];
-
 /// SQLite `datetime('now')` shape, so comparisons with stored timestamps stay
 /// lexicographic.
 pub(super) fn sqlite_timestamp(at: chrono::DateTime<Utc>) -> String {
     at.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-impl RuntimeStore {
-    pub(super) async fn migrate_inbox(&self) -> Result<()> {
-        for statement in INBOX_SCHEMA {
-            sqlx::query(*statement).execute(self.pool()).await?;
-        }
-        self.ensure_column("orchestrationMessages", "reply_to_id", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationMessages", "external_meta", "TEXT")
-            .await?;
-        for statement in INBOX_INDEXES {
-            sqlx::query(*statement).execute(self.pool()).await?;
-        }
-        // The revision moves in the same transaction as the row that changed,
-        // whichever writer touched it.
-        for (operation, row) in [("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")] {
-            sqlx::query(sqlx::AssertSqlSafe(format!(
-                "CREATE TRIGGER IF NOT EXISTS inbox_messages_{operation}
-                 AFTER {operation} ON orchestrationMessages
-                 WHEN substr({row}.from_handle, 1, 4) = 'ext:' OR substr({row}.to_handle, 1, 4) = 'ext:'
-                 BEGIN UPDATE inboxRevision SET revision = revision + 1 WHERE id = 1; END"
-            )))
-            .execute(self.pool())
-            .await?;
-        }
-        Ok(())
+pub(super) async fn install_inbox_schema(conn: &mut sqlx::SqliteConnection) -> Result<()> {
+    for statement in INBOX_SCHEMA {
+        sqlx::query(*statement).execute(&mut *conn).await?;
     }
+    // The revision moves in the same transaction as the row that changed,
+    // whichever writer touched it.
+    for (operation, row) in [("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")] {
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "CREATE TRIGGER IF NOT EXISTS inbox_messages_{operation}
+             AFTER {operation} ON orchestrationMessages
+             WHEN substr({row}.from_handle, 1, 4) = 'ext:' OR substr({row}.to_handle, 1, 4) = 'ext:'
+             BEGIN UPDATE inboxRevision SET revision = revision + 1 WHERE id = 1; END"
+        )))
+        .execute(&mut *conn)
+        .await?;
+    }
+    Ok(())
+}
 
+impl RuntimeStore {
     pub async fn inbox_revision(&self) -> Result<i64> {
         let row = sqlx::query("SELECT revision FROM inboxRevision WHERE id = 1")
             .fetch_one(self.pool())
@@ -127,14 +113,11 @@ impl RuntimeStore {
         }
         if let Some(thread_id) = question.thread_id.as_deref() {
             let root = self.orchestration_message_by_id(thread_id).await?;
-            let same_thread = root.as_ref().is_some_and(|root| {
-                root.thread_id.is_none()
-                    && root.from_handle == question.inbox
-                    && root.to_handle == question.recipient
-            });
+            let same_thread = root.as_ref().and_then(inbox_thread_parties)
+                == Some((question.inbox.as_str(), question.recipient.as_str()));
             if !same_thread {
                 anyhow::bail!(
-                    "inbox_thread_mismatch: a follow-up must continue a question this inbox sent to the same recipient"
+                    "inbox_thread_mismatch: a follow-up must continue a thread between this inbox and the same agent"
                 );
             }
         }
@@ -144,7 +127,7 @@ impl RuntimeStore {
             >= INBOX_PENDING_LIMIT
         {
             anyhow::bail!(
-                "inbox_pending_limit: the recipient already has {INBOX_PENDING_LIMIT} undelivered questions"
+                "inbox_pending_limit: This agent already has {INBOX_PENDING_LIMIT} questions waiting. Wait for it to read them or cancel some."
             );
         }
         let expires_at = sqlite_timestamp(Utc::now() + Duration::seconds(expires_in));
@@ -153,7 +136,7 @@ impl RuntimeStore {
             to_handle: question.recipient,
             subject: question.subject,
             body: question.body,
-            message_type: OrchestrationMessageType::DecisionGate,
+            message_type: OrchestrationMessageType::Question,
             priority: question.priority,
             thread_id: question.thread_id,
             payload: question.payload,
@@ -164,8 +147,23 @@ impl RuntimeStore {
             expires_at: Some(expires_at),
             reply_to_id: None,
             external_meta: Some(external_meta),
+            delivery: question.delivery,
         })
         .await
+    }
+
+    /// Records how the host routed a question, for the thread view.
+    pub async fn set_message_delivery_mode(&self, id: &str, mode: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE orchestrationMessages \
+             SET external_meta = json_set(COALESCE(external_meta, '{}'), '$.deliveryMode', ?) \
+             WHERE id = ?",
+        )
+        .bind(mode)
+        .bind(id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
     }
 
     /// Cancels a question that was never pasted, read, or answered.

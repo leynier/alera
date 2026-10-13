@@ -20,7 +20,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::SessionDriver;
 
 use super::host_service_requests::required_non_blank;
-pub(super) use super::request_payloads::{json_result, parse_payload};
+pub(super) use super::request_payloads::{anyhow_json_result, json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
 
@@ -752,6 +752,8 @@ impl ServerActor {
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
+                        super::tab_compatibility::RUN_ID_TAB_PAYLOAD_KEY,
+                        super::tab_compatibility::RUN_TASK_ID_TAB_PAYLOAD_KEY,
                     ] {
                         payload.remove(key);
                     }

@@ -1,7 +1,6 @@
 use super::{AutomationAttempt, AutomationRun, AutomationRunStatus, RuntimeStore};
 use anyhow::{anyhow, bail, Result};
 use chrono::{DateTime, Duration, Utc};
-use serde_json::json;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -124,7 +123,7 @@ impl RuntimeStore {
             {
                 if let Some(definition) = definition {
                     deadlines.push(
-                        run.last_heartbeat_at.or(run.last_activity_at).map(|at| {
+                        run.inactivity_reference().map(|at| {
                             at + Duration::seconds(definition.inactivity_timeout_seconds)
                         }),
                     );
@@ -156,20 +155,29 @@ impl RuntimeStore {
             .collect()
     }
 
+    /// The newest tab that carries `run_id`, which is the agent tab when the
+    /// run also opened a Setup tab before it.
+    pub async fn find_workspace_tab_by_automation_run(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<super::WorkspaceTabRecord>> {
+        sqlx::query(
+            "SELECT id, workspaceId, kind, title, createdAt, updatedAt, payloadJson \
+             FROM workspaceTabs WHERE json_extract(payloadJson, '$.automationRunId') = ? \
+             ORDER BY createdAt DESC, rowid DESC LIMIT 1",
+        )
+        .bind(run_id)
+        .fetch_optional(self.pool())
+        .await?
+        .map(super::store::tab_from_row)
+        .transpose()
+    }
+
     pub async fn record_automation_runtime_started(&self) -> Result<DateTime<Utc>> {
         let now = Utc::now();
-        if let Some(previous) = self.get_metadata("automations.runtimeStartedAt").await? {
-            self.set_metadata("automations.previousStartedAt", &previous)
-                .await?;
-        }
         self.set_metadata(
             "automations.runtimeStartedAt",
             &super::format_timestamp(now),
-        )
-        .await?;
-        self.set_metadata(
-            "automations.runtimeStatus",
-            &json!({"startedAt":now}).to_string(),
         )
         .await?;
         Ok(now)

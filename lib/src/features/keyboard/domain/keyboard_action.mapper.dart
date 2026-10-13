@@ -76,10 +76,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
     switch (value) {
       case r'openSettings':
         return KeyboardActionId.openSettings;
-      case r'openAutomations':
-        return KeyboardActionId.openAutomations;
-      case r'openRunBoard':
-        return KeyboardActionId.openRunBoard;
+      case r'openActivity':
+        return KeyboardActionId.openActivity;
+      case r'newAutomation':
+        return KeyboardActionId.newAutomation;
       case r'openQuickOpen':
         return KeyboardActionId.openQuickOpen;
       case r'openCommandPalette':
@@ -90,6 +90,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.toggleSidebar;
       case r'toggleContextPanel':
         return KeyboardActionId.toggleContextPanel;
+      case r'toggleWorkspaceDetails':
+        return KeyboardActionId.toggleWorkspaceDetails;
       case r'showExplorer':
         return KeyboardActionId.showExplorer;
       case r'showSourceControl':
@@ -164,10 +166,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
     switch (self) {
       case KeyboardActionId.openSettings:
         return r'openSettings';
-      case KeyboardActionId.openAutomations:
-        return r'openAutomations';
-      case KeyboardActionId.openRunBoard:
-        return r'openRunBoard';
+      case KeyboardActionId.openActivity:
+        return r'openActivity';
+      case KeyboardActionId.newAutomation:
+        return r'newAutomation';
       case KeyboardActionId.openQuickOpen:
         return r'openQuickOpen';
       case KeyboardActionId.openCommandPalette:
@@ -178,6 +180,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'toggleSidebar';
       case KeyboardActionId.toggleContextPanel:
         return r'toggleContextPanel';
+      case KeyboardActionId.toggleWorkspaceDetails:
+        return r'toggleWorkspaceDetails';
       case KeyboardActionId.showExplorer:
         return r'showExplorer';
       case KeyboardActionId.showSourceControl:

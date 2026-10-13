@@ -16,14 +16,10 @@ class const _CreateWorkspaceSettingsStep({
   required final List<WorkspaceParentCandidate> parentCandidates,
   required final String? selectedParentWorkspaceId,
   required final ValueChanged<String?> onParentWorkspaceChanged,
-  required final List<SshTarget> sshTargets,
-  required final String? selectedHostId,
-  required final bool supportsRemoteSshWorkspaces,
-  required final ValueChanged<String?> onHostChanged,
+  required final String hostLabel,
   required final bool creating,
   required final VoidCallback onSubmit,
   final Widget? issueField,
-  final Widget? hostNotice,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -101,18 +97,6 @@ class const _CreateWorkspaceSettingsStep({
           onChanged: onParentWorkspaceChanged,
         ),
         const SizedBox(height: AleraTokens.space16),
-        WorkspaceHostPicker(
-          hostId: selectedHostId,
-          sshTargets: sshTargets,
-          supportsRemoteSshWorkspaces: supportsRemoteSshWorkspaces,
-          enabled: !creating,
-          onChanged: onHostChanged,
-        ),
-        if (hostNotice case final hostNotice?) ...<Widget>[
-          const SizedBox(height: AleraTokens.space12),
-          hostNotice,
-        ],
-        const SizedBox(height: AleraTokens.space16),
         if (useProjectCheckout)
           const Text(
             'This task shares the project folder, current branch and Git index. Its tabs and agents start fresh.',
@@ -128,7 +112,7 @@ class const _CreateWorkspaceSettingsStep({
               parentCandidates,
               selectedParentWorkspaceId,
             ),
-            hostLabel: workspaceHostLabel(sshTargets, selectedHostId),
+            hostLabel: hostLabel,
           ),
       ],
     );

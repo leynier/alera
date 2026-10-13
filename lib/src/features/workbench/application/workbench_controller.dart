@@ -70,6 +70,7 @@ part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_transfer.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
+part 'workbench_controller_workspace_details.dart';
 part 'workbench_controller_source_control_root.dart';
 part 'workbench_controller_sync.dart';
 part 'workbench_controller_sync_apply.dart';
@@ -98,6 +99,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerTransfer,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
+        _WorkbenchControllerWorkspaceDetails,
         _WorkbenchControllerSourceControlRoot,
         _WorkbenchControllerSync,
         _WorkbenchControllerSyncApply,

@@ -1,4 +1,5 @@
 ---
+import { APP_COPY } from '../../../data/demo/app-copy';
 import AgentLogo from '../primitives/AgentLogo.astro';
 import AppIcon from '../primitives/AppIcon.astro';
 import ResourceManagerCard from './ResourceManagerCard.astro';
@@ -6,9 +7,9 @@ import ResourceManagerCard from './ResourceManagerCard.astro';
 /**
  * The 30 px status bar in compact mode (window narrower than 1400 px), in the
  * order alera_shell_page_body.dart builds it: host, quota overview, one chip
- * per pinned quota and refresh on the left; Run Board, Voice, Resource
- * Manager, Keep Alive and the runtime on the right. Quota values are the
- * remaining percentage, colored by how much is left.
+ * per pinned quota and refresh on the left; the Activity attention chip,
+ * Voice, Resource Manager, Keep Alive and the runtime on the right. Quota
+ * values are the remaining percentage, colored by how much is left.
  */
 interface Reading {
   label: string;
@@ -39,7 +40,7 @@ const QUOTAS: readonly { agent: 'claude' | 'codex'; profile?: string; readings: 
 <footer class="status-bar" data-demo-node="d-status-bar">
   <span class="status-segment status-host">
     <AppIcon name="host" size={13} />
-    <span class="status-mono">Local</span>
+    <span class="status-mono">{APP_COPY.localHost.text}</span>
   </span>
   <span class="status-divider"></span>
   <span class="status-segment status-gauge"><AppIcon name="quota" size={13} /></span>

@@ -311,10 +311,6 @@ impl RuntimeStore {
             .bind(profile_id)
             .execute(&mut *connection)
             .await?;
-            sqlx::query("DELETE FROM automationAgentPolicies WHERE profileId = ?")
-                .bind(profile_id)
-                .execute(&mut *connection)
-                .await?;
             let result = sqlx::query("DELETE FROM agentProfiles WHERE id = ? AND revision = ?")
                 .bind(profile_id)
                 .bind(expected_revision)
@@ -374,13 +370,6 @@ pub(super) async fn agent_profile_removal_impact_in(
     .await?
     .flatten()
     .is_some_and(|value| value.trim() == profile_id);
-    let has_automation_policy = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM automationAgentPolicies WHERE profileId = ?",
-    )
-    .bind(profile_id)
-    .fetch_one(&mut *connection)
-    .await?
-        > 0;
 
     let automation_rows = sqlx::query("SELECT dataJson FROM automations")
         .fetch_all(&mut *connection)
@@ -398,10 +387,9 @@ pub(super) async fn agent_profile_removal_impact_in(
     let mut execution_policy_run_ids = Vec::new();
     if let Some((_, profile_name)) = profile.as_ref() {
         let policy_rows = sqlx::query(
-            "SELECT id, execution_policy FROM orchestrationCoordinatorRuns \
-             WHERE status NOT IN ('completed', 'failed', 'stopped') \
-               AND execution_policy_status IN ('draft', 'approved') \
-               AND execution_policy IS NOT NULL",
+            "SELECT r.id, r.execution_policy FROM orchestrationCoordinatorRuns r \
+             WHERE r.status NOT IN ('completed', 'failed', 'cancelled') \
+               AND r.execution_policy IS NOT NULL",
         )
         .fetch_all(&mut *connection)
         .await?;
@@ -470,7 +458,6 @@ pub(super) async fn agent_profile_removal_impact_in(
         revision,
         is_default,
         automation_ids,
-        has_automation_policy,
         execution_policy_run_ids,
         tabs,
     })

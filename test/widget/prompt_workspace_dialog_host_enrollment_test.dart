@@ -3,7 +3,6 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_branch_catalog.dart';
 import 'package:alera/src/features/projects/domain/project_host_enrollment.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
@@ -12,6 +11,8 @@ import 'package:alera/src/features/workbench/presentation/prompt_workspace_dialo
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/remote_host_view_fixtures.dart';
 
 final DateTime _now = DateTime.utc(2026, 9, 21);
 
@@ -66,6 +67,25 @@ void main() {
       expect(requests.single.sourceBranch, 'remote-main');
     },
   );
+
+  testWidgets('From Prompt lists the host right under the project', (
+    tester,
+  ) async {
+    final controller = ProjectHostEnrollmentController(null);
+    addTearDown(controller.dispose);
+    await _pumpDialog(
+      tester,
+      controller: controller,
+      branchLoads: <String>[],
+      requests: <PromptWorkspaceCreateRequest>[],
+    );
+
+    final project = tester.getTopLeft(find.text('Project'));
+    final host = tester.getTopLeft(find.text('Host'));
+    final branch = tester.getTopLeft(find.text('Source Branch'));
+    expect(host.dy, greaterThan(project.dy));
+    expect(host.dy, lessThan(branch.dy));
+  });
 }
 
 FilledButton _submitButton(WidgetTester tester) {
@@ -119,19 +139,7 @@ Future<void> _pumpDialog(
                   agentProfiles: <AgentProfile>[profile],
                   hostEnrollment: controller,
                   initialUseProjectCheckout: false,
-                  sshTargets: <SshTarget>[
-                    SshTarget(
-                      id: 'ssh-box',
-                      alias: 'Build Mac',
-                      host: 'mac.example.test',
-                      port: 22,
-                      username: 'leynier',
-                      authKind: SshAuthKind.agent,
-                      createdAt: _now,
-                      updatedAt: _now,
-                      bootstrapStatus: SshBootstrapStatus.installed,
-                    ),
-                  ],
+                  hosts: [remoteHostView('ssh-box', 'Build Mac')],
                   loadBranches: (_) async => const <String>['main'],
                   loadHostBranchCatalog: (project, hostId) async {
                     final host = hostId ?? 'local';

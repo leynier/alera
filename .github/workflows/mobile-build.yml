@@ -8,6 +8,7 @@ on:
       - pubspec.yaml
       - pubspec.lock
       - mobile/**
+      - packages/alera_automations/**
       - packages/alera_configuration/**
       - third_party/xterm
       - .gitmodules

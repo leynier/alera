@@ -4,6 +4,7 @@ use alera_core::runtime::{
 };
 use chrono::Utc;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 use super::ServerActor;
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -31,11 +32,7 @@ impl ServerActor {
             return Ok(json!({"occurrences":occurrences,"timezone":schedule.timezone()}));
         }
         let actor = self
-            .resolve_policy_actor(
-                client_id,
-                payload,
-                self.automation_actor(client_id, payload),
-            )
+            .resolve_request_actor(client_id, payload, self.automation_actor(client_id))
             .await?;
         let definition = if let Some(id) = payload["id"].as_str() {
             let saved = self
@@ -76,6 +73,7 @@ impl ServerActor {
                             | "creationRequestFingerprint"
                             | "scheduleCursorAt"
                             | "stateBeforeTrash"
+                            | "boundTarget"
                     ) {
                         merged[key] = value.clone();
                     }
@@ -158,10 +156,7 @@ impl ServerActor {
             .await
             .map_err(state_error)?;
         self.automation_wake.notify_one();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "automationsChanged",
-            json!({"automationId":saved.id}),
-        ));
+        self.broadcast_automation_changed(Some(&saved.id));
         self.automation_catalog_item(&saved).await
     }
 
@@ -169,6 +164,18 @@ impl ServerActor {
         &self,
         definition: &AutomationDefinition,
         require_future: bool,
+    ) -> Value {
+        self.automation_readiness_in(definition, require_future, None)
+            .await
+    }
+
+    /// `profile_readiness` caches the launch probe per agent profile across
+    /// the items of one listing.
+    pub(super) async fn automation_readiness_in(
+        &self,
+        definition: &AutomationDefinition,
+        require_future: bool,
+        profile_readiness: Option<&mut HashMap<String, Result<(), String>>>,
     ) -> Value {
         let mut issues = Vec::new();
         if let Err(error) = RuntimeStore::validate_automation_definition(definition) {
@@ -213,10 +220,7 @@ impl ServerActor {
                         "ChooseTarget",
                     ));
                 }
-                if let Err(error) = self
-                    .ensure_dispatch_policy(definition, &definition.modified_by)
-                    .await
-                {
+                if let Err(error) = self.ensure_target_valid(definition).await {
                     issues.push(issue(
                         "invalidTarget",
                         &error.wire_message(),
@@ -236,7 +240,9 @@ impl ServerActor {
                 }
             }
         }
-        match self.target_profile_id(definition).await {
+        let profile_id = self.target_profile_id(definition).await;
+        let profile_resolvable = matches!(profile_id, Ok(Some(_)));
+        match profile_id {
             Ok(Some(id)) => match self.runtime_store.find_agent_profile(&id).await {
                 Ok(Some(profile)) => {
                     if let Err(error) =
@@ -255,10 +261,24 @@ impl ServerActor {
                         .ok()
                         .is_some_and(|location| location.host_id == LOCAL_HOST_ID)
                     {
-                        if let Err(error) =
-                            super::automation_profile_readiness::profile_executable_ready(&profile)
-                                .await
-                        {
+                        let cached = profile_readiness
+                            .as_deref()
+                            .and_then(|cache| cache.get(&profile.id).cloned());
+                        let ready = match cached {
+                            Some(ready) => ready,
+                            None => {
+                                let ready =
+                                    super::automation_profile_readiness::profile_executable_ready(
+                                        &profile,
+                                    )
+                                    .await;
+                                if let Some(cache) = profile_readiness {
+                                    cache.insert(profile.id.clone(), ready.clone());
+                                }
+                                ready
+                            }
+                        };
+                        if let Err(error) = ready {
                             issues.push(issue(
                                 "profileNotLaunchable",
                                 &error,
@@ -308,11 +328,16 @@ impl ServerActor {
                     .as_deref()
                     .is_none_or(|id| id.trim().is_empty())
             {
+                // Conversation reuse opens a new tab with the profile when the
+                // chosen conversation is gone, so it only warns.
+                let recoverable = profile_resolvable
+                    && definition.reuse_policy
+                        == alera_core::runtime::AutomationReusePolicy::ReuseConversation;
                 issues.push(issue(
                     "missingConversation",
                     "Choose a live agent conversation",
                     "target",
-                    "error",
+                    if recoverable { "warning" } else { "error" },
                     "ChooseTarget",
                 ));
             }
@@ -363,6 +388,7 @@ impl ServerActor {
                 .await
                 .is_ok()
             {
+                self.broadcast_automation_changed(Some(&definition.id));
                 let _ = self.runtime_store.insert_automation_audit_event(Some(&definition.id), None, "retiredGatesMigrated", definition.modified_by, Some(definition.revision), json!({"reactivated":state == AutomationState::Active,"readiness":readiness})).await;
             }
         }
@@ -377,7 +403,12 @@ fn state_error(error: impl std::fmt::Display) -> HostError {
 }
 
 fn validation_field(error: &str) -> &'static str {
-    if error.contains("prompt") || error.contains("variable") || error.contains("delimiter") {
+    if error == alera_core::runtime::AUTOMATION_REUSE_CLEANUP_ERROR {
+        "cleanupPolicy"
+    } else if error == alera_core::runtime::AUTOMATION_REUSE_WORKSPACE_EXISTING_TAB_ERROR {
+        "reusePolicy"
+    } else if error.contains("prompt") || error.contains("variable") || error.contains("delimiter")
+    {
         "promptTemplate"
     } else if error.contains("cron") || error.contains("timezone") || error.contains("schedule") {
         "schedule"

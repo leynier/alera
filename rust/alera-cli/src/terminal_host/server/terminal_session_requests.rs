@@ -117,10 +117,14 @@ impl ServerActor {
                         // as a user takeover. The automation CLI is a local
                         // client too, but it must not preserve its own cleanup
                         // target.
-                        let _ = self
+                        if let Ok(run) = self
                             .runtime_store
                             .mark_automation_run_taken_over(run_id, actor)
-                            .await;
+                            .await
+                        {
+                            self.release_bound_tab_for_run(&run, "takenOver").await;
+                            self.broadcast_automation_run_changed(&run);
+                        }
                         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
                     }
                 }

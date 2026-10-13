@@ -1,5 +1,4 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
-import 'package:alera_mobile/src/features/inbox/domain/agent_conversation_models.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
@@ -7,42 +6,9 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 /// and a revision; screens reload what they show when it arrives.
 const String inboxChangedEvent = 'inboxChanged';
 
-/// Sent when a message between agents is added, read or pruned.
-const String conversationsChangedEvent = 'conversationsChanged';
-
 class MobileRuntimeInboxRepository(final MobileInboxClient _client) {
   Stream<MobileRuntimeEvent> get changes =>
       _client.events.where((event) => event.name == inboxChangedEvent);
-
-  Stream<MobileRuntimeEvent> get conversationChanges =>
-      _client.events.where((event) => event.name == conversationsChangedEvent);
-
-  /// Conversations between agents, newest activity first. Read only.
-  Future<AgentConversationPage> conversations({
-    String? workspaceId,
-    String? participant,
-    int? before,
-    int limit = 100,
-  }) async {
-    final payload = await _client.requestMap(
-      'inbox.conversations',
-      <String, Object?>{
-        'workspaceId': ?workspaceId,
-        'participant': ?participant,
-        'before': ?before,
-        'limit': limit,
-      },
-    );
-    return AgentConversationPage.fromJson(payload);
-  }
-
-  Future<AgentConversationDetail> conversation(String threadId) async {
-    final payload = await _client.requestMap(
-      'inbox.conversation',
-      <String, Object?>{'threadId': threadId},
-    );
-    return AgentConversationDetail.fromJson(payload);
-  }
 
   Future<List<InboxSummaryEntry>> summary() async {
     final payload = await _client.requestMap('inbox.summary');
@@ -88,16 +54,23 @@ class MobileRuntimeInboxRepository(final MobileInboxClient _client) {
     ];
   }
 
+  /// Whether `inbox.ask` takes a delivery choice. Without it the host keeps
+  /// the turn-end behavior.
+  bool get supportsDelivery => _client.supportsInboxDelivery;
+
   /// Asks [to] from [inbox] (the shared `ext:user` by default), or follows up
   /// in [threadId]. A follow-up sends no inbox unless one is named: the
   /// runtime keeps the thread's own inbox, which may be another one such as a
-  /// CLI's `ext:ci`.
+  /// CLI's `ext:ci`. [delivery] reaches only hosts that advertise `inboxV2`;
+  /// [expiresIn] null keeps the runtime's default.
   Future<InboxAskResult> ask({
     required String body,
     String? to,
     String? threadId,
     String? subject,
     String? inbox,
+    InboxDelivery? delivery,
+    Duration? expiresIn,
   }) async {
     final payload = await _client.requestMap('inbox.ask', <String, Object?>{
       'inbox': ?(inbox ?? (threadId == null ? userInboxAddress : null)),
@@ -106,6 +79,8 @@ class MobileRuntimeInboxRepository(final MobileInboxClient _client) {
       'threadId': ?threadId,
       if (subject != null && subject.trim().isNotEmpty)
         'subject': subject.trim(),
+      'expiresInMs': ?expiresIn?.inMilliseconds,
+      if (supportsDelivery) 'delivery': ?delivery?.key,
     });
     return InboxAskResult.fromJson(payload);
   }

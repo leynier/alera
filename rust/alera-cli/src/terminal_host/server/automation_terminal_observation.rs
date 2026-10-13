@@ -115,11 +115,7 @@ impl ServerActor {
     ) -> HostResult<Value> {
         let run_id = super::requests::require_string_key(payload, "runId")?;
         let actor = self
-            .resolve_policy_actor(
-                client_id,
-                payload,
-                self.automation_actor(client_id, payload),
-            )
+            .resolve_request_actor(client_id, payload, self.automation_actor(client_id))
             .await?;
         let run = self
             .runtime_store
@@ -133,8 +129,9 @@ impl ServerActor {
         {
             session.observer_clients.remove(&client_id);
         }
+        self.release_bound_tab_for_run(&run, "takenOver").await;
         self.broadcast_workspace_tabs_changed(run.workspace_id.as_deref());
-        self.automation_run_event(&run);
+        self.broadcast_automation_run_changed(&run);
         Ok(
             json!({"run":run,"sessionId":run.session_id,"workspaceId":run.workspace_id,"tabId":run.tab_id}),
         )

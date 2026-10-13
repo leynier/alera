@@ -16,11 +16,13 @@ mod projects;
 mod projects_manage;
 mod prompt_workspace;
 mod pull_requests;
+mod recipes;
+mod runs;
+mod runs_manage;
 mod runtime;
 mod runtime_manage;
 mod terminals;
 mod terminals_manage;
-mod workflows;
 mod workspaces;
 mod workspaces_manage;
 
@@ -123,7 +125,7 @@ pub(super) fn admin(
 }
 
 pub(super) fn tools() -> Vec<ToolSpec> {
-    let groups: [fn() -> Vec<ToolSpec>; 21] = [
+    let groups: [fn() -> Vec<ToolSpec>; 23] = [
         runtime::tools,
         runtime_manage::tools,
         projects::tools,
@@ -139,7 +141,9 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         inbox_manage::tools,
         orchestration::tools,
         orchestration_manage::tools,
-        workflows::tools,
+        runs::tools,
+        runs_manage::tools,
+        recipes::tools,
         automations::tools,
         automations_manage::tools,
         pull_requests::tools,

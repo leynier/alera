@@ -293,40 +293,12 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         createdAt TEXT NOT NULL
     );",
     "CREATE INDEX IF NOT EXISTS automationAuditCreatedIdx ON automationAuditEvents(createdAt DESC);",
-    "CREATE TABLE IF NOT EXISTS automationTemplates (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        dataJson TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS automationTemplatesNameIdx ON automationTemplates(name COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS automationTags (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        createdAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS automationTagsNameIdx ON automationTags(name COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS automationTagAssignments (
-        automationId TEXT NOT NULL,
-        tagId TEXT NOT NULL,
-        PRIMARY KEY(automationId, tagId)
-    );",
-    "CREATE TABLE IF NOT EXISTS automationAgentPolicies (
-        profileId TEXT PRIMARY KEY,
-        dataJson TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS automationProjectPolicies (
-        projectId TEXT PRIMARY KEY,
-        dataJson TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
 ];
 
 /// Prevents a writer that was validated before a concurrent profile removal
 /// from committing a new dangling reference after that removal. These run
-/// after every owning table (including orchestration tables) has been created.
+/// after every owning table has been created; the guard on run execution
+/// policies lives with the orchestration schema in `runs_v3_schema`.
 pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
     "CREATE TRIGGER IF NOT EXISTS workspaceTabsAgentProfileInsertGuard
      BEFORE INSERT ON workspaceTabs
@@ -372,7 +344,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
@@ -383,7 +356,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
          )
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
@@ -397,7 +371,8 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
      ) IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM agentProfiles WHERE id = COALESCE(
@@ -408,17 +383,10 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
        json_extract(NEW.dataJson, '$.target.projectCheckout.agentProfileId'),
        json_extract(NEW.dataJson, '$.target.projectCheckout.agent_profile_id'),
        json_extract(NEW.dataJson, '$.target.projectWorktree.agentProfileId'),
-       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id')
+       json_extract(NEW.dataJson, '$.target.projectWorktree.agent_profile_id'),
+       json_extract(NEW.dataJson, '$.target.worktree.agentProfileId')
          )
        )
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS automationAgentPoliciesProfileInsertGuard
-     BEFORE INSERT ON automationAgentPolicies
-     WHEN NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.profileId)
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS automationAgentPoliciesProfileUpdateGuard
-     BEFORE UPDATE OF profileId ON automationAgentPolicies
-     WHEN NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = NEW.profileId)
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
     "CREATE TRIGGER IF NOT EXISTS defaultAgentProfileInsertGuard
      BEFORE INSERT ON runtimeMetadata
@@ -431,25 +399,5 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
      WHEN NEW.key = 'settings.agents.defaultAgentProfileId'
        AND trim(NEW.value) <> ''
        AND NOT EXISTS (SELECT 1 FROM agentProfiles WHERE id = trim(NEW.value))
-     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
-    "CREATE TRIGGER IF NOT EXISTS orchestrationPolicyProfileUpdateGuard
-     BEFORE UPDATE OF execution_policy, execution_policy_status, status
-     ON orchestrationCoordinatorRuns
-     WHEN NEW.execution_policy IS NOT NULL
-       AND NEW.status NOT IN ('completed', 'failed', 'stopped')
-       AND NEW.execution_policy_status IN ('draft', 'approved')
-       AND EXISTS (
-         SELECT 1 FROM json_each(json_extract(NEW.execution_policy, '$.stages')) AS stage
-         WHERE NOT EXISTS (
-           SELECT 1 FROM agentProfiles
-           WHERE name = json_extract(stage.value, '$.profile') COLLATE NOCASE
-         ) OR EXISTS (
-           SELECT 1 FROM json_each(json_extract(stage.value, '$.fallbacks')) AS fallback
-           WHERE NOT EXISTS (
-             SELECT 1 FROM agentProfiles
-             WHERE name = fallback.value COLLATE NOCASE
-           )
-         )
-       )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
 ];

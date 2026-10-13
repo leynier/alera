@@ -1,6 +1,6 @@
 use super::{
-    NewOrchestrationTask, OrchestrationDispatchStatus, OrchestrationGateStatus,
-    OrchestrationTaskStatus, RuntimeStore,
+    ActivityOutcome, NewOrchestrationTask, OrchestrationDispatchStatus, OrchestrationGateStatus,
+    OrchestrationTaskStatus, RuntimeStore, STALL_GATE_OPTIONS, STALL_GATE_RESUMED,
 };
 
 async fn store() -> (tempfile::TempDir, RuntimeStore) {
@@ -45,10 +45,11 @@ async fn a_stall_gate_leaves_the_dispatch_and_the_task_alone() {
     let task_id = stalled_task(&store).await;
 
     let gate = store
-        .create_orchestration_stall_gate(&task_id, "still alive?", &["Keep Waiting".to_string()])
+        .create_orchestration_stall_gate(&task_id, "still alive?")
         .await
         .unwrap();
     assert_eq!(gate.status, OrchestrationGateStatus::Pending);
+    assert_eq!(gate.options, STALL_GATE_OPTIONS);
 
     // The worker may still be running, so nothing about it may be reported as
     // finished: the task stays stalled and the dispatch keeps its status.
@@ -87,11 +88,11 @@ async fn opening_a_stall_gate_twice_reuses_the_pending_one() {
     let task_id = stalled_task(&store).await;
 
     let first = store
-        .create_orchestration_stall_gate(&task_id, "still alive?", &[])
+        .create_orchestration_stall_gate(&task_id, "still alive?")
         .await
         .unwrap();
     let second = store
-        .create_orchestration_stall_gate(&task_id, "still alive?", &[])
+        .create_orchestration_stall_gate(&task_id, "still alive?")
         .await
         .unwrap();
     assert_eq!(first.id, second.id);
@@ -117,7 +118,7 @@ async fn a_stall_gate_needs_a_stalled_task() {
         .unwrap();
 
     assert!(store
-        .create_orchestration_stall_gate(&task.id, "still alive?", &[])
+        .create_orchestration_stall_gate(&task.id, "still alive?")
         .await
         .is_err());
 }
@@ -127,18 +128,18 @@ async fn resolved_stall_gates_are_reported_until_the_task_leaves_stalled() {
     let (_dir, store) = store().await;
     let task_id = stalled_task(&store).await;
     let gate = store
-        .create_orchestration_stall_gate(&task_id, "still alive?", &[])
+        .create_orchestration_stall_gate(&task_id, "still alive?")
         .await
         .unwrap();
     assert!(store.resolved_stall_gates().await.unwrap().is_empty());
 
     store
-        .resolve_orchestration_gate(&gate.id, "Keep Waiting")
+        .resolve_gate(&gate.id, "keepWaiting", None)
         .await
         .unwrap();
     let pending = store.resolved_stall_gates().await.unwrap();
     assert_eq!(pending.len(), 1);
-    assert_eq!(pending[0].resolution.as_deref(), Some("Keep Waiting"));
+    assert_eq!(pending[0].resolution.as_deref(), Some("keepWaiting"));
 
     store
         .resume_stalled_orchestration_dispatch(&task_id)
@@ -204,4 +205,74 @@ async fn a_stalled_dispatch_is_reported_only_while_it_is_stalled() {
         .await
         .unwrap()
         .is_none());
+}
+
+#[tokio::test]
+async fn activity_from_a_stalled_worker_revives_it_and_resolves_its_gate_as_resumed() {
+    let (_dir, store) = store().await;
+    let task_id = stalled_task(&store).await;
+    let gate = store
+        .create_orchestration_stall_gate(&task_id, "still alive?")
+        .await
+        .unwrap();
+    let dispatch = store
+        .stalled_orchestration_dispatch_for_task(&task_id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        store
+            .record_orchestration_activity(&dispatch.id)
+            .await
+            .unwrap(),
+        ActivityOutcome::Revived
+    );
+    let resolved = store
+        .resolve_stall_gate_as_resumed(&task_id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(resolved.id, gate.id);
+    assert_eq!(resolved.status, OrchestrationGateStatus::Resolved);
+    assert_eq!(resolved.resolution.as_deref(), Some(STALL_GATE_RESUMED));
+    // Nobody may act on a worker that recovered on its own.
+    assert!(store.resolved_stall_gates().await.unwrap().is_empty());
+    assert!(store
+        .resolve_stall_gate_as_resumed(&task_id)
+        .await
+        .unwrap()
+        .is_none());
+    let task = store
+        .orchestration_task_by_id(&task_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(task.status, OrchestrationTaskStatus::Dispatched);
+}
+
+#[tokio::test]
+async fn a_stall_gate_only_takes_its_fixed_options() {
+    let (_dir, store) = store().await;
+    let task_id = stalled_task(&store).await;
+    let gate = store
+        .create_orchestration_stall_gate(&task_id, "still alive?")
+        .await
+        .unwrap();
+
+    let error = store
+        .resolve_gate(&gate.id, "Keep Waiting", None)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.starts_with("gate_invalid_resolution: "), "{error}");
+    assert!(store
+        .resolve_gate(&gate.id, STALL_GATE_RESUMED, None)
+        .await
+        .is_err());
+    store
+        .resolve_gate(&gate.id, "abortStage", None)
+        .await
+        .unwrap();
 }

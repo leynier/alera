@@ -4,9 +4,11 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'automation_workbench_context.g.dart';
@@ -22,7 +24,7 @@ class const AutomationWorkbenchContext({
   final List<SshTarget> hosts = const <SshTarget>[],
   final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace =
       const <String, List<WorkspaceTabRecord>>{},
-}) {
+}) implements AutomationNameLookup {
   Project? project(String? id) =>
       projects.where((item) => item.id == id).firstOrNull;
 
@@ -35,22 +37,21 @@ class const AutomationWorkbenchContext({
   AgentProfile? profile(String? id) =>
       profiles.where((item) => item.id == id).firstOrNull;
 
+  @override
   String projectName(String? id) => project(id)?.name ?? 'Unavailable Project';
 
+  @override
   String workspaceName(String? id) =>
       workspace(id)?.name ?? 'Unavailable Workspace';
 
   String sectionName(String? id) => section(id)?.name ?? 'Unavailable Section';
 
+  @override
   String profileName(String? id) =>
       profile(id)?.name ?? 'Unavailable Agent Profile';
 
-  String hostName(String? id) {
-    if (id == null || id.isEmpty || id == automationLocalHostId) {
-      return 'This Computer';
-    }
-    return hosts.where((host) => host.id == id).firstOrNull?.alias ?? id;
-  }
+  @override
+  String hostName(String? id) => workspaceHostLabel(hosts, id);
 
   List<Workspace> workspacesOf(String projectId) => workspaces
       .where((item) => item.projectId == projectId)

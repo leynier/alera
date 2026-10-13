@@ -37,9 +37,16 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
     required bool canGenerateTitle,
   }) async {
     final generating = tab.payload['agentTitleStatus'] == 'generating';
+    final run = RunTabIdentity.fromPayload(tab.payload);
     final action = await showAleraActionSheet<_TabAction>(
       context,
       entries: <AleraActionSheetEntry<_TabAction>>[
+        if (run != null)
+          const AleraActionSheetEntry<_TabAction>(
+            value: .viewRun,
+            label: 'View Run',
+            leading: Icon(AleraIcons.workspaceChildren),
+          ),
         if (canRename)
           const AleraActionSheetEntry<_TabAction>(
             value: .rename,
@@ -67,6 +74,10 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
     );
     if (!mounted) return;
     switch (action) {
+      case _TabAction.viewRun:
+        if (run != null) {
+          await openRun(context, widget.hostId, run.runId);
+        }
       case _TabAction.generateTitle:
         await _generateTitle(tab);
       case _TabAction.rename:
@@ -101,4 +112,4 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
   }
 }
 
-enum _TabAction { rename, generateTitle, close }
+enum _TabAction { viewRun, rename, generateTitle, close }

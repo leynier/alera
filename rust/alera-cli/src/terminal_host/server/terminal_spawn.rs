@@ -7,13 +7,13 @@ use crate::terminal_host::protocol::TerminalHostLaunch;
 use crate::terminal_host::session::Session;
 
 use super::pty_event_forwarder::forward_pty_event;
+use super::run_launch_requests::WorkflowLaunchPermit;
 use super::terminal_launch_defaults::default_terminal_launch;
 use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
 use super::terminal_startup_commands::{
     agent_profile_id, delivers_initial_command_once, delivers_initial_prompt_once,
     pending_agent_type, tab_agent_type, terminal_session_id,
 };
-use super::workflow_launch_requests::WorkflowLaunchPermit;
 use super::ServerActor;
 
 const DEFAULT_TERMINAL_COLS: u16 = 80;
@@ -57,19 +57,22 @@ impl ServerActor {
                 }
             };
             for tab in tabs.into_iter().filter(spawns_on_create) {
-                // The automation runner alone reconciles owner liveness and retry budgets.
-                if tab.payload["automationOwned"] == true
-                    && tab.payload["automationTakenOver"] != true
-                {
-                    let taken_over = match tab.payload["automationRunId"].as_str() {
+                // The automation runner alone reconciles owner liveness and
+                // retry budgets. The run decides whether a user took the tab
+                // over; the tab's own marker only speaks for a pruned run.
+                if tab.payload["automationOwned"] == true {
+                    let run = match tab.payload["automationRunId"].as_str() {
                         Some(id) => self
                             .runtime_store
                             .find_automation_run(id)
                             .await
                             .ok()
-                            .flatten()
-                            .is_some_and(|run| run.taken_over),
-                        None => false,
+                            .flatten(),
+                        None => None,
+                    };
+                    let taken_over = match run {
+                        Some(run) => run.taken_over,
+                        None => tab.payload["automationTakenOver"] == true,
                     };
                     if !taken_over {
                         continue;

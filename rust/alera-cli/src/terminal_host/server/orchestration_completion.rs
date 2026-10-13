@@ -174,8 +174,12 @@ impl ServerActor {
                     "workflow completion dispatch no longer exists",
                 )),
                 Ok(Some(dispatch))
-                    if dispatch.status != OrchestrationDispatchStatus::Dispatched
-                        && dispatch.status != OrchestrationDispatchStatus::Completed =>
+                    if !matches!(
+                        dispatch.status,
+                        OrchestrationDispatchStatus::Dispatched
+                            | OrchestrationDispatchStatus::Stalled
+                            | OrchestrationDispatchStatus::Completed
+                    ) =>
                 {
                     Err(HostError::state(
                         "workflow completion dispatch is no longer active",
@@ -253,7 +257,6 @@ fn verify_completion(check: WorkflowCompletionCheck, result: &str) -> HostResult
 fn completion_response(completed: &OrchestrationDispatchContext) -> Value {
     json!({
         "delivered": true,
-        "lifecycleAccepted": true,
         "taskId": completed.task_id,
         "dispatchId": completed.id,
         "taskStatus": "completed",

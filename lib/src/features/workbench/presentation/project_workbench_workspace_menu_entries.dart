@@ -38,9 +38,11 @@ const PopupMenuDivider _workspaceMenuDivider = PopupMenuDivider(
 
 /// Builds the right-click menu entries for a workspace row. [hasClearParent]
 /// gates the "Clear Parent Workspace" item and [canRemove] disables the remove
-/// action for the main (non-deletable) workspace.
+/// action for the main (non-deletable) workspace. [isRemote] drops the file
+/// manager reveal, which can only open folders on this device.
 List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required String fileManagerLabel,
+  bool isRemote = false,
   bool supportsSections = false,
   bool hasSection = false,
   required bool hasClearParent,
@@ -115,7 +117,7 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
     _workspaceMenuDivider,
     ...linkedIssueEntries,
     if (linkedIssueEntries.isNotEmpty) _workspaceMenuDivider,
-    _openMenuEntry(fileManagerLabel: fileManagerLabel),
+    _openMenuEntry(fileManagerLabel: fileManagerLabel, isRemote: isRemote),
     const AleraDropdownEntry<String>(
       value: _copyPathAction,
       leading: Icon(AleraIcons.copy, size: 16, color: AleraTokens.foreground),
@@ -301,7 +303,10 @@ List<PopupMenuEntry<String>> _sectionChoiceEntries({
   ];
 }
 
-PopupMenuEntry<String> _openMenuEntry({required String fileManagerLabel}) {
+PopupMenuEntry<String> _openMenuEntry({
+  required String fileManagerLabel,
+  required bool isRemote,
+}) {
   return AleraDropdownSubmenuEntry<String>(
     leading: const Icon(
       AleraIcons.external,
@@ -319,15 +324,16 @@ PopupMenuEntry<String> _openMenuEntry({required String fileManagerLabel}) {
         ),
         label: 'In Browser',
       ),
-      AleraDropdownEntry<String>(
-        value: _openFolderAction,
-        leading: const Icon(
-          AleraIcons.folderOpen,
-          size: 16,
-          color: AleraTokens.foreground,
+      if (!isRemote)
+        AleraDropdownEntry<String>(
+          value: _openFolderAction,
+          leading: const Icon(
+            AleraIcons.folderOpen,
+            size: 16,
+            color: AleraTokens.foreground,
+          ),
+          label: 'In $fileManagerLabel',
         ),
-        label: 'In $fileManagerLabel',
-      ),
       const AleraDropdownEntry<String>(
         value: _openProjectSettingsAction,
         leading: Icon(AleraIcons.settings, size: 16),

@@ -70,23 +70,23 @@ async fn orchestration_requests_follow_the_mobile_allowlist() {
     let payload = json!({"terminal": "worker", "limit": 5});
 
     let local = fixture
-        .request(LOCAL, "orchestration.inbox", payload.clone())
+        .request(LOCAL, "orchestration.messages", payload.clone())
         .await;
     assert_eq!(local["ok"], true, "{local}");
 
     for client in [PHONE, RELAY] {
         let refused = fixture
-            .request(client, "orchestration.inbox", payload.clone())
+            .request(client, "orchestration.messages", payload.clone())
             .await;
         assert_eq!(refused["ok"], false, "{refused}");
         assert_eq!(
             refused["error"],
-            "Mobile clients cannot call terminal host request: orchestration.inbox"
+            "Mobile clients cannot call terminal host request: orchestration.messages"
         );
     }
 
     let anonymous = fixture
-        .request(ANONYMOUS, "orchestration.inbox", payload)
+        .request(ANONYMOUS, "orchestration.messages", payload)
         .await;
     assert_eq!(anonymous["ok"], false, "{anonymous}");
     assert_eq!(
@@ -112,7 +112,11 @@ async fn mobile_clients_cannot_mutate_orchestration_state() {
     assert_eq!(reset["ok"], false, "{reset}");
 
     let inbox = fixture
-        .request(LOCAL, "orchestration.inbox", json!({"terminal": "worker"}))
+        .request(
+            LOCAL,
+            "orchestration.messages",
+            json!({"terminal": "worker"}),
+        )
         .await;
     assert_eq!(inbox["payload"]["items"].as_array().unwrap().len(), 1);
 }

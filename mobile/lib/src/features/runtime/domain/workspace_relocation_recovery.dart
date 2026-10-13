@@ -49,7 +49,7 @@ class const WorkspaceRelocationRecoverySnapshot({
   final String? ownerError,
 }) {
   factory fromResponse(WorkspaceSummary workspace, Object? response) {
-    if (!workspace.isRemote) {
+    if (!workspace.isOnRemoteHost) {
       final entries = _list(response)
           .map((item) => _localEntry(workspace, _map(item)))
           .toList();

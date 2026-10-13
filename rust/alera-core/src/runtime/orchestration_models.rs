@@ -10,12 +10,13 @@ pub enum OrchestrationMessageType {
     #[default]
     Status,
     Dispatch,
-    WorkerDone,
     MergeReady,
     Escalation,
     Handoff,
     DecisionGate,
-    Heartbeat,
+    /// A question to an agent, from an inbox (`ext:`) or from `ask`. The
+    /// recipient answers it with `reply`.
+    Question,
 }
 
 impl OrchestrationMessageType {
@@ -23,12 +24,11 @@ impl OrchestrationMessageType {
         match self {
             OrchestrationMessageType::Status => "status",
             OrchestrationMessageType::Dispatch => "dispatch",
-            OrchestrationMessageType::WorkerDone => "worker_done",
             OrchestrationMessageType::MergeReady => "merge_ready",
             OrchestrationMessageType::Escalation => "escalation",
             OrchestrationMessageType::Handoff => "handoff",
             OrchestrationMessageType::DecisionGate => "decision_gate",
-            OrchestrationMessageType::Heartbeat => "heartbeat",
+            OrchestrationMessageType::Question => "question",
         }
     }
 
@@ -36,22 +36,55 @@ impl OrchestrationMessageType {
         match value {
             "status" => Some(OrchestrationMessageType::Status),
             "dispatch" => Some(OrchestrationMessageType::Dispatch),
-            "worker_done" => Some(OrchestrationMessageType::WorkerDone),
             "merge_ready" => Some(OrchestrationMessageType::MergeReady),
             "escalation" => Some(OrchestrationMessageType::Escalation),
             "handoff" => Some(OrchestrationMessageType::Handoff),
             "decision_gate" => Some(OrchestrationMessageType::DecisionGate),
-            "heartbeat" => Some(OrchestrationMessageType::Heartbeat),
+            "question" => Some(OrchestrationMessageType::Question),
             _ => None,
         }
     }
+}
 
-    pub fn is_lifecycle(self) -> bool {
-        matches!(
-            self,
-            OrchestrationMessageType::WorkerDone | OrchestrationMessageType::Heartbeat
-        )
+/// When a queued message may be pasted into the recipient's terminal.
+/// `TurnEnd` waits until the agent is idle; `Now` may also be pasted while
+/// the agent is working when its adapter queues input typed mid-turn.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum MessageDelivery {
+    Now,
+    #[default]
+    TurnEnd,
+}
+
+impl MessageDelivery {
+    /// The stored column value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MessageDelivery::Now => "now",
+            MessageDelivery::TurnEnd => "turn_end",
+        }
     }
+
+    /// Reads the stored value; the wire form `turnEnd` is accepted too.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "now" => Some(MessageDelivery::Now),
+            "turn_end" | "turnEnd" => Some(MessageDelivery::TurnEnd),
+            _ => None,
+        }
+    }
+}
+
+/// What recording runtime activity did to a dispatch's lease.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivityOutcome {
+    /// The dispatch is not active, so nothing changed.
+    Ignored,
+    /// The lease of a dispatched worker was renewed.
+    Recorded,
+    /// A stalled dispatch showed activity again and is dispatched once more.
+    Revived,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -178,6 +211,8 @@ pub enum OrchestrationGateStatus {
     Pending,
     Resolved,
     Timeout,
+    /// Superseded before anyone resolved it, such as a plan proposed again.
+    Invalidated,
 }
 
 impl OrchestrationGateStatus {
@@ -186,6 +221,7 @@ impl OrchestrationGateStatus {
             OrchestrationGateStatus::Pending => "pending",
             OrchestrationGateStatus::Resolved => "resolved",
             OrchestrationGateStatus::Timeout => "timeout",
+            OrchestrationGateStatus::Invalidated => "invalidated",
         }
     }
 
@@ -194,42 +230,48 @@ impl OrchestrationGateStatus {
             "pending" => Some(OrchestrationGateStatus::Pending),
             "resolved" => Some(OrchestrationGateStatus::Resolved),
             "timeout" => Some(OrchestrationGateStatus::Timeout),
+            "invalidated" => Some(OrchestrationGateStatus::Invalidated),
             _ => None,
         }
     }
 }
 
+/// Run lifecycle, schema v3. A cancelled run without `completed_at` is still
+/// settling its cancellation and keeps its workspace.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub enum OrchestrationCoordinatorStatus {
-    Idle,
+    Planning,
+    AwaitingApproval,
     Running,
+    Paused,
     Completed,
     Failed,
-    Stopping,
-    Stopped,
+    Cancelled,
 }
 
 impl OrchestrationCoordinatorStatus {
     pub fn as_str(self) -> &'static str {
         match self {
-            OrchestrationCoordinatorStatus::Idle => "idle",
+            OrchestrationCoordinatorStatus::Planning => "planning",
+            OrchestrationCoordinatorStatus::AwaitingApproval => "awaitingApproval",
             OrchestrationCoordinatorStatus::Running => "running",
+            OrchestrationCoordinatorStatus::Paused => "paused",
             OrchestrationCoordinatorStatus::Completed => "completed",
             OrchestrationCoordinatorStatus::Failed => "failed",
-            OrchestrationCoordinatorStatus::Stopping => "stopping",
-            OrchestrationCoordinatorStatus::Stopped => "stopped",
+            OrchestrationCoordinatorStatus::Cancelled => "cancelled",
         }
     }
 
     pub fn parse(value: &str) -> Option<Self> {
         match value {
-            "idle" => Some(OrchestrationCoordinatorStatus::Idle),
+            "planning" => Some(OrchestrationCoordinatorStatus::Planning),
+            "awaitingApproval" => Some(OrchestrationCoordinatorStatus::AwaitingApproval),
             "running" => Some(OrchestrationCoordinatorStatus::Running),
+            "paused" => Some(OrchestrationCoordinatorStatus::Paused),
             "completed" => Some(OrchestrationCoordinatorStatus::Completed),
             "failed" => Some(OrchestrationCoordinatorStatus::Failed),
-            "stopping" => Some(OrchestrationCoordinatorStatus::Stopping),
-            "stopped" => Some(OrchestrationCoordinatorStatus::Stopped),
+            "cancelled" => Some(OrchestrationCoordinatorStatus::Cancelled),
             _ => None,
         }
     }
@@ -262,6 +304,8 @@ pub struct OrchestrationMessage {
     pub reply_to_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_meta: Option<serde_json::Value>,
+    #[serde(default)]
+    pub delivery: MessageDelivery,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -308,14 +352,12 @@ pub struct OrchestrationDispatchContext {
     pub dispatched_at: Option<String>,
     pub completed_at: Option<String>,
     pub created_at: String,
-    pub last_heartbeat_at: Option<String>,
     pub run_id: Option<String>,
     pub workspace_id: String,
     pub coordinator_handle: String,
     pub accepted_at: Option<String>,
     pub last_activity_at: Option<String>,
     pub context_token_hash: Option<String>,
-    pub completion_policy: String,
     pub terminal_policy: String,
     pub startup_error: Option<String>,
     /// Exact task-worktree commit accepted with a successful workflow result.
@@ -333,7 +375,12 @@ pub struct OrchestrationDispatchContext {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationDecisionGate {
     pub id: String,
+    #[serde(default)]
+    pub run_id: Option<String>,
+    /// Empty for run-scoped gates (`plan`, `stage`).
     pub task_id: String,
+    #[serde(default)]
+    pub kind: RunGateKind,
     pub question: String,
     pub options: Vec<String>,
     pub status: OrchestrationGateStatus,
@@ -355,56 +402,73 @@ pub struct OrchestrationCoordinatorRun {
     pub max_concurrent: i64,
     pub last_activity_at: String,
     pub stop_reason: Option<String>,
-    /// The stage plan the user approved for this run, as JSON. `None` means the
-    /// run predates policies or never had one, and behaves exactly as before.
+    /// The run's stage plan, as JSON. `None` means the run never had one.
     #[serde(default)]
     pub execution_policy: Option<String>,
+    /// Whether the plan waits for a person to approve it before scheduling.
     #[serde(default)]
-    pub execution_policy_status: OrchestrationPolicyStatus,
+    pub approval_required: bool,
+    /// `ask`, `auto-failover` or `wait`.
     #[serde(default)]
-    pub execution_policy_updated_at: Option<String>,
+    pub stall_policy: String,
+    #[serde(default)]
+    pub paused_by: Option<String>,
+    #[serde(default)]
+    pub isolation: String,
+    #[serde(default)]
+    pub attention_reason: Option<String>,
+    #[serde(default)]
+    pub plan_revision: Option<i64>,
+    #[serde(default)]
+    pub control_sequence: i64,
+    #[serde(default)]
+    pub coordinator_tab_id: Option<String>,
 }
 
-/// Approval state of a run's execution policy.
-///
-/// Stored without a SQL CHECK constraint on purpose: widening a CHECK requires
-/// a table rebuild, and this set is the kind that grows.
+impl OrchestrationCoordinatorRun {
+    /// Planning, awaiting plan approval, running, paused, or cancelled with
+    /// its cancellation still settling: the states that hold the workspace's
+    /// single active-run slot.
+    pub fn holds_workspace(&self) -> bool {
+        matches!(
+            self.status,
+            OrchestrationCoordinatorStatus::Planning
+                | OrchestrationCoordinatorStatus::AwaitingApproval
+                | OrchestrationCoordinatorStatus::Running
+                | OrchestrationCoordinatorStatus::Paused
+        ) || (self.status == OrchestrationCoordinatorStatus::Cancelled
+            && self.completed_at.is_none())
+    }
+}
+
+/// Which decision a `runGates` row asks for.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum OrchestrationPolicyStatus {
-    /// No policy was ever proposed. The run schedules exactly as it did before
-    /// policies existed.
+pub enum RunGateKind {
     #[default]
-    None,
-    /// Proposed and awaiting the user. The coordinator must not dispatch.
-    Draft,
-    Approved,
-    Rejected,
+    Decision,
+    Stall,
+    Plan,
+    Stage,
 }
 
-impl OrchestrationPolicyStatus {
+impl RunGateKind {
     pub fn as_str(self) -> &'static str {
         match self {
-            OrchestrationPolicyStatus::None => "none",
-            OrchestrationPolicyStatus::Draft => "draft",
-            OrchestrationPolicyStatus::Approved => "approved",
-            OrchestrationPolicyStatus::Rejected => "rejected",
+            RunGateKind::Decision => "decision",
+            RunGateKind::Stall => "stall",
+            RunGateKind::Plan => "plan",
+            RunGateKind::Stage => "stage",
         }
     }
 
     pub fn parse(value: &str) -> Option<Self> {
         match value {
-            "none" => Some(OrchestrationPolicyStatus::None),
-            "draft" => Some(OrchestrationPolicyStatus::Draft),
-            "approved" => Some(OrchestrationPolicyStatus::Approved),
-            "rejected" => Some(OrchestrationPolicyStatus::Rejected),
+            "decision" => Some(RunGateKind::Decision),
+            "stall" => Some(RunGateKind::Stall),
+            "plan" => Some(RunGateKind::Plan),
+            "stage" => Some(RunGateKind::Stage),
             _ => None,
         }
-    }
-
-    /// Only a proposed-but-unresolved policy blocks scheduling. A run with no
-    /// policy, an approved one, or a rejected one all keep scheduling.
-    pub fn blocks_dispatch(self) -> bool {
-        matches!(self, OrchestrationPolicyStatus::Draft)
     }
 }

@@ -1,12 +1,13 @@
-import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_compose_screen.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
+import 'package:alera_mobile/src/features/runs/application/activity_providers.dart';
+import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Asks an agent and opens the new question. The inbox switches to Questions
-/// first, so returning to it shows that question rather than the agent
-/// conversations that were open there before.
+/// Asks an agent and opens the new question. Activity switches to Questions
+/// first, so returning to it shows that question rather than whatever part
+/// was open there before.
 Future<void> askAgentAndOpenThread(
   BuildContext context,
   WidgetRef ref, {
@@ -15,8 +16,8 @@ Future<void> askAgentAndOpenThread(
   String? preselectedHandle,
 }) async {
   ref
-      .read(mobileInboxSectionControllerProvider(hostId).notifier)
-      .select(InboxSection.questions);
+      .read(mobileActivitySectionControllerProvider(hostId).notifier)
+      .select(ActivitySection.questions);
   final threadId = await Navigator.of(context).push<String>(
     MaterialPageRoute<String>(
       builder: (_) => InboxComposeScreen(

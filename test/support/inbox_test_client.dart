@@ -17,6 +17,9 @@ class InboxTestClient
       <String, Object? Function(Map<String, Object?>)>{};
   bool supported = true;
 
+  /// Advertises `inboxV2`, the delivery choice.
+  bool deliverySupported = false;
+
   void respond(String type, Object? payload) => handlers[type] = (_) => payload;
 
   void emit(String name) => events.add(RuntimeHostEvent(name, const {}));
@@ -31,7 +34,12 @@ class InboxTestClient
 
   @override
   Future<bool> supportsRuntimeCapability(String capability) async =>
-      capability == aleraRuntimeHostInboxCapability && supported;
+      switch (capability) {
+        aleraRuntimeHostInboxCapability => supported,
+        aleraRuntimeHostInboxDeliveryCapability =>
+          supported && deliverySupported,
+        _ => false,
+      };
 
   @override
   Future<Object?> runtimeRequest(
@@ -94,9 +102,13 @@ Map<String, Object?> inboxMessageJson({
   String from = 'ext:user',
   String to = 'term-1',
   String? expiresAt,
+  String? delivery,
+  String? deliveredAt,
 }) => <String, Object?>{
   'kind': kind,
   'status': ?status,
+  'delivery': ?delivery,
+  'deliveredAt': ?deliveredAt,
   'message': <String, Object?>{
     'id': id,
     'from_handle': from,

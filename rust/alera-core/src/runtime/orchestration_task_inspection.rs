@@ -9,7 +9,7 @@ use super::orchestration_board_store::BOARD_REVISION_SQL;
 use super::RuntimeStore;
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OrchestrationTaskInspectionQuery {
     pub run_id: String,
     pub task_id: String,
@@ -18,7 +18,7 @@ pub struct OrchestrationTaskInspectionQuery {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TaskHistoryCursor {
     pub occurred_at: String,
     pub id: String,
@@ -26,6 +26,7 @@ pub struct TaskHistoryCursor {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OrchestrationTaskInspection {
     pub revision: i64,
     pub task_id: String,
@@ -48,12 +49,21 @@ pub struct OrchestrationTaskInspection {
     pub result: TaskResultInspection,
     pub history: Vec<TaskHistoryEntry>,
     pub next_cursor: Option<TaskHistoryCursor>,
-    pub workflow: Option<TaskWorkflowInspection>,
+    /// The latest isolated attempt; absent for shared runs.
+    pub attempt: Option<TaskWorkflowInspection>,
+    /// Gates on this task (decision, stall), newest first.
+    pub gates: Vec<super::RunGate>,
+    pub logical_id: Option<String>,
+    pub plan_revision: Option<i64>,
+    pub role_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskWorkflowInspection {
     pub plan_revision: i64,
+    pub attempt: i64,
+    pub phase: String,
     pub can_retry: bool,
     pub can_retry_integration: bool,
     pub state: String,
@@ -72,6 +82,7 @@ pub struct TaskWorkflowInspection {
 }
 
 #[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskResultInspection {
     pub summary: Option<String>,
     pub completion_kind: Option<String>,
@@ -82,6 +93,7 @@ pub struct TaskResultInspection {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskHistoryEntry {
     pub id: String,
     pub occurred_at: String,
@@ -126,7 +138,8 @@ impl RuntimeStore {
                 COALESCE(length(t.result) > 65536, 0) AS result_truncated,
                 substr(w.name, 1, 256) AS workspace_name,
                 substr(w.path, 1, 4096) AS workspace_path,
-                substr(w.branch, 1, 256) AS branch
+                substr(w.branch, 1, 256) AS branch,
+                t.logical_id, t.plan_revision, t.role_id
              FROM orchestrationTasks t LEFT JOIN workspaces w ON w.id = t.workspace_id
              WHERE t.id = ? AND t.run_id = ?",
         )
@@ -145,7 +158,17 @@ impl RuntimeStore {
         .bind(&query.run_id)
         .fetch_optional(&mut *tx)
         .await?;
-        let workflow = inspect_workflow_task(&mut tx, &query.run_id, &query.task_id).await?;
+        let attempt = inspect_workflow_task(&mut tx, &query.run_id, &query.task_id).await?;
+        let gates = sqlx::query(sqlx::AssertSqlSafe(format!(
+            "SELECT {} FROM runGates WHERE task_id = ? ORDER BY rowid DESC LIMIT 20",
+            super::run_gate_resolution::RUN_GATE_COLUMNS
+        )))
+        .bind(&query.task_id)
+        .fetch_all(&mut *tx)
+        .await?
+        .into_iter()
+        .map(super::run_gate_resolution::run_gate_from_row)
+        .collect::<Result<Vec<_>>>()?;
         let deps: Option<String> = row.try_get("deps")?;
         let (dependencies, dependencies_truncated) = bounded_dependencies(deps.as_deref());
         let result: Option<String> = row.try_get("result")?;
@@ -168,11 +191,11 @@ impl RuntimeStore {
                 UNION ALL
                 SELECT id, updated_at AS occurred_at, 'workflowLaunch' AS kind,
                     status, substr(error, 1, 2048) AS summary
-                FROM workflowLaunches WHERE task_id = ? AND run_id = ?
+                FROM runLaunches WHERE task_id = ? AND run_id = ?
                 UNION ALL
                 SELECT id, updated_at AS occurred_at, 'workflowIntegration' AS kind,
                     state AS status, substr(error, 1, 2048) AS summary
-                FROM workflowIntegrations WHERE task_id = ? AND run_id = ?
+                FROM runIntegrations WHERE task_id = ? AND run_id = ?
              )
              SELECT * FROM history
              WHERE (? IS NULL OR occurred_at < ? OR (occurred_at = ? AND id < ?))
@@ -245,7 +268,11 @@ impl RuntimeStore {
             result,
             history,
             next_cursor,
-            workflow,
+            attempt,
+            gates,
+            logical_id: row.try_get("logical_id")?,
+            plan_revision: row.try_get("plan_revision")?,
+            role_id: row.try_get("role_id")?,
         };
         tx.commit().await?;
         Ok(inspection)
@@ -257,15 +284,13 @@ async fn inspect_workflow_task(
     run: &str,
     task: &str,
 ) -> Result<Option<TaskWorkflowInspection>> {
-    let Some(row) = sqlx::query("SELECT p.revision AS plan_revision,
-            (r.revision=p.revision AND r.status='approved' AND c.status IN ('idle','running')
-             AND x.phase='attention' AND t.status IN ('pending','ready') AND i.id IS NULL
-             AND NOT EXISTS(SELECT 1 FROM workflowExecution WHERE run_id=p.run_id AND status='running')) AS can_retry,
-            (r.revision=p.revision AND r.status='approved' AND c.status IN ('idle','running')
+    let Some(row) = sqlx::query("SELECT t.plan_revision,
+            (c.plan_revision=t.plan_revision AND c.status='paused'
+             AND x.phase='attention' AND t.status IN ('pending','ready') AND i.id IS NULL) AS can_retry,
+            (c.plan_revision=t.plan_revision AND c.status='paused'
              AND t.status='completed' AND i.state='attention' AND i.cancelled=0
-             AND i.revision=p.revision AND i.workspace_id=x.id
-             AND NOT EXISTS(SELECT 1 FROM workflowExecution WHERE run_id=p.run_id AND status='running')) AS can_retry_integration,
-            x.id AS workspace_id, x.phase AS workspace_phase,
+             AND i.revision=t.plan_revision AND i.workspace_id=x.id) AS can_retry_integration,
+            x.id AS workspace_id, x.phase AS workspace_phase, x.attempt,
             x.error AS workspace_error, w.path, w.branch,
             json_extract(x.identity, '$.baseSha') AS base_sha,
             l.id AS launch_id, l.status AS launch_status, l.error AS launch_error,
@@ -274,16 +299,15 @@ async fn inspect_workflow_task(
             CASE WHEN i.cancelled=1 THEN 'cancelled' ELSE i.state END AS integration_state, i.receipt,
             i.conflict_paths, i.conflicts_truncated, i.error AS integration_error,
             e.task_id AS evidence_id, t.status AS task_status, t.result IS NOT NULL AS has_result
-        FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
-        JOIN workflowRuns r ON r.run_id=p.run_id
-        JOIN orchestrationCoordinatorRuns c ON c.id=p.run_id
-        JOIN workflowWorkspaces x ON x.sequence = (SELECT MAX(sequence) FROM workflowWorkspaces WHERE task_id = p.task_id)
+        FROM orchestrationTasks t
+        JOIN orchestrationCoordinatorRuns c ON c.id=t.run_id AND c.isolation='isolated'
+        JOIN runWorkspaces x ON x.sequence = (SELECT MAX(sequence) FROM runWorkspaces WHERE task_id = t.id)
         LEFT JOIN workspaces w ON w.id = x.id
-        LEFT JOIN workflowLaunches l ON l.workspace_id = x.id
+        LEFT JOIN runLaunches l ON l.workspace_id = x.id
         LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
-        LEFT JOIN workflowIntegrations i ON i.sequence = (SELECT MAX(sequence) FROM workflowIntegrations WHERE task_id = p.task_id)
-        LEFT JOIN workflowTaskEvidence e ON e.task_id = p.task_id
-        WHERE p.run_id = ? AND p.task_id = ?")
+        LEFT JOIN runIntegrations i ON i.sequence = (SELECT MAX(sequence) FROM runIntegrations WHERE task_id = t.id)
+        LEFT JOIN runTaskEvidence e ON e.task_id = t.id
+        WHERE t.run_id = ? AND t.id = ? AND t.plan_revision IS NOT NULL")
         .bind(run).bind(task).fetch_optional(&mut **tx).await? else { return Ok(None); };
     let integration_state: Option<String> = row.try_get("integration_state")?;
     let launch_state: Option<String> = row.try_get("launch_status")?;
@@ -338,6 +362,8 @@ async fn inspect_workflow_task(
         .unwrap_or_default();
     Ok(Some(TaskWorkflowInspection {
         plan_revision: row.try_get("plan_revision")?,
+        attempt: row.try_get("attempt")?,
+        phase: workspace_phase.clone(),
         can_retry: row.try_get("can_retry")?,
         can_retry_integration: row.try_get("can_retry_integration")?,
         state: state.into(),

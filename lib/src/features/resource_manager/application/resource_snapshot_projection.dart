@@ -85,7 +85,7 @@ ResourceTree buildResourceTree({
       workspaceId: workspace.id,
       name: workspace.name,
       projectId: workspace.projectId,
-      remote: workspace.hostId != 'local',
+      hostId: workspace.hostId,
       sessions: List<ResourceSessionRow>.unmodifiableOf(sessions),
     );
     workspacesByProject

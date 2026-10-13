@@ -82,14 +82,3 @@ git_hosting_provider = "github" # or "gitlab" / "azureDevops"
 When it is absent, Alera auto-detects GitHub.com, GitLab.com, and Azure DevOps from `origin`. Set it explicitly for self-hosted instances. Authentication stays with `gh`, `glab`, or `az`.
 
 `githubEnterprise` / `github_enterprise` / `github-enterprise` are accepted aliases for GitHub Enterprise Server. GitLab self-managed uses `gitlab`. Azure aliases `azure`, `azure_devops`, and `azure-devops` are also accepted.
-
-## Allowing Automations
-
-A repository must opt in before any [automation](/docs/automations) runs in it:
-
-```toml
-[automation]
-declared = true
-```
-
-Declaring it only allows runs. Each automation still needs an agent profile with **May Execute Automations** on and an approved revision.

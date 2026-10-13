@@ -75,6 +75,7 @@ async fn remote_fixture(directory: &tempfile::TempDir) -> (RuntimeStore, HostLin
             last_status: None,
             install_dir: Some("~/.alera/sidecar".into()),
             projects_dir: None,
+            identity_file: None,
             runtime_version: None,
             runtime_platform: Some("linux".into()),
             runtime_arch: None,

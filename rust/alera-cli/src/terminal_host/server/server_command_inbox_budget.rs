@@ -65,7 +65,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
             super::super::runtime_mutations::budget::runtime_mutation_finished_bytes(finished)
         }
         ServerCommand::WorkflowLaunch(command) => {
-            super::super::workflow_launch_requests::budget::command_bytes(command)
+            super::super::run_launch_requests::budget::command_bytes(command)
         }
         ServerCommand::RemoteTerminalLifecycleFinished {
             verb,
@@ -124,7 +124,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         | ServerCommand::PromptWorkspaceOperationChanged { operation_id: id }
         | ServerCommand::PromptWorkspaceOperationFinished { operation_id: id }
         | ServerCommand::HubReverseRequestExpired { reverse_id: id }
-        | ServerCommand::HostLinkStateChanged { host_id: id }
+        | ServerCommand::HostLinkStateChanged { host_id: id, .. }
         | ServerCommand::HostLinkClosed { host_id: id, .. }
         | ServerCommand::CodexProcessExited { reason: id }
         | ServerCommand::CodexMalformed { reason: id } => string_bytes(id),
@@ -269,7 +269,7 @@ pub(super) fn bound_completion_result(command: &mut ServerCommand) {
             super::super::runtime_mutations::budget::bound_runtime_mutation_finished(finished);
         }
         ServerCommand::WorkflowLaunch(command) => {
-            super::super::workflow_launch_requests::budget::bound(command);
+            super::super::run_launch_requests::budget::bound(command);
         }
         ServerCommand::OwnerTerminalLifecycleFinished { result, .. }
         | ServerCommand::RemoteSetupFinished { result, .. }
@@ -489,7 +489,7 @@ fn is_completion_command(command: &ServerCommand) -> bool {
     }
     match command {
         ServerCommand::WorkflowLaunch(command) => {
-            super::super::workflow_launch_requests::budget::is_completion(command)
+            super::super::run_launch_requests::budget::is_completion(command)
         }
         ServerCommand::VoiceRealtime { event, .. } => !matches!(
             event,

@@ -2,6 +2,15 @@
 
 Fecha: 2026-10-10. Base: `c8b3d3984` (release v0.104.1). Alcance: código fuente real de la GUI desktop (`lib/`), la app mobile (`mobile/lib`), el CLI (`rust/alera-cli`), el runtime host (`rust/alera-cli/src/terminal_host`) y el edge (`edge/src/mcp`). Solo investigación: no se implementó ni se modificó código.
 
+> **Actualización, 2026-10-12 (orquestación v3):** las filas de orquestación de este documento describen la superficie anterior. Con el contrato v3 (protocolo del host 5, orquestación 3, skill 4) cambió lo siguiente; el resto del análisis no se ha rehecho.
+>
+> - Desaparecen `dispatch-accept`, `heartbeat`, `worker-done` y `worker-help`: el primer comando del worker acepta el dispatch y `complete` solo exige `--summary`. `orchestration inbox` pasa a `orchestration messages`.
+> - `task-create`, `agent-spawn`, `task-list`, `dispatch`, `board`, `run-snapshot`, `task-inspect`, `run`, `run-list`, `run-show`, `run-stop` y `status` dejan de existir en el CLI. Los sustituyen `delegate` y los grupos `run`, `plan`, `gate`, `task`, `terminal` y `recipe` (ver [orchestration.md](orchestration.md#cli)).
+> - La run policy y los `workflows.*` se fusionan en un solo run: RPCs `runs.*` (`runsV1`) y `recipes.*` (`recipesV1`), con gates unificados (`decision`, `stall`, `plan`, `stage`). Ver [runs.md](runs.md).
+> - El MCP expone las herramientas de runs y recipes (`list_runs`, `show_run`, `get_run_timeline`, `create_run`, `propose_run_plan`, `list_run_gates`, `cancel_run`, cleanup, `list_recipes`, ...). `resolve_run_gate` y aplicar, reintentar o abandonar un cleanup existen con nivel Admin, aunque la decisión U5 del plan dejaba las decisiones humanas fuera del MCP.
+> - El estado de pregunta `received` desaparece (se pliega en `delivered`), y las conversaciones entre agentes ya no se muestran en las apps ni están en la allowlist del teléfono; siguen disponibles por CLI y MCP.
+> - El Run Board, el diálogo Execution Plans y Settings > Workflows se sustituyen por la página Activity y Settings > Recipes.
+
 ## 1. Resumen ejecutivo
 
 - El MCP de Alera expone **31 herramientas** (21 de lectura, incluidas 3 esperas acotadas, y 10 de ejecución), más `list_runtimes`, que solo existe en el edge. El CLI tiene unos **200 subcomandos** y el runtime host atiende **más de 400 métodos RPC**. La cobertura del MCP es intencionalmente estrecha: se centra en descubrir, lanzar agentes, conversar con ellos y orquestar.
@@ -74,11 +83,11 @@ Control de acceso:
 |---|---|---|---|---|---|
 | Listar proyectos | D, M | `project list` | `list_projects` | Cubierta | — |
 | Registrar proyecto local | D, M | `project add` | — | Brecha | P2 |
-| Clonar proyecto desde URL | D, M (`project.clone.*`) | Solo `project add-remote` (SSH) | — | Brecha. El clon local solo existe en la GUI | P2 |
-| Registrar proyecto remoto o checkout SSH | D | `project add-remote`, `project register-checkout` | — | Brecha | P3 |
+| Clonar proyecto desde URL | D, M (`project.clone.*`) | `project clone start/list/show/cancel`; `project add-remote --clone-url` en un host | `clone_project`, `get_project_clone`, `list_project_clones`, `cancel_project_clone` | Cubierta | - |
+| Registrar proyecto remoto o ponerlo en un host | D | `project add-remote`, `project hosts add` (`--path`, `--clone-url` o ambos; `register-checkout` queda como alias oculto) | `register_remote_project`, `add_project_host` | Cubierta | - |
 | Renombrar proyecto | D, M (`project.rename`) | — | — | Brecha, solo GUI | P3 |
 | Eliminar proyecto | D, M | `project remove` | — | Por diseño (destructivo), o como mucho con confirmación explícita | — |
-| Hosts del proyecto | D | `project hosts list/add/remove` | — | Brecha. `list` es lectura útil | P2 (list) / P3 |
+| Hosts del proyecto | D | `project hosts list/add/remove` | `list_project_hosts`, `add_project_host`, `remove_project_host` | Cubierta | - |
 | Ramas del proyecto (catálogo) | D, M (`project.branches.list`) | — | — | Brecha, solo GUI. Hoy un cliente MCP no puede saber qué `sourceBranch` pasar | **P1** |
 | Configuración efectiva del proyecto (New Workspace, setup, copy rules) | D, M (`projectConfig.*`) | — | — | Brecha, solo GUI. Leerla da la rama origen preferida | P2 (lectura) / P3 (escritura) |
 
@@ -200,8 +209,8 @@ Estas capacidades no tienen comando CLI. Exponerlas por MCP exige primero un com
 
 | Acción | GUI | CLI | MCP | Comentario | Prioridad |
 |---|---|---|---|---|---|
-| SSH targets: listar o ver estado | D | `ssh-target list/status` | — | Brecha de lectura razonable | P2 |
-| SSH targets: alta, baja, bootstrap, link | D | `ssh-target add/remove/bootstrap*/link` | — | Por diseño: credenciales e instalación remota | — |
+| SSH targets: listar o ver estado | D | `ssh-target list/status` | `list_ssh_targets` (con `hostStatus`), `ssh_target_status` | Cubierta | - |
+| SSH targets: alta, edición, baja, bootstrap, actualización del runtime, link | D | `ssh-target add/update/remove/bootstrap*/update-runtime/restart-runtime/link` | - | Por diseño: credenciales e instalación remota | - |
 | Mobile: habilitar, emparejar, dispositivos | D | `mobile …` | — | Por diseño: escalada de acceso | — |
 | Cuenta Alera: login, logout, borrar, transferir | D | `account …` | — | Por diseño | — |
 | MCP Control: habilitar, apps, revocar | D | `mcp status/enable/disable/apps/revoke` | — | Por diseño: un cliente MCP no debe gestionar su propio acceso. `mcp status` podría exponerse en solo lectura | — |

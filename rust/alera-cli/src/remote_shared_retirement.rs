@@ -94,12 +94,8 @@ async fn retire_scoped<E: RemoteHostExecutor>(
         .as_deref()
         .filter(|path| !path.is_empty())
         .context("Bootstrap the SSH host again to record its installation directory")?;
-    let windows = probe_or_unreachable(executor, &target).await?;
-    let quote = if windows {
-        crate::ssh_bootstrap::powershell_string
-    } else {
-        crate::ssh_bootstrap::shell_quote
-    };
+    let shell = probe_or_unreachable(executor, &target).await?;
+    let quote = |value: &str| shell.quote(value);
     let mut arguments = format!(
         "project retire-owner-workspace --workspace-id {} --instance-id {} --close-sessions",
         quote(&workspace.id),
@@ -146,11 +142,15 @@ async fn retire_scoped<E: RemoteHostExecutor>(
         let encoded = base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(scope)?);
         arguments.push_str(&format!(" --automation-cleanup-base64 {}", quote(&encoded)));
     }
-    let script =
-        crate::remote_owner_terminal_launch::owner_command_script(windows, install, &arguments);
-    let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, windows, &script)).await
+    let script = crate::remote_sidecar_command::sidecar_command(
+        shell,
+        install,
+        &arguments,
+        crate::remote_sidecar_command::SidecarProfile::DataStateDir,
+    );
+    let output = tokio::time::timeout(std::time::Duration::from_secs(60), executor.run(&target, shell, &script, crate::ssh_remote_command::RemoteCommandBudget::Command)).await
         .context("The SSH retirement response timed out. Remote closure is unverified; retry to recover the owner receipt")??;
-    let receipt: Value = serde_json::from_str(output.trim())
+    let receipt: Value = crate::remote_sidecar_command::parse_last_json_line(&output)
         .context("The SSH host did not return a retirement receipt")?;
     validate_receipt(workspace, &receipt)?;
     Ok(RemoteRetirementProof {

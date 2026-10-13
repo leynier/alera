@@ -23,6 +23,8 @@ abstract final class AleraTokens {
   static const double sidebarMaxWidth = 460.0;
   static const double sidebarDefaultWidth = 300.0;
   static const double sidebarCollapsedWidth = 52.0;
+  static const double railWidth = 72.0;
+  static const double railCompactWidth = space48;
   static const double workbenchPrimaryMinWidth = 320.0;
   static const double masterDetailDefaultWidth = 240.0;
   static const double masterDetailMinWidth = 180.0;
@@ -44,12 +46,27 @@ abstract final class AleraTokens {
   // by its text: 720px fits roughly 95 columns at the mono size.
   static const double dialogTerminalWidth = 720.0;
   static const double dialogTerminalHeight = 460.0;
+  static const double workspaceDetailsWidth = 312.0;
+  static const double workspaceDetailsMinWidth = 240.0;
+  static const double workspaceDetailsMinHeight = 160.0;
   static const double contextMenuWidth = 220.0;
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
   static const double automationAuthoringWidth = 720.0;
   static const double automationAuthoringMaxHeight = 760.0;
-  static const double automationInfoLabelWidth = 100.0;
+
+  /// Width of the muted label column in `AleraKeyValueRow` fact lists.
+  static const double keyValueLabelWidth = 120.0;
+
+  /// Height of compact single-line controls (dropdown fields, the number and
+  /// time inputs beside them) so they line up in one row.
+  static const double controlHeight = 34.0;
+
+  /// Label column of `AleraKeyValueList`, and the width under which it stacks
+  /// each label above its value instead.
+  static const double keyValueListLabelWidth = 112.0;
+  static const double keyValueStackBreakpoint = 360.0;
+
   static const double collapsedSidebarFooterHeight = 72.0;
   static const double dividerExtent = 1.0;
   static const double iconXs = 10.0;

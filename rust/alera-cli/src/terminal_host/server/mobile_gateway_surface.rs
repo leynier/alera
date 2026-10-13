@@ -91,6 +91,9 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_INBOX_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_INBOX_DELIVERY_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_RUNS_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_RECIPES_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
@@ -120,6 +123,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
     crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
+    crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY,
@@ -146,7 +150,6 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "hostDirectory.roots"
             | "hostDirectory.list"
             | "project.register"
-            | "project.checkout.register"
             | "project.rename"
             | "project.remove.preview"
             | "project.remove"
@@ -333,6 +336,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "automation.upsert"
             | "automation.approve"
             | "automation.pause"
+            | "automation.unbind"
             | "automation.resume"
             | "automation.trash"
             | "automation.restore"
@@ -346,11 +350,6 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "automation.extend"
             | "automation.complete"
             | "automation.cancel"
-            | "automation.templates"
-            | "automation.tags"
-            | "automation.export"
-            | "automation.import"
-            | "automation.policy"
             | "inbox.summary"
             | "inbox.threads"
             | "inbox.thread"
@@ -359,14 +358,44 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "inbox.cancel"
             | "inbox.markRead"
             | "inbox.purge"
-            | "inbox.conversations"
-            | "inbox.conversation"
-    )
+    ) || MOBILE_RUN_VERBS.contains(&request_type)
 }
 
+/// Every `runs.*` verb and the read-only recipe verbs. Recipe writes, every
+/// `orchestration.*` verb, `host.process.run`, `inbox.wait` and the agent
+/// conversation reads (`inbox.conversations`, `inbox.conversation`, replaced on
+/// the phone by run timelines) stay local-only.
+pub(super) const MOBILE_RUN_VERBS: &[&str] = &[
+    "runs.board",
+    "runs.snapshot",
+    "runs.task",
+    "runs.timeline",
+    "runs.source",
+    "runs.create",
+    "runs.plan",
+    "runs.gates",
+    "runs.gate",
+    "runs.resolveGate",
+    "runs.control",
+    "runs.retryTask",
+    "runs.retryIntegration",
+    "runs.retryCancellation",
+    "runs.resources",
+    "runs.cleanups",
+    "runs.previewCleanup",
+    "runs.cleanup",
+    "runs.applyCleanup",
+    "runs.retryCleanup",
+    "runs.abandonCleanup",
+    "runs.integrations",
+    "runs.integration",
+    "recipes.catalog",
+    "recipes.recipe",
+];
+
 #[cfg(test)]
-#[path = "mobile_gateway_surface_workflow_tests.rs"]
-mod workflow_lifecycle_mobile_tests;
+#[path = "mobile_gateway_surface_runs_tests.rs"]
+mod runs_mobile_tests;
 
 #[cfg(test)]
 #[path = "mobile_gateway_surface_codex_tests.rs"]

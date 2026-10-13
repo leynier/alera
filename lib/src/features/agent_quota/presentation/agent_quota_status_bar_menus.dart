@@ -79,6 +79,7 @@ class const _QuotaProviderSummary({
 
 class const _CollapsedQuotaBar({
   required final String hostId,
+  required final String hostLabel,
   final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
   required final List<AgentQuotaSnapshot> snapshots,
   required final AgentQuotaHostSettings settings,
@@ -142,7 +143,7 @@ class const _CollapsedQuotaBar({
                         loading
                             ? 'Refreshing quotas'
                             : '${snapshots.length} agent quotas - '
-                                  '${hostId == 'local' ? 'Local' : hostId}',
+                                  '$hostLabel',
                         overflow: .ellipsis,
                         style: AleraTokens.statusBarTextStyle,
                       ),

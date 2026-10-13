@@ -21,6 +21,7 @@ typedef AgentQuotaPinToggle = void Function(String pinKey, bool pinned);
 class const AgentQuotaStatusBarContent({
   super.key,
   required final String hostId,
+  required final String hostLabel,
   final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
   required final List<AgentQuotaSnapshot> snapshots,
   required final AgentQuotaHostSettings settings,
@@ -45,6 +46,7 @@ class const AgentQuotaStatusBarContent({
           if (constraints.maxWidth < 500) {
             return _CollapsedQuotaBar(
               hostId: hostId,
+              hostLabel: hostLabel,
               actions: actions,
               snapshots: enabled,
               settings: settings,
@@ -72,7 +74,7 @@ class const AgentQuotaStatusBarContent({
                     ),
                     const SizedBox(width: AleraTokens.space4),
                     Text(
-                      hostId == 'local' ? 'Local' : hostId,
+                      hostLabel,
                       overflow: .ellipsis,
                       style: AleraTokens.statusBarTextStyle,
                     ),

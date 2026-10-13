@@ -8,10 +8,12 @@ use crate::mcp_tools::CallOrigin;
 use crate::orchestration_commands::{read_body, request_value_with_capability};
 use crate::terminal_host::protocol::{
     ORCHESTRATION_MAX_WAIT_TIMEOUT_MS, RUNTIME_HOST_INBOX_CAPABILITY,
-    RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY,
+    RUNTIME_HOST_INBOX_DELIVERY_CAPABILITY, RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY,
 };
 
 mod origin;
+
+pub(crate) use origin::external_origin;
 
 const DEFAULT_INBOX: &str = "ext:user";
 const DEFAULT_WAIT_MS: u64 = 10 * 60 * 1000;
@@ -56,6 +58,13 @@ pub(crate) async fn run(command: InboxCommand) -> i32 {
             insert(&mut payload, "priority", args.priority);
             insert(&mut payload, "expiresInMs", args.expires_in_ms);
             insert(&mut payload, "requestKey", args.request_key);
+            insert(
+                &mut payload,
+                "delivery",
+                args.deliver
+                    .as_deref()
+                    .map(crate::orchestration_commands::wire_delivery),
+            );
             insert(
                 &mut payload,
                 "externalOrigin",
@@ -179,9 +188,12 @@ async fn call(
     .await
 }
 
-/// Attribution, retry keys, and origin filters need a host that honors
-/// them; anything else works with any inbox host.
+/// Attribution, retry keys, origin filters, and a delivery choice need a
+/// host that honors them; anything else works with any inbox host.
 fn capability_for(payload: &Value) -> &'static str {
+    if payload.get("delivery").is_some() {
+        return RUNTIME_HOST_INBOX_DELIVERY_CAPABILITY;
+    }
     let needs_origin = ["externalOrigin", "requestKey", "originClientId"]
         .iter()
         .any(|key| payload.get(*key).is_some());

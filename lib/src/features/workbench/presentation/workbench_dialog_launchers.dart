@@ -1,3 +1,5 @@
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
@@ -6,8 +8,8 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_details.dart';
@@ -17,8 +19,12 @@ import 'package:alera/src/features/projects/domain/project_host_enrollment.dart'
 import 'package:alera/src/features/projects/presentation/add_remote_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_hosts_dialog.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_controller.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/presentation/add_project_to_host_dialog.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
+import 'package:alera/src/features/remote_hosts/presentation/add_remote_host_dialog.dart';
 
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
@@ -41,6 +47,7 @@ import 'package:uuid/uuid.dart';
 
 part 'workbench_dialog_launchers_create_workspace.dart';
 part 'workbench_dialog_launchers_project_hosts.dart';
+part 'workbench_dialog_launchers_remote_hosts.dart';
 part 'workbench_dialog_launchers_remote_project.dart';
 
 /// Shared dialog flows for project/workspace creation and settings.
@@ -52,19 +59,36 @@ Future<void> openSettingsDialog(
   BuildContext context, {
   String initialSectionId = 'application',
   String? initialProjectId,
+  String? initialHostId,
 }) {
   return showDialog<void>(
     context: context,
     builder: (_) => SettingsDialog(
       initialSectionId: initialSectionId,
       initialProjectId: initialProjectId,
+      initialHostId: initialHostId,
     ),
   );
 }
 
-/// Opens the Automations page of the shell, like the Run Board.
-void openAutomationsPage(WidgetRef ref) =>
-    ref.read(automationsNavigationProvider.notifier).open();
+/// Opens Activity on its Automations section.
+void openActivityAutomations(WidgetRef ref) => ref
+    .read(activityNavigationProvider.notifier)
+    .open(ActivitySection.automations);
+
+/// Opens the automation composer seeded from the active workspace, or with
+/// no destination when none is active.
+void startNewAutomation(WidgetRef ref) {
+  final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
+  ref
+      .read(activityNavigationProvider.notifier)
+      .startAuthoring(
+        AutomationAuthoringRequest(
+          originWorkspaceId: workspace?.id,
+          sectionId: workspace?.sectionId,
+        ),
+      );
+}
 
 /// Opens Quick Open for the active workspace and restores the prior focus when
 /// the modal route closes.
@@ -90,8 +114,8 @@ Future<void> showQuickOpenFlow(BuildContext context, WidgetRef ref) async {
             oppositePanel: selection.oppositePanel,
           );
       if (!context.mounted) return;
-      if (ref.read(runBoardNavigationProvider).visible) {
-        ref.read(runBoardNavigationProvider.notifier).close();
+      if (ref.read(activityNavigationProvider).visible) {
+        ref.read(activityNavigationProvider.notifier).close();
         return;
       }
     } catch (_) {

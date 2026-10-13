@@ -1,4 +1,8 @@
-use super::*;
+use serde_json::{json, Value};
+
+use super::worker::{build_structured_payload, merge_result_extra};
+use crate::orchestration_command_summaries::human_summary;
+use crate::orchestration_terminal_commands::terminal_startup_error;
 
 #[test]
 fn structured_payload_assembles_json() {
@@ -36,50 +40,6 @@ fn raw_payload_must_be_valid_json() {
 fn empty_structured_payload_is_none() {
     let payload = build_structured_payload(None, None, None, None, None, None).unwrap();
     assert!(payload.is_none());
-}
-
-#[test]
-fn dispatch_summary_prints_dry_run_preamble() {
-    let summary = human_summary(
-        "orchestration.dispatch",
-        &json!({
-            "dryRun": true,
-            "preamble": "handoff text to paste"
-        }),
-    );
-    assert_eq!(summary, "handoff text to paste");
-}
-
-#[test]
-fn dispatch_requires_override_capability_only_when_assuming_an_agent() {
-    assert_eq!(
-        dispatch_required_capability(None),
-        RUNTIME_HOST_ORCHESTRATION_CAPABILITY
-    );
-    assert_eq!(
-        dispatch_required_capability(Some("codex")),
-        RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY
-    );
-}
-
-#[test]
-fn dispatch_summary_prints_returned_preamble() {
-    let summary = human_summary(
-        "orchestration.dispatch",
-        &json!({
-            "dispatch": {
-                "id": "ctx_1"
-            },
-            "preamble": "manual injection text"
-        }),
-    );
-    assert_eq!(summary, "manual injection text");
-}
-
-#[test]
-fn dispatch_summary_labels_dry_run_without_preamble() {
-    let summary = human_summary("orchestration.dispatch", &json!({ "dryRun": true }));
-    assert_eq!(summary, "dispatch dry run");
 }
 
 #[test]

@@ -55,7 +55,7 @@ export const DOC_SECTIONS: readonly DocSection[] = [
     title: 'Coordinate',
     pages: [
       { id: 'orchestration', label: 'Orchestration' },
-      { id: 'run-board', label: 'Run Board And Workflows' },
+      { id: 'runs', label: 'Runs And Activity' },
       { id: 'automations', label: 'Automations' },
     ],
   },

@@ -16,7 +16,7 @@ use base64::engine::general_purpose::STANDARD;
 #[cfg(windows)]
 use base64::Engine as _;
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
 
 struct HostGuard(Child);
 

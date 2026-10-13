@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:alera/src/features/orchestration/infra/foreground_board_watch.dart';
+import 'package:alera/src/features/app_window/domain/app_foreground.dart';
+import 'package:alera/src/features/runs/infra/foreground_board_watch.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../support/run_board_fixtures.dart';
 
 void main() {
   test(
@@ -48,4 +47,24 @@ void main() {
       });
     },
   );
+}
+
+class BoardTestForeground implements AppForeground {
+  bool visible = true;
+  final StreamController<bool> events = StreamController<bool>.broadcast(
+    sync: true,
+  );
+  @override
+  bool get isForeground => visible;
+  @override
+  Stream<bool> get changes => events.stream;
+  void setVisible(bool value) {
+    visible = value;
+    events.add(value);
+  }
+
+  @override
+  void dispose() {
+    unawaited(events.close());
+  }
 }

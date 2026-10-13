@@ -2,6 +2,8 @@
 
 Fecha: 2026-10-10. Base de código: `c8b3d3984` (v0.104.1). Documento de partida: [mcp-capability-gap-audit.md](mcp-capability-gap-audit.md). Es **solo un plan**: no se implementó código.
 
+> **Actualización, 2026-10-12 (orquestación v3):** las filas de orquestación, run policy y workflows de este plan quedaron superadas por el contrato v3. `delegate` sustituye a `task-create`/`dispatch`/`agent-spawn`; `heartbeat`, `worker-done`, `worker-help` y `dispatch-accept` ya no existen; `orchestration.boardSnapshot/runSnapshot/taskInspection`, la run policy y todos los `workflows.*` se sustituyen por `runs.*` y `recipes.*`. Las herramientas MCP resultantes están en `rust/alera-cli/src/mcp_tools/catalog/runs.rs`, `runs_manage.rs` y `recipes.rs` y las documenta el skill `alera-mcp-orchestration`. Desviación respecto de U5: `resolve_run_gate` y `apply/retry/abandon_run_cleanup` existen con nivel Admin. Ver [runs.md](runs.md) y [orchestration.md](orchestration.md).
+
 Estructura: spec → diseño → tareas por fases y PRs → pruebas → supuestos y decisiones residuales.
 
 **Revisión 2 (2026-10-10).** Incorpora las cuatro decisiones finales F1-F4, tomadas tras la revisión crítica, y las correcciones C1-C8 de esa revisión. El resumen de cambios está en la sección 0.1.

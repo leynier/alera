@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_label_provider.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -37,6 +38,9 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
     );
     final quota = ref.watch(agentQuotaStateProvider);
     final state = quota.value;
+    final hostLabel = ref.watch(
+      remoteHostLabelProvider(state?.hostId ?? hostId),
+    );
     void refresh() {
       ref.read(agentQuotaServiceProvider).requestForceRefresh(hostId);
       ref.invalidate(agentQuotaStateProvider);
@@ -57,6 +61,7 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
     if (state != null) {
       return AgentQuotaStatusBarView(
         hostId: state.hostId,
+        hostLabel: hostLabel,
         snapshots: state.snapshots,
         settings: settings,
         error: state.error,
@@ -69,6 +74,7 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
     return quota.when(
       loading: () => AgentQuotaStatusBarView(
         hostId: hostId,
+        hostLabel: hostLabel,
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
         loading: true,
@@ -78,6 +84,7 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
       ),
       error: (error, _) => AgentQuotaStatusBarView(
         hostId: hostId,
+        hostLabel: hostLabel,
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
         error: error.toString(),
@@ -87,6 +94,7 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
       ),
       data: (_) => AgentQuotaStatusBarView(
         hostId: hostId,
+        hostLabel: hostLabel,
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
         loading: true,
@@ -102,6 +110,7 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
 class const AgentQuotaStatusBarView({
   super.key,
   required super.hostId,
+  required super.hostLabel,
   required super.snapshots,
   required super.settings,
   required super.onRefresh,

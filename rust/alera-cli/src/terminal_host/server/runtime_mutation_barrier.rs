@@ -84,13 +84,12 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "automation.restore"
                 | "automation.ownerPrecheck.start"
                 | "automation.runNow"
-                | "automation.import"
         )
         || matches!(
             request_type,
             "orchestration.agentSpawn"
                 | "orchestration.dispatch"
-                | "orchestration.dispatchAccept"
+                | "orchestration.context"
                 | "orchestration.run"
                 | "orchestration.taskRecover"
                 | "orchestration.terminalPrune"
@@ -138,7 +137,6 @@ mod tests {
             "automation.restore",
             "automation.runNow",
             "automation.ownerPrecheck.start",
-            "automation.import",
         ] {
             assert!(
                 conflicts_with_runtime_mutation(writer),

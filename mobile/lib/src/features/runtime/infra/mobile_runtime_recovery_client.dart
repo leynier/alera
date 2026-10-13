@@ -31,7 +31,7 @@ mixin MobileRuntimeRecoveryClient implements WorkspaceRecoveryClient {
       );
     }
     final response = await request(
-      workspace.isRemote
+      workspace.isOnRemoteHost
           ? 'workspace.sshRelocationRecovery'
           : 'workspace.relocationRecovery',
       {'id': workspace.id, 'limit': 20},

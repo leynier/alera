@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/orchestration/presentation/workflow_catalog_pane.dart';
 import 'package:alera/src/features/configuration_sync/presentation/configuration_sync_pane.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -10,8 +11,8 @@ import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/mcp_access_settings_section.dart';
+import 'package:alera/src/features/settings/presentation/recipe_settings_section.dart';
 import 'package:alera/src/features/settings/presentation/voice_search_entries.dart';
-import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_pane.dart';
@@ -19,17 +20,14 @@ import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane
 import 'package:alera/src/features/settings/presentation/panes/voice_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
-import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pane.dart';
-import 'package:alera/src/features/settings/presentation/panes/projects_pane.dart';
-import 'package:alera/src/features/settings/presentation/panes/remote_hosts_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/terminal_pane.dart';
 import 'package:alera/src/features/text_actions/presentation/text_actions_settings_pane.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_content.dart';
+import 'package:alera/src/features/settings/presentation/settings_dialog_resource_sections.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_sidebar.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_quota.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
-import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
 import 'package:alera/src/features/settings/presentation/text_actions_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -49,6 +47,7 @@ class const SettingsDialog({
   super.key,
   final String initialSectionId = 'application',
   final String? initialProjectId,
+  final String? initialHostId,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
@@ -123,6 +122,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       messenger.showSnackBar(
         const SnackBar(content: Text('Could not reload shell environment')),
       );
+    }
+  }
+
+  /// Lets a pane with unsaved edits ask first, and still closes a dialog
+  /// that is the first route, which maybePop leaves in place.
+  Future<void> _close() async {
+    final navigator = Navigator.of(context);
+    if (!await navigator.maybePop() && mounted) {
+      navigator.pop();
     }
   }
 
@@ -214,36 +222,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
     ];
-    const mobileDeviceGroups = <SettingsGroupSpec>[
-      SettingsGroupSpec(id: 'gateway', title: 'Mobile Gateway'),
-      SettingsGroupSpec(id: 'pairing', title: 'Link A Device'),
-      SettingsGroupSpec(id: 'offers', title: 'Active Pairing Offers'),
-      SettingsGroupSpec(id: 'devices', title: 'Paired Devices'),
-    ];
 
     final sections = <SettingsSectionData>[
-      SettingsSectionData(
-        id: 'workflows',
-        title: 'Workflows',
-        description: 'Reusable recipes, stages and portable role contracts.',
-        icon: AleraIcons.workspaceChildren,
-        navGroup: SettingsNavGroup.resources,
-        entries: const [
-          SettingsSearchEntry(
-            title: 'Workflow Recipes',
-            keywords: [
-              'catalog',
-              'personal',
-              'project',
-              'built-in',
-              'yaml',
-              'contracts',
-              'export',
-            ],
-          ),
-        ],
-        builder: (_) => const WorkflowCatalogPane(),
-      ),
+      recipeSettingsSection(),
       SettingsSectionData(
         id: 'configurationSync',
         title: 'Configuration Sync',
@@ -403,45 +384,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         onReset: controller.resetKeyboardShortcuts,
         builder: (_) => const KeyboardSettingsPane(),
       ),
-      SettingsSectionData(
-        id: 'projects',
-        title: 'Projects',
-        description: 'Per-project workspace setup.',
-        icon: AleraIcons.folderSpecial,
-        entries: projectSearchEntries,
-        navGroup: .resources,
-        builder: (_) =>
-            ProjectSettingsPane(initialProjectId: widget.initialProjectId),
-      ),
-      SettingsSectionData(
-        id: 'mobileDevices',
-        title: 'Mobile Devices',
-        description: 'Pair and manage the mobile companion app.',
-        icon: AleraIcons.mobileDevice,
-        entries: mobileDeviceSearchEntries,
-        groups: mobileDeviceGroups,
-        navGroup: .resources,
-        builder: (_) => MobileDevicesSettingsPane(
-          groupKeys: _paneKeys('mobileDevices', mobileDeviceGroups),
-        ),
-      ),
-      SettingsSectionData(
-        id: 'remoteHosts',
-        title: 'Remote Hosts',
-        description: 'Install the Alera runtime sidecar on SSH hosts. This does not create remote workspaces.',
-        icon: AleraIcons.host,
-        entries: remoteHostSearchEntries,
-        navGroup: .resources,
-        builder: (_) => const RemoteHostSettingsPane(),
-      ),
-      SettingsSectionData(
-        id: 'agentProfiles',
-        title: 'Agent Profiles',
-        description: 'Launch configurations orchestration can dispatch to.',
-        icon: AleraIcons.agent,
-        entries: agentProfileSearchEntries,
-        navGroup: .resources,
-        builder: (_) => const AgentProfilesSettingsPane(),
+      ...settingsResourceSections(
+        paneKeys: _paneKeys,
+        initialProjectId: widget.initialProjectId,
+        initialHostId: widget.initialHostId,
       ),
     ];
 
@@ -476,7 +422,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                     section: activeSection,
                     groupKeys: _keysFor(activeSection.id),
                     scrollToGroupId: activeSection.firstMatchingGroupId(_query),
-                    onClose: () => Navigator.of(context).pop(),
+                    onClose: () => unawaited(_close()),
                   )
                 : NoSettingsResults(onClose: () => Navigator.of(context).pop()),
           ),

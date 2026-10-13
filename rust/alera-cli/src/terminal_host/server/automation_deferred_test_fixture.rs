@@ -43,6 +43,8 @@ pub(super) fn automation_definition() -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: Some(1),
         created_by: AutomationActor {
             kind: AutomationActorKind::LocalCli,
@@ -87,6 +89,7 @@ pub(super) fn automation_run() -> AutomationRun {
         summary: None,
         error: None,
         rendered_prompt: None,
+        reuse: None,
         workspace_id: Some("workspace-1".to_string()),
         tab_id: Some("tab-1".to_string()),
         setup_tab_id: None,

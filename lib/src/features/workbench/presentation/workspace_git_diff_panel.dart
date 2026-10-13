@@ -1,16 +1,15 @@
+import 'package:alera/src/features/workbench/presentation/workspace_branch_dialog.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
-import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
@@ -271,9 +270,9 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       return;
     }
     final currentBranch = current.repositoryState.branch;
-    final selection = await showDialog<_BranchDialogResult>(
+    final selection = await showDialog<WorkspaceBranchChoice>(
       context: context,
-      builder: (_) => _SourceControlBranchDialog(
+      builder: (_) => WorkspaceBranchDialog(
         branches: branches,
         currentBranch: currentBranch,
       ),
@@ -282,12 +281,12 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       return;
     }
     switch (selection) {
-      case _SwitchBranchResult(:final branch):
+      case WorkspaceSwitchBranch(:final branch):
         if (branch == currentBranch) {
           return;
         }
         await _switchBranch(branch);
-      case _CreateBranchResult(:final branch):
+      case WorkspaceCreateBranch(:final branch):
         if (!await _confirmSharedBranchChange(branch)) return;
         await _run(
           () => _notifier.createAndCheckoutBranch(branch),

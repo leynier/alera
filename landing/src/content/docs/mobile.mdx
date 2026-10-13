@@ -1,7 +1,7 @@
 ---
 title: Mobile Companion
 description: Pair an Android phone with your Alera runtime to watch agents, answer them, and review work away from the desk.
-updatedDate: 2026-09-28
+updatedDate: 2026-10-12
 ---
 
 The mobile companion is a window into your runtime host, not a phone IDE. Pair it when a long agent run would otherwise chain you to the desk.
@@ -29,9 +29,11 @@ If you sign in to an optional [Alera account](/docs/accounts) on both sides and 
 - See every workspace with its agents' live state: working, waiting for input, blocked, or done.
 - Open a terminal and drive it, with a compose bar for prompts and **Terminal Quick Keys** for the keys a phone keyboard lacks (arrows, Esc, Tab, Ctrl combinations).
 - Start an agent profile with a starting prompt, or create a workspace **From Prompt**. A new workspace is created in the background and never opens by itself.
+- Create a workspace on a [remote host](/docs/remote-hosts) where the project already lives. The **Host** picker shows each host's state when it is not plainly connected, such as **Offline** or **Update Available**, and blocks hosts that read **Needs Setup**, **Installing…**, or **Error**. Offline and idle hosts stay selectable, because the runtime connects when the workspace needs it. The phone learns a host's name, platform, and state, never how to reach it.
 - Browse files in **Explorer**, run **Search** with replace, and stage, commit, push, and pull in **Source Control**.
 - Leave comments on a diff line and send them to a running agent, which does not navigate away from what you were reading.
 - Create, review, and merge GitHub pull requests, and start or stop **Watch and Fix** when the runtime supports it.
+- Open **Activity** to follow [runs](/docs/runs), approve or reject plans and gates, pause, resume, or cancel a run, start a **New Run**, clean up a run's worktrees, ask a running agent a question, and manage automations.
 - Rename, pin, sleep, archive, and remove workspaces, and check agent quotas.
 
 When the phone opens a terminal, the terminal resizes to the phone and the desktop shows that the phone is driving it, with **Take Back This Terminal** to return control to the desktop keyboard.
@@ -50,6 +52,6 @@ Your agents keep working on a machine that is awake. You keep an eye on them fro
 
 Alera accounts are optional for every local feature. If you opt in, the phone can get a push when an agent is waiting or blocked, or when an orchestration decision needs you, even after the desktop UI closes. Pushes for finished agents and exited terminals are separate categories and start turned off.
 
-A push names the agent and the workspace, such as "Claude needs attention" for a workspace in a project. It never includes prompts, commands, terminal output, or source code; an automation push shows the summary its run reported. Tapping an agent push opens that workspace and terminal, a terminal push opens the host's workspace list, and an automation push opens the run. See [Accounts, Push, And Sync](/docs/accounts#push-notifications) for the setup and categories.
+A push names the agent and the workspace, such as "Claude needs attention" for a workspace in a project. It never includes prompts, commands, terminal output, or source code; an automation push shows the summary its run reported. Tapping an agent push opens that workspace and terminal, a terminal push opens the host's workspace list, an automation push opens the run, and a push for a run decision opens that run at its decision card. See [Accounts, Push, And Sync](/docs/accounts#push-notifications) for the setup and categories.
 
 [Download Alera](/download) on desktop, pair the phone, and let the next long run finish without you in the chair.

@@ -1,0 +1,22 @@
+---
+import { APP_COPY } from '../../../data/demo/app-copy';
+import { SAMPLE } from '../../../data/demo/sample-workspace';
+import AppIcon from '../primitives/AppIcon.astro';
+import Codicon from '../primitives/Codicon.astro';
+interface Props { branch: string }
+const { branch } = Astro.props;
+---
+<span class="workspace-details-toggle app-button" title={APP_COPY.workspaceDetailsToggle.text}><AppIcon name="review" size={16} /></span>
+<aside class="workspace-details" aria-label="Workspace Details">
+  <div class="workspace-details-section">
+    <div class="workspace-detail-row"><Codicon name="terminalLinux" size={14} /><span>{SAMPLE.host}</span><i class="workspace-detail-split"></i><AppIcon name="chevronDown" size={14} /></div>
+    <div class="workspace-detail-row"><AppIcon name="folder" size={14} /><span>{APP_COPY.workspaceDetailsOpen.text}</span><i class="workspace-detail-split"></i><AppIcon name="chevronDown" size={14} /></div>
+  </div>
+  <div class="workspace-details-section">
+    <div class="workspace-detail-row"><AppIcon name="gitBranch" size={14} /><span>{branch}<small>{APP_COPY.workspaceDetailsBase.text}</small></span><i class="workspace-detail-split"></i><AppIcon name="chevronDown" size={14} /></div>
+    <div class="workspace-detail-row workspace-details-pr"><AppIcon name="gitPullRequest" size={14} /><span>#123: Add Workspace Details</span><i class="workspace-detail-split"></i><AppIcon name="chevronDown" size={14} /></div>
+    <div class="workspace-details-pr-meta"><span>Open</span><span class="workspace-details-checks"><AppIcon name="success" size={12} />2 Checks</span><b>{APP_COPY.workspaceDetailsMerge.text}</b></div>
+    <div class="workspace-detail-row"><Codicon name="repoPush" size={14} /><span>{APP_COPY.workspaceDetailsCommit.text}</span><i class="workspace-detail-split"></i><AppIcon name="chevronDown" size={14} /></div>
+    <div class="workspace-detail-row"><AppIcon name="diff" size={14} /><span>{APP_COPY.workspaceDetailsChanges.text}</span><b class="workspace-details-add">+123</b><b class="workspace-details-remove">-8</b></div>
+  </div>
+</aside>

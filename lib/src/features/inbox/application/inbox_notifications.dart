@@ -3,7 +3,8 @@ import 'dart:convert';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
-import 'package:alera/src/features/inbox/application/inbox_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/inbox/application/inbox_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -47,8 +48,8 @@ AgentStatusNotification inboxReplyNotification(
   id: _inboxNotificationId,
   title: 'New Inbox Reply',
   body: newReplies == 1
-      ? 'An agent answered a question. Open the inbox to read it.'
-      : 'Agents answered $newReplies questions. Open the inbox to read them.',
+      ? 'An agent answered a question. Open Activity to read it.'
+      : 'Agents answered $newReplies questions. Open Activity to read them.',
   payload: encodeInboxNotificationPayload(),
 );
 
@@ -71,7 +72,7 @@ void inboxReplyNotificationCoordinator(Ref ref) {
       unawaited(
         windowActivator.showAndFocus().then((_) {
           if (ref.mounted) {
-            ref.read(inboxNavigationProvider.notifier).openQuestions();
+            ref.read(activityNavigationProvider.notifier).openQuestions();
           }
         }),
       );
@@ -82,10 +83,12 @@ void inboxReplyNotificationCoordinator(Ref ref) {
     if (unread == null) return;
     final fresh = tracker.observe(
       unread,
-      // The page being open is not enough: a hidden or unfocused window
+      // The section being open is not enough: a hidden or unfocused window
       // means nobody is reading it.
       inboxVisible:
-          ref.read(inboxNavigationProvider).visible &&
+          ref
+              .read(activityNavigationProvider)
+              .showing(ActivitySection.questions) &&
           ref.read(inboxWindowFocusProvider).isForeground,
     );
     // Replies are agent answers, so they follow the agent notifications toggle.

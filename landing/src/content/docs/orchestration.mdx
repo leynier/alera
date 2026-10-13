@@ -1,20 +1,19 @@
 ---
 title: Orchestration
-description: Coordinate several CLI agents in one Alera workspace with a durable coordinator run.
-updatedDate: 2026-09-28
+description: Coordinate several CLI agents with durable runs, a short worker protocol, and questions that reach agents mid-turn.
+updatedDate: 2026-10-12
 ---
 
-Tabs full of agents are useful until they need to work together. Who owns this task? Did that worker finish or crash? Which agent is allowed to approve the risky step? Orchestration answers those questions inside the Rust runtime host. It does not replace your agent CLIs; it schedules and owns the work they accept.
+Tabs full of agents are useful until they need to work together. Who owns this task? Did that worker finish or crash? Which decision needs a person? Orchestration answers those questions inside the Rust runtime host. It does not replace your agent CLIs; it hands them work and keeps track of it. You follow and steer that work in [Runs And Activity](/docs/runs).
 
 ## What Ships Today
 
-- **Workspace-scoped coordinator runs.** A workspace has at most one active run. Unrelated workspaces can coordinate at the same time.
-- **Durable task ownership.** Tasks and dispatches persist in the runtime SQLite database, so a restart does not forget who was doing what.
-- **Atomic spawn, readiness, and acceptance.** Workers start through registered adapters and explicitly accept dispatches.
-- **Decision gates and messaging.** Blocking decisions and persistent messages between agents.
+- **Runs.** A coordinator plans a run and workers carry it out, either in the run's workspace (**Shared**) or each task in its own worktree with serial local integration (**Isolated**). A workspace has at most one unfinished run; unrelated workspaces coordinate at the same time.
+- **Durable ownership.** Runs, tasks, and dispatches persist in the runtime SQLite database, so a restart does not forget who was doing what. Authority comes from the run, not from whichever terminal called a command.
+- **A short worker protocol.** No accept step and no heartbeat: a worker's first command tells Alera it started, its terminal output keeps it alive, and it finishes with one `complete --summary`.
+- **Gates.** Plan approval (when you ask for it), stage gates, stalled workers, and coordinator questions are all decisions you answer from one kind of card.
+- **Questions and messages.** Agents and you can ask a running agent a question; agents that queue input mid-turn get it at once.
 - **Agent profiles.** User-declared launch configurations the coordinator may dispatch to.
-
-Mutations pass through the authenticated host actor. Authority comes from the run or task coordinator, not from whichever terminal happened to call a command.
 
 ## Agent Profiles
 
@@ -26,44 +25,43 @@ alera agent-profile --json list
 alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
 ```
 
-The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, complete-catalog reorder, and launching a profile in a workspace. Managed profiles accept configuration as inline JSON, a file, or standard input. Changing the adapter of an existing Managed profile requires an explicit new configuration, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved, and Alera's own coordinator loop launches only those profiles or adapter defaults. `alera orchestration agent-spawn` still accepts an explicit `--command` from the coordinator that owns the task, so spawn with `--profile` to keep a worker inside the catalog.
+The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, complete-catalog reorder, and launching a profile in a workspace. Managed profiles accept configuration as inline JSON, a file, or standard input. Changing the adapter of an existing Managed profile requires an explicit new configuration, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved: `delegate` always starts a catalog profile, so a worker never runs a command the coordinator made up.
 
-## A Minimal Loop
-
-```bash
-alera orchestration task-create --workspace <workspace-id> --spec "Review tests"
-alera orchestration run --workspace <workspace-id> --agent codex --spec "Audit the repository"
-alera orchestration run-list --workspace <workspace-id>
-alera orchestration run-show --id <run-id>
-```
-
-`task-create`, `agent-spawn`, and `run` default `--workspace` from `ALERA_WORKSPACE_ID`. Use `alera orchestration current` to inspect the current workspace and terminal identity.
-
-Workers accept, heartbeat, escalate, and complete through the orchestration CLI, with context inferred from the active terminal.
-
-## Execution Policies
-
-A run may carry a stage plan that you approve before dispatch: a preferred profile per stage, plus ordered fallbacks. Scheduling holds until you approve or reject the plan.
+## Delegate A Task
 
 ```bash
-alera orchestration run-policy-propose --run <run-id> --policy-file plan.json
-alera orchestration run-policy-show --run <run-id>
-alera orchestration run-policy-approve --run <run-id>
-alera orchestration run-policy-reject --run <run-id> --reason "Wrong stage split"
+alera orchestration --json delegate --profile "Codex Sol" --spec "Review the tests"
+alera orchestration --json delegate --profile "Codex Sol" --spec "Implement the API" --new-workspace
+alera orchestration task wait --id <task-id> --timeout-ms 300000
 ```
 
-Runs without a policy behave as they did before. Coordination you did not ask for does not change a workspace.
+`delegate` creates the task, starts the profile in a new terminal (or hands the task to a running agent with `--terminal`), and waits until the agent is ready. It defaults `--workspace` from `ALERA_WORKSPACE_ID`; `--new-workspace` creates a child worktree first. Use `alera orchestration current` to inspect the current workspace and terminal identity.
 
-Pending plans also surface through **Execution Plans** in the application menu, and the **Run Board** (also in the application menu) lists every run that needs attention, is active, or has finished.
-
-## Stopping A Run
+## Plan A Run
 
 ```bash
-alera orchestration run-stop --id <run-id> --reason "Stopped by coordinator"
+alera orchestration --json run new --profile "Opus" --spec "Add audit logging" --template builtIn:feature-delivery --approval
+alera orchestration --json run show --run <run-id>
+alera orchestration run cancel --run <run-id> --reason "No longer needed"
 ```
 
-`run-stop` is graceful by default: it stops new scheduling while active workers can finish. `--cancel-active` applies cooperative cancellation to active tasks. `--force` is reserved for audited administrative recovery.
+`run new` is the CLI form of **New Run**: the coordinator reads the run's context and proposes a plan with `alera orchestration plan propose`. With `--approval` the plan waits for you; without it the run starts at once. `--isolation shared` keeps workers in the workspace instead of giving each task its own worktree. See [Runs And Activity](/docs/runs) for plans, gates, the timeline, and cleanup.
+
+## The Worker Side
+
+```bash
+alera orchestration --json context
+alera orchestration complete --summary "What was done and what remains"
+alera orchestration escalate --subject "Blocked" --body "Missing credentials"
+alera orchestration ask --to <coordinator-handle> --question "Which branch?"
+```
+
+A worker reads its task with `context`, does it, and completes once with `--summary`; files, artifacts, and validation are optional unless the task's role contract asks for them. A worker with no output or command for 10 minutes is marked stalled, but it is never killed or replaced without a decision, and any later output revives it.
+
+## Questions And Messages
+
+`ask`, `send`, and `reply` carry messages between agents, and `messages` lists them. A question to a working agent is pasted at once only when its CLI is verified to queue input mid-turn, which none is yet; otherwise it waits for the turn to end. An agent waiting on a prompt is never typed into. `alera inbox ask` lets a script or another session ask from outside Alera, and **Activity → Questions** does the same from the app and the phone. Agents always answer with an explicit `alera orchestration reply`; nothing is read from their terminal.
 
 <Callout>
-Orchestration is for durable multi-agent coordination inside Alera-managed workspaces. The protocol will keep evolving as we run more of our own work through it.
+Orchestration protocol v3 changed the commands: `dispatch-accept`, `heartbeat`, `worker-done`, `task-create`, `agent-spawn`, and the `run-policy-*` commands are gone. Update the Alera skills from **Settings → Agents** so your agents use the current ones.
 </Callout>

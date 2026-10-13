@@ -28,12 +28,6 @@ impl CoordinatorInbox<ServerCommand> for ServerInbox {
 /// Default coordinator cadence, mirroring Orca.
 pub const COORDINATOR_DEFAULT_POLL_MS: u64 = 2_000;
 pub const COORDINATOR_MAX_CONCURRENT_DEFAULT: usize = 4;
-/// A dispatch with no heartbeat for 2x the 5-minute heartbeat cadence is
-/// considered hung. Warn-only: killing a slow-but-correct worker costs more
-/// than a hung worker holding a slot.
-pub const COORDINATOR_HUNG_THRESHOLD_MINUTES: i64 = 10;
-pub const COORDINATOR_ACCEPTANCE_TIMEOUT_SECONDS: i64 =
-    (crate::terminal_host::protocol::ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS / 1_000) as i64;
 /// Worktrees more than this many commits behind their base are skipped at
 /// dispatch pre-flight (silently retried next tick) unless the spec carries
 /// `allow-stale-base: true`.
@@ -91,39 +85,9 @@ impl Drop for CoordinatorHandle {
     }
 }
 
-/// The ISO-8601-ish (SQLite `datetime('now')` shaped) threshold string for the
-/// hung-dispatch query: now minus the hung threshold, second precision UTC.
-pub fn hung_dispatch_threshold_iso(now: chrono::DateTime<chrono::Utc>) -> String {
-    (now - chrono::Duration::minutes(COORDINATOR_HUNG_THRESHOLD_MINUTES))
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
-}
-
-pub fn acceptance_timeout_threshold_iso(now: chrono::DateTime<chrono::Utc>) -> String {
-    (now - chrono::Duration::seconds(COORDINATOR_ACCEPTANCE_TIMEOUT_SECONDS))
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn hung_threshold_matches_sqlite_shape() {
-        let now = chrono::DateTime::parse_from_rfc3339("2026-07-05T12:30:00Z")
-            .unwrap()
-            .with_timezone(&chrono::Utc);
-        assert_eq!(hung_dispatch_threshold_iso(now), "2026-07-05 12:20:00");
-    }
-
-    #[test]
-    fn acceptance_timeout_threshold_matches_cli_wait() {
-        let now = chrono::DateTime::parse_from_rfc3339("2026-07-05T12:30:00Z")
-            .unwrap()
-            .with_timezone(&chrono::Utc);
-        assert_eq!(acceptance_timeout_threshold_iso(now), "2026-07-05 12:28:30");
-    }
 
     #[tokio::test]
     async fn ticker_emits_and_stop_aborts() {

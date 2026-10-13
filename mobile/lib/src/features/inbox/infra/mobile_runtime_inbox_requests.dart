@@ -8,4 +8,8 @@ mixin MobileRuntimeInboxRequests implements MobileInboxClient {
 
   @override
   bool get supportsInbox => runtimeCapabilities.contains(mobileInboxCapability);
+
+  @override
+  bool get supportsInboxDelivery =>
+      runtimeCapabilities.contains(mobileInboxDeliveryCapability);
 }

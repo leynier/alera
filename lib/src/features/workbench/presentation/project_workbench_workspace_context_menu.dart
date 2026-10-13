@@ -16,6 +16,7 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       ),
       items: workspaceContextMenuEntries(
         fileManagerLabel: widget.fileManagerLabel,
+        isRemote: widget.workspace.isRemote,
         supportsSections: widget.onSetSection != null,
         hasSection: widget.workspace.sectionId != null,
         hasClearParent: widget.onClearParent != null,
@@ -44,13 +45,16 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
     );
     if (selected == _automationsAction) {
       container
-          .read(automationsNavigationProvider.notifier)
-          .open(scope: workspaceScope);
+          .read(activityNavigationProvider.notifier)
+          .openAutomations(scope: workspaceScope);
     } else if (selected == _newAutomationAction) {
       container
-          .read(automationsNavigationProvider.notifier)
+          .read(activityNavigationProvider.notifier)
           .startAuthoring(
-            AutomationAuthoringRequest(originWorkspaceId: widget.workspace.id),
+            AutomationAuthoringRequest(
+              originWorkspaceId: widget.workspace.id,
+              sectionId: widget.workspace.sectionId,
+            ),
             scope: workspaceScope,
           );
     } else if (selected == _recoveryAction && context.mounted) {

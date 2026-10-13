@@ -21,7 +21,7 @@ async fn prepare_hand_on_rejects_workflow_owned_worktree_before_relocation() {
         .unwrap()
         .len();
     sqlx::query(
-        "INSERT INTO workflowWorkspaces
+        "INSERT INTO runWorkspaces
          (id, run_id, revision, task_id, attempt, path, identity, phase)
          VALUES (?, 'run', 1, NULL, 0, ?, ?, 'ready')",
     )

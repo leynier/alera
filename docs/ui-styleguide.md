@@ -100,6 +100,10 @@ Typography and sizing:
 | `logoSm`, `logoMd`, `logoLg` | `AleraLogo` sizes for the sidebar brand row, loading screens, and About dialog |
 | `iconButtonXs`, `iconButtonSm` | Hit areas for compact `AleraIconButton`s inside chips and row headers |
 | `conversationMaxWidth` | Content width of the home composer and other centered conversations |
+| `controlHeight` | Height of compact single-line controls (`AleraDropdownField`, `AleraCompactInput`, the date button of `AleraDateTimeField`) so they line up in one row |
+| `keyValueLabelWidth` | Width of the muted label column in `AleraKeyValueRow` |
+| `keyValueListLabelWidth`, `keyValueStackBreakpoint` | Label column of `AleraKeyValueList` and the width under which it stacks labels above values |
+| `railWidth`, `railCompactWidth` | `AleraRail` width with labels (72px) and icon-only (48px) |
 
 ## Component Rules
 
@@ -114,9 +118,13 @@ Typography and sizing:
 - Status labels use `AleraBadge` with an `AleraBadgeTone`: `neutral`, `accent`, `attention` (warning), `success`, `error`, `info`, `done`. A toned badge draws its Title Case label in the tone color at `labelSmall` w600 on the tone color at `statusTintAlpha`, with `radiusSm` corners; `neutral` and `accent` keep the `accentSubtle` fill. Use tones only for status semantics; tags and counts stay `neutral`.
 - Agent status in sidebar rows: a working run keeps its spinner and gets no label, waiting shows `Needs Input` (attention), blocked shows `Blocked` (error), and done shows `Done` (success). An interrupted run keeps its cancel glyph. While a badge names the state, the leading status slot shows a muted dot so the color is not repeated. At narrow widths the badge outranks the agent glyph and inline metadata trays.
 - Loading and empty lists share `AleraEmptyState` (`loading: true` shows a small spinner in its icon slot).
+- Multi-step work (installs, setup pipelines) uses `AleraProgressSteps`: one row per stage with a 14px glyph joined by a `borderSubtle` connector. Pending shows a faint circle, active an `accent` spinner (`strokeSm`) with an optional progress bar, done a muted check, failed an `error` glyph with the reason as detail, and skipped a faint cancel glyph.
+- A toast with an action (`actionLabel`/`onAction` on `AleraToast.show`) is the only toast that takes pointer input; pressing the action also dismisses it.
 - Default Material button shape uses `radiusLg`.
 - Default Material button minimum height is `34`.
 - Confirmation dialogs use equal-width secondary and primary footer actions.
+- Prompt-first forms put each property in an `AleraPropertyChip` that opens an `AleraPopover`. The chip marks an open popover as active, a blocking value with the error border, and a value seeded from where the form was opened with a `From Context` badge. A popover closes on Escape or an outside tap and returns focus to where it was; a search-and-sections choice inside it uses `AleraSectionedPicker`.
+- Durations are edited as a number plus unit with `AleraDurationField` and printed with `aleraDurationLabel`; times of day are typed into `AleraTimeOfDayField` (24-hour display, accepts `9`, `9:30`, `6:05 pm`). Fields report raw values and leave range checks and their messages to the caller.
 
 ## Surface Model
 
@@ -165,12 +173,14 @@ Components are **presentational**: they take data and callbacks as parameters an
 
 | Role | Components |
 | --- | --- |
-| Buttons | `AleraIconButton`, `AleraSegmentedButton` |
-| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip` |
-| Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail` |
-| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast`, `AleraQrCode` |
-| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail`, `AleraHorizontalScrollView` |
+| Buttons | `AleraIconButton`, `AleraSegmentedButton`, `AleraTabStrip` (underlined page tabs with an optional muted count) |
+| Badges & chips | `AleraBadge`, `AleraKeybindingBadge`, `AleraChip`, `AleraPropertyChip`, `AleraAttentionChip` (status-bar icon and count, capped at `999+`, in a warning, accent, or muted tone) |
+| Surfaces | `AleraPanel`, `AleraCommandLine`, `HoverContainer`, `AleraActiveRail`, `AleraPopover` |
+| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraInlineNotice`, `AleraToast` (optional `actionLabel`/`onAction`), `AleraQrCode`, `AleraProgressSteps`, `AleraGateCard` (a decision a run owes a person: prompt, evidence links, notes, answers, stale and busy states) |
+| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField` (optional `group` headers and `detail` notes per entry), `AleraSegmentedChoice` (two or three options with the selected option's helper text and each disabled option's reason), `AleraCheckbox`, `AleraCompactInput`, `AleraDurationField`, `AleraTimeOfDayField`, `AleraDateTimeField` |
+| Chat | `AleraMessageBubble` (outgoing or incoming message with heading, status badge, New marker, and time) |
+| Lists | `AleraActivityRow` (optional `trailing` note), `AleraTimeline` (lazy day-grouped event log with open markers), `AleraKeyValueList` (selectable labelled facts with optional Copy) |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup` (optional `collapsible`, `initiallyExpanded`, `trailing`), `AleraMasterDetail`, `AleraHorizontalScrollView`, `AleraRail` (vertical section rail with icon, label, and count badge; icon-only with tooltips when compact), `AleraSectionedPicker`, `AleraCollapsibleSection`, `AleraKeyValueRow` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 | Iconography | `AleraIcons`, `AleraFileIcon`, `AleraLogo` |
 
@@ -182,3 +192,19 @@ Every component ships a co-located `*.preview.dart` file so it can be developed 
 - A preview function must be public and return a `Widget` or `WidgetBuilder`; its arguments and callbacks must be `const`/static.
 - Launch the previewer with `flutter widget-preview start <absolute-project-path>` (the repository root for desktop, or its `mobile` directory). Passing an absolute path also keeps Flutter 3.47's scaffold restart anchored to the application when a pubspec changes. Previews render on Flutter Web, so they cover UI only - terminal runtime, updater, and other native code paths are not previewable and stay out of the design system. Quota previews use the presentational content; the application wrapper supplies its runtime actions.
 - The checked-in `.widget_preview/pubspec_overrides.yaml` files preserve the app's terminal forks in generated preview scaffolds. After `flutter widget-preview clean`, restore that file with `git restore -- .widget_preview/pubspec_overrides.yaml` from the corresponding application directory before starting again.
+
+## Workspace Details
+
+The central workbench overlays the workspace details card in its upper-right corner without resizing terminal content. It is initially visible when the central pane meets `wideContentBreakpoint` and the minimum available height. Visibility persists per workspace. Smaller panes and an open terminal search use a closed-by-default popover; its contents scroll in short windows. Toggle Workspace Details is registered in the command registry without a default shortcut.
+
+`AleraWorkspaceDetailsCard` is presentational and has a co-located widget preview. Host, Open In, Branch, Git action and Changes rows use the existing Inter typography, semantic icons and surface tokens. Added and removed counts use success and error tokens. Provider reads, host routing, preferences and dialog launchers live in the feature wrapper. Opening the card preserves pane focus; closing restores pane focus only when the details controls owned it.
+
+Changes counters and per-file patches share an immutable merge-base-to-working-tree snapshot, including new files. The comparison base resolves from the workspace/repository preference, an open review, the workspace source branch and the repository default branch, preferring available remote references. An invalid explicit base displays an error and can be reset to Automatic from the Branch control.
+
+Git submission reviews whole files and editable commit text before writing. AI Assist receives only selected snapshot patches. Canceling or generating text does not stage files. Selective commits validate HEAD, disk content and the index, preserve excluded staged files, and commit the complete selected files. Background jobs retain their original workspace and host; completed commit and push stages survive an explicit retry after a later failure. Remote folders cannot be opened in the local file manager; copying their path and opening the repository URL remain available.
+
+The current workspace PR appears directly after the branch, including its number, full-title tooltip, state, check summary and contextual action. The existing stack expands beneath it in layer order; selecting a member reveals it in the Pull Request panel without changing the workspace's linked PR. Checks open the existing lazy details list. Merge and Ready share confirmation launchers with the panel and revalidate the PR identity, head, checks and account capabilities after confirmation. Unknown capabilities never enable merge.
+
+Full, compact and essential densities depend on the available height. Compact removes secondary row descriptions; essential moves Host and Open In into Workspace Options. PRs, Git progress and Changes remain reachable and the card scrolls when needed. Network progress carries bounded, credential-redacted output from the host executing Git. Older runtimes retain phase and elapsed time. Successful results stay for ten seconds; failures retain the completed-stage summary and an explicit continuation action.
+
+Workspace detail rows share a fixed icon slot and text column, with a primary action and chevron separated by a hairline. Hover tints the row and selected segment; keyboard focus uses the focus-ring token. The PR state, checks and contextual action sit beneath its title in the same text column. Essential density keeps the host visible in the Workspace Options row. At the minimum card width, checks may ellipsize while the PR state and pending action remain readable; their complete label is available in the tooltip.

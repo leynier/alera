@@ -194,3 +194,25 @@
   font-weight: 500;
   letter-spacing: 0.1px;
 }
+
+[data-alera-demo] .center { container-type: size; container-name: alera-center; }
+[data-alera-demo] .workspace-details-toggle { position: absolute; top: 48px; right: 152px; z-index: 5; }
+[data-alera-demo] .workspace-details { display: none; position: absolute; top: 88px; right: 8px; z-index: 5; width: var(--app-workspace-details-width); border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-surface); overflow: hidden; }
+[data-alera-demo] .workspace-details-section { padding: 6px; }
+[data-alera-demo] .workspace-details-section + .workspace-details-section { border-top: 1px solid var(--app-border-subtle); }
+[data-alera-demo] .workspace-detail-row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 0 6px 8px; border-radius: 8px; color: var(--app-foreground); font-size: 13px; }
+[data-alera-demo] .workspace-detail-row > :first-child { flex: 0 0 16px; }
+[data-alera-demo] .workspace-detail-row > span:not(.codicon) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-alera-demo] .workspace-detail-row > svg:last-child { flex: 0 0 32px; color: var(--app-foreground-muted); }
+[data-alera-demo] .workspace-detail-row small { display: block; color: var(--app-foreground-muted); font-size: 12px; }
+[data-alera-demo] .workspace-detail-split { flex: 0 0 1px; height: 16px; margin-right: -8px; background: var(--app-border); }
+[data-alera-demo] .workspace-details-pr > :first-child { color: var(--app-success); }
+[data-alera-demo] .workspace-details-pr-meta { display: flex; align-items: center; gap: 4px; height: 24px; margin: 0 2px 4px 32px; color: var(--app-success); font-size: 12px; }
+[data-alera-demo] .workspace-details-checks { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; }
+[data-alera-demo] .workspace-details-pr-meta b { margin-left: auto; padding: 2px 8px; border-radius: 6px; background: var(--app-accent-subtle); color: var(--app-foreground); font-size: 13px; font-weight: 500; }
+[data-alera-demo] .workspace-details-add, [data-alera-demo] .workspace-details-remove { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 400; }
+[data-alera-demo] .workspace-details-remove { margin-right: 8px; }
+[data-alera-demo] .workspace-details-add { color: var(--app-success); }
+[data-alera-demo] .workspace-details-remove { color: var(--app-error); }
+@container alera-center (min-width: 760px) and (min-height: 264px) { [data-alera-demo] .workspace-details { display: block; } }
+@container alera-center (max-width: 311px) { [data-alera-demo] .workspace-details-toggle { top: auto; right: auto; bottom: 4px; left: 8px; } }

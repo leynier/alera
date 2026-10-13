@@ -18,9 +18,10 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 4;
+const PROTOCOL_VERSION: i64 = 5;
+/// The protocol `v0.49.0` speaks; orchestration v3 moved the current one on.
+const V049_PROTOCOL_VERSION: i64 = 4;
 const PROFILE_CAPABILITY: &str = "orchestrationAgentProfilesV1";
-const PROFILE_ORDERING_CAPABILITY: &str = "agentProfileOrderingV1";
 const V049_TAG_COMMIT: &str = "e60c96ec7522052e9af81ab15ae5d6da2443dac4";
 /// Stamps baked into `alera-runtime-0.49.0-linux-x64.tar.gz` (crate version,
 /// not the product tag). The shell script pins the tarball SHA-256.
@@ -66,6 +67,7 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
 
 fn spawn_host(
     binary: &str,
+    protocol: i64,
     expected_identity: Option<(&str, &str)>,
 ) -> (HostGuard, TcpStream, BufReader<TcpStream>) {
     let runtime = tempfile::tempdir().unwrap();
@@ -99,7 +101,7 @@ fn spawn_host(
     let port = loop {
         if let Ok(contents) = std::fs::read_to_string(&control_path) {
             let control: Value = serde_json::from_str(&contents).unwrap();
-            assert_eq!(control["protocolVersion"], json!(PROTOCOL_VERSION));
+            assert_eq!(control["protocolVersion"], json!(protocol));
             break control["port"].as_u64().unwrap() as u16;
         }
         assert!(Instant::now() < deadline, "control file was never written");
@@ -114,7 +116,7 @@ fn spawn_host(
     send(
         &mut writer,
         json!({"id": 0, "type": "hello", "payload": {
-            "protocolVersion": PROTOCOL_VERSION, "token": token
+            "protocolVersion": protocol, "token": token
         }}),
     );
     let hello = read_response(&mut reader, 0);
@@ -134,7 +136,7 @@ fn spawn_host(
 }
 
 fn assert_v049_baseline(binary: &str, expected_identity: Option<(&str, &str)>) -> Vec<Value> {
-    let (_guard, mut writer, mut reader) = spawn_host(binary, expected_identity);
+    let (_guard, mut writer, mut reader) = spawn_host(binary, PROTOCOL_VERSION, expected_identity);
     send(
         &mut writer,
         json!({"id": 2, "type": "status.get", "payload": {}}),
@@ -212,7 +214,7 @@ fn current_host_accepts_v049_baseline_contract() {
 
 #[test]
 #[ignore = "run through tool/ci/host_compatibility.sh with the pinned v0.49.0 host"]
-fn v049_host_accepts_current_baseline_client() {
+fn v049_host_and_current_client_refuse_each_other_by_protocol() {
     let binary = std::env::var("ALERA_PREVIOUS_HOST_BINARY")
         .expect("ALERA_PREVIOUS_HOST_BINARY must name the pinned host");
     let product_version = std::env::var("ALERA_PREVIOUS_HOST_VERSION")
@@ -222,61 +224,63 @@ fn v049_host_accepts_current_baseline_client() {
         "host_compatibility.sh pins tag v0.49.0 at {V049_TAG_COMMIT}; \
          the published binary stamps crate {V049_PUBLISHED_HOST_VERSION}"
     );
+    // Its own protocol still opens it, which pins the published binary.
     let identity = Some((V049_PUBLISHED_HOST_VERSION, V049_PUBLISHED_HOST_COMMIT));
-    let capabilities = assert_v049_baseline(&binary, identity);
-    assert!(!capabilities.contains(&json!(PROFILE_ORDERING_CAPABILITY)));
-    assert!(!capabilities.contains(&json!("workflowRecipeCatalogV1")));
-    assert!(!capabilities.contains(&json!("workflowReviewedPlansV1")));
+    let (guard, _writer, _reader) = spawn_host(&binary, V049_PROTOCOL_VERSION, identity);
+    drop(guard);
 
-    let (_guard, mut writer, mut reader) = spawn_host(&binary, identity);
+    // Orchestration v3 is a breaking change: the control file tells a current
+    // client the host is too old, and a current hello is refused rather than
+    // served with the retired workflow verbs.
+    let runtime = tempfile::tempdir().unwrap();
+    let control_path = runtime.path().join("runtime-host.json");
+    let home_path = runtime.path().join("home");
+    std::fs::create_dir_all(&home_path).unwrap();
+    let token = "cross-version-conformance-token";
+    let child = windowless_command(&binary)
+        .args([
+            "terminal-host",
+            "--runtime-dir",
+            runtime.path().to_str().unwrap(),
+            "--control-file",
+            control_path.to_str().unwrap(),
+            "--token",
+            token,
+        ])
+        .env("HOME", &home_path)
+        .env("SHELL", "/bin/sh")
+        .spawn()
+        .expect("failed to spawn compatibility host");
+    let _guard = HostGuard {
+        child,
+        _runtime: runtime,
+    };
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let control: Value = loop {
+        if let Ok(contents) = std::fs::read_to_string(&control_path) {
+            break serde_json::from_str(&contents).unwrap();
+        }
+        assert!(Instant::now() < deadline, "control file was never written");
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    assert_ne!(control["protocolVersion"], json!(PROTOCOL_VERSION));
+    let stream =
+        TcpStream::connect(("127.0.0.1", control["port"].as_u64().unwrap() as u16)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    let mut writer = stream.try_clone().unwrap();
+    let mut reader = BufReader::new(stream);
     send(
         &mut writer,
-        json!({"id": 6, "type": "agentProfile.reorder", "payload": {"ids": []}}),
-    );
-    let response = read_response(&mut reader, 6);
-    assert_eq!(response["ok"], json!(false));
-    assert!(
-        response["error"].as_str().is_some_and(
-            |error| error.contains("Unknown terminal host request: agentProfile.reorder")
-        ),
-        "new feature returned an opaque error: {response}"
-    );
-    send(
-        &mut writer,
-        json!({"id": 7, "type": "orchestration.taskCreateContracted", "payload": {
-            "spec": "Must not become an uncontracted task", "workspace": "compat-workspace",
-            "roleContract": {"version": 1}, "contractInputs": {}
+        json!({"id": 0, "type": "hello", "payload": {
+            "protocolVersion": PROTOCOL_VERSION, "token": token
         }}),
     );
-    let response = read_response(&mut reader, 7);
-    assert_eq!(response["ok"], json!(false));
-    assert!(
-        response["error"].as_str().is_some_and(|error| error
-            .contains("Unknown orchestration request: orchestration.taskCreateContracted")),
-        "old host silently accepted a contracted task: {response}"
+    let hello = read_response(&mut reader, 0);
+    assert_eq!(
+        hello["ok"],
+        json!(false),
+        "old host accepted a newer client: {hello}"
     );
-    send(
-        &mut writer,
-        json!({"id": 8, "type": "orchestration.taskList", "payload": {}}),
-    );
-    let response = read_response(&mut reader, 8);
-    assert_eq!(response["ok"], json!(true));
-    assert!(response["payload"]["items"].as_array().unwrap().is_empty());
-    send(
-        &mut writer,
-        json!({"id": 9, "type": "workflows.catalog", "payload": {}}),
-    );
-    let response = read_response(&mut reader, 9);
-    assert_eq!(response["ok"], json!(false));
-    assert!(response["error"]
-        .as_str()
-        .is_some_and(|error| error.contains("Unknown terminal host request: workflows.catalog")));
-    for (id, verb) in [(10, "workflows.preparePlan"), (11, "workflows.decide")] {
-        send(
-            &mut writer,
-            json!({"id": id, "type": verb, "payload": {"actor":"app", "document":"{}"}}),
-        );
-        let response = read_response(&mut reader, id);
-        assert_eq!(response["ok"], json!(false), "old host accepted {verb}");
-    }
 }

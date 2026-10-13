@@ -3,12 +3,21 @@ use serde_json::{json, Value};
 use std::collections::BTreeSet;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_presence::AgentPresence;
 
 use super::orchestration_validation::{optional_string, require_string, state_error};
 use super::ServerActor;
 
 impl ServerActor {
+    /// How far an agent in `handle` got before running its first worker
+    /// command: idle at its prompt, detected but busy, or not seen at all.
+    pub(super) fn presence_startup_state(&self, handle: &str) -> &'static str {
+        match self.agent_presence.get(handle) {
+            Some(presence) if presence.accepts_injection() => "agent_ready",
+            Some(_) => "agent_detected",
+            None => "process_started",
+        }
+    }
+
     pub(super) fn orchestration_terminals(&self, payload: &Value) -> Value {
         let workspace = optional_string(payload, "workspace");
         let terminals: Vec<Value> = self
@@ -91,17 +100,12 @@ impl ServerActor {
             });
         let startup_state = match dispatch.as_ref().map(|value| value.status) {
             _ if !session.running() => "failed",
-            Some(OrchestrationDispatchStatus::AwaitingAcceptance) => {
-                "dispatch_submitted_unconfirmed"
-            }
             Some(OrchestrationDispatchStatus::Dispatched) => "accepted",
             Some(OrchestrationDispatchStatus::Completed) => "completed",
             Some(OrchestrationDispatchStatus::StartupFailed) => "failed",
             Some(OrchestrationDispatchStatus::Stalled) => "stalled",
             _ if spawn_failure.is_some() => "failed",
-            _ if presence.is_some_and(AgentPresence::accepts_injection) => "agent_ready",
-            _ if presence.is_some() => "agent_detected",
-            _ => "process_started",
+            _ => self.presence_startup_state(&handle),
         };
         Ok(json!({
             "handle": handle,

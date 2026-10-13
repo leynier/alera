@@ -1,4 +1,5 @@
 use super::{AutomationDefinitionFileArgs, RuntimeDirArgs};
+use crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY;
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
 
@@ -33,11 +34,16 @@ pub(super) async fn author(
     if args.draft {
         definition["state"] = json!("draft");
     }
+    let reuse = args.reuse.as_deref().map(reuse_policy);
+    if let Some(policy) = reuse {
+        definition["reusePolicy"] = json!(policy);
+    }
     let from_env = |value: Option<String>, key: &str| {
         value
             .or_else(|| std::env::var(key).ok())
             .filter(|v| !v.trim().is_empty())
     };
+    let explicit_workspace = args.workspace_id.clone();
     let workspace = from_env(args.workspace_id, "ALERA_WORKSPACE_ID");
     let profile = from_env(args.profile_id, "ALERA_AGENT_PROFILE_ID");
     if let Some(target) = args.target.as_deref() {
@@ -51,13 +57,35 @@ pub(super) async fn author(
             "existing-tab" => {
                 json!({"existingTab":{"workspaceId":required(workspace,"--workspace-id")?,"tabId":required(from_env(args.tab_id,"ALERA_TAB_ID"),"--tab-id")?,"conversationId":required(from_env(args.conversation_id,"ALERA_AGENT_CONVERSATION_ID"),"--conversation-id")?}})
             }
-            "managed-workspace" => {
-                json!({"managedWorkspace":{"sourceWorkspaceId":required(workspace,"--workspace-id")?,"sourceBranch":required(args.source_branch,"--source-branch")?,"agentProfileId":required(profile,"--profile-id")?}})
-            }
-            "project-worktree" => {
-                let project_id = required(args.project_id.clone(), "--project-id")?;
-                definition["projectId"] = json!(project_id);
-                json!({"projectWorktree":{"projectId":project_id,"sourceBranch":required(args.source_branch,"--source-branch")?,"agentProfileId":required(profile,"--profile-id")?}})
+            "worktree" | "managed-workspace" | "project-worktree" => {
+                let (project_id, parent_workspace_id) = match target {
+                    "managed-workspace" => (None, Some(required(workspace, "--workspace-id")?)),
+                    "project-worktree" => (
+                        Some(required(args.project_id.clone(), "--project-id")?),
+                        None,
+                    ),
+                    // A parent workspace is only implied by the terminal's
+                    // workspace when no project was named.
+                    _ => match args.project_id.clone() {
+                        Some(project_id) => (Some(project_id), explicit_workspace),
+                        None => (
+                            None,
+                            Some(required(workspace, "--project-id or --workspace-id")?),
+                        ),
+                    },
+                };
+                let mut worktree = json!({
+                    "sourceBranch": required(args.source_branch, "--source-branch")?,
+                    "agentProfileId": required(profile, "--profile-id")?,
+                });
+                if let Some(project_id) = project_id {
+                    definition["projectId"] = json!(project_id);
+                    worktree["projectId"] = json!(project_id);
+                }
+                if let Some(parent) = parent_workspace_id {
+                    worktree["parentWorkspaceId"] = json!(parent);
+                }
+                json!({ "worktree": worktree })
             }
             "project-checkout" => {
                 json!({"projectCheckout":{"projectId":required(args.project_id,"--project-id")?,"hostId":required(args.host_id,"--host-id")?,"agentProfileId":required(profile,"--profile-id")?}})
@@ -101,14 +129,71 @@ pub(super) async fn author(
     if let Ok(handle) = std::env::var("ALERA_TERMINAL_HANDLE") {
         payload["terminalHandle"] = json!(handle);
     }
-    super::request(
-        runtime,
-        if args.dry_run {
-            "automation.readiness"
-        } else {
-            verb
-        },
-        payload,
-    )
-    .await
+    let verb = if args.dry_run {
+        "automation.readiness"
+    } else {
+        verb
+    };
+    // An older host would silently drop the policy, so refuse instead.
+    if reuse.is_some() {
+        return super::request_requiring(
+            runtime,
+            verb,
+            payload,
+            RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
+        )
+        .await;
+    }
+    super::request(runtime, verb, payload).await
+}
+
+fn reuse_policy(flag: &str) -> &'static str {
+    match flag {
+        "workspace" => "reuseWorkspace",
+        "conversation" => "reuseConversation",
+        _ => "newEachRun",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[test]
+    fn reuse_flag_maps_to_the_definition_policy() {
+        assert_eq!(super::reuse_policy("none"), "newEachRun");
+        assert_eq!(super::reuse_policy("workspace"), "reuseWorkspace");
+        assert_eq!(super::reuse_policy("conversation"), "reuseConversation");
+        for args in [
+            vec!["alera", "automation", "create", "--reuse", "conversation"],
+            vec![
+                "alera",
+                "automation",
+                "edit",
+                "--id",
+                "a",
+                "--reuse",
+                "none",
+            ],
+            vec![
+                "alera",
+                "automation",
+                "unbind",
+                "--id",
+                "a",
+                "--reason",
+                "why",
+            ],
+        ] {
+            assert!(crate::cli::Cli::try_parse_from(&args).is_ok(), "{args:?}");
+        }
+        assert!(crate::cli::Cli::try_parse_from([
+            "alera",
+            "automation",
+            "create",
+            "--reuse",
+            "tab"
+        ])
+        .is_err());
+    }
 }

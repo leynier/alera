@@ -25,7 +25,7 @@ async fn owner_precheck_executes_once_and_persists_verified_result_without_a_wor
         precheck: alera_core::runtime::AutomationPrecheck {
             command: format!(
                 "printf x >> {}; exit 1",
-                crate::ssh_bootstrap::shell_quote(marker.to_str().unwrap())
+                crate::ssh_remote_command::shell_quote(marker.to_str().unwrap())
             ),
             timeout_seconds: 10,
         },

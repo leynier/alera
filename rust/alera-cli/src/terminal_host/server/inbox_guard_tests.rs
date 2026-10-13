@@ -1,4 +1,4 @@
-use serde_json::json;
+use serde_json::{json, Value};
 
 use super::inbox_test_fixture::*;
 
@@ -139,16 +139,24 @@ async fn cancel_waits_for_an_in_flight_paste_and_follow_ups_need_a_live_recipien
 }
 
 #[tokio::test]
-async fn agents_reach_an_inbox_only_inside_its_threads() {
+async fn an_agent_may_open_or_continue_its_own_threads_with_an_inbox() {
     let mut fixture = fixture().await;
-    let loose = fixture
-        .request(
+    // Without a thread, the agent opens one with the inbox.
+    let opened = fixture
+        .ok(
             CLI,
             "orchestration.send",
             json!({"from": "claude-term", "to": "ext:user", "subject": "Hello"}),
         )
         .await;
-    assert_eq!(loose["errorCode"], "inbox_thread_required", "{loose}");
+    let opened_id = opened["messages"][0]["id"].as_str().unwrap().to_string();
+    assert_eq!(opened["messages"][0]["thread_id"], Value::Null);
+    let threads = fixture
+        .ok(PHONE, "inbox.threads", json!({"inbox": "ext:user"}))
+        .await;
+    assert_eq!(threads["items"][0]["threadId"], opened_id, "{threads}");
+    assert_eq!(threads["items"][0]["recipient"], "claude-term");
+
     let asked = fixture
         .ok(
             PHONE,
@@ -164,7 +172,7 @@ async fn agents_reach_an_inbox_only_inside_its_threads() {
             json!({"from": "codex-term", "to": "ext:user", "subject": "Me too", "threadId": question_id}),
         )
         .await;
-    assert_eq!(stranger["errorCode"], "inbox_thread_required", "{stranger}");
+    assert_eq!(stranger["errorCode"], "inbox_thread_mismatch", "{stranger}");
     let sent = fixture
         .ok(
             CLI,
@@ -177,6 +185,16 @@ async fn agents_reach_an_inbox_only_inside_its_threads() {
         .ok(PHONE, "inbox.thread", json!({"threadId": question_id}))
         .await;
     assert_eq!(thread["messages"][1]["kind"], "message");
+    // The inbox may follow up in the thread the agent opened.
+    let follow_up = fixture
+        .ok(
+            PHONE,
+            "inbox.ask",
+            json!({"threadId": opened_id, "body": "Thanks, and next?"}),
+        )
+        .await;
+    assert_eq!(follow_up["threadId"], opened_id, "{follow_up}");
+    assert_eq!(follow_up["recipient"]["handle"], "claude-term");
 }
 
 #[tokio::test]

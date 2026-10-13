@@ -3,13 +3,14 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
-/// trailing check for the [selected] value, optional leading content, and
-/// pop-on-tap semantics.
+/// trailing check for the [selected] value, optional leading content, an
+/// optional muted [detail] beside the label, and pop-on-tap semantics.
 class const AleraDropdownEntry<T>({
   super.key,
   required final T value,
   required final String label,
   final Widget? leading,
+  final String? detail,
   final bool selected = false,
   final bool enabled = true,
 }) extends PopupMenuEntry<T> {
@@ -58,6 +59,14 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
                       ?.copyWith(color: color),
                 ),
               ),
+              if (widget.detail case final detail?) ...<Widget>[
+                const SizedBox(width: AleraTokens.space12),
+                Text(
+                  detail,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
+                ),
+              ],
               if (widget.selected)
                 const Icon(
                   AleraIcons.check,
@@ -70,4 +79,40 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
       ),
     );
   }
+}
+
+/// Non-interactive group title inside an Alera popover menu.
+class const AleraDropdownGroupHeader<T>({
+  super.key,
+  required final String label,
+}) extends PopupMenuEntry<T> {
+  @override
+  double get height => 28;
+
+  @override
+  bool represents(T? value) => false;
+
+  @override
+  State<AleraDropdownGroupHeader<T>> createState() =>
+      _AleraDropdownGroupHeaderState<T>();
+}
+
+class _AleraDropdownGroupHeaderState<T>
+    extends State<AleraDropdownGroupHeader<T>> {
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AleraTokens.space8,
+      AleraTokens.space8,
+      AleraTokens.space8,
+      AleraTokens.space4,
+    ),
+    child: Text(
+      widget.label,
+      maxLines: 1,
+      overflow: .ellipsis,
+      style: Theme.of(context).textTheme.labelSmall
+          ?.copyWith(color: AleraTokens.foregroundMuted),
+    ),
+  );
 }

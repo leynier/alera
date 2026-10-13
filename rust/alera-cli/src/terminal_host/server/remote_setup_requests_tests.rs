@@ -12,10 +12,16 @@ struct Owner {
     response: Value,
 }
 impl crate::ssh_remote::RemoteHostExecutor for Owner {
-    async fn probe_windows(&self, _: &SshTarget) -> Option<bool> {
-        Some(false)
+    async fn probe_shell(&self, _: &SshTarget) -> Option<crate::remote_shell::RemoteShell> {
+        Some(crate::remote_shell::RemoteShell::Posix)
     }
-    async fn run(&self, _: &SshTarget, _: bool, script: &str) -> anyhow::Result<String> {
+    async fn run(
+        &self,
+        _: &SshTarget,
+        _: crate::remote_shell::RemoteShell,
+        script: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
+    ) -> anyhow::Result<String> {
         let mut response = self.response.clone();
         if script.contains("--action run") {
             self.started.notify_one();

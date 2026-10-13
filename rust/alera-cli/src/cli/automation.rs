@@ -26,6 +26,7 @@ pub enum AutomationAction {
     /// Patch an automation with flags or a JSON definition file.
     Edit(AutomationDefinitionFileArgs),
     /// Deprecated alias for resume. No approval is required.
+    #[command(hide = true)]
     Approve(AutomationRevisionArgs),
     /// Pause an active automation.
     Pause(AutomationStateArgs),
@@ -47,6 +48,8 @@ pub enum AutomationAction {
     Clone(AutomationCloneArgs),
     /// Take over the terminal of a run so the automation stops driving it.
     TakeOver(AutomationTakeOverArgs),
+    /// Forget the workspace or conversation a reusing automation returns to.
+    Unbind(AutomationUnbindArgs),
     /// Cancel one non-final run.
     Cancel(AutomationRunIdArgs),
     /// Show the context and lifecycle contract for a run.
@@ -59,17 +62,6 @@ pub enum AutomationAction {
     Extend(AutomationExtendArgs),
     /// Complete a run with a required summary.
     Complete(AutomationCompleteArgs),
-    /// List prompt templates, or upsert from JSON. updatedAt is optional on upsert.
-    Templates(AutomationCatalogFileArgs),
-    /// List tags, upsert one, or set the tags of an automation.
-    Tags(AutomationTagsArgs),
-    /// Import a runtime-local automation catalog.
-    Import(AutomationImportArgs),
-    /// Export a runtime-local automation catalog.
-    Export(AutomationExportArgs),
-    /// Deprecated. Automation permission policies have been removed.
-    #[command(hide = true)]
-    Policy(AutomationPolicyArgs),
 }
 
 #[derive(Debug, Args)]
@@ -83,8 +75,6 @@ pub struct AutomationListArgs {
     pub project_id: Option<String>,
     #[arg(long = "profile-id")]
     pub profile_id: Option<String>,
-    #[arg(long)]
-    pub tag: Option<String>,
     #[arg(long)]
     pub search: Option<String>,
     #[arg(long)]
@@ -117,7 +107,9 @@ pub struct AutomationDefinitionFileArgs {
     #[arg(long)]
     pub timezone: Option<String>,
     /// Required for flag-based creation; never inferred from context.
-    #[arg(long, value_parser = ["fresh-tab", "existing-tab", "managed-workspace", "project-worktree", "project-checkout"])]
+    /// `managed-workspace` and `project-worktree` are older names for
+    /// `worktree`.
+    #[arg(long, value_parser = ["fresh-tab", "existing-tab", "worktree", "managed-workspace", "project-worktree", "project-checkout"])]
     pub target: Option<String>,
     #[arg(long)]
     pub workspace_id: Option<String>,
@@ -133,6 +125,10 @@ pub struct AutomationDefinitionFileArgs {
     pub conversation_id: Option<String>,
     #[arg(long)]
     pub source_branch: Option<String>,
+    /// Where later runs go: a new target each run, the workspace the first
+    /// run created, or its conversation.
+    #[arg(long, value_parser = ["none", "workspace", "conversation"])]
+    pub reuse: Option<String>,
     #[arg(long)]
     pub origin_workspace_id: Option<String>,
     #[arg(long)]
@@ -143,6 +139,15 @@ pub struct AutomationDefinitionFileArgs {
     pub request_key: Option<String>,
     #[arg(long)]
     pub expected_revision: Option<i64>,
+}
+
+#[derive(Debug, Args)]
+pub struct AutomationUnbindArgs {
+    #[arg(long)]
+    pub id: String,
+    /// Why, recorded in the audit history.
+    #[arg(long)]
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -180,8 +185,8 @@ pub struct AutomationRunNowArgs {
         value_parser = ["skip", "queue", "runLatestOnce", "forceParallel"]
     )]
     pub overlap: Option<String>,
-    /// Deprecated compatibility option; all technically valid states can run.
-    #[arg(long = "draft-test")]
+    /// Deprecated compatibility option and ignored; every technically valid state can run.
+    #[arg(long = "draft-test", hide = true)]
     pub draft_test: bool,
     /// Optional expected revision to reject a stale Run Now request.
     #[arg(long)]
@@ -272,34 +277,6 @@ pub struct AutomationCompleteArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct AutomationCatalogFileArgs {
-    /// Optional JSON file containing a template/tag object to upsert.
-    #[arg(long = "file", alias = "object-file")]
-    pub file: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct AutomationTagsArgs {
-    /// Optional JSON file (or - for stdin) with a tag object to upsert.
-    #[arg(long = "file", alias = "object-file", conflicts_with = "name")]
-    pub file: Option<String>,
-    /// Name of a tag to create, or to rename when --id is given.
-    #[arg(long)]
-    pub name: Option<String>,
-    #[arg(long, requires = "name")]
-    pub id: Option<String>,
-    /// Automation whose tags --assign or --clear replaces.
-    #[arg(long = "automation-id")]
-    pub automation_id: Option<String>,
-    /// Tag id to assign, repeatable. Requires --automation-id.
-    #[arg(long = "assign", value_name = "tag_id", requires = "automation_id")]
-    pub assign: Vec<String>,
-    /// With --automation-id, remove every tag from the automation.
-    #[arg(long = "clear", requires = "automation_id", conflicts_with = "assign")]
-    pub clear: bool,
-}
-
-#[derive(Debug, Args)]
 pub struct AutomationCloneArgs {
     #[arg(long)]
     pub id: String,
@@ -319,62 +296,11 @@ pub struct AutomationTakeOverArgs {
     pub run_id: String,
 }
 
-#[derive(Debug, Args)]
-pub struct AutomationImportArgs {
-    /// JSON catalog file, or - to read the catalog from stdin.
-    #[arg(long = "file")]
-    pub file: String,
-    /// Explicit source-id=target-id mappings, repeatable.
-    #[arg(long = "remap", value_parser = parse_remap)]
-    pub remap: Vec<(String, String)>,
-}
-
-#[derive(Debug, Args)]
-pub struct AutomationExportArgs {
-    /// Optional path to write the exported catalog.
-    #[arg(long = "file")]
-    pub file: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct AutomationPolicyArgs {
-    /// Policy kind: show (list all, or one agent/project when ids are passed), agent, or project.
-    #[arg(long, default_value = "show", value_parser = ["show", "agent", "project"])]
-    pub kind: String,
-    #[arg(long = "profile-id")]
-    pub profile_id: Option<String>,
-    #[arg(long = "project-id")]
-    pub project_id: Option<String>,
-    /// JSON policy file to save instead of reading the current policy.
-    #[arg(long = "file")]
-    pub file: Option<String>,
-}
-
-fn parse_remap(value: &str) -> Result<(String, String), String> {
-    value
-        .split_once('=')
-        .map(|(source, target)| (source.to_string(), target.to_string()))
-        .filter(|(source, target)| !source.is_empty() && !target.is_empty())
-        .ok_or_else(|| "remap must use source-id=target-id".to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use clap::Parser;
 
-    use super::parse_remap;
     use crate::cli::{AutomationAction, Cli, Command};
-
-    #[test]
-    fn remap_parser_requires_two_nonblank_ids() {
-        assert_eq!(
-            parse_remap("source=target").unwrap(),
-            ("source".into(), "target".into())
-        );
-        assert!(parse_remap("source=").is_err());
-        assert!(parse_remap("=target").is_err());
-        assert!(parse_remap("source").is_err());
-    }
 
     #[test]
     fn run_now_defaults_to_definition_choices() {
@@ -450,35 +376,28 @@ mod tests {
     }
 
     #[test]
-    fn policy_defaults_to_show_without_ids() {
-        let parsed = Cli::try_parse_from(["alera", "automation", "policy"]).unwrap();
-        match parsed.command {
-            Command::Automation(command) => match command.action {
-                AutomationAction::Policy(args) => {
-                    assert_eq!(args.kind, "show");
-                    assert!(args.profile_id.is_none());
-                    assert!(args.project_id.is_none());
-                    assert!(args.file.is_none());
-                }
-                other => panic!("expected policy, got {other:?}"),
-            },
-            other => panic!("expected automation, got {other:?}"),
+    fn retired_catalog_and_policy_subcommands_are_gone() {
+        for action in ["templates", "tags", "import", "export", "policy"] {
+            assert!(
+                Cli::try_parse_from(["alera", "automation", action]).is_err(),
+                "{action} still parses"
+            );
         }
+        assert!(Cli::try_parse_from(["alera", "automation", "list", "--tag", "t"]).is_err());
     }
 
     #[test]
-    fn templates_accepts_file_without_other_flags() {
-        let parsed =
-            Cli::try_parse_from(["alera", "automation", "templates", "--file", "t.json"]).unwrap();
-        match parsed.command {
-            Command::Automation(command) => match command.action {
-                AutomationAction::Templates(args) => {
-                    assert_eq!(args.file.as_deref(), Some("t.json"));
-                }
-                other => panic!("expected templates, got {other:?}"),
-            },
-            other => panic!("expected automation, got {other:?}"),
-        }
+    fn approve_and_draft_test_still_parse_for_older_scripts() {
+        assert!(Cli::try_parse_from(["alera", "automation", "approve", "--id", "a"]).is_ok());
+        assert!(Cli::try_parse_from([
+            "alera",
+            "automation",
+            "run-now",
+            "--id",
+            "a",
+            "--draft-test"
+        ])
+        .is_ok());
     }
 }
 

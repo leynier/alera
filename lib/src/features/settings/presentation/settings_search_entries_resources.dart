@@ -28,17 +28,35 @@ const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> remoteHostSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Remote Hosts',
-    description: 'Register SSH targets and install the runtime sidecar. Bootstrap does not place workspaces on the remote machine.',
+    description:
+        'Add SSH machines and install or update the Alera runtime on them.',
     keywords: <String>[
       'ssh',
       'remote',
       'host',
+      'machine',
+      'server',
       'runtime',
-      'bootstrap',
-      'sidecar',
-      'worktree',
-      'workspace',
+      'install',
+      'update',
     ],
+  ),
+  SettingsSearchEntry(
+    title: 'Host Connection',
+    description: 'Connect, disconnect and check the link to a remote host.',
+    keywords: <String>[
+      'connect',
+      'disconnect',
+      'offline',
+      'reconnect',
+      'link',
+      'check',
+    ],
+  ),
+  SettingsSearchEntry(
+    title: 'Projects on a Host',
+    description: 'See which projects live on a host and add or remove them.',
+    keywords: <String>['clone', 'checkout', 'remote project'],
   ),
 ];
 

@@ -19,13 +19,13 @@ use super::ServerActor;
 /// really is broader than one workspace or project: the wildcard is the safe
 /// value, never guess a scope.
 impl ServerActor {
-    pub(super) fn broadcast_workflow_catalog_changed(
+    pub(super) fn broadcast_recipes_changed(
         &self,
         source: &alera_core::runtime::WorkflowRecipeSource,
         catalog_revision: i64,
     ) {
-        self.broadcast_authenticated_local(event(
-            "workflowCatalogChanged",
+        self.broadcast_authenticated(event(
+            "recipesChanged",
             json!({"source": source, "catalogRevision": catalog_revision}),
         ));
     }
@@ -51,7 +51,14 @@ impl ServerActor {
         ));
     }
 
+    pub(super) fn broadcast_ssh_targets_changed(&self, host_id: Option<&str>) {
+        self.broadcast_authenticated(event("sshTargetsChanged", scope_payload("hostId", host_id)));
+    }
+
     pub(super) fn broadcast_workspaces_changed(&self, project_id: Option<&str>) {
+        // A workspace that appears on or leaves a host changes whether that
+        // host should keep a link.
+        self.host_links.reevaluate();
         self.broadcast_authenticated(event(
             "workspacesChanged",
             scope_payload("projectId", project_id),
@@ -64,7 +71,7 @@ pub(super) fn string_scope(payload: &Value, key: &str) -> Option<String> {
     payload.get(key).and_then(Value::as_str).map(str::to_string)
 }
 
-fn scope_payload(field: &str, id: Option<&str>) -> Value {
+pub(super) fn scope_payload(field: &str, id: Option<&str>) -> Value {
     match id.filter(|value| !value.is_empty()) {
         Some(value) => json!({ field: value }),
         None => json!({}),

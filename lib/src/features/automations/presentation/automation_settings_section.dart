@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,15 +36,26 @@ class _AutomationSettingsSectionState
       final payload = await ref
           .read(runtimeHostClientProvider)
           .runtimeRequest('runtimeSettings.get');
-      final automation = _asMap(_asMap(payload)['automation']);
+      final automation = automationJsonMap(
+        automationJsonMap(payload)['automation'],
+      );
       if (!mounted) {
         return;
       }
       setState(() {
         _autostart = automation['autostart'] == true;
-        _runRetentionDays = _intOr(automation['runRetentionDays'], 30);
-        _auditRetentionDays = _intOr(automation['auditRetentionDays'], 90);
-        _trashRetentionDays = _intOr(automation['trashRetentionDays'], 30);
+        _runRetentionDays = automationJsonInt(
+          automation['runRetentionDays'],
+          30,
+        );
+        _auditRetentionDays = automationJsonInt(
+          automation['auditRetentionDays'],
+          90,
+        );
+        _trashRetentionDays = automationJsonInt(
+          automation['trashRetentionDays'],
+          30,
+        );
         _loading = false;
       });
     } on Object catch (error) {
@@ -52,7 +64,7 @@ class _AutomationSettingsSectionState
       }
       setState(() {
         _loading = false;
-        _error = error.toString();
+        _error = automationErrorMessage(error);
       });
     }
   }
@@ -79,7 +91,7 @@ class _AutomationSettingsSectionState
       );
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _error = error.toString());
+        setState(() => _error = automationErrorMessage(error));
       }
     } finally {
       if (mounted) {
@@ -161,16 +173,3 @@ class _AutomationSettingsSectionState
     );
   }
 }
-
-Map<String, Object?> _asMap(Object? value) {
-  if (value is Map) {
-    return <String, Object?>{
-      for (final entry in value.entries)
-        if (entry.key is String) entry.key as String: entry.value,
-    };
-  }
-  return const <String, Object?>{};
-}
-
-int _intOr(Object? value, int fallback) =>
-    value is int ? value : int.tryParse(value?.toString() ?? '') ?? fallback;

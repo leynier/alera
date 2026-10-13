@@ -1,23 +1,29 @@
 use alera_core::runtime::{
-    prompt_value_map, render_prompt_template, AutomationActorKind, AutomationDefinition,
-    AutomationOverlapPolicy, AutomationRun, AutomationRunStatus, AutomationTarget,
+    decide_overlap, prompt_value_map, render_prompt_template, AutomationActorKind,
+    AutomationDefinition, AutomationOverlapDecision, AutomationRun, AutomationRunStatus,
+    AUTOMATION_OVERLAP_SUPERSEDED_REASON, AUTOMATION_QUEUE_LIMIT_REASON,
 };
 use chrono::Utc;
-use serde_json::json;
+use std::future::Future;
+use std::pin::Pin;
 
+use super::super::automation_bound_target_resolution::BoundTargetPlan;
 use super::automation_run_lifecycle::is_non_retryable_dispatch_error;
 use super::{automation_prompt, ServerActor};
 pub(in crate::terminal_host::server) use automation_worktree_dispatch::AutomationWorktree;
 
 impl ServerActor {
+    /// Starts a pending run unless its overlap policy keeps it waiting or
+    /// skips it. This is the only place overlap is decided, for scheduled,
+    /// manual and resumed runs alike.
     pub(in crate::terminal_host::server) async fn start_automation_run(
         &mut self,
         definition: &AutomationDefinition,
         mut run: AutomationRun,
         run_precheck: bool,
-    ) {
+    ) -> AutomationOverlapDecision {
         if self.automation_precheck_jobs.contains(&run.id) {
-            return;
+            return AutomationOverlapDecision::Proceed;
         }
         if self
             .automation_target_is_reserved(definition, &run.id)
@@ -32,94 +38,80 @@ impl ServerActor {
             });
             run.retry_after = Some(Utc::now() + chrono::Duration::seconds(5));
             let _ = self.runtime_store.save_automation_run(&run).await;
-            self.automation_run_event(&run);
-            return;
+            self.broadcast_automation_run_changed(&run);
+            return AutomationOverlapDecision::Wait;
         }
         run.recovery = None;
         let _ = self.runtime_store.save_automation_run(&run).await;
         self.automations_active = true;
         self.cancel_shutdown_timer();
-        let active_runs = self
+        let decision = self.apply_overlap_policy(definition, &run).await;
+        if decision != AutomationOverlapDecision::Proceed {
+            return decision;
+        }
+        self.dispatch_admitted_automation_run(definition, run, run_precheck)
+            .await;
+        AutomationOverlapDecision::Proceed
+    }
+
+    async fn apply_overlap_policy(
+        &self,
+        definition: &AutomationDefinition,
+        run: &AutomationRun,
+    ) -> AutomationOverlapDecision {
+        let active = self
             .runtime_store
             .list_active_automation_runs()
             .await
             .unwrap_or_default()
             .into_iter()
-            .filter(|active| active.automation_id == definition.id && active.id != run.id)
+            .filter(|active| active.automation_id == definition.id)
             .collect::<Vec<_>>();
-        let overlap = run.overlap_policy.unwrap_or(definition.overlap_policy);
-        if !active_runs.is_empty() {
-            match overlap {
-                AutomationOverlapPolicy::Skip => {
-                    let _ = self
-                        .runtime_store
-                        .update_automation_run_status(
-                            &run.id,
-                            AutomationRunStatus::OverlapSkipped,
-                            Some("automation overlap policy skipped the run".to_string()),
-                        )
-                        .await;
-                    return;
-                }
-                AutomationOverlapPolicy::RunLatestOnce => {
-                    for active in active_runs
-                        .iter()
-                        .filter(|active| active.status == AutomationRunStatus::Pending)
-                    {
-                        let _ = self
-                            .runtime_store
-                            .update_automation_run_status(
-                                &active.id,
-                                AutomationRunStatus::OverlapSkipped,
-                                Some("a newer occurrence replaced this queued run".to_string()),
-                            )
-                            .await;
-                    }
-                    return;
-                }
-                AutomationOverlapPolicy::Queue => {
-                    let pending = active_runs
-                        .iter()
-                        .filter(|active| active.status == AutomationRunStatus::Pending)
-                        .count();
-                    if pending >= definition.queue_cap.clamp(1, 10) as usize {
-                        let _ = self
-                            .runtime_store
-                            .update_automation_run_status(
-                                &run.id,
-                                AutomationRunStatus::QueueLimitSkipped,
-                                Some("automation queue cap reached".to_string()),
-                            )
-                            .await;
-                        return;
-                    }
-                    if active_runs
-                        .iter()
-                        .any(|active| active.status != AutomationRunStatus::Pending)
-                    {
-                        return;
-                    }
-                }
-                AutomationOverlapPolicy::ForceParallel => {}
-            }
+        let policy = run.overlap_policy.unwrap_or(definition.overlap_policy);
+        let (decision, superseded) = decide_overlap(policy, definition.queue_cap, &run.id, &active);
+        for id in superseded {
+            let _ = self
+                .set_automation_run_status(
+                    &id,
+                    AutomationRunStatus::OverlapSkipped,
+                    Some(AUTOMATION_OVERLAP_SUPERSEDED_REASON.to_string()),
+                )
+                .await;
         }
-        if let Err(error) = self
-            .ensure_dispatch_policy(
-                definition,
-                &alera_core::runtime::AutomationActor {
-                    kind: AutomationActorKind::ManagedAgent,
-                    id: run.actor_id.clone(),
-                    label: Some("Alera Automation Scheduler".to_string()),
-                },
-            )
-            .await
-        {
+        let skipped = match decision {
+            AutomationOverlapDecision::Skip(reason) => {
+                Some((AutomationRunStatus::OverlapSkipped, reason))
+            }
+            AutomationOverlapDecision::QueueLimit => Some((
+                AutomationRunStatus::QueueLimitSkipped,
+                AUTOMATION_QUEUE_LIMIT_REASON,
+            )),
+            AutomationOverlapDecision::Proceed | AutomationOverlapDecision::Wait => None,
+        };
+        if let Some((status, reason)) = skipped {
+            let _ = self
+                .set_automation_run_status(&run.id, status, Some(reason.to_string()))
+                .await;
+        }
+        decision
+    }
+
+    async fn dispatch_admitted_automation_run(
+        &mut self,
+        definition: &AutomationDefinition,
+        mut run: AutomationRun,
+        run_precheck: bool,
+    ) {
+        if let Err(error) = self.ensure_target_valid(definition).await {
             self.block_run(&run, &error.wire_message()).await;
             return;
         }
         // Bind the durable target before a workspace or project lookup can
         // fail, so attention notifications still have a useful location.
-        let target_identity = match self.target_identity(&definition.target).await {
+        let target_identity = match self
+            .target_identity(&definition.target, definition.reuse_policy)
+            .await
+        {
             Ok(identity) => identity,
             Err(error) => {
                 self.block_run(&run, &error).await;
@@ -127,7 +119,9 @@ impl ServerActor {
             }
         };
         let mut target_identity = target_identity;
-        if definition.target.direct_project_id().is_some() && run.owned_workspace {
+        let creates_workspace = definition.target.project_checkout().is_some()
+            || definition.target.worktree().is_some();
+        if creates_workspace && run.owned_workspace {
             target_identity.workspace_id = run.workspace_id.clone();
         }
         run.target_identity = Some(target_identity.clone());
@@ -162,6 +156,7 @@ impl ServerActor {
                 tracing::error!(run_id = %run.id, "could not reserve automation precheck: {error}");
                 return;
             }
+            self.broadcast_automation_run_changed(&run);
             self.start_automation_precheck(
                 definition.clone(),
                 run,
@@ -170,32 +165,46 @@ impl ServerActor {
             );
             return;
         }
-        Box::pin(self.dispatch_prechecked_automation(definition, run, location)).await;
+        self.dispatch_prechecked_automation(definition, run, location)
+            .await;
     }
 
-    pub(in crate::terminal_host::server) async fn dispatch_prechecked_automation(
+    // The two dispatch steps return their futures already boxed: the chain
+    // down to the PTY spawn is deep, and an unoptimized build keeps a future
+    // in the poll frame of whatever function constructs it.
+    pub(in crate::terminal_host::server) fn dispatch_prechecked_automation<'a>(
+        &'a mut self,
+        definition: &'a AutomationDefinition,
+        run: AutomationRun,
+        location: super::super::automation_target_location::AutomationTargetLocation,
+    ) -> Pin<Box<impl Future<Output = ()> + 'a>> {
+        Box::pin(self.dispatch_prechecked_inner(definition, run, location))
+    }
+
+    async fn dispatch_prechecked_inner(
         &mut self,
         definition: &AutomationDefinition,
         mut run: AutomationRun,
         location: super::super::automation_target_location::AutomationTargetLocation,
     ) {
-        if let AutomationTarget::ExistingTab { tab_id, .. } = &definition.target {
-            let session = self
-                .runtime_store
-                .find_workspace_tab(tab_id)
-                .await
-                .ok()
-                .flatten()
-                .and_then(|tab| super::super::requests::terminal_session_id_from_tab(&tab));
-            if session.as_deref().is_some_and(|id| {
-                self.sessions.get(id).is_some_and(|s| s.running())
-                    && !self.agent_presence.is_injection_ready(id)
-            }) {
-                run.retry_after = Some(Utc::now() + chrono::Duration::seconds(5));
-                let _ = self.runtime_store.save_automation_run(&run).await;
+        let plan = match self.plan_bound_target_task(definition, &run).await {
+            Ok(BoundTargetPlan::Busy { code, session_id }) => {
+                tracing::debug!(run_id = %run.id, ?session_id, code, "automation bound target is busy");
+                match self.park_task(definition, &mut run, code).await {
+                    Some(plan) => plan,
+                    None => return,
+                }
+            }
+            Ok(plan) => plan,
+            Err(error) if is_non_retryable_dispatch_error(&error) => {
+                self.block_run(&run, &error.wire_message()).await;
                 return;
             }
-        }
+            Err(error) => {
+                self.fail_run(&run, error.wire_message()).await;
+                return;
+            }
+        };
         let project = &location.project;
         run = match self
             .runtime_store
@@ -208,24 +217,30 @@ impl ServerActor {
                 return;
             }
         };
-        if definition.target.project_checkout().is_some()
+        self.broadcast_automation_run_changed(&run);
+        let reused = plan.reused_workspace().cloned();
+        if reused.is_none()
+            && definition.target.project_checkout().is_some()
             && location.host_id != alera_core::runtime::LOCAL_HOST_ID
         {
             self.start_automation_checkout_preparation(definition.clone(), run, project.clone());
             return;
         }
-        let source_workspace = if let AutomationTarget::ProjectWorktree {
-            project_id,
-            source_branch,
-            name_template,
-            ..
-        } = &definition.target
-        {
+        let source_workspace = if let Some(workspace) = reused {
+            workspace
+        } else if let Some(spec) = definition.target.worktree() {
+            if spec.parent_workspace_id.is_some()
+                && location.host_id != alera_core::runtime::LOCAL_HOST_ID
+            {
+                self.block_run(&run, "worktree automation requires a local execution host")
+                    .await;
+                return;
+            }
             let target = AutomationWorktree {
-                project_id,
-                source_branch,
-                name_template,
-                parent_workspace_id: None,
+                project_id: &project.id,
+                source_branch: spec.source_branch,
+                name_template: spec.name_template,
+                parent_workspace_id: spec.parent_workspace_id,
             };
             match self
                 .project_worktree_automation_workspace(definition, &mut run, target)
@@ -266,16 +281,28 @@ impl ServerActor {
         };
         // Dispatch includes workspace setup and profile launch. Keep that large
         // future off the actor's stack, including deferred precheck completions.
-        Box::pin(self.continue_automation_dispatch(definition, run, source_workspace, project))
+        self.continue_automation_dispatch(definition, run, source_workspace, project, plan)
             .await;
     }
 
-    pub(in crate::terminal_host::server) async fn continue_automation_dispatch(
+    pub(in crate::terminal_host::server) fn continue_automation_dispatch<'a>(
+        &'a mut self,
+        definition: &'a AutomationDefinition,
+        run: AutomationRun,
+        source_workspace: alera_core::runtime::Workspace,
+        project: &'a alera_core::runtime::Project,
+        plan: BoundTargetPlan,
+    ) -> Pin<Box<impl Future<Output = ()> + 'a>> {
+        Box::pin(self.continue_dispatch_inner(definition, run, source_workspace, project, plan))
+    }
+
+    async fn continue_dispatch_inner(
         &mut self,
         definition: &AutomationDefinition,
         mut run: AutomationRun,
         source_workspace: alera_core::runtime::Workspace,
         project: &alera_core::runtime::Project,
+        plan: BoundTargetPlan,
     ) {
         let workspace_values = (
             source_workspace.id.as_str(),
@@ -289,13 +316,16 @@ impl ServerActor {
             Some(workspace_values),
             Some(project_values),
         );
-        let rendered = match render_prompt_template(definition, &run, &values) {
+        let rendered = match render_prompt_template(definition, &values) {
             Ok(value) => value,
             Err(error) => {
                 self.block_run(&run, &error).await;
                 return;
             }
         };
+        let rendered = self
+            .reuse_preface_task(definition, &run, &plan, rendered)
+            .await;
         let prompt = super::super::automation_run_recovery::automation_attempt_prompt(
             automation_prompt(&rendered, &run.id, definition.heartbeat_interval_seconds),
             &run,
@@ -305,92 +335,10 @@ impl ServerActor {
             self.fail_run(&run, error.to_string()).await;
             return;
         }
-        let result = match &definition.target {
-            AutomationTarget::ProjectCheckout {
-                agent_profile_id, ..
-            } => {
-                self.dispatch_fresh_tab(
-                    &mut run,
-                    &source_workspace.id,
-                    agent_profile_id,
-                    &prompt,
-                    true,
-                )
-                .await
-            }
-
-            AutomationTarget::ExistingTab {
-                workspace_id,
-                tab_id,
-                conversation_id,
-            } => {
-                self.dispatch_existing_tab(
-                    &mut run,
-                    workspace_id,
-                    tab_id,
-                    conversation_id.as_deref(),
-                    &prompt,
-                )
-                .await
-            }
-            AutomationTarget::FreshTab {
-                workspace_id,
-                agent_profile_id,
-            } => {
-                self.dispatch_fresh_tab(&mut run, workspace_id, agent_profile_id, &prompt, false)
-                    .await
-            }
-            AutomationTarget::ProjectWorktree {
-                agent_profile_id, ..
-            } => {
-                self.dispatch_fresh_tab(
-                    &mut run,
-                    &source_workspace.id,
-                    agent_profile_id,
-                    &prompt,
-                    true,
-                )
-                .await
-            }
-            AutomationTarget::ManagedWorkspace {
-                source_branch,
-                name_template,
-                agent_profile_id,
-                ..
-            } => {
-                if source_workspace.host_id != alera_core::runtime::LOCAL_HOST_ID {
-                    self.block_run(
-                        &run,
-                        "managed workspace automation requires a local execution host",
-                    )
-                    .await;
-                    return;
-                }
-                let target = AutomationWorktree {
-                    project_id: &project.id,
-                    source_branch,
-                    name_template,
-                    parent_workspace_id: Some(&source_workspace.id),
-                };
-                match self
-                    .create_automation_worktree(definition, &mut run, target)
-                    .await
-                {
-                    Ok(Some(workspace)) => {
-                        self.dispatch_fresh_tab(
-                            &mut run,
-                            &workspace.id,
-                            agent_profile_id,
-                            &prompt,
-                            true,
-                        )
-                        .await
-                    }
-                    Ok(None) => return,
-                    Err(error) => Err(error),
-                }
-            }
-        };
+        run.reuse = super::super::automation_bound_target_dispatch::run_reuse(definition, &plan);
+        let result = self
+            .dispatch_plan_task(definition, &mut run, &plan, &source_workspace, &prompt)
+            .await;
         match result {
             Ok(()) => {
                 // Keep the first-attachment marker until a user client really
@@ -411,11 +359,9 @@ impl ServerActor {
                     run.updated_at = Utc::now();
                     let _ = self.runtime_store.save_automation_run(&run).await;
                     self.record_automation_process(&run).await;
+                    self.record_bound_target_task(definition, &run, &plan).await;
                 }
-                self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                    "automationRunChanged",
-                    json!({ "automationId": definition.id, "runId": run.id }),
-                ));
+                self.broadcast_automation_run_changed(&run);
             }
             Err(error) if is_non_retryable_dispatch_error(&error) => {
                 self.block_run(&run, &error.wire_message()).await

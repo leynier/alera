@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
-import 'package:alera/src/features/automations/application/automations_navigation.dart';
-import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -83,8 +82,7 @@ class _RiverpodWorkspaceFocusWorkbench implements WorkspaceFocusWorkbench {
 
   @override
   void closeOverlays() {
-    _ref.read(runBoardNavigationProvider.notifier).close();
-    _ref.read(automationsNavigationProvider.notifier).close();
+    _ref.read(activityNavigationProvider.notifier).close();
   }
 
   @override

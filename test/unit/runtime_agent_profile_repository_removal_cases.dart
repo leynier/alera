@@ -23,7 +23,6 @@ void _registerAgentProfileRemovalRepositoryTests() {
       exists: true,
       isDefault: true,
       automationIds: <String>[],
-      hasAutomationPolicy: true,
       executionPolicyRunIds: <String>[],
       tabs: <AgentProfileTabReference>[],
     );
@@ -31,7 +30,7 @@ void _registerAgentProfileRemovalRepositoryTests() {
     expect(impact.hasBlockingReferences, isFalse);
     expect(
       impact.removalMessage('Codex'),
-      'Codex is referenced by the default profile setting, an automation policy. '
+      'Codex is referenced by the default profile setting. '
       'These references will be cleared atomically when the profile is deleted.',
     );
   });
@@ -50,7 +49,6 @@ void _registerAgentProfileRemovalRepositoryTests() {
       'revision': 7,
       'isDefault': true,
       'automationIds': <String>['automation-1'],
-      'hasAutomationPolicy': true,
       'executionPolicyRunIds': <String>['run-1'],
       'tabs': <Object?>[
         <String, Object?>{'workspaceId': 'workspace-1', 'tabId': 'tab-1'},
@@ -70,8 +68,8 @@ void _registerAgentProfileRemovalRepositoryTests() {
     expect(
       impact.removalMessage('Codex'),
       'Codex is referenced by 1 automation, 1 tab, the default profile setting, '
-      'an automation policy, 1 active execution policy. Remove its automation '
-      'and tab references before deleting it.',
+      '1 active execution policy. Remove its automation and tab references '
+      'before deleting it.',
     );
     expect(
       client.payloads['agentProfile.removalImpact']!.single,

@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use alera_core::runtime::{
-    InboxQuestionStatus, InboxThreadFilter, NewInboxQuestion, OrchestrationMessageType,
-    INBOX_HISTORY_SECONDS, INBOX_MAX_EXPIRY_SECONDS,
+    inbox_thread_parties, InboxQuestionStatus, InboxThreadFilter, MessageDelivery,
+    NewInboxQuestion, OrchestrationMessageType, INBOX_HISTORY_SECONDS, INBOX_MAX_EXPIRY_SECONDS,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::event;
 
+use super::orchestration_message_delivery::requested_delivery;
 use super::orchestration_validation::{optional_string, parse_priority, require_string};
 use super::ServerActor;
 
@@ -241,18 +242,12 @@ impl ServerActor {
             .map_err(inbox_error)
     }
 
-    /// How a question to `handle` would reach the agent right now.
+    /// How a `delivery = now` question to `handle` would reach the agent
+    /// right now.
     pub(super) fn inbox_recipient(&self, handle: &str) -> Value {
         let session = self.sessions.get(handle);
         let session_live = session.is_some_and(|session| session.running());
         let presence = self.agent_presence.get(handle);
-        let delivery_mode = if self.is_active_coordinator_handle(handle) {
-            "check"
-        } else if session_live && presence.is_some() {
-            "paste"
-        } else {
-            "unavailable"
-        };
         json!({
             "handle": handle,
             "sessionLive": session_live,
@@ -260,7 +255,8 @@ impl ServerActor {
             "tabId": session.map(|session| session.tab_id.clone()),
             "agent": presence.map(|entry| entry.agent_type.clone()),
             "presence": presence.map(|entry| entry.state.as_str()),
-            "deliveryMode": delivery_mode,
+            "deliveryMode": self.delivery_mode_for(handle).as_str(),
+            "acceptsQueuedInput": self.accepts_queued_input(handle),
         })
     }
 
@@ -359,6 +355,7 @@ impl ServerActor {
         // A follow-up names any question of its thread and inherits the
         // thread's inbox and recipient unless they are given explicitly; a
         // workspace only narrows the recipient of a new thread.
+        let delivery = requested_delivery(payload, MessageDelivery::Now)?;
         let thread_root = match optional_string(payload, "threadId") {
             Some(_) => {
                 let root_id = self.requested_thread_id(payload).await?;
@@ -369,8 +366,13 @@ impl ServerActor {
             }
             None => None,
         };
+        // A thread runs between one inbox and one agent, whichever opened it.
+        let thread_parties = thread_root
+            .as_ref()
+            .and_then(inbox_thread_parties)
+            .map(|(inbox, agent)| (inbox.to_string(), agent.to_string()));
         let inbox = optional_string(payload, "inbox")
-            .or_else(|| thread_root.as_ref().map(|root| root.from_handle.clone()))
+            .or_else(|| thread_parties.as_ref().map(|(inbox, _)| inbox.clone()))
             .unwrap_or_else(|| UI_INBOX.to_string());
         if let Some(earlier) = self
             .repeated_inbox_ask(&inbox, request_key.as_deref(), &origin)
@@ -378,19 +380,18 @@ impl ServerActor {
         {
             return Ok(earlier);
         }
-        let recipient = match &thread_root {
-            Some(root) if optional_string(payload, "to").is_none() => {
-                if !self.sessions.contains_key(&root.to_handle) {
+        let recipient = match &thread_parties {
+            Some((_, agent)) if optional_string(payload, "to").is_none() => {
+                if !self.sessions.contains_key(agent) {
                     return Err(HostError::conflict(
                         "inbox_unknown_recipient",
                         format!(
-                            "The terminal {} that this thread asked is gone; ask in a new thread.",
-                            root.to_handle
+                            "The terminal {agent} of this thread is gone; ask in a new thread."
                         ),
                         json!({}),
                     ));
                 }
-                root.to_handle.clone()
+                agent.clone()
             }
             _ => self.resolve_inbox_recipient(payload)?,
         };
@@ -441,6 +442,7 @@ impl ServerActor {
         let message = self
             .runtime_store
             .insert_inbox_question(NewInboxQuestion {
+                delivery,
                 inbox,
                 recipient: recipient.clone(),
                 subject,
@@ -457,10 +459,20 @@ impl ServerActor {
             })
             .await
             .map_err(inbox_error)?;
-        self.deliver_pending_messages_if_idle(&recipient).await;
-        // Wakes a coordinator parked on `check --wait`.
-        self.notify_message_arrived(&recipient, OrchestrationMessageType::DecisionGate)
+        // Wakes a coordinator parked on `check --wait` before any paste.
+        self.notify_message_arrived(&recipient, OrchestrationMessageType::Question)
             .await;
+        let mode = self.deliver_after_send(&recipient).await;
+        self.runtime_store
+            .set_message_delivery_mode(&message.id, mode.as_str())
+            .await
+            .map_err(inbox_error)?;
+        let message = self
+            .runtime_store
+            .orchestration_message_by_id(&message.id)
+            .await
+            .map_err(inbox_error)?
+            .unwrap_or(message);
         self.inbox_ask_result(message, origin, false).await
     }
 }

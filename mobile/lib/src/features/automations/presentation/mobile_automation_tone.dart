@@ -1,7 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 
 AleraBadgeTone mobileAutomationBadgeTone(AutomationTone tone) => switch (tone) {

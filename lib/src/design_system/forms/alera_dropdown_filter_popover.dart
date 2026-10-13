@@ -6,15 +6,14 @@ import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Popover opened by [AleraDropdownField] when filterable: a search field on
-/// top and the matching entries below. Entries starting with the query sort
-/// before entries that merely contain it. Arrow keys move the highlight,
+/// Content of the `AleraPopover` opened by [AleraDropdownField] when
+/// filterable: a search field on top and the matching entries below. Entries
+/// starting with the query sort before entries that merely contain it. Arrow keys move the highlight,
 /// Enter picks the highlighted entry, Escape dismisses.
 class const AleraDropdownFilterPopover<T>({
   super.key,
   required final List<AleraDropdownFieldEntry<T>> entries,
   required final T? selectedValue,
-  required final double width,
   required final String filterHintText,
   required final ValueChanged<T> onSelected,
   required final VoidCallback onDismiss,
@@ -67,7 +66,8 @@ class _AleraDropdownFilterPopoverState<T>
         if (entry.label.toLowerCase().startsWith(normalized)) entry,
       for (final entry in widget.entries)
         if (!entry.label.toLowerCase().startsWith(normalized) &&
-            entry.label.toLowerCase().contains(normalized))
+            (entry.label.toLowerCase().contains(normalized) ||
+                (entry.group?.toLowerCase().contains(normalized) ?? false)))
           entry,
     ];
   }
@@ -150,83 +150,101 @@ class _AleraDropdownFilterPopoverState<T>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entries = _filteredEntries;
+    // Group headers interleaved with entry indexes, so the keyboard highlight
+    // keeps indexing [entries].
+    final rows = <(String?, int)>[];
+    String? group;
+    for (final (index, entry) in entries.indexed) {
+      if (entry.group != null && entry.group != group) {
+        rows.add((entry.group, -1));
+      }
+      group = entry.group;
+      rows.add((null, index));
+    }
     return Focus(
       onKeyEvent: _handleKey,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: widget.width,
-          decoration: BoxDecoration(
-            color: AleraTokens.surface,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            border: Border.all(color: AleraTokens.border),
+      child: Column(
+        mainAxisSize: .min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(AleraTokens.space8),
+            child: AleraTextField(
+              controller: _filterController,
+              focusNode: _filterFocusNode,
+              autofocus: true,
+              dense: true,
+              hintText: widget.filterHintText,
+              prefixIcon: AleraIcons.search,
+              textActionsEnabled: false,
+              onChanged: _handleQueryChanged,
+            ),
           ),
-          child: Column(
-            mainAxisSize: .min,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(AleraTokens.space8),
-                child: AleraTextField(
-                  controller: _filterController,
-                  focusNode: _filterFocusNode,
-                  autofocus: true,
-                  dense: true,
-                  hintText: widget.filterHintText,
-                  prefixIcon: AleraIcons.search,
-                  textActionsEnabled: false,
-                  onChanged: _handleQueryChanged,
-                ),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: AleraDropdownFilterPopover._listMaxHeight,
               ),
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxHeight: AleraDropdownFilterPopover._listMaxHeight,
-                  ),
-                  child: entries.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AleraTokens.space12,
-                            vertical: AleraTokens.space12,
-                          ),
-                          child: Text(
-                            'No matching options',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AleraTokens.foregroundFaint,
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.only(
-                            left: AleraTokens.space4,
-                            right: AleraTokens.space4,
-                            bottom: AleraTokens.space4,
-                          ),
-                          shrinkWrap: true,
-                          itemCount: entries.length,
-                          itemBuilder: (context, index) {
-                            final entry = entries[index];
-                            return AleraMenuItem(
-                              label: entry.label,
-                              leading: entry.leading,
-                              enabled: entry.enabled,
-                              selected: entry.value == widget.selectedValue,
-                              active: index == _highlightedIndex,
-                              onHover: entry.enabled
-                                  ? () => setState(
-                                      () => _highlightedIndex = index,
-                                    )
-                                  : null,
-                              onTap: entry.enabled
-                                  ? () => widget.onSelected(entry.value)
-                                  : () {},
-                            );
-                          },
+              child: entries.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AleraTokens.space12,
+                        vertical: AleraTokens.space12,
+                      ),
+                      child: Text(
+                        'No matching options',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundFaint,
                         ),
-                ),
-              ),
-            ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(
+                        left: AleraTokens.space4,
+                        right: AleraTokens.space4,
+                        bottom: AleraTokens.space4,
+                      ),
+                      shrinkWrap: true,
+                      itemCount: rows.length,
+                      itemBuilder: (context, row) {
+                        final (header, index) = rows[row];
+                        if (header != null) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AleraTokens.space8,
+                              AleraTokens.space8,
+                              AleraTokens.space8,
+                              AleraTokens.space4,
+                            ),
+                            child: Text(
+                              header,
+                              maxLines: 1,
+                              overflow: .ellipsis,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AleraTokens.foregroundMuted,
+                              ),
+                            ),
+                          );
+                        }
+                        final entry = entries[index];
+                        return AleraMenuItem(
+                          label: entry.label,
+                          subtitle: entry.detail,
+                          leading: entry.leading,
+                          enabled: entry.enabled,
+                          selected: entry.value == widget.selectedValue,
+                          active: index == _highlightedIndex,
+                          onHover: entry.enabled
+                              ? () => setState(() => _highlightedIndex = index)
+                              : null,
+                          onTap: entry.enabled
+                              ? () => widget.onSelected(entry.value)
+                              : () {},
+                        );
+                      },
+                    ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

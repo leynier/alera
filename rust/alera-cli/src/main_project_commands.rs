@@ -123,12 +123,6 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
                 Err(error) => return print_error(error),
             }
         }
-        ProjectAction::RegisterOwnerWorkspace(args) => {
-            match remote_workspace_owner::run(args).await {
-                Ok(workspace) => print_value(&workspace, true, "remote owner registered"),
-                Err(error) => return print_error(error),
-            }
-        }
         ProjectAction::CloneCheckoutFolder(args) => {
             match project_checkout_clone::clone_checkout(args).await {
                 Ok(checkout) => print_value(&checkout, true, "checkout cloned"),
@@ -148,7 +142,7 @@ pub(super) async fn run_project_command(command: ProjectCommand) -> i32 {
             };
             match client
                 .request_value_with_deadline(
-                    "project.checkout.register",
+                    "project.hosts.add",
                     &json!({
                         "projectId": args.project_id, "hostId": args.host_id, "path": args.path, "cloneUrl": args.clone_url,
                     }),

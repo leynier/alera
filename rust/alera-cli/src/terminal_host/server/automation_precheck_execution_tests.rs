@@ -99,14 +99,13 @@ async fn missing_precheck_worker_retains_unverified_process_evidence() {
 #[tokio::test]
 async fn cancellation_keeps_dependency_reserved_while_precheck_command_is_running() {
     let (mut fixture, mut definition) = empty_project().await;
-    declare(&fixture.repo_path);
     let ready = fixture.repo_path.join("precheck-ready");
     let release = fixture.repo_path.join("precheck-release");
     definition.precheck = Some(alera_core::runtime::AutomationPrecheck {
         command: format!(
             "sleep 60 & printf %s \"$!\" > {}; while [ ! -f {} ]; do sleep 0.02; done",
-            crate::ssh_bootstrap::shell_quote(ready.to_str().unwrap()),
-            crate::ssh_bootstrap::shell_quote(release.to_str().unwrap())
+            crate::ssh_remote_command::shell_quote(ready.to_str().unwrap()),
+            crate::ssh_remote_command::shell_quote(release.to_str().unwrap())
         ),
         timeout_seconds: 30,
     });
@@ -224,18 +223,22 @@ async fn cancellation_keeps_dependency_reserved_while_precheck_command_is_runnin
     assert!(fixture.actor.automation_precheck_jobs.is_empty());
 }
 
-struct Declaration(Option<bool>);
-impl crate::ssh_remote::RemoteHostExecutor for Declaration {
-    async fn probe_windows(&self, _: &alera_core::runtime::SshTarget) -> Option<bool> {
-        Some(false)
+struct RemoteFolder;
+impl crate::ssh_remote::RemoteHostExecutor for RemoteFolder {
+    async fn probe_shell(
+        &self,
+        _: &alera_core::runtime::SshTarget,
+    ) -> Option<crate::remote_shell::RemoteShell> {
+        Some(crate::remote_shell::RemoteShell::Posix)
     }
     async fn run(
         &self,
         _: &alera_core::runtime::SshTarget,
-        _: bool,
+        _: crate::remote_shell::RemoteShell,
         _: &str,
+        _: crate::ssh_remote_command::RemoteCommandBudget,
     ) -> anyhow::Result<String> {
-        Ok(json!({"version":1,"path":"/fixture/remote","kind":"folder","branch":null,"automationDeclared":self.0}).to_string())
+        Ok(json!({"version":1,"path":"/fixture/remote","kind":"folder","branch":null}).to_string())
     }
 }
 
@@ -274,27 +277,24 @@ async fn remote_precheck_checks_checkout_without_retired_permission_gates() {
         .unwrap();
     run.status = AutomationRunStatus::Dispatching;
     let run = store.save_automation_run(&run).await.unwrap();
-    for declaration in [None, Some(false), Some(true)] {
-        let polled = std::cell::Cell::new(false);
-        let result = crate::terminal_host::server::automation_dispatch::automation_precheck_authorization::execute_authorized_precheck(
-            store, &definition, &run, "ssh", "/fixture/remote", &Declaration(declaration), async {
-                polled.set(true);
-                Ok(true)
-            },
-        ).await;
-        assert!(result.is_ok(), "{result:?}");
-        assert!(polled.get());
-    }
+    let polled = std::cell::Cell::new(false);
+    let result = crate::terminal_host::server::automation_dispatch::automation_precheck_authorization::execute_authorized_precheck(
+        store, &definition, &run, "ssh", "/fixture/remote", &RemoteFolder, async {
+            polled.set(true);
+            Ok(true)
+        },
+    ).await;
+    assert!(result.is_ok(), "{result:?}");
+    assert!(polled.get());
     assert!(store.list_workspaces("project-1").await.unwrap().is_empty());
 }
 
 #[tokio::test]
 async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_count() {
     for scenario in [
-        "skip", "failure", "edit", "location", "cancel", "policy", "restart",
+        "skip", "failure", "edit", "trash", "location", "cancel", "restart",
     ] {
         let (mut fixture, mut definition) = empty_project().await;
-        declare(&fixture.repo_path);
         definition.precheck = Some(alera_core::runtime::AutomationPrecheck {
             command: "exit 1".into(),
             timeout_seconds: 5,
@@ -339,20 +339,20 @@ async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_c
                     .await
                     .unwrap();
             }
-            "cancel" => {
+            "trash" => {
                 store
-                    .request_automation_cancel(&run.id, definition.created_by.clone())
+                    .set_automation_state(
+                        &definition.id,
+                        alera_core::runtime::AutomationState::Trashed,
+                        definition.created_by.clone(),
+                        None,
+                    )
                     .await
                     .unwrap();
             }
-            "policy" => {
+            "cancel" => {
                 store
-                    .set_automation_agent_policy(AutomationAgentPolicy {
-                        profile_id: "profile-1".into(),
-                        may_execute: false,
-                        may_activate_or_edit_active: false,
-                        updated_at: Utc::now(),
-                    })
+                    .request_automation_cancel(&run.id, definition.created_by.clone())
                     .await
                     .unwrap();
             }
@@ -405,13 +405,19 @@ async fn deferred_precheck_revalidates_before_allocation_and_preserves_attempt_c
             current.status,
             match scenario {
                 "skip" | "failure" => AutomationRunStatus::PrecheckSkipped,
-                "cancel" => AutomationRunStatus::Cancelled,
-                "edit" | "policy" => AutomationRunStatus::Dispatched,
+                "cancel" | "trash" => AutomationRunStatus::Cancelled,
+                "edit" => AutomationRunStatus::Dispatched,
                 _ => AutomationRunStatus::Blocked,
             },
             "{scenario}"
         );
-        let dispatched = matches!(scenario, "edit" | "policy");
+        if scenario == "trash" {
+            assert!(current
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("deleted during precheck")));
+        }
+        let dispatched = scenario == "edit";
         assert_eq!(current.attempt_count, i64::from(dispatched), "{scenario}");
         assert_eq!(current.workspace_id.is_some(), dispatched);
         assert_eq!(

@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_compose_screen.dart';
-import 'package:alera_mobile/src/features/inbox/presentation/inbox_screen.dart';
+import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
+import 'package:alera_mobile/src/features/runs/presentation/activity_screen.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +31,15 @@ void main() {
         ),
       ];
     addTearDown(client.dispose);
-    await tester.pumpWidget(_app(client, const InboxScreen(hostId: 'host')));
+    await tester.pumpWidget(
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.questions,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Which tests cover login?'), findsOneWidget);
     expect(find.text('2 New Replies'), findsOneWidget);
@@ -47,7 +56,15 @@ void main() {
   testWidgets('an empty inbox invites asking an agent', (tester) async {
     final client = FakeInboxClient()..threads = [];
     addTearDown(client.dispose);
-    await tester.pumpWidget(_app(client, const InboxScreen(hostId: 'host')));
+    await tester.pumpWidget(
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.questions,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(
       find.text('No questions yet. Ask an agent to start a conversation.'),
@@ -58,7 +75,15 @@ void main() {
   testWidgets('purging an inbox asks for confirmation first', (tester) async {
     final client = FakeInboxClient();
     addTearDown(client.dispose);
-    await tester.pumpWidget(_app(client, const InboxScreen(hostId: 'host')));
+    await tester.pumpWidget(
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.questions,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('More Actions'));
     await tester.pumpAndSettle();
@@ -92,10 +117,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Expires in'), findsOneWidget);
+    expect(find.text('Delivers when its turn ends'), findsOneWidget);
     expect(
-      find.textContaining(
-        'Questions reach this agent when it finishes its turn.',
-      ),
+      find.text('The question has not reached the agent yet.'),
       findsOneWidget,
     );
 
@@ -226,7 +250,15 @@ void main() {
           ),
       ];
     addTearDown(client.dispose);
-    await tester.pumpWidget(_app(client, const InboxScreen(hostId: 'host')));
+    await tester.pumpWidget(
+      _app(
+        client,
+        const ActivityScreen(
+          hostId: 'host',
+          initialSection: ActivitySection.questions,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     final loadMore = find.text('Load More');
     await tester.scrollUntilVisible(loadMore, 400);

@@ -9,20 +9,6 @@ use super::{
 };
 
 impl RuntimeStore {
-    pub(super) async fn migrate_role_contracts(&self) -> Result<()> {
-        self.ensure_column("orchestrationTasks", "role_contract", "TEXT")
-            .await?;
-        sqlx::query(
-            "CREATE TRIGGER IF NOT EXISTS orchestrationRoleContractImmutable
-            BEFORE UPDATE OF role_contract ON orchestrationTasks
-            WHEN OLD.role_contract IS NOT NEW.role_contract
-            BEGIN SELECT RAISE(ABORT, 'role contract snapshot is immutable'); END",
-        )
-        .execute(self.pool())
-        .await?;
-        Ok(())
-    }
-
     pub async fn create_orchestration_task_with_contract(
         &self,
         task: NewOrchestrationTask,

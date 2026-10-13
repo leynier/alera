@@ -358,9 +358,8 @@ Future<void> _writeControlFile({
       if (includeOrchestrationCapability)
         aleraRuntimeHostOrchestrationCapability,
       if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
-      if (includeRunBoardCapability) aleraRuntimeHostRunBoardCapability,
-      if (includeWorkflowPlansCapability)
-        aleraRuntimeHostWorkflowPlansCapability,
+      if (includeRunBoardCapability) aleraRuntimeHostRunsCapability,
+      if (includeWorkflowPlansCapability) aleraRuntimeHostRecipesCapability,
       if (includeWorkspaceSectionsCapability)
         aleraRuntimeHostWorkspaceSectionsCapability,
       if (includeConfigurationSyncCapability)

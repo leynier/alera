@@ -8,7 +8,6 @@ mod agent_skills;
 mod agent_status;
 mod automation_autostart;
 mod automation_commands;
-mod automation_declaration;
 mod automation_ssh_precheck;
 mod cli;
 mod cli_async_runtime;
@@ -19,13 +18,12 @@ mod cli_inbox;
 mod cli_inbox_tests;
 mod cli_orchestration;
 mod cli_orchestration_runs;
+mod cli_orchestration_tasks;
 mod cli_orchestration_terminal;
 mod cli_orchestration_timeouts;
+mod cli_run_recipes;
 #[cfg(test)]
 mod cli_tests;
-mod cli_workflow_plans;
-mod cli_workflow_recipes;
-mod cli_workflow_workspaces;
 mod events_commands;
 mod host_tools;
 mod hosted_review_retention;
@@ -84,10 +82,13 @@ mod remote_project_checkout;
 mod remote_relocation_recovery;
 mod remote_relocation_setup;
 mod remote_shared_retirement;
+mod remote_shell;
+mod remote_sidecar_command;
 mod remote_terminal_bridge;
 mod remote_workspace_files;
 mod remote_workspace_owner;
 mod remote_workspace_relocation;
+mod run_recipe_commands;
 mod runtime_archive;
 mod runtime_attach;
 mod runtime_clear;
@@ -101,6 +102,7 @@ mod shared_workspace_removal;
 mod skill_commands;
 mod ssh_bootstrap;
 mod ssh_remote;
+mod ssh_remote_command;
 mod ssh_target_status;
 mod ssh_windows_command;
 mod tab_agent_link_command;
@@ -114,9 +116,6 @@ mod terminal_stdio_mode;
 mod voice_commands;
 mod webhook_commands;
 mod windows_path_form;
-mod workflow_plan_commands;
-mod workflow_recipe_commands;
-mod workflow_workspace_commands;
 mod workspace_add;
 mod workspace_archive;
 mod workspace_buffer_guard_request;
@@ -153,7 +152,7 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
     CascadePreview, MobileAccessSettings, MobileEndpointMode, ProjectKind, RuntimeStore,
-    SshAuthKind, SshTarget, WorkspaceTag,
+    WorkspaceTag,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -165,9 +164,7 @@ use uuid::Uuid;
 
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectCommand, ProjectKindArg,
-    RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs, SshTargetBootstrapArgs,
-    SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetLinkArgs, SshTargetStatusArgs,
-    WorkspaceAction, WorkspaceCommand,
+    RuntimeDirArgs, WorkspaceAction, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -178,11 +175,6 @@ use crate::mobile_access::{
     MobilePairingOfferPayload, MobileSettingsUpdateRequest,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
-use crate::ssh_bootstrap::{
-    build_ssh_bootstrap_plan, new_bootstrap_job_id, reject_password_ssh_bootstrap_auth,
-    run_ssh_bootstrap, SshTargetBootstrapRequest,
-};
-use crate::ssh_target_status::{collect_ssh_target_status, LiveSshTargetProbe};
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
 const USAGE_EXIT_CODE: i32 = 64;
@@ -667,179 +659,10 @@ async fn run_tag_command(command: crate::cli::TagCommand) -> i32 {
     0
 }
 
-async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
-    let runtime = command.runtime;
-    let json_output = command.output.json;
-    match command.action {
-        SshTargetAction::List => match open_store(&runtime).await {
-            Ok(store) => match store.list_ssh_targets().await {
-                Ok(targets) => print_value(
-                    &json!({ "kind": "sshTargets", "items": targets, "filters": {} }),
-                    json_output,
-                    "ssh targets listed",
-                ),
-                Err(error) => return print_error(error),
-            },
-            Err(error) => return print_error(error),
-        },
-        SshTargetAction::Add(args) => {
-            let target = ssh_target_from_args(args);
-            if let Err(error) = reject_password_ssh_bootstrap_auth(target.auth_kind) {
-                return print_error(error);
-            }
-            match upsert_ssh_target_from_cli(&runtime, target).await {
-                Ok(target) => print_value(&target, json_output, "ssh target saved"),
-                Err(error) => return print_error(error),
-            }
-        }
-        SshTargetAction::Remove(IdArgs { id }) => {
-            let payload = json!({ "id": id });
-            let removed_id = id.clone();
-            match runtime_host_or_store_unit(
-                &runtime,
-                "sshTarget.remove",
-                &payload,
-                |store| async move { store.remove_ssh_target(&id).await },
-            )
-            .await
-            {
-                Ok(()) => print_value(
-                    &json!({ "id": removed_id }),
-                    json_output,
-                    "ssh target removed",
-                ),
-                Err(error) => return print_error(error),
-            }
-        }
-        SshTargetAction::Link(SshTargetLinkArgs {
-            id,
-            connect,
-            disconnect,
-        }) => {
-            let mut client = match runtime_host_required(&runtime).await {
-                Ok(client) => client,
-                Err(error) => return print_error(error),
-            };
-            let (verb, payload, message) = match (id, connect, disconnect) {
-                (Some(id), true, _) => (
-                    "hostLink.connect",
-                    json!({ "hostId": id }),
-                    "host link attached",
-                ),
-                (Some(id), _, true) => (
-                    "hostLink.disconnect",
-                    json!({ "hostId": id }),
-                    "host link closed",
-                ),
-                (None, true, _) | (None, _, true) => {
-                    return print_error("--id is required with --connect or --disconnect")
-                }
-                (_, false, false) => ("hostLink.status", json!({}), "host links listed"),
-            };
-            match client.request_value(verb, &payload).await {
-                Ok(value) => print_value(&value, json_output, message),
-                Err(error) => return print_error(error),
-            }
-        }
-        SshTargetAction::Status(SshTargetStatusArgs { id }) => {
-            let store = match open_store(&runtime).await {
-                Ok(store) => store,
-                Err(error) => return print_error(error),
-            };
-            let value =
-                match collect_ssh_target_status(&store, id.as_deref(), &LiveSshTargetProbe).await {
-                    Ok(value) => value,
-                    Err(error) => return print_error(error),
-                };
-            print_value(&value, json_output, "ssh target status ready");
-        }
-        SshTargetAction::BootstrapPlan(args) => {
-            let request = match ssh_bootstrap_request_from_plan_args(args) {
-                Ok(request) => request,
-                Err(error) => return print_error(error),
-            };
-            let fallback_request = request.clone();
-            let value = match runtime_host_or_store(
-                &runtime,
-                "sshTarget.bootstrap.plan",
-                &request,
-                |store| async move { build_ssh_bootstrap_plan(&store, &fallback_request).await },
-            )
-            .await
-            {
-                Ok(plan) => plan,
-                Err(error) => return print_error(error),
-            };
-            print_value(&value, json_output, "ssh bootstrap plan ready");
-        }
-        SshTargetAction::Bootstrap(args) => {
-            let request = match ssh_bootstrap_request_from_args(args) {
-                Ok(request) => request,
-                Err(error) => return print_error(error),
-            };
-            let payload = request.clone();
-            let value: Value = if let Some(mut client) =
-                match RuntimeHostRpcClient::connect(&runtime_dir(&runtime)).await {
-                    Ok(client) => client,
-                    Err(error) => return print_error(error),
-                } {
-                match client
-                    .request_value("sshTarget.bootstrap.start", &payload)
-                    .await
-                {
-                    Ok(value) => value,
-                    Err(error) => return print_error(error),
-                }
-            } else {
-                let store = match open_store(&runtime).await {
-                    Ok(store) => store,
-                    Err(error) => return print_error(error),
-                };
-                let cache_dir = runtime_dir(&runtime).join("runtime-artifacts");
-                let job_id = new_bootstrap_job_id();
-                match run_ssh_bootstrap(store, cache_dir, request, job_id, |progress| {
-                    if json_output {
-                        eprintln!(
-                            "{}",
-                            serde_json::to_string(&progress).unwrap_or_else(|_| "{}".to_string())
-                        );
-                    } else {
-                        eprintln!("{}", progress.message);
-                    }
-                })
-                .await
-                {
-                    Ok(target) => json!(target),
-                    Err(error) => return print_error(error),
-                }
-            };
-            print_value(&value, json_output, "ssh bootstrap started");
-        }
-        SshTargetAction::BootstrapCancel(IdArgs { id }) => {
-            let payload = json!({ "id": id });
-            let value: Value = if let Some(mut client) =
-                match RuntimeHostRpcClient::connect(&runtime_dir(&runtime)).await {
-                    Ok(client) => client,
-                    Err(error) => return print_error(error),
-                } {
-                match client
-                    .request_value("sshTarget.bootstrap.cancel", &payload)
-                    .await
-                {
-                    Ok(value) => value,
-                    Err(error) => return print_error(error),
-                }
-            } else {
-                return print_error("no active runtime host bootstrap job is available to cancel");
-            };
-            print_value(&value, json_output, "ssh bootstrap cancelled");
-        }
-    }
-    0
-}
-
 mod main_mobile_commands;
 use main_mobile_commands::run_mobile_command;
+mod main_ssh_target_commands;
+use main_ssh_target_commands::run_ssh_target_command;
 
 async fn runtime_host_or_store<T, P, Fut>(
     args: &RuntimeDirArgs,
@@ -917,49 +740,6 @@ where
     store_operation(open_store(args).await?).await
 }
 
-async fn upsert_ssh_target_from_cli(
-    args: &RuntimeDirArgs,
-    mut target: SshTarget,
-) -> anyhow::Result<SshTarget> {
-    if let Some(mut client) = RuntimeHostRpcClient::connect(&runtime_dir(args)).await? {
-        preserve_ssh_target_install_dir_from_runtime(&mut client, &mut target).await?;
-        return client.request("sshTarget.upsert", &target).await;
-    }
-    let store = open_store(args).await?;
-    preserve_ssh_target_install_dir_from_store(&store, &mut target).await?;
-    store.upsert_ssh_target(target).await
-}
-
-async fn preserve_ssh_target_install_dir_from_runtime(
-    client: &mut RuntimeHostRpcClient,
-    target: &mut SshTarget,
-) -> anyhow::Result<()> {
-    if target.install_dir.is_some() {
-        return Ok(());
-    }
-    let targets: Vec<SshTarget> = client.request("sshTarget.list", &json!({})).await?;
-    if let Some(existing) = targets
-        .into_iter()
-        .find(|existing| existing.id == target.id)
-    {
-        target.install_dir = existing.install_dir;
-    }
-    Ok(())
-}
-
-async fn preserve_ssh_target_install_dir_from_store(
-    store: &RuntimeStore,
-    target: &mut SshTarget,
-) -> anyhow::Result<()> {
-    if target.install_dir.is_some() {
-        return Ok(());
-    }
-    if let Some(existing) = store.find_ssh_target(&target.id).await? {
-        target.install_dir = existing.install_dir;
-    }
-    Ok(())
-}
-
 async fn runtime_host_or_store_unit<P, Fut>(
     args: &RuntimeDirArgs,
     request_type: &str,
@@ -998,73 +778,6 @@ pub(crate) fn runtime_dir(args: &RuntimeDirArgs) -> PathBuf {
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     Path::new(&home).join(".alera").join("runtime")
-}
-
-fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {
-    let now = Utc::now();
-    SshTarget {
-        id: args.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
-        alias: args.alias,
-        host: args.host,
-        port: args.port,
-        username: args.username,
-        platform: args.platform,
-        arch: args.arch,
-        auth_kind: match args.auth_kind {
-            SshAuthKindArg::Password => SshAuthKind::Password,
-            SshAuthKindArg::Key => SshAuthKind::Key,
-            SshAuthKindArg::Agent => SshAuthKind::Agent,
-        },
-        created_at: now,
-        updated_at: now,
-        last_status: None,
-        install_dir: None,
-        projects_dir: args
-            .projects_dir
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty()),
-        runtime_version: None,
-        runtime_platform: None,
-        runtime_arch: None,
-        bootstrap_status: Default::default(),
-        last_bootstrap_at: None,
-        last_checked_at: None,
-        last_error: None,
-    }
-}
-
-fn ssh_bootstrap_request_from_plan_args(
-    args: SshTargetBootstrapPlanArgs,
-) -> anyhow::Result<SshTargetBootstrapRequest> {
-    Ok(SshTargetBootstrapRequest {
-        target_id: args.id,
-        channel: args.channel,
-        version: args.version,
-        install_dir: args.install_dir,
-        platform: args.platform,
-        arch: args.arch,
-        archive_url: args.archive_url,
-        archive_path: host_accessible_optional_path(args.archive_path)?,
-        artifact_path: host_accessible_optional_path(args.artifact_path)?,
-        manifest_public_key: args.manifest_public_key,
-    })
-}
-
-fn ssh_bootstrap_request_from_args(
-    args: SshTargetBootstrapArgs,
-) -> anyhow::Result<SshTargetBootstrapRequest> {
-    Ok(SshTargetBootstrapRequest {
-        target_id: args.id,
-        channel: args.channel,
-        version: args.version,
-        install_dir: args.install_dir,
-        platform: args.platform,
-        arch: args.arch,
-        archive_url: args.archive_url,
-        archive_path: host_accessible_optional_path(args.archive_path)?,
-        artifact_path: host_accessible_optional_path(args.artifact_path)?,
-        manifest_public_key: args.manifest_public_key,
-    })
 }
 
 fn host_accessible_optional_path(value: Option<String>) -> anyhow::Result<Option<PathBuf>> {

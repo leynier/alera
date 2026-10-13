@@ -1,3 +1,6 @@
+import 'package:alera/src/features/pull_requests/application/forge_review_action_access_provider.dart';
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -19,12 +22,13 @@ import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 part 'gitlab_review_actions.dart';
+part 'gitlab_review_action_access.dart';
 part 'gitlab_review_comments.dart';
 
 /// GitLab forge integration backed by the official `glab` CLI.
 class const GitLabForgeProvider(final ProcessRunner _processRunner)
-    with _GitLabReviewActions, _GitLabReviewComments
-    implements ForgeProvider {
+    with _GitLabReviewActionAccess, _GitLabReviewActions, _GitLabReviewComments
+    implements ForgeReviewActionAccessProvider, ForgeProvider {
   @override
   GitHostingProvider get id => GitHostingProvider.gitlab;
 

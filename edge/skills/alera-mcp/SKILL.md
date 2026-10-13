@@ -2,7 +2,7 @@
 name: alera-mcp
 description: Work with Alera through this MCP server. Covers runtimes, projects, workspaces, agents and terminals, inbox questions, pull requests, events, and runtime settings. Read it before the first Alera task of a conversation.
 metadata:
-  version: 1
+  version: 4
 ---
 
 # Alera Through MCP
@@ -30,7 +30,7 @@ Do only what the user asked for. Before removing anything, run the matching prev
 - Pull requests on GitHub, GitLab, and Azure DevOps, Ship, and Watch and Fix: read [pull requests](references/pull-requests.md).
 - Following what happens without polling each item, and webhooks: read [events](references/events.md).
 - Runtime status, settings, quotas, voice, status hooks, and the agents' Alera skills: read [runtime](references/runtime.md).
-- Delegating tasks to agents, coordinator runs, and workflow recipes: use the `alera-mcp-orchestration` skill.
+- Delegating tasks to agents, runs, and run recipes: use the `alera-mcp-orchestration` skill.
 - Scheduled or recurring agent work: use the `alera-mcp-automations` skill.
 - Creating or changing agent profiles: use the `alera-mcp-agent-profiles` skill.
 
@@ -38,6 +38,6 @@ Read only the references the task needs. Read them with `read_skill`, passing th
 
 ## Starting Work
 
-For a task described in words, prefer `start_workspace_from_prompt`. It finds the project, names the workspace and branch, and launches the default agent, like the app's New Workspace from Prompt. Use `start_agent_workspace` when you already know the project, profile, and branch. Use `launch_agent` to add an agent to an existing workspace, and `delegate_task` when a running coordinator agent should own the result.
+For a task described in words, prefer `start_workspace_from_prompt`. It finds the project, names the workspace and branch, and launches the default agent, like the app's New Workspace from Prompt. Use `start_agent_workspace` when you already know the project, profile, and branch. Use `launch_agent` to add an agent to an existing workspace, `delegate_task` when a running coordinator agent should own the result, and `create_run` when a coordinator agent should plan and carry out the work.
 
 Then follow the agent with `wait_for_events`, `read_terminal`, or `ask_agent` with `wait_for_reply`. An agent only sees what is typed into its terminal or asked through the inbox; it cannot see this conversation.

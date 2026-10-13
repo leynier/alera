@@ -10,6 +10,7 @@ Widget selectedActivityRowPreview() => AleraActivityRow(
   metadata: 'Alera / feature-delivery',
   selected: true,
   statusColor: AleraTokens.warning,
+  trailing: '2h ago',
   onPressed: () {},
 );
 

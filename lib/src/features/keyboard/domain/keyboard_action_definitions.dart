@@ -4,6 +4,15 @@ part of 'keyboard_action.dart';
 /// resolver, the dispatcher, and the settings UI.
 const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   KeybindingDefinition(
+    id: .toggleWorkspaceDetails,
+    label: 'Toggle Workspace Details',
+    group: .workspace,
+    description: 'Show or hide the workspace details card.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['git', 'host', 'changes'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
     id: .openSettings,
     label: 'Open Settings',
     group: .global,
@@ -13,21 +22,29 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     allowInTerminal: true,
   ),
   KeybindingDefinition(
-    id: .openAutomations,
-    label: 'Open Automations',
+    id: .openActivity,
+    label: 'Open Activity',
     group: .global,
-    description: 'Open the runtime-local automation manager.',
+    description: 'Open runs, questions and automations across projects.',
     defaultBindings: .uniform(<String>['Mod+Shift+A']),
-    searchKeywords: <String>['schedule', 'runs', 'workflow', 'jobs'],
+    searchKeywords: <String>[
+      'runs',
+      'inbox',
+      'questions',
+      'automations',
+      'attention',
+      'workflow',
+    ],
     allowInTerminal: true,
   ),
   KeybindingDefinition(
-    id: .openRunBoard,
-    label: 'Open Run Board',
+    id: .newAutomation,
+    label: 'New Automation',
     group: .global,
-    description: 'Inspect orchestration runs across projects.',
+    description:
+        'Schedule a prompt for an agent, starting from the active workspace.',
     defaultBindings: .uniform(<String>[]),
-    searchKeywords: <String>['orchestration', 'attention', 'workflow'],
+    searchKeywords: <String>['schedule', 'prompt', 'cron'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(

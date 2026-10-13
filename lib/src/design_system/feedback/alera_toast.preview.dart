@@ -50,3 +50,24 @@ WidgetBuilder aleraToastPreview() =>
         const AleraToastHost(),
       ],
     );
+
+@AleraPreview(name: 'With action', group: 'Toast', size: Size(440, 220))
+WidgetBuilder aleraToastActionPreview() =>
+    (context) => Stack(
+      children: <Widget>[
+        Center(
+          child: FilledButton(
+            onPressed: () => AleraToast.show(
+              context,
+              message: 'Build Mac disconnected. Reconnecting…',
+              tone: .warning,
+              duration: AleraToast.longDuration,
+              actionLabel: 'Open Host',
+              onAction: () {},
+            ),
+            child: const Text('Show Toast'),
+          ),
+        ),
+        const AleraToastHost(),
+      ],
+    );

@@ -3,8 +3,8 @@ use chrono::Utc;
 use sqlx::{sqlite::SqliteRow, Row};
 
 use super::{
-    format_timestamp, parse_timestamp, validate_prompt_template, validate_schedule,
-    AutomationActor, AutomationDefinition, AutomationState, RuntimeStore, RuntimeStoreError,
+    format_timestamp, validate_prompt_template, validate_schedule, AutomationActor,
+    AutomationDefinition, AutomationState, RuntimeStore, RuntimeStoreError,
 };
 
 fn decode_definition(row: SqliteRow) -> Result<AutomationDefinition> {
@@ -19,6 +19,11 @@ pub(super) fn validate_definition(definition: &AutomationDefinition) -> Result<(
     definition
         .target
         .validate_project_target(definition.project_id.as_deref())?;
+    super::validate_reuse(
+        definition.reuse_policy,
+        &definition.target,
+        definition.cleanup_policy,
+    )?;
     if definition.id.trim().is_empty() {
         bail!(RuntimeStoreError::Message(
             "automation id is required".to_string()
@@ -188,15 +193,17 @@ impl RuntimeStore {
             .map(str::to_string);
         // Project references resolve through the top-level project id, so a
         // project worktree target always records the project it names.
-        if let Some((project_id, _)) = definition.target.project_worktree() {
+        if let Some(project_id) = definition
+            .target
+            .worktree()
+            .and_then(|spec| spec.project_id)
+        {
             if definition.project_id.is_none() {
                 definition.project_id = Some(project_id.to_string());
             }
         }
-        definition
-            .tag_ids
-            .retain(|tag_id| !tag_id.trim().is_empty());
         let existing = self.find_automation(&definition.id).await?;
+        let unbound = take_stored_binding(&mut definition, existing.as_ref());
         if let Some(conflict) = sqlx::query(
             "SELECT id FROM automations WHERE slug = ? COLLATE NOCASE AND id <> ? LIMIT 1",
         )
@@ -258,8 +265,6 @@ impl RuntimeStore {
         .bind(format_timestamp(definition.updated_at))
         .execute(self.pool())
         .await?;
-        self.set_automation_tags(&definition.id, &definition.tag_ids)
-            .await?;
         self.insert_automation_audit_event(
             Some(&definition.id),
             None,
@@ -275,6 +280,17 @@ impl RuntimeStore {
             }),
         )
         .await?;
+        if let Some((binding, reason)) = unbound {
+            self.insert_automation_audit_event(
+                Some(&definition.id),
+                None,
+                "targetUnbound",
+                definition.modified_by.clone(),
+                Some(definition.revision),
+                serde_json::json!({ "reason": reason, "workspaceId": binding.workspace_id }),
+            )
+            .await?;
+        }
         self.find_automation(&definition.id)
             .await?
             .ok_or_else(|| anyhow!("automation disappeared after upsert"))
@@ -339,57 +355,12 @@ impl RuntimeStore {
         Ok(definition)
     }
 
-    pub async fn approve_automation(
-        &self,
-        id: &str,
-        revision: i64,
-        actor: AutomationActor,
-    ) -> Result<AutomationDefinition> {
-        let mut definition = self
-            .find_automation(id)
-            .await?
-            .ok_or_else(|| anyhow!("automation not found: {id}"))?;
-        if definition.revision != revision {
-            bail!("automation revision is stale; refresh before approving");
-        }
-        definition.approved_revision = Some(revision);
-        definition.state = AutomationState::Active;
-        definition.updated_at = Utc::now();
-        definition.modified_by = actor.clone();
-        sqlx::query(
-            "UPDATE automations SET state = 'active', dataJson = ?, updatedAt = ? WHERE id = ?",
-        )
-        .bind(serde_json::to_string(&definition)?)
-        .bind(format_timestamp(definition.updated_at))
-        .bind(id)
-        .execute(self.pool())
-        .await?;
-        self.insert_automation_audit_event(
-            Some(id),
-            None,
-            "approve",
-            actor,
-            Some(revision),
-            serde_json::json!({}),
-        )
-        .await?;
-        Ok(definition)
-    }
-
-    pub async fn purge_trashed_automations(&self, before: chrono::DateTime<Utc>) -> Result<u64> {
-        let result =
-            sqlx::query("DELETE FROM automations WHERE state = 'trashed' AND trashedAt < ?")
-                .bind(format_timestamp(before))
-                .execute(self.pool())
-                .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn purge_trashed_automations_with_retention(
-        &self,
-        now: chrono::DateTime<Utc>,
-        retention_days: i64,
-    ) -> Result<u64> {
+    /// Deletes trashed automations older than the configured retention.
+    pub async fn purge_trashed_automations(&self, now: chrono::DateTime<Utc>) -> Result<u64> {
+        let retention_days = self
+            .automation_settings()
+            .await
+            .map_or(30, |settings| settings.trash_retention_days);
         let before = now - chrono::Duration::days(retention_days.max(1));
         let result =
             sqlx::query("DELETE FROM automations WHERE state = 'trashed' AND trashedAt < ?")
@@ -440,11 +411,6 @@ impl RuntimeStore {
     }
 }
 
-#[allow(dead_code)]
-fn _timestamp_round_trip(value: &str) -> String {
-    format_timestamp(parse_timestamp(value))
-}
-
 #[cfg(test)]
 #[path = "automation_store_tests.rs"]
 mod tests;
@@ -475,5 +441,29 @@ fn material_fields(
     if previous.cleanup_policy != current.cleanup_policy {
         fields.push("cleanupPolicy");
     }
+    if previous.reuse_policy != current.reuse_policy {
+        fields.push("reusePolicy");
+    }
     fields
+}
+
+/// The binding is runtime-owned: a client's value is always replaced by the
+/// stored one, which survives only while the target is unchanged and the
+/// automation still reuses it. Returns the binding this edit dropped.
+fn take_stored_binding(
+    definition: &mut AutomationDefinition,
+    existing: Option<&AutomationDefinition>,
+) -> Option<(super::AutomationBoundTarget, &'static str)> {
+    definition.bound_target = None;
+    let previous = existing?;
+    let binding = previous.bound_target.clone()?;
+    let reason = if !definition.reuse_policy.reuses() {
+        "reuseDisabled"
+    } else if previous.target != definition.target {
+        "targetChanged"
+    } else {
+        definition.bound_target = Some(binding);
+        return None;
+    };
+    Some((binding, reason))
 }

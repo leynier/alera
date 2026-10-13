@@ -13,7 +13,7 @@ String inboxErrorMessage(Object error) {
   if (error is InboxUpdateRequired) return error.toString();
   if (error is TerminalHostConflictException) {
     return switch (error.code) {
-      'inbox_pending_limit' => 'This agent already has 20 questions waiting. Wait for it to read them or cancel some.',
+      'inbox_pending_limit' => 'This agent already has 100 questions waiting. Wait for it to read them or cancel some.',
       'inbox_ambiguous_recipient' =>
         'More than one agent matches. Choose a specific terminal.',
       'inbox_no_recipient' => 'No running agent matches.',

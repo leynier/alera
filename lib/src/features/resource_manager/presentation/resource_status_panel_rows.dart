@@ -7,6 +7,7 @@ class const _ProjectSection({
   required final ResourceProjectGroup project,
   required final bool collapsed,
   required final ValueChanged<String>? onToggle,
+  required final Map<String, String> hostLabels,
   required final ValueChanged<ResourceSessionRow> onOpenSession,
   required final ValueChanged<ResourceSessionRow> onKillSession,
 }) extends StatelessWidget {
@@ -33,6 +34,7 @@ class const _ProjectSection({
           for (final workspace in project.workspaces)
             _WorkspaceSection(
               workspace: workspace,
+              hostLabel: hostLabels[workspace.hostId] ?? workspace.hostId,
               onOpenSession: onOpenSession,
               onKillSession: onKillSession,
             ),
@@ -43,6 +45,7 @@ class const _ProjectSection({
 
 class const _WorkspaceSection({
   required final ResourceWorkspaceRow workspace,
+  required final String hostLabel,
   required final ValueChanged<ResourceSessionRow> onOpenSession,
   required final ValueChanged<ResourceSessionRow> onKillSession,
 }) extends StatelessWidget {
@@ -55,7 +58,7 @@ class const _WorkspaceSection({
         _MetricRow(
           indent: 1,
           label: workspace.name,
-          suffix: workspace.remote ? 'remote' : null,
+          suffix: workspace.remote ? hostLabel : null,
           cpuMachinePercent: workspace.cpuMachinePercent,
           memoryBytes: workspace.memoryBytes,
         ),

@@ -12,6 +12,7 @@ class AleraActivityRow extends StatelessWidget {
     this.metadata,
     this.selected = false,
     this.statusColor = AleraTokens.foregroundMuted,
+    this.trailing,
   });
   final String title;
   final String subtitle;
@@ -19,6 +20,9 @@ class AleraActivityRow extends StatelessWidget {
   final bool selected;
   final Color statusColor;
   final VoidCallback onPressed;
+
+  /// Short muted note at the trailing edge of the title, such as `2h ago`.
+  final String? trailing;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -40,11 +44,39 @@ class AleraActivityRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  title,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                      if (trailing != null) ...[
+                        const SizedBox(width: AleraTokens.space8),
+                        // Capped at a third of the row, so a long note
+                        // ellipsizes before the title becomes unreadable,
+                        // while a short one leaves the title the rest.
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth / 3,
+                          ),
+                          child: Text(
+                            trailing!,
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: AleraTokens.foregroundMuted),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AleraTokens.space4),
                 Text(

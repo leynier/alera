@@ -79,7 +79,7 @@ impl MessageWaiterRegistry {
     /// Removes and returns the waiters that should wake for a message of
     /// `message_type` addressed to `to_handle`. Waiters whose type filter
     /// does not include the arriving type stay parked, so a coordinator
-    /// waiting for worker_done is not woken by heartbeat noise.
+    /// waiting for escalations is not woken by status chatter.
     pub fn take_matching(
         &mut self,
         to_handle: &str,
@@ -153,17 +153,17 @@ mod tests {
             10,
             "coord".to_string(),
             WaitKind::Check {
-                type_filter: vec![OrchestrationMessageType::WorkerDone],
+                type_filter: vec![OrchestrationMessageType::Escalation],
                 inject: false,
             },
         );
 
-        // Heartbeat noise must not wake a worker_done waiter.
-        let woken = registry.take_matching("coord", OrchestrationMessageType::Heartbeat);
+        // Status chatter must not wake an escalation waiter.
+        let woken = registry.take_matching("coord", OrchestrationMessageType::Status);
         assert!(woken.is_empty());
         assert!(!registry.is_empty());
 
-        let woken = registry.take_matching("coord", OrchestrationMessageType::WorkerDone);
+        let woken = registry.take_matching("coord", OrchestrationMessageType::Escalation);
         assert_eq!(woken.len(), 1);
         assert!(registry.is_empty());
     }

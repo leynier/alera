@@ -19,6 +19,10 @@ pub use alera_core::source_control::{
 pub mod git_branch;
 #[path = "git_hosted_review.rs"]
 pub mod git_hosted_review;
+#[path = "git_network_progress.rs"]
+pub mod network_progress;
+#[path = "git_workspace_comparison.rs"]
+pub mod workspace_comparison;
 
 #[cfg(test)]
 use git2::{BranchType, RepositoryState};

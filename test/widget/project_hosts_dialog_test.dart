@@ -1,14 +1,20 @@
 import 'dart:async';
 
+import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.dart';
 import 'package:alera/src/features/projects/presentation/project_host_row.dart';
 import 'package:alera/src/features/projects/presentation/project_hosts_dialog.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
+import 'package:alera/src/features/remote_hosts/domain/remote_host_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/remote_hosts_widget_harness.dart';
 
 final DateTime _now = DateTime.utc(2026, 9, 21);
 
@@ -71,6 +77,98 @@ void main() {
     expect(_removeButton(tester, 'Build Mac').onPressed, isNull);
     expect(_removeButton(tester, 'Build PC').tooltip, 'Remove From Host');
     expect(_removeButton(tester, 'Build PC').onPressed, isNotNull);
+  });
+
+  testWidgets('remote rows show the host state and open the host', (
+    tester,
+  ) async {
+    final runtime = _FakeProjectHosts(<ProjectHost>[
+      const ProjectHost(
+        hostId: 'local',
+        path: '/repo/alera',
+        primary: true,
+        workspaceCount: 0,
+      ),
+      const ProjectHost(
+        hostId: 'ssh-mac',
+        path: '/Users/me/alera',
+        primary: false,
+        workspaceCount: 0,
+      ),
+      const ProjectHost(
+        hostId: 'ssh-win',
+        path: r'C:\alera',
+        primary: false,
+        workspaceCount: 0,
+      ),
+    ]);
+    final calls = await _pumpDialog(
+      tester,
+      runtime,
+      winStatus: const RemoteHostOffline(),
+    );
+
+    expect(_badgeLabels(tester, 'Build Mac'), contains('Connected'));
+    expect(_badgeLabels(tester, 'Build PC'), contains('Offline'));
+    expect(_badgeLabels(tester, 'This Device'), isNot(contains('Connected')));
+    // This Device has no host settings to open.
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ProjectHostRow, 'This Device'),
+        matching: find.byTooltip('Open Host'),
+      ),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.widgetWithText(ProjectHostRow, 'Build PC'),
+        matching: find.byTooltip('Open Host'),
+      ),
+    );
+    await tester.tap(find.text('/Users/me/alera'));
+    await tester.pump();
+    expect(calls.openedHosts, <String>['ssh-win', 'ssh-mac']);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Manage Remote Hosts'));
+    await tester.pump();
+    expect(calls.manageHosts, 1);
+  });
+
+  testWidgets('with every ready host taken it offers Add Host', (tester) async {
+    final runtime = _FakeProjectHosts(<ProjectHost>[
+      const ProjectHost(
+        hostId: 'local',
+        path: '/repo/alera',
+        primary: true,
+        workspaceCount: 0,
+      ),
+      const ProjectHost(
+        hostId: 'ssh-mac',
+        path: '/Users/me/alera',
+        primary: false,
+        workspaceCount: 0,
+      ),
+      const ProjectHost(
+        hostId: 'ssh-win',
+        path: r'C:\alera',
+        primary: false,
+        workspaceCount: 0,
+      ),
+    ]);
+    final calls = await _pumpDialog(tester, runtime);
+
+    final notice = tester.widget<AleraInlineNotice>(
+      find.byType(AleraInlineNotice),
+    );
+    expect(notice.tone, AleraInlineNoticeTone.info);
+    expect(notice.message, 'This project is already on every ready host.');
+    expect(find.textContaining('Settings →'), findsNothing);
+    expect(find.text('Select Host'), findsNothing);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Add Host'));
+    await tester.pump();
+    expect(calls.addHost, 1);
   });
 
   testWidgets('the only host cannot be removed', (tester) async {
@@ -149,9 +247,7 @@ void main() {
     expect(find.widgetWithText(ProjectHostRow, 'Build PC'), findsOneWidget);
   });
 
-  testWidgets('adds the project to a bootstrapped host it is not on', (
-    tester,
-  ) async {
+  testWidgets('adds the project to a ready host it is not on', (tester) async {
     final runtime = _FakeProjectHosts(<ProjectHost>[
       const ProjectHost(
         hostId: 'local',
@@ -171,7 +267,7 @@ void main() {
     expect(_addButton(tester).onPressed, isNull);
     await tester.tap(find.text('Select Host'));
     await tester.pumpAndSettle();
-    // Build Mac already has the project and Staging is not bootstrapped.
+    // Build Mac already has the project and Staging is not ready.
     expect(find.text('Build Mac'), findsOneWidget);
     expect(find.textContaining('Staging'), findsNothing);
     await tester.tap(find.text('Build PC').last);
@@ -197,7 +293,7 @@ void main() {
     expect(find.widgetWithText(ProjectHostRow, 'Build PC'), findsOneWidget);
     expect(find.text(r'D:\src\alera'), findsOneWidget);
     expect(
-      find.textContaining('already on every bootstrapped host'),
+      find.text('This project is already on every ready host.'),
       findsOneWidget,
     );
   });
@@ -251,9 +347,30 @@ AleraIconButton _removeButton(WidgetTester tester, String hostLabel) {
   return tester.widget<AleraIconButton>(
     find.descendant(
       of: find.widgetWithText(ProjectHostRow, hostLabel),
-      matching: find.byType(AleraIconButton),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is AleraIconButton && widget.icon == AleraIcons.delete,
+      ),
     ),
   );
+}
+
+List<String> _badgeLabels(WidgetTester tester, String hostLabel) {
+  return <String>[
+    for (final badge in tester.widgetList<AleraBadge>(
+      find.descendant(
+        of: find.widgetWithText(ProjectHostRow, hostLabel),
+        matching: find.byType(AleraBadge),
+      ),
+    ))
+      badge.label,
+  ];
+}
+
+class _DialogCalls {
+  final List<String> openedHosts = <String>[];
+  int manageHosts = 0;
+  int addHost = 0;
 }
 
 FilledButton _addButton(WidgetTester tester) {
@@ -315,7 +432,12 @@ class _FakeProjectHosts {
   }
 }
 
-Future<void> _pumpDialog(WidgetTester tester, _FakeProjectHosts runtime) async {
+Future<_DialogCalls> _pumpDialog(
+  WidgetTester tester,
+  _FakeProjectHosts runtime, {
+  RemoteHostStatus winStatus = const RemoteHostConnected(),
+}) async {
+  final calls = _DialogCalls();
   final project = Project(
     id: 'project-1',
     name: 'Alera',
@@ -332,18 +454,26 @@ Future<void> _pumpDialog(WidgetTester tester, _FakeProjectHosts runtime) async {
               context: context,
               builder: (_) => ProjectHostsDialog(
                 project: project,
-                sshTargets: <SshTarget>[
-                  _target('ssh-mac', 'Build Mac', runtimePlatform: 'macos'),
-                  _target('ssh-win', 'Build PC', runtimePlatform: 'windows'),
-                  _target(
+                hosts: <RemoteHostView>[
+                  remoteHostTestView('ssh-mac', 'Build Mac'),
+                  remoteHostTestView(
+                    'ssh-win',
+                    'Build PC',
+                    os: HostOs.windows,
+                    status: winStatus,
+                  ),
+                  remoteHostTestView(
                     'ssh-staging',
                     'Staging',
-                    bootstrapStatus: SshBootstrapStatus.notInstalled,
+                    status: const RemoteHostNeedsSetup(),
                   ),
                 ],
                 loadHosts: runtime.list,
                 addProjectToHost: runtime.add,
                 removeFromHost: runtime.remove,
+                onOpenHost: calls.openedHosts.add,
+                onManageHosts: () => calls.manageHosts++,
+                onAddHost: () => calls.addHost++,
               ),
             ),
             child: const Text('Open'),
@@ -354,24 +484,5 @@ Future<void> _pumpDialog(WidgetTester tester, _FakeProjectHosts runtime) async {
   );
   await tester.tap(find.text('Open'));
   await tester.pumpAndSettle();
-}
-
-SshTarget _target(
-  String id,
-  String alias, {
-  String? runtimePlatform,
-  SshBootstrapStatus bootstrapStatus = SshBootstrapStatus.installed,
-}) {
-  return SshTarget(
-    id: id,
-    alias: alias,
-    host: '$id.example.test',
-    port: 22,
-    username: 'leynier',
-    authKind: SshAuthKind.agent,
-    createdAt: _now,
-    updatedAt: _now,
-    runtimePlatform: runtimePlatform,
-    bootstrapStatus: bootstrapStatus,
-  );
+  return calls;
 }

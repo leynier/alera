@@ -112,6 +112,10 @@ pub struct InboxAskArgs {
     /// Retry key (8 to 128 characters): asking again with it returns the first question.
     #[arg(long = "request-key", value_name = "key")]
     pub request_key: Option<String>,
+    /// When the question reaches a working agent: now (pasted at once when its
+    /// agent queues input mid-turn) or turn-end. The host defaults to now.
+    #[arg(long = "deliver", value_parser = ["now", "turn-end"])]
+    pub deliver: Option<String>,
 }
 
 /// Whose threads an MCP client sees in the shared inbox.

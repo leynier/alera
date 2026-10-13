@@ -19,6 +19,21 @@ pub const RUNTIME_HOST_REMOTE_HOST_LINK_CAPABILITY: &str = "remoteHostLinkV1";
 /// This runtime can be the satellite end of a host link: it accepts
 /// `runtime-attach --stdio` and serves the hub as a local client. Additive.
 pub const RUNTIME_HOST_REMOTE_SATELLITE_CAPABILITY: &str = "remoteSatelliteV1";
+/// The satellite answers `hub.unlink {}` by forgetting that it serves a hub
+/// (`satelliteOfHub`), which a hub sends when the host is removed. Additive.
+pub const RUNTIME_HOST_REMOTE_SATELLITE_UNLINK_CAPABILITY: &str = "remoteSatelliteUnlinkV1";
+/// `hostStatus` on every `sshTarget.list` / `upsert` / `check` target, the
+/// `sshTarget.check` verb, the `sshTargetInUse` conflict on remove and the
+/// `hostId` scope on `sshTargetsChanged`. Additive.
+pub const RUNTIME_HOST_REMOTE_HOST_STATUS_CAPABILITY: &str = "remoteHostStatusV1";
+/// `restartRuntime` and `force` on `sshTarget.bootstrap.start`, the
+/// `sshTarget.restartRuntime` verb, the `hostBusy` conflict, the `restart` and
+/// `prune` install stages, and `runtimeUpdateAvailable` on `hostStatus` and
+/// the host link status. Additive.
+pub const RUNTIME_HOST_REMOTE_RUNTIME_UPDATE_CAPABILITY: &str = "remoteRuntimeUpdateV1";
+/// `identityFile` on SSH targets, passed to ssh as `-i` with
+/// `IdentitiesOnly=yes`. Additive.
+pub const RUNTIME_HOST_SSH_TARGET_IDENTITY_FILE_CAPABILITY: &str = "sshTargetIdentityFileV1";
 /// `git.*`: the desktop `GitBackend` surface served for a workspace on this
 /// host and forwarded by the hub over the host link. Additive.
 pub const RUNTIME_HOST_REMOTE_GIT_CAPABILITY: &str = "remoteGitV1";
@@ -181,19 +196,20 @@ pub const RUNTIME_HOST_CLOUD_PUSH_CAPABILITY: &str = "cloudPushNotificationsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
-pub const RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY: &str = "orchestrationRunBoardV1";
-pub const RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY: &str = "workflowRecipeCatalogV1";
-pub const RUNTIME_HOST_WORKFLOW_EXPORT_CAPABILITY: &str = "workflowRecipeExportV1";
-pub const RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY: &str = "workflowReviewedPlansV1";
-pub const RUNTIME_HOST_WORKFLOW_LIFECYCLE_CAPABILITY: &str = "workflowRunLifecycleV1";
-pub const RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY: &str = "workflowManagedWorktreesV1";
-pub const RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY: &str = "workflowLocalIntegrationV1";
+/// The `runs.*` client surface and the `runsChanged` event.
+pub const RUNTIME_HOST_RUNS_CAPABILITY: &str = "runsV1";
+/// The `recipes.*` catalog surface and the `recipesChanged` event.
+pub const RUNTIME_HOST_RECIPES_CAPABILITY: &str = "recipesV1";
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";
 // Advertised once the host answers `inbox.*` for questions from addresses
 // outside Alera (`ext:`), on desktop, CLI and paired phones alike.
 pub const RUNTIME_HOST_INBOX_CAPABILITY: &str = "inboxV1";
+// Advertised once `inbox.ask`, `orchestration.send` and `orchestration.ask`
+// take `delivery: now | turnEnd`, asks and targets report `deliveryMode`, and
+// question statuses fold `received` into `delivered`.
+pub const RUNTIME_HOST_INBOX_DELIVERY_CAPABILITY: &str = "inboxV2";
 // Advertised once `inbox.ask` records an MCP client's `externalOrigin` from
 // local clients and `inbox.threads`/`inbox.wait` filter by `originClientId`.
 pub const RUNTIME_HOST_INBOX_ORIGIN_CAPABILITY: &str = "inboxOriginV1";
@@ -214,9 +230,6 @@ pub const RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY: &str =
 pub const RUNTIME_HOST_MANAGED_AGENT_PROFILES_CAPABILITY: &str =
     "orchestrationManagedAgentProfilesV1";
 pub const RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY: &str = "agentProfilePromptLaunchV1";
-// Advertised once runs carry a user-approved execution policy. A run without a
-// policy schedules exactly as before, so this stays a feature check.
-pub const RUNTIME_HOST_RUN_POLICY_CAPABILITY: &str = "orchestrationRunPolicyV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.
@@ -269,3 +282,8 @@ pub const RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY: &str =
 
 pub const RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY: &str = "automationsAuthoringV1";
 pub const RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY: &str = "automationTerminalObserveV1";
+// Advertised once definitions carry `reusePolicy` and the runtime-owned
+// `boundTarget`, catalog items carry `boundTargetSummary`, and the host
+// answers `automation.unbind`. Additive, so it never bumps the protocol
+// version; clients hide reuse controls without it.
+pub const RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY: &str = "automationReuseV1";

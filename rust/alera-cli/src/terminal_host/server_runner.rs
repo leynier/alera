@@ -26,7 +26,7 @@ pub async fn run_terminal_host_server(
     };
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     chatgpt_session::initialize(runtime_dir.clone());
-    let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    let runtime_store = RuntimeStore::open_as_runtime_owner(&runtime_dir).await?;
     runtime_store.retire_removed_features().await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;
 
@@ -90,6 +90,7 @@ pub async fn run_terminal_host_server(
         workflow_workspace_recovery_running: false,
         automation_checkout_jobs: Default::default(),
         automation_precheck_jobs: Default::default(),
+        automation_remote_owner_states: Default::default(),
         pending_terminal_lifecycle_shutdowns: Default::default(),
         checkout_buffer_guards: HashMap::new(),
         mutation_queue: Default::default(),
@@ -157,6 +158,7 @@ pub async fn run_terminal_host_server(
     }
     actor.migrate_retired_automation_gates().await;
     actor.reconcile_automation_runs().await;
+    let host_link_supervisor = actor.start_host_link_supervisor();
     actor.reconcile_spawn_on_create_tabs().await;
     if actor.account_push.push_enabled
         && actor.account_push.service.local_account().await?.is_some()
@@ -202,6 +204,8 @@ pub async fn run_terminal_host_server(
     let _ = presence_sweep.await;
     automation_ticker.abort();
     let _ = automation_ticker.await;
+    host_link_supervisor.abort();
+    let _ = host_link_supervisor.await;
     if let Some(shutdown_signal) = shutdown_signal {
         shutdown_signal.abort();
     }

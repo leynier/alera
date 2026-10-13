@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -14,21 +15,26 @@ import 'package:alera/src/features/projects/infra/runtime_project_hosts_client.d
 import 'package:alera/src/features/projects/presentation/project_host_add_form.dart';
 import 'package:alera/src/features/projects/presentation/project_host_enrollment_controller.dart';
 import 'package:alera/src/features/projects/presentation/project_host_row.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_host_selection.dart';
+import 'package:alera/src/features/remote_hosts/application/remote_hosts_state.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:flutter/material.dart';
 
-/// The hosts a Git project is on, with the way to add it to another
-/// bootstrapped host and to forget it on one. Removing never deletes files.
+/// The hosts a Git project is on, with the way to add it to another ready
+/// host and to forget it on one. Removing never deletes files. [onOpenHost]
+/// and [onManageHosts] open Settings > Remote Hosts; [onAddHost] runs Add
+/// Host.
 class const ProjectHostsDialog({
   super.key,
   required final Project project,
-  required final List<SshTarget> sshTargets,
+  required final List<RemoteHostView> hosts,
   required final Future<List<ProjectHost>> Function() loadHosts,
   required final AddProjectToHost addProjectToHost,
   required final Future<List<ProjectHost>> Function(String hostId)
   removeFromHost,
+  final ValueChanged<String>? onOpenHost,
+  final VoidCallback? onManageHosts,
+  final VoidCallback? onAddHost,
 }) extends StatefulWidget {
   @override
   State<ProjectHostsDialog> createState() => _ProjectHostsDialogState();
@@ -69,13 +75,13 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
     }
   }
 
-  List<SshTarget> get _addableTargets {
+  List<RemoteHostView> get _addableHosts {
     final hosts = _hosts ?? const <ProjectHost>[];
-    return <SshTarget>[
-      for (final target in widget.sshTargets)
-        if (target.bootstrapStatus == SshBootstrapStatus.installed &&
-            !hosts.any((host) => host.hostId == target.id))
-          target,
+    return <RemoteHostView>[
+      for (final remoteHost in widget.hosts)
+        if (remoteHost.status.isReady &&
+            !hosts.any((host) => host.hostId == remoteHost.id))
+          remoteHost,
     ];
   }
 
@@ -123,7 +129,6 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return AleraDialog(
       maxWidth: AleraTokens.dialogWideWidth,
       child: Padding(
@@ -135,16 +140,22 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
             AleraDialogHeader(
               title: '${widget.project.name} Hosts',
               onClose: () => Navigator.of(context).pop(),
+              trailing: widget.onManageHosts == null
+                  ? null
+                  : TextButton(
+                      onPressed: widget.onManageHosts,
+                      child: const Text('Manage Remote Hosts'),
+                    ),
             ),
             const SizedBox(height: AleraTokens.space12),
-            Flexible(child: SingleChildScrollView(child: _buildBody(theme))),
+            Flexible(child: SingleChildScrollView(child: _buildBody())),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBody(ThemeData theme) {
+  Widget _buildBody() {
     final hosts = _hosts;
     final loadError = _loadError;
     if (hosts == null && loadError != null) {
@@ -164,7 +175,7 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    final targets = sshTargetsById(widget.sshTargets);
+    final onOpenHost = widget.onOpenHost;
     final removeError = _removeError ?? loadError;
     return Column(
       mainAxisSize: .min,
@@ -175,7 +186,12 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
             for (final host in hosts)
               ProjectHostRow(
                 host: host,
-                target: targets[host.hostId],
+                remoteHost: remoteHostViewById(widget.hosts, host.hostId),
+                onOpenHost: onOpenHost == null
+                    ? null
+                    : () => onOpenHost(
+                        normalizedRemoteHostId(host.hostId) ?? host.hostId,
+                      ),
                 removing: _removingHostId == host.hostId,
                 removalBlockedReason: projectHostRemovalBlockedReason(
                   primary: host.primary,
@@ -187,7 +203,7 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
                     : () => unawaited(
                         _remove(
                           host,
-                          workspaceHostLabel(widget.sshTargets, host.hostId),
+                          remoteHostViewLabel(widget.hosts, host.hostId),
                         ),
                       ),
               ),
@@ -203,22 +219,30 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
           padding: EdgeInsets.zero,
         ),
         const SizedBox(height: AleraTokens.space8),
-        _buildAddSection(theme),
+        _buildAddSection(),
       ],
     );
   }
 
-  Widget _buildAddSection(ThemeData theme) {
-    final addable = _addableTargets;
+  Widget _buildAddSection() {
+    final addable = _addableHosts;
     if (addable.isEmpty) {
-      return Text(
-        'This project is already on every bootstrapped host. Add SSH hosts in Settings → Remote Hosts.',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: AleraTokens.foregroundMuted,
-        ),
+      final onAddHost = widget.onAddHost;
+      final anyReady = widget.hosts.any((host) => host.status.isReady);
+      return AleraInlineNotice(
+        message: anyReady ? 'This project is already on every ready host.' : 'No remote host is ready. Install the Alera runtime on a host to add this project there.',
+        child: onAddHost == null
+            ? null
+            : Align(
+                alignment: .centerLeft,
+                child: TextButton(
+                  onPressed: onAddHost,
+                  child: const Text('Add Host'),
+                ),
+              ),
       );
     }
-    final addHostId = addable.any((target) => target.id == _addHostId)
+    final addHostId = addable.any((host) => host.id == _addHostId)
         ? _addHostId
         : null;
     return ListenableBuilder(
@@ -235,12 +259,12 @@ class _ProjectHostsDialogState extends State<ProjectHostsDialog> {
             filterable: addable.length > 4,
             filterHintText: 'Search Hosts',
             entries: <AleraDropdownFieldEntry<String>>[
-              for (final target in addable)
+              for (final host in addable)
                 AleraDropdownFieldEntry<String>(
-                  value: target.id,
-                  label: sshTargetPickerLabel(target),
+                  value: host.id,
+                  label: host.pickerLabel,
                   leading: AleraHostOsIcon(
-                    os: sshTargetHostOs(target),
+                    os: host.os,
                     size: AleraTokens.iconMd,
                   ),
                 ),

@@ -58,7 +58,14 @@ impl ServerActor {
                 workspace: None,
             });
         }
-        if let Some((project_id, _)) = definition.target.project_worktree() {
+        // A parent workspace places the worktree, so its location wins over a
+        // project the target also names.
+        if let Some(project_id) = definition
+            .target
+            .worktree()
+            .filter(|spec| spec.parent_workspace_id.is_none())
+            .and_then(|spec| spec.project_id)
+        {
             let project = self
                 .runtime_store
                 .find_project(project_id)
@@ -67,7 +74,7 @@ impl ServerActor {
                 .ok_or_else(|| HostError::state("automation target project is missing"))?;
             if project.kind != alera_core::runtime::ProjectKind::GitRepository {
                 return Err(HostError::state(
-                    "project worktree automations require a git repository project",
+                    "worktree automations require a git repository project",
                 ));
             }
             // The worktree is created on this computer, so the project folder
@@ -75,7 +82,7 @@ impl ServerActor {
             // another machine and would be read locally by the precheck.
             if !crate::project_hosts::project_folder_is_local(&self.runtime_store, &project).await {
                 return Err(HostError::state(
-                    "This project has no folder on this computer. Project worktree automations run on this computer only.",
+                    "This project has no folder on this computer. Worktree automations run on this computer only.",
                 ));
             }
             let path = project.repo_path.clone();
@@ -96,6 +103,16 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state("automation target workspace is missing"))?;
+        if definition
+            .target
+            .worktree()
+            .and_then(|spec| spec.project_id)
+            .is_some_and(|project_id| project_id != workspace.project_id)
+        {
+            return Err(HostError::state(
+                "The parent workspace belongs to another project than the automation target",
+            ));
+        }
         let project = self
             .runtime_store
             .find_project(&workspace.project_id)

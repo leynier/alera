@@ -52,6 +52,28 @@ void main() {
     );
   });
 
+  test('parses the additive supervision fields the runtime reports', () {
+    final state = HostLinkState.fromJson(<String, Object?>{
+      'hostId': 'lab',
+      'state': 'failed',
+      'error': 'connection closed',
+      'retry': <String, Object?>{
+        'attempt': 2,
+        'nextRetryAt': '2026-10-11T10:00:04Z',
+      },
+      'failureKind': 'unreachable',
+      'satelliteVersion': '1.4.0',
+      'hubVersion': '1.5.0',
+      'runtimeUpdateAvailable': false,
+    });
+    expect(state.retry?.attempt, 2);
+    expect(state.retry?.nextRetryAt, DateTime.utc(2026, 10, 11, 10, 0, 4));
+    expect(state.failureKind, 'unreachable');
+    expect(state.satelliteVersion, '1.4.0');
+    expect(state.hubVersion, '1.5.0');
+    expect(state.runtimeUpdateAvailable, isFalse);
+  });
+
   test('indexes states by host id', () {
     final byId = hostLinkStatesById(<HostLinkState>[
       const HostLinkState(hostId: 'a', phase: HostLinkPhase.attached),

@@ -20,6 +20,10 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:logging/logging.dart';
+import 'package:alera/src/features/pull_requests/domain/review_action_access.dart';
+import 'package:alera/src/features/pull_requests/application/forge_review_action_access_provider.dart';
+
+part 'workspace_pull_request_details_load.dart';
 
 /// Loads the forge and repository snapshot displayed by the pull-request panel.
 final Logger _log = Logger('WorkspacePullRequestLoader');
@@ -93,25 +97,29 @@ class const WorkspacePullRequestLoader(
       var comments = const <ReviewComment>[];
       HostedReviewStack? stack;
       String? stackErrorMessage;
+      var commentsLoaded = true;
+      var checksLoaded = false;
+      String? checksErrorMessage;
+      var actionAccess = const ReviewActionAccess();
+      var stackChecksLoaded = false;
+      String? stackMergeBlocker;
       if (review != null) {
-        final checksFuture = forge.getChecks(
-          identity: identity,
-          repoPath: scope.repoPath,
-          number: review.number,
+        final checksFuture = _loadReviewChecks(forge, identity, scope, review);
+        final commentsFuture = _loadReviewComments(
+          forge,
+          identity,
+          scope,
+          review,
         );
-        final commentsFuture = forge.supportsReviewComments
-            ? forge.getReviewComments(
-                identity: identity,
-                repoPath: scope.repoPath,
-                number: review.number,
-              )
-            : Future<List<ReviewComment>>.value(const <ReviewComment>[]);
-        final results = await Future.wait<Object>([
-          checksFuture,
-          commentsFuture,
-        ]);
-        checks = results[0] as List<ReviewCheck>;
-        comments = results[1] as List<ReviewComment>;
+        final accessFuture = _loadReviewAccess(forge, identity, scope, review);
+        final checkLoad = await checksFuture;
+        checks = checkLoad.checks;
+        checksLoaded = checkLoad.error == null;
+        checksErrorMessage = checkLoad.error;
+        final commentLoad = await commentsFuture;
+        comments = commentLoad.comments;
+        commentsLoaded = commentLoad.error == null;
+        actionAccess = await accessFuture;
         if (stackProvider != null) {
           try {
             stack = await stackProvider.getStackForReview(
@@ -121,6 +129,31 @@ class const WorkspacePullRequestLoader(
             );
           } on ForgeException catch (error) {
             stackErrorMessage = error.message;
+          }
+        }
+      }
+      if (stack != null && review != null) {
+        stackChecksLoaded = true;
+        for (final entry in stack.entriesThrough(review.number)) {
+          final layer = entry.review;
+          if (layer.state == HostedReviewState.merged) continue;
+          if (layer.state != HostedReviewState.open ||
+              layer.mergeable != HostedReviewMergeable.mergeable) {
+            stackMergeBlocker =
+                'PR #${layer.number} is not confirmed ready to merge.';
+            break;
+          }
+          final load = layer.number == review.number
+              ? (checks: checks, error: checksErrorMessage)
+              : await _loadReviewChecks(forge, identity, scope, layer);
+          if (load.error != null ||
+              deriveReviewChecksRollup(load.checks) ==
+                  ReviewChecksRollup.pending ||
+              deriveReviewChecksRollup(load.checks) ==
+                  ReviewChecksRollup.failure) {
+            stackMergeBlocker =
+                'PR #${layer.number} has unfinished or unavailable checks.';
+            break;
           }
         }
       }
@@ -145,9 +178,14 @@ class const WorkspacePullRequestLoader(
         stackSupported: stackProvider != null,
         stackErrorMessage: stackErrorMessage,
         mergeMethodsErrorMessage: mergeMethodsError,
+        checksLoaded: checksLoaded,
+        checksErrorMessage: checksErrorMessage,
+        actionAccess: actionAccess,
+        stackChecksLoaded: stackChecksLoaded,
+        stackMergeBlocker: stackMergeBlocker,
         checks: checks,
         comments: comments,
-        commentsComplete: reviewCommentsComplete(comments),
+        commentsComplete: commentsLoaded && reviewCommentsComplete(comments),
         linkedManually: linkedManually,
         dismissed: dismissed,
         currentBranch: branch,

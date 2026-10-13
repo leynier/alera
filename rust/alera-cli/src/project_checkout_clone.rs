@@ -111,7 +111,7 @@ pub(crate) async fn clone_checkout(
         // Exclusive creation rejects existing directories, including empty ones and symlinks.
         std::fs::create_dir(&destination).context("The clone destination must be a new directory; no existing files were changed")?;
         alera_core::git_cli::git_in_dir_with_environment(&destination, &["clone", "--", &args.url, "."], &environment)
-            .map_err(|_| anyhow!("Clone failed. The destination was retained for inspection; verify the repository URL, access and credentials before trying a new destination"))?;
+            .map_err(|error| anyhow!("Clone failed: {}. The destination was retained for inspection; verify the repository URL, access and credentials before trying a new destination", alera_core::runtime::redact_known_patterns(&error.to_string())))?;
         destination.to_str().map(str::to_string).ok_or_else(|| anyhow!("Clone path is not valid UTF-8"))
     }).await??;
     crate::project_checkout_inspection::inspect(

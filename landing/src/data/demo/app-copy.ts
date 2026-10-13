@@ -17,6 +17,12 @@ const PULL_REQUESTS = 'lib/src/features/pull_requests';
 const AGENT_STATUS_BADGE = `${WORKBENCH}/presentation/widgets/agent_run_status_badge.dart`;
 
 export const APP_COPY = {
+  workspaceDetailsToggle: { text: 'Toggle Workspace Details', source: `${WORKBENCH}/presentation/workspace_details_overlay.dart` },
+  workspaceDetailsOpen: { text: 'Open In File Manager', literal: 'Open In ', source: `${WORKBENCH}/presentation/workspace_details_overlay_card.dart` },
+  workspaceDetailsBase: { text: 'Compare against origin/main', literal: 'Compare against ', source: `${WORKBENCH}/presentation/workspace_details_overlay_card.dart` },
+  workspaceDetailsCommit: { text: 'Commit & Push', source: `${WORKBENCH}/domain/workspace_git_quick_action.dart` },
+  workspaceDetailsMerge: { text: 'Merge', source: 'lib/src/features/pull_requests/domain/workspace_review_action.dart' },
+  workspaceDetailsChanges: { text: 'Changes', source: `${WORKBENCH}/presentation/workspace_details_overlay_card.dart` },
   needsInput: { text: 'Needs Input', source: AGENT_STATUS_BADGE },
   blockedBadge: { text: 'Blocked', source: AGENT_STATUS_BADGE },
   doneBadge: { text: 'Done', source: AGENT_STATUS_BADGE },
@@ -33,9 +39,10 @@ export const APP_COPY = {
   hostField: { text: 'Host', source: `${WORKBENCH}/presentation/workspace_host_picker.dart` },
   thisDevice: { text: 'This Device', source: `${WORKBENCH}/presentation/workspace_host_picker.dart` },
   hostHelper: {
-    text: 'Add SSH hosts in Settings → Remote Hosts to create workspaces on another machine.',
+    text: 'Workspaces can also run on another machine over SSH.',
     source: `${WORKBENCH}/presentation/workspace_host_picker.dart`,
   },
+  addHost: { text: 'Add Host', source: `${WORKBENCH}/presentation/workspace_host_picker.dart` },
   issueUrl: { text: 'Issue URL', source: 'lib/src/features/linked_issues/presentation/issue_url_field.dart' },
   createAnother: { text: 'Create Another', source: `${WORKBENCH}/presentation/prompt_workspace_dialog_form.dart` },
   agentProfile: { text: 'Agent Profile', source: `${WORKBENCH}/presentation/prompt_workspace_dialog_form.dart` },
@@ -90,7 +97,7 @@ export const APP_COPY = {
   typeCommand: { text: 'Type a command', source: 'mobile/lib/src/features/terminal/presentation/terminal_compose_bar.dart' },
   projects: { text: 'Projects', source: `${WORKBENCH}/presentation/widgets/workbench_sidebar_toolbar.dart` },
   addProject: { text: 'Add Project', source: `${WORKBENCH}/presentation/project_workbench_sidebar_footer.dart` },
-  showAgentRuns: { text: 'Show Agent Runs', source: `${WORKBENCH}/presentation/project_workbench_workspace_rows.dart` },
+  showAgentRuns: { text: 'Show Agent Runs', source: `${WORKBENCH}/presentation/project_workbench_workspace_tray.dart` },
   expandPanel: { text: 'Expand Panel', source: `${WORKBENCH}/presentation/workspace_context_sidebar.dart` },
   sourceControl: { text: 'Source Control', source: `${WORKBENCH}/domain/workspace_panel.dart` },
   pullRequest: { text: 'Pull Request', source: `${WORKBENCH}/domain/workspace_panel.dart` },
@@ -152,7 +159,7 @@ export const APP_COPY = {
     source: `${PULL_REQUESTS}/domain/pull_request_agent_prompts.dart`,
     literal: 'checks failed. Please fix them.',
   },
-  localHost: { text: 'Local', source: 'lib/src/features/agent_quota/presentation/agent_quota_status_bar_content.dart' },
+  localHost: { text: 'This Device', source: `${WORKBENCH}/domain/remote_workspace.dart` },
   voice: { text: 'Voice', source: 'lib/src/features/voice/presentation/voice_status_bar_control.dart' },
   desktopTookBack: {
     text: 'Desktop took back the terminal',

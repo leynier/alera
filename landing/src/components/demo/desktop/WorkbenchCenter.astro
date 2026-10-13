@@ -3,6 +3,8 @@ import { CLAUDE_SESSION, CODEX_SHELL, CODEX_UI, RELEASE_SESSION } from '../../..
 import TerminalBlocks from '../primitives/TerminalBlocks.astro';
 import TerminalPane from '../primitives/TerminalPane.astro';
 import { concealedAttributes } from '../primitives/conceal';
+import WorkspaceDetails from './WorkspaceDetails.astro';
+import { SAMPLE } from '../../../data/demo/sample-workspace';
 import DriverBanner from './DriverBanner.astro';
 import PaneStrip from './PaneStrip.astro';
 import TabChip from './TabChip.astro';
@@ -18,6 +20,7 @@ import TabChip from './TabChip.astro';
 
 <section class="center">
   <div class="center-view" data-demo-node="d-view-release">
+    <WorkspaceDetails branch={SAMPLE.workspaces.releaseNotes.branch} />
     <div class="panes" data-state="single">
       <div class="pane">
         <div class="pane-body"><TerminalPane blocks={RELEASE_SESSION} /></div>
@@ -26,6 +29,7 @@ import TabChip from './TabChip.astro';
   </div>
 
   <div class="center-view" data-demo-node="d-view-webhooks" {...concealedAttributes(true)}>
+    <WorkspaceDetails branch={SAMPLE.workspaces.webhooks.branch} />
     <div class="panes" data-demo-node="d-panes" data-state="single">
       <div class="pane pane-claude" data-demo-node="d-pane-claude" data-state="own">
         <PaneStrip>

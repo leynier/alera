@@ -37,10 +37,11 @@ impl RuntimeStore {
                (SELECT MAX(m.sequence) FROM orchestrationMessages m \
                  WHERE m.id = r.id OR m.thread_id = r.id) AS last_sequence \
              FROM orchestrationMessages r \
-             WHERE substr(r.from_handle, 1, 4) = 'ext:' AND r.thread_id IS NULL",
+             WHERE r.thread_id IS NULL AND (substr(r.from_handle, 1, 4) = 'ext:') \
+               <> (substr(r.to_handle, 1, 4) = 'ext:')",
         );
         if filter.inbox.is_some() {
-            sql.push_str(" AND r.from_handle = ?");
+            sql.push_str(" AND (r.from_handle = ? OR r.to_handle = ?)");
         }
         if filter.workspace_id.is_some() {
             sql.push_str(" AND r.workspace_id = ?");
@@ -54,7 +55,7 @@ impl RuntimeStore {
         loop {
             let mut query = sqlx::query(sqlx::AssertSqlSafe(sql.clone()));
             if let Some(inbox) = &filter.inbox {
-                query = query.bind(inbox);
+                query = query.bind(inbox).bind(inbox);
             }
             if let Some(workspace_id) = &filter.workspace_id {
                 query = query.bind(workspace_id);
@@ -147,7 +148,8 @@ impl RuntimeStore {
              ) \
              SELECT i.inbox AS inbox, \
                (SELECT COUNT(*) FROM orchestrationMessages m \
-                 WHERE m.from_handle = i.inbox AND m.thread_id IS NULL) AS thread_count, \
+                 WHERE (m.from_handle = i.inbox OR m.to_handle = i.inbox) \
+                 AND m.thread_id IS NULL) AS thread_count, \
                (SELECT COUNT(*) FROM orchestrationMessages m \
                  WHERE m.from_handle = i.inbox AND m.state = 'queued' \
                  AND m.delivered_at IS NULL AND m.read = 0 \
@@ -186,11 +188,8 @@ fn build_thread(thread_id: &str, messages: Vec<OrchestrationMessage>) -> Option<
         .iter()
         .find(|message| message.id == thread_id && message.thread_id.is_none())?
         .clone();
-    if !is_external_inbox(&root.from_handle) {
-        return None;
-    }
-    let inbox = root.from_handle.clone();
-    let recipient = root.to_handle.clone();
+    let (inbox, recipient) = inbox_thread_parties(&root)?;
+    let (inbox, recipient) = (inbox.to_string(), recipient.to_string());
     let answered: HashSet<&str> = messages
         .iter()
         .filter(|message| message.to_handle == inbox && message.from_handle == recipient)
@@ -204,6 +203,7 @@ fn build_thread(thread_id: &str, messages: Vec<OrchestrationMessage>) -> Option<
     let entries: Vec<InboxMessage> = messages
         .iter()
         .map(|message| {
+            let delivery_mode = message_delivery_mode(message);
             if message.from_handle == inbox {
                 InboxMessage {
                     kind: InboxMessageKind::Question,
@@ -211,6 +211,9 @@ fn build_thread(thread_id: &str, messages: Vec<OrchestrationMessage>) -> Option<
                         message,
                         answered.contains(message.id.as_str()),
                     )),
+                    delivery: message.delivery,
+                    delivered_at: message.delivered_at.clone(),
+                    delivery_mode,
                     message: message.clone(),
                 }
             } else {
@@ -226,16 +229,25 @@ fn build_thread(thread_id: &str, messages: Vec<OrchestrationMessage>) -> Option<
                         InboxMessageKind::Message
                     },
                     status: None,
+                    delivery: message.delivery,
+                    delivered_at: message.delivered_at.clone(),
+                    delivery_mode,
                     message: message.clone(),
                 }
             }
         })
         .collect();
+    // A thread an agent opened holds no question, so nothing waits on it.
     let status = entries
         .iter()
         .rev()
         .find_map(|entry| entry.status)
-        .unwrap_or(InboxQuestionStatus::Pending);
+        .unwrap_or(InboxQuestionStatus::Answered);
+    let delivery_mode = entries
+        .iter()
+        .rev()
+        .filter(|entry| entry.kind == InboxMessageKind::Question)
+        .find_map(|entry| entry.delivery_mode.clone());
     let incoming = entries
         .iter()
         .filter(|entry| entry.message.to_handle == inbox);
@@ -264,12 +276,24 @@ fn build_thread(thread_id: &str, messages: Vec<OrchestrationMessage>) -> Option<
             unread_reply_count,
             origin: meta.as_ref().and_then(|meta| meta.get("origin").cloned()),
             target: meta.as_ref().and_then(|meta| meta.get("target").cloned()),
+            delivery_mode,
         },
         messages: entries,
     })
 }
 
-/// Precedence: cancelled, answered, expired, delivered, received, pending.
+/// The delivery mode recorded on a question when it was asked.
+fn message_delivery_mode(message: &OrchestrationMessage) -> Option<String> {
+    message
+        .external_meta
+        .as_ref()?
+        .get("deliveryMode")?
+        .as_str()
+        .map(str::to_string)
+}
+
+/// Precedence: cancelled, answered, expired, delivered, pending. A question
+/// the agent read with `check` counts as delivered.
 pub fn question_status(question: &OrchestrationMessage, answered: bool) -> InboxQuestionStatus {
     let cancelled = question.state == "obsolete";
     if cancelled {
@@ -278,10 +302,8 @@ pub fn question_status(question: &OrchestrationMessage, answered: bool) -> Inbox
         InboxQuestionStatus::Answered
     } else if question.state == "expired" && question.delivered_at.is_none() {
         InboxQuestionStatus::Expired
-    } else if question.delivered_at.is_some() {
+    } else if question.delivered_at.is_some() || question.read {
         InboxQuestionStatus::Delivered
-    } else if question.read {
-        InboxQuestionStatus::Received
     } else {
         InboxQuestionStatus::Pending
     }

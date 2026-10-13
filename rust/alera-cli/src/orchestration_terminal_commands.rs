@@ -2,79 +2,9 @@ use serde_json::{json, Value};
 
 use crate::cli::RuntimeDirArgs;
 use crate::orchestration_commands::{
-    request_value, request_value_with_capability, terminal_handle_env, usage_error,
-    WAIT_CLIENT_GRACE_MS,
+    request_value, request_value_with_capability, WAIT_CLIENT_GRACE_MS,
 };
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY;
-
-pub(crate) async fn run_agent_spawn(
-    runtime: &RuntimeDirArgs,
-    args: crate::cli_orchestration::OrchestrationAgentSpawnArgs,
-    json_output: bool,
-) -> i32 {
-    let Some(from) = args.from.or_else(terminal_handle_env) else {
-        return usage_error("--from is required (or set ALERA_TERMINAL_HANDLE).");
-    };
-    let workspace = match crate::workspace_context::resolve_requested_workspace_id(
-        runtime,
-        args.workspace.as_deref(),
-    )
-    .await
-    {
-        Ok(workspace) => workspace,
-        Err(error) => return crate::print_error(error),
-    };
-    let Some(workspace) = workspace else {
-        return usage_error(
-            "--workspace is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set).",
-        );
-    };
-    let timeout_ms = args.timeout_ms;
-    let value = match request_value_with_capability(
-        runtime,
-        RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
-        "orchestration.agentSpawn",
-        json!({
-            "workspace": workspace,
-            "agent": args.agent,
-        "profile": args.profile,
-            "task": args.task,
-            "title": args.title,
-            "terminal": args.terminal,
-            "command": args.command,
-            "from": from,
-            "keepOnFailure": args.keep_on_failure,
-        }),
-        None,
-    )
-    .await
-    {
-        Ok(value) => value,
-        Err(error) => {
-            eprintln!("{error}");
-            return 1;
-        }
-    };
-    let Some(handle) = value
-        .get("terminalHandle")
-        .or_else(|| value.get("assigneeHandle"))
-        .and_then(Value::as_str)
-    else {
-        if json_output {
-            println!("{value}");
-        }
-        return 0;
-    };
-    run_terminal_wait(
-        runtime,
-        handle,
-        "dispatch-accepted",
-        timeout_ms,
-        json_output,
-        true,
-    )
-    .await
-}
 
 pub(crate) async fn run_terminal_wait(
     runtime: &RuntimeDirArgs,

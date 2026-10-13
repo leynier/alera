@@ -1,29 +1,53 @@
-use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::path::PathBuf;
 
-use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
     redact_known_patterns, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
     SshTargetBootstrapStateUpdate, SshTargetLastStatus,
 };
 use anyhow::{anyhow, bail, Context, Result};
-use base64::prelude::*;
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use crate::remote_shell::{normalize_platform, RemoteShell};
 use crate::runtime_archive::{
-    resolve_runtime_artifact, ResolvedRuntimeArtifact, RuntimeArchiveChannel,
-    RuntimeArtifactRequest, RuntimeArtifactTrust,
+    resolve_runtime_artifact, RuntimeArchiveChannel, RuntimeArtifactRequest,
 };
+use crate::ssh_remote_command::{run_remote_command, truncate_error, RemoteCommandBudget};
 
 #[path = "ssh_bootstrap_install_dir.rs"]
 mod ssh_bootstrap_install_dir;
 use ssh_bootstrap_install_dir::{local_home_dir, prepare_remote_install_dir};
 
+#[path = "ssh_bootstrap_plan.rs"]
+mod ssh_bootstrap_plan;
+pub(crate) use ssh_bootstrap_plan::build_ssh_bootstrap_plan;
+
+#[path = "ssh_bootstrap_prune.rs"]
+mod ssh_bootstrap_prune;
+pub(crate) use ssh_bootstrap_prune::{installed_runtime_version, prune_remote_versions};
+
+#[path = "ssh_bootstrap_status.rs"]
+mod ssh_bootstrap_status;
+pub(crate) use ssh_bootstrap_status::{cancel_ssh_bootstrap, mark_ssh_bootstrap_installing};
+use ssh_bootstrap_status::{status_after_interrupted_install, status_while_installing};
+
+#[path = "ssh_bootstrap_remote.rs"]
+mod ssh_bootstrap_remote;
+pub(crate) use ssh_bootstrap_remote::validate_remote_runtime;
+use ssh_bootstrap_remote::{
+    detect_remote_platform, install_runtime_artifact, resolve_remote_install_dir,
+    upload_runtime_artifact,
+};
+#[cfg(test)]
+use ssh_bootstrap_remote::{
+    posix_install_script, posix_resolve_install_dir_script, windows_install_script,
+    windows_validate_script,
+};
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SshTargetBootstrapRequest {
+    #[serde(alias = "id")]
     pub target_id: String,
     #[serde(default)]
     pub channel: Option<String>,
@@ -43,26 +67,13 @@ pub(crate) struct SshTargetBootstrapRequest {
     pub artifact_path: Option<PathBuf>,
     #[serde(default)]
     pub manifest_public_key: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct SshTargetBootstrapPlan {
-    pub target_id: String,
-    pub alias: String,
-    pub host: String,
-    pub port: i64,
-    pub username: String,
-    pub auth_kind: String,
-    pub channel: String,
-    pub version: Option<String>,
-    pub platform: String,
-    pub arch: String,
-    pub install_dir: String,
-    pub artifact_source: String,
-    pub trust: String,
-    pub status: String,
-    pub steps: Vec<String>,
+    /// After a validated install, restart the host's runtime onto the new
+    /// version (`remoteRuntimeUpdateV1`). Only a running runtime host does it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub restart_runtime: bool,
+    /// Restart even though hub terminals still run on the host.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub force: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -111,80 +122,8 @@ pub(crate) fn reject_new_password_ssh_target(
     bail!("{SSH_PASSWORD_BOOTSTRAP_UNSUPPORTED}");
 }
 
-#[derive(Debug)]
-pub(crate) struct RemoteCommandOutput {
-    pub(crate) stdout: String,
-}
-
 pub(crate) fn new_bootstrap_job_id() -> String {
     Uuid::new_v4().to_string()
-}
-
-pub(crate) async fn build_ssh_bootstrap_plan(
-    store: &RuntimeStore,
-    request: &SshTargetBootstrapRequest,
-) -> Result<SshTargetBootstrapPlan> {
-    let target = find_target(store, &request.target_id).await?;
-    reject_password_ssh_bootstrap_auth(target.auth_kind)?;
-    let channel = parse_channel(request.channel.as_deref())?;
-    let platform = request
-        .platform
-        .as_deref()
-        .or(target.platform.as_deref())
-        .or(target.runtime_platform.as_deref())
-        .map(normalize_platform)
-        .unwrap_or_else(|| "auto".to_string());
-    let arch = request
-        .arch
-        .as_deref()
-        .or(target.arch.as_deref())
-        .or(target.runtime_arch.as_deref())
-        .map(normalize_arch)
-        .unwrap_or_else(|| "auto".to_string());
-    let install_dir = prepare_remote_install_dir(
-        &platform,
-        request
-            .install_dir
-            .as_deref()
-            .or(target.install_dir.as_deref())
-            .unwrap_or(""),
-        local_home_dir().as_deref(),
-    )?;
-    let local_override = request.artifact_path.is_some();
-    Ok(SshTargetBootstrapPlan {
-        target_id: target.id,
-        alias: target.alias,
-        host: target.host,
-        port: target.port,
-        username: target.username,
-        auth_kind: target.auth_kind.as_str().to_string(),
-        channel: channel.as_str().to_string(),
-        version: request.version.clone(),
-        platform,
-        arch,
-        install_dir,
-        artifact_source: if local_override {
-            "localArtifactPath".to_string()
-        } else if request.archive_path.is_some() {
-            "localArchivePath".to_string()
-        } else {
-            "githubRelease".to_string()
-        },
-        trust: if local_override {
-            "localOverride".to_string()
-        } else {
-            "signedArchive".to_string()
-        },
-        status: "planned".to_string(),
-        steps: vec![
-            "Validate SSH Key Or Agent Authentication".to_string(),
-            "Detect Remote Platform And Architecture".to_string(),
-            "Verify Signed Runtime Archive Or Local Override".to_string(),
-            "Upload Runtime Tarball To Remote Staging".to_string(),
-            "Extract Runtime Sidecar And Update Remote Wrapper".to_string(),
-            "Validate Installed Runtime Binary".to_string(),
-        ],
-    })
 }
 
 pub(crate) async fn run_ssh_bootstrap<F>(
@@ -223,12 +162,15 @@ where
     match result {
         Ok(target) => Ok(target),
         Err(error) => {
-            let redacted = redact_error(&error.to_string());
+            let redacted = redact_error(&format!("{error:#}"));
             let _ = store
                 .update_ssh_target_bootstrap_state(
                     &target.id,
                     SshTargetBootstrapStateUpdate {
-                        status: SshBootstrapStatus::Failed,
+                        status: status_after_interrupted_install(
+                            target.bootstrap_status,
+                            SshBootstrapStatus::Failed,
+                        ),
                         install_dir: None,
                         runtime_version: None,
                         runtime_platform: None,
@@ -261,13 +203,17 @@ async fn run_ssh_bootstrap_inner<F>(
 where
     F: FnMut(SshTargetBootstrapProgress) + Send,
 {
-    if run_remote_command(&target, "posix", "printf ready")
+    if !crate::ssh_remote_command::answers(&target, RemoteShell::Posix).await {
+        run_remote_command(
+            &target,
+            RemoteShell::Windows,
+            "Write-Output ready",
+            RemoteCommandBudget::Probe,
+        )
         .await
-        .is_err()
-    {
-        run_remote_command(&target, "windows", "Write-Output ready")
-            .await
-            .context("SSH authentication failed; verify ssh-agent, key config, host, port, and username.")?;
+        .context(
+            "SSH authentication failed; verify ssh-agent, key config, host, port, and username.",
+        )?;
     }
 
     let configured_platform = configured_bootstrap_platform(&request, &target);
@@ -299,9 +245,9 @@ where
     let arch = configured_arch
         .or_else(|| detected.as_ref().map(|value| value.arch.clone()))
         .expect("architecture is configured or detected");
-    if !matches!(platform.as_str(), "macos" | "linux" | "windows") {
+    let Some(shell) = RemoteShell::from_platform(&platform) else {
         bail!("unsupported remote platform: {platform}");
-    }
+    };
     if !matches!(arch.as_str(), "x64" | "arm64") {
         bail!("unsupported remote architecture: {arch}");
     }
@@ -314,13 +260,13 @@ where
             .unwrap_or(""),
         local_home_dir().as_deref(),
     )?;
-    let install_dir = resolve_remote_install_dir(&target, &platform, &install_dir_input).await?;
+    let install_dir = resolve_remote_install_dir(&target, shell, &install_dir_input).await?;
 
-    let installing = store
+    store
         .update_ssh_target_bootstrap_state(
             &target.id,
             SshTargetBootstrapStateUpdate {
-                status: SshBootstrapStatus::Installing,
+                status: status_while_installing(target.bootstrap_status),
                 install_dir: Some(&install_dir),
                 runtime_version: None,
                 runtime_platform: None,
@@ -332,7 +278,7 @@ where
     emit(progress(
         &job_id,
         &target.id,
-        installing.bootstrap_status,
+        SshBootstrapStatus::Installing,
         "artifact",
         "Resolving Runtime Artifact",
         None,
@@ -366,7 +312,7 @@ where
         "Uploading Runtime Artifact",
         None,
     ));
-    upload_runtime_artifact(&target, &platform, &install_dir, &job_id, &artifact).await?;
+    upload_runtime_artifact(&target, shell, &install_dir, &job_id, &artifact).await?;
 
     emit(progress(
         &job_id,
@@ -386,7 +332,7 @@ where
         "Validating Remote Runtime",
         None,
     ));
-    validate_remote_runtime(&target, &platform, &install_dir).await?;
+    validate_remote_runtime(&target, shell, &install_dir).await?;
     let installed = store
         .update_ssh_target_bootstrap_state(
             &target.id,
@@ -414,44 +360,6 @@ where
     Ok(installed)
 }
 
-pub(crate) async fn mark_ssh_bootstrap_installing(
-    store: &RuntimeStore,
-    target_id: &str,
-) -> Result<SshTarget> {
-    store
-        .update_ssh_target_bootstrap_state(
-            target_id,
-            SshTargetBootstrapStateUpdate {
-                status: SshBootstrapStatus::Installing,
-                install_dir: None,
-                runtime_version: None,
-                runtime_platform: None,
-                runtime_arch: None,
-                last_error: None,
-            },
-        )
-        .await
-}
-
-pub(crate) async fn cancel_ssh_bootstrap(
-    store: &RuntimeStore,
-    target_id: &str,
-) -> Result<SshTarget> {
-    store
-        .update_ssh_target_bootstrap_state(
-            target_id,
-            SshTargetBootstrapStateUpdate {
-                status: SshBootstrapStatus::Cancelled,
-                install_dir: None,
-                runtime_version: None,
-                runtime_platform: None,
-                runtime_arch: None,
-                last_error: None,
-            },
-        )
-        .await
-}
-
 fn parse_channel(value: Option<&str>) -> Result<RuntimeArchiveChannel> {
     match value.unwrap_or("stable").trim().to_lowercase().as_str() {
         "" | "stable" => Ok(RuntimeArchiveChannel::Stable),
@@ -460,433 +368,11 @@ fn parse_channel(value: Option<&str>) -> Result<RuntimeArchiveChannel> {
     }
 }
 
-async fn find_target(store: &RuntimeStore, target_id: &str) -> Result<SshTarget> {
+pub(super) async fn find_target(store: &RuntimeStore, target_id: &str) -> Result<SshTarget> {
     store
         .find_ssh_target(target_id)
         .await?
         .ok_or_else(|| anyhow!("ssh target not found: {target_id}"))
-}
-
-#[derive(Debug)]
-struct DetectedPlatform {
-    platform: String,
-    arch: String,
-}
-
-async fn detect_remote_platform(target: &SshTarget) -> Result<DetectedPlatform> {
-    if let Ok(output) = run_remote_command(target, "posix", "uname -s; uname -m").await {
-        let lines = output
-            .stdout
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .collect::<Vec<_>>();
-        if lines.len() >= 2 {
-            let platform = normalize_platform(lines[0]);
-            if !is_supported_platform(&platform) {
-                return detect_remote_platform_with_powershell(target).await;
-            }
-            return Ok(DetectedPlatform {
-                platform,
-                arch: normalize_arch(lines[1]),
-            });
-        }
-    }
-    detect_remote_platform_with_powershell(target).await
-}
-
-async fn detect_remote_platform_with_powershell(target: &SshTarget) -> Result<DetectedPlatform> {
-    let script = r#"
-$ErrorActionPreference = 'Stop'
-Write-Output 'windows'
-Write-Output ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString())
-"#;
-    let output = run_remote_command(target, "windows", script).await?;
-    let lines = output
-        .stdout
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<_>>();
-    if lines.len() < 2 {
-        bail!("could not detect remote platform and architecture.");
-    }
-    Ok(DetectedPlatform {
-        platform: normalize_platform(lines[0]),
-        arch: normalize_arch(lines[1]),
-    })
-}
-
-async fn resolve_remote_install_dir(
-    target: &SshTarget,
-    platform: &str,
-    install_dir: &str,
-) -> Result<String> {
-    if platform == "windows" {
-        let script = format!(
-            r#"
-$ErrorActionPreference = 'Stop'
-$install = {install_dir}
-if ([string]::IsNullOrWhiteSpace($install)) {{
-  $install = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Alera\runtime'
-}}
-$install = [Environment]::ExpandEnvironmentVariables($install)
-if ($install.StartsWith('%LOCALAPPDATA%', [System.StringComparison]::OrdinalIgnoreCase)) {{
-  $install = $install -replace '^%LOCALAPPDATA%', [Environment]::GetFolderPath('LocalApplicationData')
-}}
-New-Item -ItemType Directory -Force -Path $install | Out-Null
-if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {{
-  throw 'tar.exe is required on the remote Windows host.'
-}}
-Write-Output $install
-"#,
-            install_dir = powershell_string(install_dir),
-        );
-        let output = run_remote_command(target, platform, &script).await?;
-        return output
-            .stdout
-            .lines()
-            .map(str::trim)
-            .find(|line| !line.is_empty())
-            .map(windows_sftp_path)
-            .ok_or_else(|| anyhow!("remote Windows install directory probe returned no path."));
-    }
-    let script = posix_resolve_install_dir_script(install_dir);
-    let output = run_remote_command(target, platform, &script).await?;
-    output
-        .stdout
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(str::to_string)
-        .ok_or_else(|| anyhow!("remote install directory probe returned no path."))
-}
-
-async fn upload_runtime_artifact(
-    target: &SshTarget,
-    platform: &str,
-    install_dir: &str,
-    job_id: &str,
-    artifact: &ResolvedRuntimeArtifact,
-) -> Result<()> {
-    let staging_dir = remote_join(platform, install_dir, &["staging", job_id]);
-    if platform == "windows" {
-        let script = format!(
-            r#"
-$ErrorActionPreference = 'Stop'
-New-Item -ItemType Directory -Force -Path {staging_dir} | Out-Null
-"#,
-            staging_dir = powershell_string(&staging_dir),
-        );
-        run_remote_command(target, platform, &script).await?;
-    } else {
-        let script = format!("set -eu\nmkdir -p {}\n", shell_quote(&staging_dir));
-        run_remote_command(target, platform, &script).await?;
-    }
-    let remote_path = remote_join(platform, &staging_dir, &[&artifact.file_name]);
-    run_sftp_put(target, &artifact.path, &remote_path).await
-}
-
-async fn install_runtime_artifact(
-    target: &SshTarget,
-    platform: &str,
-    install_dir: &str,
-    job_id: &str,
-    artifact: &ResolvedRuntimeArtifact,
-) -> Result<()> {
-    let staging_archive = remote_join(
-        platform,
-        install_dir,
-        &["staging", job_id, &artifact.file_name],
-    );
-    let entrypoint = if platform == "windows" {
-        "alera.exe"
-    } else {
-        "alera"
-    };
-    let trust_note = match artifact.trust {
-        RuntimeArtifactTrust::SignedArchive => "signed archive",
-        RuntimeArtifactTrust::LocalOverride => "local override",
-    };
-    if platform == "windows" {
-        let script = windows_install_script(
-            install_dir,
-            &artifact.version,
-            platform,
-            &artifact.arch,
-            &staging_archive,
-            entrypoint,
-        );
-        run_remote_command(target, platform, &script)
-            .await
-            .with_context(|| format!("failed installing runtime artifact ({trust_note})"))?;
-        return Ok(());
-    }
-    let script = posix_install_script(
-        install_dir,
-        &artifact.version,
-        platform,
-        &artifact.arch,
-        &staging_archive,
-        entrypoint,
-    );
-    run_remote_command(target, platform, &script)
-        .await
-        .with_context(|| format!("failed installing runtime artifact ({trust_note})"))?;
-    Ok(())
-}
-
-pub(crate) async fn validate_remote_runtime(
-    target: &SshTarget,
-    platform: &str,
-    install_dir: &str,
-) -> Result<()> {
-    if platform == "windows" {
-        let script = windows_validate_script(platform, install_dir);
-        run_remote_command(target, platform, &script).await?;
-        return Ok(());
-    }
-    let exe = remote_join(platform, install_dir, &["current", "alera"]);
-    let data_dir = remote_join(platform, install_dir, &["data"]);
-    let script = format!(
-        "set -eu\n{} runtime --runtime-dir {} --json status >/dev/null\n",
-        shell_quote(&exe),
-        shell_quote(&data_dir),
-    );
-    run_remote_command(target, platform, &script).await?;
-    Ok(())
-}
-
-fn windows_validate_script(platform: &str, install_dir: &str) -> String {
-    let data_dir = remote_join(platform, install_dir, &["data"]);
-    let current_file = remote_join(platform, install_dir, &["current.txt"]);
-    format!(
-        r#"
-$ErrorActionPreference = 'Stop'
-$current = Get-Content -Raw -Path {current_file}
-& (Join-Path $current 'alera.exe') runtime --runtime-dir {data_dir} --json status | Out-Null
-"#,
-        current_file = powershell_string(&current_file),
-        data_dir = powershell_string(&data_dir),
-    )
-}
-
-fn posix_install_script(
-    install_dir: &str,
-    version: &str,
-    platform: &str,
-    arch: &str,
-    staging_archive: &str,
-    entrypoint: &str,
-) -> String {
-    let version_dir = remote_join(
-        platform,
-        install_dir,
-        &["versions", &format!("{version}-{platform}-{arch}")],
-    );
-    format!(
-        r#"set -eu
-install_dir={install_dir}
-version_dir={version_dir}
-	staging_archive={staging_archive}
-	entrypoint={entrypoint}
-	previous=""
-	committed=0
-	if [ -L "$install_dir/current" ]; then
-	  previous="$(readlink "$install_dir/current" || true)"
-	fi
-	rollback() {{
-	  if [ "$committed" -eq 0 ] && [ -n "$previous" ]; then
-	    ln -sfn "$previous" "$install_dir/current"
-	  fi
-	}}
-	trap rollback EXIT
-	rm -rf "$version_dir"
-	mkdir -p "$version_dir" "$install_dir/bin" "$install_dir/data"
-	tar -xzf "$staging_archive" -C "$version_dir"
-chmod 755 "$version_dir/$entrypoint"
-ln -sfn "$version_dir" "$install_dir/current"
-	cat > "$install_dir/bin/alera" <<-'SH'
-#!/bin/sh
-DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-export ALERA_RUNTIME_DIR="$DIR/data"
-exec "$DIR/current/alera" "$@"
-	SH
-	chmod 755 "$install_dir/bin/alera"
-	rm -rf "$install_dir/staging"
-	committed=1
-	trap - EXIT
-	printf '%s\n' installed
-	"#,
-        install_dir = shell_quote(install_dir),
-        version_dir = shell_quote(&version_dir),
-        staging_archive = shell_quote(staging_archive),
-        entrypoint = shell_quote(entrypoint),
-    )
-}
-
-fn windows_install_script(
-    install_dir: &str,
-    version: &str,
-    platform: &str,
-    arch: &str,
-    staging_archive: &str,
-    entrypoint: &str,
-) -> String {
-    let version_dir = remote_join(
-        platform,
-        install_dir,
-        &["versions", &format!("{version}-{platform}-{arch}")],
-    );
-    format!(
-        r#"
-$ErrorActionPreference = 'Stop'
-$installDir = {install_dir}
-$versionDir = {version_dir}
-$stagingArchive = {staging_archive}
-$entrypoint = {entrypoint}
-$currentFile = Join-Path $installDir 'current.txt'
-$previous = $null
-if (Test-Path $currentFile) {{
-  $previous = Get-Content -Raw -Path $currentFile
-}}
-try {{
-  if (Test-Path $versionDir) {{ Remove-Item -Recurse -Force $versionDir }}
-  New-Item -ItemType Directory -Force -Path $versionDir | Out-Null
-  New-Item -ItemType Directory -Force -Path (Join-Path $installDir 'bin') | Out-Null
-  New-Item -ItemType Directory -Force -Path (Join-Path $installDir 'data') | Out-Null
-  tar.exe -xzf $stagingArchive -C $versionDir
-  if (-not (Test-Path (Join-Path $versionDir $entrypoint))) {{
-    throw "Runtime entrypoint missing after extraction: $entrypoint"
-  }}
-	  Set-Content -Path $currentFile -Value $versionDir -NoNewline
-	  $wrapper = Join-Path $installDir 'bin\alera.cmd'
-	  Set-Content -Path $wrapper -Value '@echo off
-set /p ALERA_CURRENT=<"%~dp0..\current.txt"
-set "ALERA_RUNTIME_DIR=%~dp0..\data"
-"%ALERA_CURRENT%\alera.exe" %*
-' -NoNewline
-  Remove-Item -Recurse -Force (Join-Path $installDir 'staging') -ErrorAction SilentlyContinue
-  Write-Output 'installed'
-}} catch {{
-  if ($null -ne $previous) {{
-    Set-Content -Path $currentFile -Value $previous -NoNewline
-  }}
-  throw
-}}
-"#,
-        install_dir = powershell_string(install_dir),
-        version_dir = powershell_string(&version_dir),
-        staging_archive = powershell_string(staging_archive),
-        entrypoint = powershell_string(entrypoint),
-    )
-}
-
-pub(crate) async fn ssh_target_answers_posix(target: &SshTarget) -> bool {
-    run_remote_command(target, "posix", "printf ready")
-        .await
-        .is_ok()
-}
-
-pub(crate) async fn ssh_target_answers_windows(target: &SshTarget) -> bool {
-    run_remote_command(target, "windows", "Write-Output ready")
-        .await
-        .is_ok()
-}
-
-pub(crate) async fn run_remote_command(
-    target: &SshTarget,
-    platform: &str,
-    script: &str,
-) -> Result<RemoteCommandOutput> {
-    if platform == "windows" {
-        return crate::ssh_windows_command::run(target, script).await;
-    }
-    let mut args = ssh_args(target);
-    let command = format!("sh -lc {}", shell_quote(script));
-    args.push(command);
-    run_checked("ssh", &args).await
-}
-
-pub(crate) async fn run_sftp_put(
-    target: &SshTarget,
-    local_path: &Path,
-    remote_path: &str,
-) -> Result<()> {
-    let mut command = windowless_async_command("sftp");
-    command
-        .arg("-P")
-        .arg(target.port.to_string())
-        .arg("-o")
-        .arg("BatchMode=yes")
-        .arg("-o")
-        .arg("ConnectTimeout=15")
-        .arg(ssh_destination(target))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    let mut child = command.spawn().context("failed to start sftp")?;
-    let batch = format!(
-        "put {} {}\n",
-        sftp_quote(&local_path.display().to_string()),
-        sftp_quote(remote_path)
-    );
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| anyhow!("failed opening sftp stdin"))?;
-    stdin.write_all(batch.as_bytes()).await?;
-    drop(stdin);
-    let output = child.wait_with_output().await?;
-    if output.status.success() {
-        return Ok(());
-    }
-    bail!(
-        "sftp upload failed: {}{}",
-        String::from_utf8_lossy(&output.stderr),
-        String::from_utf8_lossy(&output.stdout)
-    )
-}
-
-async fn run_checked(program: &str, args: &[String]) -> Result<RemoteCommandOutput> {
-    let output = windowless_async_command(program)
-        .args(args)
-        .kill_on_drop(true)
-        .output()
-        .await
-        .with_context(|| format!("failed to start {program}"))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    if !output.status.success() {
-        bail!(
-            "{program} failed: {}",
-            truncate_error(&format!("{stderr}{stdout}"))
-        );
-    }
-    Ok(RemoteCommandOutput { stdout })
-}
-
-pub(crate) fn ssh_args(target: &SshTarget) -> Vec<String> {
-    vec![
-        "-p".to_string(),
-        target.port.to_string(),
-        "-o".to_string(),
-        "BatchMode=yes".to_string(),
-        "-o".to_string(),
-        "ConnectTimeout=15".to_string(),
-        "-o".to_string(),
-        "StrictHostKeyChecking=accept-new".to_string(),
-        ssh_destination(target),
-    ]
-}
-
-fn ssh_destination(target: &SshTarget) -> String {
-    if target.username.trim().is_empty() {
-        target.host.clone()
-    } else {
-        format!("{}@{}", target.username, target.host)
-    }
 }
 
 fn default_install_dir(platform: &str) -> String {
@@ -899,24 +385,12 @@ fn default_install_dir(platform: &str) -> String {
     }
 }
 
-pub(crate) fn normalize_platform(value: &str) -> String {
-    let normalized = value.trim().to_lowercase();
-    match normalized.as_str() {
-        "darwin" | "mac" | "macos" => "macos".to_string(),
-        "linux" => "linux".to_string(),
-        "win32" | "windows" | "windows_nt" => "windows".to_string(),
-        other if other.starts_with("mingw") => "windows".to_string(),
-        other if other.starts_with("msys") => "windows".to_string(),
-        other if other.starts_with("cygwin") => "windows".to_string(),
-        other => other.to_string(),
-    }
+/// The `versions/` entry an install of `version` extracts into.
+pub(crate) fn version_dir_name(version: &str, platform: &str, arch: &str) -> String {
+    format!("{version}-{platform}-{arch}")
 }
 
-fn is_supported_platform(value: &str) -> bool {
-    matches!(value, "macos" | "linux" | "windows")
-}
-
-fn normalize_arch(value: &str) -> String {
+pub(crate) fn normalize_arch(value: &str) -> String {
     match value.trim().to_lowercase().as_str() {
         "x86_64" | "amd64" | "x64" => "x64".to_string(),
         "aarch64" | "arm64" => "arm64".to_string(),
@@ -944,79 +418,6 @@ fn configured_bootstrap_arch(
         .as_deref()
         .or(target.arch.as_deref())
         .map(normalize_arch)
-}
-
-fn posix_resolve_install_dir_script(install_dir: &str) -> String {
-    // Quote/escape the `~/` prefix strip. Unquoted `#~/` tilde-expands the
-    // pattern on macOS /bin/sh and Linux dash, so the strip no-ops and the
-    // path becomes `$HOME/~/.alera/...` (literal `~` directory). See #666.
-    format!(
-        r#"
-set -eu
-install_dir={install_dir}
-case "$install_dir" in
-  "~") install_dir="$HOME" ;;
-  "~/"*) install_dir="$HOME/${{install_dir#"~/"}}" ;;
-esac
-mkdir -p "$install_dir"
-command -v tar >/dev/null 2>&1 || {{ echo "tar is required on the remote host." >&2; exit 11; }}
-printf '%s\n' "$install_dir"
-"#,
-        install_dir = shell_quote(install_dir),
-    )
-}
-
-pub(crate) fn remote_join(platform: &str, base: &str, parts: &[&str]) -> String {
-    let separator = "/";
-    let mut value = if platform == "windows" {
-        windows_sftp_path(base)
-    } else {
-        base.trim_end_matches('/').to_string()
-    };
-    for part in parts {
-        let trimmed = part.trim_matches(|ch| ch == '/' || ch == '\\');
-        if !value.ends_with(separator) {
-            value.push_str(separator);
-        }
-        value.push_str(trimmed);
-    }
-    value
-}
-
-pub(crate) fn windows_sftp_path(value: &str) -> String {
-    // OpenSSH on Windows treats bare `C:/...` as relative to the remote home
-    // (nesting as `/C:/Users/<user>/C:/...`). Force the absolute SFTP form
-    // `/X:/...` so puts land at the intended drive path.
-    let normalized = value.replace('\\', "/");
-    let trimmed = normalized.trim_end_matches('/');
-    let without_leading = trimmed.trim_start_matches('/');
-    let mut chars = without_leading.chars();
-    match (chars.next(), chars.next()) {
-        (Some(drive), Some(':')) if drive.is_ascii_alphabetic() => {
-            format!("/{without_leading}")
-        }
-        _ => trimmed.to_string(),
-    }
-}
-
-pub(crate) fn shell_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
-}
-
-pub(crate) fn powershell_string(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-pub(crate) fn powershell_encoded(script: &str) -> String {
-    let bytes = script
-        .encode_utf16()
-        .flat_map(u16::to_le_bytes)
-        .collect::<Vec<u8>>();
-    BASE64_STANDARD.encode(bytes)
-}
-
-fn sftp_quote(value: &str) -> String {
-    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 fn select_runtime_archive_public_key(
@@ -1062,18 +463,6 @@ fn redact_error(message: &str) -> String {
     // diagnosable. Replacing the SSH username used to turn that into
     // `/home/<user>`, which looked like a template bug. See #675.
     truncate_error(&redact_known_patterns(message))
-}
-
-fn truncate_error(message: &str) -> String {
-    const MAX_ERROR_CHARS: usize = 600;
-    let compact = message.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut chars = compact.chars();
-    let truncated = chars.by_ref().take(MAX_ERROR_CHARS).collect::<String>();
-    if chars.next().is_some() {
-        format!("{truncated}...")
-    } else {
-        compact
-    }
 }
 
 #[cfg(test)]

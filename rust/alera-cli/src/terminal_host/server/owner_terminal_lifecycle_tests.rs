@@ -134,7 +134,7 @@ async fn verified_action_retries_preserve_a_replacement_session_and_neighbor() {
             if matches!(
                 &command,
                 ServerCommand::WorkflowLaunch(
-                    super::super::workflow_launch_requests::WorkflowLaunchCommand::ExecutionWake
+                    super::super::run_launch_requests::WorkflowLaunchCommand::ExecutionWake
                 )
             ) {
                 // A Board revision may queue a no-op workflow wake first.

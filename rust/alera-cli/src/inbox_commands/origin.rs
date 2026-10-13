@@ -8,7 +8,7 @@ use crate::cli_inbox::InboxScope;
 use crate::mcp_tools::CallOrigin;
 
 /// `externalOrigin` for `inbox.ask`: who asked, without the per-call id.
-pub(super) fn external_origin(origin: &CallOrigin) -> Value {
+pub(crate) fn external_origin(origin: &CallOrigin) -> Value {
     let mut value = Map::new();
     value.insert("transport".into(), json!(origin.transport));
     for (key, field) in [

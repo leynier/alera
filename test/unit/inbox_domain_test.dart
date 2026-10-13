@@ -1,4 +1,3 @@
-import 'package:alera/src/features/inbox/domain/conversation_models.dart';
 import 'package:alera/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
@@ -10,6 +9,7 @@ void main() {
     expect(InboxMessageKind.parse('future'), InboxMessageKind.message);
     expect(InboxQuestionStatus.parse(null), InboxQuestionStatus.pending);
     expect(InboxDeliveryMode.parse(7), InboxDeliveryMode.unavailable);
+    expect(InboxDeliveryMode.tryParse(null), isNull);
     expect(parseInboxTimestamp(''), isNull);
     expect(
       parseInboxTimestamp('2026-10-06T10:00:00Z'),
@@ -31,24 +31,82 @@ void main() {
     expect(InboxQuestionStatus.answered.open, isFalse);
   });
 
-  test('conversation pages keep their cursor and tolerate bad shapes', () {
-    final page = ConversationPage.fromJson(<String, Object?>{
-      'items': [
-        {'threadId': 't', 'participants': 'not a list', 'group': true},
-        'not a map',
-      ],
-      'nextBefore': 9,
-      'revision': 2,
-    });
-    expect(page.nextBefore, 9);
-    expect(page.items.single.participants, isEmpty);
-    expect(page.items.single.group, isTrue);
-    expect(ConversationPage.fromJson(const {'items': 3}).items, isEmpty);
-    expect(
-      ConversationMessage.fromJson(const {'type': 'merge_ready'}).typeLabel,
-      'merge ready',
-    );
-  });
+  test(
+    'inboxV2 delivery values parse, and legacy values keep their meaning',
+    () {
+      expect(
+        InboxQuestionStatus.parse('received'),
+        InboxQuestionStatus.delivered,
+      );
+      expect(
+        InboxDeliveryMode.parse('paste'),
+        InboxDeliveryMode.queuedAtTurnEnd,
+      );
+      for (final mode in InboxDeliveryMode.values) {
+        expect(InboxDeliveryMode.parse(mode.key), mode);
+      }
+      expect(InboxDeliveryMode.queuedAtTurnEnd.acceptsNow, isFalse);
+      expect(InboxDeliveryMode.unavailable.acceptsNow, isFalse);
+      expect(InboxDeliveryMode.pastedNow.acceptsNow, isTrue);
+      expect(InboxDelivery.tryParse('turnEnd'), InboxDelivery.turnEnd);
+      expect(InboxDelivery.tryParse('later'), isNull);
+      expect(
+        const InboxAskRequest(body: 'Q', delivery: InboxDelivery.now).toJson(),
+        {'body': 'Q'},
+      );
+      expect(
+        const InboxAskRequest(
+          body: 'Q',
+          delivery: InboxDelivery.now,
+        ).toJson(includeDelivery: true),
+        {'body': 'Q', 'delivery': 'now'},
+      );
+
+      final target = InboxRecipient.fromJson(const {
+        'handle': 'term-1',
+        'deliveryMode': 'queued_at_turn_end',
+        'acceptsQueuedInput': false,
+      });
+      expect(target.deliveryMode, InboxDeliveryMode.queuedAtTurnEnd);
+      expect(target.acceptsQueuedInput, isFalse);
+
+      final asked = InboxMessage.fromJson(const {
+        'kind': 'question',
+        'status': 'delivered',
+        'delivery': 'now',
+        'deliveredAt': '2026-10-06 10:00:20',
+        'message': {'id': 'q', 'created_at': '2026-10-06 10:00:00'},
+      });
+      expect(asked.delivery, InboxDelivery.now);
+      expect(asked.deliveredNow, isTrue);
+      final late = InboxMessage.fromJson(const {
+        'kind': 'question',
+        'message': {
+          'id': 'q',
+          'delivery': 'now',
+          'created_at': '2026-10-06 10:00:00',
+          'delivered_at': '2026-10-06 10:30:00',
+        },
+      });
+      expect(late.delivery, InboxDelivery.now);
+      expect(late.deliveredNow, isFalse);
+
+      // The host's recorded decision wins over the timestamp heuristic.
+      final queued = InboxMessage.fromJson(const {
+        'kind': 'question',
+        'delivery': 'now',
+        'deliveryMode': 'queued_at_turn_end',
+        'deliveredAt': '2026-10-06 10:00:20',
+        'message': {'id': 'q', 'created_at': '2026-10-06 10:00:00'},
+      });
+      expect(queued.deliveredNow, isFalse);
+      final pasted = InboxMessage.fromJson(const {
+        'kind': 'question',
+        'message': {'id': 'q', 'delivery_mode': 'pasted_now'},
+      });
+      expect(pasted.deliveredNow, isTrue);
+    },
+  );
 
   test('every host error code has a sentence-case message', () {
     for (final code in <String>[

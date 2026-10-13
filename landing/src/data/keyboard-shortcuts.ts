@@ -30,8 +30,8 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     title: 'Global',
     actions: [
       { id: 'openSettings', label: 'Open Settings', description: 'Open the settings dialog.', bindings: uniform('Mod+Comma'), inTerminal: true },
-      { id: 'openAutomations', label: 'Open Automations', description: 'Open the runtime-local automation manager.', bindings: uniform('Mod+Shift+A'), inTerminal: true },
-      { id: 'openRunBoard', label: 'Open Run Board', description: 'Inspect orchestration runs across projects.', bindings: uniform(), inTerminal: true },
+      { id: 'openActivity', label: 'Open Activity', description: 'Open runs, questions and automations across projects.', bindings: uniform('Mod+Shift+A'), inTerminal: true },
+      { id: 'newAutomation', label: 'New Automation', description: 'Schedule a prompt for an agent, starting from the active workspace.', bindings: uniform(), inTerminal: true },
       { id: 'openQuickOpen', label: 'Quick Open', description: 'Search and open a file in the active workspace.', bindings: uniform('Mod+P'), inTerminal: true },
       { id: 'openCommandPalette', label: 'Command Palette', description: 'Search and run an Alera command.', bindings: uniform('Mod+Shift+P'), inTerminal: true },
       { id: 'addProject', label: 'Add Project', description: 'Open the add-project dialog.', bindings: uniform('Mod+Shift+O'), inTerminal: true },
@@ -46,6 +46,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     id: 'workspace',
     title: 'Workspace',
     actions: [
+      { id: 'toggleWorkspaceDetails', label: 'Toggle Workspace Details', description: 'Show or hide the workspace details card.', bindings: uniform(), inTerminal: true },
       { id: 'createWorkspace', label: 'New Workspace', description: 'Create a linked workspace for the active Git project.', bindings: uniform('Mod+Shift+N'), inTerminal: true },
       { id: 'handOffWorkspace', label: 'Hand Off', description: 'Move the main worktree\'s current work into a new child workspace.', bindings: uniform(), inTerminal: true },
       { id: 'handOnWorkspace', label: 'Hand On', description: 'Bring a child worktree\'s current work back onto the main worktree.', bindings: uniform(), inTerminal: true },

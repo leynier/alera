@@ -1,7 +1,10 @@
 use chrono::Utc;
 use serde_json::json;
 
-use super::{AgentProfile, AgentProfileLaunchMode, RuntimeStore, WorkspaceTabRecord};
+use super::{
+    AgentProfile, AgentProfileLaunchMode, RunActor, RunPlanInput, RunPlanStageInput, RuntimeStore,
+    WorkspaceTabRecord,
+};
 use crate::runtime::{
     AutomationActor, AutomationActorKind, AutomationDefinition, AutomationMisfirePolicy,
     AutomationOverlapPolicy, AutomationSchedule, AutomationSetupPolicy, AutomationState,
@@ -81,6 +84,8 @@ pub(super) fn automation(profile_id: &str) -> AutomationDefinition {
         creation_request_fingerprint: None,
         state_before_trash: None,
         workspace_placement: Default::default(),
+        reuse_policy: Default::default(),
+        bound_target: None,
         approved_revision: None,
         created_by: actor.clone(),
         modified_by: actor,
@@ -187,14 +192,20 @@ async fn active_execution_policy_reference_exposes_only_run_id_and_blocks_remova
         .await
         .unwrap();
     store
-        .propose_orchestration_execution_policy(
+        .propose_run_plan(
             &run.id,
-            r#"{"version":1,"stages":[{"id":"impl","profile":"Codex Sol","fallbacks":[]}]}"#,
+            RunPlanInput {
+                stages: vec![RunPlanStageInput {
+                    id: "impl".into(),
+                    title: None,
+                    profile: Some("Codex Sol".into()),
+                    fallbacks: Vec::new(),
+                    gate: false,
+                }],
+                ..RunPlanInput::default()
+            },
+            &RunActor::runtime(),
         )
-        .await
-        .unwrap();
-    store
-        .resolve_orchestration_execution_policy(&run.id, true)
         .await
         .unwrap();
 
@@ -283,24 +294,79 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
         .set_default_agent_profile_id(Some("prof_a"))
         .await
         .is_err());
-    assert!(store
-        .set_automation_agent_policy(crate::runtime::AutomationAgentPolicy {
-            profile_id: "prof_a".into(),
-            may_activate_or_edit_active: false,
-            may_execute: false,
-            updated_at: now,
-        })
-        .await
-        .is_err());
     let run = store
         .create_orchestration_coordinator_run("run", Some("coord"), 2_000)
         .await
         .unwrap();
     assert!(store
-        .propose_orchestration_execution_policy(
+        .propose_run_plan(
             &run.id,
-            r#"{"version":1,"stages":[{"id":"impl","profile":"Codex Sol","fallbacks":[]}]}"#,
+            RunPlanInput {
+                stages: vec![RunPlanStageInput {
+                    id: "impl".into(),
+                    title: None,
+                    profile: Some("Codex Sol".into()),
+                    fallbacks: Vec::new(),
+                    gate: false,
+                }],
+                ..RunPlanInput::default()
+            },
+            &RunActor::runtime(),
         )
         .await
         .is_err());
+}
+
+#[tokio::test]
+async fn worktree_targets_guard_their_profile_in_both_spellings() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
+        .await
+        .unwrap();
+    let mut definition = automation("prof_a");
+    definition.target = AutomationTarget::Worktree {
+        project_id: Some("project-1".into()),
+        parent_workspace_id: None,
+        source_branch: "main".into(),
+        name_template: "task".into(),
+        agent_profile_id: "prof_a".into(),
+    };
+    store
+        .upsert_automation(definition.clone(), definition.created_by.clone())
+        .await
+        .unwrap();
+    assert!(store.remove_agent_profile("prof_a", 0).await.is_err());
+
+    let now = crate::runtime::format_timestamp(Utc::now());
+    for (id, target) in [
+        (
+            "new-spelling",
+            json!({"worktree": {"projectId": "p", "sourceBranch": "main", "agentProfileId": "missing"}}),
+        ),
+        (
+            "legacy-managed",
+            json!({"managedWorkspace": {"sourceWorkspaceId": "w", "sourceBranch": "main", "agentProfileId": "missing"}}),
+        ),
+        (
+            "legacy-project",
+            json!({"projectWorktree": {"projectId": "p", "sourceBranch": "main", "agentProfileId": "missing"}}),
+        ),
+    ] {
+        let error = sqlx::query(
+            "INSERT INTO automations (id, slug, state, revision, dataJson, createdAt, updatedAt) VALUES (?, ?, 'draft', 1, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(id)
+        .bind(json!({ "target": target }).to_string())
+        .bind(&now)
+        .bind(&now)
+        .execute(store.pool())
+        .await
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("reference does not exist"),
+            "{id}: {error}"
+        );
+    }
 }

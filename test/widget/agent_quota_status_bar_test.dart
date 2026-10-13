@@ -415,6 +415,7 @@ Widget _wrap({
         alignment: Alignment.bottomCenter,
         child: AgentQuotaStatusBarView(
           hostId: 'local',
+          hostLabel: 'This Device',
           snapshots: snapshots,
           settings: settings,
           loading: loading,

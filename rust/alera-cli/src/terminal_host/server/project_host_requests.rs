@@ -3,9 +3,10 @@
 //! A project is registered once and then added to hosts; "work on project X on
 //! host Y" is a project checkout row per host, which is what New Workspace,
 //! the branch catalog and the mirror already read. `add` with a `path`
-//! registers an existing checkout; without one the host clones the project's
-//! remote into its default projects folder, which only that host can resolve
-//! because only it knows its home directory. `remove` forgets the checkout and
+//! registers an existing checkout, or clones `cloneUrl` into exactly that new
+//! folder when both are given; without a path the host clones the project's
+//! remote (or `cloneUrl`) into its default projects folder, which only that
+//! host can resolve because only it knows its home directory. `remove` forgets the checkout and
 //! never touches files. A folder project has no remote to clone and no way to
 //! keep two copies in step, so it stays on the one host it was registered on.
 
@@ -80,7 +81,7 @@ async fn find_project(store: &RuntimeStore, project_id: &str) -> HostResult<Proj
     store
         .find_project(project_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
         .ok_or_else(|| HostError::state(format!("Project not found: {project_id}")))
 }
 
@@ -90,7 +91,7 @@ async fn project_checkouts(
 ) -> HostResult<Vec<RepositoryCheckout>> {
     crate::project_hosts::project_checkouts(store, project_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))
+        .map_err(|error| HostError::from_anyhow(&error))
 }
 
 pub(super) async fn project_hosts(store: &RuntimeStore, project_id: &str) -> HostResult<Value> {
@@ -99,7 +100,7 @@ pub(super) async fn project_hosts(store: &RuntimeStore, project_id: &str) -> Hos
     let workspaces = store
         .list_workspaces(project_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let primary = primary_host_id(&project.repo_path, &checkouts);
     let hosts: Vec<Value> = host_rows(&project.repo_path, &checkouts)
         .into_iter()
@@ -149,7 +150,7 @@ async fn remove_project_host(
         .remove_project_checkout(project_id, &host_id)
         .await
         .map(|_| ())
-        .map_err(|error| HostError::state(error.to_string()))
+        .map_err(|error| HostError::from_anyhow(&error))
 }
 
 async fn add_request(
@@ -177,19 +178,21 @@ async fn add_request(
     let path = optional_string_key(payload, "path")
         .map(|path| path.trim().to_string())
         .filter(|path| !path.is_empty());
+    let requested_clone_url = optional_string_key(payload, "cloneUrl")
+        .map(|url| url.trim().to_string())
+        .filter(|url| !url.is_empty());
     if let Some(path) = path {
+        // With a URL the host clones into exactly this new folder; without
+        // one the folder must already hold the checkout.
         return Ok(RegisterProjectCheckoutRequest {
             project_id: project.id,
             host_id,
             path,
-            clone_url: None,
+            clone_url: requested_clone_url,
             clone_name: None,
         });
     }
-    let clone_url = match optional_string_key(payload, "cloneUrl")
-        .map(|url| url.trim().to_string())
-        .filter(|url| !url.is_empty())
-    {
+    let clone_url = match requested_clone_url {
         Some(url) => url,
         None => {
             let primary = primary_host_id(&project.repo_path, &checkouts);
@@ -228,17 +231,7 @@ async fn project_remote_url(project: &Project, primary_host_id: &str) -> HostRes
 /// The project folder's own name, which is what the user already calls the
 /// repository on disk; the project's display name is the fallback.
 fn clone_directory_name(project: &Project) -> String {
-    let from_path = project
-        .repo_path
-        .trim_end_matches(['/', '\\'])
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or_default();
-    let raw = if from_path.trim().is_empty() {
-        project.name.as_str()
-    } else {
-        from_path
-    };
+    let raw = crate::project_hosts::folder_name(&project.repo_path).unwrap_or(&project.name);
     let cleaned: String = raw
         .trim()
         .chars()

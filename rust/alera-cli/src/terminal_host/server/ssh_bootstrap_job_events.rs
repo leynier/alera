@@ -11,11 +11,15 @@ impl ServerActor {
             .ssh_bootstrap_jobs
             .values()
             .map(|job| {
-                json!(SshTargetBootstrapJob {
+                let mut value = json!(SshTargetBootstrapJob {
                     job_id: job.job_id.clone(),
                     target_id: job.target_id.clone(),
                     status: job.status,
-                })
+                });
+                // Additive: lets a client that attaches mid-install resume
+                // its step list at the stage the job last reported.
+                value["stage"] = json!(job.stage);
+                value
             })
             .collect::<Vec<_>>();
         json!(jobs)
@@ -29,8 +33,11 @@ impl ServerActor {
             return;
         }
         job.status = progress.status;
+        job.stage = progress.stage.clone();
+        job.message = progress.message.clone();
+        let target_id = progress.target_id.clone();
         self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+        self.broadcast_ssh_targets_changed(Some(&target_id));
     }
 
     pub(super) fn handle_ssh_bootstrap_finished(
@@ -38,6 +45,7 @@ impl ServerActor {
         target_id: String,
         job_id: String,
         status: SshBootstrapStatus,
+        error: Option<String>,
     ) {
         if self
             .ssh_bootstrap_jobs
@@ -49,7 +57,7 @@ impl ServerActor {
                 "sshTargetBootstrapProgress",
                 json!(SshTargetBootstrapProgress {
                     job_id,
-                    target_id,
+                    target_id: target_id.clone(),
                     status,
                     stage: status.as_str().to_string(),
                     message: match status {
@@ -59,10 +67,13 @@ impl ServerActor {
                         _ => "Remote Runtime Bootstrap Updated",
                     }
                     .to_string(),
-                    error: None,
+                    error,
                 }),
             ));
-            self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
+            self.broadcast_ssh_targets_changed(Some(&target_id));
+            if status == SshBootstrapStatus::Installed {
+                self.host_links.clear_configuration_failure(&target_id);
+            }
             self.schedule_shutdown_if_idle();
         }
     }

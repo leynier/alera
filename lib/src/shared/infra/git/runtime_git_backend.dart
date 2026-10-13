@@ -1,3 +1,9 @@
+import 'dart:async';
+
+import 'package:uuid/uuid.dart';
+import 'package:alera/src/shared/infra/git/git_network_progress.dart';
+import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -10,6 +16,9 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'runtime_git_wire_decoders.dart';
+part 'runtime_git_errors.dart';
+part 'runtime_git_workspace_details.dart';
+part 'runtime_git_network_progress.dart';
 
 /// The `errorCode` the runtime puts on a git failure; `errorDetails.kind`
 /// carries the `GitErrorKind` name so the same [GitException] is thrown here
@@ -27,15 +36,19 @@ const Duration _gitNetworkTimeout = Duration(minutes: 5);
 ///
 /// Worktree lifecycle and clone are not part of this surface: remote
 /// worktrees are created and removed through the managed workspace verbs.
-class RuntimeGitBackend implements GitBackend {
+class RuntimeGitBackend
+    with _RuntimeGitWorkspaceDetails, _RuntimeGitNetworkProgress
+    implements GitBackend {
   RuntimeGitBackend(
     this._client, {
     required this.workspaceId,
     this.beforeAccess,
   });
 
+  @override
   final RuntimeHostClient _client;
   final String workspaceId;
+  @override
   final Future<void> Function()? beforeAccess;
 
   @override
@@ -432,6 +445,7 @@ class RuntimeGitBackend implements GitBackend {
   Future<void> stashPop({required String path, required int stashIndex}) =>
       _request('git.stashPop', path, {'stashIndex': stashIndex});
 
+  @override
   Future<Object?> _request(
     String type,
     String? path, [
@@ -462,32 +476,4 @@ class RuntimeGitBackend implements GitBackend {
       '$operation is not available for a workspace on a remote host.',
     ),
   );
-}
-
-/// Rebuilds the [GitException] the bridge would have thrown from the typed
-/// `gitError` conflict the runtime answers with.
-GitException gitExceptionFromRuntime(TerminalHostConflictException error) {
-  final context = switch (error.details['context']) {
-    final String context => context,
-    _ => error.message,
-  };
-  return switch (error.details['kind']) {
-    'notARepository' => NotARepositoryException(context),
-    'accessDenied' => AccessDeniedException(context),
-    'branchNotFound' => BranchNotFoundException(context),
-    'branchAlreadyExists' => BranchAlreadyExistsException(context),
-    'invalidBranchName' => InvalidBranchNameException(context),
-    'worktreeAlreadyExists' => WorktreeAlreadyExistsException(context),
-    'worktreeNotFound' => WorktreeNotFoundException(context),
-    'cloneFailed' => CloneFailedException(context),
-    'gitCli' => GitCliException(context),
-    'detachedHead' => DetachedHeadException(context),
-    'noUpstream' => NoUpstreamException(context),
-    'remoteNotFound' => RemoteNotFoundException(context),
-    'nothingToCommit' => NothingToCommitException(context),
-    'workspaceScope' => WorkspaceScopeException(context),
-    'missingIdentity' => MissingIdentityException(context),
-    'conflict' => GitConflictException(context),
-    _ => GitInternalException(context),
-  };
 }

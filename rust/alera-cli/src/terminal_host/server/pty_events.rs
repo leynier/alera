@@ -147,10 +147,7 @@ impl ServerActor {
         let Some(dispatch) = dispatch else {
             return;
         };
-        let _ = self
-            .runtime_store
-            .record_orchestration_activity(&dispatch.id)
-            .await;
+        self.record_dispatch_activity(&dispatch).await;
     }
 
     async fn handle_pty_input_written(

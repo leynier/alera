@@ -9,10 +9,12 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::managed_workspace::ManagedWorkspaceCreateRequest;
-use crate::ssh_bootstrap::{powershell_string, remote_join, shell_quote};
+use crate::remote_shell::RemoteShell;
+use crate::remote_sidecar_command::{parse_last_json_line, sidecar_command, SidecarProfile};
 use crate::ssh_remote::{
     probe_or_unreachable, require_bootstrapped_ssh_target, RemoteHostExecutor,
 };
+use crate::ssh_remote_command::RemoteCommandBudget;
 
 pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
     store: &RuntimeStore,
@@ -34,7 +36,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         .filter(|value| !value.is_empty())
         .unwrap_or(branch);
     let target = require_bootstrapped_ssh_target(store, host_id).await?;
-    let windows = probe_or_unreachable(executor, &target).await?;
+    let shell = probe_or_unreachable(executor, &target).await?;
     let checkout = store
         .find_project_checkout(&project.id, host_id)
         .await?
@@ -44,13 +46,13 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
     let install_dir = target.install_dir.as_deref().ok_or_else(|| {
         anyhow!("Bootstrap the SSH sidecar again to record its installation directory")
     })?;
-    let platform = if windows { "windows" } else { "posix" };
     let layout = remote_layout(project, display_name, &request)?;
     let probe = executor
         .run(
             &target,
-            windows,
-            &probe_roots_script(windows, layout.explicit_root.as_deref()),
+            shell,
+            &probe_roots_script(shell, layout.explicit_root.as_deref()),
+            RemoteCommandBudget::Command,
         )
         .await
         .with_context(|| format!("failed probing host '{}'", target.alias))?;
@@ -63,7 +65,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
     let worktree_path = match layout.explicit_path.as_deref() {
         Some(path) => path.to_string(),
         None => checkout_join(
-            platform,
+            shell,
             &workspace_root,
             &[
                 &format!("{}-{}", layout.project_slug, project.id),
@@ -73,7 +75,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
     };
     let repo_path = checkout.path;
     let script = create_worktree_script(
-        windows,
+        shell,
         install_dir,
         &repo_path,
         &worktree_path,
@@ -82,7 +84,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
         request.reuse_existing_branch,
     );
     let stdout = executor
-        .run(&target, windows, &script)
+        .run(&target, shell, &script, RemoteCommandBudget::Command)
         .await
         .with_context(|| {
             format!(
@@ -90,7 +92,7 @@ pub(crate) async fn create_remote_managed_workspace<E: RemoteHostExecutor>(
                 target.alias, target.id
             )
         })?;
-    let created: crate::project_checkout_worktree::CreatedCheckoutWorktree = serde_json::from_str(stdout.trim())
+    let created: crate::project_checkout_worktree::CreatedCheckoutWorktree = parse_last_json_line(&stdout)
         .context("The remote sidecar did not return a supported worktree receipt; inspect the remote destination before retrying")?;
     if created.version != 1
         || !crate::windows_path_form::same_path(&created.repository_path, &repo_path)
@@ -181,7 +183,7 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
     preflight_only: bool,
 ) -> Result<()> {
     let target = require_bootstrapped_ssh_target(store, &workspace.host_id).await?;
-    let windows = probe_or_unreachable(executor, &target).await?;
+    let shell = probe_or_unreachable(executor, &target).await?;
     let repo_path = match store
         .find_workspace_checkout(&workspace.id)
         .await?
@@ -190,9 +192,13 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
         Some(repository_path) => repository_path,
         None => {
             // Legacy worktrees retain their bare repository origin when a main checkout is registered.
-            let platform = if windows { "windows" } else { "posix" };
             let probe = executor
-                .run(&target, windows, &probe_roots_script(windows, None))
+                .run(
+                    &target,
+                    shell,
+                    &probe_roots_script(shell, None),
+                    RemoteCommandBudget::Command,
+                )
                 .await
                 .with_context(|| format!("failed probing host '{}'", target.alias))?;
             let (workspace_root, _) = parse_probe_roots(&probe).ok_or_else(|| {
@@ -205,7 +211,7 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
                 crate::project_hosts::folder_name(&project.repo_path).unwrap_or(&project.name),
             )?;
             checkout_join(
-                platform,
+                shell,
                 &workspace_root,
                 &[&format!("{}-{}.git", project_slug, project.id)],
             )
@@ -216,9 +222,9 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
     } else {
         crate::remote_managed_workspace_remove_script::remove_worktree_script
     };
-    let script = script_builder(windows, &repo_path, &workspace.path, branch_to_delete);
+    let script = script_builder(shell, &repo_path, &workspace.path, branch_to_delete);
     executor
-        .run(&target, windows, &script)
+        .run(&target, shell, &script, RemoteCommandBudget::Command)
         .await
         .with_context(|| {
             format!(
@@ -229,11 +235,11 @@ async fn run_remote_workspace_removal<E: RemoteHostExecutor>(
     Ok(())
 }
 
-fn checkout_join(platform: &str, root: &str, parts: &[&str]) -> String {
-    let path = remote_join(platform, root, parts);
+fn checkout_join(shell: RemoteShell, root: &str, parts: &[&str]) -> String {
+    let path = shell.join(root, parts);
     // SFTP's /C:/ form is not an absolute path for the native Windows sidecar.
     let bytes = path.as_bytes();
-    if platform == "windows"
+    if shell.is_windows()
         && bytes.len() >= 3
         && bytes[0] == b'/'
         && bytes[1].is_ascii_alphabetic()
@@ -282,12 +288,12 @@ fn remote_layout(
     })
 }
 
-fn probe_roots_script(windows: bool, explicit_root: Option<&str>) -> String {
-    if windows {
+fn probe_roots_script(shell: RemoteShell, explicit_root: Option<&str>) -> String {
+    if shell.is_windows() {
         let root = match explicit_root {
             Some(root) => format!(
                 "$root = [Environment]::ExpandEnvironmentVariables({})",
-                powershell_string(root)
+                shell.quote(root)
             ),
             None => "$root = Join-Path $env:USERPROFILE '.alera\\workspaces'".to_string(),
         };
@@ -296,7 +302,7 @@ fn probe_roots_script(windows: bool, explicit_root: Option<&str>) -> String {
         )
     } else {
         let root = match explicit_root {
-            Some(root) => format!("ROOT={}", shell_quote(root)),
+            Some(root) => format!("ROOT={}", shell.quote(root)),
             None => "ROOT=\"${HOME}/.alera/workspaces\"".to_string(),
         };
         format!(
@@ -326,7 +332,7 @@ fn last_nonempty_line(stdout: &str) -> Option<String> {
 }
 
 fn create_worktree_script(
-    windows: bool,
+    shell: RemoteShell,
     install_dir: &str,
     repo_path: &str,
     worktree_path: &str,
@@ -334,11 +340,7 @@ fn create_worktree_script(
     source_branch: &str,
     reuse_existing_branch: bool,
 ) -> String {
-    let quote = if windows {
-        powershell_string
-    } else {
-        shell_quote
-    };
+    let quote = |value: &str| shell.quote(value);
     let reuse = if reuse_existing_branch {
         " --reuse-existing-branch"
     } else {
@@ -351,11 +353,7 @@ fn create_worktree_script(
         quote(branch),
         quote(source_branch)
     );
-    if windows {
-        format!("$ErrorActionPreference = 'Stop'\n$install = [Environment]::ExpandEnvironmentVariables({})\n$current = (Get-Content -Raw -LiteralPath (Join-Path $install 'current.txt')).Trim()\n& (Join-Path $current 'alera.exe') {arguments}\nif ($LASTEXITCODE -ne 0) {{ throw 'Remote worktree creation failed' }}\n", quote(install_dir))
-    } else {
-        format!("set -eu\ninstall={}\ncase \"$install\" in '~/'*) install=\"$HOME/${{install#\"~/\"}}\";; esac\nexec \"$install/current/alera\" {arguments}\n", quote(install_dir))
-    }
+    sidecar_command(shell, install_dir, &arguments, SidecarProfile::Bare)
 }
 
 #[cfg(test)]

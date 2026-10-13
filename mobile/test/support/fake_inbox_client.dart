@@ -70,9 +70,12 @@ Map<String, Object?> inboxTargetJson({
   String workspaceId = 'ws-1',
   String deliveryMode = 'paste',
   String tabTitle = 'Fix Login',
+  bool sessionLive = true,
+  bool acceptsQueuedInput = false,
 }) => <String, Object?>{
   'handle': handle,
-  'sessionLive': true,
+  'sessionLive': sessionLive,
+  'acceptsQueuedInput': acceptsQueuedInput,
   'workspaceId': workspaceId,
   'tabId': 'tab-$handle',
   'agent': agent,
@@ -81,56 +84,23 @@ Map<String, Object?> inboxTargetJson({
   'tabTitle': tabTitle,
 };
 
-Map<String, Object?> agentConversationJson({
-  String threadId = 'thread_1',
-  String subject = 'Split the migration',
-  List<String> participants = const <String>['claude-term', 'codex-term'],
-  String workspaceId = 'ws-1',
-  int messageCount = 2,
-  bool group = false,
-  int lastSequence = 40,
-}) => <String, Object?>{
-  'threadId': threadId,
-  'subject': subject,
-  'startedBy': participants.first,
-  'participants': participants,
-  'workspaceId': workspaceId,
-  'createdAt': '2026-10-06 09:00:00',
-  'lastActivityAt': '2026-10-06 09:30:00',
-  'lastSequence': lastSequence,
-  'messageCount': messageCount,
-  'group': group,
-};
-
-Map<String, Object?> agentMessageJson({
-  String id = 'thread_1',
-  String from = 'claude-term',
-  String to = 'codex-term',
-  String type = 'decision_gate',
-  String body = 'Can you take the schema half?',
-  int sequence = 30,
-}) => <String, Object?>{
-  'id': id,
-  'from_handle': from,
-  'to_handle': to,
-  'subject': 'Split the migration',
-  'body': body,
-  'type': type,
-  'priority': 'normal',
-  'thread_id': id == 'thread_1' ? null : 'thread_1',
-  'read': true,
-  'sequence': sequence,
-  'created_at': '2026-10-06 09:00:00',
-  'state': 'read',
-};
-
 /// Paired runtime double for the Inbox screens. Responses are the JSON the
 /// runtime sends.
 class FakeInboxClient implements MobileInboxClient {
-  FakeInboxClient({this.supportsInbox = true});
+  FakeInboxClient({
+    this.supportsInbox = true,
+    this.supportsInboxDelivery = false,
+  });
 
   @override
   bool supportsInbox;
+
+  /// `inboxV2`: the runtime takes a delivery choice.
+  @override
+  bool supportsInboxDelivery;
+
+  /// The recipient `inbox.thread` reports, as the host sees it now.
+  Map<String, Object?> recipient = inboxTargetJson();
   List<Map<String, Object?>> threads = <Map<String, Object?>>[
     inboxThreadJson(),
   ];
@@ -143,28 +113,6 @@ class FakeInboxClient implements MobileInboxClient {
     inboxTargetJson(handle: 'codex-term', agent: 'codex', tabTitle: 'Review'),
   ];
   List<WorkspaceSummary> workspaces = <WorkspaceSummary>[];
-  List<Map<String, Object?>> conversations = <Map<String, Object?>>[
-    agentConversationJson(),
-    agentConversationJson(
-      threadId: 'thread_2',
-      subject: 'Status to everyone',
-      participants: <String>['claude-term', 'codex-term', 'shell-term'],
-      workspaceId: 'ws-2',
-      messageCount: 3,
-      group: true,
-    ),
-  ];
-  List<Map<String, Object?>> conversationMessages = <Map<String, Object?>>[
-    agentMessageJson(),
-    agentMessageJson(
-      id: 'msg_reply',
-      from: 'codex-term',
-      to: 'claude-term',
-      type: 'status',
-      body: 'Taking it.',
-      sequence: 40,
-    ),
-  ];
   Object? failure;
 
   /// Inbox revision the runtime reports; acknowledging a thread moves it.
@@ -227,7 +175,7 @@ class FakeInboxClient implements MobileInboxClient {
           (thread) => thread['threadId'] == payload['threadId'],
         ),
         'messages': messages[payload['threadId']] ?? const <Object?>[],
-        'recipient': inboxTargetJson(),
+        'recipient': recipient,
         'revision': revision,
       },
       'inbox.targets' => <String, Object?>{
@@ -241,20 +189,6 @@ class FakeInboxClient implements MobileInboxClient {
       },
       'inbox.ask' => _ask(payload),
       'inbox.purge' => <String, Object?>{'deleted': 2, 'revision': 5},
-      'inbox.conversations' => _page(
-        'conversations',
-        conversations.where(
-          (conversation) =>
-              payload['workspaceId'] == null ||
-              conversation['workspaceId'] == payload['workspaceId'],
-        ),
-        payload,
-      ),
-      'inbox.conversation' => <String, Object?>{
-        'threadId': payload['threadId'],
-        'messages': conversationMessages,
-        'revision': 7,
-      },
       _ => <String, Object?>{'revision': 4},
     };
   }
@@ -277,6 +211,10 @@ class FakeInboxClient implements MobileInboxClient {
       'threadId': threadId ?? 'msg_new',
       'message': <String, Object?>{'id': 'msg_new'},
       'recipient': inboxTargetJson(),
+      if (supportsInboxDelivery)
+        'deliveryMode': payload['delivery'] == 'turnEnd'
+            ? 'queued_at_turn_end'
+            : 'pasted_now',
       'revision': 4,
     };
   }

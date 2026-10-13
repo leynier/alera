@@ -6,9 +6,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_models.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_schedule_preset.dart';
-import 'package:alera_mobile/src/features/automations/domain/automation_status_labels.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_actions.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_tone.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
@@ -21,12 +19,6 @@ const Set<String> _runAgainStatuses = <String>{
   'cancelled',
   'blocked',
   'success',
-};
-
-String mobileLaunchKindLabel(String? kind) => switch (kind) {
-  'resume' => 'Resumed Conversation',
-  'contextRetry' => 'Retried With Context',
-  _ => 'Started',
 };
 
 Future<void> showMobileAutomationRun(
@@ -137,7 +129,7 @@ class const MobileAutomationRunSheet({
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                'Attempt ${attempt.number} · ${mobileLaunchKindLabel(attempt.launchKind)}',
+                'Attempt ${attempt.number} · ${automationLaunchKindLabel(attempt.launchKind)}',
               ),
               subtitle: Text(
                 <String>[

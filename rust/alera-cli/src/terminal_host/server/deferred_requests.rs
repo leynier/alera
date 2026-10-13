@@ -64,7 +64,10 @@ impl ServerActor {
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }
-        if self.try_start_satellite_mirror_request(client_id, request_id, request_type, payload)? {
+        if self
+            .try_start_satellite_mirror_request(client_id, request_id, request_type, payload)
+            .await?
+        {
             return Ok(true);
         }
         if self.try_start_host_link_request(client_id, request_id, request_type, payload)? {
@@ -88,74 +91,22 @@ impl ServerActor {
         {
             return Ok(true);
         }
+        if self
+            .try_start_runs_request(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         match request_type {
-            "workflows.retryCleanup" => {
-                self.start_workflow_cleanup_retry(client_id, request_id, payload)?;
+            "sshTarget.check" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.start_ssh_target_check(client_id, request_id, payload);
                 Ok(true)
             }
-            "workflows.abandonCleanup" => {
-                self.start_workflow_cleanup_abandonment(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "workflows.applyCleanup" => {
-                self.start_workflow_cleanup_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "workflows.startCoordinator" => {
-                self.start_workflow_coordinator_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "workflows.prepareWorkspace"
-            | "workflows.launchTask"
-            | "workflows.launches"
-            | "workflows.workspaces"
-            | "workflows.integrateResult"
-            | "workflows.integrations"
-            | "workflows.integration" => {
-                self.start_workflow_workspace_request(
-                    client_id,
-                    request_id,
-                    request_type,
-                    payload,
-                )?;
-                Ok(true)
-            }
-            "workflows.preparePlan"
-            | "workflows.cleanupStatus"
-            | "workflows.cleanupResources"
-            | "workflows.cleanups"
-            | "workflows.previewCleanup"
-            | "workflows.execution"
-            | "workflows.controlExecution"
-            | "workflows.createCorrection"
-            | "workflows.source"
-            | "workflows.createProposal"
-            | "workflows.proposal"
-            | "workflows.proposals"
-            | "workflows.proposalStatus"
-            | "workflows.retryProposalCancellation"
-            | "workflows.cancelProposal"
-            | "workflows.submitProposal"
-            | "workflows.plan"
-            | "workflows.approvalChallenge"
-            | "workflows.review"
-            | "workflows.decide" => {
-                self.start_workflow_plan_request(client_id, request_id, request_type, payload)?;
-                Ok(true)
-            }
-            "workflows.catalog"
-            | "workflows.recipe"
-            | "workflows.validateRecipe"
-            | "workflows.savePersonalRecipe"
-            | "workflows.previewRecipeExport"
-            | "workflows.applyRecipeExport" => {
-                self.start_workflow_catalog_request(client_id, request_id, request_type, payload)?;
-                Ok(true)
-            }
-            "orchestration.boardSnapshot"
-            | "orchestration.runSnapshot"
-            | "orchestration.taskInspection" => {
-                self.start_orchestration_board_read(client_id, request_id, request_type, payload)?;
+            "sshTarget.restartRuntime" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.start_ssh_runtime_restart(client_id, request_id, payload)
+                    .await?;
                 Ok(true)
             }
             "terminal.ownerLifecycle" => {

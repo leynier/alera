@@ -17,6 +17,7 @@ void main() {
         home: Scaffold(
           body: AgentQuotaStatusBarContent(
             hostId: 'local',
+            hostLabel: 'This Device',
             settings: const AgentQuotaHostSettings(
               enabledProviders: [
                 AgentQuotaProviderId.claude,

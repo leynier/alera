@@ -21,7 +21,7 @@ use crate::ssh_remote::{is_remote_host_id, LiveSshRemoteHost, RemoteHostExecutor
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
 #[path = "managed_workspace_removal_preflight.rs"]
 mod removal_preflight;
-pub(crate) mod workflow;
+pub(crate) mod run;
 use removal_preflight::managed_workspace_removal;
 
 #[derive(Debug, Deserialize)]
@@ -335,12 +335,10 @@ pub async fn workspace_has_active_automation_owner(
                     workspace_id: target,
                     ..
                 } => target == workspace_id,
-                AutomationTarget::ManagedWorkspace {
-                    source_workspace_id,
-                    ..
-                } => source_workspace_id == workspace_id,
-                AutomationTarget::ProjectCheckout { .. }
-                | AutomationTarget::ProjectWorktree { .. } => false,
+                AutomationTarget::Worktree { .. } => {
+                    automation.target.source_workspace_id() == Some(workspace_id)
+                }
+                AutomationTarget::ProjectCheckout { .. } => false,
             }
     }) {
         return Ok(true);

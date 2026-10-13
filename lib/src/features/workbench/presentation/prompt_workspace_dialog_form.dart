@@ -36,6 +36,8 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               onChanged: _selectProject,
             ),
             const SizedBox(height: AleraTokens.space12),
+            _hostPicker(enabled: !_working && created == null),
+            const SizedBox(height: AleraTokens.space12),
             if (widget.enqueuePrompt != null) ...[
               AleraSegmentedButton<bool>(
                 segments: <ButtonSegment<bool>>[
@@ -103,28 +105,6 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               onChanged: (workspaceId) =>
                   _update(() => _selectedParentWorkspaceId = workspaceId),
             ),
-            const SizedBox(height: AleraTokens.space12),
-            WorkspaceHostPicker(
-              hostId: _selectedHostId,
-              sshTargets: widget.sshTargets,
-              supportsRemoteSshWorkspaces: widget.supportsRemoteSshWorkspaces,
-              enabled: !_working && created == null,
-              onChanged: (hostId) {
-                _update(() {
-                  _selectedHostId = hostId;
-                  _sourceBranch = null;
-                });
-                _hostEnrollment.clearError();
-                final project = _project;
-                if (!_useProjectCheckout && project != null) {
-                  unawaited(_loadBranches(project));
-                }
-              },
-            ),
-            if (_hostEnrollmentNotice() case final notice?) ...<Widget>[
-              const SizedBox(height: AleraTokens.space12),
-              notice,
-            ],
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(
               labelText: 'Agent Profile',

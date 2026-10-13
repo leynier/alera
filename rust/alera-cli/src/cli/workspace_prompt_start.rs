@@ -53,7 +53,9 @@ pub struct WorkspacePromptStartRunArgs {
     /// source branch, then the repository's default branch.
     #[arg(long)]
     pub source_branch: Option<String>,
-    /// SSH target that owns the worktree. Omit for this machine.
+    /// Host the workspace is created on: a host id from `ssh-target list`, or
+    /// `local` for this device. Omit for the project's primary host; in a
+    /// terminal on a remote host, omitting it means that host.
     #[arg(long)]
     pub host_id: Option<String>,
     #[arg(long)]

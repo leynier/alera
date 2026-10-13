@@ -4,10 +4,7 @@ use std::path::PathBuf;
 use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
-use alera_core::runtime::{
-    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshBootstrapStatus,
-    SshTarget,
-};
+use alera_core::runtime::{prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore};
 use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
@@ -16,11 +13,6 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use crate::agent_status::{start_agent_integrations, start_fx_herdr_receiver, start_hook_receiver};
-use crate::ssh_bootstrap::{
-    cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id,
-    reject_password_ssh_bootstrap_auth, run_ssh_bootstrap, SshTargetBootstrapJob,
-    SshTargetBootstrapProgress, SshTargetBootstrapRequest,
-};
 use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
@@ -98,20 +90,20 @@ mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod automation_actor;
 mod automation_authoring_requests;
+mod automation_binding_requests;
+mod automation_bound_target_dispatch;
+mod automation_bound_target_recording;
+mod automation_bound_target_resolution;
 mod automation_catalog_projection;
-mod automation_catalog_requests;
-#[cfg(test)]
-mod automation_catalog_requests_tests;
+mod automation_change_broadcasts;
 mod automation_definition_requests;
 #[cfg(test)]
 mod automation_definition_requests_tests;
 mod automation_dispatch;
 mod automation_owner_identity;
 mod automation_owner_reconciliation;
-mod automation_policy_requests;
-#[cfg(test)]
-mod automation_policy_requests_tests;
 mod automation_profile_readiness;
+mod automation_remote_owner_status;
 mod automation_request_authorization;
 mod automation_request_routes;
 mod automation_requests;
@@ -120,7 +112,9 @@ mod automation_run_target_requests;
 mod automation_scheduler;
 mod automation_shared_cleanup_jobs;
 mod automation_shared_cleanup_requests;
+mod automation_tab_relaunch;
 mod automation_target_location;
+mod automation_target_validation;
 mod automation_terminal_observation;
 mod chatgpt_credentials;
 mod chatgpt_inference;
@@ -142,6 +136,7 @@ mod mcp_requests;
 mod mobile_gateway_replacement;
 mod owner_terminal_lifecycle;
 mod owner_terminal_natural_exit;
+mod pending_agent_prompt_delivery;
 mod project_checkout_file_requests;
 mod project_checkout_requests;
 mod project_host_requests;
@@ -161,8 +156,10 @@ use mobile_gateway_replacement::MobileGatewayReplacement;
 mod conversation_requests;
 #[cfg(test)]
 mod conversation_requests_tests;
+mod coordinator_dispatch;
 mod coordinator_requests;
 mod coordinator_stall_policy;
+mod coordinator_tick;
 mod declared_catalog_requests;
 mod deferred_requests;
 mod deferred_workspace_lifecycle;
@@ -172,6 +169,7 @@ mod history_request_retry;
 mod history_writer;
 mod host_link_requests;
 mod host_link_routing;
+mod host_link_supervision;
 mod host_process_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
@@ -179,6 +177,8 @@ mod host_status;
 mod hub_reverse_policy;
 mod hub_reverse_requests;
 mod hub_self_client;
+#[cfg(test)]
+mod inbox_delivery_tests;
 #[cfg(test)]
 mod inbox_guard_tests;
 mod inbox_guards;
@@ -225,10 +225,16 @@ mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
 mod mobile_workspace_search_requests;
 mod orchestration_agent_spawn_requests;
+mod orchestration_agent_status;
 mod orchestration_board_requests;
-#[cfg(test)]
-mod orchestration_board_tests;
 mod orchestration_completion;
+mod orchestration_dispatch_requests;
+mod orchestration_gate_requests;
+mod orchestration_lease_sweep;
+#[cfg(test)]
+mod orchestration_lease_sweep_tests;
+mod orchestration_message_delivery;
+mod orchestration_message_requests;
 #[cfg(test)]
 mod orchestration_mobile_access_tests;
 mod orchestration_owned_spawn;
@@ -238,10 +244,12 @@ mod orchestration_requests;
 #[cfg(test)]
 mod orchestration_role_contract_tests;
 mod orchestration_task_creation;
+mod orchestration_task_requests;
 mod orchestration_terminal_input;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod orchestration_wait_requests;
+mod orchestration_worker_requests;
 mod output_delivery;
 #[cfg(test)]
 mod output_resume_tests;
@@ -269,6 +277,20 @@ mod remote_relay;
 mod request_payloads;
 mod requests;
 mod resource_requests;
+mod run_attempt_context;
+mod run_catalog_requests;
+#[cfg(test)]
+mod run_catalog_tests;
+mod run_cleanup_execution;
+mod run_cleanup_requests;
+mod run_launch_recovery;
+mod run_launch_requests;
+mod run_workspace_requests;
+mod runs_lifecycle_requests;
+mod runs_requests;
+#[cfg(test)]
+mod runs_requests_tests;
+mod runs_retry_requests;
 mod runtime_change_broadcasts;
 mod runtime_event_forwarder;
 mod runtime_event_requests;
@@ -289,6 +311,12 @@ mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
 mod ssh_bootstrap_job_events;
+mod ssh_bootstrap_jobs;
+mod ssh_bootstrap_restart;
+#[cfg(test)]
+mod ssh_bootstrap_restart_tests;
+mod ssh_target_removal;
+mod ssh_target_status_requests;
 mod tab_compatibility;
 #[cfg(test)]
 mod tab_compatibility_tests;
@@ -324,22 +352,11 @@ mod voice_transcript;
 mod voice_tts;
 mod voice_turn_jobs;
 mod webhook_requests;
-mod workflow_catalog_requests;
-#[cfg(test)]
-mod workflow_catalog_tests;
-mod workflow_cleanup_execution;
-mod workflow_cleanup_requests;
-mod workflow_launch_recovery;
-mod workflow_launch_requests;
-mod workflow_plan_requests;
-#[cfg(test)]
-mod workflow_plan_tests;
-mod workflow_worker_context;
-mod workflow_workspace_requests;
 mod workspace_archive_requests;
 mod workspace_blocking;
 mod workspace_file_mutation_requests;
 mod workspace_focus_requests;
+mod workspace_git_progress;
 mod workspace_git_requests;
 mod workspace_handoff_relocate;
 mod workspace_main_tabs;
@@ -356,7 +373,7 @@ mod workspace_sleep_requests;
 pub use server_command::ServerCommand;
 #[cfg(test)]
 pub(crate) use server_command_inbox::ServerInboxReceiver;
-pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox};
+pub(crate) use server_command_inbox::{ServerClientDisconnect, ServerInbox, ServerInboxSendError};
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
@@ -400,13 +417,6 @@ struct ClientState {
     relay_client_id: Option<String>,
 }
 
-struct SshBootstrapJobState {
-    job_id: String,
-    target_id: String,
-    status: SshBootstrapStatus,
-    handle: JoinHandle<()>,
-}
-
 pub use server_runner::{run_terminal_host_server, TerminalHostExit};
 
 struct ServerActor {
@@ -420,18 +430,22 @@ struct ServerActor {
     pull_request_watches: pull_request_watch_runtime::WatchRuntime,
     automations_active: bool,
     sessions: HashMap<String, Session>,
-    ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
+    ssh_bootstrap_jobs: HashMap<String, ssh_bootstrap_jobs::SshBootstrapJobState>,
     host_links: crate::terminal_host::host_link_registry::HostLinkRegistry,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     /// Cancel handles of running New Workspace from Prompt operations.
     prompt_workspace_operations: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
-    workflow_execution: workflow_launch_requests::execution::ExecutionPump,
+    workflow_execution: run_launch_requests::execution::ExecutionPump,
     workflow_workspace_jobs: usize,
     workflow_workspace_recovery_running: bool,
     automation_checkout_jobs: std::collections::HashSet<String>,
     automation_precheck_jobs: std::collections::HashSet<String>,
+    /// Last `automation.ownerStatus` answer per remote run, read by the next
+    /// reconciliation so the actor never waits on a host link.
+    automation_remote_owner_states:
+        HashMap<String, automation_remote_owner_status::RemoteOwnerState>,
     pending_terminal_lifecycle_shutdowns:
         HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
@@ -775,7 +789,8 @@ impl ServerActor {
                 target_id,
                 job_id,
                 status,
-            } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+                error,
+            } => self.handle_ssh_bootstrap_finished(target_id, job_id, status, error),
             ServerCommand::HostLinkEvent { host_id, event } => {
                 self.handle_host_link_event(host_id, event)
             }
@@ -786,9 +801,19 @@ impl ServerActor {
             ServerCommand::HostLinkClosed { host_id, error } => {
                 self.handle_host_link_closed(host_id, error)
             }
-            ServerCommand::HostLinkStateChanged { host_id } => {
-                self.handle_host_link_state_changed(host_id)
+            ServerCommand::HostLinkStateChanged {
+                host_id,
+                newly_attached,
+            } => self.handle_host_link_state_changed(host_id, newly_attached),
+            ServerCommand::HostLinkSupervisorTick => self.handle_host_link_supervisor_tick().await,
+            ServerCommand::SshTargetsChanged { host_id } => {
+                self.broadcast_ssh_targets_changed(host_id.as_deref())
             }
+            ServerCommand::AutomationRemoteOwnerStatus {
+                run_id,
+                host_id,
+                state,
+            } => Box::pin(self.finish_automation_remote_owner_status(run_id, host_id, state)).await,
             ServerCommand::HostLinkRequestFinished {
                 client_id,
                 request_id,
@@ -921,9 +946,8 @@ impl ServerActor {
                 source,
                 catalog_revision,
             } => {
-                self.broadcast_workflow_catalog_changed(&source, catalog_revision);
+                self.broadcast_recipes_changed(&source, catalog_revision);
             }
-            ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
             ServerCommand::WorkflowWorkspaceRecoveryFinished => {
                 self.handle_workflow_workspace_recovery_finished().await;
             }
@@ -1056,6 +1080,7 @@ impl ServerActor {
             ServerCommand::AgentPresenceSweepTick => {
                 self.reconcile_agent_presence().await;
                 self.sweep_inbox_expiry_if_due().await;
+                self.sweep_orchestration_leases_if_due().await;
             }
             ServerCommand::PullRequestWatchSnapshot {
                 watch,
@@ -1142,36 +1167,47 @@ impl ServerActor {
     /// after the deferred Enter succeeds. Active coordinators are excluded so
     /// auto-submit cannot steal their prompt.
     pub(super) async fn deliver_pending_messages(&mut self, handle: &str) {
+        self.paste_pending_messages(handle, false).await;
+    }
+
+    /// Pastes queued messages, only those sent with `delivery = now` when
+    /// `now_only`. Returns whether a paste was queued.
+    pub(super) async fn paste_pending_messages(&mut self, handle: &str, now_only: bool) -> bool {
         if self.is_active_coordinator_handle(handle) {
-            return;
+            return false;
         }
         let running = self.sessions.get(handle).is_some_and(Session::running);
         if !running {
-            return;
+            return false;
         }
         if self.orchestration_delivery_in_flight.contains(handle) {
-            return;
+            return false;
         }
         if self.voice.home_session_id.as_deref() == Some(handle)
             && (self.voice.home_inject.is_some() || self.voice.home_needs_fresh_ready)
         {
-            return;
+            return false;
         }
         self.orchestration_delivery_backpressured.remove(handle);
-        let messages = match self
-            .runtime_store
-            .undelivered_unread_orchestration_messages(handle)
-            .await
-        {
+        let pending = if now_only {
+            self.runtime_store
+                .undelivered_now_orchestration_messages(handle)
+                .await
+        } else {
+            self.runtime_store
+                .undelivered_unread_orchestration_messages(handle)
+                .await
+        };
+        let messages = match pending {
             Ok(messages) if !messages.is_empty() => messages,
-            _ => return,
+            _ => return false,
         };
         // A batch larger than one paste leaves the rest queued for the next
         // turn instead of stamping messages the agent never saw.
         let messages = &messages[..injected_message_count(&messages)];
         let formatted = format_messages_for_injection(messages);
         let Some(session) = self.sessions.get_mut(handle) else {
-            return;
+            return false;
         };
         let session_instance_id = session.instance_id();
         let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
@@ -1192,27 +1228,20 @@ impl ServerActor {
             } else {
                 self.broadcast_terminal_error(handle, message);
             }
-            return;
+            return false;
         }
         self.orchestration_delivery_in_flight
             .insert(handle.to_string());
         if self.voice.home_session_id.as_deref() == Some(handle) {
             self.voice.home_needs_fresh_ready = true;
         }
+        true
     }
 
-    fn is_active_coordinator_handle(&self, handle: &str) -> bool {
+    pub(super) fn is_active_coordinator_handle(&self, handle: &str) -> bool {
         self.coordinators
             .values()
             .any(|coordinator| coordinator.config.coordinator_handle.as_deref() == Some(handle))
-    }
-
-    /// Send-time hook: deliver immediately only when the recipient's agent is
-    /// already idle right now.
-    pub(super) async fn deliver_pending_messages_if_idle(&mut self, handle: &str) {
-        if self.agent_presence.is_injection_ready(handle) {
-            self.deliver_pending_messages(handle).await;
-        }
     }
 
     async fn retry_backpressured_delivery_if_idle(&mut self, handle: &str) {
@@ -1306,157 +1335,6 @@ impl ServerActor {
             let clients: Vec<u64> = session.clients.iter().copied().collect();
             self.broadcast(&clients, event("error", session.error_payload(&message)));
         }
-    }
-
-    async fn start_ssh_bootstrap_job(
-        &mut self,
-        request: SshTargetBootstrapRequest,
-    ) -> HostResult<Value> {
-        if let Some(existing) = self.ssh_bootstrap_jobs.get(&request.target_id) {
-            return Ok(json!(SshTargetBootstrapJob {
-                job_id: existing.job_id.clone(),
-                target_id: existing.target_id.clone(),
-                status: existing.status,
-            }));
-        }
-        let target = self
-            .runtime_store
-            .find_ssh_target(&request.target_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| {
-                HostError::state(format!("ssh target not found: {}", request.target_id))
-            })?;
-        reject_password_ssh_bootstrap_auth(target.auth_kind)
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let job_id = new_bootstrap_job_id();
-        mark_ssh_bootstrap_installing(&self.runtime_store, &target.id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.broadcast_authenticated(event(
-            "sshTargetBootstrapProgress",
-            json!(SshTargetBootstrapProgress {
-                job_id: job_id.clone(),
-                target_id: target.id.clone(),
-                status: SshBootstrapStatus::Installing,
-                stage: "auth".to_string(),
-                message: "Checking SSH Authentication".to_string(),
-                error: None,
-            }),
-        ));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-        let target_id = request.target_id.clone();
-        let store = self.runtime_store.clone();
-        let cache_dir = self.runtime_dir.join("runtime-artifacts");
-        let inbox = self.inbox.clone();
-        let task_job_id = job_id.clone();
-        let task_target_id = target_id.clone();
-        let handle = tokio::spawn(async move {
-            let result =
-                run_ssh_bootstrap(store, cache_dir, request, task_job_id.clone(), |progress| {
-                    let _ = inbox.send(ServerCommand::SshBootstrapProgress { progress });
-                })
-                .await;
-            let status = if result.is_ok() {
-                SshBootstrapStatus::Installed
-            } else {
-                SshBootstrapStatus::Failed
-            };
-            let _ = inbox
-                .send_wait(ServerCommand::SshBootstrapFinished {
-                    target_id: task_target_id,
-                    job_id: task_job_id,
-                    status,
-                })
-                .await;
-        });
-        let job = SshBootstrapJobState {
-            job_id: job_id.clone(),
-            target_id: target_id.clone(),
-            status: SshBootstrapStatus::Installing,
-            handle,
-        };
-        self.ssh_bootstrap_jobs.insert(target_id.clone(), job);
-        self.cancel_shutdown_timer();
-        Ok(json!(SshTargetBootstrapJob {
-            job_id,
-            target_id,
-            status: SshBootstrapStatus::Installing,
-        }))
-    }
-
-    async fn cancel_ssh_bootstrap_job(&mut self, target_id: &str) -> HostResult<Value> {
-        if let Some(target) = self
-            .cancel_active_ssh_bootstrap_job(target_id, "Remote Runtime Install Cancelled")
-            .await?
-        {
-            self.schedule_shutdown_if_idle();
-            return Ok(json!(target));
-        }
-        if let Some(target) = self
-            .runtime_store
-            .find_ssh_target(target_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-        {
-            if target.bootstrap_status == SshBootstrapStatus::Installing {
-                let target = self
-                    .mark_ssh_bootstrap_cancelled(
-                        target_id,
-                        new_bootstrap_job_id(),
-                        "Stale Remote Runtime Install Cancelled",
-                    )
-                    .await?;
-                self.schedule_shutdown_if_idle();
-                return Ok(json!(target));
-            }
-        }
-        Err(HostError::state(format!(
-            "No active bootstrap job for SSH target: {target_id}"
-        )))
-    }
-
-    async fn cancel_ssh_bootstrap_job_before_remove(&mut self, target_id: &str) -> HostResult<()> {
-        self.cancel_active_ssh_bootstrap_job(target_id, "Remote Runtime Install Cancelled")
-            .await?;
-        self.schedule_shutdown_if_idle();
-        Ok(())
-    }
-
-    async fn cancel_active_ssh_bootstrap_job(
-        &mut self,
-        target_id: &str,
-        message: &str,
-    ) -> HostResult<Option<SshTarget>> {
-        let Some(job) = self.ssh_bootstrap_jobs.remove(target_id) else {
-            return Ok(None);
-        };
-        job.handle.abort();
-        self.mark_ssh_bootstrap_cancelled(target_id, job.job_id, message)
-            .await
-            .map(Some)
-    }
-
-    async fn mark_ssh_bootstrap_cancelled(
-        &mut self,
-        target_id: &str,
-        job_id: String,
-        message: &str,
-    ) -> HostResult<SshTarget> {
-        let target = cancel_ssh_bootstrap(&self.runtime_store, target_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let progress = SshTargetBootstrapProgress {
-            job_id,
-            target_id: target_id.to_string(),
-            status: SshBootstrapStatus::Cancelled,
-            stage: "cancelled".to_string(),
-            message: message.to_string(),
-            error: None,
-        };
-        self.broadcast_authenticated(event("sshTargetBootstrapProgress", json!(progress)));
-        self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-        Ok(target)
     }
 }
 

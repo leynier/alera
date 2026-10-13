@@ -1,13 +1,15 @@
 name: alera
 description: "Alera desktop agentic development environment for workspace terminals"
 publish_to: 'none'
-version: 0.105.0+532
+version: 0.106.0+540
 
 environment:
   sdk: ^3.13.2
   flutter: ">=3.47.2"
 
 dependencies:
+  alera_automations:
+    path: packages/alera_automations
   alera_configuration:
     path: packages/alera_configuration
   flutter:

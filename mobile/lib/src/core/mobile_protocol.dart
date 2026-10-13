@@ -10,6 +10,17 @@ const String automationsCapability = 'automationsV1';
 /// Questions to agents from an inbox address, answered by the runtime's
 /// `inbox.*` verbs and announced with `inboxChanged`.
 const String mobileInboxCapability = 'inboxV1';
+
+/// `inbox.ask` takes `delivery: now | turnEnd` and the runtime reports
+/// `pasted_now` / `queued_at_turn_end` delivery modes.
+const String mobileInboxDeliveryCapability = 'inboxV2';
+
+/// Runs (`runs.*`, announced with `runsChanged`): board, detail, gates,
+/// control, timeline, cleanup and New Run.
+const String mobileRunsCapability = 'runsV1';
+
+/// Read-only recipe catalog (`recipes.catalog`, `recipes.recipe`).
+const String mobileRecipesCapability = 'recipesV1';
 const String aiDictationCapability = 'aiDictationV1';
 const String aiDictationModelsCapability = 'aiDictationModelsV2';
 const String aiDictationBackendsCapability = 'aiDictationBackendsV3';

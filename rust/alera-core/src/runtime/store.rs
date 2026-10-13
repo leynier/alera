@@ -1,6 +1,3 @@
-#[path = "store_legacy_orchestration.rs"]
-mod legacy_orchestration;
-
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 use std::time::Duration;
@@ -52,7 +49,21 @@ impl RuntimeStore {
         })
     }
 
+    /// Opens the store for a process that does not own the runtime. A store
+    /// that still needs the orchestration v3 reset is refused rather than
+    /// reset, because a live host may be using the tables it would drop.
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
+        Self::open_with_reset(runtime_dir, false).await
+    }
+
+    /// Opens the store for the runtime host. The caller MUST hold the runtime
+    /// owner lock: only the owner may run the destructive orchestration v3
+    /// reset.
+    pub async fn open_as_runtime_owner(runtime_dir: &Path) -> Result<Self> {
+        Self::open_with_reset(runtime_dir, true).await
+    }
+
+    async fn open_with_reset(runtime_dir: &Path, owns_runtime: bool) -> Result<Self> {
         prepare_private_runtime_directory(runtime_dir)?;
         let path = runtime_dir.join(RUNTIME_DATABASE_FILE_NAME);
         open_private_runtime_file(&path)?;
@@ -78,10 +89,9 @@ impl RuntimeStore {
             conversation_notification_revision: Default::default(),
         };
         store.migrate().await?;
-        store.migrate_workflows().await?;
-        store.migrate_orchestration_board().await?;
-        store.migrate_inbox().await?;
-        store.migrate_conversations().await?;
+        store
+            .migrate_orchestration_v3(Some(runtime_dir), owns_runtime)
+            .await?;
         store.install_runtime_event_triggers().await?;
         harden_sqlite_files(&path)?;
         Ok(store)
@@ -108,15 +118,6 @@ impl RuntimeStore {
         for statement in super::runtime_event_store::RUNTIME_EVENT_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        self.migrate_legacy_orchestration_schema().await?;
-        for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
-            sqlx::query(*statement).execute(&self.pool).await?;
-        }
-        self.set_metadata(
-            "orchestration.schemaVersion",
-            super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
-        )
-        .await?;
         self.ensure_column("sshTargets", "projectsDir", "TEXT")
             .await?;
         self.ensure_column("sshTargets", "installDir", "TEXT")
@@ -138,6 +139,8 @@ impl RuntimeStore {
         self.ensure_column("sshTargets", "lastCheckedAt", "TEXT")
             .await?;
         self.ensure_column("sshTargets", "lastError", "TEXT")
+            .await?;
+        self.ensure_column("sshTargets", "identityFile", "TEXT")
             .await?;
         self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
             .await?;
@@ -176,31 +179,6 @@ impl RuntimeStore {
         self.ensure_column("agentProfiles", "revision", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_agent_profile_new_tab_menu_column().await?;
-        // Orchestration tables are created idempotently above, but CREATE TABLE
-        // IF NOT EXISTS is a no-op on an existing database, so every column
-        // added after the v2 rebuild must also be backfilled here.
-        self.ensure_column("orchestrationCoordinatorRuns", "execution_policy", "TEXT")
-            .await?;
-        self.ensure_column(
-            "orchestrationCoordinatorRuns",
-            "execution_policy_status",
-            "TEXT NOT NULL DEFAULT 'none'",
-        )
-        .await?;
-        self.ensure_column(
-            "orchestrationCoordinatorRuns",
-            "execution_policy_updated_at",
-            "TEXT",
-        )
-        .await?;
-        self.ensure_column("orchestrationTasks", "stage_id", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationDispatchContexts", "agent_profile", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationDispatchContexts", "agent_quota_group", "TEXT")
-            .await?;
-        self.ensure_column("orchestrationDispatchContexts", "completion_sha", "TEXT")
-            .await?;
         for statement in super::runtime_schema::AGENT_PROFILE_REFERENCE_TRIGGERS {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
@@ -225,7 +203,6 @@ impl RuntimeStore {
         self.migrate_relocation_setup_processes().await?;
         self.migrate_relocation_setup_cancellations().await?;
         self.migrate_setup_descendants().await?;
-        self.migrate_role_contracts().await?;
         Ok(())
     }
 
@@ -237,6 +214,14 @@ impl RuntimeStore {
         row.map(|row| row.try_get("value"))
             .transpose()
             .map_err(Into::into)
+    }
+
+    pub async fn delete_metadata(&self, key: &str) -> Result<()> {
+        sqlx::query("DELETE FROM runtimeMetadata WHERE key = ?")
+            .bind(key)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn set_metadata(&self, key: &str, value: &str) -> Result<()> {
@@ -1667,6 +1652,7 @@ mod tests {
             last_status: None,
             install_dir: None,
             projects_dir: None,
+            identity_file: None,
             runtime_version: None,
             runtime_platform: None,
             runtime_arch: None,

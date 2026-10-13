@@ -9,6 +9,7 @@ Widget agentQuotaStatusBarPreview() => SizedBox(
   width: 1100,
   child: AgentQuotaStatusBarContent(
     hostId: 'local',
+    hostLabel: 'This Device',
     settings: const AgentQuotaHostSettings(
       claudeProfiles: <ClaudeQuotaProfileSettings>[
         ClaudeQuotaProfileSettings(alias: 'Partsbase', profile: 'partsbase'),
@@ -27,6 +28,7 @@ Widget agentQuotaStatusBarUnpinnedPreview() => SizedBox(
   width: 1100,
   child: AgentQuotaStatusBarContent(
     hostId: 'local',
+    hostLabel: 'This Device',
     settings: const AgentQuotaHostSettings(
       claudeProfiles: <ClaudeQuotaProfileSettings>[
         ClaudeQuotaProfileSettings(alias: 'Partsbase', profile: 'partsbase'),
