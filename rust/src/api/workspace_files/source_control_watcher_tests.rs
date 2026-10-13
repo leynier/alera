@@ -38,13 +38,25 @@ fn ignores_reads_and_classifies_file_changes() {
     assert!(!signal.repository_changed);
     assert!(!signal.catalog_changed);
     assert!(paths
-        .classify(&event(&dir.path().canonicalize().unwrap().join(".dart_tool/cache")))
+        .classify(&event(
+            &dir.path().canonicalize().unwrap().join(".dart_tool/cache")
+        ))
         .is_none());
     assert!(paths
-        .classify(&event(&dir.path().canonicalize().unwrap().join("node_modules/package/file")))
+        .classify(&event(
+            &dir.path()
+                .canonicalize()
+                .unwrap()
+                .join("node_modules/package/file")
+        ))
         .is_none());
     assert!(paths
-        .classify(&event(&dir.path().canonicalize().unwrap().join(".git/objects/aa/bb")))
+        .classify(&event(
+            &dir.path()
+                .canonicalize()
+                .unwrap()
+                .join(".git/objects/aa/bb")
+        ))
         .is_none());
 }
 
@@ -166,7 +178,12 @@ fn native_read_does_not_notify_but_real_write_does() {
         }
     })
     .unwrap();
-    watcher.watch(&dir.path().canonicalize().unwrap(), RecursiveMode::Recursive).unwrap();
+    watcher
+        .watch(
+            &dir.path().canonicalize().unwrap(),
+            RecursiveMode::Recursive,
+        )
+        .unwrap();
     std::fs::read(dir.path().join("tracked.txt")).unwrap();
     assert!(rx.recv_timeout(Duration::from_millis(300)).is_err());
     std::fs::write(dir.path().join("tracked.txt"), "changed\n").unwrap();
