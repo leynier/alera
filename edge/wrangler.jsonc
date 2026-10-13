@@ -45,6 +45,14 @@
   },
   "ratelimits": [
     {
+      "name": "OAUTH_REGISTRATION_LIMITER",
+      "namespace_id": "1005",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    },
+    {
       "name": "EDGE_BURST_LIMITER",
       "namespace_id": "1001",
       "simple": {
