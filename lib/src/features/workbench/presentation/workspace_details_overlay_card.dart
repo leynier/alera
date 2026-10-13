@@ -127,9 +127,12 @@ extension on _WorkspaceDetailsOverlayState {
                   : null,
               hasMenu: true,
               leading: icon(AleraIcons.gitBranch),
+              trailing: data == null ? null : _branchSync(data),
               hint: details?.hasError == true
                   ? details!.error.toString()
-                  : null,
+                  : data == null
+                  ? null
+                  : _branchSyncHint(data),
               pressOpensMenu: data != null,
               onPressed: busy || details?.hasError != true
                   ? null

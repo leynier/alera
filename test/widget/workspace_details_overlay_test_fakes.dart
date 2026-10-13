@@ -43,10 +43,14 @@ class _Reviews extends WorkspacePullRequestController {
   void detachPanel() {}
 }
 
+int _fetches = 0;
+
 class _Sources extends WorkspaceSourceControlController {
   @override
   Future<WorkspaceSourceControlState> build(String workspacePath) async =>
       details.sourceControl;
+  @override
+  Future<void> fetch() async => _fetches++;
 }
 
 class _Runtime implements TerminalRuntime {

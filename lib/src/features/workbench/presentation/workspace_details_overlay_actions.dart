@@ -57,8 +57,18 @@ extension on _WorkspaceDetailsOverlayState {
         label: 'Compare Against',
         leading: _MenuIcon(AleraIcons.diff),
       ),
+      PopupMenuDivider(),
+      AleraDropdownEntry(
+        value: 'fetch',
+        label: 'Fetch',
+        leading: _MenuIcon(AleraIcons.gitFetch),
+      ),
     ]);
     if (!mounted || choice == null) return;
+    if (choice == 'fetch') {
+      await _fetch();
+      return;
+    }
     if (choice == 'base') {
       final selection = await showDialog<WorkspaceBranchChoice>(
         context: context,

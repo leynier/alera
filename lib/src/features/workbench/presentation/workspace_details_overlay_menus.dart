@@ -9,6 +9,70 @@ extension on _WorkspaceDetailsOverlayState {
       ..setContextPanelTab(.gitDiff);
   }
 
+  /// Commits the branch is ahead of and behind its upstream, or a muted
+  /// note when it was never published.
+  Widget? _branchSync(WorkspaceDetailsState data) {
+    final repo = data.sourceControl.repositoryState;
+    final style = AleraTokens.monoCompactStyle.copyWith(
+      color: AleraTokens.foregroundMuted,
+    );
+    if (!repo.hasUpstream) {
+      if (!data.hasRemote) return null;
+      return Text('Unpublished', style: style);
+    }
+    if (repo.ahead == 0 && repo.behind == 0) return null;
+    Widget count(IconData icon, int value) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: AleraTokens.iconSm,
+          color: AleraTokens.foregroundMuted,
+        ),
+        Text('$value', style: style),
+      ],
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AleraTokens.space4,
+      children: [
+        if (repo.ahead > 0) count(AleraIcons.arrowUp, repo.ahead),
+        if (repo.behind > 0) count(AleraIcons.arrowDown, repo.behind),
+      ],
+    );
+  }
+
+  String _branchSyncHint(WorkspaceDetailsState data) {
+    final repo = data.sourceControl.repositoryState;
+    final upstream = repo.upstream;
+    if (upstream == null || upstream.isEmpty) {
+      return data.hasRemote
+          ? 'This branch has no upstream yet. Push to publish it.'
+          : 'This repository has no remote.';
+    }
+    final parts = [
+      upstream,
+      if (repo.ahead > 0) '${repo.ahead} ahead',
+      if (repo.behind > 0) '${repo.behind} behind',
+      if (repo.ahead == 0 && repo.behind == 0) 'up to date',
+    ];
+    return '${parts.join(' · ')}\nCounts reflect the last fetch.';
+  }
+
+  Future<void> _fetch() async {
+    try {
+      await ref
+          .read(
+            workspaceSourceControlControllerProvider(_scope.repoPath).notifier,
+          )
+          .fetch();
+    } catch (error) {
+      if (mounted) {
+        AleraToast.show(context, message: error.toString(), tone: .error);
+      }
+    }
+  }
+
   Future<String?> _menu(Rect anchor, List<PopupMenuEntry<String>> entries) {
     return showMenu<String>(
       context: context,

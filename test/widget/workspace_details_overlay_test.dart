@@ -49,6 +49,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 part 'workspace_details_agents_test_cases.dart';
 part 'workspace_details_issue_test_cases.dart';
+part 'workspace_details_sync_test_cases.dart';
 part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
 
@@ -165,6 +166,7 @@ void main() {
   _registerWorkspaceDetailsControlTests();
   _registerWorkspaceDetailsAgentTests();
   _registerWorkspaceDetailsIssueTests();
+  _registerWorkspaceDetailsSyncTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,
