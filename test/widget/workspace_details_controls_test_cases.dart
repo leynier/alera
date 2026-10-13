@@ -104,6 +104,22 @@ void _registerWorkspaceDetailsControlTests() {
       await tester.tap(find.byTooltip('Toggle Workspace Details'));
       await tester.pumpAndSettle();
       expect(find.text('Changes'), findsOneWidget);
+      final popup = find.byType(AleraWorkspaceDetailsCard);
+      final popupRect = tester.getRect(popup);
+      final toggleRect = tester.getRect(
+        find.byTooltip('Toggle Workspace Details'),
+      );
+      expect(popupRect.top, toggleRect.bottom + AleraTokens.space8);
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WorkspaceDetailsOverlay)),
+      );
+      container
+          .read(workbenchControllerProvider.notifier)
+          .toggleWorkspaceDetails(workspace.id);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(popup), popupRect);
+      expect(tester.binding.hasScheduledFrame, isFalse);
       await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
       visible.value = false;

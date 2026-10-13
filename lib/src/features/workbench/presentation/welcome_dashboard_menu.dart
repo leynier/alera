@@ -20,9 +20,11 @@ Future<String?> showHomeComposerMenu({
     builder: (context) => LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
-        final width = size.width < AleraTokens.workspaceDetailsWidth
-            ? size.width - AleraTokens.space16
-            : AleraTokens.workspaceDetailsWidth;
+        final inset = (size.width / 2).clamp(0.0, AleraTokens.space8);
+        final width = (size.width - inset * 2).clamp(
+          0.0,
+          AleraTokens.workspaceDetailsWidth,
+        );
         final below = size.height - anchor.bottom - AleraTokens.space8;
         final above = anchor.top - AleraTokens.space8;
         final opensDown = below >= above;
@@ -30,8 +32,8 @@ Future<String?> showHomeComposerMenu({
           children: [
             Positioned(
               left: anchor.left.clamp(
-                AleraTokens.space8,
-                size.width - width - AleraTokens.space8,
+                inset,
+                (size.width - width - inset).clamp(inset, double.infinity),
               ),
               top: opensDown ? anchor.bottom + AleraTokens.space4 : null,
               bottom: opensDown
