@@ -1,0 +1,17 @@
+[package]
+name = "alera-provider-codex"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+alera-agent-transport = { path = "../alera-agent-transport" }
+alera-provider-protocol = { path = "../alera-provider-protocol" }
+async-trait = "0.1"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "time"] }
+
+[[bin]]
+name = "codex-app-server-fixture"
+path = "tests/fixtures/codex_app_server_fixture.rs"

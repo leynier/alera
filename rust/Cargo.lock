@@ -62,6 +62,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "alera-agent-transport"
+version = "0.1.0"
+dependencies = [
+ "alera-core",
+ "async-trait",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
 name = "alera-cli"
 version = "0.1.0"
 dependencies = [
@@ -152,6 +163,46 @@ dependencies = [
  "uuid",
  "windows 0.62.2",
  "yaml-rust2",
+]
+
+[[package]]
+name = "alera-provider-claude"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "claude-agent-sdk",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "alera-provider-codex"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-protocol"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -1012,6 +1063,18 @@ name = "clap_lex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
+
+[[package]]
+name = "claude-agent-sdk"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
 
 [[package]]
 name = "clipboard-win"

@@ -12,8 +12,14 @@ crate-type = ["cdylib", "staticlib"]
 # native hooks via `cargo build --locked -p alera-cli`) and `alera-xtask`
 # (makefile developer tooling, never shipped). One lock file, one target dir;
 # the FRB build only compiles the root package.
+# The provider crates are standalone protocol experiments with tests; neither
+# the native library nor the terminal host links them yet.
 [workspace]
-members = ["alera-cli", "alera-core", "alera-mobile-native", "alera-xtask"]
+members = [
+    "alera-cli", "alera-core", "alera-mobile-native", "alera-xtask",
+    "alera-agent-transport", "alera-provider-protocol", "alera-provider-codex",
+    "claude-agent-sdk", "alera-provider-claude",
+]
 resolver = "2"
 
 [dependencies]

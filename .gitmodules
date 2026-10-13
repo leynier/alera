@@ -30,3 +30,6 @@
 [submodule "reference_projects/directory_tree"]
 	path = reference_projects/directory_tree
 	url = https://github.com/omar-hanafy/directory_tree.git
+[submodule "reference_projects/claude-agent-sdk-python"]
+	path = reference_projects/claude-agent-sdk-python
+	url = https://github.com/anthropics/claude-agent-sdk-python.git
