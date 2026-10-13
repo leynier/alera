@@ -66,7 +66,7 @@ final class WorkspaceDetailsProvider
   }
 }
 
-String _$workspaceDetailsHash() => r'b578ced1adb8715338d6389680a68f719893f448';
+String _$workspaceDetailsHash() => r'acd8e18540b9c4b2884843f3b5b840ea7a2e13f1';
 
 final class WorkspaceDetailsFamily extends $Family
     with

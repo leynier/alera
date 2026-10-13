@@ -52,6 +52,14 @@ The report under `.dart_tool/performance/resources_<scenario>.json` contains 250
 
 Capture idle, a common workbench flow, a terminal-output burst, a quota refresh, and representative agent launches independently. Do not run `build_runner` during final captures. Its memory is development tooling and must be reported separately from the shipped app.
 
+## Source Control Observation
+
+Source Control observes only mounted Git surfaces in the selected workspace. Retained offstage content releases its observation through `TickerMode`, and the app foreground signal stops native watches while the window is hidden. Returning starts the watch before requesting one fresh snapshot. Background Git operations keep their execution lifetime without acquiring a visual watch; Watch and Fix retains its separate PR polling lifetime.
+
+The native watcher discards access events, so reading Git status or a comparison cannot trigger another refresh. It resolves the checkout's actual Git directory and common directory, including linked worktrees, and ignores sibling worktree indexes. A single bounded wake token merges file, repository and catalog changes; batches have a quiet debounce and a maximum wait so sustained writes cannot starve the UI. Dart serializes reloads with one merged pending request. Comparisons also serialize expensive snapshots and merge intermediate revisions.
+
+File edits refresh status and comparison while reusing repository metadata and the branch/remote catalog. Index changes refresh repository state without reloading the catalog. Ref/config changes and manual refresh invalidate both snapshots. PR busy/check updates recompute presentation from cached Git snapshots; changing the comparison base requests a new comparison. Counts retain their last successful values while a refresh runs.
+
 ## Resource Sampling Cadence
 
 The sidecar's own process-table sweep is demand-driven: nothing samples until a client asks, and the ticker stops itself once they stop asking. The cadence is not fixed in the host. Each `resources.snapshot` request states the interval the caller polls at (`intervalMs`), and the host both samples at that interval and sizes its idle window around it. Closing the resource panel therefore makes the host proportionally cheaper rather than merely making the app ask less often.

@@ -17,6 +17,8 @@ class _HomeComposerReady extends StatelessWidget {
     required this.showParent,
     required this.onPickParent,
     required this.locationLabel,
+    required this.sourceLabel,
+    required this.onPickSource,
     required this.canChangeLocation,
     required this.locationIsWorktree,
     required this.onPickLocation,
@@ -39,6 +41,8 @@ class _HomeComposerReady extends StatelessWidget {
   final bool showParent;
   final Future<void> Function(BuildContext context) onPickParent;
   final String locationLabel;
+  final String sourceLabel;
+  final Future<void> Function(BuildContext context) onPickSource;
   final bool canChangeLocation;
   final bool locationIsWorktree;
   final Future<void> Function(BuildContext context) onPickLocation;
@@ -68,6 +72,8 @@ class _HomeComposerReady extends StatelessWidget {
           showParent: showParent,
           onPickParent: onPickParent,
           locationLabel: locationLabel,
+          sourceLabel: sourceLabel,
+          onPickSource: onPickSource,
           canChangeLocation: canChangeLocation,
           locationIsWorktree: locationIsWorktree,
           onPickLocation: onPickLocation,
@@ -106,6 +112,8 @@ class _HomeComposerCard extends StatefulWidget {
     required this.showParent,
     required this.onPickParent,
     required this.locationLabel,
+    required this.sourceLabel,
+    required this.onPickSource,
     required this.canChangeLocation,
     required this.locationIsWorktree,
     required this.onPickLocation,
@@ -125,6 +133,8 @@ class _HomeComposerCard extends StatefulWidget {
   final bool showParent;
   final Future<void> Function(BuildContext context) onPickParent;
   final String locationLabel;
+  final String sourceLabel;
+  final Future<void> Function(BuildContext context) onPickSource;
   final bool canChangeLocation;
   final bool locationIsWorktree;
   final Future<void> Function(BuildContext context) onPickLocation;
@@ -329,7 +339,7 @@ class _HomeComposerCardState extends State<_HomeComposerCard> {
                     ),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        // A flex share shifts the resting Project Folder chip.
+                        // Keep location controls bounded when a branch name is long.
                         final maxLocation =
                             (constraints.maxWidth - AleraTokens.space8) / 2;
                         return Row(
@@ -372,21 +382,43 @@ class _HomeComposerCardState extends State<_HomeComposerCard> {
                                 maxWidth: maxLocation < 0 ? 0 : maxLocation,
                               ),
                               child: widget.canChangeLocation
-                                  ? _HomeComposerChip(
-                                      key: const ValueKey<String>(
-                                        'home-composer-location',
-                                      ),
-                                      label: widget.locationLabel,
-                                      ellipsize: true,
-                                      leading: widget.locationIsWorktree
-                                          ? const Icon(
-                                              AleraIcons.gitBranch,
-                                              size: AleraTokens.iconMd,
-                                              color:
-                                                  AleraTokens.foregroundMuted,
-                                            )
-                                          : null,
-                                      onPressed: widget.onPickLocation,
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: _HomeComposerChip(
+                                            key: const ValueKey<String>(
+                                              'home-composer-location',
+                                            ),
+                                            label: widget.locationLabel,
+                                            ellipsize: true,
+                                            leading: widget.locationIsWorktree
+                                                ? const Icon(
+                                                    AleraIcons.gitBranch,
+                                                    size: AleraTokens.iconMd,
+                                                    color: AleraTokens
+                                                        .foregroundMuted,
+                                                  )
+                                                : null,
+                                            onPressed: widget.onPickLocation,
+                                          ),
+                                        ),
+                                        if (widget.locationIsWorktree) ...[
+                                          const SizedBox(
+                                            width: AleraTokens.space8,
+                                          ),
+                                          Flexible(
+                                            child: _HomeComposerChip(
+                                              key: const ValueKey<String>(
+                                                'home-composer-source',
+                                              ),
+                                              label: widget.sourceLabel,
+                                              ellipsize: true,
+                                              onPressed: widget.onPickSource,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     )
                                   : Text(
                                       widget.locationLabel,

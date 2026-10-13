@@ -28,6 +28,8 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_git_quick_action.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_surface_toolbar.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_overlay.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_workspace_comparison.dart';
@@ -36,6 +38,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+part 'workspace_details_controls_test_cases.dart';
 
 class _Workbench extends WorkbenchController {
   @override
@@ -61,6 +65,12 @@ class _Reviews extends WorkspacePullRequestController {
   void attachPanel() {}
   @override
   void detachPanel() {}
+}
+
+class _Sources extends WorkspaceSourceControlController {
+  @override
+  Future<WorkspaceSourceControlState> build(String workspacePath) async =>
+      details.sourceControl;
 }
 
 class _Runtime implements TerminalRuntime {
@@ -118,6 +128,7 @@ Future<void> pumpOverlay(
   WidgetTester tester,
   Size size, {
   Widget? child,
+  Future<WorkspaceDetailsState> Function()? loadDetails,
   WorkspacePullRequestState reviewState = const WorkspacePullRequestState(),
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -127,6 +138,8 @@ Future<void> pumpOverlay(
       overrides: [
         workbenchControllerProvider.overrideWith(_Workbench.new),
         terminalRuntimeProvider.overrideWithValue(_Runtime()),
+        workspaceSourceControlControllerProvider('/repo')
+            .overrideWith(_Sources.new),
         sshTargetsProvider.overrideWith(
           (ref) => Stream.value(const <SshTarget>[]),
         ),
@@ -134,7 +147,8 @@ Future<void> pumpOverlay(
             .overrideWith((ref) async => null),
         workspacePullRequestControllerProvider(scope)
             .overrideWith(() => _Reviews(reviewState)),
-        workspaceDetailsProvider(scope).overrideWith((ref) async => details),
+        workspaceDetailsProvider(scope)
+            .overrideWith((ref) async => await loadDetails?.call() ?? details),
       ],
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
@@ -167,6 +181,8 @@ void main() {
       await loader.load();
     }
   });
+  _registerWorkspaceDetailsControlTests();
+
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,
   ) async {

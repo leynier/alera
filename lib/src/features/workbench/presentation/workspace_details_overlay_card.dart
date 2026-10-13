@@ -173,7 +173,9 @@ extension on _WorkspaceDetailsOverlayState {
               onMenu: data == null || busy ? null : () => _gitMenu(data, scope),
             ),
             AleraWorkspaceDetailRow(
-              label: details?.isLoading == true ? 'Loading…' : 'Changes',
+              label: details?.isLoading == true && data == null
+                  ? 'Loading…'
+                  : 'Changes',
               leading: icon(AleraIcons.diff),
               hint: details?.hasError == true
                   ? details!.error.toString()
@@ -217,10 +219,13 @@ extension on _WorkspaceDetailsOverlayState {
     );
     return widget.sourceControlScope == null
         ? card
-        : WorkspaceDetailsPresence(
-            key: ValueKey(scope),
-            scope: scope,
-            child: card,
+        : WorkspaceSourceControlPresence(
+            path: scope.repoPath,
+            child: WorkspaceDetailsPresence(
+              key: ValueKey(scope),
+              scope: scope,
+              child: card,
+            ),
           );
   }
 }

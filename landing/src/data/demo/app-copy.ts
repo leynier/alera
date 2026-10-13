@@ -17,7 +17,7 @@ const PULL_REQUESTS = 'lib/src/features/pull_requests';
 const AGENT_STATUS_BADGE = `${WORKBENCH}/presentation/widgets/agent_run_status_badge.dart`;
 
 export const APP_COPY = {
-  workspaceDetailsToggle: { text: 'Toggle Workspace Details', source: `${WORKBENCH}/presentation/workspace_details_overlay.dart` },
+  workspaceDetailsToggle: { text: 'Toggle Workspace Details', source: `${WORKBENCH}/presentation/terminal_surface_toolbar.dart` },
   workspaceDetailsOpen: { text: 'Open In File Manager', literal: 'Open In ', source: `${WORKBENCH}/presentation/workspace_details_overlay_card.dart` },
   workspaceDetailsBase: { text: 'Compare against origin/main', literal: 'Compare against ', source: `${WORKBENCH}/presentation/workspace_details_overlay_card.dart` },
   workspaceDetailsCommit: { text: 'Commit & Push', source: `${WORKBENCH}/domain/workspace_git_quick_action.dart` },

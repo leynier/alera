@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/presentation/workspace_details_toolbar_scope.dart';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -28,6 +30,24 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
   final GlobalKey _toolbarKey = GlobalKey();
   TerminalToolbarCorner? _localCorner;
   Offset? _dragOrigin;
+  WorkspaceDetailsToolbarScope? _detailsScope;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = WorkspaceDetailsToolbarScope.maybeOf(context);
+    if (next?.onAvailabilityChanged != _detailsScope?.onAvailabilityChanged) {
+      _detailsScope?.onAvailabilityChanged(false);
+      next?.onAvailabilityChanged(true);
+    }
+    _detailsScope = next;
+  }
+
+  @override
+  void dispose() {
+    _detailsScope?.onAvailabilityChanged(false);
+    super.dispose();
+  }
 
   TerminalToolbarCorner get _corner => _localCorner ?? widget.corner;
 
@@ -168,6 +188,18 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
         borderColor: AleraTokens.borderSubtle,
         onPressed: widget.session.composerController.toggle,
       ),
+      if (_detailsScope != null)
+        FocusScope(
+          child: Builder(
+            builder: (context) => AleraIconButton(
+              tooltip: 'Toggle Workspace Details',
+              icon: AleraIcons.review,
+              backgroundColor: AleraTokens.surfaceElevated,
+              borderColor: AleraTokens.borderSubtle,
+              onPressed: () => _detailsScope!.onToggle(context),
+            ),
+          ),
+        ),
       ValueListenableBuilder<TerminalRestoreProgress?>(
         valueListenable: widget.session.restoreProgress,
         builder: (context, progress, _) => AleraIconButton(

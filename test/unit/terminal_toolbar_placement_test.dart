@@ -102,6 +102,13 @@ void main() {
   test('counts the move handle with the other toolbar actions', () {
     expect(terminalToolbarButtonCount(supportsPulse: false), 3);
     expect(terminalToolbarButtonCount(supportsPulse: true), 4);
+    expect(
+      terminalToolbarButtonCount(
+        supportsPulse: true,
+        supportsWorkspaceDetails: true,
+      ),
+      5,
+    );
   });
 
   test('places a dragged cluster at the matching corner offset', () {

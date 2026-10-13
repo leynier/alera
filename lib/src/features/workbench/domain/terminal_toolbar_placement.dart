@@ -137,7 +137,10 @@ TerminalSearchOverlayLayout terminalSearchOverlayLayout({
   );
 }
 
-int terminalToolbarButtonCount({required bool supportsPulse}) {
+int terminalToolbarButtonCount({
+  required bool supportsPulse,
+  bool supportsWorkspaceDetails = false,
+}) {
   // Move handle, composer, and refresh are always present.
-  return 3 + (supportsPulse ? 1 : 0);
+  return 3 + (supportsPulse ? 1 : 0) + (supportsWorkspaceDetails ? 1 : 0);
 }

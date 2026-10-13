@@ -1,4 +1,5 @@
 import 'package:alera/src/features/workbench/presentation/workspace_branch_dialog.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_source_control_presence.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -163,9 +164,12 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     final aiAssistSettings = ref.watch(
       settingsControllerProvider.select((settings) => settings.aiAssist),
     );
-    return _buildScrollablePanel(
-      state: state,
-      aiAssistSettings: aiAssistSettings,
+    return WorkspaceSourceControlPresence(
+      path: widget.sourceControlScope.path,
+      child: _buildScrollablePanel(
+        state: state,
+        aiAssistSettings: aiAssistSettings,
+      ),
     );
   }
 

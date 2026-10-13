@@ -136,9 +136,12 @@ pub struct SourceControlWatcherHandle {
     pub id: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SourceControlWatchSignal {
     pub coalesced_event_count: u32,
+    pub worktree_changed: bool,
+    pub repository_changed: bool,
+    pub catalog_changed: bool,
 }
 
 #[derive(Debug, Clone)]

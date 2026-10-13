@@ -43,7 +43,8 @@ Future<(ProviderContainer, WorkspaceSourceControlController)> _boot(
   addTearDown(subscription.close);
   addTearDown(container.dispose);
   await container.read(provider.future);
-  // Let the best-effort, unawaited watcher subscription attach.
+  container.read(provider.notifier).attachView();
+  // Let the visible surface's watcher subscription attach.
   await Future.pause(const Duration(milliseconds: 10));
   return (container, container.read(provider.notifier));
 }
@@ -65,6 +66,7 @@ void main() {
       final provider = workspaceSourceControlControllerProvider(_workspacePath);
       final first = container.listen(provider, (_, _) {});
       await container.read(provider.future);
+      container.read(provider.notifier).attachView();
       await container.pump();
       final initialLoads = backend.calls
           .where((call) => call.method == 'status')
@@ -73,6 +75,9 @@ void main() {
         12,
         (_) => container.listen(provider, (_, _) {}),
       );
+      for (final _ in neighbors) {
+        container.read(provider.notifier).attachView();
+      }
       await container.pump();
       expect(watcher.startCount, 1);
       expect(
@@ -80,8 +85,10 @@ void main() {
         initialLoads,
       );
 
+      container.read(provider.notifier).detachView();
       first.close();
       for (final neighbor in neighbors.take(11)) {
+        container.read(provider.notifier).detachView();
         neighbor.close();
       }
       await container.pump();
@@ -95,12 +102,14 @@ void main() {
         initialLoads + 1,
       );
 
+      container.read(provider.notifier).detachView();
       neighbors.last.close();
       await container.pump();
       expect(watcher.stopCount, 1);
       final reopened = container.listen(provider, (_, _) {});
       addTearDown(reopened.close);
       await container.read(provider.future);
+      container.read(provider.notifier).attachView();
       await container.pump();
       expect(watcher.startCount, 2);
     },
@@ -183,6 +192,55 @@ void main() {
     },
   );
 
+  test('slow initial loads do not overlap observation refresh', () async {
+    final gate = Completer<void>();
+    final backend = _BlockingStatusGitBackend()..statusGates.add(gate);
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        gitBackendProvider.overrideWithValue(backend),
+        sourceControlWatcherProvider.overrideWithValue(watcher),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = workspaceSourceControlControllerProvider(_workspacePath);
+    final subscription = container.listen(provider, (_, _) {});
+    addTearDown(subscription.close);
+    container.read(provider.notifier).attachView();
+    await Future.pause(const Duration(milliseconds: 350));
+    expect(backend.calls.where((call) => call.method == 'status').length, 1);
+    gate.complete();
+    await container.read(provider.future);
+    await Future.pause(const Duration(milliseconds: 350));
+    expect(backend.calls.where((call) => call.method == 'status').length, 2);
+  });
+
+  test('Git actions wait for an existing background read', () async {
+    final backend = _BlockingStatusGitBackend();
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final (container, controller) = await _boot(backend, watcher);
+    await Future.pause(const Duration(milliseconds: 350));
+    final gate = Completer<void>();
+    backend.statusGates.add(gate);
+    watcher.emitChange();
+    await Future.pause(const Duration(milliseconds: 350));
+    final stage = controller.stage('a.dart');
+    await Future.pause(const Duration(milliseconds: 10));
+    expect(backend.calls.where((call) => call.method == 'stage'), isEmpty);
+    gate.complete();
+    await stage;
+    expect(backend.calls.where((call) => call.method == 'stage').length, 1);
+    expect(
+      container
+          .read(workspaceSourceControlControllerProvider(_workspacePath))
+          .requireValue
+          .isBusy,
+      isFalse,
+    );
+  });
+
   test('disposing the controller stops the watcher', () async {
     final backend = FakeGitBackend()..gitStatusResult = _statusWith(0);
     final watcher = FakeSourceControlWatcher();
@@ -196,6 +254,7 @@ void main() {
     final provider = workspaceSourceControlControllerProvider(_workspacePath);
     final subscription = container.listen(provider, (_, _) {});
     await container.read(provider.future);
+    container.read(provider.notifier).attachView();
     await Future.pause(const Duration(milliseconds: 10));
     expect(watcher.startCount, 1);
 

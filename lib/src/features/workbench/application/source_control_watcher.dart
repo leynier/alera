@@ -5,9 +5,8 @@ part 'source_control_watcher.g.dart';
 
 /// Thin, injectable wrapper over the native recursive source-control watcher.
 ///
-/// The watcher observes the whole working tree (including `.git/`) so commits,
-/// branch switches, staging and out-of-app file edits all surface as a single
-/// coalesced signal. Tests override [sourceControlWatcherProvider] with a fake.
+/// The watcher observes the working tree and its actual Git directories, ignores
+/// file access, and classifies coalesced changes for selective queries. Tests override [sourceControlWatcherProvider] with a fake.
 class const SourceControlWatcher() {
   Future<native.SourceControlWatcherHandle> start({
     required String workspacePath,
