@@ -85,7 +85,11 @@ impl RuntimeStore {
                 self.back_up_before_runs_v3(directory).await?;
             }
         }
-        let mut tx = self.pool().begin().await?;
+        // Every store open runs this, including CLI commands beside a live
+        // runtime. A deferred transaction that reads before it writes fails
+        // with SQLITE_BUSY_SNAPSHOT when the runtime commits in between, and
+        // the busy timeout does not retry that, so take the write lock first.
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         let reset = if legacy {
             Some(drop_pre_v3_orchestration(&mut tx).await?)
         } else {
