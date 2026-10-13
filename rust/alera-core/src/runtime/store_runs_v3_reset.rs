@@ -5,7 +5,7 @@
 //! receipts, personal recipes, SSH targets and the external inbox survive.
 //! The previous database is copied next to the store first.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use anyhow::{bail, Result};
@@ -169,8 +169,8 @@ fn runs_v3_backup_path(directory: &Path) -> std::path::PathBuf {
 /// Drops every pre-v3 orchestration and workflow object except the external
 /// inbox rows, which wait in a temporary table for the v3 schema.
 async fn drop_pre_v3_orchestration(conn: &mut SqliteConnection) -> Result<RunsV3Reset> {
-    // Parent tables go before their children; the check runs at commit, when
-    // both are gone.
+    // Defer row checks until commit, but keep referenced tables alive while
+    // dropping their children: SQLite still resolves cascade targets at DROP.
     sqlx::query("PRAGMA defer_foreign_keys = ON")
         .execute(&mut *conn)
         .await?;
@@ -180,6 +180,7 @@ async fn drop_pre_v3_orchestration(conn: &mut SqliteConnection) -> Result<RunsV3
          AND (name LIKE 'orchestration%' OR name LIKE 'workflow%')",
     )
     .await?;
+    let drop_order = legacy_table_drop_order(conn, &tables).await?;
     let dropped_runs = if tables.contains("orchestrationCoordinatorRuns") {
         sqlx::query_scalar("SELECT COUNT(*) FROM orchestrationCoordinatorRuns")
             .fetch_one(&mut *conn)
@@ -227,7 +228,8 @@ async fn drop_pre_v3_orchestration(conn: &mut SqliteConnection) -> Result<RunsV3
         .execute(&mut *conn)
         .await?;
     }
-    for table in &tables {
+    for table in &drop_order {
+        let table = table.replace('"', "\"\"");
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "DROP TABLE IF EXISTS \"{table}\""
         )))
@@ -303,4 +305,48 @@ async fn schema_names(conn: &mut SqliteConnection, sql: &'static str) -> Result<
         .iter()
         .map(|row| row.try_get::<String, _>("name").map_err(Into::into))
         .collect()
+}
+
+async fn legacy_table_drop_order(
+    conn: &mut SqliteConnection,
+    tables: &BTreeSet<String>,
+) -> Result<Vec<String>> {
+    let mut children: BTreeMap<String, BTreeSet<String>> = tables
+        .iter()
+        .map(|table| (table.clone(), BTreeSet::new()))
+        .collect();
+    for table in tables {
+        let parents: Vec<String> = sqlx::query_scalar(
+            "SELECT parent.name FROM pragma_foreign_key_list(?) fk \
+             JOIN sqlite_master parent ON parent.type = 'table' \
+               AND parent.name = fk.\"table\" COLLATE NOCASE",
+        )
+        .bind(table)
+        .fetch_all(&mut *conn)
+        .await?;
+        for parent in parents {
+            // A self-reference disappears with its own table, without leaving
+            // a different table trying to resolve a missing cascade target.
+            if parent != *table {
+                if let Some(dependents) = children.get_mut(&parent) {
+                    dependents.insert(table.clone());
+                }
+            }
+        }
+    }
+    let mut ordered = Vec::with_capacity(tables.len());
+    while !children.is_empty() {
+        let Some(table) = children
+            .iter()
+            .find_map(|(table, dependents)| dependents.is_empty().then(|| table.clone()))
+        else {
+            bail!("legacy orchestration tables have cyclic foreign keys; refusing to reset");
+        };
+        children.remove(&table);
+        for dependents in children.values_mut() {
+            dependents.remove(&table);
+        }
+        ordered.push(table);
+    }
+    Ok(ordered)
 }

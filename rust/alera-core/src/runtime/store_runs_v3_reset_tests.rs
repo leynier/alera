@@ -6,6 +6,9 @@ use super::{AgentProfile, AgentProfileLaunchMode, OrchestrationMessageType, Runt
 
 const VERSION_KEY: &str = "orchestration.schemaVersion";
 
+#[path = "store_runs_v3_reset_tests/legacy_schema.rs"]
+mod legacy_schema;
+
 fn profile() -> AgentProfile {
     let now = Utc::now();
     AgentProfile {
