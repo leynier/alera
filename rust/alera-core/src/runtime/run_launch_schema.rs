@@ -4,6 +4,9 @@ pub(super) async fn install(conn: &mut sqlx::SqliteConnection) -> Result<()> {
     for statement in SCHEMA {
         sqlx::query(*statement).execute(&mut *conn).await?;
     }
+    for statement in REPLACED_TRIGGERS {
+        super::schema_object_replacement::replace_schema_object(conn, statement).await?;
+    }
     Ok(())
 }
 
@@ -45,36 +48,11 @@ const SCHEMA: &[&str] = &[
           AND OLD.plan_revision IS NOT NULL AND EXISTS(SELECT 1 FROM orchestrationCoordinatorRuns
             WHERE id = OLD.run_id AND isolation = 'isolated')
         BEGIN SELECT RAISE(ABORT, 'stalled isolated tasks require terminal settlement and a fresh attempt'); END",
-    "DROP TRIGGER IF EXISTS runDispatchAcceptance",
-    "CREATE TRIGGER runDispatchAcceptance BEFORE UPDATE OF status ON orchestrationDispatchContexts
-        WHEN NEW.status = 'dispatched' AND OLD.status <> 'dispatched'
-          AND EXISTS(SELECT 1 FROM runLaunches WHERE dispatch_id = OLD.id)
-          AND NOT EXISTS(SELECT 1 FROM runLaunches l JOIN orchestrationCoordinatorRuns r ON r.id = l.run_id
-            AND r.plan_revision = l.revision WHERE l.dispatch_id = OLD.id AND r.status IN ('running','paused')
-              AND ((OLD.status = 'awaiting_acceptance' AND l.status IN ('starting','started'))
-                OR (OLD.status = 'stalled' AND OLD.accepted_at IS NOT NULL
-                  AND l.status IN ('starting','started','attention'))))
-        BEGIN SELECT RAISE(ABORT, 'workflow dispatch acceptance requires its current approved launch'); END",
     "CREATE TRIGGER IF NOT EXISTS runLaunchImmutable BEFORE UPDATE OF
         id,request_id,request_digest,request,run_id,revision,task_id,workspace_id,terminal_handle,dispatch_id,base_sha,profile_id,profile_revision,inputs,context_hash ON runLaunches
         BEGIN SELECT RAISE(ABORT, 'workflow launch identity is immutable'); END",
     "CREATE TRIGGER IF NOT EXISTS runLaunchRetained BEFORE DELETE ON runLaunches
         BEGIN SELECT RAISE(ABORT, 'workflow launch receipts require reviewed cleanup'); END",
-    // Isolated runs dispatch only through the attempt launch reserved for
-    // the dispatch, which ordinary dispatch cannot manufacture.
-    "DROP TRIGGER IF EXISTS runDispatchRequiresLaunch",
-    "CREATE TRIGGER runDispatchRequiresLaunch BEFORE INSERT ON orchestrationDispatchContexts
-        WHEN EXISTS(SELECT 1 FROM orchestrationCoordinatorRuns WHERE id = NEW.run_id AND isolation = 'isolated')
-          AND NOT EXISTS(SELECT 1 FROM runLaunches l
-            JOIN runWorkspaces x ON x.id = l.workspace_id
-            JOIN orchestrationCoordinatorRuns r ON r.id = l.run_id AND r.plan_revision = l.revision
-            WHERE l.dispatch_id = NEW.id AND l.task_id = NEW.task_id AND l.run_id = NEW.run_id
-              AND l.workspace_id = NEW.workspace_id AND l.terminal_handle = NEW.assignee_handle
-              AND l.context_hash = NEW.context_token_hash AND l.status = 'reserved'
-              AND r.status = 'running' AND x.phase = 'ready' AND x.dispatch_id = NEW.id
-              AND NEW.status = 'awaiting_acceptance' AND NEW.coordinator_handle = ''
-              AND NEW.terminal_policy = 'keep-open')
-        BEGIN SELECT RAISE(ABORT, 'isolated runs dispatch only through a reserved attempt launch'); END",
     "CREATE TRIGGER IF NOT EXISTS runDispatchIdentityImmutable BEFORE UPDATE OF
         id,task_id,run_id,workspace_id,assignee_handle,coordinator_handle,context_token_hash ON orchestrationDispatchContexts
         WHEN EXISTS(SELECT 1 FROM runLaunches WHERE dispatch_id = OLD.id)
@@ -89,4 +67,32 @@ const SCHEMA: &[&str] = &[
         WHEN NEW.status = 'completed' AND EXISTS(SELECT 1 FROM runLaunches WHERE dispatch_id = OLD.id)
           AND NEW.completion_sha IS NULL
         BEGIN SELECT RAISE(ABORT, 'workflow completion requires its exact result SHA'); END",
+];
+
+// Definitions that changed since they were first shipped, so an existing
+// store gets the current body rather than keeping the old one.
+const REPLACED_TRIGGERS: &[&str] = &[
+    "CREATE TRIGGER runDispatchAcceptance BEFORE UPDATE OF status ON orchestrationDispatchContexts
+        WHEN NEW.status = 'dispatched' AND OLD.status <> 'dispatched'
+          AND EXISTS(SELECT 1 FROM runLaunches WHERE dispatch_id = OLD.id)
+          AND NOT EXISTS(SELECT 1 FROM runLaunches l JOIN orchestrationCoordinatorRuns r ON r.id = l.run_id
+            AND r.plan_revision = l.revision WHERE l.dispatch_id = OLD.id AND r.status IN ('running','paused')
+              AND ((OLD.status = 'awaiting_acceptance' AND l.status IN ('starting','started'))
+                OR (OLD.status = 'stalled' AND OLD.accepted_at IS NOT NULL
+                  AND l.status IN ('starting','started','attention'))))
+        BEGIN SELECT RAISE(ABORT, 'workflow dispatch acceptance requires its current approved launch'); END",
+    // Isolated runs dispatch only through the attempt launch reserved for
+    // the dispatch, which ordinary dispatch cannot manufacture.
+    "CREATE TRIGGER runDispatchRequiresLaunch BEFORE INSERT ON orchestrationDispatchContexts
+        WHEN EXISTS(SELECT 1 FROM orchestrationCoordinatorRuns WHERE id = NEW.run_id AND isolation = 'isolated')
+          AND NOT EXISTS(SELECT 1 FROM runLaunches l
+            JOIN runWorkspaces x ON x.id = l.workspace_id
+            JOIN orchestrationCoordinatorRuns r ON r.id = l.run_id AND r.plan_revision = l.revision
+            WHERE l.dispatch_id = NEW.id AND l.task_id = NEW.task_id AND l.run_id = NEW.run_id
+              AND l.workspace_id = NEW.workspace_id AND l.terminal_handle = NEW.assignee_handle
+              AND l.context_hash = NEW.context_token_hash AND l.status = 'reserved'
+              AND r.status = 'running' AND x.phase = 'ready' AND x.dispatch_id = NEW.id
+              AND NEW.status = 'awaiting_acceptance' AND NEW.coordinator_handle = ''
+              AND NEW.terminal_policy = 'keep-open')
+        BEGIN SELECT RAISE(ABORT, 'isolated runs dispatch only through a reserved attempt launch'); END",
 ];

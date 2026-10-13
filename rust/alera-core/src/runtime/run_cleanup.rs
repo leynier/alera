@@ -50,9 +50,6 @@ pub(super) async fn install_cleanup_schema(conn: &mut sqlx::SqliteConnection) ->
     )
     .execute(&mut *conn)
     .await?;
-    sqlx::query("DROP TRIGGER IF EXISTS runLaunchTabRetained")
-        .execute(&mut *conn)
-        .await?;
     sqlx::query("CREATE TRIGGER IF NOT EXISTS runCleanupTabInsert BEFORE INSERT ON workspaceTabs
         WHEN EXISTS(SELECT 1 FROM runCleanupResources WHERE workspace_id=NEW.workspaceId AND retired=0)
         BEGIN SELECT RAISE(ABORT, 'workspace is reserved for reviewed cleanup'); END")
@@ -62,11 +59,11 @@ pub(super) async fn install_cleanup_schema(conn: &mut sqlx::SqliteConnection) ->
           AND EXISTS(SELECT 1 FROM runCleanupResources WHERE workspace_id=NEW.workspaceId AND retired=0)
         BEGIN SELECT RAISE(ABORT, 'workspace is reserved for reviewed cleanup'); END")
         .execute(&mut *conn).await?;
-    sqlx::query("CREATE TRIGGER runLaunchTabRetained BEFORE DELETE ON workspaceTabs
+    super::schema_object_replacement::replace_schema_object(conn, "CREATE TRIGGER runLaunchTabRetained BEFORE DELETE ON workspaceTabs
         WHEN EXISTS(SELECT 1 FROM runLaunches l WHERE l.terminal_handle=OLD.id)
           AND NOT EXISTS(SELECT 1 FROM runCleanupResources r WHERE r.workspace_id=OLD.workspaceId AND r.retired=1)
         BEGIN SELECT RAISE(ABORT, 'workflow terminals require reviewed cleanup'); END")
-        .execute(&mut *conn).await?;
+        .await?;
     sqlx::query(
         "CREATE TRIGGER IF NOT EXISTS runRetiredWorkspaceInsert BEFORE INSERT ON workspaces
         WHEN EXISTS(SELECT 1 FROM runCleanupResources WHERE workspace_id=NEW.id AND retired=1)

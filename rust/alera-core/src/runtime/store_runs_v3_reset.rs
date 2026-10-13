@@ -85,7 +85,11 @@ impl RuntimeStore {
                 self.back_up_before_runs_v3(directory).await?;
             }
         }
-        let mut tx = self.pool().begin().await?;
+        // Every store open runs this, including CLI commands beside a live
+        // runtime. A deferred transaction that reads before it writes fails
+        // with SQLITE_BUSY_SNAPSHOT when the runtime commits in between, and
+        // the busy timeout does not retry that, so take the write lock first.
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         let reset = if legacy {
             Some(drop_pre_v3_orchestration(&mut tx).await?)
         } else {
@@ -99,15 +103,18 @@ impl RuntimeStore {
             }
             None => None,
         };
-        sqlx::query(
-            "INSERT INTO runtimeMetadata (key, value, updatedAt) VALUES (?, ?, ?) \
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt",
-        )
-        .bind(ORCHESTRATION_SCHEMA_VERSION_KEY)
-        .bind(ORCHESTRATION_SCHEMA_VERSION)
-        .bind(super::store::format_timestamp(chrono::Utc::now()))
-        .execute(&mut *tx)
-        .await?;
+        // A store already on v3 commits nothing here, for the reason above.
+        if version.as_deref() != Some(ORCHESTRATION_SCHEMA_VERSION) {
+            sqlx::query(
+                "INSERT INTO runtimeMetadata (key, value, updatedAt) VALUES (?, ?, ?) \
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt",
+            )
+            .bind(ORCHESTRATION_SCHEMA_VERSION_KEY)
+            .bind(ORCHESTRATION_SCHEMA_VERSION)
+            .bind(super::store::format_timestamp(chrono::Utc::now()))
+            .execute(&mut *tx)
+            .await?;
+        }
         tx.commit().await?;
         if let Some(reset) = reset {
             tracing::warn!(
