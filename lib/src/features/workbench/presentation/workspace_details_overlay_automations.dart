@@ -22,12 +22,15 @@ List<AutomationRecord> _workspaceAutomations(
   ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 }
 
+/// The run the row reports: one still in progress wins, since it is the
+/// newest run of its automation, else the most recently finished one.
 AutomationLastRun? _latestRun(List<AutomationRecord> automations) {
   AutomationLastRun? latest;
   for (final automation in automations) {
     final run = automation.lastRun;
-    final finished = run?.finishedAt;
-    if (run == null || finished == null) continue;
+    if (run == null) continue;
+    final finished = run.finishedAt;
+    if (finished == null) return run;
     final current = latest?.finishedAt;
     if (current == null || finished.isAfter(current)) latest = run;
   }

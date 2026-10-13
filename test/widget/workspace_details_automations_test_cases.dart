@@ -83,6 +83,50 @@ void _registerWorkspaceDetailsAutomationTests() {
     );
   });
 
+  testWidgets('a run in progress outranks an older finished run', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pumpAutomations(tester, [
+      _automation(
+        'nightly',
+        'Nightly Review',
+        lastRun: <String, Object?>{
+          'id': 'run-1',
+          'status': 'success',
+          'finishedAt': DateTime.now().toUtc().toIso8601String(),
+        },
+      ),
+      _automation(
+        'weekly',
+        'Weekly Cleanup',
+        lastRun: <String, Object?>{'id': 'run-2', 'status': 'dispatched'},
+      ),
+    ]);
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.textContaining('Succeeded'), findsNothing);
+    expect(find.text('No runs yet'), findsNothing);
+  });
+
+  testWidgets('essential density reaches automations from the options menu', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpOverlay(
+      tester,
+      const Size(1000, 300),
+      automations: [_automation('nightly', 'Nightly Review')],
+    );
+    expect(find.text('No runs yet'), findsNothing);
+    await tester.tap(find.byTooltip('Workspace Options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nightly Review').last);
+    await tester.pumpAndSettle();
+    expect(find.text('New Automation Here'), findsOneWidget);
+  });
+
   testWidgets('a workspace without automations has no automations row', (
     tester,
   ) async {
