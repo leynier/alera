@@ -157,6 +157,7 @@ pub(crate) async fn close<T: HttpTransport>(
     provider.pending.clear();
     provider.active_turn = None;
     provider.mcp_tool_ids.clear();
+    provider.native_parts.clear();
     provider.queued_events.clear();
     if let Some(session) = provider.session.as_mut() {
         session.status = alera_provider_protocol::SessionStatus::Stopped;

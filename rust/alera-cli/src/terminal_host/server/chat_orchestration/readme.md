@@ -20,7 +20,7 @@ The scope and actor always come from the connection; payload fields such as `act
 ### Chat credential
 
 - The host mints one credential per chat generation in a `ProviderLaunchHook` before every provider spawn: an opaque random secret (64 hex characters), written to `<runtimeDir>/agent-chat-mcp/<credentialId>.token` (directory `0700`, file `0600`, owner only). Only the SHA-256 (hex) is persisted. The previous credential of that chat is revoked and its file removed on every new spawn, provider switch, close and archive.
-- The injected MCP server is `alera mcp serve --runtime-dir <dir> --chat-credential-file <path>` with server name `alera`. No secret is ever on argv or in snapshots.
+- The injected MCP server is `alera mcp --runtime-dir <dir> serve --chat-credential-file <path>` with server name `alera`. No secret is ever on argv or in snapshots.
 - The CLI reads the file (trimmed) and sends it in `hello` as `chatCredential: "<token>"`, next to the usual `token` and `protocolVersion`. A missing or unreadable file is a CLI error; the CLI never falls back to an unbound connection.
 - The host verifies the hash against an unrevoked credential. A mismatch, a revoked credential, or a chat that is archived fails `hello` with `errorCode: "chat_credential_invalid"`. Success adds `chatBinding: {chatId}` to the hello response and binds the connection for its lifetime.
 - Bound connections may only call `chatOrchestration.*`, `project.list`, `workspace.list` and `status.get`; anything else is refused with `errorCode: "chat_scope_denied"`.

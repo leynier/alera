@@ -14,6 +14,8 @@ use super::provider_factory::{
 
 #[path = "production_launch_config.rs"]
 mod launch_config;
+#[path = "production_opencode_generation.rs"]
+mod opencode_generation;
 #[path = "production_owned_provider.rs"]
 mod owned_provider;
 #[cfg(test)]
@@ -30,7 +32,11 @@ pub(crate) struct ProductionProviderFactory;
 impl ProviderFactory for ProductionProviderFactory {
     async fn spawn(&self, launch: &ProviderLaunch) -> Result<BoxedProvider, ProviderError> {
         let env = hydrated_environment(launch.instance.as_ref(), &launch.env).await?;
-        match build_config(launch, &env)? {
+        let mut config = build_config(launch, &env)?;
+        if let ProductionConfig::OpenCode(config) = &mut config {
+            opencode_generation::resolve(launch, config).await?;
+        }
+        match config {
             ProductionConfig::Codex(config) => Ok(Box::new(
                 alera_provider_codex::CodexProvider::spawn(*config).await?,
             )),

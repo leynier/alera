@@ -48,6 +48,7 @@ pub struct PiProvider<T> {
     pub(crate) settle_message: Option<Value>,
     pub(crate) baseline_model: Option<String>,
     pub(crate) prompt_failure: Option<Value>,
+    pub(crate) assistant_failure: Option<String>,
     pub(crate) session_exit_emitted: bool,
     pub(crate) mcp_extension: Option<McpExtensionLease>,
 }
@@ -252,6 +253,7 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
         }
         self.interrupt_requested = false;
         self.prompt_failure = None;
+        self.assistant_failure = None;
         Ok(TurnStartResult {
             thread_id: session.thread_id,
             turn_id,
@@ -473,6 +475,7 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
         self.queued_events.clear();
         self.settle_message = None;
         self.prompt_failure = None;
+        self.assistant_failure = None;
         self.session_exit_emitted = true;
         self.mcp_extension.take();
         if let Some(session) = self.session.as_mut() {

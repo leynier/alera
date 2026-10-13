@@ -44,6 +44,21 @@ async fn main() {
                 stdout.write_all(b"\n").await.unwrap();
                 stdout.flush().await.unwrap();
             }
+            Some("burst") | Some("burst-before-read") => {
+                let payload = (0..100)
+                    .flat_map(|n| format!("{{\"n\":{n}}}\n").into_bytes())
+                    .collect::<Vec<_>>();
+                stdout.write_all(&payload).await.unwrap();
+                stdout.flush().await.unwrap();
+                if request["op"] == "burst-before-read" {
+                    let Some(line) = lines.next_line().await.unwrap() else {
+                        return;
+                    };
+                    let request = serde_json::from_str::<Value>(&line).unwrap();
+                    let received_bytes = request["value"].as_str().unwrap().len();
+                    write_json(&mut stdout, json!({"received_bytes": received_bytes}), true).await;
+                }
+            }
             Some("no-final-newline") => {
                 let payload = serde_json::to_vec(&json!({"done": true})).unwrap();
                 stdout.write_all(&payload).await.unwrap();

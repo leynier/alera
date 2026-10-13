@@ -66,7 +66,14 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
   );
   String? _reopeningChatId;
 
+  bool get _opening => _creating || _reopeningChatId != null;
+
+  void _dismiss() {
+    if (!_opening) Navigator.of(context).pop();
+  }
+
   Future<void> _reopen(AgentChatSummary chat) async {
+    if (_opening) return;
     setState(() {
       _reopeningChatId = chat.chatId;
       _error = null;
@@ -100,6 +107,7 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
   }
 
   Future<void> _create(AgentChatProviderInstance instance) async {
+    if (_opening) return;
     setState(() {
       _creating = true;
       _error = null;
@@ -123,10 +131,11 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
               interactionMode: _plan ? AgentChatInteractionMode.plan : null,
             ),
           );
+      if (!mounted) return;
       ref
           .read(agentChatLaunchPreferenceProvider.notifier)
           .remember(instance.id);
-      if (mounted) Navigator.of(context).pop(result);
+      Navigator.of(context).pop(result);
     } on Object catch (error) {
       if (mounted) {
         setState(() {
@@ -143,49 +152,49 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
     final catalog = ref.watch(
       agentChatProviderCatalogProvider(widget.workspace.id),
     );
-    return AleraDialog(
-      maxWidth: AleraTokens.dialogCompactWidth,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            AleraDialogHeader(
-              title: 'New Agent Chat',
-              onClose: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: AleraTokens.space8),
-            Text(
-              'The chat runs on the Alera runtime of ${widget.workspace.name} '
-              'and keeps going when this window closes.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
+    return PopScope(
+      canPop: !_opening,
+      child: AleraDialog(
+        maxWidth: AleraTokens.dialogCompactWidth,
+        child: Padding(
+          padding: const EdgeInsets.all(AleraTokens.space20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              AleraDialogHeader(title: 'New Agent Chat', onClose: _dismiss),
+              const SizedBox(height: AleraTokens.space8),
+              Text(
+                'The chat runs on the Alera runtime of ${widget.workspace.name} '
+                'and keeps going when this window closes.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
               ),
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            ...switch (catalog) {
-              AsyncData(:final value) => _form(context, value),
-              AsyncError(:final error) => <Widget>[
-                AleraInlineNotice(
-                  tone: AleraInlineNoticeTone.error,
-                  message: agentChatErrorMessage(error),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => ref.invalidate(
-                        agentChatProviderCatalogProvider(widget.workspace.id),
+              const SizedBox(height: AleraTokens.space16),
+              ...switch (catalog) {
+                AsyncData(:final value) => _form(context, value),
+                AsyncError(:final error) => <Widget>[
+                  AleraInlineNotice(
+                    tone: AleraInlineNoticeTone.error,
+                    message: agentChatErrorMessage(error),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => ref.invalidate(
+                          agentChatProviderCatalogProvider(widget.workspace.id),
+                        ),
+                        child: const Text('Try Again'),
                       ),
-                      child: const Text('Try Again'),
                     ),
                   ),
-                ),
-              ],
-              _ => const <Widget>[
-                AleraEmptyState(message: 'Loading agents', loading: true),
-              ],
-            },
-          ],
+                ],
+                _ => const <Widget>[
+                  AleraEmptyState(message: 'Loading agents', loading: true),
+                ],
+              },
+            ],
+          ),
         ),
       ),
     );
@@ -215,7 +224,7 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
         key: const ValueKey<String>('new-agent-chat-provider'),
         labelText: 'Agent',
         value: selected.id,
-        enabled: !_creating,
+        enabled: !_opening,
         entries: <AleraDropdownFieldEntry<String>>[
           for (final instance in providers)
             AleraDropdownFieldEntry<String>(
@@ -242,7 +251,7 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
           key: const ValueKey<String>('new-agent-chat-model'),
           labelText: 'Model',
           value: _model ?? selected.initialModel?.id,
-          enabled: !_creating,
+          enabled: !_opening,
           filterable: models.length > 8,
           entries: <AleraDropdownFieldEntry<String>>[
             for (final model in models)
@@ -265,7 +274,7 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
               (modes.contains(AgentChatRuntimeMode.approvalRequired)
                   ? AgentChatRuntimeMode.approvalRequired
                   : modes.first),
-          enabled: !_creating,
+          enabled: !_opening,
           entries: <AleraDropdownFieldEntry<AgentChatRuntimeMode>>[
             for (final mode in modes)
               AleraDropdownFieldEntry<AgentChatRuntimeMode>(
@@ -281,7 +290,7 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
         AleraCheckbox(
           value: _plan,
           label: 'Start In Plan Mode',
-          enabled: !_creating,
+          enabled: !_opening,
           onChanged: (value) => setState(() => _plan = value),
         ),
       ],
@@ -294,7 +303,7 @@ class _NewAgentChatDialogState extends ConsumerState<NewAgentChatDialog> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
           TextButton(
-            onPressed: _creating ? null : () => Navigator.of(context).pop(),
+            onPressed: _opening ? null : _dismiss,
             child: const Text('Cancel'),
           ),
           const SizedBox(width: AleraTokens.space8),

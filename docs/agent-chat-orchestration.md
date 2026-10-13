@@ -36,7 +36,7 @@ The hub owns cross-host task routing. Each satellite owns its provider processes
 
 ## Provider tool injection
 
-The shared provider contract carries typed stdio or HTTP MCP specifications and explicit injection capabilities. The host injects `alera mcp serve --runtime-dir <dir> --chat-credential-file <private-path>` with a stable server name. Adapters validate and translate that specification to their native session configuration. Unsupported configuration returns an explicit error and is reported in the catalog; it is never silently discarded.
+The shared provider contract carries typed stdio or HTTP MCP specifications and explicit injection capabilities. The host injects `alera mcp --runtime-dir <dir> serve --chat-credential-file <private-path>` with a stable server name. Adapters validate and translate that specification to their native session configuration. Unsupported configuration returns an explicit error and is reported in the catalog; it is never silently discarded.
 
 Codex and Claude use native MCP configuration; Cursor uses its public bridge MCP fields; ACP variants pass servers on session new/load/resume; Muse negotiates `sessionMcp`; OpenCode installs and removes per-chat servers through its HTTP API and refuses unsafe shared-server mutation; Pi uses a documented extension bridge because its RPC runtime has no native MCP boundary. Each adapter has wire fixture tests for injection. Runtime/host binaries remain external dependencies when their source or redistribution license differs from the client port.
 

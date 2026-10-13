@@ -42,6 +42,8 @@ mod cancellation_tests;
 #[cfg(test)]
 mod control_admission_tests;
 #[cfg(test)]
+mod credential_launch_tests;
+#[cfg(test)]
 mod delegate_wait_tests;
 #[cfg(test)]
 mod delegation_tests;

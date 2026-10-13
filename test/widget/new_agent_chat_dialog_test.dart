@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/new_agent_chat_dialog.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,8 +50,9 @@ final List<AgentChatProviderInstance> _catalog = agentChatProvidersFromJson(
 
 Future<void> _pumpDialog(
   WidgetTester tester,
-  FakeAgentChatRepository repository,
-) async {
+  FakeAgentChatRepository repository, {
+  ValueChanged<AgentChatOpenResult?>? onClosed,
+}) async {
   var nextId = 0;
   await tester.pumpWidget(
     ProviderScope(
@@ -60,10 +64,13 @@ Future<void> _pumpDialog(
         theme: buildAleraDarkTheme(),
         home: Builder(
           builder: (context) => TextButton(
-            onPressed: () => showDialog<AgentChatOpenResult>(
-              context: context,
-              builder: (_) => NewAgentChatDialog(workspace: _workspace),
-            ),
+            onPressed: () async {
+              final result = await showDialog<AgentChatOpenResult>(
+                context: context,
+                builder: (_) => NewAgentChatDialog(workspace: _workspace),
+              );
+              onClosed?.call(result);
+            },
             child: const Text('Open'),
           ),
         ),
@@ -81,6 +88,77 @@ AgentChatOpenResult _opened(String chatId, String tabId) => AgentChatOpenResult(
 );
 
 void main() {
+  testWidgets('an in-flight create cannot lose its result by dismissing', (
+    tester,
+  ) async {
+    final repository = FakeAgentChatRepository()
+      ..providerCatalog = _catalog
+      ..createResult = _opened('chat-9', 'tab-9')
+      ..createGate = Completer<void>();
+    AgentChatOpenResult? closedWith;
+    await _pumpDialog(
+      tester,
+      repository,
+      onClosed: (result) => closedWith = result,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('new-agent-chat-create')),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NewAgentChatDialog), findsOneWidget);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.byType(NewAgentChatDialog), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(NewAgentChatDialog), findsOneWidget);
+    repository.createGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(NewAgentChatDialog), findsNothing);
+    expect(closedWith?.tabId, 'tab-9');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an in-flight reopen cannot lose its result by dismissing', (
+    tester,
+  ) async {
+    final repository = FakeAgentChatRepository()
+      ..providerCatalog = _catalog
+      ..summaries = <AgentChatSummary>[
+        AgentChatSummary.fromJson(<String, Object?>{
+          'chatId': 'old-chat',
+          'workspaceId': 'ws-1',
+          'title': 'Earlier refactor',
+          'archived': true,
+          'updatedAt': '2026-10-01T10:00:00Z',
+        }),
+      ]
+      ..reopenResult = _opened('old-chat', 'tab-3')
+      ..reopenGate = Completer<void>();
+    AgentChatOpenResult? closedWith;
+    await _pumpDialog(
+      tester,
+      repository,
+      onClosed: (result) => closedWith = result,
+    );
+    await tester.tap(find.text('Archived Chats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reopen'));
+    await tester.pump();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NewAgentChatDialog), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NewAgentChatDialog), findsOneWidget);
+    repository.reopenGate!.complete();
+    await tester.pumpAndSettle();
+    expect(closedWith?.tabId, 'tab-3');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('starts a chat with the first available provider', (
     tester,
   ) async {

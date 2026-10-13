@@ -40,7 +40,7 @@ impl RuntimeStore {
     /// transaction, keeping the transcript. The host stops the provider
     /// process; a live status left behind is cleared by startup recovery.
     pub async fn archive_agent_chat(&self, chat_id: &str) -> Result<AgentChatRecord> {
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         let row = require_session_row_in(&mut tx, chat_id).await?;
         if !row.archived {
             let removed = sqlx::query("DELETE FROM workspaceTabs WHERE id = ? AND kind = ?")
@@ -110,7 +110,7 @@ impl RuntimeStore {
         tab: &WorkspaceTabRecord,
         receipt: Option<&AgentChatReceipt>,
     ) -> Result<AgentChatRestoreOutcome> {
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         if let Some(receipt) = receipt {
             require_receipt(receipt)?;
             match check_receipt_in(

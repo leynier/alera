@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface.dart';
+import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -159,6 +161,64 @@ void main() {
     expect(field.enabled, isFalse);
   });
 
+  testWidgets(
+    'editing a failed send preserves the next draft and attachments',
+    (tester) async {
+      final repository = FakeAgentChatRepository()
+        ..snapshots.add(() => agentChatSnapshotFixture())
+        ..sendError = const AgentChatConnectionException('Connection lost.');
+      await _pumpSurface(tester, repository);
+      final composer = tester
+          .widget<AgentChatComposer>(find.byType(AgentChatComposer))
+          .controller;
+      composer.addAttachment(
+        kind: TerminalComposerAttachmentKind.file,
+        path: '/projects/alera/shared.txt',
+        displayName: 'shared.txt',
+      );
+      await tester.enterText(find.byType(TextField).last, 'Retry this message');
+      await tester.tap(find.byKey(const ValueKey<String>('agent-chat-send')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Edit'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).last, 'My next draft');
+      composer.addAttachment(
+        kind: TerminalComposerAttachmentKind.file,
+        path: '/projects/alera/shared.txt',
+        displayName: 'shared.txt',
+      );
+      composer.addAttachment(
+        kind: TerminalComposerAttachmentKind.file,
+        path: '/projects/alera/next.txt',
+        displayName: 'next.txt',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      expect(
+        composer.textController.text,
+        'My next draft\n\nRetry this message',
+      );
+      expect(
+        composer.textController.selection,
+        TextSelection.collapsed(offset: composer.textController.text.length),
+      );
+      expect(
+        composer.attachments.map((attachment) => attachment.path),
+        <String>['/projects/alera/shared.txt', '/projects/alera/next.txt'],
+      );
+      expect(find.text('Edit'), findsNothing);
+      repository.sendError = null;
+      await tester.tap(find.byKey(const ValueKey<String>('agent-chat-send')));
+      await tester.pump();
+      final input =
+          repository.calls.lastWhere((call) => call.$1 == 'send').$2!
+              as AgentChatSendInput;
+      expect(input.text, 'My next draft\n\nRetry this message');
+      expect(input.attachments, hasLength(2));
+    },
+  );
+
   testWidgets('an approval is answered from the timeline', (tester) async {
     final repository = FakeAgentChatRepository()
       ..snapshots.add(
@@ -192,6 +252,39 @@ void main() {
     expect(
       (response as AgentChatApprovalResponse).decision,
       AgentChatApprovalDecision.accept,
+    );
+  });
+
+  testWidgets('editing an attachment-only failure leaves draft text intact', (
+    tester,
+  ) async {
+    final repository = FakeAgentChatRepository()
+      ..snapshots.add(() => agentChatSnapshotFixture())
+      ..sendError = const AgentChatConnectionException('Connection lost.');
+    await _pumpSurface(tester, repository);
+    final composer = tester
+        .widget<AgentChatComposer>(find.byType(AgentChatComposer))
+        .controller;
+    composer.addAttachment(
+      kind: TerminalComposerAttachmentKind.file,
+      path: '/projects/alera/context.txt',
+      displayName: 'context.txt',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey<String>('agent-chat-send')));
+    await tester.pump();
+    await tester.pump();
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Explain the attachment',
+    );
+    await tester.tap(find.text('Edit'));
+    await tester.pump();
+    expect(composer.textController.text, 'Explain the attachment');
+    expect(composer.attachments.single.path, '/projects/alera/context.txt');
+    expect(
+      composer.textController.selection,
+      const TextSelection.collapsed(offset: 22),
     );
   });
 

@@ -24,6 +24,7 @@ impl<T> PiProvider<T> {
             settle_message: None,
             baseline_model: None,
             prompt_failure: None,
+            assistant_failure: None,
             session_exit_emitted: false,
             mcp_extension: None,
         }

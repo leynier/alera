@@ -242,6 +242,7 @@ impl<T: JsonTransport> PiProvider<T> {
             session.active_turn_id = None;
         }
         self.interrupt_requested = false;
+        self.assistant_failure = None;
     }
 
     pub(crate) async fn expire_ui_requests(

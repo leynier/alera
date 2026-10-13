@@ -38,6 +38,21 @@ async fn fragmented_and_multiple_frames_are_decoded() {
 }
 
 #[tokio::test]
+async fn one_hundred_buffered_frames_are_delivered_in_order() {
+    let mut transport = JsonLineProcess::spawn(config()).await.unwrap();
+    transport.send(json!({"op": "burst"})).await.unwrap();
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        for n in 0..100 {
+            assert_eq!(transport.recv().await.unwrap(), Some(json!({"n": n})));
+        }
+    })
+    .await
+    .unwrap();
+    transport.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn final_frame_without_newline_is_delivered_before_eof() {
     let mut transport = JsonLineProcess::spawn(config()).await.unwrap();
     transport
@@ -150,6 +165,37 @@ async fn stdout_drain_allows_large_send_before_child_reads_it() {
         transport.recv().await.unwrap(),
         Some(json!({"received_bytes": 128 * 1024}))
     );
+    transport.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn output_backpressure_preserves_bounded_full_duplex_writes() {
+    let mut transport = JsonLineProcess::spawn(config()).await.unwrap();
+    transport
+        .send(json!({"op": "burst-before-read"}))
+        .await
+        .unwrap();
+
+    let value = "r".repeat(128 * 1024);
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        transport.send(json!({"op": "large-request", "value": value})),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        for n in 0..100 {
+            assert_eq!(transport.recv().await.unwrap(), Some(json!({"n": n})));
+        }
+        assert_eq!(
+            transport.recv().await.unwrap(),
+            Some(json!({"received_bytes": 128 * 1024}))
+        );
+    })
+    .await
+    .unwrap();
     transport.close().await.unwrap();
 }
 

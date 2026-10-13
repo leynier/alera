@@ -24,6 +24,21 @@ pub(crate) fn map_message<T: JsonTransport>(
         "message_start" => Ok(Some(message_start(provider, message)?)),
         "message_update" => map_message_update(provider, message),
         "message_end" => Ok(Some(message_end(provider, message)?)),
+        "auto_retry_end" | "compaction_end" | "auto_compaction_end" => {
+            // Pi may report an assistant error before an automatic retry recovers.
+            let recovered = match event_type.as_str() {
+                "auto_retry_end" => message.get("success").and_then(Value::as_bool) == Some(true),
+                _ => {
+                    message.get("willRetry").and_then(Value::as_bool) == Some(true)
+                        && message.get("result").is_some_and(Value::is_object)
+                        && message.get("aborted").and_then(Value::as_bool) != Some(true)
+                }
+            };
+            if recovered {
+                provider.assistant_failure = None;
+            }
+            Ok(Some(unknown(provider, message, &event_type)))
+        }
         "tool_execution_start" => Ok(Some(tool_event(provider, message, EventKind::ItemStarted)?)),
         "tool_execution_update" => Ok(Some(tool_event(provider, message, EventKind::ItemUpdated)?)),
         "tool_execution_end" => Ok(Some(tool_event(
@@ -55,15 +70,18 @@ pub(crate) fn agent_settled<T: JsonTransport>(
         .and_then(Value::as_bool)
         .unwrap_or(false)
         || provider.interrupt_requested;
+    let error_message = message
+        .get("errorMessage")
+        .and_then(Value::as_str)
+        .filter(|error| !error.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| provider.assistant_failure.clone());
     let failed = message
         .get("stopReason")
         .and_then(Value::as_str)
         .map(|reason| reason == "error")
         .unwrap_or(false)
-        || message
-            .get("errorMessage")
-            .and_then(Value::as_str)
-            .is_some_and(|error| !error.trim().is_empty());
+        || error_message.is_some();
     let state = if interrupted {
         "interrupted"
     } else if failed {
@@ -72,12 +90,15 @@ pub(crate) fn agent_settled<T: JsonTransport>(
         "completed"
     };
     let mut payload = json!({ "state": state });
-    for key in ["errorMessage", "stopReason"] {
-        if let Some(value) = message.get(key).and_then(Value::as_str) {
-            if !value.trim().is_empty() {
-                payload[key] = Value::String(value.to_owned());
-            }
+    if let Some(error_message) = error_message {
+        payload["errorMessage"] = Value::String(error_message);
+    }
+    if let Some(reason) = message.get("stopReason").and_then(Value::as_str) {
+        if !reason.trim().is_empty() {
+            payload["stopReason"] = json!(reason);
         }
+    } else if provider.assistant_failure.is_some() {
+        payload["stopReason"] = json!("error");
     }
     if let Some(usage) = message.get("usage") {
         payload["tokenUsage"] = normalize_usage(usage, !interrupted && !failed);
@@ -172,7 +193,7 @@ fn map_message_update<T: JsonTransport>(
 }
 
 fn message_end<T: JsonTransport>(
-    provider: &PiProvider<T>,
+    provider: &mut PiProvider<T>,
     message: Value,
 ) -> Result<ProviderEvent, ProviderError> {
     let native_id = message_item_id(&message).unwrap_or_else(|| "message:unknown".into());
@@ -181,8 +202,22 @@ fn message_end<T: JsonTransport>(
         .and_then(|value| value.get("stopReason"))
         .and_then(Value::as_str)
         == Some("error");
+    let item_type = message_item_type(&message);
+    if failed
+        && item_type == CanonicalItemType::AssistantMessage
+        && provider.active_turn_id().is_some()
+        && provider.assistant_failure.is_none()
+    {
+        provider.assistant_failure = Some(
+            message["message"]["errorMessage"]
+                .as_str()
+                .filter(|error| !error.trim().is_empty())
+                .unwrap_or("Pi reported a model error")
+                .to_owned(),
+        );
+    }
     let payload = item_payload(
-        message_item_type(&message),
+        item_type,
         if failed {
             ItemStatus::Failed
         } else {
@@ -256,13 +291,13 @@ fn map_extension_request<T: JsonTransport>(
             .get("message")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        let payload = json!({
-            "itemType": "dynamic_tool",
-            "status": "completed",
-            "title": "notify",
-            "detail": text,
-            "data": message,
-        });
+        let mut payload = item_payload(
+            CanonicalItemType::DynamicToolCall,
+            ItemStatus::Completed,
+            Some(message.clone()),
+        );
+        payload["title"] = json!("notify");
+        payload["detail"] = json!(text);
         return Ok(Some(event(
             provider,
             EventKind::ItemCompleted,

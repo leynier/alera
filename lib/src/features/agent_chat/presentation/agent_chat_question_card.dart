@@ -76,7 +76,8 @@ class AgentChatQuestionDraft {
 /// free-text answer when the agent allows one, and Skip. Picking an option of
 /// a single-choice question moves on at once, and the last answer sends the
 /// whole request. While the card has focus, 1-9 pick an option and Escape
-/// skips the request.
+/// skips the request; Escape in a free-text answer opened with Write Another
+/// Answer closes that answer instead.
 class const AgentChatQuestionCard({
   super.key,
   required final AgentChatRequest request,
@@ -181,7 +182,12 @@ class _AgentChatQuestionCardState extends State<AgentChatQuestionCard> {
     }
     if (event is! KeyDownEvent || !_canAnswer) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.escape) {
-      _skip();
+      final question = _question;
+      if (_answerFocus.hasFocus && question.options.isNotEmpty) {
+        _closeCustomAnswer(question);
+      } else {
+        _skip();
+      }
       return KeyEventResult.handled;
     }
     // Digits typed into the answer, and shortcuts such as Mod+1, are not
@@ -233,6 +239,12 @@ class _AgentChatQuestionCardState extends State<AgentChatQuestionCard> {
       if (!question.multiSelect) widget.draft.selectionsOf(question).clear();
     });
     _focusEntryAfterFrame();
+  }
+
+  // The draft keeps the typed text, so reopening the answer brings it back.
+  void _closeCustomAnswer(AgentChatQuestion question) {
+    _cardFocus.requestFocus();
+    setState(() => widget.draft.closeCustomAnswer(question));
   }
 
   void _goToPage(int page) {

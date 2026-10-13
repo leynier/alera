@@ -64,6 +64,7 @@ pub struct OpenCodeProvider<T: HttpTransport> {
     pub(crate) next_turn: u64,
     pub(crate) scoped_mcp_servers: Vec<String>,
     pub(crate) mcp_tool_ids: HashSet<String>,
+    pub(crate) native_parts: crate::native_parts::NativeParts,
 }
 
 impl<T: HttpTransport> OpenCodeProvider<T> {
@@ -81,6 +82,7 @@ impl<T: HttpTransport> OpenCodeProvider<T> {
             next_turn: 0,
             scoped_mcp_servers: Vec::new(),
             mcp_tool_ids: HashSet::new(),
+            native_parts: Default::default(),
         }
     }
 
@@ -312,8 +314,19 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
         }
         let parts = crate::config::prompt_parts(&input)?;
         let turn_id = self.next_turn_id();
-        let requested_message_id = format!("message:opencode:{}", turn_id);
         let model = input.model.clone().or_else(|| session.model.clone());
+        let mut started = ProviderEvent::new(
+            Self::provider_kind(),
+            self.config.provider_instance_id.clone(),
+            session.thread_id.clone(),
+            EventKind::TurnStarted,
+            model
+                .as_ref()
+                .map(|model| json!({ "model": model }))
+                .unwrap_or_else(|| json!({})),
+            None,
+        );
+        let requested_message_id = crate::native_message_id::native_message_id(&started);
         self.active_turn = Some(ActiveTurn {
             id: turn_id.clone(),
             native_message_id: Some(requested_message_id.clone()),
@@ -351,20 +364,10 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
             .and_then(Value::as_str)
             .map(str::to_owned)
             .or(Some(requested_message_id));
+        self.native_parts.start_turn(native_message_id.clone());
         if let Some(active) = self.active_turn.as_mut() {
             active.native_message_id = native_message_id.clone();
         }
-        let mut started = ProviderEvent::new(
-            Self::provider_kind(),
-            self.config.provider_instance_id.clone(),
-            session.thread_id.clone(),
-            EventKind::TurnStarted,
-            model
-                .as_ref()
-                .map(|model| json!({ "model": model }))
-                .unwrap_or_else(|| json!({})),
-            None,
-        );
         started.turn_id = Some(turn_id.clone());
         started.provider_refs = Some(alera_provider_protocol::ProviderRefs {
             provider_turn_id: native_message_id.clone(),

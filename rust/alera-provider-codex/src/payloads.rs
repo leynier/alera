@@ -113,7 +113,12 @@ pub(crate) fn normalized_payload(method: &str, params: &Value) -> Result<Value, 
     if method == "thread/environment/disconnected" {
         return normalized_runtime_message(params, Some("Codex environment disconnected"));
     }
-    if matches!(method, "error" | "warning" | "guardianWarning") || params.get("error").is_some() {
+    if method == "mcpServer/startupStatus/updated" {
+        return Ok(params.clone());
+    }
+    if matches!(method, "error" | "warning" | "guardianWarning")
+        || params.get("error").is_some_and(|error| !error.is_null())
+    {
         return normalized_runtime_message(params, None);
     }
     Ok(params.clone())

@@ -370,7 +370,8 @@ impl RuntimeStore {
         if let Some(receipt) = receipt {
             require_receipt(receipt)?;
         }
-        let mut tx = self.pool().begin().await?;
+        // A WAL snapshot cannot upgrade to a writer after another client commits.
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         if let Some(receipt) = receipt {
             match check_receipt_in(
                 &mut tx,

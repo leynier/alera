@@ -1,4 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_command_enter_shortcuts.dart';
+import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
@@ -192,23 +194,30 @@ class const AgentChatQuestionAnswerField({
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(.enter, includeRepeats: false): onEnter,
         const SingleActivator(.numpadEnter, includeRepeats: false): onEnter,
+        // Bound here rather than through the field's onCommandEnter, which
+        // sits below the guard and would consume a modified Enter the input
+        // method needs.
+        AleraCommandEnterShortcuts.controlEnter: onEnter,
+        AleraCommandEnterShortcuts.metaEnter: onEnter,
         if (!secret)
           const SingleActivator(.enter, shift: true): _insertLineBreak,
       },
-      child: AleraTextField(
+      child: AleraImeCompositionKeyGuard(
         controller: controller,
-        focusNode: focusNode,
-        autofocus: autofocus,
-        enabled: enabled,
-        obscureText: secret,
-        enableSuggestions: !secret,
-        autocorrect: !secret,
-        minLines: 1,
-        maxLines: secret ? 1 : _maxLines,
-        hintText: 'Type your answer',
-        onChanged: onChanged,
-        onSubmitted: (_) => onEnter(),
-        onCommandEnter: onEnter,
+        child: AleraTextField(
+          controller: controller,
+          focusNode: focusNode,
+          autofocus: autofocus,
+          enabled: enabled,
+          obscureText: secret,
+          enableSuggestions: !secret,
+          autocorrect: !secret,
+          minLines: 1,
+          maxLines: secret ? 1 : _maxLines,
+          hintText: 'Type your answer',
+          onChanged: onChanged,
+          onSubmitted: (_) => onEnter(),
+        ),
       ),
     );
     if (!showMarker) return field;

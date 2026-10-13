@@ -9,17 +9,16 @@ use alera_core::child_process::windowless_async_command;
 use alera_core::login_shell_environment::apply_login_shell_environment;
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::process::{Child, ChildStderr, ChildStdin};
+use tokio::sync::mpsc::{self, Receiver};
 use tokio::task::JoinHandle;
 
-use crate::framing::{
-    frame_length, newline_position, DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT,
-    STDERR_TAIL_BYTES,
-};
+use crate::framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT, STDERR_TAIL_BYTES};
 use crate::{JsonTransport, TransportError};
 
+mod read;
 mod write;
+use read::drain_stdout;
 use write::{FrameWriteError, PendingFrame};
 
 const READ_CHUNK_BYTES: usize = 8 * 1024;
@@ -39,7 +38,8 @@ pub struct ProcessConfig {
     pub env: BTreeMap<OsString, OsString>,
     /// Maximum encoded JSON frame size, excluding its trailing newline.
     pub max_frame_bytes: usize,
-    /// Grace period before a still-running child is force-killed on close.
+    /// Deadline for writes and output backpressure, and the grace period
+    /// before a still-running child is force-killed on close.
     pub shutdown_timeout: Duration,
 }
 
@@ -97,90 +97,6 @@ async fn drain_stderr(mut stderr: ChildStderr, tail: Arc<Mutex<StderrTail>>) {
     }
 }
 
-async fn send_frame(sender: &Sender<FrameResult>, bytes: &[u8]) -> bool {
-    if sender.capacity() <= 1 {
-        let _ = sender
-            .send(Err(TransportError::OutputQueueFull {
-                capacity: STDOUT_QUEUE_CAPACITY,
-            }))
-            .await;
-        return false;
-    }
-
-    match crate::framing::parse_frame(bytes) {
-        Ok(value) => sender.send(Ok(Some(value))).await.is_ok(),
-        Err(error) => sender.send(Err(error)).await.is_ok(),
-    }
-}
-
-async fn drain_stdout(
-    mut stdout: ChildStdout,
-    sender: Sender<FrameResult>,
-    max_frame_bytes: usize,
-) {
-    let mut read_buffer = Vec::new();
-
-    loop {
-        let mut chunk = [0_u8; READ_CHUNK_BYTES];
-        let read = match stdout.read(&mut chunk).await {
-            Ok(read) => read,
-            Err(source) => {
-                let _ = sender
-                    .send(Err(TransportError::io("read stdout", source)))
-                    .await;
-                return;
-            }
-        };
-        if read == 0 {
-            let frame_len = frame_length(&read_buffer);
-            if frame_len > max_frame_bytes {
-                let _ = sender
-                    .send(Err(TransportError::FrameTooLarge {
-                        limit: max_frame_bytes,
-                        observed: frame_len,
-                    }))
-                    .await;
-                return;
-            }
-            if !read_buffer.is_empty() && !send_frame(&sender, &read_buffer).await {
-                return;
-            }
-            let _ = sender.send(Ok(None)).await;
-            return;
-        }
-
-        read_buffer.extend_from_slice(&chunk[..read]);
-        while let Some(newline) = newline_position(&read_buffer) {
-            let frame_len = frame_length(&read_buffer[..newline]);
-            if frame_len > max_frame_bytes {
-                let _ = sender
-                    .send(Err(TransportError::FrameTooLarge {
-                        limit: max_frame_bytes,
-                        observed: frame_len,
-                    }))
-                    .await;
-                return;
-            }
-
-            let mut frame = read_buffer.drain(..=newline).collect::<Vec<_>>();
-            frame.pop();
-            if !send_frame(&sender, &frame).await {
-                return;
-            }
-        }
-
-        if frame_length(&read_buffer) > max_frame_bytes {
-            let _ = sender
-                .send(Err(TransportError::FrameTooLarge {
-                    limit: max_frame_bytes,
-                    observed: frame_length(&read_buffer),
-                }))
-                .await;
-            return;
-        }
-    }
-}
-
 /// A bounded NDJSON transport backed by a child process.
 ///
 /// Cancelled sends retain their frame and original deadline. Sending that same
@@ -189,6 +105,7 @@ pub struct JsonLineProcess {
     child: Option<Child>,
     stdin: Option<ChildStdin>,
     pending_frame: Option<PendingFrame>,
+    pending_error: Option<TransportError>,
     messages: Receiver<FrameResult>,
     stdout_task: Option<JoinHandle<()>>,
     stderr_task: Option<JoinHandle<()>>,
@@ -255,12 +172,18 @@ impl JsonLineProcess {
         let stderr_tail = Arc::new(Mutex::new(StderrTail::default()));
         let stderr_task = tokio::spawn(drain_stderr(stderr, Arc::clone(&stderr_tail)));
         let (message_tx, messages) = mpsc::channel(STDOUT_QUEUE_CAPACITY + 1);
-        let stdout_task = tokio::spawn(drain_stdout(stdout, message_tx, config.max_frame_bytes));
+        let stdout_task = tokio::spawn(drain_stdout(
+            stdout,
+            message_tx,
+            config.max_frame_bytes,
+            config.shutdown_timeout,
+        ));
 
         Ok(Self {
             child: Some(child),
             stdin: Some(stdin),
             pending_frame: None,
+            pending_error: None,
             messages,
             stdout_task: Some(stdout_task),
             stderr_task: Some(stderr_task),
@@ -364,8 +287,11 @@ impl JsonLineProcess {
         if let Some(child) = self.child.as_mut() {
             let _ = child.start_kill();
         }
+        // Keep the original failure owned by the transport until it is
+        // returned, because a command can cancel receive during cleanup.
+        self.pending_error = Some(error);
         let _ = self.close_child().await;
-        Err(error)
+        Err(self.pending_error.take().expect("failure is retained"))
     }
 
     async fn finish_pending_frame(&mut self) -> Result<(), TransportError> {
@@ -434,6 +360,10 @@ impl JsonTransport for JsonLineProcess {
     }
 
     async fn recv(&mut self) -> Result<Option<serde_json::Value>, TransportError> {
+        if self.pending_error.is_some() {
+            let _ = self.close_child().await;
+            return Err(self.pending_error.take().expect("failure is retained"));
+        }
         self.ensure_open()?;
         match self.messages.recv().await {
             Some(Ok(Some(value))) => Ok(Some(value)),
@@ -484,3 +414,7 @@ impl Drop for JsonLineProcess {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "process/receive_tests.rs"]
+mod receive_tests;

@@ -24,6 +24,8 @@ final class FakeAgentChatRepository implements AgentChatRepository {
   Object? respondError;
   Object? configureError;
   Completer<void>? sendGate;
+  Completer<void>? createGate;
+  Completer<void>? reopenGate;
   AgentChatOpenResult? createResult;
   AgentChatOpenResult? reopenResult;
   List<AgentChatSummary> summaries = const <AgentChatSummary>[];
@@ -58,6 +60,7 @@ final class FakeAgentChatRepository implements AgentChatRepository {
   @override
   Future<AgentChatOpenResult> create(AgentChatCreateInput input) async {
     calls.add(('create', input));
+    await createGate?.future;
     return createResult ?? (throw StateError('No create result configured.'));
   }
 
@@ -67,6 +70,7 @@ final class FakeAgentChatRepository implements AgentChatRepository {
     required String requestId,
   }) async {
     calls.add(('reopen', (chat.chatId, requestId)));
+    await reopenGate?.future;
     return reopenResult ?? (throw StateError('No reopen result configured.'));
   }
 

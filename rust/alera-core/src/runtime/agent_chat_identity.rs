@@ -51,7 +51,7 @@ impl RuntimeStore {
         if let Some(app_id) = &input.app_id {
             require_id("appId", app_id)?;
         }
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         let row = require_session_row_in(&mut tx, &input.chat_id).await?;
         if let Some(existing) = app_id_in(
             &mut tx,

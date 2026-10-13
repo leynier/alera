@@ -46,7 +46,7 @@ The provider boundary does not allocate persisted application turn, item or requ
 
 Event payloads remain JSON to preserve provider extensions. `ProviderEvent::validate` checks envelopes and core normalized payload invariants. Unknown provider kinds, event names and native frames survive forward-compatible parsing. A callback answer must match the pending request and its supported response shape; an interrupt acknowledgement does not establish terminal completion.
 
-JSON-lines writes retain their frame, offset and deadline when the caller cancels a send. An identical retry completes the pending frame once, while a different send finishes it before writing the next frame. A hard write error closes the damaged stream. Process cleanup remains resumable when a close operation is cancelled.
+JSON-lines writes retain their frame, offset and deadline when the caller cancels a send. An identical retry completes the pending frame once, while a different send finishes it before writing the next frame. A hard write error closes the damaged stream. Process cleanup remains resumable when a close operation is cancelled. JSON-lines stdout reserves one terminal-error slot in its bounded queue and waits up to `ProcessConfig.shutdown_timeout` for receiver capacity before reporting `OutputQueueFull`, allowing a draining receiver to consume bursts without overflow.
 
 ## Runtime Integration
 

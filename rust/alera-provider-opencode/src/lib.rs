@@ -8,6 +8,8 @@
 mod config;
 mod events;
 mod mcp;
+mod native_message_id;
+mod native_parts;
 mod part_events;
 mod provider;
 mod request_events;

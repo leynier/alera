@@ -4,6 +4,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_composer.dart';
+import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
@@ -32,7 +33,8 @@ Future<List<String>> _pickFiles() async => <String>[
 
 /// The message box under a chat. Enter sends (or queues behind a running
 /// turn), Shift+Enter breaks the line, Escape stops a running turn, and the
-/// arrow keys recall earlier prompts from an empty box.
+/// arrow keys recall earlier prompts from an empty box until the recalled
+/// prompt is edited.
 class const AgentChatComposer({
   super.key,
   required final TerminalComposerController controller,
@@ -94,17 +96,36 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
-    if (key != LogicalKeyboardKey.arrowUp &&
-        key != LogicalKeyboardKey.arrowDown) {
+    final up = key == LogicalKeyboardKey.arrowUp;
+    if (!up && key != LogicalKeyboardKey.arrowDown) {
+      return KeyEventResult.ignored;
+    }
+    // Modified arrows select or jump through the text, and an input method
+    // that is composing uses the arrows to pick a candidate.
+    final keyboard = HardwareKeyboard.instance;
+    final value = _composer.textController.value;
+    if (keyboard.isShiftPressed ||
+        keyboard.isAltPressed ||
+        keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        AleraImeCompositionKeyGuard.isComposing(value)) {
       return KeyEventResult.ignored;
     }
     final history = widget.promptHistory();
-    final text = _composer.textController.text;
+    final index = _historyIndex;
+    // A recalled prompt the user has edited is theirs now.
+    if (index != null &&
+        (index >= history.length || history[index] != value.text)) {
+      _historyIndex = null;
+    }
+    final text = value.text;
     final browsing = _historyIndex != null;
-    if (history.isEmpty || (!browsing && text.isNotEmpty)) {
+    if (history.isEmpty ||
+        (!browsing && text.isNotEmpty) ||
+        !_caretOnEdgeLine(value, up: up)) {
       return KeyEventResult.ignored;
     }
-    if (key == LogicalKeyboardKey.arrowUp) {
+    if (up) {
       final next = browsing ? _historyIndex! - 1 : history.length - 1;
       if (next < 0) return KeyEventResult.handled;
       if (!browsing) _historyDraft = text;
@@ -120,6 +141,18 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       _recall(next, history[next]);
     }
     return KeyEventResult.handled;
+  }
+
+  /// Whether the caret is on the first line ([up]) or the last line of a
+  /// recalled multiline prompt, past which the arrow leaves the prompt.
+  static bool _caretOnEdgeLine(TextEditingValue value, {required bool up}) {
+    final selection = value.selection;
+    if (!selection.isValid) return true;
+    if (!selection.isCollapsed) return false;
+    final offset = selection.extentOffset.clamp(0, value.text.length);
+    return up
+        ? !value.text.substring(0, offset).contains('\n')
+        : !value.text.substring(offset).contains('\n');
   }
 
   void _recall(int index, String text) {
@@ -271,6 +304,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                   ),
                   Expanded(
                     child: AleraHorizontalScrollView(
+                      key: const ValueKey<String>(
+                        'agent-chat-composer-controls-scroll',
+                      ),
                       child: settings == null
                           ? const SizedBox.shrink()
                           : AgentChatComposerControls(
@@ -280,6 +316,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                             ),
                     ),
                   ),
+                  // Keeps a control clipped at the viewport edge from
+                  // running into the fixed controls.
+                  const SizedBox(width: AleraTokens.space8),
                   AgentChatContextUsage(usage: widget.usage),
                   AiDictationControl(
                     key: const ValueKey<String>('agent-chat-dictation'),

@@ -55,7 +55,7 @@ impl RuntimeStore {
     }
 
     async fn recover_agent_chat(&self, chat_id: &str) -> Result<Option<AgentChatRecoveryOutcome>> {
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         let row = require_session_row_in(&mut tx, chat_id).await?;
         let mut stored = parse_header(&row.snapshot_json)?;
         stored.turns = required_turns_in(&mut tx, chat_id, &stored).await?;

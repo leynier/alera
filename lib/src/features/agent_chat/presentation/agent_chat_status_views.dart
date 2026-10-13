@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_view_state.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_provider_icon.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -48,7 +49,8 @@ class const AgentChatUnboundView({super.key}) extends StatelessWidget {
   );
 }
 
-/// What a chat without messages shows: who will answer, and where.
+/// What a chat without messages shows: who will answer, and where. [hint]
+/// says what the chat needs next and is hidden when there is nothing to say.
 class const AgentChatEmptyConversation({
   super.key,
   required final String title,
@@ -56,10 +58,12 @@ class const AgentChatEmptyConversation({
   required final String providerLabel,
   required final String? model,
   required final String workspacePath,
+  required final String? hint,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hint = this.hint;
     return Center(
       key: const ValueKey<String>('agent-chat-empty'),
       child: ConstrainedBox(
@@ -96,19 +100,48 @@ class const AgentChatEmptyConversation({
                   color: AleraTokens.foregroundFaint,
                 ),
               ),
-              const SizedBox(height: AleraTokens.space16),
-              Text(
-                'Send a message to start.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
+              if (hint != null) ...<Widget>[
+                const SizedBox(height: AleraTokens.space16),
+                Text(
+                  hint,
+                  key: const ValueKey<String>('agent-chat-empty-hint'),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AleraTokens.foregroundFaint,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// The empty conversation's hint for [state]. Only a chat that can take a
+/// message right now invites one; otherwise the hint names what blocks it,
+/// and the docks under the conversation carry the way forward.
+String? agentChatEmptyHint(AgentChatViewState state) {
+  final thread = state.thread;
+  if (thread == null || state.phase != AgentChatPhase.ready) return null;
+  if (state.archived ||
+      thread.session.status == AgentChatSessionStatus.archived) {
+    return 'This chat is archived.';
+  }
+  if (!state.live) return 'Waiting for the Alera runtime to reconnect.';
+  if (state.recovering) return 'Recovering the agent session.';
+  if (thread.recovery case final AgentChatRecovery recovery) {
+    return recovery.canResume || recovery.canRestart
+        ? 'The agent session stopped. Resume it or start a new session below.'
+        : 'The agent session stopped.';
+  }
+  return switch (thread.session.status) {
+    AgentChatSessionStatus.stopped ||
+    AgentChatSessionStatus.error => 'The agent session stopped.',
+    _ when !state.canSend => null,
+    _ => 'Send a message to start.',
+  };
 }
 
 /// A dismissible failure of the last action, above the composer.

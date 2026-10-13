@@ -45,6 +45,8 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
                         || value
                             .capabilities
                             .supports(&["sessionCapabilities", "resume"])
+                } else if let Some(session) = value.capabilities.raw.get("session") {
+                    session.is_object() // Resume is part of the V2 session baseline.
                 } else {
                     value
                         .capabilities

@@ -300,6 +300,7 @@ pub(crate) fn item_id(props: &Value) -> Option<String> {
     props
         .get("partID")
         .or_else(|| props.get("itemID"))
+        .or_else(|| props.get("part").and_then(|part| part.get("id")))
         .or_else(|| props.get("messageID"))
         .or_else(|| props.get("assistantMessageID"))
         .or_else(|| props.get("info").and_then(|info| info.get("id")))

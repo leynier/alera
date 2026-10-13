@@ -1,0 +1,13 @@
+# Live Agent Chat Gateway QA
+
+This opt-in acceptance test uses the production `MobileRuntimeClient.pairDevice`, `connect`, and `authenticate` path over a temporary loopback gateway, followed by `MobileAgentChatTransport`, `RuntimeAgentChatRepository`, and the shared reducer. It checks `agentChatV1` in the hello response, providers, the chat list, snapshot turn and pending-request parsing, an `agentChatChanged` rename event at the next cursor, and snapshot/reducer parity. It restores the original title and closes its connections within a 60-second operation deadline.
+
+The fixture must be a dedicated workspace whose ID starts with `qa-workspace-`, with an existing ready and idle chat whose title starts with `ALERA-QA-`. Pass that chat's actual UUID. The pairing offer must point at `ws://127.0.0.1:<port>` without credentials, query parameters, or fragments. The test pairs only as `Alera Agent QA`. It never sends a provider prompt, answers a pending request, creates a chat, or writes a paired host profile.
+
+1. On the runtime host, prepare the QA fixture and a temporary loopback gateway, then create a short-lived pairing offer in a regular mode `600` JSON file. Do not print the offer or place it in the repository.
+2. Pre-create an empty mode `600` cleanup receipt, for example with `mktemp`. Set `ALERA_QA_PAIRING_OFFER_FILE`, `ALERA_QA_CHAT_ID`, `ALERA_QA_WORKSPACE_ID`, and `ALERA_QA_CLEANUP_FILE` in the test process environment.
+3. Run `flutter test test/agent_chat_live_gateway_test.dart` from `mobile/` on the same host. The HTTP override is scoped to this test so Flutter's default network blocker does not replace the real loopback connection.
+4. Read the cleanup receipt locally and revoke its `deviceId` through the runtime host's normal device-management path. The receipt contains no device token. If `renameAttempted` is true and `titleRestored` is false, restore `originalTitle` on the recorded QA chat. If pairing was accepted but the response was lost, identify and revoke the newly created `Alera Agent QA` device by the bounded test window.
+5. Restore the gateway configuration that preceded the test, then remove the private offer and receipt after cleanup. Preserve pre-existing gateways and devices.
+
+Without `ALERA_QA_PAIRING_OFFER_FILE`, the test reports a skip and does no live work, including in CI. A successful run proves the actual mobile Dart client's pairing, authentication, and agent chat gateway contracts. It does not prove Android or iOS device UI behavior, provider inference, or cloud relay behavior. Tokens remain in process memory; output is limited to check names, the non-secret device ID, and the cleanup receipt path.

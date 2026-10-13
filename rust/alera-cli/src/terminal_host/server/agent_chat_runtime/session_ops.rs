@@ -72,9 +72,24 @@ impl ChatSession {
             }
         }
         let mutates = op.mutates();
+        let snapshot_response = match &op {
+            ChatOp::Configure(_) | ChatOp::Recover { .. } => true,
+            ChatOp::WithinCeiling { operation, .. } => {
+                matches!(operation.as_ref(), ChatOp::Configure(_))
+            }
+            _ => false,
+        };
         let result = self.dispatch(op, &ctx).await;
         let result = match result {
-            Ok(response) if mutates => {
+            Ok(mut response) if mutates => {
+                if snapshot_response {
+                    // Snapshot helpers already flushed the projection. The receipt
+                    // commit adds one cursor step, which its replay must also carry.
+                    if receipt_key.is_some() {
+                        response["cursor"] = json!(self.committed.cursor + 1);
+                    }
+                    response = json!({"snapshot": response});
+                }
                 if let Some(key) = &receipt_key {
                     self.receipt = Some(AgentChatReceipt {
                         caller_scope: receipt_scope(&ctx.scope, &key.verb),

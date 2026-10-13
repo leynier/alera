@@ -212,7 +212,7 @@ impl RuntimeStore {
         require_new_record(record, &snapshot)?;
         require_tab(record, tab)?;
         let header = header_json(&snapshot)?;
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         if let Some(receipt) = receipt {
             require_receipt(receipt)?;
             match check_receipt_in(

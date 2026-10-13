@@ -49,7 +49,7 @@ impl SatelliteTransport {
             .hub_store
             .find_workspace(workspace_id)
             .await
-            .unwrap()
+            .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state("Unknown fixture workspace."))?;
         assert_ne!(workspace.host_id, "local");
         let host_id = workspace.host_id.clone();
@@ -80,11 +80,19 @@ impl SatelliteTransport {
             .hub_store
             .find_project(&workspace.project_id)
             .await
-            .unwrap()
+            .map_err(|error| HostError::state(error.to_string()))?
             .unwrap();
-        satellite.store.upsert_project(project).await.unwrap();
+        satellite
+            .store
+            .upsert_project(project)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         workspace.host_id = "local".into();
-        satellite.store.upsert_workspace(workspace).await.unwrap();
+        satellite
+            .store
+            .upsert_workspace(workspace)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         Ok(satellite)
     }
 
@@ -119,7 +127,7 @@ impl RemoteChatTransport for SatelliteTransport {
                     .store
                     .list_workspace_tabs(workspace_id)
                     .await
-                    .unwrap(),
+                    .map_err(|error| HostError::state(error.to_string()))?,
             )
             .unwrap()),
             "agentChat.providers" => satellite.runtime.providers(Some(workspace_id), false).await,
@@ -127,5 +135,75 @@ impl RemoteChatTransport for SatelliteTransport {
                 "Unsupported satellite fixture verb {other}."
             ))),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::terminal_host::server::chat_orchestration::test_support::add_workspace;
+
+    async fn transport() -> (tempfile::TempDir, RuntimeStore, Arc<SatelliteTransport>) {
+        let directory = tempfile::tempdir().unwrap();
+        let store = RuntimeStore::open(directory.path()).await.unwrap();
+        add_workspace(&store, "remote", "project", "ssh-test").await;
+        let transport = SatelliteTransport::new(
+            store.clone(),
+            directory.path().to_owned(),
+            Arc::new(MockProviderFactory::default()),
+        );
+        (directory, store, transport)
+    }
+
+    #[tokio::test]
+    async fn closed_satellite_pool_returns_a_transport_error_instead_of_panicking() {
+        let (_directory, store, transport) = transport().await;
+        assert_eq!(
+            transport
+                .request("remote", "tab.list", json!({}))
+                .await
+                .unwrap(),
+            json!([]),
+        );
+        transport.shutdown().await;
+        let error = transport
+            .request("remote", "tab.list", json!({}))
+            .await
+            .unwrap_err();
+        assert!(matches!(&error, HostError::State(_)), "{error:?}");
+        assert!(error.wire_message().contains("closed pool"));
+        store.pool().close().await;
+    }
+
+    #[tokio::test]
+    async fn closed_hub_pool_returns_a_transport_error_instead_of_panicking() {
+        let (_directory, store, transport) = transport().await;
+        assert_eq!(
+            transport
+                .request("remote", "tab.list", json!({}))
+                .await
+                .unwrap(),
+            json!([]),
+        );
+        transport.shutdown().await;
+        store.pool().close().await;
+        let error = transport
+            .request("remote", "tab.list", json!({}))
+            .await
+            .unwrap_err();
+        assert!(matches!(&error, HostError::State(_)), "{error:?}");
+        assert!(error.wire_message().contains("closed pool"));
+    }
+
+    #[tokio::test]
+    async fn missing_workspace_still_returns_the_original_fixture_error() {
+        let (_directory, store, transport) = transport().await;
+        let error = transport
+            .request("missing", "tab.list", json!({}))
+            .await
+            .unwrap_err();
+        assert_eq!(error.wire_message(), "Unknown fixture workspace.");
+        transport.shutdown().await;
+        store.pool().close().await;
     }
 }

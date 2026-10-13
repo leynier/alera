@@ -47,7 +47,8 @@ pub(crate) fn map_event<T: HttpTransport>(
             app_turn_id.clone(),
             native_item_id.clone(),
             raw,
-            None,
+            provider.native_parts.stream_kind(&props),
+            provider.native_parts.is_user_part(&props),
         )?,
         "session.text.delta" => map_delta(
             &props,
@@ -56,6 +57,7 @@ pub(crate) fn map_event<T: HttpTransport>(
             native_item_id.clone(),
             raw,
             Some(StreamKind::AssistantText),
+            false,
         )?,
         "session.reasoning.delta" => map_delta(
             &props,
@@ -64,15 +66,19 @@ pub(crate) fn map_event<T: HttpTransport>(
             native_item_id.clone(),
             raw,
             Some(StreamKind::ReasoningText),
+            false,
         )?,
-        "message.part.updated" => crate::part_events::map_part_updated(
-            provider,
-            &props,
-            &thread_id,
-            app_turn_id.clone(),
-            native_item_id.clone(),
-            raw,
-        )?,
+        "message.part.updated" => {
+            provider.native_parts.record_part(&props);
+            crate::part_events::map_part_updated(
+                provider,
+                &props,
+                &thread_id,
+                app_turn_id.clone(),
+                native_item_id.clone(),
+                raw,
+            )?
+        }
         "session.tool.input.started"
         | "session.tool.input.delta"
         | "session.tool.input.ended"
@@ -89,6 +95,7 @@ pub(crate) fn map_event<T: HttpTransport>(
             raw,
         )?,
         "message.updated" => {
+            provider.native_parts.record_message(&props);
             crate::part_events::map_message_updated(&props, &thread_id, app_turn_id.clone(), raw)?
         }
         "permission.asked" => {
@@ -170,12 +177,12 @@ fn map_delta(
     item_id: Option<String>,
     raw: Option<RawEvent>,
     forced_kind: Option<StreamKind>,
+    is_user_part: bool,
 ) -> Result<ProviderEvent, ProviderError> {
     let delta = props
         .get("delta")
         .or_else(|| props.get("text"))
         .and_then(Value::as_str)
-        .filter(|delta| !delta.is_empty())
         .ok_or_else(|| {
             ProviderError::Protocol("OpenCode message.part.delta has no delta".into())
         })?;
@@ -190,20 +197,28 @@ fn map_delta(
             _ => StreamKind::AssistantText,
         }
     });
-    let mut event = ProviderEvent::new(
-        opencode_kind(),
-        "opencode",
-        thread_id,
-        EventKind::ContentDelta,
-        serde_json::to_value(ContentDeltaPayload {
+    let (kind, payload) = if delta.is_empty() || is_user_part {
+        // Empty strings are valid native deltas. User parts are already recorded
+        // by the host; retain both envelopes without projecting assistant content.
+        (
+            EventKind::Unknown(
+                raw.as_ref()
+                    .and_then(|raw| raw.method.clone())
+                    .unwrap_or_else(|| "message.part.delta".into()),
+            ),
+            props.clone(),
+        )
+    } else {
+        let payload = serde_json::to_value(ContentDeltaPayload {
             stream_kind,
             delta: delta.to_owned(),
             content_index: None,
             summary_index: None,
         })
-        .map_err(|error| ProviderError::Protocol(error.to_string()))?,
-        raw,
-    );
+        .map_err(|error| ProviderError::Protocol(error.to_string()))?;
+        (EventKind::ContentDelta, payload)
+    };
+    let mut event = ProviderEvent::new(opencode_kind(), "opencode", thread_id, kind, payload, raw);
     event.turn_id = turn_id;
     event.item_id = item_id.clone();
     event.provider_refs = Some(refs(None, item_id, None));
@@ -217,6 +232,7 @@ fn map_terminal<T: HttpTransport>(
     thread_id: &str,
     raw: Option<RawEvent>,
 ) -> Result<ProviderEvent, ProviderError> {
+    provider.native_parts.clear();
     let Some(active) = provider.active_turn.take() else {
         return map_thread_state(props, thread_id, "idle", raw);
     };

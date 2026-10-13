@@ -11,23 +11,43 @@ pub(crate) fn negotiated_capabilities(
         return McpInjectionCapabilities::default();
     };
     let capabilities = &initialized.capabilities.raw;
-    let mcp = match initialized.generation {
-        AcpProtocolGeneration::V1 => capabilities.get("mcpCapabilities"),
-        AcpProtocolGeneration::V2 => capabilities
-            .get("sessionCapabilities")
-            .and_then(|value| value.get("mcp"))
-            .or_else(|| capabilities.get("mcpCapabilities")),
-    };
-    McpInjectionCapabilities {
-        stdio: advertised_transport(mcp.and_then(|value| value.get("stdio"))),
-        http: advertised_transport(mcp.and_then(|value| value.get("http"))),
+    match initialized.generation {
+        AcpProtocolGeneration::V1 => {
+            let mcp = capabilities.get("mcpCapabilities");
+            McpInjectionCapabilities {
+                // V1 requires stdio without advertising it; retain explicit peer opt-outs.
+                stdio: mcp
+                    .and_then(|value| value.get("stdio"))
+                    .is_none_or(|value| advertised_transport(Some(value))),
+                http: mcp
+                    .and_then(|value| value.get("http"))
+                    .and_then(Value::as_bool)
+                    == Some(true),
+            }
+        }
+        AcpProtocolGeneration::V2 => {
+            // A modern session declaration takes precedence, including disabled MCP support.
+            let mcp = capabilities.get("session").map_or_else(
+                || {
+                    capabilities
+                        .get("sessionCapabilities")
+                        .and_then(|value| value.get("mcp"))
+                        .or_else(|| capabilities.get("mcpCapabilities"))
+                },
+                |session| session.get("mcp"),
+            );
+            McpInjectionCapabilities {
+                stdio: advertised_transport(mcp.and_then(|value| value.get("stdio"))),
+                http: advertised_transport(mcp.and_then(|value| value.get("http"))),
+            }
+        }
     }
 }
 
 fn advertised_transport(value: Option<&Value>) -> bool {
     match value {
         Some(Value::Bool(supported)) => *supported,
-        Some(Value::Object(_)) | Some(Value::Array(_)) => true,
+        Some(Value::Object(_)) => true,
         _ => false,
     }
 }

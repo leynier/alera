@@ -51,6 +51,19 @@ fn v2_initialize(mcp: Value) -> Value {
     })
 }
 
+fn v2_session_initialize(session: Value) -> Value {
+    json!({
+        "jsonrpc":"2.0",
+        "id":1,
+        "result":{
+            "protocolVersion":2,
+            "info":{"name":"fixture","version":"1"},
+            "capabilities":{"session":session},
+            "authMethods":[]
+        }
+    })
+}
+
 fn stdio_server(cwd: Option<PathBuf>) -> McpServerSpec {
     McpServerSpec {
         name: "tools".into(),
@@ -70,6 +83,205 @@ fn http_server() -> McpServerSpec {
             url: "https://mcp.example.test/rpc".into(),
             headers: BTreeMap::from([("Authorization".into(), "Bearer exact".into())]),
         },
+    }
+}
+
+#[tokio::test]
+async fn v1_stdio_baseline_reaches_session_without_optional_capabilities() {
+    for initialized in [
+        json!({"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}),
+        json!({"jsonrpc":"2.0","id":1,"result":{
+            "protocolVersion":1,"agentCapabilities":{"loadSession":false}
+        }}),
+        v1_initialize(json!({}), false),
+        v1_initialize(Value::Null, false),
+    ] {
+        let transport = MockTransport::new([
+            initialized,
+            json!({"jsonrpc":"2.0","id":2,"result":{"sessionId":"native-v1"}}),
+        ]);
+        let mut provider = AcpProvider::with_transport(transport, config());
+        assert!(!provider.capabilities().mcp_injection.stdio);
+        let mut input = SessionStartInput::new("v1-baseline");
+        input.mcp_servers = vec![stdio_server(None)];
+        provider.start_session(input).await.unwrap();
+        assert!(provider.capabilities().mcp_injection.stdio);
+        assert!(!provider.capabilities().mcp_injection.http);
+        let writes = provider.client().transport().writes();
+        let request = writes.last().unwrap();
+        assert_eq!(request["method"], "session/new");
+        assert_eq!(request["params"]["mcpServers"][0]["name"], "tools");
+        assert!(request["params"]["mcpServers"][0].get("type").is_none());
+    }
+}
+
+#[tokio::test]
+async fn grok_v1_http_and_sse_capabilities_keep_stdio_baseline() {
+    let transport = MockTransport::new([
+        json!({"jsonrpc":"2.0","id":1,"result":{
+            "protocolVersion":1,
+            "agentInfo":{"name":"grok","version":"1.0.52"},
+            "agentCapabilities":{"mcpCapabilities":{"http":true,"sse":true}},
+            "authMethods":[]
+        }}),
+        json!({"jsonrpc":"2.0","id":2,"result":{"sessionId":"native-grok"}}),
+    ]);
+    let mut provider = AcpProvider::with_transport(
+        transport,
+        AcpProviderConfig {
+            provider: ProviderKind::Other("grok".into()),
+            flavor: AcpFlavor::Grok,
+            ..config()
+        },
+    );
+    let mut input = SessionStartInput::new("grok-baseline");
+    let mut server = stdio_server(None);
+    server.name = "alera".into();
+    input.mcp_servers = vec![server];
+    provider.start_session(input).await.unwrap();
+    assert!(provider.capabilities().mcp_injection.stdio);
+    assert!(provider.capabilities().mcp_injection.http);
+    let writes = provider.client().transport().writes();
+    let request = writes.last().unwrap();
+    assert_eq!(request["method"], "session/new");
+    assert_eq!(request["params"]["mcpServers"][0]["name"], "alera");
+    assert!(request["params"]["mcpServers"][0].get("type").is_none());
+}
+
+#[tokio::test]
+async fn v1_http_requires_explicit_boolean_support() {
+    for http in [json!(true), json!(false), Value::Null, json!({}), json!([])] {
+        let supported = http == json!(true);
+        let transport = MockTransport::new([
+            v1_initialize(json!({"http":http}), false),
+            json!({"jsonrpc":"2.0","id":2,"result":{"sessionId":"native-http"}}),
+        ]);
+        let mut provider = AcpProvider::with_transport(transport, config());
+        let mut input = SessionStartInput::new("v1-http");
+        input.mcp_servers = vec![http_server()];
+        let result = provider.start_session(input).await;
+        assert_eq!(provider.capabilities().mcp_injection.http, supported);
+        assert!(provider.capabilities().mcp_injection.stdio);
+        if supported {
+            result.unwrap();
+            let writes = provider.client().transport().writes();
+            assert_eq!(
+                writes.last().unwrap()["params"]["mcpServers"][0]["type"],
+                "http"
+            );
+        } else {
+            assert!(matches!(result, Err(ProviderError::Unsupported(_))));
+            assert!(provider
+                .client()
+                .transport()
+                .writes()
+                .iter()
+                .all(|request| { request["method"] != "session/new" }));
+        }
+    }
+}
+
+#[tokio::test]
+async fn v1_explicit_stdio_opt_out_fails_before_session_call() {
+    for stdio in [json!(false), Value::Null, json!([])] {
+        let transport = MockTransport::new([v1_initialize(json!({"stdio":stdio}), false)]);
+        let mut provider = AcpProvider::with_transport(transport, config());
+        let mut input = SessionStartInput::new("v1-stdio-disabled");
+        input.mcp_servers = vec![stdio_server(None)];
+        assert!(matches!(
+            provider.start_session(input).await,
+            Err(ProviderError::Unsupported(_))
+        ));
+        assert!(!provider.capabilities().mcp_injection.stdio);
+        assert!(provider
+            .client()
+            .transport()
+            .writes()
+            .iter()
+            .all(|request| { request["method"] != "session/new" }));
+    }
+}
+
+#[tokio::test]
+async fn v2_modern_session_mcp_declarations_reach_session_new() {
+    let transport = MockTransport::new([
+        v2_session_initialize(json!({"mcp":{"stdio":{},"http":{}}})),
+        json!({"jsonrpc":"2.0","id":2,"result":{"sessionId":"native-modern"}}),
+    ]);
+    let mut provider = AcpProvider::with_transport(transport, config());
+    let mut input = SessionStartInput::new("modern-mcp");
+    input.mcp_servers = vec![stdio_server(None), http_server()];
+    provider.start_session(input).await.unwrap();
+    assert!(provider.capabilities().mcp_injection.stdio);
+    assert!(provider.capabilities().mcp_injection.http);
+    let writes = provider.client().transport().writes();
+    let request = writes.last().unwrap();
+    assert_eq!(request["method"], "session/new");
+    assert_eq!(request["params"]["mcpServers"][0]["type"], "stdio");
+    assert_eq!(request["params"]["mcpServers"][1]["type"], "http");
+}
+
+#[tokio::test]
+async fn v2_modern_disabled_or_omitted_mcp_cannot_fall_back_to_legacy_support() {
+    for session in [
+        Value::Null,
+        json!(false),
+        json!({}),
+        json!({"mcp":null}),
+        json!({"mcp":false}),
+        json!({"mcp":{}}),
+        json!({"mcp":{"stdio":false,"http":false}}),
+        json!({"mcp":{"stdio":null,"http":null}}),
+        json!({"mcp":{"stdio":[],"http":[]}}),
+    ] {
+        for server in [stdio_server(None), http_server()] {
+            let mut initialized = v2_session_initialize(session.clone());
+            initialized["result"]["capabilities"]["sessionCapabilities"] =
+                json!({"mcp":{"stdio":{},"http":{}}});
+            initialized["result"]["capabilities"]["mcpCapabilities"] =
+                json!({"stdio":true,"http":true});
+            let transport = MockTransport::new([initialized]);
+            let mut provider = AcpProvider::with_transport(transport, config());
+            let mut input = SessionStartInput::new("modern-disabled");
+            input.mcp_servers = vec![server];
+            assert!(matches!(
+                provider.start_session(input).await,
+                Err(ProviderError::Unsupported(_))
+            ));
+            assert!(!provider.capabilities().mcp_injection.stdio);
+            assert!(!provider.capabilities().mcp_injection.http);
+            assert!(provider
+                .client()
+                .transport()
+                .writes()
+                .iter()
+                .all(|request| { request["method"] != "session/new" }));
+        }
+    }
+}
+
+#[tokio::test]
+async fn v2_http_support_does_not_imply_stdio_support() {
+    for initialized in [
+        v2_initialize(json!({"http":{}})),
+        v2_session_initialize(json!({"mcp":{"http":{}}})),
+    ] {
+        let transport = MockTransport::new([initialized]);
+        let mut provider = AcpProvider::with_transport(transport, config());
+        let mut input = SessionStartInput::new("v2-stdio-omitted");
+        input.mcp_servers = vec![stdio_server(None)];
+        assert!(matches!(
+            provider.start_session(input).await,
+            Err(ProviderError::Unsupported(_))
+        ));
+        assert!(!provider.capabilities().mcp_injection.stdio);
+        assert!(provider.capabilities().mcp_injection.http);
+        assert!(provider
+            .client()
+            .transport()
+            .writes()
+            .iter()
+            .all(|request| { request["method"] != "session/new" }));
     }
 }
 

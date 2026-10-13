@@ -4,4 +4,8 @@ This crate adapts the upstream OpenCode 1.x and 2.x HTTP/SSE protocols to the sh
 
 Source provenance: https://github.com/anomalyco/opencode, legacy tag `v1.15.13`, V2 tag `v2.0.23`. The client port is MIT licensed and covers session lifecycle, model discovery, streaming, permissions, questions, and native terminal signals. The local `opencode serve` executable is an external runtime; the adapter uses the shared managed process and HTTP boundaries and does not bundle it. A local V2 server gets a generated password unless the caller supplies one.
 
+Native prompt message IDs use the upstream `msg_` prefix and six-byte timestamp ordering with UUIDv4 entropy from the turn-start event. They remain distinct from synthetic Alera turn IDs and avoid counter reuse across provider instances, restarts, and resumed sessions. The V1 wire field is `messageID`; V2 uses `id`.
+
+Native part updates retain their nested part IDs. Current-turn message roles and part types distinguish echoed user content, assistant text, and reasoning deltas; this metadata is cleared when a turn settles, a new turn starts, or the provider closes. Valid empty deltas and echoed user deltas retain their raw envelopes without producing canonical content deltas. Missing or non-string delta values remain protocol errors.
+
 `request_timeout` bounds HTTP handshakes, prompt and reply calls, control operations, MCP setup and cleanup, and response headers or bodies. It does not cap an open SSE read: `next_event` waits for the next decodable event or stream EOF so heartbeats and forward-compatible events cannot end a healthy turn.

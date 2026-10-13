@@ -40,6 +40,7 @@ pub(crate) fn map_part_updated<T: HttpTransport>(
                 })
             });
     let item_type = match part_type {
+        _ if provider.native_parts.is_user_part(props) => CanonicalItemType::UserMessage,
         "text" => CanonicalItemType::AssistantMessage,
         "reasoning" => CanonicalItemType::Reasoning,
         "tool" if is_mcp => CanonicalItemType::McpToolCall,

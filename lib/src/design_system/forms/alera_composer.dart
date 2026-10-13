@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_clipboard_paste_action.dart';
+import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -166,7 +167,10 @@ class _AleraComposerState extends State<AleraComposer> {
                 ): _send,
                 const SingleActivator(.escape): widget.onClose,
               },
-              child: _buildTextField(context),
+              child: AleraImeCompositionKeyGuard(
+                controller: widget.controller,
+                child: _buildTextField(context),
+              ),
             ),
             if (widget.footer case final Widget footer)
               footer

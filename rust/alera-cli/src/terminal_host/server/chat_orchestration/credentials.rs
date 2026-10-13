@@ -188,9 +188,9 @@ impl ProviderLaunchHook for ChatCredentialLaunchHook {
                 command: executable,
                 args: vec![
                     "mcp".into(),
-                    "serve".into(),
                     "--runtime-dir".into(),
                     runtime_dir,
+                    "serve".into(),
                     "--chat-credential-file".into(),
                     credential_path.clone(),
                 ],

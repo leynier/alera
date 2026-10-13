@@ -51,6 +51,8 @@ mod agent_chat_turn_migration_tests;
 mod agent_chat_turns;
 mod agent_chat_validation;
 #[cfg(test)]
+mod agent_chat_write_concurrency_tests;
+#[cfg(test)]
 mod agent_chat_wire_tests;
 pub use agent_chat_models::*;
 pub use agent_chat_validation::agent_chat_command_digest;

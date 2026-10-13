@@ -127,16 +127,36 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
   void _editFailedSend(String clientMessageId) {
     final message = _controller.discardSend(clientMessageId);
     if (message == null) return;
-    _composer.textController.text = message.text;
+    final draft = _composer.textController.text;
+    final text = message.text.isEmpty
+        ? draft
+        : draft.isEmpty
+        ? message.text
+        : '$draft\n\n${message.text}';
+    _composer.textController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
     for (final attachment in message.attachments) {
       final path = attachment.path;
       if (path == null) continue;
+      final kind = attachment.type.isImage
+          ? TerminalComposerAttachmentKind.image
+          : TerminalComposerAttachmentKind.file;
+      if (_composer.attachments.any(
+        (current) => current.path == path && current.kind == kind,
+      )) {
+        continue;
+      }
       _composer.addAttachment(
-        kind: attachment.type.isImage
-            ? TerminalComposerAttachmentKind.image
-            : TerminalComposerAttachmentKind.file,
+        kind: kind,
         path: path,
         displayName: attachment.displayName,
+      );
+    }
+    if (draft.isNotEmpty) {
+      AleraToast.publish(
+        message: 'The failed message was added to your draft.',
       );
     }
     _composer.focusNode.requestFocus();
@@ -237,6 +257,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
           title: state.thread!.title,
           provider: state.thread!.provider,
           model: state.thread!.session.model,
+          hint: agentChatEmptyHint(state),
         ),
       ),
     );
@@ -260,6 +281,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
             agentChatProviderFallbackLabel(provider),
         model: view.model,
         workspacePath: widget.workspace.path,
+        hint: view.hint,
       );
     }
     return AgentChatFullDataScope(

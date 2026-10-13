@@ -206,7 +206,7 @@ fn notification_kind(method: &str, params: &Value) -> EventKind {
             EventKind::RuntimeWarning
         }
         "thread/environment/connected" => EventKind::ThreadStateChanged,
-        _ if params.get("error").is_some() => EventKind::RuntimeError,
+        _ if params.get("error").is_some_and(|error| !error.is_null()) => EventKind::RuntimeError,
         _ => EventKind::Unknown(method.to_owned()),
     }
 }

@@ -35,7 +35,7 @@ Completion follows the child's settled turn, not request acknowledgement. Open c
 
 ## Chat-bound MCP
 
-The runtime injects `alera mcp serve --runtime-dir <dir> --chat-credential-file <private-path>` into a supported provider session. It exposes only the 13 `chat_*` tools, `list_projects`, and `list_workspaces`, with no resources or subscriptions. The ordinary local server and cloud MCP catalog keep the terminal-oriented tools; they do not expose chat tools.
+The runtime injects `alera mcp --runtime-dir <dir> serve --chat-credential-file <private-path>` into a supported provider session. It exposes only the 13 `chat_*` tools, `list_projects`, and `list_workspaces`, with no resources or subscriptions. The ordinary local server and cloud MCP catalog keep the terminal-oriented tools; they do not expose chat tools.
 
 The credential is read from the private file for the host handshake; the secret never appears in command arguments. The host derives the actor and scope, requires a live unarchived caller turn, and revokes credentials on provider switch or close. Do not fall back to an unbound server when this credential is missing or invalid. MCP `clientRequestId` maps to CLI `--request-id`.
 

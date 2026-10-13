@@ -31,13 +31,23 @@ pub(crate) fn tool_detail(message: &Value) -> Option<String> {
     ["output", "partialOutput", "result"]
         .iter()
         .find_map(|key| message.get(*key).and_then(Value::as_str))
-        .or_else(|| {
-            message
-                .get("result")
-                .and_then(|result| result.get("content"))
-                .and_then(Value::as_str)
-        })
         .map(ToOwned::to_owned)
+        .or_else(|| {
+            ["partialResult", "result"].iter().find_map(|key| {
+                let content = message.get(*key)?.get("content")?;
+                if let Some(text) = content.as_str() {
+                    return Some(text.to_owned());
+                }
+                let text = content
+                    .as_array()?
+                    .iter()
+                    .filter(|block| block.get("type").and_then(Value::as_str) == Some("text"))
+                    .filter_map(|block| block.get("text").and_then(Value::as_str))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                (!text.trim().is_empty()).then_some(text)
+            })
+        })
         .filter(|value| !value.trim().is_empty())
 }
 
