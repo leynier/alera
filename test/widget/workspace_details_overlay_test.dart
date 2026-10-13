@@ -89,12 +89,30 @@ const comparison = GitWorkspaceComparison(
   treeOid: 'tree',
   indexOid: 'index',
   entries: [],
-  added: 42,
-  removed: 8,
+  added: 100,
+  removed: 20,
 );
 final details = WorkspaceDetailsState(
   sourceControl: const WorkspaceSourceControlState(
-    status: GitStatusResult(entries: []),
+    // Working-tree lines differ from the base comparison below, so a test
+    // can tell which one the Changes row shows.
+    status: GitStatusResult(
+      entries: [
+        GitChangeEntry(
+          path: 'lib/a.dart',
+          area: GitChangeArea.unstaged,
+          status: GitChangeStatus.modified,
+          added: 40,
+          removed: 8,
+        ),
+        GitChangeEntry(
+          path: 'lib/b.dart',
+          area: GitChangeArea.untracked,
+          status: GitChangeStatus.untracked,
+          added: 2,
+        ),
+      ],
+    ),
     repositoryState: GitRepositoryState(branch: 'feature/details'),
     stashes: [],
   ),

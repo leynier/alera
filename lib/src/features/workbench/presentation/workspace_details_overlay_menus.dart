@@ -73,6 +73,29 @@ extension on _WorkspaceDetailsOverlayState {
     }
   }
 
+  /// Lines changed in the working tree, the same files Source Control lists,
+  /// so the Changes counts describe what the row opens.
+  ({int added, int removed}) _uncommittedLines(WorkspaceDetailsState data) {
+    var added = 0;
+    var removed = 0;
+    for (final entry in data.sourceControl.status.entries) {
+      added += entry.added ?? 0;
+      removed += entry.removed ?? 0;
+    }
+    return (added: added, removed: removed);
+  }
+
+  String _uncommittedHint(WorkspaceDetailsState data) {
+    final files = {
+      for (final entry in data.sourceControl.status.entries) entry.path,
+    }.length;
+    return switch (files) {
+      0 => 'No uncommitted changes. Open Source Control.',
+      1 => '1 file with uncommitted changes. Open Source Control.',
+      _ => '$files files with uncommitted changes. Open Source Control.',
+    };
+  }
+
   Future<String?> _menu(Rect anchor, List<PopupMenuEntry<String>> entries) {
     return showMenu<String>(
       context: context,

@@ -407,7 +407,7 @@ class _WorkspaceDetailsOverlayState
 /// The card sits under the terminal toolbar when that toolbar is in the top
 /// right corner. The toolbar is inset from the top of its pane, and a pane
 /// shows a tab strip above it once the panel holds more than one tab. With the
-/// toolbar elsewhere the card hugs the edge. Without a terminal it clears the
+/// toolbar elsewhere the card sits just below any tab strip. Without a terminal it clears the
 /// standalone toggle instead.
 @visibleForTesting
 double workspaceDetailsCardTop({
@@ -418,15 +418,13 @@ double workspaceDetailsCardTop({
   if (toolbarCorner == null) {
     return AleraTokens.sidebarHeaderHeight + AleraTokens.space4 + toggleRow;
   }
+  final strip = tabStrip ? AleraTokens.sidebarHeaderHeight : 0.0;
   if (toolbarCorner != TerminalToolbarCorner.topRight) {
-    return AleraTokens.space8;
+    return strip + AleraTokens.space8;
   }
   // AleraIconButton renders at compact density, which trims its min size.
   final toolbarHeight =
       AleraIconButton.defaultMinSize +
       VisualDensity.compact.baseSizeAdjustment.dy;
-  return (tabStrip ? AleraTokens.sidebarHeaderHeight : 0) +
-      AleraTokens.space4 +
-      toolbarHeight +
-      AleraTokens.space8;
+  return strip + AleraTokens.space4 + toolbarHeight + AleraTokens.space8;
 }

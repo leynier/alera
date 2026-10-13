@@ -45,8 +45,13 @@ void _registerWorkspaceDetailsControlTests() {
     for (final corner in TerminalToolbarCorner.values) {
       if (corner == TerminalToolbarCorner.topRight) continue;
       expect(
-        workspaceDetailsCardTop(tabStrip: true, toolbarCorner: corner),
+        workspaceDetailsCardTop(tabStrip: false, toolbarCorner: corner),
         AleraTokens.space8,
+      );
+      // The card never covers the tab strip's new-tab and split controls.
+      expect(
+        workspaceDetailsCardTop(tabStrip: true, toolbarCorner: corner),
+        AleraTokens.sidebarHeaderHeight + AleraTokens.space8,
       );
     }
     expect(
@@ -98,6 +103,11 @@ void _registerWorkspaceDetailsControlTests() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await pumpOverlay(tester, const Size(1000, 700));
+    // The counts describe the uncommitted files Source Control lists, not the
+    // base comparison.
+    expect(find.text('+42'), findsOneWidget);
+    expect(find.text('-8'), findsOneWidget);
+    expect(find.text('+100'), findsNothing);
     await tester.tap(find.text('Changes'));
     await tester.pumpAndSettle();
     final container = ProviderScope.containerOf(

@@ -214,21 +214,23 @@ extension on _WorkspaceDetailsOverlayState {
               leading: icon(AleraIcons.diff),
               hint: details?.hasError == true
                   ? details!.error.toString()
-                  : null,
+                  : data == null
+                  ? null
+                  : _uncommittedHint(data),
               trailing: data == null
                   ? null
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '+${data.comparison.added}',
+                          '+${_uncommittedLines(data).added}',
                           style: AleraTokens.monoCompactStyle.copyWith(
                             color: AleraTokens.success,
                           ),
                         ),
                         const SizedBox(width: AleraTokens.space6),
                         Text(
-                          '-${data.comparison.removed}',
+                          '-${_uncommittedLines(data).removed}',
                           style: AleraTokens.monoCompactStyle.copyWith(
                             color: AleraTokens.error,
                           ),
