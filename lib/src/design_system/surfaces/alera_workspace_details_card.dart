@@ -38,13 +38,18 @@ class const AleraWorkspaceDetailRow({
 
 class const AleraWorkspaceDetailsCard({
   super.key,
-  required this.rows,
+  required this.workspaceRows,
+  this.gitRows = const [],
   this.afterBranch,
   this.afterWorkspace,
   this.density = WorkspaceDetailsDensity.full,
   this.onOptions,
 }) extends StatelessWidget {
-  final List<AleraWorkspaceDetailRow> rows;
+  /// Host and Open In first, then any workspace context such as its issue.
+  final List<AleraWorkspaceDetailRow> workspaceRows;
+
+  /// Branch first; [afterBranch] goes right below it.
+  final List<AleraWorkspaceDetailRow> gitRows;
   final Widget? afterBranch;
 
   /// Extra sections between the workspace and Git sections. Each one draws its
@@ -57,18 +62,17 @@ class const AleraWorkspaceDetailsCard({
   Widget build(BuildContext context) {
     final essential = density == WorkspaceDetailsDensity.essential;
     final compact = density != WorkspaceDetailsDensity.full;
-    // Essential density folds Host and Open In into one options row that
+    // Essential density folds the workspace rows into one options row that
     // keeps the host visible, so the card never spends a row on a lone icon.
     final workspace = <Widget>[
       if (!essential)
-        for (var i = 0; i < rows.length && i < 2; i++)
-          _DetailRow(row: rows[i], compact: compact)
-      else if (onOptions != null && rows.isNotEmpty)
+        for (final row in workspaceRows) _DetailRow(row: row, compact: compact)
+      else if (onOptions != null && workspaceRows.isNotEmpty)
         _DetailRow(
           compact: true,
           row: AleraWorkspaceDetailRow(
-            label: rows.first.label,
-            leading: rows.first.leading,
+            label: workspaceRows.first.label,
+            leading: workspaceRows.first.leading,
             hint: 'Workspace Options',
             onMenu: onOptions,
             pressOpensMenu: true,
@@ -76,9 +80,9 @@ class const AleraWorkspaceDetailsCard({
         ),
     ];
     final git = <Widget>[
-      for (var i = 2; i < rows.length; i++) ...[
-        _DetailRow(row: rows[i], compact: compact),
-        if (i == 2 && afterBranch != null) afterBranch!,
+      for (var i = 0; i < gitRows.length; i++) ...[
+        _DetailRow(row: gitRows[i], compact: compact),
+        if (i == 0 && afterBranch != null) afterBranch!,
       ],
     ];
     Widget section(List<Widget> children) => Padding(

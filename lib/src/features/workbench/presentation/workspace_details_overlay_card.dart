@@ -10,6 +10,7 @@ extension on _WorkspaceDetailsOverlayState {
       effectiveHostingProviderOverrideProvider(widget.workspace.projectId),
     );
     final workspace = widget.workspace;
+    final issue = cardRef.watch(workspaceLinkedIssueProvider(workspace.id));
     final targets = cardRef.watch(sshTargetsProvider).value ?? const [];
     final host = targets
         .where((target) => target.id == workspace.hostId)
@@ -59,7 +60,7 @@ extension on _WorkspaceDetailsOverlayState {
                 scope: scope,
                 compact: density != WorkspaceDetailsDensity.full,
               ),
-        rows: [
+        workspaceRows: [
           AleraWorkspaceDetailRow(
             label: hostLabel,
             leading: AleraHostOsIcon(
@@ -89,6 +90,27 @@ extension on _WorkspaceDetailsOverlayState {
                   ),
             onMenu: (anchor) => unawaited(_openMenu(anchor)),
           ),
+          if (issue != null)
+            AleraWorkspaceDetailRow(
+              label: issue.title == null
+                  ? issue.reference
+                  : '${issue.reference}: ${issue.title}',
+              subtitle: issue.fetchError != null
+                  ? 'Could not refresh the issue'
+                  : issue.displayState,
+              subtitleColor: issue.fetchError == null
+                  ? null
+                  : AleraTokens.error,
+              leading: LinkedIssueStateIcon(
+                state: issue.state,
+                size: AleraTokens.iconMd,
+              ),
+              hint: workspaceLinkedIssueTooltip(issue),
+              onPressed: () => _issueAction(openLinkedIssueMenuAction),
+              onMenu: (anchor) => unawaited(_issueMenu(anchor)),
+            ),
+        ],
+        gitRows: [
           if (widget.sourceControlScope != null) ...[
             AleraWorkspaceDetailRow(
               label:

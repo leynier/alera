@@ -68,7 +68,7 @@ Widget _card(
               onAction: pending ? null : calls('action'),
               compact: density != .full,
             ),
-            rows: [
+            workspaceRows: [
               AleraWorkspaceDetailRow(
                 label: long ? 'build-server-with-a-long-hostname.lan' : 'host',
                 leading: const AleraHostOsIcon(
@@ -84,6 +84,8 @@ Widget _card(
                 onPressed: calls('open'),
                 onMenu: (_) => calls('open-menu')(),
               ),
+            ],
+            gitRows: [
               AleraWorkspaceDetailRow(
                 label: long ? _longBranch : 'feature/workspace-details',
                 subtitle: 'Compare against origin/main',

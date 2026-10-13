@@ -18,25 +18,69 @@ extension on _WorkspaceDetailsOverlayState {
   }
 
   Future<void> _detailsOptions(Rect anchor) async {
-    final choice = await _menu(anchor, const [
-      AleraDropdownEntry(
+    final issue = ref.read(workspaceLinkedIssueProvider(widget.workspace.id));
+    final choice = await _menu(anchor, [
+      const AleraDropdownEntry(
         value: 'host',
         label: 'Host And Hand Off',
         leading: _MenuIcon(AleraIcons.host),
       ),
-      AleraDropdownEntry(
+      const AleraDropdownEntry(
         value: 'open',
         label: 'Open In',
         leading: _MenuIcon(AleraIcons.folderOpen),
       ),
+      if (issue != null)
+        AleraDropdownEntry(
+          value: 'issue',
+          label: 'Issue ${issue.reference}',
+          leading: LinkedIssueStateIcon(
+            state: issue.state,
+            size: AleraTokens.iconMd,
+          ),
+        ),
     ]);
     if (!mounted) return;
     if (choice == 'host') await _hostMenu(anchor);
     if (choice == 'open') await _openMenu(anchor);
+    if (choice == 'issue') await _issueMenu(anchor);
+  }
+
+  void _issueAction(String action) => unawaited(
+    runLinkedIssueMenuAction(
+      context,
+      ProviderScope.containerOf(context, listen: false),
+      workspace: widget.workspace,
+      action: action,
+    ),
+  );
+
+  Future<void> _issueMenu(Rect anchor) async {
+    final choice = await _menu(anchor, const [
+      AleraDropdownEntry(
+        value: openLinkedIssueMenuAction,
+        label: 'Open Issue In Browser',
+        leading: _MenuIcon(AleraIcons.external),
+      ),
+      AleraDropdownEntry(
+        value: changeLinkedIssueMenuAction,
+        label: 'Change Linked Issue',
+        leading: _MenuIcon(AleraIcons.link),
+      ),
+      AleraDropdownEntry(
+        value: unlinkIssueMenuAction,
+        label: 'Unlink Issue',
+        leading: _MenuIcon(AleraIcons.unlink),
+      ),
+    ]);
+    if (mounted && choice != null) _issueAction(choice);
   }
 
   Future<void> _hostMenu(Rect anchor) async {
     final workspace = widget.workspace;
+    final canLink =
+        ref.read(linkedIssuesSupportedProvider) &&
+        ref.read(workspaceLinkedIssueProvider(workspace.id)) == null;
     final choice = await _menu(anchor, [
       AleraDropdownEntry(
         value: 'handoff',
@@ -44,7 +88,17 @@ extension on _WorkspaceDetailsOverlayState {
         leading: const _MenuIcon(AleraIcons.send),
         enabled: workspace.isMain,
       ),
+      if (canLink)
+        const AleraDropdownEntry(
+          value: linkIssueMenuAction,
+          label: 'Link Issue',
+          leading: _MenuIcon(AleraIcons.link),
+        ),
     ]);
+    if (choice == linkIssueMenuAction && mounted) {
+      _issueAction(linkIssueMenuAction);
+      return;
+    }
     if (choice == 'handoff' && mounted) {
       await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
     }

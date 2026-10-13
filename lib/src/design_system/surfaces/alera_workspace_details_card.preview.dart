@@ -49,7 +49,7 @@ Widget _card({
       onAction: _action,
       compact: density != .full,
     ),
-    rows: [
+    workspaceRows: [
       const AleraWorkspaceDetailRow(
         label: 'This Device',
         leading: Icon(AleraIcons.workspaceMain),
@@ -62,6 +62,8 @@ Widget _card({
         onPressed: _action,
         onMenu: _menu,
       ),
+    ],
+    gitRows: [
       const AleraWorkspaceDetailRow(
         label: 'feature/workspace-details',
         subtitle: 'Compare against origin/main',

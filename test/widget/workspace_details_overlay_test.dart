@@ -30,6 +30,9 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:flutter_riverpod/misc.dart';
+import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
+import 'package:alera/src/features/linked_issues/domain/issue_state.dart';
+import 'package:alera/src/features/linked_issues/domain/linked_issue.dart';
 import 'package:alera/src/features/workbench/domain/workspace_git_quick_action.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -45,6 +48,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'workspace_details_agents_test_cases.dart';
+part 'workspace_details_issue_test_cases.dart';
 part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
 
@@ -100,6 +104,7 @@ Future<void> pumpOverlay(
   WorkspacePullRequestState reviewState = const WorkspacePullRequestState(),
   WorkbenchState? workbench,
   TerminalRuntime? runtime,
+  LinkedIssue? linkedIssue,
   List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -111,6 +116,8 @@ Future<void> pumpOverlay(
           () => workbench == null ? _Workbench() : _Workbench(workbench),
         ),
         terminalRuntimeProvider.overrideWithValue(runtime ?? _Runtime()),
+        linkedIssuesSupportedProvider.overrideWithValue(true),
+        workspaceLinkedIssueProvider('w').overrideWithValue(linkedIssue),
         ...overrides,
         workspaceSourceControlControllerProvider('/repo')
             .overrideWith(_Sources.new),
@@ -157,6 +164,7 @@ void main() {
   });
   _registerWorkspaceDetailsControlTests();
   _registerWorkspaceDetailsAgentTests();
+  _registerWorkspaceDetailsIssueTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,
@@ -348,7 +356,7 @@ void main() {
                       actionLabel: 'Merge',
                       onAction: action,
                     ),
-                    rows: [
+                    workspaceRows: [
                       AleraWorkspaceDetailRow(
                         label: 'leynier-minipc',
                         leading: AleraHostOsIcon(os: os),
@@ -364,6 +372,8 @@ void main() {
                         onPressed: action,
                         onMenu: (_) => action(),
                       ),
+                    ],
+                    gitRows: [
                       AleraWorkspaceDetailRow(
                         label: 'feature/workspace-details',
                         subtitle: 'Compare against origin/main',
