@@ -8,6 +8,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_details_agen
 import 'package:alera/src/features/workbench/presentation/workspace_details_review_rows.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_presence.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_source_control_presence.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/workbench/application/background_operations.dart';
@@ -38,6 +39,7 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_details_provider.dart';
 import 'package:alera/src/features/workbench/application/workspace_git_submission.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
@@ -59,6 +61,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'workspace_details_overlay_actions.dart';
 part 'workspace_details_overlay_card.dart';
 part 'workspace_details_overlay_menus.dart';
+part 'workspace_details_overlay_related.dart';
 
 class const WorkspaceDetailsOverlay({
   super.key,

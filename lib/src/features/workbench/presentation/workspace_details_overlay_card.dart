@@ -11,6 +11,11 @@ extension on _WorkspaceDetailsOverlayState {
     );
     final workspace = widget.workspace;
     final issue = cardRef.watch(workspaceLinkedIssueProvider(workspace.id));
+    final related = cardRef.watch(
+      workbenchControllerProvider.select(
+        (state) => _relatedWorkspaces(state, workspace.id),
+      ),
+    );
     final targets = cardRef.watch(sshTargetsProvider).value ?? const [];
     final host = targets
         .where((target) => target.id == workspace.hostId)
@@ -109,6 +114,7 @@ extension on _WorkspaceDetailsOverlayState {
               onPressed: () => _issueAction(openLinkedIssueMenuAction),
               onMenu: (anchor) => unawaited(_issueMenu(anchor)),
             ),
+          ?_relatedRow(related),
         ],
         gitRows: [
           if (widget.sourceControlScope != null) ...[

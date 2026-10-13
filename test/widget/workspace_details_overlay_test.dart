@@ -26,6 +26,7 @@ import 'package:alera/src/features/workbench/application/workspace_details_provi
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
@@ -50,6 +51,7 @@ import 'package:flutter_test/flutter_test.dart';
 part 'workspace_details_agents_test_cases.dart';
 part 'workspace_details_issue_test_cases.dart';
 part 'workspace_details_sync_test_cases.dart';
+part 'workspace_details_related_test_cases.dart';
 part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
 
@@ -167,6 +169,7 @@ void main() {
   _registerWorkspaceDetailsAgentTests();
   _registerWorkspaceDetailsIssueTests();
   _registerWorkspaceDetailsSyncTests();
+  _registerWorkspaceDetailsRelatedTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,

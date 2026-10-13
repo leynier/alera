@@ -4,6 +4,12 @@ class _Workbench extends WorkbenchController {
   _Workbench([this.seed = const WorkbenchState(activeWorkspaceId: 'w')]);
   final WorkbenchState seed;
   final selectedTabs = <String>[];
+  final selectedWorkspaces = <String>[];
+  @override
+  Future<void> selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+  }) async => selectedWorkspaces.add(workspace.id);
   @override
   WorkbenchState build() => seed;
   @override

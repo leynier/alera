@@ -83,6 +83,10 @@ extension on _WorkspaceDetailsOverlayState {
 
   Future<void> _detailsOptions(Rect anchor) async {
     final issue = ref.read(workspaceLinkedIssueProvider(widget.workspace.id));
+    final related = _relatedWorkspaces(
+      ref.read(workbenchControllerProvider),
+      widget.workspace.id,
+    );
     final choice = await _menu(anchor, [
       const AleraDropdownEntry(
         value: 'host',
@@ -103,8 +107,15 @@ extension on _WorkspaceDetailsOverlayState {
             size: AleraTokens.iconMd,
           ),
         ),
+      if (!related.isEmpty)
+        const AleraDropdownEntry(
+          value: 'related',
+          label: 'Related Workspaces',
+          leading: _MenuIcon(AleraIcons.workspaceChildren),
+        ),
     ]);
     if (!mounted) return;
+    if (choice == 'related') await _relatedMenu(anchor, related);
     if (choice == 'host') await _hostMenu(anchor);
     if (choice == 'open') await _openMenu(anchor);
     if (choice == 'issue') await _issueMenu(anchor);
