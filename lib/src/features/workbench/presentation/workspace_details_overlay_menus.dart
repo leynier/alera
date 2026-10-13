@@ -184,6 +184,11 @@ extension on _WorkspaceDetailsOverlayState {
           label: 'Link Issue',
           leading: _MenuIcon(AleraIcons.link),
         ),
+      const AleraDropdownEntry(
+        value: _newAutomationMenuValue,
+        label: 'New Automation Here',
+        leading: _MenuIcon(AleraIcons.add),
+      ),
       const PopupMenuDivider(),
       const AleraDropdownEntry(
         value: 'sleep',
@@ -209,6 +214,8 @@ extension on _WorkspaceDetailsOverlayState {
     switch (choice) {
       case linkIssueMenuAction:
         _issueAction(linkIssueMenuAction);
+      case _newAutomationMenuValue:
+        _newAutomation();
       case 'handoff':
         await showHandOffWorkspaceFlow(context, ref, workspace: workspace);
       case 'handon' when project != null:

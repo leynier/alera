@@ -11,6 +11,10 @@ extension on _WorkspaceDetailsOverlayState {
     );
     final workspace = widget.workspace;
     final issue = cardRef.watch(workspaceLinkedIssueProvider(workspace.id));
+    final automations = _workspaceAutomations(
+      cardRef.watch(automationCatalogProvider).value,
+      workspace.id,
+    );
     final related = cardRef.watch(
       workbenchControllerProvider.select(
         (state) => _relatedWorkspaces(state, workspace.id),
@@ -115,6 +119,7 @@ extension on _WorkspaceDetailsOverlayState {
               onMenu: (anchor) => unawaited(_issueMenu(anchor)),
             ),
           ?_relatedRow(related),
+          ?_automationsRow(automations),
         ],
         gitRows: [
           if (widget.sourceControlScope != null) ...[

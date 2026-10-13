@@ -31,6 +31,12 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:flutter_riverpod/misc.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/application/automation_providers.dart';
+import 'package:alera_automations/alera_automations.dart';
+
+import '../support/automation_test_harness.dart';
+
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/domain/issue_state.dart';
 import 'package:alera/src/features/linked_issues/domain/linked_issue.dart';
@@ -53,6 +59,7 @@ part 'workspace_details_issue_test_cases.dart';
 part 'workspace_details_sync_test_cases.dart';
 part 'workspace_details_related_test_cases.dart';
 part 'workspace_details_actions_test_cases.dart';
+part 'workspace_details_automations_test_cases.dart';
 part 'workspace_details_overlay_test_fakes.dart';
 part 'workspace_details_controls_test_cases.dart';
 
@@ -109,6 +116,7 @@ Future<void> pumpOverlay(
   WorkbenchState? workbench,
   TerminalRuntime? runtime,
   LinkedIssue? linkedIssue,
+  List<AutomationRecord> automations = const [],
   List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -121,6 +129,7 @@ Future<void> pumpOverlay(
         ),
         terminalRuntimeProvider.overrideWithValue(runtime ?? _Runtime()),
         linkedIssuesSupportedProvider.overrideWithValue(true),
+        automationCatalogProvider.overrideWith(() => _Catalog(automations)),
         workspaceLinkedIssueProvider('w').overrideWithValue(linkedIssue),
         ...overrides,
         workspaceSourceControlControllerProvider('/repo')
@@ -172,6 +181,7 @@ void main() {
   _registerWorkspaceDetailsSyncTests();
   _registerWorkspaceDetailsRelatedTests();
   _registerWorkspaceDetailsActionTests();
+  _registerWorkspaceDetailsAutomationTests();
 
   testWidgets('current PR stays first and stack expands without duplicates', (
     tester,

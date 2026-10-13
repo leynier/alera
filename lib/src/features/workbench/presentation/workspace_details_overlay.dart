@@ -1,6 +1,12 @@
 import 'package:alera/src/design_system/surfaces/workspace_details_density.dart';
 import 'package:alera/src/features/workbench/application/workspace_git_progress.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/application/automation_providers.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+import 'package:alera/src/features/automations/presentation/automation_tone.dart';
+import 'package:alera/src/features/automations/presentation/catalog/automation_catalog_row.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
+import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/linked_issues/presentation/linked_issue_state_icon.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';
@@ -65,6 +71,7 @@ part 'workspace_details_overlay_actions.dart';
 part 'workspace_details_overlay_card.dart';
 part 'workspace_details_overlay_menus.dart';
 part 'workspace_details_overlay_related.dart';
+part 'workspace_details_overlay_automations.dart';
 
 class const WorkspaceDetailsOverlay({
   super.key,
