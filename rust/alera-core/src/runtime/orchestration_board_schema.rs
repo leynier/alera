@@ -26,15 +26,10 @@ const BOARD_SOURCE_TABLES: &[&str] = &[
 ];
 
 pub(super) async fn install_board_schema(conn: &mut SqliteConnection) -> Result<()> {
-    sqlx::query("DROP VIEW IF EXISTS orchestrationBoardRuns")
-        .execute(&mut *conn)
-        .await?;
     for statement in BOARD_SCHEMA {
         sqlx::query(*statement).execute(&mut *conn).await?;
     }
-    sqlx::query(sqlx::AssertSqlSafe(board_runs_view()))
-        .execute(&mut *conn)
-        .await?;
+    super::schema_object_replacement::replace_schema_object(conn, &board_runs_view()).await?;
     // Install these only after every referenced table exists; pooled SQLite
     // connections must never cache a schema with dangling trigger bodies.
     for table in BOARD_SOURCE_TABLES {

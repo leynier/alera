@@ -23,19 +23,16 @@ pub struct WorkflowExecutionState {
 pub(super) async fn install_execution_schema(conn: &mut sqlx::SqliteConnection) -> Result<()> {
     sqlx::query("CREATE INDEX IF NOT EXISTS runIntegrationWorkspaceSequence ON runIntegrations(workspace_id,sequence DESC)")
         .execute(&mut *conn).await?;
-    sqlx::query("DROP TRIGGER IF EXISTS runDispatchRequiresRunning")
-        .execute(&mut *conn)
-        .await?;
     // Planning, approval, pauses and finished runs never dispatch, whichever
     // path (scheduler, coordinator or manual dispatch) asks.
-    sqlx::query(
+    super::schema_object_replacement::replace_schema_object(
+        conn,
         "CREATE TRIGGER runDispatchRequiresRunning
         BEFORE INSERT ON orchestrationDispatchContexts
         WHEN EXISTS(SELECT 1 FROM orchestrationCoordinatorRuns r
             WHERE r.id = NEW.run_id AND r.status <> 'running')
         BEGIN SELECT RAISE(ABORT, 'run is not running; dispatch waits for its plan or a resume'); END",
     )
-    .execute(&mut *conn)
     .await?;
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS runCommandReceipts (

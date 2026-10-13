@@ -28,12 +28,9 @@ impl RuntimeStore {
         );
         // Recreated on every start so a host that adds a target spelling also
         // updates the view an older host created.
-        sqlx::query("DROP VIEW IF EXISTS automationProjectReferencesV1")
-            .execute(self.pool())
-            .await?;
-        sqlx::query(sqlx::AssertSqlSafe(references))
-            .execute(self.pool())
-            .await?;
+        let mut conn = self.pool().acquire().await?;
+        super::schema_object_replacement::replace_schema_object(&mut conn, &references).await?;
+        drop(conn);
         let predicate = "COALESCE(json_extract(NEW.dataJson, '$.target.projectCheckout.projectId'), json_extract(NEW.dataJson, '$.target.projectCheckout.project_id'))";
         for (event, name) in [("INSERT", "Insert"), ("UPDATE", "Update")] {
             let guard = format!("CREATE TRIGGER IF NOT EXISTS projectCheckoutAutomation{name}Guard BEFORE {event} ON automations WHEN NEW.state = 'active' AND {predicate} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM projects WHERE id = {predicate}) BEGIN SELECT RAISE(ABORT, 'Automation target project no longer exists'); END");
