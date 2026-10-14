@@ -156,18 +156,35 @@ extension on _WorkspaceDetailsOverlayState {
           (!action.includesPr || data.pullRequest?.supportsCreation == true) &&
           (action != WorkspaceGitQuickAction.pull || repo.hasUpstream),
     );
+    final watchScope = ValueNotifier<PullRequestAgentWatchScope>(
+      ref.read(settingsControllerProvider).general.pullRequestAgentWatchScope,
+    );
     final choice = await _menu(anchor, [
       for (final group in groups) ...[
         for (final action in group) entry(action),
         const PopupMenuDivider(),
       ],
+      ..._shipMenuSection(data, scope, watchScope),
+      const PopupMenuDivider(),
       const AleraDropdownEntry(
         value: 'refresh',
         label: 'Refresh',
         leading: _MenuIcon(AleraIcons.gitRefresh),
       ),
     ]);
+    final chosenWatchScope = watchScope.value;
+    watchScope.dispose();
     if (!mounted || choice == null) return;
+    if (_shipChoice(choice) case final followUp?) {
+      try {
+        await _ship(data, scope, followUp, chosenWatchScope);
+      } catch (error) {
+        if (mounted) {
+          AleraToast.show(context, message: error.toString(), tone: .error);
+        }
+      }
+      return;
+    }
     if (choice == 'refresh') {
       await ref
           .read(

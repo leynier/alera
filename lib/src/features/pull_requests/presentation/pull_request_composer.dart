@@ -7,7 +7,6 @@ import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
-import 'package:alera/src/design_system/menus/alera_dropdown_toggle_entry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
@@ -19,6 +18,7 @@ import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_restack_button.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_ship_menu.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';

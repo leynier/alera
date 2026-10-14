@@ -15,20 +15,6 @@ class const _ShipPullRequestButton({
   required final ValueChanged<PullRequestShipFollowUp> onFollowUpChanged,
   required final ValueChanged<PullRequestAgentWatchScope> onWatchScopeChanged,
 }) extends StatelessWidget {
-  static String menuLabel(PullRequestShipFollowUp followUp) =>
-      switch (followUp) {
-        PullRequestShipFollowUp.none => 'Ship Changes',
-        PullRequestShipFollowUp.watchAndFix => 'Ship, Watch and Fix',
-        PullRequestShipFollowUp.watchFixAndMerge =>
-          'Ship, Watch, Fix and Merge',
-      };
-
-  static IconData icon(PullRequestShipFollowUp followUp) => switch (followUp) {
-    PullRequestShipFollowUp.none => AleraIcons.send,
-    PullRequestShipFollowUp.watchAndFix => AleraIcons.agent,
-    PullRequestShipFollowUp.watchFixAndMerge => AleraIcons.gitMerge,
-  };
-
   String get _label => switch (followUp) {
     _ when shipping => 'Shipping Changes',
     PullRequestShipFollowUp.none => 'Ship Changes',
@@ -91,7 +77,11 @@ class const _ShipPullRequestButton({
                                   ),
                                 )
                               else
-                                Icon(icon(followUp), size: 15, color: color),
+                                Icon(
+                                  pullRequestShipFollowUpIcon(followUp),
+                                  size: 15,
+                                  color: color,
+                                ),
                               const SizedBox(width: AleraTokens.space8),
                               Flexible(
                                 child: Text(
@@ -148,14 +138,7 @@ class const _ShipPullRequestButton({
     if (renderBox == null || overlay is! RenderBox) {
       return;
     }
-    // The menu route never rebuilds from this widget, so the watch rows listen
-    // to the scope the toggles edit instead of the value the menu opened with.
     final scope = ValueNotifier<PullRequestAgentWatchScope>(watchScope);
-    void update(PullRequestAgentWatchScope next) {
-      scope.value = next;
-      onWatchScopeChanged(next);
-    }
-
     final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
     final bottomRight = renderBox.localToGlobal(
       renderBox.size.bottomRight(.zero),
@@ -172,72 +155,16 @@ class const _ShipPullRequestButton({
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         side: const BorderSide(color: AleraTokens.border),
       ),
-      items: <PopupMenuEntry<PullRequestShipFollowUp>>[
-        for (final value in PullRequestShipFollowUp.values)
-          _ShipFollowUpMenuEntry(
-            value: value,
-            selected: value == followUp,
-            scope: scope,
-          ),
-        const PopupMenuDivider(),
-        AleraDropdownToggleEntry<PullRequestShipFollowUp>(
-          label: 'Failed Checks',
-          checked: scope.value.checks,
-          onChanged: (value) => update(scope.value.copyWith(checks: value)),
-        ),
-        AleraDropdownToggleEntry<PullRequestShipFollowUp>(
-          label: 'Review Comments',
-          checked: scope.value.comments,
-          onChanged: (value) => update(scope.value.copyWith(comments: value)),
-        ),
-        AleraDropdownToggleEntry<PullRequestShipFollowUp>(
-          label: 'Merge Conflicts',
-          checked: scope.value.conflicts,
-          onChanged: (value) => update(scope.value.copyWith(conflicts: value)),
-        ),
-      ],
+      items: pullRequestShipMenuEntries<PullRequestShipFollowUp>(
+        valueOf: (value) => value,
+        selected: followUp,
+        scope: scope,
+        onScopeChanged: onWatchScopeChanged,
+      ),
     );
     scope.dispose();
     if (selected != null) {
       onFollowUpChanged(selected);
     }
-  }
-}
-
-/// A follow-up row. The watch follow-ups are only selectable while [scope] has
-/// something to watch.
-class const _ShipFollowUpMenuEntry({
-  required this.value,
-  required this.selected,
-  required this.scope,
-}) extends PopupMenuEntry<PullRequestShipFollowUp> {
-  final PullRequestShipFollowUp value;
-  final bool selected;
-  final ValueNotifier<PullRequestAgentWatchScope> scope;
-
-  @override
-  double get height => 36;
-
-  @override
-  bool represents(PullRequestShipFollowUp? value) => false;
-
-  @override
-  State<_ShipFollowUpMenuEntry> createState() => _ShipFollowUpMenuEntryState();
-}
-
-class _ShipFollowUpMenuEntryState extends State<_ShipFollowUpMenuEntry> {
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<PullRequestAgentWatchScope>(
-      valueListenable: widget.scope,
-      builder: (context, scope, _) =>
-          AleraDropdownEntry<PullRequestShipFollowUp>(
-            value: widget.value,
-            label: _ShipPullRequestButton.menuLabel(widget.value),
-            selected: widget.selected,
-            enabled: !widget.value.watches || !scope.isEmpty,
-            leading: Icon(_ShipPullRequestButton.icon(widget.value), size: 16),
-          ),
-    );
   }
 }

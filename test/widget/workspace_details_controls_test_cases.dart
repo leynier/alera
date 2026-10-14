@@ -65,7 +65,7 @@ void _registerWorkspaceDetailsControlTests() {
   ) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await pumpOverlay(tester, const Size(1000, 700));
+    await pumpOverlay(tester, const Size(1000, 1000));
     final row = find.byTooltip('Commit & Push Options');
     final rowBottom = tester.getRect(row).bottom;
     await tester.tap(row);
