@@ -76,8 +76,29 @@ class _WelcomeDashboardState extends ConsumerState<WelcomeDashboard> {
   String? _sourceBranch;
   String? _error;
 
+  /// Captured up front so a pending draft can still be saved on dispose,
+  /// when [ref] is no longer usable.
+  late final WorkbenchController _workbench = ref.read(
+    workbenchControllerProvider.notifier,
+  );
+  Timer? _promptSave;
+  late String _savedPrompt;
+
+  @override
+  void initState() {
+    super.initState();
+    _savedPrompt = _savedSelection.prompt;
+    _promptController
+      ..text = _savedPrompt
+      ..addListener(_onPromptChanged);
+  }
+
   @override
   void dispose() {
+    if (_promptSave?.isActive ?? false) {
+      _promptSave!.cancel();
+      _savePrompt();
+    }
     _hostEnrollment?.removeListener(_onHostEnrollmentChanged);
     _hostEnrollment?.dispose();
     _promptController.dispose();

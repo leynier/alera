@@ -24,7 +24,17 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_details_provider.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -55,6 +65,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'workspace_details_agents_test_cases.dart';
+part 'workspace_details_ship_test_cases.dart';
 part 'workspace_details_issue_test_cases.dart';
 part 'workspace_details_sync_test_cases.dart';
 part 'workspace_details_related_test_cases.dart';
@@ -131,6 +142,7 @@ Future<void> pumpOverlay(
   Widget? child,
   Future<WorkspaceDetailsState> Function()? loadDetails,
   WorkspacePullRequestState reviewState = const WorkspacePullRequestState(),
+  WorkspacePullRequestController Function()? reviews,
   WorkbenchState? workbench,
   TerminalRuntime? runtime,
   LinkedIssue? linkedIssue,
@@ -158,7 +170,7 @@ Future<void> pumpOverlay(
         effectiveHostingProviderOverrideProvider('p')
             .overrideWith((ref) async => null),
         workspacePullRequestControllerProvider(scope)
-            .overrideWith(() => _Reviews(reviewState)),
+            .overrideWith(reviews ?? () => _Reviews(reviewState)),
         workspaceDetailsProvider(scope)
             .overrideWith((ref) async => await loadDetails?.call() ?? details),
       ],
@@ -195,6 +207,7 @@ void main() {
   });
   _registerWorkspaceDetailsControlTests();
   _registerWorkspaceDetailsAgentTests();
+  _registerWorkspaceDetailsShipTests();
   _registerWorkspaceDetailsIssueTests();
   _registerWorkspaceDetailsSyncTests();
   _registerWorkspaceDetailsRelatedTests();

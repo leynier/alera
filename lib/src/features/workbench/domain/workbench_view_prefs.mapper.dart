@@ -439,6 +439,26 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: const <String>{},
   );
+  static Set<String> _$workspaceDetailsAgentsExpandedIds(
+    WorkbenchViewPrefs v,
+  ) => v.workspaceDetailsAgentsExpandedIds;
+  static const Field<WorkbenchViewPrefs, Set<String>>
+  _f$workspaceDetailsAgentsExpandedIds = Field(
+    'workspaceDetailsAgentsExpandedIds',
+    _$workspaceDetailsAgentsExpandedIds,
+    opt: true,
+    def: const <String>{},
+  );
+  static Set<String> _$workspaceDetailsAgentGroupsCollapsed(
+    WorkbenchViewPrefs v,
+  ) => v.workspaceDetailsAgentGroupsCollapsed;
+  static const Field<WorkbenchViewPrefs, Set<String>>
+  _f$workspaceDetailsAgentGroupsCollapsed = Field(
+    'workspaceDetailsAgentGroupsCollapsed',
+    _$workspaceDetailsAgentGroupsCollapsed,
+    opt: true,
+    def: const <String>{},
+  );
   static Map<String, String> _$workspaceComparisonBases(WorkbenchViewPrefs v) =>
       v.workspaceComparisonBases;
   static const Field<WorkbenchViewPrefs, Map<String, String>>
@@ -707,6 +727,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
     #workspaceDetailsHiddenIds: _f$workspaceDetailsHiddenIds,
+    #workspaceDetailsAgentsExpandedIds: _f$workspaceDetailsAgentsExpandedIds,
+    #workspaceDetailsAgentGroupsCollapsed:
+        _f$workspaceDetailsAgentGroupsCollapsed,
     #workspaceComparisonBases: _f$workspaceComparisonBases,
     #workspacePanels: _f$workspacePanels,
     #sectionSort: _f$sectionSort,
@@ -748,6 +771,12 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
       workspaceDetailsHiddenIds: data.dec(_f$workspaceDetailsHiddenIds),
+      workspaceDetailsAgentsExpandedIds: data.dec(
+        _f$workspaceDetailsAgentsExpandedIds,
+      ),
+      workspaceDetailsAgentGroupsCollapsed: data.dec(
+        _f$workspaceDetailsAgentGroupsCollapsed,
+      ),
       workspaceComparisonBases: data.dec(_f$workspaceComparisonBases),
       workspacePanels: data.dec(_f$workspacePanels),
       sectionSort: data.dec(_f$sectionSort),
@@ -883,6 +912,8 @@ abstract class WorkbenchViewPrefsCopyWith<
   get homeComposer;
   $R call({
     Set<String>? workspaceDetailsHiddenIds,
+    Set<String>? workspaceDetailsAgentsExpandedIds,
+    Set<String>? workspaceDetailsAgentGroupsCollapsed,
     Map<String, String>? workspaceComparisonBases,
     Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
@@ -982,6 +1013,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   @override
   $R call({
     Set<String>? workspaceDetailsHiddenIds,
+    Set<String>? workspaceDetailsAgentsExpandedIds,
+    Set<String>? workspaceDetailsAgentGroupsCollapsed,
     Map<String, String>? workspaceComparisonBases,
     Map<String, WorkspacePanel>? workspacePanels,
     WorkbenchSortBy? sectionSort,
@@ -1020,6 +1053,11 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     FieldCopyWithData({
       if (workspaceDetailsHiddenIds != null)
         #workspaceDetailsHiddenIds: workspaceDetailsHiddenIds,
+      if (workspaceDetailsAgentsExpandedIds != null)
+        #workspaceDetailsAgentsExpandedIds: workspaceDetailsAgentsExpandedIds,
+      if (workspaceDetailsAgentGroupsCollapsed != null)
+        #workspaceDetailsAgentGroupsCollapsed:
+            workspaceDetailsAgentGroupsCollapsed,
       if (workspaceComparisonBases != null)
         #workspaceComparisonBases: workspaceComparisonBases,
       if (workspacePanels != null) #workspacePanels: workspacePanels,
@@ -1079,6 +1117,14 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     workspaceDetailsHiddenIds: data.get(
       #workspaceDetailsHiddenIds,
       or: $value.workspaceDetailsHiddenIds,
+    ),
+    workspaceDetailsAgentsExpandedIds: data.get(
+      #workspaceDetailsAgentsExpandedIds,
+      or: $value.workspaceDetailsAgentsExpandedIds,
+    ),
+    workspaceDetailsAgentGroupsCollapsed: data.get(
+      #workspaceDetailsAgentGroupsCollapsed,
+      or: $value.workspaceDetailsAgentGroupsCollapsed,
     ),
     workspaceComparisonBases: data.get(
       #workspaceComparisonBases,

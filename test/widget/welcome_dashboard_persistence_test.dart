@@ -131,4 +131,38 @@ void main() {
 
     expect(find.text('From main'), findsOneWidget);
   });
+
+  testWidgets('Home composer keeps the unsent prompt until it is sent', (
+    tester,
+  ) async {
+    final state = twoProjects(
+      saved: const HomeComposerPrefs(prompt: 'Draft from last time'),
+    );
+    final controller = WelcomeDashboardTestController(state);
+    final jobs = await pumpWelcomeDashboard(
+      tester,
+      state: state,
+      profiles: [profile],
+      controller: controller,
+    );
+    final prompt = find.byKey(const ValueKey<String>('home-composer-prompt'));
+    expect(find.text('Draft from last time'), findsOneWidget);
+
+    await tester.enterText(prompt, 'Fix the login crash');
+    await tester.pump();
+    expect(
+      controller.state.viewPrefs.homeComposer.prompt,
+      isNot('Fix the login crash'),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      controller.state.viewPrefs.homeComposer.prompt,
+      'Fix the login crash',
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('home-composer-send')));
+    await tester.pump();
+    expect(jobs.request?.prompt, 'Fix the login crash');
+    expect(controller.state.viewPrefs.homeComposer.prompt, isEmpty);
+  });
 }

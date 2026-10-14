@@ -31,6 +31,29 @@ class _Workbench extends WorkbenchController {
         viewPrefs: state.viewPrefs.copyWith(activeContextPanelTab: tab),
       );
   @override
+  void toggleWorkspaceDetailsAgents(String id) {
+    final expanded = {...state.viewPrefs.workspaceDetailsAgentsExpandedIds};
+    if (!expanded.add(id)) expanded.remove(id);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        workspaceDetailsAgentsExpandedIds: expanded,
+      ),
+    );
+  }
+
+  @override
+  void toggleWorkspaceDetailsAgentGroup(String id, WorkspacePanelTree tree) {
+    final collapsed = {...state.viewPrefs.workspaceDetailsAgentGroupsCollapsed};
+    final key = workspaceDetailsAgentGroupKey(id, tree);
+    if (!collapsed.add(key)) collapsed.remove(key);
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(
+        workspaceDetailsAgentGroupsCollapsed: collapsed,
+      ),
+    );
+  }
+
+  @override
   void toggleWorkspaceDetails(String id) {
     final hidden = {...state.viewPrefs.workspaceDetailsHiddenIds};
     if (!hidden.add(id)) hidden.remove(id);

@@ -28,4 +28,9 @@ mixin _WorkbenchControllerLocalPrefs
     }
     _updateViewPrefs(state.viewPrefs.copyWith(homeComposer: prefs));
   }
+
+  /// Remembers the unsent Home prompt.
+  void setHomeComposerPrompt(String prompt) {
+    setHomeComposerPrefs(state.viewPrefs.homeComposer.copyWith(prompt: prompt));
+  }
 }

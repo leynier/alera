@@ -130,9 +130,17 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
   }
 }
 
+/// Key in [WorkbenchViewPrefs.workspaceDetailsAgentGroupsCollapsed].
+String workspaceDetailsAgentGroupKey(
+  String workspaceId,
+  WorkspacePanelTree tree,
+) => '$workspaceId:${tree.name}';
+
 @MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
   this.workspaceDetailsHiddenIds = const <String>{},
+  this.workspaceDetailsAgentsExpandedIds = const <String>{},
+  this.workspaceDetailsAgentGroupsCollapsed = const <String>{},
   this.workspaceComparisonBases = const <String, String>{},
   this.workspacePanels = const <String, WorkspacePanel>{},
   this.sectionSort = WorkbenchSortBy.name,
@@ -169,6 +177,14 @@ class const WorkbenchViewPrefs({
   this.homeComposer = HomeComposerPrefs.empty,
 }) with WorkbenchViewPrefsMappable {
   final Set<String> workspaceDetailsHiddenIds;
+
+  /// Workspaces whose Workspace Details agents section is expanded. The
+  /// section starts collapsed. Desktop-only; never shared with phones.
+  final Set<String> workspaceDetailsAgentsExpandedIds;
+
+  /// Collapsed panel groups inside an expanded agents section, keyed
+  /// `workspaceId:main` or `workspaceId:right`.
+  final Set<String> workspaceDetailsAgentGroupsCollapsed;
   final Map<String, String> workspaceComparisonBases;
   final Map<String, WorkspacePanel> workspacePanels;
   final WorkbenchGroupBy groupBy;

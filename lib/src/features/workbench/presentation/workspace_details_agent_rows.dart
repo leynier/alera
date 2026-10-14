@@ -9,17 +9,28 @@ import 'package:alera/src/design_system/surfaces/alera_workspace_details_card.da
 import 'package:alera/src/design_system/surfaces/workspace_details_density.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
+import 'package:alera/src/features/workbench/application/workspace_details_agent_groups.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_panel.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_status_badge.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Agents running in the workspace's terminals. Renders nothing when there
 /// are none, so the card keeps its height for workspaces without agents.
+///
+/// Starts collapsed to one row of agents grouped by state, like the sidebar.
+/// Expanded, it lists the main panel's agents and then the right panel's,
+/// each in Agent Activity order; with agents on both sides a divider above
+/// each side collapses it on its own. Both choices are remembered per
+/// workspace.
 class const WorkspaceDetailsAgentRows({
   super.key,
   required this.workspace,
@@ -34,8 +45,6 @@ class const WorkspaceDetailsAgentRows({
 
 class _WorkspaceDetailsAgentRowsState
     extends ConsumerState<WorkspaceDetailsAgentRows> {
-  bool _expanded = false;
-
   @override
   Widget build(BuildContext context) {
     final id = widget.workspace.id;
@@ -56,17 +65,50 @@ class _WorkspaceDetailsAgentRowsState
     };
     final runs = visibleWorkspaceAgentRuns(tabs: tabs, agentStatuses: statuses);
     if (runs.isEmpty) return const SizedBox.shrink();
+    final panel = ref.watch(
+      workbenchControllerProvider.select(
+        (state) => state.viewPrefs.workspacePanels[id],
+      ),
+    );
+    final groups = groupWorkspaceDetailsAgentRuns(
+      runs,
+      panel: panel,
+      now: DateTime.now(),
+    );
     if (widget.density == WorkspaceDetailsDensity.essential) {
-      return AleraWorkspaceDetailsSection(children: [_summary(runs)]);
+      return AleraWorkspaceDetailsSection(
+        children: [_header(groups.all, expanded: false, menu: true)],
+      );
     }
-    final limit = widget.density == WorkspaceDetailsDensity.full ? 4 : 3;
-    final shown = _expanded || runs.length <= limit
-        ? runs
-        : runs.take(limit - 1).toList();
+    final fold = ref.watch(
+      workbenchControllerProvider.select((state) {
+        final prefs = state.viewPrefs;
+        final collapsed = prefs.workspaceDetailsAgentGroupsCollapsed;
+        return (
+          expanded: prefs.workspaceDetailsAgentsExpandedIds.contains(id),
+          main: collapsed.contains(
+            workspaceDetailsAgentGroupKey(id, WorkspacePanelTree.main),
+          ),
+          right: collapsed.contains(
+            workspaceDetailsAgentGroupKey(id, WorkspacePanelTree.right),
+          ),
+        );
+      }),
+    );
+    final split = groups.main.isNotEmpty && groups.right.isNotEmpty;
+    bool collapsed(WorkspacePanelTree tree) =>
+        tree == WorkspacePanelTree.main ? fold.main : fold.right;
     return AleraWorkspaceDetailsSection(
       children: [
-        for (final run in shown) _row(run),
-        if (runs.length > limit) _toggle(runs.length - shown.length),
+        _header(groups.all, expanded: fold.expanded),
+        if (fold.expanded && !split)
+          for (final run in groups.all) _row(run),
+        if (fold.expanded && split)
+          for (final tree in WorkspacePanelTree.values) ...[
+            _divider(tree, groups.runsIn(tree), collapsed: collapsed(tree)),
+            if (!collapsed(tree))
+              for (final run in groups.runsIn(tree)) _row(run),
+          ],
       ],
     );
   }
@@ -158,50 +200,35 @@ class _WorkspaceDetailsAgentRowsState
     );
   }
 
-  Widget _toggle(int hidden) {
-    final label = _expanded ? 'Show Fewer Agents' : 'Show $hidden More';
+  /// The section's single row: every agent grouped by state while
+  /// collapsed, a chevron while expanded. With [menu] a press lists the
+  /// agents instead, for cards too short to expand.
+  Widget _header(
+    List<WorkspaceAgentRun> runs, {
+    required bool expanded,
+    bool menu = false,
+  }) {
+    final label = runs.length == 1
+        ? _label(runs.single)
+        : '${runs.length} Agents';
+    final tooltip = menu
+        ? 'Agents'
+        : expanded
+        ? 'Hide Agents'
+        : 'Show Agents';
     return AleraWorkspaceDetailControl(
-      tooltip: label,
-      onPressed: () => setState(() => _expanded = !_expanded),
+      key: const ValueKey('workspace-details-agents'),
+      tooltip: tooltip,
+      onPressed: menu
+          ? null
+          : () => ref
+                .read(workbenchControllerProvider.notifier)
+                .toggleWorkspaceDetailsAgents(widget.workspace.id),
+      onMenu: menu ? (anchor) => unawaited(_menu(runs, anchor)) : null,
+      pressOpensMenu: menu,
       child: Row(
         children: [
-          AleraWorkspaceDetailLeading(
-            child: Icon(_expanded ? AleraIcons.remove : AleraIcons.add),
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: AleraTokens.foregroundMuted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// One row for the whole set: the most urgent agent leads, the menu lists
-  /// every agent.
-  Widget _summary(List<WorkspaceAgentRun> runs) {
-    final urgent = mostUrgentWorkspaceAgentRun(runs) ?? runs.first;
-    final label = runs.length == 1 ? _label(urgent) : '${runs.length} Agents';
-    return AleraWorkspaceDetailControl(
-      tooltip: '$label · ${agentRunStateLabel(urgent.status)}',
-      onPressed: () => unawaited(_focus(urgent)),
-      onMenu: (anchor) => unawaited(_menu(runs, anchor)),
-      menuTooltip: 'Agents',
-      child: Row(
-        children: [
-          AleraWorkspaceDetailLeading(
-            child: AgentIdentityIcon(
-              agentType: urgent.status.agentType,
-              size: AleraTokens.iconMd,
-              showTooltip: false,
-            ),
-          ),
+          const AleraWorkspaceDetailLeading(child: Icon(AleraIcons.agent)),
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Text(
@@ -211,7 +238,64 @@ class _WorkspaceDetailsAgentRowsState
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-          AgentRunStateIndicator(status: urgent.status),
+          const SizedBox(width: AleraTokens.space8),
+          if (expanded)
+            const Icon(
+              AleraIcons.chevronDown,
+              size: 12,
+              color: AleraTokens.foregroundMuted,
+            )
+          else
+            WorkspaceAgentCompactSummary(
+              groups: groupWorkspaceAgentRuns(runs),
+              expanded: false,
+              onToggle: null,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Unlabeled divider above one panel's agents. Pressing it collapses that
+  /// panel's agents into a state-grouped summary.
+  Widget _divider(
+    WorkspacePanelTree tree,
+    List<WorkspaceAgentRun> runs, {
+    required bool collapsed,
+  }) {
+    final side = tree == WorkspacePanelTree.main ? 'Main Panel' : 'Right Panel';
+    return AleraWorkspaceDetailSegment(
+      key: ValueKey('workspace-details-agents-${tree.name}'),
+      tooltip: collapsed ? 'Show $side Agents' : 'Hide $side Agents',
+      onPressed: () => ref
+          .read(workbenchControllerProvider.notifier)
+          .toggleWorkspaceDetailsAgentGroup(widget.workspace.id, tree),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space8,
+        vertical: AleraTokens.space4,
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Divider(
+              height: AleraTokens.dividerExtent,
+              thickness: AleraTokens.dividerExtent,
+              color: AleraTokens.borderSubtle,
+            ),
+          ),
+          const SizedBox(width: AleraTokens.space6),
+          if (collapsed)
+            WorkspaceAgentCompactSummary(
+              groups: groupWorkspaceAgentRuns(runs),
+              expanded: false,
+              onToggle: null,
+            )
+          else
+            const Icon(
+              AleraIcons.chevronDown,
+              size: 12,
+              color: AleraTokens.foregroundMuted,
+            ),
         ],
       ),
     );

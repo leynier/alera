@@ -79,7 +79,7 @@ extension on _WorkspaceDetailsOverlayState {
         AleraDropdownEntry(
           value: child.id,
           label: child.name,
-          detail: child.branch,
+          subtitle: child.branch,
           leading: const _MenuIcon(AleraIcons.workspaceChildren),
         ),
     ]);

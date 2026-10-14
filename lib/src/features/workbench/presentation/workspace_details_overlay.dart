@@ -46,6 +46,14 @@ import 'package:alera/src/features/keyboard/application/keyboard_command_dispatc
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_ship_menu.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -72,6 +80,7 @@ part 'workspace_details_overlay_card.dart';
 part 'workspace_details_overlay_menus.dart';
 part 'workspace_details_overlay_related.dart';
 part 'workspace_details_overlay_automations.dart';
+part 'workspace_details_overlay_ship.dart';
 
 class const WorkspaceDetailsOverlay({
   super.key,

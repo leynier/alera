@@ -4,18 +4,21 @@ import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
 /// trailing check for the [selected] value, optional leading content, an
-/// optional muted [detail] beside the label, and pop-on-tap semantics.
+/// optional muted [detail] beside the label, an optional muted [subtitle]
+/// under it, and pop-on-tap semantics. Text stays on one line and ellipsizes
+/// when the menu is narrower than it.
 class const AleraDropdownEntry<T>({
   super.key,
   required final T value,
   required final String label,
   final Widget? leading,
   final String? detail,
+  final String? subtitle,
   final bool selected = false,
   final bool enabled = true,
 }) extends PopupMenuEntry<T> {
   @override
-  double get height => 36;
+  double get height => subtitle == null ? 36 : 48;
 
   @override
   bool represents(T? value) => enabled && this.value == value;
@@ -27,9 +30,13 @@ class const AleraDropdownEntry<T>({
 class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final color = widget.enabled
         ? AleraTokens.foreground
         : AleraTokens.foregroundFaint;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: AleraTokens.foregroundMuted,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: InkWell(
@@ -53,18 +60,37 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
                 const SizedBox(width: AleraTokens.space8),
               ],
               Expanded(
-                child: Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: color),
+                child: Column(
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .start,
+                  children: <Widget>[
+                    Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: .ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: color),
+                    ),
+                    if (widget.subtitle case final subtitle?)
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: muted,
+                      ),
+                  ],
                 ),
               ),
               if (widget.detail case final detail?) ...<Widget>[
                 const SizedBox(width: AleraTokens.space12),
-                Text(
-                  detail,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AleraTokens.foregroundMuted),
+                // Capped so a long detail cannot squeeze the label away.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: .ellipsis,
+                    style: muted,
+                  ),
                 ),
               ],
               if (widget.selected)

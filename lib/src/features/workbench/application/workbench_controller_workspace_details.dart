@@ -10,6 +10,30 @@ mixin _WorkbenchControllerWorkspaceDetails
     );
   }
 
+  void toggleWorkspaceDetailsAgents(String workspaceId) {
+    final expanded = Set<String>.from(
+      state.viewPrefs.workspaceDetailsAgentsExpandedIds,
+    );
+    if (!expanded.add(workspaceId)) expanded.remove(workspaceId);
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(workspaceDetailsAgentsExpandedIds: expanded),
+    );
+  }
+
+  void toggleWorkspaceDetailsAgentGroup(
+    String workspaceId,
+    WorkspacePanelTree tree,
+  ) {
+    final collapsed = Set<String>.from(
+      state.viewPrefs.workspaceDetailsAgentGroupsCollapsed,
+    );
+    final key = workspaceDetailsAgentGroupKey(workspaceId, tree);
+    if (!collapsed.add(key)) collapsed.remove(key);
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(workspaceDetailsAgentGroupsCollapsed: collapsed),
+    );
+  }
+
   void setWorkspaceComparisonBase(
     String workspaceId,
     String root,

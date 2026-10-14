@@ -312,14 +312,14 @@ extension on _WorkspaceDetailsOverlayState {
         enabled: !workspace.isRemote,
       ),
       const AleraDropdownEntry(
-        value: 'copy',
-        label: 'Copy Path',
-        leading: _MenuIcon(AleraIcons.copy),
-      ),
-      const AleraDropdownEntry(
         value: 'browser',
         label: 'Open In Browser',
         leading: _MenuIcon(AleraIcons.external),
+      ),
+      const AleraDropdownEntry(
+        value: 'copy',
+        label: 'Copy Path',
+        leading: _MenuIcon(AleraIcons.copy),
       ),
     ]);
     if (!mounted) return;
