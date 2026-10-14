@@ -66,6 +66,11 @@ class const _WorkspaceTabContent({
         tab: tab,
         autofocus: autofocus,
       ),
+      WorkspaceTabKind.agentChat => AgentChatTabSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      ),
     };
   }
 }

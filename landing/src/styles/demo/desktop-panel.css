@@ -82,7 +82,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
+  height: var(--app-menu-row-height);
   padding: 4px 8px;
   border-radius: var(--app-radius-lg);
   color: var(--app-foreground);

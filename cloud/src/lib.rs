@@ -18,6 +18,7 @@ pub mod migrations;
 pub mod mobile;
 pub mod oauth;
 pub mod push;
+mod push_chat_data;
 pub(crate) mod push_delivery;
 pub(crate) mod push_delivery_token_cleanup;
 pub mod quota;

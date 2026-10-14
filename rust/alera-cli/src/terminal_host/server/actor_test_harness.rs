@@ -41,6 +41,9 @@ impl ClientState {
             mobile_device_name: None,
             cloud_device_id: None,
             relay_client_id: None,
+            agent_chat_supported: true,
+            agent_chat_capability: true,
+            chat_orchestration_binding: None,
         }
     }
 }
@@ -60,6 +63,9 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         mobile_device_name: Some(format!("{device} phone")),
         cloud_device_id: Some(format!("cloud-{device}")),
         relay_client_id: None,
+        agent_chat_supported: true,
+        agent_chat_capability: true,
+        chat_orchestration_binding: None,
     }
 }
 
@@ -78,6 +84,9 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         mobile_device_name: None,
         cloud_device_id: None,
         relay_client_id: None,
+        agent_chat_supported: true,
+        agent_chat_capability: true,
+        chat_orchestration_binding: None,
     }
 }
 
@@ -108,6 +117,7 @@ pub(super) async fn test_actor(
             runtime_store.clone(),
             inbox.clone(),
         ),
+        remote_agent_chats: Default::default(),
         project_clone_jobs: HashMap::new(),
         prompt_workspace_operations: HashMap::new(),
         agent_title_jobs: HashMap::new(),
@@ -142,6 +152,9 @@ pub(super) async fn test_actor(
         voice: Default::default(),
         codex: None,
         codex_starting: None,
+        agent_chat_runtime: None,
+        agent_chat_provider_settings: None,
+        chat_orchestration: None,
         inbox,
         next_client_id: Arc::new(AtomicU64::new(10)),
         mobile_gateway: None,

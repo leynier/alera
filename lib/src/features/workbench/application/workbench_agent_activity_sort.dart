@@ -1,4 +1,5 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
@@ -28,13 +29,15 @@ class const AgentActivityRank({
   required final DateTime activityAt,
 });
 
-/// Classifies a workspace by its live agent runs for the Agent Activity sort.
+/// Classifies a workspace by its live agent runs, and its agent chats when
+/// [chats] is given, for the Agent Activity sort.
 WorkspaceAttention workspaceAttention({
   required Iterable<WorkspaceTabRecord> tabs,
   required Map<String, AgentStatusEntry> agentStatuses,
   required DateTime now,
+  ChatWorkspaceAttention? chats,
 }) {
-  var best = WorkspaceAttention.idle;
+  var best = chats == null ? WorkspaceAttention.idle : _chatAttention(chats);
   final runs = visibleWorkspaceAgentRuns(
     tabs: tabs,
     agentStatuses: agentStatuses,
@@ -54,6 +57,22 @@ WorkspaceAttention workspaceAttention({
   }
   return best;
 }
+
+// A chat's attention comes from the runtime, so it never goes stale the way
+// an old terminal hook does.
+WorkspaceAttention _chatAttention(
+  ChatWorkspaceAttention chats,
+) => switch (chats.level) {
+  ChatAttentionLevel.needsInput || ChatAttentionLevel.failed =>
+    WorkspaceAttention(attentionClass: .needsYou, attentionAt: chats.latestAt),
+  ChatAttentionLevel.unread => WorkspaceAttention(
+    attentionClass: .done,
+    attentionAt: chats.latestAt,
+  ),
+  ChatAttentionLevel.working || ChatAttentionLevel.waitingOnTasks =>
+    WorkspaceAttention(attentionClass: .working, attentionAt: chats.latestAt),
+  ChatAttentionLevel.idle => WorkspaceAttention.idle,
+};
 
 AgentAttentionClass _classify(AgentStatusEntry status) {
   if (agentStatusNeedsYou(status)) {

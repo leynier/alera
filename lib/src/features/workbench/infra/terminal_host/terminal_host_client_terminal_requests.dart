@@ -10,6 +10,7 @@ Future<TerminalHostAttachment> _createOrAttachTerminal(
   required int cols,
   required int rows,
   bool observe = false,
+  CommandTerminalProviderSetup? providerSetup,
 }) async {
   final payload = await client._terminalRequestMap(
     'createOrAttach',
@@ -20,6 +21,7 @@ Future<TerminalHostAttachment> _createOrAttachTerminal(
         tabId: tabId,
         workingDirectory: workingDirectory,
         launch: launch,
+        providerSetup: providerSetup,
         cols: cols,
         rows: rows,
       ),
@@ -38,6 +40,7 @@ Future<TerminalHostAttachment> _restartTerminal(
   required GhosttyTerminalShellLaunch launch,
   required int cols,
   required int rows,
+  CommandTerminalProviderSetup? providerSetup,
 }) async {
   if (!client.supportsTerminalRestart) {
     throw UnsupportedError(
@@ -59,6 +62,7 @@ Future<TerminalHostAttachment> _restartTerminal(
         tabId: tabId,
         workingDirectory: workingDirectory,
         launch: launch,
+        providerSetup: providerSetup,
         cols: cols,
         rows: rows,
       ),
@@ -79,6 +83,7 @@ Map<String, Object?> _terminalAttachmentRequest({
   required GhosttyTerminalShellLaunch launch,
   required int cols,
   required int rows,
+  CommandTerminalProviderSetup? providerSetup,
 }) {
   return <String, Object?>{
     'sessionId': sessionId,
@@ -86,6 +91,7 @@ Map<String, Object?> _terminalAttachmentRequest({
     'tabId': tabId,
     'workingDirectory': workingDirectory,
     'launch': TerminalHostLaunch(
+      providerSetup: providerSetup,
       label: launch.label,
       shell: launch.shell,
       arguments: launch.arguments,
@@ -94,4 +100,104 @@ Map<String, Object?> _terminalAttachmentRequest({
     'cols': cols,
     'rows': rows,
   };
+}
+
+extension _ProviderSetupHostTransport on SocketTerminalHostClient {
+  Future<TerminalHostAttachment> _providerSetupTerminal({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+    required CommandTerminalProviderSetup providerSetup,
+    required bool restart,
+    String? hostId,
+  }) async {
+    final connection = await _connectTerminal();
+    if (hostId != null && hostId.isNotEmpty && hostId != 'local') {
+      if (!connection.runtimeCapabilities.contains(
+        'agentChatRemoteProviderSetupV1',
+      )) {
+        throw UnsupportedError(
+          'The running host does not support remote provider setup.',
+        );
+      }
+      _remoteProviderSetupSessions[sessionId] = (hostId, providerSetup);
+      final payload = await _terminalRequestMap(
+        restart ? 'terminal.restart' : 'createOrAttach',
+        _terminalAttachmentRequest(
+          sessionId: sessionId,
+          workspaceId: workspaceId,
+          tabId: tabId,
+          workingDirectory: workingDirectory,
+          launch: launch,
+          cols: cols,
+          rows: rows,
+          providerSetup: providerSetup,
+        ),
+      );
+      return TerminalHostAttachment.fromJson(payload);
+    }
+    if (!connection.runtimeCapabilities.contains('agentChatProviderSetupV1')) {
+      throw UnsupportedError(
+        'The running host does not support provider setup terminals.',
+      );
+    }
+    if (restart) {
+      return _restartTerminal(
+        this,
+        sessionId: sessionId,
+        workspaceId: workspaceId,
+        tabId: tabId,
+        workingDirectory: workingDirectory,
+        launch: launch,
+        cols: cols,
+        rows: rows,
+        providerSetup: providerSetup,
+      );
+    }
+    return _createOrAttachTerminal(
+      this,
+      sessionId: sessionId,
+      workspaceId: workspaceId,
+      tabId: tabId,
+      workingDirectory: workingDirectory,
+      launch: launch,
+      cols: cols,
+      rows: rows,
+      providerSetup: providerSetup,
+    );
+  }
+}
+
+mixin _ProviderSetupHostClientSupport
+    implements TerminalHostProviderSetupClient {
+  SocketTerminalHostClient get _providerSetupClient;
+
+  @override
+  Future<TerminalHostAttachment> providerSetupTerminal({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+    required CommandTerminalProviderSetup providerSetup,
+    String? hostId,
+    bool restart = false,
+  }) => _providerSetupClient._providerSetupTerminal(
+    sessionId: sessionId,
+    workspaceId: workspaceId,
+    tabId: tabId,
+    workingDirectory: workingDirectory,
+    launch: launch,
+    cols: cols,
+    rows: rows,
+    providerSetup: providerSetup,
+    hostId: hostId,
+    restart: restart,
+  );
 }

@@ -1,5 +1,6 @@
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/desktop_presence/infra/desktop_presence_channel.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -27,9 +28,14 @@ String pendingReviewTooltip(int count) {
 int pendingReviewCountForTabs({
   required Iterable<WorkspaceTabRecord> tabs,
   required Map<String, AgentStatusEntry> agentStatuses,
+  Map<String, ChatAttentionEntry> chats = const <String, ChatAttentionEntry>{},
 }) {
   return pendingReviewAgentCount(
-    visibleWorkspaceAgentRuns(tabs: tabs, agentStatuses: agentStatuses),
+    visibleWorkspaceAgentRuns(
+      tabs: tabs,
+      agentStatuses: agentStatuses,
+      chats: chats,
+    ),
   );
 }
 

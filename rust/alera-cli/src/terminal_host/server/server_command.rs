@@ -12,6 +12,27 @@ use super::{account_requests, push_delivery, runtime_mutations, ClientKind};
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
+    /// A committed agent-chat change from a session actor.
+    AgentChatRuntimeEvent {
+        event: super::agent_chat_runtime::events::ChatRuntimeEvent,
+    },
+    /// Wakes idle-shutdown accounting after a chat starts or stops work.
+    AgentChatActivityChanged,
+    AgentChatSettingsChanged {
+        name: String,
+        payload: Value,
+    },
+    /// Completion of a client agent-chat/orchestration request executed away
+    /// from the actor loop so provider I/O cannot block the MCP handshake.
+    AgentChatRequestFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    /// A committed chat-orchestration task change for authenticated clients.
+    ChatOrchestrationChanged {
+        change: Value,
+    },
     OwnerAutomationPrecheckFinished {
         operation_id: String,
     },

@@ -7,7 +7,7 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 use crate::terminal_host::alera_account::AleraAccountService;
-use crate::terminal_host::push_notifications::{PushDamper, PushEvent};
+use crate::terminal_host::push_notifications::{ChatPushTracker, PushDamper, PushEvent};
 
 pub(super) struct AccountPushState {
     pub(super) service: Arc<AleraAccountService>,
@@ -18,6 +18,7 @@ pub(super) struct AccountPushState {
     pub(super) push_enabled: bool,
     pub(super) active_subscriptions: usize,
     pub(super) damper: PushDamper,
+    pub(super) chat_tracker: ChatPushTracker,
     pub(super) pending_events: Vec<PushEvent>,
     pub(super) batch_started: Option<Instant>,
     pub(super) flush_generation: u64,
@@ -59,6 +60,7 @@ impl AccountPushState {
             push_enabled: enabled,
             active_subscriptions,
             damper: PushDamper::default(),
+            chat_tracker: ChatPushTracker::default(),
             pending_events: Vec::new(),
             batch_started: None,
             flush_generation: 0,

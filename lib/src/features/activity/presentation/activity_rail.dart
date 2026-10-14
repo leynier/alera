@@ -11,6 +11,7 @@ IconData activitySectionIcon(ActivitySection section) => switch (section) {
   ActivitySection.runs => AleraIcons.workspaceChildren,
   ActivitySection.questions => AleraIcons.inbox,
   ActivitySection.automations => AleraIcons.checks,
+  ActivitySection.chatTasks => AleraIcons.agent,
 };
 
 /// Binds the Activity sections and their attention counts to [AleraRail].

@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/activity/application/activity_attention.dart';
@@ -9,6 +10,7 @@ import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/infra/runtime_automation_repository.dart';
 import 'package:alera/src/features/automations/presentation/automations_section.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_task_providers.dart';
 import 'package:alera/src/features/inbox/presentation/questions_section.dart';
 import 'package:alera/src/features/runs/application/run_providers.dart';
 import 'package:alera/src/features/runs/domain/run_detail_tab.dart';
@@ -23,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/automation_test_harness.dart';
+import '../support/chat_task_fakes.dart';
 import '../support/inbox_test_client.dart';
 import '../support/runs_fake_repository.dart';
 import '../support/runs_fixtures.dart';
@@ -45,6 +48,7 @@ _Fixture _fixture({bool realAttention = false}) {
       'revision': 1,
     })
     ..respond('inbox.threads', const <String, Object?>{'items': <Object?>[]});
+  final chatTasks = FakeChatTaskTransport();
   final automations = FakeAutomationRuntime()
     ..automations = <Map<String, Object?>>[
       automationJson(),
@@ -55,6 +59,9 @@ _Fixture _fixture({bool realAttention = false}) {
     runClockProvider.overrideWithValue(() => runsTestNow),
     appForegroundProvider.overrideWithValue(const AlwaysForeground()),
     ...inboxClientOverrides(inbox),
+    chatTaskRepositoryProvider.overrideWithValue(
+      RuntimeAgentChatOrchestrationRepository(chatTasks),
+    ),
   ];
   final container = realAttention
       ? ProviderContainer(
@@ -70,6 +77,7 @@ _Fixture _fixture({bool realAttention = false}) {
   addTearDown(board.dispose);
   addTearDown(inbox.events.close);
   addTearDown(automations.dispose);
+  addTearDown(chatTasks.dispose);
   return (
     container: container,
     board: board,

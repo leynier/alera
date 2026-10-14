@@ -9,15 +9,36 @@ use super::terminal_spawn_command::{resolve_spawn_command, SpawnCommand};
 use super::terminal_startup_commands::{initial_command, initial_managed_agent_launch};
 use super::ServerActor;
 
+mod provider_setup_requests;
+
 impl ServerActor {
     pub(super) async fn create_or_attach(
         &mut self,
         client_id: u64,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.create_or_attach_with_setup_authority(client_id, payload, false)
+            .await
+    }
+
+    pub(super) async fn create_or_attach_with_setup_authority(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+        forwarded: bool,
+    ) -> HostResult<Value> {
         let session_id = require_string(payload, "sessionId")?;
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
+        self.validate_provider_setup_request(
+            client_id,
+            payload,
+            &session_id,
+            &workspace_id,
+            &tab_id,
+            forwarded,
+        )
+        .await?;
         if payload["attachmentMode"].as_str() == Some("observe") {
             return self
                 .observe_automation_terminal(client_id, &session_id, &workspace_id, &tab_id)
@@ -189,9 +210,28 @@ impl ServerActor {
         client_id: u64,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.restart_terminal_with_setup_authority(client_id, payload, false)
+            .await
+    }
+
+    pub(super) async fn restart_terminal_with_setup_authority(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+        forwarded: bool,
+    ) -> HostResult<Value> {
         let session_id = require_string(payload, "sessionId")?;
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
+        self.validate_provider_setup_request(
+            client_id,
+            payload,
+            &session_id,
+            &workspace_id,
+            &tab_id,
+            forwarded,
+        )
+        .await?;
         let working_directory = require_string(payload, "workingDirectory")?;
         self.require_workflow_spawn_permit(&session_id, &workspace_id, &tab_id, None)
             .await?;

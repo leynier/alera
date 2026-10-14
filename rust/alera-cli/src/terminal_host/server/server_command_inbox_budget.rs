@@ -8,6 +8,8 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::session::PtyEvent;
 use serde::Serialize;
 
+#[path = "server_command_inbox_chat_budget.rs"]
+mod chat_budget;
 #[path = "server_command_inbox_deferred_budget.rs"]
 mod deferred_budget;
 #[path = "server_command_inbox_voice_budget.rs"]
@@ -80,6 +82,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         } => string_bytes(operation_id) + host_result_serialized_bytes(result),
         ServerCommand::RemoteSetupFinished { result, .. }
         | ServerCommand::RemoteRecoveryFinished { result, .. }
+        | ServerCommand::AgentChatRequestFinished { result, .. }
         | ServerCommand::HostLinkRequestFinished { result, .. }
         | ServerCommand::ProjectCheckoutRegistered { result, .. }
         | ServerCommand::ManagedWorkspaceCreated { result, .. }
@@ -148,7 +151,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         } => {
             string_bytes(session_id)
                 + std::mem::size_of_val(session_instance_id)
-                + string_list_bytes(message_ids)
+                + chat_budget::string_list_bytes(message_ids)
                 + std::mem::size_of_val(force_submit)
         }
         ServerCommand::TerminalStartupInput {
@@ -189,6 +192,10 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         }
         ServerCommand::VoiceTurnFinished { result, .. } => host_result_string_bytes(result),
         ServerCommand::VoiceSynthesizeFinished { result, .. } => host_result_serialized_bytes(result),
+        ServerCommand::AgentChatRuntimeEvent { event } => chat_budget::runtime_event_bytes(event),
+        ServerCommand::AgentChatActivityChanged => 1,
+        ServerCommand::AgentChatSettingsChanged { name, payload } => string_bytes(name) + value_bytes(payload),
+        ServerCommand::ChatOrchestrationChanged { change } => value_bytes(change),
         ServerCommand::OwnerAutomationPrecheckFinished { operation_id } => string_bytes(operation_id),
         ServerCommand::AutomationPrecheckFinished {
             definition,
@@ -201,7 +208,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
                 + serialized_bytes(run)
                 + string_bytes(host_id)
                 + string_bytes(path)
-                + bool_result_bytes(result)
+                + chat_budget::bool_result_bytes(result)
         }
         ServerCommand::AutomationCheckoutPrepared {
             definition,
@@ -216,7 +223,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
             string_bytes(&attempt.id)
                 + serialized_bytes(&attempt.run)
                 + serialized_bytes(&attempt.workspace)
-                + value_result_bytes(result)
+                + chat_budget::value_result_bytes(result)
         }
         ServerCommand::OrchestrationCompletionFinished(completion) => {
             string_bytes(&completion.dispatch_id)
@@ -347,10 +354,6 @@ fn string_bytes(value: &str) -> usize {
     value.len().saturating_add(1)
 }
 
-fn string_list_bytes(values: &[String]) -> usize {
-    values.iter().map(|value| string_bytes(value)).sum()
-}
-
 fn value_bytes(value: &serde_json::Value) -> usize {
     super::super::server_command_payload_size::serialized_bytes(
         value,
@@ -388,20 +391,6 @@ fn host_result_watcher_bytes(
     }
 }
 
-fn bool_result_bytes(result: &Result<bool, String>) -> usize {
-    match result {
-        Ok(value) => serialized_bytes(value),
-        Err(error) => string_bytes(error),
-    }
-}
-
-fn value_result_bytes(result: &Result<serde_json::Value, String>) -> usize {
-    match result {
-        Ok(value) => value_bytes(value),
-        Err(error) => string_bytes(error),
-    }
-}
-
 fn host_error_bytes(error: &HostError) -> usize {
     match error {
         HostError::State(message) | HostError::Format(message) => string_bytes(message),
@@ -432,6 +421,7 @@ fn is_completion_command(command: &ServerCommand) -> bool {
             | ServerCommand::OwnerTerminalLifecycleFinished { .. }
             | ServerCommand::RemoteSetupFinished { .. }
             | ServerCommand::RemoteRecoveryFinished { .. }
+            | ServerCommand::AgentChatRequestFinished { .. }
             | ServerCommand::HostLinkRequestFinished { .. }
             | ServerCommand::ProjectCheckoutRegistered { .. }
             | ServerCommand::ManagedWorkspaceCreated { .. }

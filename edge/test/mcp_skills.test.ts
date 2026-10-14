@@ -1,13 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
+import { URL as NodeURL } from 'node:url';
 import { RUNTIME_TOOLS } from '../src/mcp/tools';
 import { LIST_SKILLS_TOOL, READ_SKILL_TOOL, SKILLS, SKILLS_REMINDER } from '../src/mcp/skills';
 import { buildSkillCatalog, serializeSkillCatalog, SKILL_CATALOG_PATH } from '../tool/skill_catalog';
 import { mcpHarness } from './mcp_fixture';
 
 const EDGE_TOOLS = ['list_runtimes', LIST_SKILLS_TOOL, READ_SKILL_TOOL];
-// Snake case words in the skills that are error codes, not tools.
-const ERROR_CODES = new Set([
+// Chat tools belong to the injected credential-bound server, not the edge.
+const CHAT_TOOL_SOURCE = readFileSync(
+  new NodeURL('../../rust/alera-cli/src/mcp_tools/catalog/chat_orchestration.rs', import.meta.url),
+  'utf8',
+);
+const CHAT_TOOLS = [...CHAT_TOOL_SOURCE.matchAll(/\b(?:read|execute|admin)\(\s*"(chat_[a-z_]+)"/g)].map((match) => match[1]);
+// Snake case error codes and enum values in the skills, not tools.
+const NON_TOOL_TERMS = new Set([
   'not_found',
   'invalid_argument',
   'capability_missing',
@@ -16,6 +23,8 @@ const ERROR_CODES = new Set([
   'runtime_unavailable',
   'runtime_offline',
   'insufficient_scope',
+  'needs_input',
+  'settled_only',
 ]);
 
 const allTexts = SKILLS.flatMap((skill) => skill.files.map((file) => ({ skill, file })));
@@ -28,19 +37,28 @@ describe('MCP skill catalog', () => {
 
   test('every Alera tool is explained by some skill', () => {
     const mentioned = new Set(allTexts.flatMap(({ file }) => [...file.text.matchAll(/`([a-z0-9_]+)`/g)].map((m) => m[1])));
-    const missing = [...RUNTIME_TOOLS.keys(), 'list_runtimes'].filter((name) => !mentioned.has(name));
+    const missing = [...RUNTIME_TOOLS.keys(), ...CHAT_TOOLS, 'list_runtimes'].filter((name) => !mentioned.has(name));
     expect(missing).toEqual([]);
   });
 
   test('skills name only tools that exist', () => {
-    const known = new Set([...RUNTIME_TOOLS.keys(), ...EDGE_TOOLS]);
+    const known = new Set([...RUNTIME_TOOLS.keys(), ...CHAT_TOOLS, ...EDGE_TOOLS]);
     const unknown = allTexts.flatMap(({ skill, file }) =>
       [...file.text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/g)]
         .map((match) => match[1])
-        .filter((word) => !known.has(word) && !ERROR_CODES.has(word))
+        .filter((word) => !known.has(word) && !NON_TOOL_TERMS.has(word))
         .map((word) => `${skill.name}/${file.path}: ${word}`),
     );
     expect(unknown).toEqual([]);
+  });
+
+  test('chat-bound tools stay out of the public runtime catalog', () => {
+    expect(CHAT_TOOLS.length).toBeGreaterThan(0);
+    expect(new Set(CHAT_TOOLS).size).toBe(CHAT_TOOLS.length);
+    expect(CHAT_TOOLS.filter((name) => RUNTIME_TOOLS.has(name))).toEqual([]);
+    expect([...RUNTIME_TOOLS.keys()].filter((name) => name.startsWith('chat_')).sort()).toEqual([
+      'chat_task_control', 'chat_task_delegate', 'chat_task_query', 'chat_task_send',
+    ]);
   });
 
   test('links and skill names resolve', () => {

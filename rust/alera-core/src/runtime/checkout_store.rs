@@ -220,34 +220,7 @@ impl RuntimeStore {
         let path =
             tokio::task::spawn_blocking(move || canonical_local_path_or_original(&path)).await?;
         let mut tx = self.pool().begin().await?;
-        sqlx::query("INSERT INTO projects (id, name, repoPath, createdAt, updatedAt, kind) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING")
-            .bind(&project.id).bind(&project.name).bind(&path)
-            .bind(super::store::format_timestamp(project.created_at)).bind(super::store::format_timestamp(project.updated_at))
-            .bind(project.kind.as_str()).execute(&mut *tx).await?;
-        let kind: String = sqlx::query_scalar("SELECT kind FROM projects WHERE id = ?")
-            .bind(&project.id)
-            .fetch_one(&mut *tx)
-            .await?;
-        if kind != project.kind.as_str() {
-            bail!("Project identity already belongs to another project type");
-        }
-        let existing: Option<String> = sqlx::query_scalar("SELECT path FROM repositoryCheckouts WHERE projectId = ? AND hostId = 'local' AND kind = 'project'")
-            .bind(&project.id).fetch_optional(&mut *tx).await?;
-        if existing.as_ref().is_some_and(|existing| existing != &path) {
-            bail!("The project already has a different checkout on this host");
-        }
-        sqlx::query("INSERT OR IGNORE INTO repositoryCheckouts (id, projectId, hostId, path, kind, repositoryPath) VALUES (?, ?, 'local', ?, 'project', ?)")
-            .bind(Uuid::new_v4().to_string()).bind(&project.id).bind(&path).bind(&path).execute(&mut *tx).await?;
-        let registered: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM repositoryCheckouts WHERE projectId = ? AND hostId = 'local' AND path = ? AND kind = 'project')")
-            .bind(&project.id).bind(&path).fetch_one(&mut *tx).await?;
-        if !registered {
-            bail!("The path is already registered as a linked checkout");
-        }
-        sqlx::query("UPDATE projects SET repoPath = ? WHERE id = ?")
-            .bind(&path)
-            .bind(&project.id)
-            .execute(&mut *tx)
-            .await?;
+        register_owner_project_checkout_in(&mut tx, &project, &path).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -337,6 +310,42 @@ impl RuntimeStore {
     }
 }
 
+pub(super) async fn register_owner_project_checkout_in(
+    tx: &mut Transaction<'_, Sqlite>,
+    project: &super::Project,
+    path: &str,
+) -> Result<()> {
+    sqlx::query("INSERT INTO projects (id, name, repoPath, createdAt, updatedAt, kind) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING")
+        .bind(&project.id).bind(&project.name).bind(path)
+        .bind(super::store::format_timestamp(project.created_at)).bind(super::store::format_timestamp(project.updated_at))
+        .bind(project.kind.as_str()).execute(&mut **tx).await?;
+    let kind: String = sqlx::query_scalar("SELECT kind FROM projects WHERE id = ?")
+        .bind(&project.id)
+        .fetch_one(&mut **tx)
+        .await?;
+    if kind != project.kind.as_str() {
+        bail!("Project identity already belongs to another project type");
+    }
+    let existing: Option<String> = sqlx::query_scalar("SELECT path FROM repositoryCheckouts WHERE projectId = ? AND hostId = 'local' AND kind = 'project'")
+        .bind(&project.id).fetch_optional(&mut **tx).await?;
+    if existing.as_ref().is_some_and(|existing| existing != path) {
+        bail!("The project already has a different checkout on this host");
+    }
+    sqlx::query("INSERT OR IGNORE INTO repositoryCheckouts (id, projectId, hostId, path, kind, repositoryPath) VALUES (?, ?, 'local', ?, 'project', ?)")
+        .bind(Uuid::new_v4().to_string()).bind(&project.id).bind(path).bind(path).execute(&mut **tx).await?;
+    let registered: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM repositoryCheckouts WHERE projectId = ? AND hostId = 'local' AND path = ? AND kind = 'project')")
+        .bind(&project.id).bind(path).fetch_one(&mut **tx).await?;
+    if !registered {
+        bail!("The path is already registered as a linked checkout");
+    }
+    sqlx::query("UPDATE projects SET repoPath = ? WHERE id = ?")
+        .bind(path)
+        .bind(&project.id)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
 pub(super) async fn bind_workspace_checkout(
     tx: &mut Transaction<'_, Sqlite>,
     workspace: &Workspace,
@@ -397,7 +406,7 @@ pub(super) async fn bind_workspace_checkout(
     Ok(())
 }
 
-fn canonical_local_path_or_original(path: &str) -> String {
+pub(super) fn canonical_local_path_or_original(path: &str) -> String {
     // Offline and missing checkouts retain their last known location and task records.
     std::fs::canonicalize(path)
         .ok()

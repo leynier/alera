@@ -117,6 +117,7 @@ async fn workflow_cleanup_claim_blocks_new_terminal_owners_after_restart() {
             "cleanup-tab".into(),
             workspace.path.clone(),
             TerminalHostLaunch {
+                provider_setup: None,
                 label: "Must Not Launch".into(),
                 shell: "must-not-execute-cleanup-test".into(),
                 arguments: vec![],

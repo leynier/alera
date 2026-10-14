@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/runs/application/activity_providers.dart';
 import 'package:alera_mobile/src/features/runs/application/mobile_run_providers.dart';
 import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
@@ -71,6 +72,19 @@ class const ActivityCard({
               description: 'View schedules and start approved runs.',
               onOpen: () => open(ActivitySection.automations),
             ),
+            if (ref.watch(mobileChatTasksSupportedProvider(hostId)).value ??
+                false)
+              _ActivityRow(
+                section: ActivitySection.chatTasks,
+                icon: AleraIcons.agent,
+                count: ref
+                    .watch(mobileChatTaskAttentionCountProvider(hostId))
+                    .value,
+                countLabel: (count) => '$count Need Attention',
+                description:
+                    'Delegate tasks to agent chats and follow their results.',
+                onOpen: () => open(ActivitySection.chatTasks),
+              ),
           ],
         ),
       ),

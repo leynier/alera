@@ -1,5 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera_mobile/src/features/agent_provider_settings/presentation/agent_providers_screen.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/projects/presentation/remote_directory_picker_screen.dart';
@@ -167,6 +169,17 @@ class const _SettingsBody({
                   ),
                 ),
               ),
+              if (ref.watch(agentChatSupportedProvider(host.id)).value == true)
+                _NavigationTile(
+                  icon: Icons.smart_toy_outlined,
+                  title: 'Providers',
+                  scope: 'Agents for Agent Chat tabs',
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AgentProvidersScreen(hostId: host.id),
+                    ),
+                  ),
+                ),
               if (connection.value?.supportsVoiceHomeAgent == true)
                 _NavigationTile(
                   icon: Icons.record_voice_over_outlined,

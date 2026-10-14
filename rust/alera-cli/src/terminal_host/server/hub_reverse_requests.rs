@@ -132,6 +132,7 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        self.require_request_allowed(client_id, request_type)?;
         if request_type == "hub.mirror.workspace" && self.hub_reverse.hub_client == Some(client_id)
         {
             self.forget_negative_satellite_flag();
@@ -160,6 +161,10 @@ impl ServerActor {
         }
         self.forward_question(client_id, request_id, request_type, payload.clone())?;
         Ok(true)
+    }
+
+    pub(super) fn is_hub_link_client(&self, client_id: u64) -> bool {
+        self.hub_reverse.hub_client == Some(client_id)
     }
 
     async fn is_satellite_runtime(&mut self) -> bool {
@@ -202,17 +207,24 @@ impl ServerActor {
                 hub_client_id,
             },
         );
-        self.client_write(
-            hub_client_id,
-            event(
-                HUB_REQUEST_EVENT,
-                json!({
-                    "requestId": reverse_id,
-                    "type": forwarded_type,
-                    "payload": forwarded_payload,
-                }),
-            ),
-        );
+        let authority =
+            if super::chat_orchestration_remote::is_chat_orchestration_verb(forwarded_type) {
+                self.clients
+                    .get(&client_id)
+                    .and_then(|client| client.chat_orchestration_binding.as_ref())
+                    .map(super::chat_orchestration_remote::forwarded_binding)
+            } else {
+                None
+            };
+        let mut envelope = json!({
+            "requestId": reverse_id,
+            "type": forwarded_type,
+            "payload": forwarded_payload,
+        });
+        if let Some(authority) = authority {
+            envelope["chatAuthority"] = authority;
+        }
+        self.client_write(hub_client_id, event(HUB_REQUEST_EVENT, envelope));
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(deadline).await;
@@ -283,9 +295,25 @@ impl ServerActor {
         let runtime_dir = self.runtime_dir.clone();
         let pool = self.hub_reverse.self_clients.clone();
         let links = self.host_links.clone();
+        let chat_service = self.chat_orchestration.clone();
+        let chat_router = self.remote_chat_router();
+        let chat_authority = request.get("chatAuthority").cloned();
         tokio::spawn(async move {
             let result =
-                answer_reverse_request(&pool, &runtime_dir, &host_id, &request_type, payload).await;
+                if super::chat_orchestration_remote::is_chat_orchestration_verb(&request_type) {
+                    super::chat_orchestration_remote::answer_remote_orchestration(
+                        chat_service,
+                        chat_router,
+                        &host_id,
+                        &request_type,
+                        &payload,
+                        chat_authority.as_ref(),
+                    )
+                    .await
+                } else {
+                    answer_reverse_request(&pool, &runtime_dir, &host_id, &request_type, payload)
+                        .await
+                };
             respond(&links, &host_id, &reverse_id, result).await;
         });
     }
@@ -306,6 +334,13 @@ async fn answer_reverse_request(
     request_type: &str,
     payload: Value,
 ) -> HostResult<Value> {
+    if super::chat_orchestration_remote::is_chat_orchestration_verb(request_type) {
+        return Err(HostError::conflict(
+            "chat_scope_denied",
+            "Chat orchestration requires the scoped reverse channel.",
+            json!({}),
+        ));
+    }
     if !hub_answers(request_type) {
         return Err(refusal(request_type));
     }

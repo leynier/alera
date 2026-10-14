@@ -65,6 +65,8 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     actions: [
       { id: 'toggleTerminalComposer', label: 'Toggle Terminal Composer', description: 'Show or hide the prompt composer for the active terminal.', bindings: uniform('Mod+Shift+Enter'), inTerminal: true },
       { id: 'newTerminalTab', label: 'New Terminal Tab', description: 'Open a terminal tab in the active workspace.', bindings: uniform('Mod+T'), inTerminal: false },
+      { id: 'newAgentChatTab', label: 'New Agent Chat', description: 'Start an agent chat tab in the active workspace.', bindings: uniform('Mod+Shift+T'), inTerminal: false },
+      { id: 'chooseAgentChatModel', label: 'Choose Model', description: 'Choose the agent and model of the active agent chat.', bindings: uniform('Mod+Shift+M'), inTerminal: false },
       { id: 'closeTab', label: 'Close Tab', description: 'Close the active tab.', bindings: uniform('Mod+W'), inTerminal: false },
       { id: 'nextTab', label: 'Next Tab', description: 'Select the next tab in the active pane.', bindings: { macos: ['Mod+Shift+BracketRight', 'Ctrl+Tab'], windows: ['Ctrl+Tab'], linux: ['Ctrl+Tab'] }, inTerminal: true },
       { id: 'previousTab', label: 'Previous Tab', description: 'Select the previous tab in the active pane.', bindings: { macos: ['Mod+Shift+BracketLeft', 'Ctrl+Shift+Tab'], windows: ['Ctrl+Shift+Tab'], linux: ['Ctrl+Shift+Tab'] }, inTerminal: true },

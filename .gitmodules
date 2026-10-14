@@ -30,3 +30,15 @@
 [submodule "reference_projects/directory_tree"]
 	path = reference_projects/directory_tree
 	url = https://github.com/omar-hanafy/directory_tree.git
+[submodule "reference_projects/claude-agent-sdk-python"]
+	path = reference_projects/claude-agent-sdk-python
+	url = https://github.com/anthropics/claude-agent-sdk-python.git
+[submodule "reference_projects/muse-code-sdk"]
+	path = reference_projects/muse-code-sdk
+	url = https://github.com/meta-models/muse-code-sdk.git
+[submodule "reference_projects/cursor-sdk-bridge"]
+	path = reference_projects/cursor-sdk-bridge
+	url = https://github.com/cursor/sdk-bridge.git
+[submodule "reference_projects/opencode"]
+	path = reference_projects/opencode
+	url = https://github.com/anomalyco/opencode.git

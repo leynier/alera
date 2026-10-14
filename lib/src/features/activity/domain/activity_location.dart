@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
@@ -19,12 +20,14 @@ class ActivityLocation with ActivityLocationMappable {
     this.runs = const RunsLocation(),
     this.questions = const QuestionsLocation(),
     this.automations = const AutomationsLocation(),
+    this.chatTasks = const ChatTasksLocation(),
   });
   final bool visible;
   final ActivitySection section;
   final RunsLocation runs;
   final QuestionsLocation questions;
   final AutomationsLocation automations;
+  final ChatTasksLocation chatTasks;
 
   bool showing(ActivitySection value) => visible && section == value;
 }
@@ -103,4 +106,26 @@ class AutomationsLocation with AutomationsLocationMappable {
 
   /// Catalog group headers the user collapsed, by group key.
   final Set<String> collapsedGroups;
+}
+
+/// Rows one Chat Tasks list asks for; Load More raises it a page at a time.
+const int chatTasksPageSize = 100;
+
+@MappableClass()
+class ChatTasksLocation with ChatTasksLocationMappable {
+  const ChatTasksLocation({
+    this.projectId,
+    this.workspaceId,
+    this.bucket,
+    this.limit = chatTasksPageSize,
+    this.taskId,
+  });
+  final String? projectId;
+  final String? workspaceId;
+  final AgentChatTaskBucket? bucket;
+  final int limit;
+  final String? taskId;
+
+  bool get filtered =>
+      projectId != null || workspaceId != null || bucket != null;
 }

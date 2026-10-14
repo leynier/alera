@@ -48,7 +48,7 @@ void main() {
     await tester.tap(find.text('Open File'));
     await tester.pumpAndSettle();
     expect(workbench.actions, contains('workspace:ws-1'));
-    expect(workbench.opens, [(false, false)]);
+    expect(workbench._opens, [(false, false)]);
     expect(tester.takeException(), isNull);
   });
 
@@ -66,11 +66,11 @@ void main() {
       await tester.sendKeyDownEvent(key);
       await tester.tap(find.text('Open File'));
       await tester.pump();
-      expect(workbench.opens, isEmpty);
+      expect(workbench._opens, isEmpty);
       await tester.sendKeyUpEvent(key);
       workbench.pendingSelection!.complete();
       await tester.pumpAndSettle();
-      expect(workbench.opens, [(true, true)]);
+      expect(workbench._opens, [(true, true)]);
       expect(tester.takeException(), isNull);
       debugDefaultTargetPlatformOverride = null;
     });
@@ -345,7 +345,7 @@ class _ProjectCatalogTestRepository extends CatalogTestRepository {
 
 class _FileOpenWorkbench extends BoardTestWorkbench {
   Completer<void>? pendingSelection;
-  final opens = <(bool, bool)>[];
+  final _opens = <(bool, bool)>[];
 
   void setWorkspaceAvailable(bool available) {
     final original = boardWorkbenchState();
@@ -375,7 +375,7 @@ class _FileOpenWorkbench extends BoardTestWorkbench {
     bool preview = false,
     bool oppositePanel = false,
   }) async {
-    opens.add((preview, oppositePanel));
+    _opens.add((preview, oppositePanel));
     final now = DateTime.utc(2026);
     return WorkspaceTabRecord(
       id: 'recipe-file',

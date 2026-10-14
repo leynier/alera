@@ -15,6 +15,7 @@ import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
@@ -41,6 +42,7 @@ import 'package:alera/src/features/workbench/application/workbench_listing.dart'
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
+import 'package:alera/src/features/workbench/application/workspace_chat_agent_runs.dart';
 import 'package:alera/src/features/workbench/application/workspace_descendants.dart';
 import 'package:alera/src/features/workbench/application/workspace_removal_dependencies.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -52,6 +54,7 @@ import 'package:alera/src/features/workbench/presentation/widgets/agent_run_stat
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_status_badge.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_run_icon.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_hand_off_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_external_actions.dart'

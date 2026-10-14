@@ -39,6 +39,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-client-protocol"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -62,10 +74,47 @@ dependencies = [
 ]
 
 [[package]]
-name = "alera-cli"
+name = "alera-agent-http"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "async-trait",
+ "bytes",
+ "futures-util",
+ "reqwest",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "alera-agent-transport"
 version = "0.1.0"
 dependencies = [
  "alera-core",
+ "async-trait",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "alera-cli"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-http",
+ "alera-agent-transport",
+ "alera-core",
+ "alera-provider-acp",
+ "alera-provider-acp-registry",
+ "alera-provider-antigravity",
+ "alera-provider-claude",
+ "alera-provider-codex",
+ "alera-provider-cursor",
+ "alera-provider-grok",
+ "alera-provider-muse",
+ "alera-provider-opencode",
+ "alera-provider-pi",
+ "alera-provider-protocol",
  "anyhow",
  "async-trait",
  "aws-lc-rs",
@@ -75,6 +124,7 @@ dependencies = [
  "chacha20poly1305",
  "chrono",
  "clap",
+ "cursor-agent-sdk",
  "dbus-secret-service-keyring-store",
  "dirs",
  "dunce",
@@ -92,7 +142,9 @@ dependencies = [
  "keyring",
  "keyring-core",
  "libc",
+ "muse-agent-sdk",
  "notify",
+ "opencode-agent-sdk",
  "png",
  "portable-pty",
  "rand 0.10.2",
@@ -152,6 +204,153 @@ dependencies = [
  "uuid",
  "windows 0.62.2",
  "yaml-rust2",
+]
+
+[[package]]
+name = "alera-provider-acp"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "alera-provider-acp-registry"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-core",
+ "alera-provider-acp",
+ "alera-provider-protocol",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-antigravity"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-acp",
+ "alera-provider-protocol",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-claude"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "claude-agent-sdk",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "alera-provider-codex"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-cursor"
+version = "0.1.0"
+dependencies = [
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "cursor-agent-sdk",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-grok"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-acp",
+ "alera-provider-protocol",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-muse"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "muse-agent-sdk",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "alera-provider-opencode"
+version = "0.1.0"
+dependencies = [
+ "alera-provider-protocol",
+ "async-trait",
+ "chrono",
+ "opencode-agent-sdk",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-pi"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-provider-protocol",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "alera-provider-protocol"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -1014,6 +1213,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
+name = "claude-agent-sdk"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1237,6 +1448,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d5515a3834141de9eafb9717ad39eea8247b5674e6066c404e8c4b365d2a29e"
 dependencies = [
  "cmov",
+]
+
+[[package]]
+name = "cursor-agent-sdk"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-http",
+ "alera-agent-transport",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
 ]
 
 [[package]]
@@ -3531,6 +3755,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "muse-agent-sdk"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-transport",
+ "alera-core",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "nalgebra"
 version = "0.34.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3940,6 +4178,21 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "opencode-agent-sdk"
+version = "0.1.0"
+dependencies = [
+ "alera-agent-http",
+ "alera-agent-transport",
+ "async-trait",
+ "base64 0.22.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "openssl"

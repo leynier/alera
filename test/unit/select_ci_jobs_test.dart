@@ -97,6 +97,7 @@ void main() {
     for (final path in const <String>[
       'packages/alera_configuration/lib/src/configuration_sync.dart',
       'packages/alera_automations/lib/src/automation_draft.dart',
+      'packages/alera_agent_chat/lib/src/agent_chat_thread.dart',
     ]) {
       final jobs = selectCiJobs(<String>[path]);
       expect(jobs.packages, isTrue, reason: path);

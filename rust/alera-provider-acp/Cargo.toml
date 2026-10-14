@@ -1,0 +1,20 @@
+[package]
+name = "alera-provider-acp"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+agent-client-protocol = { path = "../agent-client-protocol" }
+alera-agent-transport = { path = "../alera-agent-transport" }
+alera-provider-protocol = { path = "../alera-provider-protocol" }
+async-trait = "0.1"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["time"] }
+uuid = { version = "1.26.0", features = ["v4"] }
+
+[[bin]]
+name = "acp-jsonl-fixture"
+path = "tests/support/acp_jsonl_fixture.rs"

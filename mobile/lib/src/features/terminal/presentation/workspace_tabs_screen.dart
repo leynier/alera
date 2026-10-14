@@ -3,8 +3,23 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_automations/alera_automations.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_launcher.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_tab_actions.dart';
+import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_archived_chats_sheet.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_sheets.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_provider_identity.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_view.dart';
+import 'package:alera_mobile/src/features/agent_provider_settings/presentation/agent_providers_screen.dart';
+import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_chat_actions.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
 import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
@@ -39,10 +54,12 @@ import 'package:alera_mobile/src/features/workbench/application/workbench_provid
 import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_run_state_indicator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
+part 'workspace_tabs_agent_chats.dart';
 part 'workspace_tabs_actions.dart';
 part 'workspace_tabs_close.dart';
 part 'workspace_tabs_panel_body.dart';
@@ -67,6 +84,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
   String? _selectedTabId;
   bool _creating = false;
 
+  /// A chat New Chat just opened; its composer takes focus once.
+  String? _focusTabId;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +97,10 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     switch (action) {
       case _NewTerminalTabAction():
         await _createTab();
+      case _NewAgentChatTabAction():
+        await _createAgentChat();
+      case _ArchivedChatsTabAction():
+        await _openArchivedChats();
       case _NewAgentProfileTabAction(:final profile):
         await _launchProfileTab(profile);
     }
@@ -172,7 +196,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
   }
 
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
-    final supported = tabs.where((tab) => tab.isTerminal).toList();
+    final supported = tabs
+        .where((tab) => tab.isTerminal || tab.isAgentChat)
+        .toList();
     if (supported.isEmpty) {
       return null;
     }
@@ -210,6 +236,13 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       widget.workspace.id,
     );
     final tabs = ref.watch(tabsProvider);
+    ref.listen(
+      tabsProvider,
+      (previous, next) => _watchRemovedChats(previous?.value, next.value),
+    );
+    final agentChats =
+        ref.watch(agentChatSupportedProvider(widget.hostId)).value ?? false;
+    if (agentChats) _preloadAgentChatDefaults();
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
     final workspaceClient = ref
         .watch(workspaceClientProvider(widget.hostId))
@@ -315,6 +348,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   ),
                   onNewTab: (action) => unawaited(_createTabOfKind(action)),
                   loadNewTabProfiles: _newTabMenuProfiles,
+                  canCreateAgentChats: agentChats,
                 ),
               )
             : null,
@@ -340,6 +374,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     // dropped an attachment whose upload was still in flight.
     return switch (tabs) {
       AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
+        final WorkspaceTabSummary tab when tab.isAgentChat => _agentChatBody(
+          tab,
+        ),
         final WorkspaceTabSummary tab => TerminalTabView(
           key: ValueKey<String>(tab.id),
           hostId: widget.hostId,

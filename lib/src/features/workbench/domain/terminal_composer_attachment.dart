@@ -7,6 +7,9 @@ final class const TerminalComposerAttachment({
   required final TerminalComposerAttachmentKind kind,
   required final String path,
   required final String displayName,
+  final String? localSourcePath,
+  final String? attachmentId,
+  final int? sizeBytes,
 });
 
 TerminalComposerAttachmentKind terminalComposerAttachmentKindForPath(

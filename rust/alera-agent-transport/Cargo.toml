@@ -1,0 +1,21 @@
+[package]
+name = "alera-agent-transport"
+version = "0.1.0"
+edition = "2021"
+description = "Bounded async JSON-lines transports for Alera agent providers."
+publish = false
+
+[dependencies]
+alera-core = { path = "../alera-core", default-features = false, features = ["async-process"] }
+async-trait = "0.1.92"
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["io-std", "io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }
+
+[[bin]]
+name = "json-echo-fixture"
+path = "tests/support/json_echo_fixture.rs"
+
+[dev-dependencies]
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["io-std", "io-util", "macros", "process", "rt-multi-thread", "sync", "time", "test-util"] }

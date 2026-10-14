@@ -161,7 +161,7 @@ void main() {
         identity: mobileIdentity,
       );
       await client.authenticateRelay(cloudDeviceId: 'phone');
-      expect(hellos.last['supportedTabKinds'], <String>[]);
+      expect(hellos.last['supportedTabKinds'], <String>['agentChat']);
       expect(hellos.last['cloudDeviceId'], 'phone');
       final messages = List.generate(
         4,

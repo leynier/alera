@@ -75,6 +75,9 @@ impl ServerActor {
             || self.account_push.active_subscriptions > 0
             || self.pull_request_watches.active
             || self.automations_active
+            || self.agent_chat_runtime.as_ref().is_some_and(|runtime| {
+                runtime.activity().has_busy() || runtime.activity().has_live()
+            })
         {
             self.cancel_shutdown_timer();
             return;

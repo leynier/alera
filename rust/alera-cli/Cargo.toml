@@ -11,6 +11,22 @@ path = "src/main.rs"
 
 [dependencies]
 alera-core = { path = "../alera-core", features = ["runtime"] }
+alera-agent-transport = { path = "../alera-agent-transport" }
+alera-agent-http = { path = "../alera-agent-http" }
+alera-provider-protocol = { path = "../alera-provider-protocol" }
+alera-provider-codex = { path = "../alera-provider-codex" }
+alera-provider-claude = { path = "../alera-provider-claude" }
+alera-provider-acp = { path = "../alera-provider-acp" }
+alera-provider-grok = { path = "../alera-provider-grok" }
+alera-provider-antigravity = { path = "../alera-provider-antigravity" }
+alera-provider-acp-registry = { path = "../alera-provider-acp-registry" }
+alera-provider-pi = { path = "../alera-provider-pi" }
+alera-provider-muse = { path = "../alera-provider-muse" }
+alera-provider-opencode = { path = "../alera-provider-opencode" }
+alera-provider-cursor = { path = "../alera-provider-cursor" }
+muse-agent-sdk = { path = "../muse-agent-sdk" }
+opencode-agent-sdk = { path = "../opencode-agent-sdk" }
+cursor-agent-sdk = { path = "../cursor-agent-sdk" }
 clap = { version = "4.6.6", features = ["derive"] }
 tokio = { version = "1.53.1", features = [
     "rt-multi-thread",

@@ -451,6 +451,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       );
       if (confirmed != true) return false;
     }
-    return true;
+    if (!mounted) return false;
+    return confirmCloseAgentChatTabs(context, ref, <WorkspaceTabRecord>[
+      for (final tab in tabs)
+        if (tabIds.contains(tab.id)) tab,
+    ]);
   }
 }
