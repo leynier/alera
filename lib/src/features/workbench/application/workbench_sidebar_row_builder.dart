@@ -5,6 +5,7 @@ class _WorkbenchSidebarRowBuilder(
   required final Map<String, AgentStatusEntry> agentStatuses,
   required final Map<String, DateTime> lastActivityByWorkspaceId,
   required final Map<String, ChatWorkspaceAttention> chatAttention,
+  required final Map<String, ChatAttentionEntry> chats,
   required final DateTime now,
 }) {
   this
@@ -265,6 +266,7 @@ class _WorkbenchSidebarRowBuilder(
       final agentRuns = visibleWorkspaceAgentRuns(
         tabs: tabs,
         agentStatuses: agentStatuses,
+        chats: chats,
       );
       rows.add(
         WorkbenchWorkspaceRow(

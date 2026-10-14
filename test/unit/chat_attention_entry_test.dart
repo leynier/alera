@@ -1,4 +1,3 @@
-import 'package:alera/src/features/chat_tasks/domain/chat_attention_entry.dart';
 import 'package:alera/src/features/chat_tasks/domain/chat_attention_transitions.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter_test/flutter_test.dart';

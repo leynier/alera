@@ -77,6 +77,41 @@ async fn child_summary_counts_only_open_tasks_and_keeps_input_and_failure_signal
 }
 
 #[tokio::test]
+async fn parent_chat_is_the_first_delegation_and_ignores_messages() {
+    let (_dir, store) = store_with_workspace("ws").await;
+    let parent = create_chat(&store, "ws", "parent-tab").await;
+    let other = create_chat(&store, "ws", "other-tab").await;
+    let child = create_chat(&store, "ws", "child-tab").await;
+    assert_eq!(
+        store
+            .agent_chat_attention(&child)
+            .await
+            .unwrap()
+            .parent_chat_id,
+        None
+    );
+    for (task, kind, from) in [
+        ("message", "message", &other),
+        ("first", "delegate", &parent),
+        ("later", "delegate", &other),
+    ] {
+        sqlx::query("INSERT INTO chatOrchestrationTasks (taskId,kind,status,callerScope,rootTaskId,parentChatId,childChatId,targetJson,brief,notify,createdAt,updatedAt) \
+            VALUES (?,?,'running','human',?,?,?,'{}','task','always','2026-01-01','2026-01-01')")
+            .bind(task).bind(kind).bind(task).bind(from).bind(&child).execute(store.pool()).await.unwrap();
+    }
+    let summary = store.agent_chat_attention(&child).await.unwrap();
+    assert_eq!(summary.parent_chat_id.as_deref(), Some(parent.as_str()));
+    assert_eq!(
+        store
+            .agent_chat_attention(&parent)
+            .await
+            .unwrap()
+            .parent_chat_id,
+        None
+    );
+}
+
+#[tokio::test]
 async fn mark_read_receipt_conflicts_serialize_and_failed_receipts_roll_back() {
     let (dir, store) = store_with_workspace("ws").await;
     let id = create_chat(&store, "ws", "tab").await;

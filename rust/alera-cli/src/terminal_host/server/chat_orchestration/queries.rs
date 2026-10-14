@@ -34,9 +34,19 @@ pub(super) fn runtime_receipt_key(
 impl ChatOrchestrationService {
     pub(super) async fn tasks_list(
         &self,
-        input: ListInput,
+        mut input: ListInput,
         caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
+        // Several chats in one workspace each own their delegations; an agent
+        // that names no lineage sees its own chat's tasks, not its siblings'.
+        if let Some(bound) = &caller.bound {
+            if input.parent_chat_id.is_none()
+                && input.child_chat_id.is_none()
+                && input.root_task_id.is_none()
+            {
+                input.parent_chat_id = Some(bound.chat_id.clone());
+            }
+        }
         let mut value = list_tasks(&self.store, &input).await?;
         if caller.bound.is_some() {
             if let Some(tasks) = value.get_mut("tasks").and_then(Value::as_array_mut) {

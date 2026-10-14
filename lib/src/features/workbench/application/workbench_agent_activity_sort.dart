@@ -1,5 +1,5 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/chat_tasks/domain/chat_attention_entry.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 

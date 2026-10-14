@@ -40,6 +40,7 @@ mod session_ops;
 mod session_pending;
 mod session_projection;
 mod session_projection_segments;
+mod session_projection_subagents;
 mod session_provider;
 mod session_queue;
 mod session_requests;

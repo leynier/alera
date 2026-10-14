@@ -137,4 +137,6 @@ pub struct AgentChatAttention {
     pub open_child_task_count: i64,
     pub child_needs_input: bool,
     pub child_failed: bool,
+    /// The chat whose first delegation handed work to this one, if any.
+    pub parent_chat_id: Option<String>,
 }

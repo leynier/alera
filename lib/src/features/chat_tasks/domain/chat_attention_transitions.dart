@@ -1,4 +1,4 @@
-import 'package:alera/src/features/chat_tasks/domain/chat_attention_entry.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 
 /// Why a chat is worth a notice.
 enum ChatAttentionNotice { needsInput, failed, done }

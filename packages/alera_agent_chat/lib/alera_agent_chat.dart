@@ -1,3 +1,5 @@
+export 'src/agent_chat_attention_entry.dart';
+export 'src/agent_chat_attention_tracker.dart';
 export 'src/agent_chat_change.dart';
 export 'src/agent_chat_attachment_uploader.dart';
 export 'src/agent_chat_composer_labels.dart';
@@ -42,6 +44,7 @@ export 'src/agent_chat_request.dart';
 export 'src/agent_chat_request_labels.dart';
 export 'src/agent_chat_session.dart';
 export 'src/agent_chat_snapshot.dart';
+export 'src/agent_chat_subagent.dart';
 export 'src/agent_chat_summary.dart';
 export 'src/agent_chat_thread.dart';
 export 'src/agent_chat_title_source.dart';

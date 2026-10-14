@@ -9,10 +9,12 @@ import 'package:alera_agent_chat/src/agent_chat_outgoing_message.dart';
 import 'package:alera_agent_chat/src/agent_chat_request.dart';
 import 'package:alera_agent_chat/src/agent_chat_request_labels.dart';
 import 'package:alera_agent_chat/src/agent_chat_session.dart';
+import 'package:alera_agent_chat/src/agent_chat_subagent.dart';
 import 'package:alera_agent_chat/src/agent_chat_thread.dart';
 import 'package:alera_agent_chat/src/agent_chat_worked_actions.dart';
 
 part 'agent_chat_timeline_projection_history.dart';
+part 'agent_chat_timeline_projection_subagents.dart';
 part 'agent_chat_timeline_projection_turn.dart';
 
 /// A row under a turn's "Worked for" divider.
@@ -77,12 +79,22 @@ final class AgentChatTurnSection {
     final answers = <AgentChatItem>[];
     final activityItems = <AgentChatItem>[];
     AgentChatItem? planSteps;
+    // A sub-agent's own items, text included, belong under its call rather
+    // than in the main agent's work or answer.
+    final subagents = _subagentChildren(items);
+    final childIds = <String>{
+      for (final children in subagents.values)
+        for (final child in children) child.id,
+    };
     var lastActivity = -1;
     for (var index = 0; index < items.length; index += 1) {
-      if (_isActivity(items[index])) lastActivity = index;
+      if (!childIds.contains(items[index].id) && _isActivity(items[index])) {
+        lastActivity = index;
+      }
     }
     for (var index = 0; index < items.length; index += 1) {
       final item = items[index];
+      if (childIds.contains(item.id)) continue;
       switch (item.type) {
         case AgentChatItemType.userMessage:
           // The first prompt opens the turn; later ones steered it and stay
@@ -106,7 +118,7 @@ final class AgentChatTurnSection {
       working: working,
       prompts: List<AgentChatItem>.unmodifiable(prompts),
       activity: List<AgentChatActivityRow>.unmodifiable(
-        _activityRows(activityItems),
+        _activityRows(activityItems, subagents),
       ),
       answers: List<AgentChatItem>.unmodifiable(answers),
       planSteps: planSteps,
@@ -162,7 +174,7 @@ final class AgentChatTurnSection {
     0,
     (count, row) => switch (row) {
       AgentChatActionGroupRow(:final actions) => count + actions.length,
-      AgentChatItemRow() => count + 1,
+      AgentChatItemRow() || AgentChatSubagentRow() => count + 1,
     },
   );
 
@@ -205,7 +217,11 @@ bool _isActivity(AgentChatItem item) =>
     item.type == AgentChatItemType.contextCompaction ||
     item.type == AgentChatItemType.notice;
 
-List<AgentChatActivityRow> _activityRows(List<AgentChatItem> items) {
+List<AgentChatActivityRow> _activityRows(
+  List<AgentChatItem> items, [
+  Map<String, List<AgentChatItem>> subagents =
+      const <String, List<AgentChatItem>>{},
+]) {
   final rows = <AgentChatActivityRow>[];
   var group = <AgentChatWorkedAction>[];
   void flush() {
@@ -215,7 +231,16 @@ List<AgentChatActivityRow> _activityRows(List<AgentChatItem> items) {
   }
 
   for (final item in items) {
-    if (item.type.isActivity && item.type != AgentChatItemType.unknown) {
+    if (item.startsSubagent) {
+      flush();
+      rows.add(
+        AgentChatSubagentRow(
+          item,
+          _activityRows(subagents[item.id] ?? const <AgentChatItem>[]),
+          childCount: subagents[item.id]?.length ?? 0,
+        ),
+      );
+    } else if (item.type.isActivity && item.type != AgentChatItemType.unknown) {
       group.add(AgentChatWorkedAction.fromItem(item));
     } else {
       flush();

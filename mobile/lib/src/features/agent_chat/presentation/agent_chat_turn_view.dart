@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_action_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_live_work_row.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_message_view.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_view.dart';
 import 'package:flutter/material.dart';
 
 /// One turn as the desktop draws it. While it runs: the prompt, "Working
@@ -65,17 +65,7 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
             onToggle: section.canToggleActivity ? _toggle : null,
           )
         else if (expanded) ...<Widget>[
-          for (final row in section.activity)
-            switch (row) {
-              AgentChatActionGroupRow() => AgentChatActionGroupView(
-                key: ValueKey<String>(row.key),
-                row: row,
-              ),
-              AgentChatItemRow(:final item) => AgentChatItemRowView(
-                key: ValueKey<String>(row.key),
-                item: item,
-              ),
-            },
+          for (final row in section.activity) agentChatActivityRowView(row),
           if (live != null)
             AgentChatLiveWorkRow(work: live, expanded: true, onToggle: _toggle),
         ],

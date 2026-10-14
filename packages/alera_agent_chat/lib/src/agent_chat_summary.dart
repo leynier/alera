@@ -21,6 +21,9 @@ class const AgentChatSummary({
   final bool childNeedsInput = false,
   final bool unread = false,
   final int readCursor = 0,
+
+  /// The chat whose first delegation handed work to this one.
+  final String? parentChatId,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -48,6 +51,7 @@ class const AgentChatSummary({
       childNeedsInput: agentChatJsonBool(json['childNeedsInput']),
       unread: agentChatJsonBool(json['unread']),
       readCursor: agentChatJsonInt(json['readCursor']) ?? 0,
+      parentChatId: agentChatJsonString(json['parentChatId']),
     );
   }
 }

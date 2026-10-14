@@ -120,6 +120,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
     agentStatuses: ref.watch(agentStatusControllerProvider),
     lastActivityByWorkspaceId: ref.watch(workspaceActivityControllerProvider),
     chatAttention: ref.watch(chatWorkspaceAttentionProvider),
+    chats: ref.watch(chatAttentionLiveProvider),
   );
 }
 

@@ -103,6 +103,26 @@ impl MockProviderControl {
         self.events.send(event).unwrap();
     }
 
+    pub fn item_event(
+        &self,
+        kind: EventKind,
+        native_turn: usize,
+        native_item: &str,
+        payload: serde_json::Value,
+    ) {
+        let mut event = ProviderEvent::new(
+            ProviderKind::Codex,
+            "codex",
+            &self.chat_id,
+            kind,
+            payload,
+            None,
+        );
+        event.turn_id = Some(format!("native-turn-{native_turn}"));
+        event.item_id = Some(native_item.into());
+        self.events.send(event).unwrap();
+    }
+
     pub fn complete(&self, native_turn: usize, text: &str) {
         self.event(
             EventKind::ItemCompleted,

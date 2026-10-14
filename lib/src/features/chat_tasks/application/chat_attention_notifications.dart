@@ -8,7 +8,6 @@ import 'package:alera/src/features/agent_status/application/agent_status_provide
 import 'package:alera/src/features/chat_tasks/application/chat_task_parent_activity.dart';
 import 'package:alera/src/features/chat_tasks/application/chat_task_providers.dart';
 import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
-import 'package:alera/src/features/chat_tasks/domain/chat_attention_entry.dart';
 import 'package:alera/src/features/chat_tasks/domain/chat_attention_transitions.dart';
 import 'package:alera/src/features/inbox/application/inbox_providers.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';

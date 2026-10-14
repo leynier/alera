@@ -17,6 +17,9 @@ class const _WorkspaceRow({
   /// The single main-panel agent merged onto this row, if any. Drives the
   /// leading glyph and the agent icon.
   final AgentStatusEntry? primaryStatus,
+
+  /// The run behind [primaryStatus], which draws a chat's provider mark.
+  final WorkspaceAgentRun? primaryRun,
   required final bool hasTerminalTabs,
   required final bool isActive,
   required final String? activeTabId,
@@ -200,14 +203,15 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
           ),
         ),
         const SizedBox(width: AleraTokens.space8),
-        if (widget.primaryStatus case final AgentStatusEntry primary
+        if (widget.primaryRun case final WorkspaceAgentRun primary
             when !compact) ...<Widget>[
           Tooltip(
             message: _agentRunDescription(primary),
-            child: AgentIdentityIcon(
-              agentType: primary.agentType,
+            child: WorkspaceAgentRunIcon(
+              run: primary,
               size: AleraTokens.space16,
               color: AleraTokens.foregroundMuted,
+              showTooltip: false,
             ),
           ),
           const SizedBox(width: AleraTokens.space6),
@@ -233,7 +237,6 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                     ),
                   ),
                 ),
-                ChatWorkspaceAttentionDot(workspaceId: widget.workspace.id),
                 if (!compact) ..._buildInlineTrays(theme),
               ],
             ),

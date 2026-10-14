@@ -8,28 +8,22 @@ part of 'chat_workspace_attention.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Every unarchived chat the runtime lists, across workspaces, so the sidebar
-/// and attention notices see chats whose tab is not open. One `agentChat.list`
-/// without a workspace seeds it; session and request changes fold in place,
-/// and a list change, a settled turn, a deletion or a reconnect reads again.
+/// Every unarchived chat the runtime lists, across workspaces, kept current
+/// by the shared [AgentChatAttentionTracker].
 
 @ProviderFor(ChatAttentionEntries)
 final chatAttentionEntriesProvider = ChatAttentionEntriesProvider._();
 
-/// Every unarchived chat the runtime lists, across workspaces, so the sidebar
-/// and attention notices see chats whose tab is not open. One `agentChat.list`
-/// without a workspace seeds it; session and request changes fold in place,
-/// and a list change, a settled turn, a deletion or a reconnect reads again.
+/// Every unarchived chat the runtime lists, across workspaces, kept current
+/// by the shared [AgentChatAttentionTracker].
 final class ChatAttentionEntriesProvider
     extends
         $NotifierProvider<
           ChatAttentionEntries,
           Map<String, ChatAttentionEntry>
         > {
-  /// Every unarchived chat the runtime lists, across workspaces, so the sidebar
-  /// and attention notices see chats whose tab is not open. One `agentChat.list`
-  /// without a workspace seeds it; session and request changes fold in place,
-  /// and a list change, a settled turn, a deletion or a reconnect reads again.
+  /// Every unarchived chat the runtime lists, across workspaces, kept current
+  /// by the shared [AgentChatAttentionTracker].
   ChatAttentionEntriesProvider._()
     : super(
         from: null,
@@ -60,12 +54,10 @@ final class ChatAttentionEntriesProvider
 }
 
 String _$chatAttentionEntriesHash() =>
-    r'eb61804d683606243846d297b5104dc1f4ea894c';
+    r'f564180d08199ca49a6df0cb1fe3c23b8b3c319c';
 
-/// Every unarchived chat the runtime lists, across workspaces, so the sidebar
-/// and attention notices see chats whose tab is not open. One `agentChat.list`
-/// without a workspace seeds it; session and request changes fold in place,
-/// and a list change, a settled turn, a deletion or a reconnect reads again.
+/// Every unarchived chat the runtime lists, across workspaces, kept current
+/// by the shared [AgentChatAttentionTracker].
 
 abstract class _$ChatAttentionEntries
     extends $Notifier<Map<String, ChatAttentionEntry>> {

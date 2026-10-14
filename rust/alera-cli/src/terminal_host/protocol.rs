@@ -14,7 +14,7 @@ pub const ORCHESTRATION_SKILL_VERSION: i64 = 5;
 /// Versions of the other agent skills in `skills/`, kept in step with each
 /// SKILL.md's `metadata.version` so `alera skill status` can tell whether an
 /// installed copy matches this runtime.
-pub const CLI_SKILL_VERSION: i64 = 8;
+pub const CLI_SKILL_VERSION: i64 = 9;
 pub const AUTOMATIONS_SKILL_VERSION: i64 = 5;
 pub const AGENT_PROFILES_SKILL_VERSION: i64 = 1;
 /// `agentSkill.install` takes a `skills` list, runs as a runtime job that one

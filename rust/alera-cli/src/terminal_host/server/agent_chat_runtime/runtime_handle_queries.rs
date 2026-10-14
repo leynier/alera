@@ -45,6 +45,9 @@ impl AgentChatRuntime {
             summary["openChildTaskCount"] = serde_json::json!(attention.open_child_task_count);
             summary["childNeedsInput"] = serde_json::json!(attention.child_needs_input);
             summary["childFailed"] = serde_json::json!(attention.child_failed);
+            if let Some(parent) = attention.parent_chat_id {
+                summary["parentChatId"] = serde_json::json!(parent);
+            }
             summary["pendingNativeOperation"] = self
                 .inner
                 .deps

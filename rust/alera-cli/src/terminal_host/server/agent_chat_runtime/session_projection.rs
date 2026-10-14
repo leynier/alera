@@ -102,6 +102,10 @@ impl ChatSession {
             EventKind::RequestResolved | EventKind::UserInputResolved => {
                 self.resolve_request_from_provider(&event);
             }
+            EventKind::TaskStarted
+            | EventKind::TaskProgress
+            | EventKind::TaskUpdated
+            | EventKind::TaskCompleted => self.apply_subagent_task(&event).await,
             EventKind::ThreadTokenUsageUpdated => self.apply_token_usage(&event.payload),
             EventKind::AccountRateLimitsUpdated => {
                 let windows = event.payload["limits"]["windows"].clone();
@@ -183,7 +187,7 @@ impl ChatSession {
     }
 
     /// The app id for a native item, allocating one on first sight.
-    async fn app_item_id(&mut self, native: &str) -> String {
+    pub(super) async fn app_item_id(&mut self, native: &str) -> String {
         let key = native_key(&self.epoch_kind("item"), &Value::String(native.into()));
         if let Some(id) = self.native_ids.get(&key) {
             return id.clone();
@@ -195,7 +199,7 @@ impl ChatSession {
     }
 
     /// Brings back an item of an earlier turn that the provider updates late.
-    async fn load_item(&mut self, item_id: &str) {
+    pub(super) async fn load_item(&mut self, item_id: &str) {
         if self.items.contains_key(item_id) {
             return;
         }
@@ -313,6 +317,8 @@ impl ChatSession {
                 .await?;
         }
         self.rebalance_streams(&item_id).await?;
+        self.record_subagent_threads(&item_id, event).await;
+        self.link_subagent_item(&item_id, event).await;
         Ok(())
     }
 
@@ -337,7 +343,9 @@ impl ChatSession {
         self.load_item(&parent_item_id).await;
         let turn_id = self.app_turn_id(event);
         self.append_stream(&parent_item_id, item_type, turn_id, stream, &payload.delta)
-            .await
+            .await?;
+        self.link_subagent_item(&parent_item_id, event).await;
+        Ok(())
     }
 
     async fn apply_plan(&mut self, event: &ProviderEvent) -> Result<(), String> {

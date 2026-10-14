@@ -79,6 +79,8 @@ mod satellite_fixture;
 #[cfg(test)]
 mod shutdown_tests;
 #[cfg(test)]
+mod subagent_projection_tests;
+#[cfg(test)]
 mod task_acknowledgement_tests;
 #[cfg(test)]
 pub(crate) mod test_support;

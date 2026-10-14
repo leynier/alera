@@ -1,4 +1,6 @@
-import 'package:alera_agent_chat/alera_agent_chat.dart';
+import 'package:alera_agent_chat/src/agent_chat_change.dart';
+import 'package:alera_agent_chat/src/agent_chat_modes.dart';
+import 'package:alera_agent_chat/src/agent_chat_summary.dart';
 
 /// Live child task counts of a parent chat.
 typedef ChatTaskChildren = ({int open, bool needsInput});
@@ -29,6 +31,7 @@ class const ChatAttentionEntry({
   final int openChildTaskCount = 0,
   final bool childNeedsInput = false,
   final bool unread = false,
+  final String? parentChatId,
 }) {
   factory fromSummary(AgentChatSummary summary) => ChatAttentionEntry(
     chatId: summary.chatId,
@@ -42,12 +45,15 @@ class const ChatAttentionEntry({
     openChildTaskCount: summary.openChildTaskCount,
     childNeedsInput: summary.childNeedsInput,
     unread: summary.unread,
+    parentChatId: summary.parentChatId,
   );
 
-  ChatAttentionLevel get level {
-    if (hasPendingRequests ||
-        childNeedsInput ||
-        status == AgentChatSessionStatus.waiting) {
+  ChatAttentionLevel get level =>
+      childNeedsInput ? ChatAttentionLevel.needsInput : ownLevel;
+
+  /// [level] without a delegated child's request.
+  ChatAttentionLevel get ownLevel {
+    if (hasPendingRequests || status == AgentChatSessionStatus.waiting) {
       return ChatAttentionLevel.needsInput;
     }
     return switch (status) {
@@ -59,6 +65,14 @@ class const ChatAttentionEntry({
       _ => ChatAttentionLevel.idle,
     };
   }
+
+  /// The level a view that also lists this chat's children shows: when a
+  /// child that needs input is among them ([parentsWithListedChildInput]),
+  /// that child carries the request and the parent reads as waiting on it,
+  /// so one request is not counted twice. A child the view does not list
+  /// still raises the parent.
+  ChatAttentionLevel levelAmong(Set<String> parentsWithListedChildInput) =>
+      parentsWithListedChildInput.contains(chatId) ? ownLevel : level;
 
   /// The entry after [change]: a session change sets the status, a request
   /// list sets whether anything is pending, a title change renames it.
@@ -80,6 +94,7 @@ class const ChatAttentionEntry({
         openChildTaskCount: openChildTaskCount,
         childNeedsInput: childNeedsInput,
         unread: unread,
+        parentChatId: parentChatId,
       );
 
   /// The entry with child task counts from the live task lists.
@@ -99,6 +114,7 @@ class const ChatAttentionEntry({
           openChildTaskCount: children.open,
           childNeedsInput: children.needsInput,
           unread: unread,
+          parentChatId: parentChatId,
         );
 
   @override
@@ -114,7 +130,8 @@ class const ChatAttentionEntry({
       other.hasPendingRequests == hasPendingRequests &&
       other.openChildTaskCount == openChildTaskCount &&
       other.childNeedsInput == childNeedsInput &&
-      other.unread == unread;
+      other.unread == unread &&
+      other.parentChatId == parentChatId;
 
   @override
   int get hashCode => Object.hash(
@@ -129,6 +146,7 @@ class const ChatAttentionEntry({
     openChildTaskCount,
     childNeedsInput,
     unread,
+    parentChatId,
   );
 }
 
@@ -184,15 +202,40 @@ class const ChatWorkspaceAttention({
   );
 }
 
+/// The chats among [entries] that have a child chat, also among [entries],
+/// needing input, for [ChatAttentionEntry.levelAmong].
+Set<String> chatParentsWithListedChildInput(
+  Iterable<ChatAttentionEntry> entries,
+) {
+  final listed = <String>{for (final entry in entries) entry.chatId};
+  return <String>{
+    for (final entry in entries)
+      if (entry.parentChatId case final parent?
+          when parent != entry.chatId &&
+              listed.contains(parent) &&
+              entry.ownLevel == ChatAttentionLevel.needsInput)
+        parent,
+  };
+}
+
 /// Groups chat entries by workspace, leaving out workspaces whose chats are
-/// all idle so the sidebar only marks rows that want someone.
+/// all idle so the sidebar only marks rows that want someone. A child that
+/// needs input in the same workspace counts there instead of on its parent.
 Map<String, ChatWorkspaceAttention> chatWorkspaceAttentionOf(
   Iterable<ChatAttentionEntry> entries,
 ) {
+  final byWorkspace = <String, List<ChatAttentionEntry>>{};
+  for (final entry in entries) {
+    byWorkspace.putIfAbsent(entry.workspaceId, () => []).add(entry);
+  }
+  final covered = <String>{
+    for (final group in byWorkspace.values)
+      ...chatParentsWithListedChildInput(group),
+  };
   final counts = <String, List<int>>{};
   final latest = <String, DateTime>{};
   for (final entry in entries) {
-    final level = entry.level;
+    final level = entry.levelAmong(covered);
     if (level == ChatAttentionLevel.idle) continue;
     final row = counts.putIfAbsent(
       entry.workspaceId,

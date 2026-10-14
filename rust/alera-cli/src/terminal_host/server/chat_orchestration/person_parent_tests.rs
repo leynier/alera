@@ -425,3 +425,53 @@ async fn person_child_input_updates_its_parent_attention_summary() {
     assert_eq!(summary["childNeedsInput"], true);
     harness.finish().await;
 }
+
+#[tokio::test]
+async fn sibling_parent_chats_in_one_workspace_list_only_their_own_tasks_by_default() {
+    let harness = TestHarness::new().await;
+    let mut parents = Vec::new();
+    for name in ["first", "second"] {
+        let parent = harness.create_chat("ws-a", "auto").await;
+        harness
+            .send_human(&parent, name, "Delegate for this chat.")
+            .await;
+        let caller = harness.agent(&parent).await;
+        let mut payload = delegate_payload(
+            &format!("sibling-{name}"),
+            json!({"workspace":{"workspaceId":"ws-b"}}),
+        );
+        payload["parentChatId"] = json!(parent);
+        harness
+            .service
+            .handle("delegate", &payload, &caller)
+            .await
+            .unwrap();
+        parents.push((parent, caller));
+    }
+    for (parent, caller) in &parents {
+        let own = harness
+            .service
+            .handle("tasks.list", &json!({}), caller)
+            .await
+            .unwrap();
+        let tasks = own["tasks"].as_array().unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0]["parentChatId"], json!(parent));
+        assert_eq!(tasks[0]["readOnly"], false);
+    }
+    let (first, _) = &parents[0];
+    let (_, second_caller) = &parents[1];
+    let sibling = harness
+        .service
+        .handle("tasks.list", &json!({"parentChatId": first}), second_caller)
+        .await
+        .unwrap();
+    assert_eq!(sibling["tasks"][0]["readOnly"], true);
+    let everyone = harness
+        .service
+        .handle("tasks.list", &json!({}), &human("desktop"))
+        .await
+        .unwrap();
+    assert_eq!(everyone["tasks"].as_array().unwrap().len(), 2);
+    harness.finish().await;
+}

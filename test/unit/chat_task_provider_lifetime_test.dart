@@ -4,7 +4,6 @@ import 'package:alera/src/features/app_window/application/app_window_providers.d
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:alera/src/features/chat_tasks/application/chat_task_providers.dart';
 import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
-import 'package:alera/src/features/chat_tasks/domain/chat_attention_entry.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

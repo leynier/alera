@@ -207,9 +207,12 @@ class const _AgentPresenceRow({
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AleraTokens.minTapTarget),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space6,
-            vertical: AleraTokens.space8,
+          // A delegated chat sits under the chat that delegated it.
+          padding: EdgeInsets.only(
+            left: AleraTokens.space6 + status.depth * AleraTokens.space12,
+            right: AleraTokens.space6,
+            top: AleraTokens.space8,
+            bottom: AleraTokens.space8,
           ),
           child: Row(
             crossAxisAlignment: .center,
@@ -252,15 +255,17 @@ class const _AgentPresenceRow({
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(left: AleraTokens.space4),
-                child: AleraIconButton(
-                  tooltip: 'Close Terminal',
-                  onPressed: onClose,
-                  icon: AleraIcons.close,
-                  iconSize: 12,
+              // A chat closes from its own tab, where archiving is explained.
+              if (!status.isChat)
+                Padding(
+                  padding: const EdgeInsets.only(left: AleraTokens.space4),
+                  child: AleraIconButton(
+                    tooltip: 'Close Terminal',
+                    onPressed: onClose,
+                    icon: AleraIcons.close,
+                    iconSize: 12,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

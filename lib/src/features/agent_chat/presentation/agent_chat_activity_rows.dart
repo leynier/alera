@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_item_detai
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_row.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,12 @@ class const AgentChatActivityRowView({
       ),
       AgentChatItemRow(:final item) => AgentChatItemRowView(
         item: item,
+        expansion: expansion,
+        actions: actions,
+        workspacePath: workspacePath,
+      ),
+      final AgentChatSubagentRow subagent => AgentChatSubagentRowView(
+        row: subagent,
         expansion: expansion,
         actions: actions,
         workspacePath: workspacePath,

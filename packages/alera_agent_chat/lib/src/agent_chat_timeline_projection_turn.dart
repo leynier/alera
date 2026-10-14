@@ -53,6 +53,9 @@ final class AgentChatLiveWork {
         case AgentChatActionGroupRow(actions: final group):
           actions.addAll(group);
           lastActionRow = index;
+        case AgentChatSubagentRow(:final call):
+          actions.add(AgentChatWorkedAction.fromItem(call));
+          lastActionRow = index;
         case AgentChatItemRow(:final item)
             when item.type == AgentChatItemType.assistantMessage:
           narration.add(item);

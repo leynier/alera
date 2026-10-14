@@ -1,5 +1,6 @@
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
+import 'package:alera_agent_chat/src/agent_chat_subagent.dart';
 
 /// The verb a "Worked for" row uses for an activity item.
 enum AgentChatWorkedActionKind {
@@ -35,6 +36,7 @@ class const AgentChatWorkedAction({
 }
 
 AgentChatWorkedActionKind agentChatWorkedActionKind(AgentChatItem item) {
+  if (item.startsSubagent) return AgentChatWorkedActionKind.delegate;
   switch (item.type) {
     case AgentChatItemType.fileChange:
       return AgentChatWorkedActionKind.edit;
@@ -129,8 +131,10 @@ String _phrase(
           ? '${verb('Searched', 'Searching')} the web'
           : '${verb('Searched', 'Searching')} the web for ${item.query}',
     AgentChatWorkedActionKind.delegate =>
-      '${verb('Delegated', 'Delegating')} to '
-          '${item.agentId ?? item.title ?? 'an agent'}',
+      item.startsSubagent
+          ? '${verb('Ran', 'Running')} sub-agent: ${item.subagentLabel}'
+          : '${verb('Delegated', 'Delegating')} to '
+                '${item.agentId ?? item.title ?? 'an agent'}',
     AgentChatWorkedActionKind.tool =>
       '${verb('Used', 'Using')} ${item.toolName ?? item.title ?? 'a tool'}',
     AgentChatWorkedActionKind.ran =>

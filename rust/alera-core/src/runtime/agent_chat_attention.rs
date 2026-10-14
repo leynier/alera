@@ -104,6 +104,14 @@ impl RuntimeStore {
              COALESCE(MAX(status IN ('failed', 'interrupted')), 0) AS failed \
              FROM chatOrchestrationTasks WHERE parentChatId = ?",
         ).bind(chat_id).fetch_one(&mut *tx).await?;
+        let parent_chat_id: Option<String> = sqlx::query_scalar(
+            "SELECT parentChatId FROM chatOrchestrationTasks \
+             WHERE childChatId = ? AND kind = 'delegate' AND parentChatId IS NOT NULL \
+             AND parentChatId <> childChatId ORDER BY sequence LIMIT 1",
+        )
+        .bind(chat_id)
+        .fetch_optional(&mut *tx)
+        .await?;
         let result = AgentChatAttention {
             chat_id: chat_id.into(),
             cursor: row.cursor,
@@ -112,6 +120,7 @@ impl RuntimeStore {
             open_child_task_count: children.try_get("openCount")?,
             child_needs_input: children.try_get::<i64, _>("needsInput")? != 0,
             child_failed: children.try_get::<i64, _>("failed")? != 0,
+            parent_chat_id,
         };
         tx.commit().await?;
         Ok(result)
