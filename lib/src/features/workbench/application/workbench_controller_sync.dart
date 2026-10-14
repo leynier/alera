@@ -137,6 +137,14 @@ mixin _WorkbenchControllerSync
     final prunedDetailsHidden = Set<String>.from(
       prefs.workspaceDetailsHiddenIds,
     )..removeAll(removedProjectWorkspaceIds);
+    final prunedAgentsExpanded = Set<String>.from(
+      prefs.workspaceDetailsAgentsExpandedIds,
+    )..removeAll(removedProjectWorkspaceIds);
+    final prunedAgentGroupsCollapsed =
+        Set<String>.from(prefs.workspaceDetailsAgentGroupsCollapsed)
+          ..removeWhere(
+            (key) => removedProjectWorkspaceIds.contains(key.split(':').first),
+          );
     final prunedComparisonBases =
         Map<String, String>.from(prefs.workspaceComparisonBases)..removeWhere(
           (key, _) => removedProjectWorkspaceIds.contains(key.split(':').first),
@@ -157,8 +165,17 @@ mixin _WorkbenchControllerSync
         Map<String, WorkspacePanel>.from(prefs.workspacePanels)..removeWhere(
           (workspaceId, _) => removedProjectWorkspaceIds.contains(workspaceId),
         );
+    final prunedHomeComposerProjects =
+        Map<String, HomeComposerProjectPrefs>.from(prefs.homeComposer.projects)
+          ..removeWhere((projectId, _) => !validProjectIds.contains(projectId));
     final prefsChanged =
+        prunedHomeComposerProjects.length !=
+            prefs.homeComposer.projects.length ||
         prunedDetailsHidden.length != prefs.workspaceDetailsHiddenIds.length ||
+        prunedAgentsExpanded.length !=
+            prefs.workspaceDetailsAgentsExpandedIds.length ||
+        prunedAgentGroupsCollapsed.length !=
+            prefs.workspaceDetailsAgentGroupsCollapsed.length ||
         prunedComparisonBases.length != prefs.workspaceComparisonBases.length ||
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
         prunedSelected.length != prefs.selectedProjectIds.length ||
@@ -170,12 +187,17 @@ mixin _WorkbenchControllerSync
     final prunedViewPrefs = prefsChanged
         ? prefs.copyWith(
             workspaceDetailsHiddenIds: prunedDetailsHidden,
+            workspaceDetailsAgentsExpandedIds: prunedAgentsExpanded,
+            workspaceDetailsAgentGroupsCollapsed: prunedAgentGroupsCollapsed,
             workspaceComparisonBases: prunedComparisonBases,
             collapsedProjectIds: prunedCollapsed,
             selectedProjectIds: prunedSelected,
             sourceControlRootByWorkspaceId: prunedSourceControlRoots,
             rightSidebarWidthByWorkspaceId: prunedRightSidebarWidths,
             workspacePanels: prunedWorkspacePanels,
+            homeComposer: prefs.homeComposer.copyWith(
+              projects: prunedHomeComposerProjects,
+            ),
           )
         : prefs;
     final updatedWorkspaces = <String, List<Workspace>>{

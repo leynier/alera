@@ -1,6 +1,126 @@
 part of 'workspace_details_overlay_test.dart';
 
 void _registerWorkspaceDetailsControlTests() {
+  testWidgets('the card sits right under a top right terminal toolbar', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = _ToolbarSession();
+    addTearDown(session.dispose);
+    await pumpOverlay(
+      tester,
+      const Size(1000, 700),
+      child: Stack(
+        children: [
+          TerminalSurfaceToolbar(
+            session: session,
+            viewportSize: const Size(1000, 700),
+            corner: TerminalToolbarCorner.topRight,
+            refreshing: false,
+            onRefresh: () {},
+          ),
+        ],
+      ),
+    );
+    expect(
+      tester.getRect(find.byType(AleraWorkspaceDetailsCard)).top,
+      tester.getRect(find.byTooltip('Refresh Terminal')).bottom +
+          AleraTokens.space8,
+    );
+  });
+
+  test('the card top follows the tab strip and toolbar corner', () {
+    final single = workspaceDetailsCardTop(
+      tabStrip: false,
+      toolbarCorner: TerminalToolbarCorner.topRight,
+    );
+    expect(
+      workspaceDetailsCardTop(
+        tabStrip: true,
+        toolbarCorner: TerminalToolbarCorner.topRight,
+      ),
+      single + AleraTokens.sidebarHeaderHeight,
+    );
+    for (final corner in TerminalToolbarCorner.values) {
+      if (corner == TerminalToolbarCorner.topRight) continue;
+      expect(
+        workspaceDetailsCardTop(tabStrip: false, toolbarCorner: corner),
+        AleraTokens.space8,
+      );
+      // The card never covers the tab strip's new-tab and split controls.
+      expect(
+        workspaceDetailsCardTop(tabStrip: true, toolbarCorner: corner),
+        AleraTokens.sidebarHeaderHeight + AleraTokens.space8,
+      );
+    }
+    expect(
+      workspaceDetailsCardTop(tabStrip: false, toolbarCorner: null),
+      greaterThan(single),
+    );
+  });
+
+  testWidgets('row menus open under their row in a grouped order', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpOverlay(tester, const Size(1000, 1000));
+    final row = find.byTooltip('Commit & Push Options');
+    final rowBottom = tester.getRect(row).bottom;
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    double top(String label) => tester.getRect(find.text(label).last).top;
+    expect(top('Commit'), greaterThan(rowBottom));
+    expect(top('Push'), lessThan(top('Push & Create PR')));
+    expect(top('Push & Create PR'), lessThan(top('Pull')));
+    expect(top('Pull'), lessThan(top('Refresh')));
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Pull').last,
+          matching: find.byType(Row),
+        ),
+        matching: find.byIcon(AleraIcons.gitPull),
+      ),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    final open = find.byWidgetPredicate(
+      (widget) =>
+          widget is Tooltip &&
+          (widget.message?.startsWith('Open In') ?? false) &&
+          (widget.message?.endsWith('Options') ?? false),
+    );
+    final openBottom = tester.getRect(open).bottom;
+    await tester.tap(open);
+    await tester.pumpAndSettle();
+    expect(top('Copy Path'), greaterThan(openBottom));
+    expect(top('Open In Browser'), lessThan(top('Copy Path')));
+  });
+
+  testWidgets('Changes opens Source Control in the side panel', (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpOverlay(tester, const Size(1000, 700));
+    // The counts describe the uncommitted files Source Control lists, not the
+    // base comparison.
+    expect(find.text('+42'), findsOneWidget);
+    expect(find.text('-8'), findsOneWidget);
+    expect(find.text('+100'), findsNothing);
+    await tester.tap(find.text('Changes'));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WorkspaceDetailsOverlay)),
+    );
+    final prefs = container.read(workbenchControllerProvider).viewPrefs;
+    expect(prefs.activeContextPanelTab, WorkbenchContextPanelTab.gitDiff);
+    expect(prefs.rightSidebarVisible, isTrue);
+    expect(find.text('Compare against origin/main'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+  });
+
   testWidgets('Changes keeps its label and counts while refreshing', (
     tester,
   ) async {
@@ -135,6 +255,8 @@ void _registerWorkspaceDetailsControlTests() {
 }
 
 class _ToolbarSession extends TerminalSessionHandle {
+  @override
+  void requestFocus() {}
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -12,6 +12,8 @@ part of 'agent_chat_direct_open.dart';
 /// and model and opens in the target pane with its composer focused. Only
 /// one open per workspace runs at a time, and a failed create keeps its
 /// request id so the next attempt cannot duplicate the chat on the runtime.
+/// A cold create can take seconds; when the person selects something else
+/// meanwhile, the chat's tab opens without being selected.
 
 @ProviderFor(agentChatDirectOpener)
 final agentChatDirectOpenerProvider = AgentChatDirectOpenerProvider._();
@@ -20,6 +22,8 @@ final agentChatDirectOpenerProvider = AgentChatDirectOpenerProvider._();
 /// and model and opens in the target pane with its composer focused. Only
 /// one open per workspace runs at a time, and a failed create keeps its
 /// request id so the next attempt cannot duplicate the chat on the runtime.
+/// A cold create can take seconds; when the person selects something else
+/// meanwhile, the chat's tab opens without being selected.
 
 final class AgentChatDirectOpenerProvider
     extends
@@ -33,6 +37,8 @@ final class AgentChatDirectOpenerProvider
   /// and model and opens in the target pane with its composer focused. Only
   /// one open per workspace runs at a time, and a failed create keeps its
   /// request id so the next attempt cannot duplicate the chat on the runtime.
+  /// A cold create can take seconds; when the person selects something else
+  /// meanwhile, the chat's tab opens without being selected.
   AgentChatDirectOpenerProvider._()
     : super(
         from: null,

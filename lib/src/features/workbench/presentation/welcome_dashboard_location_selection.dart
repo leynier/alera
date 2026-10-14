@@ -38,13 +38,18 @@ extension _WelcomeDashboardLocationSelection on _WelcomeDashboardState {
         _branchesAwaitEnrollment = false;
         _error = null;
       });
+      _saveSelection();
       return;
     }
     _update(() {
       _useProjectCheckout = false;
       _error = null;
-      _sourceBranch ??= pickDefaultSourceBranch(_branches);
+      _sourceBranch ??= pickDefaultSourceBranch(
+        _branches,
+        preferred: _savedSourceBranch(project.id, _branches),
+      );
     });
+    _saveSelection();
     if (_branches.isEmpty && !_loadingBranches) {
       unawaited(_loadBranches(project));
     }
@@ -87,5 +92,6 @@ extension _WelcomeDashboardLocationSelection on _WelcomeDashboardState {
       _sourceBranch = selected;
       _error = null;
     });
+    _saveSelection();
   }
 }

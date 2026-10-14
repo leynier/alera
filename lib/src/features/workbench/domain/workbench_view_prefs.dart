@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
+import 'home_composer_prefs.dart';
 import 'workspace_panel.dart';
 
 part 'workbench_view_prefs.mapper.dart';
@@ -129,9 +130,17 @@ class WorkbenchViewPrefsDecodeHook extends MappingHook {
   }
 }
 
+/// Key in [WorkbenchViewPrefs.workspaceDetailsAgentGroupsCollapsed].
+String workspaceDetailsAgentGroupKey(
+  String workspaceId,
+  WorkspacePanelTree tree,
+) => '$workspaceId:${tree.name}';
+
 @MappableClass(hook: WorkbenchViewPrefsDecodeHook())
 class const WorkbenchViewPrefs({
   this.workspaceDetailsHiddenIds = const <String>{},
+  this.workspaceDetailsAgentsExpandedIds = const <String>{},
+  this.workspaceDetailsAgentGroupsCollapsed = const <String>{},
   this.workspaceComparisonBases = const <String, String>{},
   this.workspacePanels = const <String, WorkspacePanel>{},
   this.sectionSort = WorkbenchSortBy.name,
@@ -165,8 +174,17 @@ class const WorkbenchViewPrefs({
   this.showActiveWorkspacesOnly = false,
   this.showArchivedWorkspaces = false,
   this.newWorkspaceTools = const <WorkspaceTool>[],
+  this.homeComposer = HomeComposerPrefs.empty,
 }) with WorkbenchViewPrefsMappable {
   final Set<String> workspaceDetailsHiddenIds;
+
+  /// Workspaces whose Workspace Details agents section is expanded. The
+  /// section starts collapsed. Desktop-only; never shared with phones.
+  final Set<String> workspaceDetailsAgentsExpandedIds;
+
+  /// Collapsed panel groups inside an expanded agents section, keyed
+  /// `workspaceId:main` or `workspaceId:right`.
+  final Set<String> workspaceDetailsAgentGroupsCollapsed;
   final Map<String, String> workspaceComparisonBases;
   final Map<String, WorkspacePanel> workspacePanels;
   final WorkbenchGroupBy groupBy;
@@ -273,6 +291,9 @@ class const WorkbenchViewPrefs({
   /// created. Empty keeps that panel empty until the user adds a tool.
   /// Existing workspaces keep their own saved panel.
   final List<WorkspaceTool> newWorkspaceTools;
+
+  /// Last Home composer selection. Desktop-only; never shared with phones.
+  final HomeComposerPrefs homeComposer;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: .project,

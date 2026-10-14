@@ -1,8 +1,23 @@
 import 'package:alera/src/design_system/surfaces/workspace_details_density.dart';
 import 'package:alera/src/features/workbench/application/workspace_git_progress.dart';
+import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/automations/application/automation_providers.dart';
+import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+import 'package:alera/src/features/automations/presentation/automation_tone.dart';
+import 'package:alera/src/features/automations/presentation/catalog/automation_catalog_row.dart';
+import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
+import 'package:alera_automations/alera_automations.dart';
+import 'package:alera/src/features/linked_issues/presentation/linked_issue_state_icon.dart';
+import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
+import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_details_agent_rows.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_lifecycle_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_review_rows.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_presence.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_source_control_presence.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/workbench/application/background_operations.dart';
@@ -15,8 +30,10 @@ import 'dart:io';
 import 'package:alera/src/features/workbench/presentation/workspace_details_toolbar_scope.dart';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/menus/alera_menu_position.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -29,8 +46,17 @@ import 'package:alera/src/features/keyboard/application/keyboard_command_dispatc
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_ship_menu.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_host_os.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_details_provider.dart';
 import 'package:alera/src/features/workbench/application/workspace_git_submission.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
@@ -51,6 +77,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workspace_details_overlay_actions.dart';
 part 'workspace_details_overlay_card.dart';
+part 'workspace_details_overlay_menus.dart';
+part 'workspace_details_overlay_related.dart';
+part 'workspace_details_overlay_automations.dart';
+part 'workspace_details_overlay_ship.dart';
 
 class const WorkspaceDetailsOverlay({
   super.key,
@@ -191,6 +221,16 @@ class _WorkspaceDetailsOverlayState
         _portal.show();
       }
     });
+    final tabStrip = ref.watch(
+      workbenchControllerProvider.select(
+        (state) => state.workspacePanelFor(widget.workspace.id).showsMainChrome,
+      ),
+    );
+    final toolbarCorner = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.terminal.toolbarCorner,
+      ),
+    );
     final state = ref.read(workbenchControllerProvider);
     final runtime = ref.read(terminalRuntimeProvider);
     final searches = [
@@ -208,8 +248,12 @@ class _WorkspaceDetailsOverlayState
             final searchOpen = searches.any((search) => search.isOpen);
             const toggleTop =
                 AleraTokens.sidebarHeaderHeight + AleraTokens.space4;
-            const cardTop =
-                toggleTop + AleraTokens.space32 + AleraTokens.space8;
+            final cardWidth = (constraints.maxWidth - AleraTokens.space16 * 2)
+                .clamp(0.0, AleraTokens.workspaceDetailsWidth);
+            final cardTop = workspaceDetailsCardTop(
+              tabStrip: tabStrip,
+              toolbarCorner: _terminalToolbarCount > 0 ? toolbarCorner : null,
+            );
             final inline =
                 !searchOpen &&
                 constraints.maxWidth >= AleraTokens.wideContentBreakpoint &&
@@ -225,8 +269,6 @@ class _WorkspaceDetailsOverlayState
               });
             }
             final showCard = inline && !hidden;
-            final cardWidth = (constraints.maxWidth - AleraTokens.space16 * 2)
-                .clamp(0.0, AleraTokens.workspaceDetailsWidth);
             return Stack(
               fit: StackFit.expand,
               children: [
@@ -367,4 +409,31 @@ class _WorkspaceDetailsOverlayState
       ),
     );
   }
+}
+
+/// Top of the inline details card inside the central panel.
+///
+/// The card sits under the terminal toolbar when that toolbar is in the top
+/// right corner. The toolbar is inset from the top of its pane, and a pane
+/// shows a tab strip above it once the panel holds more than one tab. With the
+/// toolbar elsewhere the card sits just below any tab strip. Without a terminal it clears the
+/// standalone toggle instead.
+@visibleForTesting
+double workspaceDetailsCardTop({
+  required bool tabStrip,
+  required TerminalToolbarCorner? toolbarCorner,
+}) {
+  const toggleRow = AleraTokens.space32 + AleraTokens.space8;
+  if (toolbarCorner == null) {
+    return AleraTokens.sidebarHeaderHeight + AleraTokens.space4 + toggleRow;
+  }
+  final strip = tabStrip ? AleraTokens.sidebarHeaderHeight : 0.0;
+  if (toolbarCorner != TerminalToolbarCorner.topRight) {
+    return strip + AleraTokens.space8;
+  }
+  // AleraIconButton renders at compact density, which trims its min size.
+  final toolbarHeight =
+      AleraIconButton.defaultMinSize +
+      VisualDensity.compact.baseSizeAdjustment.dy;
+  return strip + AleraTokens.space4 + toolbarHeight + AleraTokens.space8;
 }

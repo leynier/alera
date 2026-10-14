@@ -4,22 +4,29 @@ import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
 /// trailing check for the [selected] value, optional leading content, an
-/// optional short muted [detail] beside the label, an optional [description]
-/// sentence under it, and pop-on-tap semantics.
+/// optional short muted [detail] beside the label, and under the label an
+/// optional one-line muted [subtitle] and an optional [description] sentence
+/// of up to two lines, with pop-on-tap semantics. The label, subtitle and
+/// detail stay on one line and ellipsize when the menu is narrower than them.
 class const AleraDropdownEntry<T>({
   super.key,
   required final T value,
   required final String label,
   final Widget? leading,
   final String? detail,
+  final String? subtitle,
   final String? description,
   final bool selected = false,
   final bool enabled = true,
 }) extends PopupMenuEntry<T> {
+  // A one-line subtitle adds less height than a description, which may wrap
+  // to a second line.
   @override
-  double get height => description == null
-      ? AleraTokens.menuRowHeight
-      : AleraTokens.menuRowWithDescriptionHeight;
+  double get height =>
+      (description == null
+          ? AleraTokens.menuRowHeight
+          : AleraTokens.menuRowWithDescriptionHeight) +
+      (subtitle == null ? 0 : AleraTokens.space12);
 
   @override
   bool represents(T? value) => enabled && this.value == value;
@@ -31,9 +38,13 @@ class const AleraDropdownEntry<T>({
 class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final color = widget.enabled
         ? AleraTokens.foreground
         : AleraTokens.foregroundFaint;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: AleraTokens.foregroundMuted,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: InkWell(
@@ -63,26 +74,38 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
                   children: <Widget>[
                     Text(
                       widget.label,
-                      style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: color),
+                      maxLines: 1,
+                      overflow: .ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: color),
                     ),
+                    if (widget.subtitle case final subtitle?)
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: .ellipsis,
+                        style: muted,
+                      ),
                     if (widget.description case final description?)
                       Text(
                         description,
                         maxLines: 2,
                         overflow: .ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: AleraTokens.foregroundMuted),
+                        style: muted,
                       ),
                   ],
                 ),
               ),
               if (widget.detail case final detail?) ...<Widget>[
                 const SizedBox(width: AleraTokens.space12),
-                Text(
-                  detail,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AleraTokens.foregroundMuted),
+                // Capped so a long detail cannot squeeze the label away.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: .ellipsis,
+                    style: muted,
+                  ),
                 ),
               ],
               if (widget.selected)

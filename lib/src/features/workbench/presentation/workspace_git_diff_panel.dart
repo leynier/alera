@@ -38,6 +38,7 @@ import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_history_graph.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
+import 'package:alera/src/features/workbench/presentation/git_change_status_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';

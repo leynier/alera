@@ -37,15 +37,82 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     _hasBoundProject = true;
     _boundProjectId = id;
     _boundProject = project;
-    _selectedHostId = initialWorkspaceHostId(project: project, requested: null);
-    _selectedParentId = null;
-    _useProjectCheckout = true;
+    final saved = id == null ? null : _savedSelection.projects[id];
+    _selectedHostId = initialWorkspaceHostId(
+      project: project,
+      requested: saved?.hostId,
+    );
+    _selectedParentId = saved?.parentWorkspaceId;
+    _useProjectCheckout =
+        (saved?.useProjectCheckout ?? true) ||
+        !(project?.isGitRepository ?? false);
     _sourceBranch = null;
     _branches = const <String>[];
     _loadingBranches = false;
     _branchesAwaitEnrollment = false;
     _error = null;
     _branchGeneration++;
+    if (project != null && !_useProjectCheckout) {
+      // Binding runs during build; load the restored worktree's branches after.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _boundProjectId == project.id && !_useProjectCheckout) {
+          unawaited(_loadBranches(project));
+        }
+      });
+    }
+  }
+
+  /// Saves the draft once typing pauses, so each keystroke does not rewrite
+  /// the view prefs.
+  void _onPromptChanged() {
+    if (_promptController.text == _savedPrompt) {
+      _promptSave?.cancel();
+      return;
+    }
+    _promptSave?.cancel();
+    _promptSave = Timer(const Duration(milliseconds: 500), _savePrompt);
+  }
+
+  void _savePrompt() {
+    final prompt = _promptController.text;
+    if (prompt == _savedPrompt) {
+      return;
+    }
+    _savedPrompt = prompt;
+    _workbench.setHomeComposerPrompt(prompt);
+  }
+
+  /// Records the current choices so the next Home visit, or the next launch,
+  /// starts from them.
+  void _saveSelection() {
+    final saved = _savedSelection;
+    final projectId = _boundProjectId;
+    ref
+        .read(workbenchControllerProvider.notifier)
+        .setHomeComposerPrefs(
+          saved.copyWith(
+            projectId: _explicitProjectId ?? saved.projectId,
+            profileId: _explicitProfileId ?? saved.profileId,
+            projects: projectId == null
+                ? saved.projects
+                : <String, HomeComposerProjectPrefs>{
+                    ...saved.projects,
+                    projectId: HomeComposerProjectPrefs(
+                      hostId: normalizedRemoteHostId(_selectedHostId),
+                      parentWorkspaceId: _selectedParentId,
+                      useProjectCheckout: _useProjectCheckout,
+                      sourceBranch:
+                          _sourceBranch ??
+                          saved.projects[projectId]?.sourceBranch,
+                    ),
+                  },
+          ),
+        );
+  }
+
+  String? _savedSourceBranch(String projectId, List<String> branches) {
+    final branch = _savedSelection.projects[projectId]?.sourceBranch;
+    return branch != null && branches.contains(branch) ? branch : null;
   }
 
   String? _hostSelectionError(AsyncValue<List<SshTarget>> targets) {
@@ -155,7 +222,10 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
         if (_useProjectCheckout) {
           return;
         }
-        _sourceBranch = pickDefaultSourceBranch(branches, preferred: preferred);
+        _sourceBranch = pickDefaultSourceBranch(
+          branches,
+          preferred: _savedSourceBranch(project.id, branches) ?? preferred,
+        );
       });
     } catch (error) {
       if (!_catalogStillCurrent(generation, hostId, project.id)) {
@@ -232,6 +302,7 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
       _explicitProjectId = selected;
       _error = null;
     });
+    _saveSelection();
   }
 
   Future<void> _pickProfile(
@@ -246,16 +317,14 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
             value: profile.id,
             label: profile.name,
             selected:
-                profile.id == _explicitProfileId ||
-                (_explicitProfileId == null &&
-                    profile.id ==
-                        _profileFor(
-                          profiles,
-                          ref
-                              .read(settingsControllerProvider)
-                              .agents
-                              .defaultAgentProfileId,
-                        )?.id),
+                profile.id ==
+                _profileFor(
+                  profiles,
+                  ref
+                      .read(settingsControllerProvider)
+                      .agents
+                      .defaultAgentProfileId,
+                )?.id,
             leading: AgentIdentityIcon(
               agentType: AgentType.tryParse(profile.agentType) ?? .codex,
               size: AleraTokens.iconLg,
@@ -266,6 +335,7 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     );
     if (selected != null) {
       _update(() => _explicitProfileId = selected);
+      _saveSelection();
     }
   }
 
@@ -318,6 +388,7 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
       return;
     }
     _hosts.clearError();
+    _saveSelection();
     if (reload) {
       unawaited(_loadBranches(project));
     }
@@ -351,6 +422,7 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
       return;
     }
     _update(() => _selectedParentId = selected.isEmpty ? null : selected);
+    _saveSelection();
   }
 
   Future<void> _submit() async {
@@ -410,6 +482,8 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     }
     done.ignore();
     _promptController.clear();
+    _promptSave?.cancel();
+    _savePrompt();
     _update(() => _error = null);
   }
 }

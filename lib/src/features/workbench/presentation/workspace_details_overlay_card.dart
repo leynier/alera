@@ -10,10 +10,16 @@ extension on _WorkspaceDetailsOverlayState {
       effectiveHostingProviderOverrideProvider(widget.workspace.projectId),
     );
     final workspace = widget.workspace;
-    final router = cardRef.read(gitBackendProvider);
-    final git = router is HostRoutedGitBackend
-        ? router.forPath(_scope.repoPath)
-        : router;
+    final issue = cardRef.watch(workspaceLinkedIssueProvider(workspace.id));
+    final automations = _workspaceAutomations(
+      cardRef.watch(automationCatalogProvider).value,
+      workspace.id,
+    );
+    final related = cardRef.watch(
+      workbenchControllerProvider.select(
+        (state) => _relatedWorkspaces(state, workspace.id),
+      ),
+    );
     final targets = cardRef.watch(sshTargetsProvider).value ?? const [];
     final host = targets
         .where((target) => target.id == workspace.hostId)
@@ -51,7 +57,11 @@ extension on _WorkspaceDetailsOverlayState {
             },
       child: AleraWorkspaceDetailsCard(
         density: density,
-        onOptions: () => unawaited(_detailsOptions()),
+        onOptions: (anchor) => unawaited(_detailsOptions(anchor)),
+        afterWorkspace: WorkspaceDetailsAgentRows(
+          workspace: workspace,
+          density: density,
+        ),
         afterBranch: widget.sourceControlScope == null
             ? null
             : WorkspaceDetailsReviewRows(
@@ -59,7 +69,7 @@ extension on _WorkspaceDetailsOverlayState {
                 scope: scope,
                 compact: density != WorkspaceDetailsDensity.full,
               ),
-        rows: [
+        workspaceRows: [
           AleraWorkspaceDetailRow(
             label: hostLabel,
             leading: AleraHostOsIcon(
@@ -68,8 +78,8 @@ extension on _WorkspaceDetailsOverlayState {
                   : HostOs.parse(Platform.operatingSystem),
               size: AleraTokens.iconMd,
             ),
-            onPressed: () => _hostMenu(),
-            onMenu: () => _hostMenu(),
+            onMenu: (anchor) => unawaited(_hostMenu(anchor)),
+            pressOpensMenu: true,
           ),
           AleraWorkspaceDetailRow(
             label:
@@ -87,8 +97,31 @@ extension on _WorkspaceDetailsOverlayState {
                       workspace,
                     ),
                   ),
-            onMenu: () => _openMenu(),
+            onMenu: (anchor) => unawaited(_openMenu(anchor)),
           ),
+          if (issue != null)
+            AleraWorkspaceDetailRow(
+              label: issue.title == null
+                  ? issue.reference
+                  : '${issue.reference}: ${issue.title}',
+              subtitle: issue.fetchError != null
+                  ? 'Could not refresh the issue'
+                  : issue.displayState,
+              subtitleColor: issue.fetchError == null
+                  ? null
+                  : AleraTokens.error,
+              leading: LinkedIssueStateIcon(
+                state: issue.state,
+                size: AleraTokens.iconMd,
+              ),
+              hint: workspaceLinkedIssueTooltip(issue),
+              onPressed: () => _issueAction(openLinkedIssueMenuAction),
+              onMenu: (anchor) => unawaited(_issueMenu(anchor)),
+            ),
+          ?_relatedRow(related),
+          ?_automationsRow(automations),
+        ],
+        gitRows: [
           if (widget.sourceControlScope != null) ...[
             AleraWorkspaceDetailRow(
               label:
@@ -105,22 +138,22 @@ extension on _WorkspaceDetailsOverlayState {
                   : null,
               hasMenu: true,
               leading: icon(AleraIcons.gitBranch),
+              trailing: data == null ? null : _branchSync(data),
               hint: details?.hasError == true
                   ? details!.error.toString()
-                  : null,
-              onPressed: busy
+                  : data == null
                   ? null
-                  : data != null
-                  ? () => _branchMenu(data)
-                  : details?.hasError == true
-                  ? () => unawaited(_recoverComparisonBase())
-                  : null,
+                  : _branchSyncHint(data),
+              pressOpensMenu: data != null,
+              onPressed: busy || details?.hasError != true
+                  ? null
+                  : () => unawaited(_recoverComparisonBase()),
               onMenu: busy
                   ? null
                   : data != null
-                  ? () => _branchMenu(data)
+                  ? (anchor) => unawaited(_branchMenu(data, anchor))
                   : details?.hasError == true
-                  ? () => unawaited(_recoverComparisonBase())
+                  ? (_) => unawaited(_recoverComparisonBase())
                   : null,
             ),
             AleraWorkspaceDetailRow(
@@ -170,7 +203,9 @@ extension on _WorkspaceDetailsOverlayState {
                   : () => unawaited(
                       _requestAction(data!, data.quickAction.action!, scope),
                     ),
-              onMenu: data == null || busy ? null : () => _gitMenu(data, scope),
+              onMenu: data == null || busy
+                  ? null
+                  : (anchor) => unawaited(_gitMenu(data, scope, anchor)),
             ),
             AleraWorkspaceDetailRow(
               label: details?.isLoading == true && data == null
@@ -179,21 +214,23 @@ extension on _WorkspaceDetailsOverlayState {
               leading: icon(AleraIcons.diff),
               hint: details?.hasError == true
                   ? details!.error.toString()
-                  : null,
+                  : data == null
+                  ? null
+                  : _uncommittedHint(data),
               trailing: data == null
                   ? null
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '+${data.comparison.added}',
+                          '+${_uncommittedLines(data).added}',
                           style: AleraTokens.monoCompactStyle.copyWith(
                             color: AleraTokens.success,
                           ),
                         ),
                         const SizedBox(width: AleraTokens.space6),
                         Text(
-                          '-${data.comparison.removed}',
+                          '-${_uncommittedLines(data).removed}',
                           style: AleraTokens.monoCompactStyle.copyWith(
                             color: AleraTokens.error,
                           ),
@@ -202,16 +239,7 @@ extension on _WorkspaceDetailsOverlayState {
                     ),
               onPressed: data == null
                   ? () => ref.invalidate(workspaceDetailsProvider(scope))
-                  : () => unawaited(
-                      showDialog<void>(
-                        context: context,
-                        builder: (_) => WorkspaceComparisonDialog(
-                          git: git,
-                          path: scope.repoPath,
-                          comparison: data.comparison,
-                        ),
-                      ),
-                    ),
+                  : _revealSourceControl,
             ),
           ],
         ],

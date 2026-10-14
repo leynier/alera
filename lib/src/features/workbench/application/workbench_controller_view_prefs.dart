@@ -428,24 +428,6 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(pullRequestCreateAction: action));
   }
 
-  void setNewWorkspaceTools(List<WorkspaceTool> tools) {
-    final next = WorkspaceTool.uniqueInOrder(tools);
-    final current = state.viewPrefs.newWorkspaceTools;
-    if (current.length == next.length) {
-      var same = true;
-      for (var i = 0; i < current.length; i++) {
-        if (current[i] != next[i]) {
-          same = false;
-          break;
-        }
-      }
-      if (same) {
-        return;
-      }
-    }
-    _updateViewPrefs(state.viewPrefs.copyWith(newWorkspaceTools: next));
-  }
-
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
     state = state.copyWith(viewPrefs: prefs);
     unawaited(_persistViewPrefs());
@@ -469,6 +451,11 @@ mixin _WorkbenchControllerViewPrefs
         explorerMode: current.explorerMode,
         pullRequestCreateAction: current.pullRequestCreateAction,
         newWorkspaceTools: current.newWorkspaceTools,
+        homeComposer: current.homeComposer,
+        workspaceDetailsAgentsExpandedIds:
+            current.workspaceDetailsAgentsExpandedIds,
+        workspaceDetailsAgentGroupsCollapsed:
+            current.workspaceDetailsAgentGroupsCollapsed,
       ),
     );
   }
