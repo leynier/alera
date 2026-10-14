@@ -1,4 +1,7 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_approval_history.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_native_history_notice.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
@@ -37,6 +40,40 @@ Future<void> _pump(WidgetTester tester, Widget child) => tester.pumpWidget(
     home: Scaffold(body: Center(child: child)),
   ),
 );
+
+/// Opens a dialog with [show] and checks that its header sits on the same
+/// inset as the body rather than against the dialog edge.
+Future<void> _expectInsetHeader(
+  WidgetTester tester, {
+  required String title,
+  required Future<void> Function(BuildContext context) show,
+}) async {
+  await _pump(
+    tester,
+    Builder(
+      builder: (context) =>
+          TextButton(onPressed: () => show(context), child: const Text('Open')),
+    ),
+  );
+  await tester.tap(find.text('Open'));
+  await tester.pumpAndSettle();
+  final surface = tester.getRect(
+    find
+        .descendant(of: find.byType(Dialog), matching: find.byType(Material))
+        .first,
+  );
+  final header = find.byType(AleraDialogHeader);
+  final titleRect = tester.getRect(
+    find.descendant(of: header, matching: find.text(title)),
+  );
+  final close = tester.getRect(
+    find.descendant(of: header, matching: find.byType(AleraIconButton)),
+  );
+  expect(titleRect.left - surface.left, moreOrLessEquals(AleraTokens.space16));
+  expect(surface.right - close.right, moreOrLessEquals(AleraTokens.space16));
+  expect(close.top - surface.top, moreOrLessEquals(AleraTokens.space12));
+  expect(tester.takeException(), isNull);
+}
 
 void main() {
   testWidgets('no control shows when the runtime offers none', (tester) async {
@@ -240,5 +277,32 @@ void main() {
     expect(find.text('Decline'), findsOneWidget);
     expect(find.text('Load Older Requests'), findsNothing);
     expect(find.textContaining('Only recent history'), findsOneWidget);
+  });
+
+  testWidgets('turn changes and approval history inset their headers', (
+    tester,
+  ) async {
+    await _expectInsetHeader(
+      tester,
+      title: 'Turn Changes',
+      show: (context) => showAgentChatTurnDiff(
+        context,
+        diff: Future<AgentChatTurnDiff>.value(
+          const AgentChatTurnDiff(turnId: 't1'),
+        ),
+        onOpenFile: _ignore,
+      ),
+    );
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    await _expectInsetHeader(
+      tester,
+      title: 'Approval History',
+      show: (context) => showAgentChatApprovalHistory(
+        context,
+        load: (_) async => const AgentChatApprovalHistoryPage(),
+      ),
+    );
   });
 }

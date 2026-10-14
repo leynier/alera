@@ -92,93 +92,98 @@ class _SendToChatSheetState extends ConsumerState<SendToChatSheet> {
       for (final chat in chats.value ?? const <AgentChatDirectoryEntry>[])
         if (chat.chatId != widget.fromChatId && !chat.chat.archived) chat,
     ];
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AleraTokens.spaceLg,
-        right: AleraTokens.spaceLg,
-        top: AleraTokens.spaceLg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AleraTokens.spaceLg,
-      ),
-      child: Column(
-        mainAxisSize: .min,
-        crossAxisAlignment: .stretch,
-        children: <Widget>[
-          Text('Send To Chat', style: theme.textTheme.titleMedium),
-          const SizedBox(height: AleraTokens.spaceXs),
-          Text(
-            'The chat receives your message as its next turn. Nothing opens until you choose to.',
-            style: muted,
-          ),
-          const SizedBox(height: AleraTokens.spaceMd),
-          if (chats.value == null)
+    // The route's safe area leaves the bottom out, so this one keeps Send off
+    // the home indicator, and the scroll view keeps the form reachable over
+    // the keyboard on a short phone or at large text sizes.
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: AleraTokens.spaceLg,
+          right: AleraTokens.spaceLg,
+          top: AleraTokens.spaceLg,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + AleraTokens.spaceLg,
+        ),
+        child: Column(
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
+          children: <Widget>[
+            Text('Send To Chat', style: theme.textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.spaceXs),
             Text(
-              chats.error == null
-                  ? 'Loading chats…'
-                  : agentChatOrchestrationErrorMessage(chats.error!),
-            )
-          else
-            AleraDropdownField<String>(
-              key: const ValueKey<String>('sendToChatTarget'),
-              value: _chatId,
-              labelText: 'Chat',
-              hintText: rows.isEmpty ? 'No Other Chats' : 'Choose a Chat',
-              enabled: !_sending && rows.isNotEmpty,
-              filterable: rows.length > 6,
-              filterHintText: 'Search Chats',
-              entries: <AleraDropdownFieldEntry<String>>[
-                for (final chat in rows)
-                  AleraDropdownFieldEntry<String>(
-                    value: chat.chatId,
-                    label: <String>[
-                      chat.title,
-                      ?chat.workspaceName,
-                    ].join(' · '),
-                  ),
-              ],
-              onChanged: (id) => setState(() {
-                _chatId = id;
-                _error = null;
-              }),
+              'The chat receives your message as its next turn. Nothing opens until you choose to.',
+              style: muted,
             ),
-          const SizedBox(height: AleraTokens.spaceSm),
-          AleraTextField(
-            key: const ValueKey<String>('sendToChatMessage'),
-            controller: _message,
-            labelText: 'Message',
-            minLines: 3,
-            maxLines: 8,
-            enabled: !_sending,
-            onChanged: (_) => setState(() => _error = null),
-          ),
-          SwitchListTile(
-            key: const ValueKey<String>('sendToChatExpectReply'),
-            contentPadding: EdgeInsets.zero,
-            value: _expectReply,
-            title: const Text('Expect A Reply'),
-            subtitle: Text(
-              widget.parentChatId == null
-                  ? 'The reply is tracked as a task in Activity.'
-                  : 'The reply is tracked as a task in this chat.',
-            ),
-            onChanged: _sending
-                ? null
-                : (value) => setState(() => _expectReply = value),
-          ),
-          if (_error case final message?)
-            Text(
-              message,
-              key: const ValueKey<String>('sendToChatError'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.error,
+            const SizedBox(height: AleraTokens.spaceMd),
+            if (chats.value == null)
+              Text(
+                chats.error == null
+                    ? 'Loading chats…'
+                    : agentChatOrchestrationErrorMessage(chats.error!),
+              )
+            else
+              AleraDropdownField<String>(
+                key: const ValueKey<String>('sendToChatTarget'),
+                value: _chatId,
+                labelText: 'Chat',
+                hintText: rows.isEmpty ? 'No Other Chats' : 'Choose a Chat',
+                enabled: !_sending && rows.isNotEmpty,
+                filterable: rows.length > 6,
+                filterHintText: 'Search Chats',
+                entries: <AleraDropdownFieldEntry<String>>[
+                  for (final chat in rows)
+                    AleraDropdownFieldEntry<String>(
+                      value: chat.chatId,
+                      label: <String>[
+                        chat.title,
+                        ?chat.workspaceName,
+                      ].join(' · '),
+                    ),
+                ],
+                onChanged: (id) => setState(() {
+                  _chatId = id;
+                  _error = null;
+                }),
               ),
+            const SizedBox(height: AleraTokens.spaceSm),
+            AleraTextField(
+              key: const ValueKey<String>('sendToChatMessage'),
+              controller: _message,
+              labelText: 'Message',
+              minLines: 3,
+              maxLines: 8,
+              enabled: !_sending,
+              onChanged: (_) => setState(() => _error = null),
             ),
-          const SizedBox(height: AleraTokens.spaceMd),
-          FilledButton(
-            key: const ValueKey<String>('sendToChatSubmit'),
-            onPressed: _sending ? null : _send,
-            child: Text(_sending ? 'Sending…' : 'Send'),
-          ),
-        ],
+            SwitchListTile(
+              key: const ValueKey<String>('sendToChatExpectReply'),
+              contentPadding: EdgeInsets.zero,
+              value: _expectReply,
+              title: const Text('Expect A Reply'),
+              subtitle: Text(
+                widget.parentChatId == null
+                    ? 'The reply is tracked as a task in Activity.'
+                    : 'The reply is tracked as a task in this chat.',
+              ),
+              onChanged: _sending
+                  ? null
+                  : (value) => setState(() => _expectReply = value),
+            ),
+            if (_error case final message?)
+              Text(
+                message,
+                key: const ValueKey<String>('sendToChatError'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.error,
+                ),
+              ),
+            const SizedBox(height: AleraTokens.spaceMd),
+            FilledButton(
+              key: const ValueKey<String>('sendToChatSubmit'),
+              onPressed: _sending ? null : _send,
+              child: Text(_sending ? 'Sending…' : 'Send'),
+            ),
+          ],
+        ),
       ),
     );
   }

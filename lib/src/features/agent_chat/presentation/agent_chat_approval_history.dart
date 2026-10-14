@@ -27,9 +27,17 @@ Future<void> showAgentChatApprovalHistory(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        AleraDialogHeader(
-          title: 'Approval History',
-          onClose: () => Navigator.of(context).pop(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AleraTokens.space16,
+            AleraTokens.space12,
+            AleraTokens.space16,
+            0,
+          ),
+          child: AleraDialogHeader(
+            title: 'Approval History',
+            onClose: () => Navigator.of(context).pop(),
+          ),
         ),
         Flexible(child: AgentChatApprovalHistoryView(load: load)),
       ],

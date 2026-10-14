@@ -28,18 +28,25 @@ Future<AgentChatSelection?> showAgentChatModelPicker(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
-      child: AgentChatModelPickerPanel(
-        providers: providers,
-        preferences: preferences,
-        current: current,
-        canSwitchProvider: canSwitchProvider,
-        onPicked: (selection) => Navigator.of(context).pop(selection),
-        onOpenProviderSettings: onOpenProviderSettings == null
-            ? null
-            : () {
-                Navigator.of(context).pop();
-                onOpenProviderSettings();
-              },
+      // The search field opens the keyboard, and a query that narrows the
+      // list shrinks the sheet, which would otherwise sink it behind the keys.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: AgentChatModelPickerPanel(
+          providers: providers,
+          preferences: preferences,
+          current: current,
+          canSwitchProvider: canSwitchProvider,
+          onPicked: (selection) => Navigator.of(context).pop(selection),
+          onOpenProviderSettings: onOpenProviderSettings == null
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  onOpenProviderSettings();
+                },
+        ),
       ),
     ),
   ),

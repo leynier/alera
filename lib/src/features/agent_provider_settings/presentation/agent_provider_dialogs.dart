@@ -103,81 +103,85 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
     final theme = Theme.of(context);
     return AleraDialog(
       maxWidth: 460,
-      child: Column(
-        mainAxisSize: .min,
-        crossAxisAlignment: .stretch,
-        children: <Widget>[
-          AleraDialogHeader(
-            title: 'Add Provider',
-            onClose: () => Navigator.of(context).pop(),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AleraTokens.space20),
-            child: ListenableBuilder(
-              listenable: Listenable.merge(<Listenable>[_id, _label]),
-              builder: (context, _) => Column(
-                mainAxisSize: .min,
-                crossAxisAlignment: .stretch,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: ListenableBuilder(
+          listenable: Listenable.merge(<Listenable>[_id, _label]),
+          builder: (context, _) => Column(
+            mainAxisSize: .min,
+            crossAxisAlignment: .stretch,
+            children: <Widget>[
+              AleraDialogHeader(
+                title: 'Add Provider',
+                onClose: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(height: AleraTokens.space4),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: .stretch,
+                    children: <Widget>[
+                      Text(
+                        'Run a second configuration of a provider, such as a '
+                        'work account or a custom executable.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
+                      ),
+                      const SizedBox(height: AleraTokens.space16),
+                      AleraDropdownField<String>(
+                        labelText: 'Provider',
+                        value: _provider,
+                        entries: <AleraDropdownFieldEntry<String>>[
+                          for (final kind in agentProviderKinds)
+                            AleraDropdownFieldEntry<String>(
+                              value: kind,
+                              label: agentProviderDefaultLabel(kind),
+                            ),
+                        ],
+                        onChanged: _selectProvider,
+                      ),
+                      const SizedBox(height: AleraTokens.space12),
+                      AleraTextField(
+                        controller: _id,
+                        labelText: 'Instance Id',
+                        errorText: _id.text.isEmpty ? null : _idError,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        onSubmitted: (_) => _submit(),
+                      ),
+                      const SizedBox(height: AleraTokens.space12),
+                      AleraTextField(
+                        controller: _label,
+                        labelText: 'Label',
+                        hintText: agentProviderDefaultLabel(_provider),
+                        onSubmitted: (_) => _submit(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AleraTokens.space20),
+              Row(
                 children: <Widget>[
-                  Text(
-                    'Run a second configuration of a provider, such as a '
-                    'work account or a custom executable.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
                     ),
                   ),
-                  const SizedBox(height: AleraTokens.space16),
-                  AleraDropdownField<String>(
-                    labelText: 'Provider',
-                    value: _provider,
-                    entries: <AleraDropdownFieldEntry<String>>[
-                      for (final kind in agentProviderKinds)
-                        AleraDropdownFieldEntry<String>(
-                          value: kind,
-                          label: agentProviderDefaultLabel(kind),
-                        ),
-                    ],
-                    onChanged: _selectProvider,
-                  ),
-                  const SizedBox(height: AleraTokens.space12),
-                  AleraTextField(
-                    controller: _id,
-                    labelText: 'Instance Id',
-                    errorText: _id.text.isEmpty ? null : _idError,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    onSubmitted: (_) => _submit(),
-                  ),
-                  const SizedBox(height: AleraTokens.space12),
-                  AleraTextField(
-                    controller: _label,
-                    labelText: 'Label',
-                    hintText: agentProviderDefaultLabel(_provider),
-                    onSubmitted: (_) => _submit(),
-                  ),
-                  const SizedBox(height: AleraTokens.space20),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: AleraTokens.space8),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _idError == null ? _submit : null,
-                          child: const Text('Add Provider'),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: AleraTokens.space8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _idError == null ? _submit : null,
+                      child: const Text('Add Provider'),
+                    ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
