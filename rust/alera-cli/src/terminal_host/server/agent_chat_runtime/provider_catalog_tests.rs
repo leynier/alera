@@ -98,6 +98,16 @@ async fn no_model_discovery_produces_an_honest_provider_default() {
         if entry["provider"] == "pi" {
             assert_eq!(entry["capabilities"]["mcpInjection"]["http"], false);
         }
+        let plan = entry["interactionModes"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("plan"));
+        assert_eq!(
+            plan,
+            ["codex", "claudeAgent", "cursor"].contains(&entry["provider"].as_str().unwrap()),
+            "plan mode for {}",
+            entry["provider"]
+        );
         if [
             json!("grok"),
             json!("antigravity"),

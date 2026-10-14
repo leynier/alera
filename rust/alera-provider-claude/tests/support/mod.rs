@@ -67,6 +67,18 @@ impl JsonTransport for ScriptedTransport {
                 tokio::task::yield_now().await;
                 continue;
             }
+            // A control reply must not reach the reader before its request exists.
+            if self.incoming.front().is_some_and(|frame| {
+                frame["type"] == "control_response"
+                    && frame["response"]["request_id"] != "req_1"
+                    && !self.writes.lock().unwrap().iter().any(|write| {
+                        write["type"] == "control_request"
+                            && write["request_id"] == frame["response"]["request_id"]
+                    })
+            }) {
+                tokio::task::yield_now().await;
+                continue;
+            }
             if !self.turn_started
                 && self
                     .incoming

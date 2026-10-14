@@ -5,6 +5,7 @@ use tokio::sync::oneshot;
 use tokio::time::{timeout, Duration};
 
 const CALLBACK_TIMEOUT: Duration = Duration::from_secs(300);
+const PLAN_CAPTURED_MESSAGE: &str = "The plan was shown to the user as a proposed plan. Stop here and wait: the user will reply with feedback or ask for the implementation in a later turn.";
 
 pub(crate) struct RequestNotice {
     pub(crate) request: RuntimeRequest,
@@ -41,8 +42,10 @@ pub(crate) fn install_callbacks(
     next_request: &Arc<AtomicU64>,
     thread_id: &Arc<Mutex<Option<String>>>,
     turn_id: &Arc<Mutex<Option<String>>>,
+    plan_interaction: &Arc<AtomicBool>,
 ) {
     let tx = request_tx.clone();
+    let plan_interaction = Arc::clone(plan_interaction);
     let pending_ref = pending;
     let next_request_ref = next_request;
     let thread_id_ref = thread_id;
@@ -57,7 +60,13 @@ pub(crate) fn install_callbacks(
         let next_request = Arc::clone(&next_request);
         let thread_id = Arc::clone(&thread_id);
         let turn_id = Arc::clone(&turn_id);
+        let plan_interaction = Arc::clone(&plan_interaction);
         Box::pin(async move {
+            // In Alera's plan mode the turn ends with the proposed plan, which the
+            // mapping already shows; approving ExitPlanMode would start editing.
+            if tool_name == "ExitPlanMode" && plan_interaction.load(Ordering::SeqCst) {
+                return Ok(PermissionResult::deny(PLAN_CAPTURED_MESSAGE));
+            }
             let request_id = format!(
                 "claude-request-{}",
                 next_request.fetch_add(1, Ordering::Relaxed) + 1

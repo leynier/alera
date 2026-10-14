@@ -84,7 +84,7 @@ pub(crate) fn provider_traits(provider: &str) -> Option<ProviderTraits> {
             images: false,
             files: false,
             runtime_modes: ALL_MODES,
-            interaction_modes: &["default"],
+            interaction_modes: &["default", "plan"],
             per_turn_model: false,
         },
         "cursor" => ProviderTraits {

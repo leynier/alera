@@ -30,7 +30,36 @@ impl ClaudeProvider {
                     ))
                 }
                 ContentBlock::Text(_) | ContentBlock::Thinking(_) => {}
+                ContentBlock::ToolUse(block)
+                    if block.name == "ExitPlanMode"
+                        && parent_tool_use_id.is_none()
+                        && block.input.get("plan").is_some_and(Value::is_string) =>
+                {
+                    let plan = block.input["plan"].as_str().unwrap_or_default();
+                    // The result only says whether the plan was approved; keep the
+                    // item a plan rather than letting it become a failed tool call.
+                    self.open_items.insert(block.id.clone(), "plan".into());
+                    events.extend(self.item_completed(
+                        block.id,
+                        "plan".into(),
+                        "Plan".into(),
+                        json!({ "text": plan }),
+                        self.raw("assistant", raw.clone()),
+                        false,
+                    ));
+                }
                 ContentBlock::ToolUse(block) => {
+                    if block.name == "TodoWrite" && parent_tool_use_id.is_none() {
+                        if let Some(todos) =
+                            block.input.get("todos").filter(|todos| todos.is_array())
+                        {
+                            events.push(self.event(
+                                EventKind::TurnPlanUpdated,
+                                json!({ "plan": todos }),
+                                self.raw("assistant", raw.clone()),
+                            ));
+                        }
+                    }
                     let item_type = item_type_for_tool(&block.name);
                     self.open_items.insert(block.id.clone(), item_type.clone());
                     events.extend(self.item_started_updated(
@@ -46,6 +75,9 @@ impl ClaudeProvider {
                         .open_items
                         .remove(&block.tool_use_id)
                         .unwrap_or_else(|| "dynamic_tool_call".into());
+                    if item_type == "plan" {
+                        continue;
+                    }
                     events.extend(self.item_completed(
                         block.tool_use_id,
                         item_type,

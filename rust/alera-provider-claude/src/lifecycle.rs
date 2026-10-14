@@ -54,6 +54,8 @@ impl ClaudeProvider {
             open_items: HashMap::new(),
             stream_items: HashMap::new(),
             session_effort: None,
+            base_permission_mode: None,
+            plan_interaction: Arc::new(AtomicBool::new(false)),
             file_checkpointing: false,
             fork_source_native_thread_id: None,
             pending_user_prompt: None,
@@ -181,6 +183,7 @@ impl ClaudeProvider {
             &self.next_request,
             &self.thread_id,
             &self.active_turn_id,
+            &self.plan_interaction,
         );
         Ok(options)
     }

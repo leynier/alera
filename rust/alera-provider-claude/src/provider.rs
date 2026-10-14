@@ -36,7 +36,7 @@ use claude_agent_sdk::{ClaudeAgentOptions, ClaudeClient, ClaudeSdkError};
 use runtime_response::{resolved_payload, response_matches_request};
 use serde_json::{json, Value};
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
@@ -102,6 +102,9 @@ pub struct ClaudeProvider {
     open_items: HashMap<String, String>,
     stream_items: HashMap<String, String>,
     session_effort: Option<String>,
+    // The permission mode a non-plan turn returns to after Alera's plan mode.
+    base_permission_mode: Option<String>,
+    plan_interaction: Arc<AtomicBool>,
     file_checkpointing: bool,
     fork_source_native_thread_id: Option<String>,
     pending_user_prompt: Option<user_messages::UserPromptCorrelation>,
@@ -202,6 +205,14 @@ impl Provider for ClaudeProvider {
         }
         let options = self.build_options(&input)?;
         self.session_effort = options.effort.clone();
+        let plan_at_start = options.permission_mode.as_deref() == Some("plan")
+            && input.options.get("interactionMode").and_then(Value::as_str) == Some("plan");
+        self.plan_interaction.store(plan_at_start, Ordering::SeqCst);
+        self.base_permission_mode = if plan_at_start {
+            Some("default".into())
+        } else {
+            options.permission_mode.clone()
+        };
         self.file_checkpointing = options.enable_file_checkpointing;
         *self.thread_id.lock().await = Some(input.thread_id.clone());
         let client = if let Some(transport) = self.transport.take() {

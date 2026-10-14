@@ -29,11 +29,6 @@ impl ClaudeProvider {
                     })
             })
             .transpose()?;
-        if input.interaction_mode != InteractionMode::Default {
-            return Err(ProviderError::Unsupported(
-                "Claude Code per-turn interaction mode is not supported by this adapter".into(),
-            ));
-        }
         let session = self
             .session
             .clone()
@@ -69,6 +64,7 @@ impl ClaudeProvider {
                 "session client is unavailable".into(),
             ));
         }
+        self.apply_interaction_mode(input.interaction_mode).await?;
         let next_turn = self.next_turn + 1;
         let turn_id = format!("turn:claude:{next_turn}");
         let submitted_prompt = input.input.clone();
@@ -135,5 +131,27 @@ impl ClaudeProvider {
             turn_id,
             native_turn_id: None,
         })
+    }
+
+    /// Claude's plan mode is a session permission mode, so a turn that changes
+    /// Alera's interaction mode switches it before the prompt is sent.
+    async fn apply_interaction_mode(&mut self, mode: InteractionMode) -> Result<(), ProviderError> {
+        let plan = mode == InteractionMode::Plan;
+        if plan == self.plan_interaction.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+        let permission_mode = if plan {
+            "plan"
+        } else {
+            self.base_permission_mode.as_deref().unwrap_or("default")
+        };
+        self.client
+            .as_ref()
+            .ok_or_else(|| ProviderError::InvalidState("session client is unavailable".into()))?
+            .set_permission_mode(permission_mode)
+            .await
+            .map_err(sdk_error)?;
+        self.plan_interaction.store(plan, Ordering::SeqCst);
+        Ok(())
     }
 }
