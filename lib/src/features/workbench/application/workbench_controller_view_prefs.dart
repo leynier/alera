@@ -452,6 +452,10 @@ mixin _WorkbenchControllerViewPrefs
         pullRequestCreateAction: current.pullRequestCreateAction,
         newWorkspaceTools: current.newWorkspaceTools,
         homeComposer: current.homeComposer,
+        workspaceDetailsAgentsExpandedIds:
+            current.workspaceDetailsAgentsExpandedIds,
+        workspaceDetailsAgentGroupsCollapsed:
+            current.workspaceDetailsAgentGroupsCollapsed,
       ),
     );
   }

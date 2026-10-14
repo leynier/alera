@@ -10,11 +10,13 @@ import 'package:flutter/material.dart';
 /// Compact tray control for a workspace's agent runs: agents grouped by state,
 /// each group showing its state glyph plus up to three overlapping identity
 /// icons. Clicking toggles the expanded per-agent rows under the workspace.
+/// A null [onToggle] renders just the clusters, for a parent that owns the
+/// tap target.
 class const WorkspaceAgentCompactSummary({
   super.key,
   required final List<WorkspaceAgentRunGroup> groups,
   required final bool expanded,
-  required final VoidCallback onToggle,
+  required final VoidCallback? onToggle,
   this.tooltipOverride,
 }) extends StatelessWidget {
   /// Optional tooltip; defaults to Show/Hide Agent Runs.
@@ -34,6 +36,31 @@ class const WorkspaceAgentCompactSummary({
         .fold<int>(0, (sum, group) => sum + group.runs.length);
     final tooltip =
         tooltipOverride ?? (expanded ? 'Hide Agent Runs' : 'Show Agent Runs');
+    final content = Row(
+      mainAxisSize: .min,
+      children: <Widget>[
+        for (final (index, group) in visibleGroups.indexed) ...<Widget>[
+          if (index > 0) const SizedBox(width: AleraTokens.space6),
+          _GroupCluster(group: group),
+        ],
+        if (hiddenGroupRuns > 0) ...<Widget>[
+          const SizedBox(width: AleraTokens.space4),
+          Text(
+            '+$hiddenGroupRuns',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AleraTokens.foregroundFaint,
+            ),
+          ),
+        ],
+        const SizedBox(width: AleraTokens.space2),
+        Icon(
+          expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+          size: 12,
+          color: AleraTokens.foregroundMuted,
+        ),
+      ],
+    );
+    if (onToggle == null) return content;
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -45,30 +72,7 @@ class const WorkspaceAgentCompactSummary({
             horizontal: AleraTokens.space4,
             vertical: AleraTokens.space2,
           ),
-          child: Row(
-            mainAxisSize: .min,
-            children: <Widget>[
-              for (final (index, group) in visibleGroups.indexed) ...<Widget>[
-                if (index > 0) const SizedBox(width: AleraTokens.space6),
-                _GroupCluster(group: group),
-              ],
-              if (hiddenGroupRuns > 0) ...<Widget>[
-                const SizedBox(width: AleraTokens.space4),
-                Text(
-                  '+$hiddenGroupRuns',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundFaint,
-                  ),
-                ),
-              ],
-              const SizedBox(width: AleraTokens.space2),
-              Icon(
-                expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-                size: 12,
-                color: AleraTokens.foregroundMuted,
-              ),
-            ],
-          ),
+          child: content,
         ),
       ),
     );

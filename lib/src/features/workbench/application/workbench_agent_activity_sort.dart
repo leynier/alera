@@ -179,3 +179,29 @@ int compareByAgentActivity({
   }
   return aName.toLowerCase().compareTo(bName.toLowerCase());
 }
+
+/// Orders runs the way the Agent Activity sort orders workspaces: agents that
+/// need the user first, then finished, then working, then stale ones, each
+/// most recent first. Ties keep the incoming order.
+List<WorkspaceAgentRun> sortWorkspaceAgentRunsByActivity(
+  List<WorkspaceAgentRun> runs, {
+  required DateTime now,
+}) {
+  final ranked = [
+    for (final (index, run) in runs.indexed)
+      (index: index, run: run, rank: _runActivityRank(run.status, now)),
+  ];
+  ranked.sort((a, b) {
+    final byRank = compareAgentActivityRanks(a.rank, b.rank);
+    return byRank != 0 ? byRank : a.index.compareTo(b.index);
+  });
+  return [for (final entry in ranked) entry.run];
+}
+
+AgentActivityRank _runActivityRank(AgentStatusEntry status, DateTime now) {
+  final stale = now.difference(status.updatedAt) > agentActivityStaleness;
+  return AgentActivityRank(
+    attentionClass: stale ? AgentAttentionClass.idle : _classify(status),
+    activityAt: stale ? status.updatedAt : status.stateStartedAt,
+  );
+}

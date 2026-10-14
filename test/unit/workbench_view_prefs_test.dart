@@ -11,19 +11,31 @@ void main() {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         workspaceDetailsHiddenIds: {'workspace'},
         workspaceComparisonBases: {'workspace:/repo': 'origin/develop'},
+        workspaceDetailsAgentsExpandedIds: {'workspace'},
+        workspaceDetailsAgentGroupsCollapsed: {
+          workspaceDetailsAgentGroupKey('workspace', WorkspacePanelTree.right),
+        },
       );
       final restored = WorkbenchViewPrefs.fromJson(prefs.toMap());
       expect(restored.workspaceDetailsHiddenIds, {'workspace'});
+      expect(restored.workspaceDetailsAgentsExpandedIds, {'workspace'});
+      expect(restored.workspaceDetailsAgentGroupsCollapsed, {
+        'workspace:right',
+      });
       expect(
         restored.workspaceComparisonBases['workspace:/repo'],
         'origin/develop',
       );
       final older = prefs.toMap()
         ..remove('workspaceDetailsHiddenIds')
-        ..remove('workspaceComparisonBases');
+        ..remove('workspaceComparisonBases')
+        ..remove('workspaceDetailsAgentsExpandedIds')
+        ..remove('workspaceDetailsAgentGroupsCollapsed');
       final migrated = WorkbenchViewPrefs.fromJson(older);
       expect(migrated.workspaceDetailsHiddenIds, isEmpty);
       expect(migrated.workspaceComparisonBases, isEmpty);
+      expect(migrated.workspaceDetailsAgentsExpandedIds, isEmpty);
+      expect(migrated.workspaceDetailsAgentGroupsCollapsed, isEmpty);
     },
   );
   group('WorkbenchViewPrefs', () {
