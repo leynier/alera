@@ -50,7 +50,7 @@ final class AgentProviderSettingsSupportProvider
 }
 
 String _$agentProviderSettingsSupportHash() =>
-    r'c4583abe1d599e2c172a3ce30fe32ff402892e0d';
+    r'a8530294f02d0442669a0be217e9a74186782754';
 
 /// The provider catalog of one host, as Settings shows it. [hostId] is null
 /// for This Device. Reads come from the host's status cache; [refresh] forces

@@ -56,6 +56,12 @@ The host projects provider events into durable chats, turns, timeline items and 
 
 The same runtime powers chat orchestration across projects and workspaces. Its ledger and credentials are separate from terminal orchestration. Per-chat MCP injection uses typed, host-only server specifications and reports unsupported provider transports before startup. Public views exclude launch environments and credential files. See [Agent Chats](agent-chat.md), [Chat Orchestration](agent-chat-orchestration.md), and the host [wire contract](../rust/alera-cli/src/terminal_host/server/agent_chat_runtime/readme.md).
 
+## Remote Chat Resources
+
+Attachment uploads terminate on the chat owner and remain human/caller/workspace/chat scoped. The hub preserves originating identity, and the owner resolves completed receipts into provider paths. Upload I/O and digest checks run behind worker boundaries; native provider adapters do not copy client files.
+
+Provider Setup on a satellite requires `agentChatRemoteProviderSetupV1` on both runtimes. An authenticated desktop selects only an instance and verified action; the hub derives authority and the owner hydrates its own login-shell environment, profile and credentials. Phones, bound agent credentials and reverse channels cannot invoke setup. Old hosts refuse remote setup explicitly.
+
 ## Validation
 
 Run from `rust/` to select the pinned toolchain. The following checks cover the provider layer without building the native app:

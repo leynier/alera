@@ -113,8 +113,33 @@ extension _ProviderSetupHostTransport on SocketTerminalHostClient {
     required int rows,
     required CommandTerminalProviderSetup providerSetup,
     required bool restart,
+    String? hostId,
   }) async {
     final connection = await _connectTerminal();
+    if (hostId != null && hostId.isNotEmpty && hostId != 'local') {
+      if (!connection.runtimeCapabilities.contains(
+        'agentChatRemoteProviderSetupV1',
+      )) {
+        throw UnsupportedError(
+          'The running host does not support remote provider setup.',
+        );
+      }
+      _remoteProviderSetupSessions[sessionId] = (hostId, providerSetup);
+      final payload = await _terminalRequestMap(
+        restart ? 'terminal.restart' : 'createOrAttach',
+        _terminalAttachmentRequest(
+          sessionId: sessionId,
+          workspaceId: workspaceId,
+          tabId: tabId,
+          workingDirectory: workingDirectory,
+          launch: launch,
+          cols: cols,
+          rows: rows,
+          providerSetup: providerSetup,
+        ),
+      );
+      return TerminalHostAttachment.fromJson(payload);
+    }
     if (!connection.runtimeCapabilities.contains('agentChatProviderSetupV1')) {
       throw UnsupportedError(
         'The running host does not support provider setup terminals.',
@@ -161,6 +186,7 @@ mixin _ProviderSetupHostClientSupport
     required int cols,
     required int rows,
     required CommandTerminalProviderSetup providerSetup,
+    String? hostId,
     bool restart = false,
   }) => _providerSetupClient._providerSetupTerminal(
     sessionId: sessionId,
@@ -171,6 +197,7 @@ mixin _ProviderSetupHostClientSupport
     cols: cols,
     rows: rows,
     providerSetup: providerSetup,
+    hostId: hostId,
     restart: restart,
   );
 }

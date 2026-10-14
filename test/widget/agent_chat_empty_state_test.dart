@@ -1,3 +1,4 @@
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
@@ -35,6 +36,9 @@ Future<FakeAgentChatRepository> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         agentChatRepositoryProvider.overrideWithValue(repository),
         agentChatIdGeneratorProvider.overrideWithValue(() => 'id'),
         agentChatClockProvider.overrideWithValue(

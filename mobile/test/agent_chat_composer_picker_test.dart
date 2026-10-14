@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_view.dart';
@@ -58,6 +59,7 @@ Future<FakeAgentChatClient> _pumpChat(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatDraftStoreProvider.overrideWithValue(AgentChatDraftStore()),
         mobileAgentChatClientProvider('host')
             .overrideWith((ref) async => client),
         workspaceClientProvider('host').overrideWith((ref) async => workspace),

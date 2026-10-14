@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_actions.dart';
 import 'package:alera/src/features/chat_tasks/application/chat_task_providers.dart';
@@ -53,6 +54,9 @@ Future<_Lifecycle> _pump(WidgetTester tester, {bool busy = false}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         agentChatRepositoryProvider.overrideWithValue(repository),
         agentChatLifecycleRepositoryProvider.overrideWithValue(lifecycle),
         agentChatIdGeneratorProvider.overrideWithValue(() => 'id-${nextId++}'),

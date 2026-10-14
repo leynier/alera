@@ -409,6 +409,7 @@ abstract interface class TerminalHostProviderSetupClient {
     required int cols,
     required int rows,
     required CommandTerminalProviderSetup providerSetup,
+    String? hostId,
     bool restart = false,
   });
 }

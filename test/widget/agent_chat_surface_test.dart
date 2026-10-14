@@ -1,3 +1,5 @@
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
@@ -33,6 +35,9 @@ Future<void> _pumpSurface(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         agentChatRepositoryProvider.overrideWithValue(repository),
         agentChatIdGeneratorProvider.overrideWithValue(() => 'id-${nextId++}'),
         agentChatClockProvider.overrideWithValue(

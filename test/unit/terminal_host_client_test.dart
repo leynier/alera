@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
+
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -20,6 +22,7 @@ part 'terminal_host_client_protocol_mismatch_cases.dart';
 part 'terminal_host_client_runtime_mutation_cases.dart';
 part 'terminal_host_client_run_board_cases.dart';
 part 'terminal_host_client_buffer_guard_cases.dart';
+part 'terminal_host_client_provider_setup_cases.dart';
 part 'terminal_host_test_server.dart';
 
 void main() {
@@ -30,6 +33,7 @@ void main() {
   _registerTerminalHostClientRuntimeMutationTests();
   _registerTerminalHostClientRunBoardTests();
   _registerTerminalHostBufferGuardTests();
+  _registerRemoteProviderSetupTests();
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
     addTearDown(() async {
@@ -1202,32 +1206,5 @@ final class _NoopTerminalHostLauncher implements TerminalHostProcessLauncher {
     required TerminalHostConfig config,
   }) async {
     starts += 1;
-  }
-}
-
-final class _FailingStartupTerminalHostLauncher
-    implements TerminalHostProcessLauncher {
-  @override
-  Future<void> start({
-    required String runtimeDir,
-    required String controlFilePath,
-    required String token,
-    required TerminalHostConfig config,
-  }) async {
-    final controlFile = File(controlFilePath);
-    await controlFile.parent.create(recursive: true);
-    await controlFile.writeAsString(
-      jsonEncode(<String, Object?>{
-        'protocolVersion': aleraTerminalHostProtocolVersion,
-        'port': 1,
-        'token': token,
-        'runtimeCapabilities': <String>[
-          aleraRuntimeHostCapability,
-          aleraRuntimeHostBootstrapCapability,
-          aleraRuntimeHostManagedWorkspaceCapability,
-          aleraRuntimeHostOrchestrationCapability,
-        ],
-      }),
-    );
   }
 }

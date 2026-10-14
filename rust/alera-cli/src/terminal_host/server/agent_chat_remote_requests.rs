@@ -51,10 +51,22 @@ impl ServerActor {
             if verb == INTERNAL_CHAT_REQUEST || !verb.starts_with("agentChat.") {
                 return Err(HostError::format("Invalid internal chat verb."));
             }
+            let request_payload = payload["payload"].clone();
+            if self
+                .try_start_chat_attachment_request(
+                    client_id,
+                    request_id,
+                    &verb,
+                    &request_payload,
+                    caller.clone(),
+                )
+                .await?
+            {
+                return Ok(true);
+            }
             let runtime = self
                 .agent_chat_runtime()
                 .ok_or_else(|| HostError::state("Agent chats are unavailable."))?;
-            let request_payload = payload["payload"].clone();
             if self.start_provider_settings_request(
                 client_id,
                 request_id,
@@ -73,7 +85,7 @@ impl ServerActor {
                 Some(
                     self.validated_agent_chat_attachments(
                         client_id,
-                        caller.mobile,
+                        &caller,
                         &chat_id,
                         &request_payload,
                     )

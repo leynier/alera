@@ -6,7 +6,7 @@ use alera_agent_transport::JsonTransport;
 use std::time::Duration;
 
 enum RoutingEvent {
-    Frame(Result<AcpIncoming, AcpResponse>),
+    Frame(Box<Result<AcpIncoming, AcpResponse>>),
     Callback,
     Eof,
 }
@@ -27,18 +27,20 @@ impl<T: JsonTransport> AcpClient<T> {
                 return Ok(Some(message));
             }
             match self.receive_routed().await? {
-                RoutingEvent::Frame(Ok(incoming)) => self.dispatch_request(incoming)?,
-                RoutingEvent::Frame(Err(response)) => {
-                    let is_prompt = self
-                        .pending
-                        .get(&response.id.key())
-                        .is_some_and(|pending| pending.kind == PendingCallKind::Prompt);
-                    self.route_response(response.clone())?;
-                    if is_prompt {
-                        self.completed.remove(&response.id.key());
-                        return Ok(Some(AcpIncoming::Response(response)));
+                RoutingEvent::Frame(frame) => match *frame {
+                    Ok(incoming) => self.dispatch_request(incoming)?,
+                    Err(response) => {
+                        let is_prompt = self
+                            .pending
+                            .get(&response.id.key())
+                            .is_some_and(|pending| pending.kind == PendingCallKind::Prompt);
+                        self.route_response(response.clone())?;
+                        if is_prompt {
+                            self.completed.remove(&response.id.key());
+                            return Ok(Some(AcpIncoming::Response(response)));
+                        }
                     }
-                }
+                },
                 RoutingEvent::Callback => {}
                 RoutingEvent::Eof => {
                     self.stop_routing();
@@ -52,8 +54,10 @@ impl<T: JsonTransport> AcpClient<T> {
     pub(super) async fn receive_for_call(&mut self, timeout: Duration) -> Result<(), AcpError> {
         let received = tokio::time::timeout(timeout, self.receive_routed()).await;
         let result = match received {
-            Ok(Ok(RoutingEvent::Frame(Ok(incoming)))) => self.dispatch_request(incoming),
-            Ok(Ok(RoutingEvent::Frame(Err(response)))) => self.route_response(response),
+            Ok(Ok(RoutingEvent::Frame(frame))) => match *frame {
+                Ok(incoming) => self.dispatch_request(incoming),
+                Err(response) => self.route_response(response),
+            },
             Ok(Ok(RoutingEvent::Callback)) => Ok(()),
             Ok(Ok(RoutingEvent::Eof)) => Err(AcpError::Closed),
             Ok(Err(error)) => Err(error),
@@ -87,7 +91,7 @@ impl<T: JsonTransport> AcpClient<T> {
                 let received = received.map_err(AcpError::from)
                     .and_then(|value| value.map(rpc::classify).transpose());
                 match received {
-                    Ok(Some(received)) => Ok(RoutingEvent::Frame(received)),
+                    Ok(Some(received)) => Ok(RoutingEvent::Frame(Box::new(received))),
                     Ok(None) => Ok(RoutingEvent::Eof),
                     Err(error) => Err(error),
                 }

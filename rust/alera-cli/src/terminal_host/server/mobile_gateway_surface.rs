@@ -69,6 +69,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatTurnDiffV1",
     "agentChatReadCursorV1",
     "agentChatProviderSetupV1",
+    "agentChatAttachmentUploadV1",
     "agentChatNativeRewindV1",
     "agentChatRewindFilesV1",
     "agentChatFileCheckpointsV1",
@@ -175,6 +176,10 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.payload"
             | "agentChat.history"
             | "agentChat.send"
+            | "agentChat.attachment.start"
+            | "agentChat.attachment.chunk"
+            | "agentChat.attachment.complete"
+            | "agentChat.attachment.cancel"
             | "agentChat.interrupt"
             | "agentChat.respond"
             | "agentChat.configure"

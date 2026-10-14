@@ -1,8 +1,10 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_upload_bar.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 double agentChatComposerMinimumInputHeight(BuildContext context) {
@@ -33,7 +35,8 @@ double agentChatComposerMinimumHeight(BuildContext context) =>
 /// runtime queues the message behind it, so the person never has to wait to
 /// write the next instruction. Where the agent takes input mid-turn, a long
 /// press on Send steers the running turn instead. Stop sits next to it while
-/// there is a turn.
+/// there is a turn. While a picked attachment uploads, Send and Add
+/// Attachment wait for it and the text stays editable.
 class const AgentChatComposer({
   super.key,
   required final String hostId,
@@ -49,6 +52,8 @@ class const AgentChatComposer({
   required final bool canInterrupt,
   required final bool interrupting,
   required final VoidCallback? onAttach,
+  required final ValueListenable<AgentChatAttachmentUploadStatus?> upload,
+  required final VoidCallback onDismissUpload,
   required final ValueChanged<AgentChatDraftAttachment> onRemoveAttachment,
   required final VoidCallback onSend,
   required final VoidCallback onStop,
@@ -73,6 +78,17 @@ class const AgentChatComposer({
           MobileAiDictationReviewBar(
             hostId: hostId,
             targetKey: _dictationTarget,
+          ),
+          ValueListenableBuilder<AgentChatAttachmentUploadStatus?>(
+            valueListenable: upload,
+            builder: (context, status, _) => status == null
+                ? const SizedBox.shrink()
+                : AgentChatAttachmentUploadBar(
+                    status: status,
+                    // The picked file is gone, so Retry picks again.
+                    onRetry: enabled ? onAttach : null,
+                    onDismiss: onDismissUpload,
+                  ),
           ),
           Flexible(
             fit: .loose,
@@ -153,10 +169,19 @@ class const AgentChatComposer({
                           enabled: enabled,
                         ),
                         if (onAttach != null)
-                          IconButton(
-                            tooltip: 'Add Attachment',
-                            onPressed: enabled ? onAttach : null,
-                            icon: const Icon(AleraIcons.attach),
+                          ValueListenableBuilder<
+                            AgentChatAttachmentUploadStatus?
+                          >(
+                            valueListenable: upload,
+                            builder: (context, status, _) => IconButton(
+                              tooltip: 'Add Attachment',
+                              onPressed:
+                                  enabled &&
+                                      status is! AgentChatAttachmentUploading
+                                  ? onAttach
+                                  : null,
+                              icon: const Icon(AleraIcons.attach),
+                            ),
                           ),
                         Expanded(
                           child: Align(
@@ -177,15 +202,20 @@ class const AgentChatComposer({
                                   )
                                 : const Icon(AleraIcons.stop),
                           ),
-                        ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: controller,
-                          builder: (context, value, _) {
-                            // Typing stays open while the agent cannot run, so
-                            // the draft is ready once it can.
+                        ListenableBuilder(
+                          listenable: Listenable.merge(<Listenable>[
+                            controller,
+                            upload,
+                          ]),
+                          builder: (context, _) {
+                            // Typing stays open while the agent cannot run or
+                            // a file uploads, so the draft is ready once it
+                            // can go.
                             final ready =
                                 enabled &&
                                 !sendBlocked &&
-                                (value.text.trim().isNotEmpty ||
+                                upload.value is! AgentChatAttachmentUploading &&
+                                (controller.text.trim().isNotEmpty ||
                                     attachments.isNotEmpty);
                             final steer = turnActive ? onSteer : null;
                             final button = IconButton.filled(

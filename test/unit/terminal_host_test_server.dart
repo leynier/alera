@@ -175,6 +175,23 @@ final class _TerminalHostTestServer._(
       });
       return;
     }
+    if (type == 'hostLink.request' && payload['type'] == 'hub.providerSetup') {
+      final envelope = payload['payload'] as Map;
+      final operation = envelope['type'];
+      if (operation == 'createOrAttach' || operation == 'terminal.restart') {
+        _respond(socket, {
+          'id': id,
+          'ok': true,
+          'payload': {
+            'sessionId': (envelope['payload'] as Map)['sessionId'],
+            'created': true,
+            'running': true,
+            'snapshotBase64': encodeTerminalHostBytes([65, 66]),
+          },
+        });
+        return;
+      }
+    }
     if (type == 'setOutputPaused') {
       _respond(socket, <String, Object?>{
         'id': id,
@@ -289,6 +306,7 @@ final class _TerminalHostTestServer._(
 final class _FakeTerminalHostLauncher({
   required final _TerminalHostTestServer server,
   final Future<void>? beforePublish,
+  final List<String> extraRuntimeCapabilities = const [],
 }) implements TerminalHostProcessLauncher {
   int starts = 0;
   final List<TerminalHostConfig> configs = <TerminalHostConfig>[];
@@ -320,6 +338,7 @@ final class _FakeTerminalHostLauncher({
           aleraRuntimeHostTerminalRestartCapability,
           aleraRuntimeHostTerminalDeferredInputCapability,
           aleraRuntimeHostTerminalPulseCapability,
+          ...extraRuntimeCapabilities,
         ],
       }),
     );
@@ -371,4 +390,31 @@ Future<void> _writeControlFile({
   }
   await File(p.join(runtimeDir.path, fileName))
       .writeAsString(jsonEncode(payload));
+}
+
+final class _FailingStartupTerminalHostLauncher
+    implements TerminalHostProcessLauncher {
+  @override
+  Future<void> start({
+    required String runtimeDir,
+    required String controlFilePath,
+    required String token,
+    required TerminalHostConfig config,
+  }) async {
+    final controlFile = File(controlFilePath);
+    await controlFile.parent.create(recursive: true);
+    await controlFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'protocolVersion': aleraTerminalHostProtocolVersion,
+        'port': 1,
+        'token': token,
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostCapability,
+          aleraRuntimeHostBootstrapCapability,
+          aleraRuntimeHostManagedWorkspaceCapability,
+          aleraRuntimeHostOrchestrationCapability,
+        ],
+      }),
+    );
+  }
 }

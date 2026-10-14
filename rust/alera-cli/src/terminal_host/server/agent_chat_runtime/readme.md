@@ -157,6 +157,21 @@ enum ChatRuntimeEvent {
 
 Chats persist through the `RuntimeStore` agent chat API in `alera-core` (`agent_chat_*`). Every session commit sends the full snapshot header and a delta computed by diffing it against the last committed header, plus the item rows and text appends it touched and at most one receipt; the store verifies the delta explains the header and moves the cursor by one. Native ids are mapped per generation under kinds suffixed with the provider process (`item@<epoch>`), because JSON-RPC and local ids restart with every process. Startup recovery is committed by the host through the same path so the recovery notice keeps the wire shape above.
 
+## Attachment Uploads And Remote Setup
+
+`agentChatAttachmentUploadV1` exposes human-only uploads on desktop and paired mobile. Every upload verb carries `{workspaceId, chatId, uploadId}`; the connection supplies caller authority. The hub routes remote workspace uploads to their owner and requires that owner's capability. Bound agent credentials cannot upload or consume a human receipt.
+
+| Verb | Additional payload | Result |
+| --- | --- | --- |
+| `agentChat.attachment.start` | `{type: file\|localImage, name, sizeBytes, sourceDigest?}` | `{uploadId, chunkBytes, offset, complete, maxFileBytes}` |
+| `agentChat.attachment.chunk` | `{offset, dataBase64}` | `{nextOffset}` |
+| `agentChat.attachment.complete` | None | `{attachmentId, path, type, name, sizeBytes}` |
+| `agentChat.attachment.cancel` | None | `{}` |
+
+Reservations permit exact chunk replay and resume from the returned offset. Immutable source digests reject changed file content; clients retain the completed receipt with the original pending message ID. Send resolves `attachmentId` on the owner, checks caller/workspace/chat scope and bounds a message to 32 attachments. Files are limited to 32 MiB, chunks to 256 KiB, and storage to 128 MiB with 512 reservations. Unused uploads expire after 24 hours and are swept on the next reservation. Files consumed for a native send survive ambiguous delivery and remain until their chat is deleted.
+
+Remote Sign In, Install and Update require `agentChatRemoteProviderSetupV1` on both hub and owner. Only an authenticated, unbound desktop App can open setup using opaque `{providerInstanceId, action}` metadata. The owner validates its verified recipe and hydrates its own profile environment and secrets. Each desktop holds a private lease; input, output, reconnection and cleanup honor that lease. Dialog close revokes it, and the owner terminates the ephemeral setup session after the final lease is removed. Paired phones retain copy-only setup and do not receive this capability.
+
 ## Host wiring ownership
 
 The base chat backend owns these shared host edits; other work should add to them through the named seams instead of editing them in parallel:

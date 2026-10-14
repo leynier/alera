@@ -57,6 +57,34 @@ void main() {
     expect(tab.payload[workspaceTabInitialCommandPayloadKey], 'example');
   });
 
+  test(
+    'remote setup preserves its owner separately from the opaque selection',
+    () {
+      final tab = buildCommandTerminalTab(
+        tabId: 'setup',
+        request: const CommandTerminalRequest(
+          title: 'Sign In',
+          command: 'Display text only',
+          hostId: 'owner',
+          providerSetup: CommandTerminalProviderSetup(
+            providerInstanceId: 'codex',
+            action: 'signIn',
+          ),
+        ),
+      );
+      expect(
+        tab.terminalSessionId,
+        '${commandTerminalRemoteSetupSessionPrefix}setup',
+      );
+      expect(tab.payload[commandTerminalHostIdPayloadKey], 'owner');
+      expect(tab.payload[commandTerminalProviderSetupPayloadKey], {
+        'providerInstanceId': 'codex',
+        'action': 'signIn',
+      });
+      expect(tab.initialCommand, isNull);
+    },
+  );
+
   test('setup DTO rejects extra recipe fields and unknown actions', () {
     for (final value in [
       {'providerInstanceId': 'codex', 'action': 'run'},

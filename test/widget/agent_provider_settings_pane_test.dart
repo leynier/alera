@@ -3,6 +3,7 @@ import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/icons/alera_host_os_icon.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_provider_settings/application/agent_provider_settings_hosts.dart';
+import 'package:alera/src/features/agent_provider_settings/application/agent_provider_settings_providers.dart';
 import 'package:alera/src/features/agent_provider_settings/presentation/agent_provider_settings_pane.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -13,6 +14,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_agent_chat_settings_repository.dart';
 import 'command_terminal_test_doubles.dart';
+
+/// Answers capability checks for the runtime this desktop is attached to.
+final class const _RuntimeCapabilities({
+  final Set<String> advertised = const {},
+}) extends AgentChatLifecycleRepository {
+  @override
+  Future<bool> supports(String capability) async =>
+      advertised.contains(capability);
+}
 
 void main() {
   final checkedAt = DateTime.now().subtract(const Duration(minutes: 2));
@@ -84,6 +94,7 @@ void main() {
     FakeCommandTerminalRuntime? runtime,
     String? initialHostId,
     String? initialProviderInstanceId,
+    bool remoteSetup = false,
   }) async {
     tester.view.physicalSize = const Size(1600, 2400);
     tester.view.devicePixelRatio = 1;
@@ -102,6 +113,14 @@ void main() {
       ProviderScope(
         overrides: [
           agentChatSettingsRepositoryProvider.overrideWithValue(fake),
+          agentChatLifecycleRepositoryProvider.overrideWithValue(
+            _RuntimeCapabilities(
+              advertised: <String>{
+                // The literal pins the wire name the runtime advertises.
+                if (remoteSetup) 'agentChatRemoteProviderSetupV1',
+              },
+            ),
+          ),
           agentChatIdGeneratorProvider.overrideWithValue(
             () => 'request-${++nextId}',
           ),
@@ -273,6 +292,7 @@ void main() {
       'action': 'signIn',
     });
     expect(payload.containsKey(workspaceTabInitialCommandPayloadKey), isFalse);
+    expect(payload.containsKey(commandTerminalHostIdPayloadKey), isFalse);
     expect(payload.values.toString(), isNot(contains('codex login')));
 
     await tester.tap(find.text('Close'));
@@ -281,21 +301,113 @@ void main() {
     expect(fake.catalogReads.last, (hostId: null, refresh: true));
   });
 
-  testWidgets('a Remote Host shows setup commands without running them', (
-    tester,
-  ) async {
+  testWidgets('Sign In on a Remote Host runs there when the runtime routes '
+      'setup, then checks that host again', (tester) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
     final fake = await pumpPane(
       tester,
+      runtime: runtime,
+      remoteSetup: true,
+      initialHostId: 'build-mac',
+      initialProviderInstanceId: 'codex',
+    );
+
+    // The recipe is the host's to resolve, so nothing copyable is offered.
+    expect(find.text('codex login'), findsNothing);
+    expect(find.text('Setup runs in a terminal on Build Mac.'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign In'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign In: Codex on Build Mac'), findsOneWidget);
+    expect(find.textContaining('This terminal runs on Build Mac.'), findsOne);
+    final payload = runtime.lastTab!.payload;
+    expect(payload[commandTerminalHostIdPayloadKey], 'build-mac');
+    expect(payload[commandTerminalProviderSetupPayloadKey], <String, Object?>{
+      'providerInstanceId': 'codex',
+      'action': 'signIn',
+    });
+    expect(payload.containsKey(workspaceTabInitialCommandPayloadKey), isFalse);
+    expect(payload.values.toString(), isNot(contains('codex login')));
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    expect(fake.catalogReads.last, (hostId: 'build-mac', refresh: true));
+  });
+
+  testWidgets('an older runtime keeps Remote Host setup copy-only', (
+    tester,
+  ) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
+    final fake = await pumpPane(
+      tester,
+      runtime: runtime,
       initialHostId: 'build-mac',
       initialProviderInstanceId: 'codex',
     );
 
     expect(fake.catalogReads.first.hostId, 'build-mac');
-    final signIn = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Sign In'),
-    );
-    expect(signIn.onPressed, isNull);
+    final signIn = find.widgetWithText(FilledButton, 'Sign In');
+    expect(tester.widget<FilledButton>(signIn).onPressed, isNull);
     expect(find.text('codex login'), findsOneWidget);
+    expect(
+      find.textContaining('Setup commands run in a terminal on This Device'),
+      findsOneWidget,
+    );
+
+    await tester.tap(signIn, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(runtime.tabs, isEmpty);
+  });
+
+  testWidgets('remote setup support does not leak into This Device', (
+    tester,
+  ) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
+    await pumpPane(
+      tester,
+      runtime: runtime,
+      remoteSetup: true,
+      initialProviderInstanceId: 'codex',
+    );
+
+    // This Device names no host, so the terminal runs here.
+    expect(find.textContaining('Setup runs in a terminal on'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign In'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign In: Codex'), findsOneWidget);
+    final payload = runtime.lastTab!.payload;
+    expect(payload.containsKey(commandTerminalHostIdPayloadKey), isFalse);
+    expect(payload[commandTerminalProviderSetupPayloadKey], isNotNull);
+  });
+
+  test('remote setup support follows the runtime capability', () async {
+    Future<AgentProviderSettingsSupport> read(Set<String> advertised) {
+      final container = ProviderContainer(
+        overrides: [
+          agentChatSettingsRepositoryProvider.overrideWithValue(
+            FakeAgentChatSettingsRepository(catalog: catalog()),
+          ),
+          agentChatLifecycleRepositoryProvider.overrideWithValue(
+            _RuntimeCapabilities(advertised: advertised),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container.read(agentProviderSettingsSupportProvider.future);
+    }
+
+    expect((await read(const <String>{})).remoteSetup, isFalse);
+    expect(
+      (await read(<String>{agentProviderRemoteSetupCapability})).remoteSetup,
+      isTrue,
+    );
   });
 
   testWidgets('hiding a model writes the instance model preferences', (

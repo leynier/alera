@@ -281,6 +281,7 @@ impl ServerActor {
         self.cancel_queued_runtime_mutations(client_id);
         self.release_mobile_driver_for_client(client_id);
         self.cancel_mobile_prompt_file_uploads(client_id);
+        self.cleanup_remote_provider_setup_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
             self.flush_all_output(&session_id).await;

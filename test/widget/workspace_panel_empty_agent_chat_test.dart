@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_tab_surface.dart';
@@ -156,6 +157,9 @@ Future<_Harness> _pumpEmptyPanel(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         agentChatRepositoryProvider.overrideWithValue(repository),
         agentChatSettingsRepositoryProvider.overrideWithValue(
           FakeAgentChatSettingsRepository(preferencesEnabled: false),

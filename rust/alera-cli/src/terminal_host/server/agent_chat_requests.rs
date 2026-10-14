@@ -20,6 +20,19 @@ impl ServerActor {
         }
         self.require_auth(client_id)?;
         self.require_request_allowed(client_id, request_type)?;
+        let ctx = self.agent_chat_caller(client_id);
+        if self
+            .try_start_chat_attachment_request(
+                client_id,
+                request_id,
+                request_type,
+                payload,
+                ctx.clone(),
+            )
+            .await?
+        {
+            return Ok(true);
+        }
         if super::agent_chat_provider_settings::ProviderSettingsService::handles(request_type) {
             let service = self.agent_chat_provider_settings.clone().ok_or_else(|| {
                 HostError::conflict(
@@ -43,7 +56,7 @@ impl ServerActor {
         let attachments = if request_type == "agentChat.send" {
             let chat_id = required_string(payload, "chatId")?;
             Some(
-                self.validated_agent_chat_attachments(client_id, ctx.mobile, &chat_id, payload)
+                self.validated_agent_chat_attachments(client_id, &ctx, &chat_id, payload)
                     .await?,
             )
         } else {
@@ -97,6 +110,11 @@ impl ServerActor {
         payload: &Value,
         ctx: CallerCtx,
     ) -> HostResult<Value> {
+        if super::agent_chat_attachment_requests::handles(request_type) {
+            return self
+                .handle_chat_attachment_request(client_id, request_type, payload, &ctx)
+                .await;
+        }
         if super::agent_chat_provider_settings::ProviderSettingsService::handles(request_type) {
             return self
                 .agent_chat_provider_settings
@@ -117,7 +135,7 @@ impl ServerActor {
         let attachments = if request_type == "agentChat.send" {
             let chat_id = required_string(payload, "chatId")?;
             Some(
-                self.validated_agent_chat_attachments(client_id, ctx.mobile, &chat_id, payload)
+                self.validated_agent_chat_attachments(client_id, &ctx, &chat_id, payload)
                     .await?,
             )
         } else {
@@ -159,7 +177,7 @@ impl ServerActor {
     pub(super) async fn validated_agent_chat_attachments(
         &self,
         client_id: u64,
-        caller_is_mobile: bool,
+        caller: &CallerCtx,
         chat_id: &str,
         payload: &Value,
     ) -> HostResult<Vec<Value>> {
@@ -169,6 +187,11 @@ impl ServerActor {
         let Some(attachments) = value.as_array() else {
             return Err(HostError::format("attachments must be an array"));
         };
+        if attachments.len() > 32 {
+            return Err(HostError::format(
+                "A chat message may contain at most 32 attachments.",
+            ));
+        }
         let chat = self
             .runtime_store
             .agent_chat(chat_id)
@@ -182,13 +205,20 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state("The chat workspace no longer exists."))?;
         let workspace_root = canonical_directory(Path::new(&workspace.path))?;
-        let mobile = caller_is_mobile
+        let mobile = caller.mobile
             || self
                 .clients
                 .get(&client_id)
                 .is_some_and(|client| client.kind == ClientKind::Mobile);
         let mut validated = Vec::with_capacity(attachments.len());
         for attachment in attachments {
+            if let Some(attachment_id) = attachment.get("attachmentId").and_then(Value::as_str) {
+                validated.push(
+                    self.resolve_chat_upload(caller, &chat.workspace_id, chat_id, attachment_id)
+                        .await?,
+                );
+                continue;
+            }
             let mut object = attachment
                 .as_object()
                 .cloned()

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/services.dart';
 
@@ -11,6 +13,8 @@ class const AgentChatDraftAttachment({
   required final String path,
   required final AgentChatAttachmentSource source,
   required final String displayName,
+  final String? attachmentId,
+  final int? sizeBytes,
 }) {
   /// A message the runtime refused comes back to the composer for Edit.
   factory fromAttachment(AgentChatAttachment attachment) =>
@@ -18,6 +22,8 @@ class const AgentChatDraftAttachment({
         path: attachment.path ?? attachment.url ?? '',
         source: attachment.type.isImage ? .image : .file,
         displayName: attachment.displayName,
+        attachmentId: attachment.attachmentId,
+        sizeBytes: attachment.sizeBytes,
       );
 
   bool get isImage => source == .image;
@@ -26,6 +32,8 @@ class const AgentChatDraftAttachment({
     type: isImage ? .localImage : .file,
     path: path,
     name: displayName,
+    attachmentId: attachmentId,
+    sizeBytes: sizeBytes,
   );
 
   @override
@@ -64,10 +72,17 @@ class const AgentChatComposerDraft({
 
   /// Identifies a submission across retries, so resending the same prompt
   /// after a dropped connection reuses its client message id.
-  String get signature => <String>[
+  String get signature => jsonEncode(<Object?>[
     text,
-    for (final attachment in attachments) attachment.path,
-  ].join('\u0000');
+    for (final attachment in attachments)
+      <Object?>[
+        attachment.isImage,
+        attachment.path,
+        attachment.displayName,
+        attachment.attachmentId,
+        attachment.sizeBytes,
+      ],
+  ]);
 
   AgentChatComposerDraft copyWith({
     TextEditingValue? value,
@@ -111,4 +126,11 @@ class AgentChatSubmissionIds {
       _pending.putIfAbsent(signature, newId);
 
   void settled(String signature) => _pending.remove(signature);
+
+  void settledId(String id) => _pending.removeWhere((_, value) => value == id);
+
+  Map<String, String> get snapshot =>
+      Map<String, String>.unmodifiableOf(_pending);
+
+  void restore(Map<String, String> ids) => _pending.addAll(ids);
 }

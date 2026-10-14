@@ -98,6 +98,7 @@ extension _TerminalHostSetupLaunch on TerminalHostPtySession {
       cols: cols,
       rows: rows,
       providerSetup: setup,
+      hostId: _providerSetupHostId,
       restart: restart,
     );
   }

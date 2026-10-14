@@ -17,6 +17,16 @@ impl ServerActor {
         client_id: u64,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.create_or_attach_with_setup_authority(client_id, payload, false)
+            .await
+    }
+
+    pub(super) async fn create_or_attach_with_setup_authority(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+        forwarded: bool,
+    ) -> HostResult<Value> {
         let session_id = require_string(payload, "sessionId")?;
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
@@ -26,6 +36,7 @@ impl ServerActor {
             &session_id,
             &workspace_id,
             &tab_id,
+            forwarded,
         )
         .await?;
         if payload["attachmentMode"].as_str() == Some("observe") {
@@ -199,6 +210,16 @@ impl ServerActor {
         client_id: u64,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.restart_terminal_with_setup_authority(client_id, payload, false)
+            .await
+    }
+
+    pub(super) async fn restart_terminal_with_setup_authority(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+        forwarded: bool,
+    ) -> HostResult<Value> {
         let session_id = require_string(payload, "sessionId")?;
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
@@ -208,6 +229,7 @@ impl ServerActor {
             &session_id,
             &workspace_id,
             &tab_id,
+            forwarded,
         )
         .await?;
         let working_directory = require_string(payload, "workingDirectory")?;

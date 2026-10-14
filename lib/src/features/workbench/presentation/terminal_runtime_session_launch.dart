@@ -34,7 +34,10 @@ extension _TerminalSessionLaunch on _XtermTerminalSessionHandle {
               'Provider setup requires the local runtime host.',
             );
           }
-          session.configureProviderSetup(setup);
+          session.configureProviderSetup(
+            setup,
+            hostId: _tab.payload[commandTerminalHostIdPayloadKey] as String?,
+          );
         }
         final sanitizedLaunch = _launchWithSanitizedAgentHookEnvironment(
           _settings.resolvedLoginShell ? _launchAsLoginShell(launch) : launch,

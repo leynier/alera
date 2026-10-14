@@ -9,7 +9,8 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
 /// The detail header: the instance's identity and verified status, then the
-/// host-verified setup commands it offers.
+/// host-verified setup commands it offers. [setupHostLabel] names the Remote
+/// Host those commands run on; null means This Device.
 class const AgentProviderStatusSummary({
   super.key,
   required final String provider,
@@ -19,6 +20,7 @@ class const AgentProviderStatusSummary({
   required final DateTime now,
   final AgentChatProviderInstance? catalog,
   final bool canRunSetup = true,
+  final String? setupHostLabel,
   final String? setupUnavailableReason,
   final ValueChanged<AgentChatProviderSetupCommand>? onRunSetup,
 }) extends StatelessWidget {
@@ -27,6 +29,7 @@ class const AgentProviderStatusSummary({
     final theme = Theme.of(context);
     final row = catalog;
     final setup = row?.setup ?? const <AgentChatProviderSetupCommand>[];
+    final where = setupHostLabel == null ? '' : ' on $setupHostLabel';
     final caption = providerInstanceId == provider
         ? 'Built-in  ·  $provider'
         : '$providerInstanceId  ·  $provider';
@@ -104,7 +107,7 @@ class const AgentProviderStatusSummary({
                             message: canRunSetup
                                 ? 'Runs the verified ${command.label} '
                                       'command for this instance in a '
-                                      'terminal, then checks again.'
+                                      'terminal$where, then checks again.'
                                 : setupUnavailableReason ?? '',
                             child: _SetupButton(
                               command: command,
@@ -115,6 +118,15 @@ class const AgentProviderStatusSummary({
                           ),
                       ],
                     ),
+                    if (canRunSetup && setupHostLabel != null) ...<Widget>[
+                      const SizedBox(height: AleraTokens.space12),
+                      Text(
+                        'Setup runs in a terminal on $setupHostLabel.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
+                      ),
+                    ],
                     if (!canRunSetup) ...<Widget>[
                       const SizedBox(height: AleraTokens.space12),
                       Text(

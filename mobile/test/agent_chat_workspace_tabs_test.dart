@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -61,6 +62,7 @@ Future<_ChatHost> _pumpScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatDraftStoreProvider.overrideWithValue(AgentChatDraftStore()),
         terminalClientProvider('host').overrideWith((ref) async => host),
         workspaceClientProvider('host').overrideWith((ref) async => host),
         mobileAiDictationSettingsControllerProvider.overrideWith(

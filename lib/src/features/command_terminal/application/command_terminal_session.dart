@@ -37,6 +37,11 @@ WorkspaceTabRecord buildCommandTerminalTab({
   DateTime? now,
 }) {
   final timestamp = now ?? DateTime.now();
+  final remoteSetup =
+      request.providerSetup != null &&
+      request.hostId != null &&
+      request.hostId!.isNotEmpty &&
+      request.hostId != 'local';
   return WorkspaceTabRecord(
     id: tabId,
     workspaceId: commandTerminalWorkspaceId,
@@ -44,8 +49,12 @@ WorkspaceTabRecord buildCommandTerminalTab({
     createdAt: timestamp,
     updatedAt: timestamp,
     payload: <String, Object?>{
-      workspaceTabTerminalSessionIdPayloadKey: tabId,
+      workspaceTabTerminalSessionIdPayloadKey: remoteSetup
+          ? '$commandTerminalRemoteSetupSessionPrefix$tabId'
+          : tabId,
       workspaceTabManualTitlePayloadKey: true,
+      if (request.hostId case final hostId? when request.providerSetup != null)
+        commandTerminalHostIdPayloadKey: hostId,
       if (request.providerSetup case final setup?)
         commandTerminalProviderSetupPayloadKey: setup.toJson()
       else

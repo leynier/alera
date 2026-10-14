@@ -83,8 +83,12 @@ class const AgentChatAttachment({
   final String? name,
   final String? mimeType,
   final int? sizeBytes,
+  final String? attachmentId,
+
+  /// This device's explicit picked/pasted source. Never sent to the host.
+  final String? localSourcePath,
 }) {
-  factory fromJson(Object? value) {
+  factory fromJson(Object? value, {bool localDraft = false}) {
     final json = agentChatJsonMap(value);
     return AgentChatAttachment(
       type: AgentChatAttachmentType.fromJson(json['type']),
@@ -93,6 +97,10 @@ class const AgentChatAttachment({
       name: agentChatJsonString(json['name']),
       mimeType: agentChatJsonString(json['mimeType']),
       sizeBytes: agentChatJsonInt(json['sizeBytes']),
+      attachmentId: agentChatJsonString(json['attachmentId']),
+      localSourcePath: localDraft
+          ? agentChatJsonString(json['localSourcePath'])
+          : null,
     );
   }
 
@@ -112,6 +120,7 @@ class const AgentChatAttachment({
     'name': ?name,
     'mimeType': ?mimeType,
     'sizeBytes': ?sizeBytes,
+    'attachmentId': ?attachmentId,
   };
 }
 

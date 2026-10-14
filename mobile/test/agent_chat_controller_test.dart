@@ -17,6 +17,7 @@ final _chat = agentChatControllerProvider('host', 'workspace-1', 'chat-1');
 ProviderContainer _container(FakeAgentChatClient client) {
   final container = ProviderContainer(
     overrides: [
+      agentChatDraftStoreProvider.overrideWithValue(AgentChatDraftStore()),
       mobileAgentChatClientProvider('host').overrideWith((ref) async => client),
     ],
   );
@@ -152,7 +153,10 @@ void main() {
     controller.edit(_view(container).outbox.single.clientMessageId);
     expect(_view(container).outbox, isEmpty);
     expect(
-      container.read(agentChatDraftStoreProvider).read('host', 'chat-1').text,
+      container
+          .read(agentChatDraftStoreProvider)
+          .read('host', 'chat-1', workspaceId: 'workspace-1')
+          .text,
       'Rewrite me',
     );
   });

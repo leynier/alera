@@ -60,6 +60,7 @@ final class TerminalHostPtySession._(
   Future<void>? _outputResyncFuture;
   GhosttyTerminalShellLaunch? _launch;
   CommandTerminalProviderSetup? _providerSetup;
+  String? _providerSetupHostId;
   String? _workingDirectory;
   int? _cols;
   int? _rows;
@@ -156,11 +157,15 @@ final class TerminalHostPtySession._(
   Future<TerminalHostAttachment> _createOrAttach() => _createOrAttachImpl();
 
   @override
-  void configureProviderSetup(CommandTerminalProviderSetup setup) {
+  void configureProviderSetup(
+    CommandTerminalProviderSetup setup, {
+    String? hostId,
+  }) {
     if (_started || _startFuture != null) {
       throw StateError('Provider setup is already starting.');
     }
     _providerSetup = setup;
+    _providerSetupHostId = hostId;
   }
 
   Future<void> _applyAttachment(TerminalHostAttachment attachment) async {

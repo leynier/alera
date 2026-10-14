@@ -8,11 +8,18 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_provider_settings_providers.g.dart';
 
-/// Which provider settings features the connected runtime offers. Both are
+/// Runtime capability for running a provider setup terminal on a Remote Host.
+const String agentProviderRemoteSetupCapability =
+    'agentChatRemoteProviderSetupV1';
+
+/// Which provider settings features the connected runtime offers. All are
 /// read from the local runtime: a Remote Host is reached through it.
 class const AgentProviderSettingsSupport({
   final bool providerSettings = false,
   final bool preferences = false,
+
+  /// Whether setup terminals can run on a Remote Host. This Device always can.
+  final bool remoteSetup = false,
 });
 
 @riverpod
@@ -30,13 +37,16 @@ Future<AgentProviderSettingsSupport> agentProviderSettingsSupport(
     }
   }
 
+  final lifecycle = ref.watch(agentChatLifecycleRepositoryProvider);
   final results = await Future.wait(<Future<bool>>[
     check(repository.providerSettingsSupported),
     check(repository.preferencesSupported),
+    check(() => lifecycle.supports(agentProviderRemoteSetupCapability)),
   ]);
   return AgentProviderSettingsSupport(
     providerSettings: results[0],
     preferences: results[1],
+    remoteSetup: results[2],
   );
 }
 

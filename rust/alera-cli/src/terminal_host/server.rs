@@ -46,6 +46,8 @@ mod account_requests_tests;
 mod account_status_requests;
 #[cfg(test)]
 mod actor_test_harness;
+mod agent_chat_attachment_requests;
+mod agent_chat_attachment_store;
 mod agent_chat_deferred;
 pub(crate) mod agent_chat_provider_settings;
 mod agent_chat_provider_settings_requests;
@@ -283,6 +285,10 @@ mod pull_request_watch_requests;
 mod pull_request_watch_requests_tests;
 mod pull_request_watch_runtime;
 mod push_delivery;
+mod push_delivery_chat;
+#[cfg(test)]
+mod push_delivery_chat_tests;
+pub(crate) mod remote_provider_setup;
 mod remote_relay;
 mod request_payloads;
 mod requests;
@@ -734,6 +740,7 @@ impl ServerActor {
                 );
             }
             ServerCommand::AgentChatRuntimeEvent { event } => {
+                self.queue_chat_runtime_push(&event).await;
                 self.handle_agent_chat_runtime_event(event);
             }
             ServerCommand::AgentChatRequestFinished {
@@ -749,6 +756,7 @@ impl ServerActor {
                 self.broadcast_agent_chat(event(&name, payload));
             }
             ServerCommand::ChatOrchestrationChanged { change } => {
+                self.queue_chat_task_push(&change).await;
                 self.broadcast_authenticated(event("chatOrchestrationChanged", change));
             }
             ServerCommand::ClientLine { id, line } => Box::pin(self.handle_line(id, line)).await,

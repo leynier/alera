@@ -65,7 +65,7 @@ final class AgentChatControllerProvider
 }
 
 String _$agentChatControllerHash() =>
-    r'ba8489a8311375582abd9cd5c42adb81dc7beab9';
+    r'478ef840b6a9e461bafd44b5adccb9e266fae6ce';
 
 /// One chat as the desktop renders it: a runtime snapshot kept current by
 /// cursor-ordered changes, plus this client's in-flight actions.

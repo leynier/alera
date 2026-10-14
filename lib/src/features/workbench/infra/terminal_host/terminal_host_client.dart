@@ -31,6 +31,7 @@ part 'terminal_host_client_connections.dart';
 part 'terminal_host_client_buffer_guards.dart';
 part 'terminal_host_client_guarded_requests.dart';
 part 'terminal_host_client_terminal_requests.dart';
+part 'terminal_host_client_provider_setup.dart';
 part 'terminal_host_client_connection_routing.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
@@ -88,6 +89,8 @@ final class SocketTerminalHostClient._(
   final StreamController<RuntimeHostEvent> _runtimeEvents =
       StreamController<RuntimeHostEvent>.broadcast();
   final Map<String, String> _pendingTerminalRestarts = {};
+  final Map<String, (String, CommandTerminalProviderSetup)>
+  _remoteProviderSetupSessions = {};
   final Map<int, _PendingHostRequest> _pending = <int, _PendingHostRequest>{};
   final Map<String, Set<_TerminalHostConnection>> _heldBufferGuards = {};
 
@@ -318,6 +321,15 @@ final class SocketTerminalHostClient._(
     _throwIfAppQuitInProgress();
     final connection = await _connectTerminal();
     _throwIfAppQuitInProgress();
+    if (payload['sessionId'] case final String sessionId
+        when _remoteProviderSetupSessions.containsKey(sessionId)) {
+      return _remoteProviderSetupRequest(
+        connection,
+        type,
+        payload,
+        timeout: timeout,
+      );
+    }
     return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
@@ -419,6 +431,7 @@ final class SocketTerminalHostClient._(
     }
     _disposed = true;
     _pendingTerminalRestarts.clear();
+    _remoteProviderSetupSessions.clear();
     _appQuitInProgress = true;
     _stopHeartbeat();
     _closeSessionEvents();

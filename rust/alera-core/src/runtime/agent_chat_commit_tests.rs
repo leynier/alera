@@ -37,7 +37,7 @@ async fn a_commit_moves_header_items_journal_and_receipt_together() {
         .await
         .unwrap();
     let AgentChatCommitOutcome::Committed(event) = outcome else {
-        panic!("expected a commit, got {outcome:?}");
+        panic!("expected a commit");
     };
     assert_eq!(event.cursor, 1);
     assert_eq!(event.delta["textAppends"][0]["text"], "Hello");

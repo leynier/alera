@@ -44,6 +44,9 @@ bool appendAgentChatDraft(
       kind: kind,
       path: path,
       displayName: attachment.displayName,
+      localSourcePath: attachment.localSourcePath,
+      attachmentId: attachment.attachmentId,
+      sizeBytes: attachment.sizeBytes,
     );
   }
   composer.focusNode.requestFocus();

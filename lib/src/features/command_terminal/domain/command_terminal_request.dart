@@ -11,6 +11,7 @@ class const CommandTerminalRequest({
   this.workingDirectory,
   this.description,
   this.providerSetup,
+  this.hostId,
 }) {
   /// Dialog title, in title case like the rest of the visible copy.
   final String title;
@@ -23,6 +24,9 @@ class const CommandTerminalRequest({
 
   /// Host-only verified recipe selection. Command is display text in this mode.
   final CommandTerminalProviderSetup? providerSetup;
+
+  /// Owning host for an opaque provider setup session. Null uses this desktop.
+  final String? hostId;
 
   /// Directory the shell starts in. Null falls back to the user's home.
   final String? workingDirectory;
@@ -37,6 +41,8 @@ class const CommandTerminalRequest({
 /// The workbench exit coordinator keys off it: a command session belongs to its
 /// dialog, not to the workbench, and must not be torn down when its PTY exits.
 const String commandTerminalWorkspaceId = '__alera_command_terminal__';
+const String commandTerminalRemoteSetupSessionPrefix =
+    '__alera_provider_setup__:';
 
 bool isCommandTerminalWorkspaceId(String value) =>
     value == commandTerminalWorkspaceId;
@@ -84,3 +90,4 @@ final class const CommandTerminalProviderSetup({
 }
 
 const String commandTerminalProviderSetupPayloadKey = 'providerSetup';
+const String commandTerminalHostIdPayloadKey = 'commandTerminalHostId';

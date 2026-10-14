@@ -94,9 +94,15 @@ void main() {
         prompt: '',
         filesystemChangesReverted: reverted,
       );
-      expect(agentChatRewindResultNotice(result(false)), contains('Files stay'));
+      expect(
+        agentChatRewindResultNotice(result(false)),
+        contains('Files stay'),
+      );
       expect(agentChatRewindResultNotice(result(true)), contains('reverted'));
-      expect(agentChatRewindResultNotice(result(null)), contains('not verified'));
+      expect(
+        agentChatRewindResultNotice(result(null)),
+        contains('not verified'),
+      );
     });
 
     test('a file rewind acknowledgement alone never reads as restored', () {
@@ -137,12 +143,18 @@ void main() {
         },
       );
       // Keeping the current files only applies to a file rewind.
-      expect(agentChatNativeOperationActions(operation), <AgentChatNativeHistoryAction>[
-        AgentChatNativeHistoryAction.finishAcknowledged,
-        AgentChatNativeHistoryAction.restartFromTranscript,
-        AgentChatNativeHistoryAction.cancelUnstarted,
-      ]);
-      expect(agentChatNativeOperationTitle(operation), 'Rewind Needs a Decision');
+      expect(
+        agentChatNativeOperationActions(operation),
+        <AgentChatNativeHistoryAction>[
+          AgentChatNativeHistoryAction.finishAcknowledged,
+          AgentChatNativeHistoryAction.restartFromTranscript,
+          AgentChatNativeHistoryAction.cancelUnstarted,
+        ],
+      );
+      expect(
+        agentChatNativeOperationTitle(operation),
+        'Rewind Needs a Decision',
+      );
       expect(
         agentChatNativeOperationMessage(operation),
         'The provider did not answer.',
@@ -157,9 +169,12 @@ void main() {
           'canContinueFromCurrentFiles': true,
         },
       );
-      expect(agentChatNativeOperationActions(operation), <AgentChatNativeHistoryAction>[
-        AgentChatNativeHistoryAction.continueFromCurrentFiles,
-      ]);
+      expect(
+        agentChatNativeOperationActions(operation),
+        <AgentChatNativeHistoryAction>[
+          AgentChatNativeHistoryAction.continueFromCurrentFiles,
+        ],
+      );
       expect(
         agentChatNativeOperationTitle(operation),
         'File Rewind Needs a Decision',
@@ -173,7 +188,10 @@ void main() {
         'kind': 'rewind',
       });
       expect(agentChatNativeOperationActions(operation), isEmpty);
-      expect(agentChatNativeOperationTitle(operation), 'Rewinding Conversation');
+      expect(
+        agentChatNativeOperationTitle(operation),
+        'Rewinding Conversation',
+      );
       expect(
         agentChatNativeOperationMessage(operation),
         agentChatNativeOperationSendBlockedHint,

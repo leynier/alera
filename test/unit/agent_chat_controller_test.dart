@@ -1,3 +1,5 @@
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
@@ -19,6 +21,9 @@ void main() {
     nextId = 0;
     container = ProviderContainer(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         agentChatRepositoryProvider.overrideWithValue(repository),
         agentChatIdGeneratorProvider.overrideWithValue(() => 'id-${nextId++}'),
         agentChatClockProvider.overrideWithValue(

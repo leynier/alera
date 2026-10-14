@@ -93,7 +93,7 @@ class AgentChatLauncher({
             ),
       );
       _requestIds.settleCreate(_hostId, workspaceId);
-      _drafts.activate(_hostId, result.chatId);
+      _drafts.activate(_hostId, result.chatId, workspaceId: workspaceId);
       return AgentChatLaunchOpened(chatId: result.chatId, tabId: result.tabId);
     } on AgentChatConnectionException {
       // The create may have landed; the next press replays its receipt.
@@ -114,11 +114,16 @@ class AgentChatLauncher({
         if (!chat.archived &&
             chat.tabId != null &&
             !chat.busy &&
-            chat.pendingRequestCount == 0 &&
-            _drafts.read(_hostId, chat.chatId).isEmpty)
+            chat.pendingRequestCount == 0)
           chat,
     ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     for (final chat in candidates.take(_reuseCandidates)) {
+      final draft = await _drafts.hydrate(
+        _hostId,
+        chat.chatId,
+        workspaceId: chat.workspaceId,
+      );
+      if (!draft.isEmpty) continue;
       final snapshot = await _repository.snapshot(
         AgentChatRef(chatId: chat.chatId, workspaceId: chat.workspaceId),
       );

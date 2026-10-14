@@ -150,6 +150,7 @@ pub struct Session {
     pub working_directory: String,
     pub(crate) provider_setup:
         Option<super::server::agent_chat_provider_settings::setup::ProviderSetupContext>,
+    pub(crate) provider_setup_desktop_leases: HashMap<String, u64>,
     pub clients: HashSet<u64>,
     pub observer_clients: HashSet<u64>,
     pub driver: SessionDriver,

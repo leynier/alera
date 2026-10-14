@@ -151,9 +151,7 @@ String _editLabel(AgentChatItem item, {required bool live}) {
   final verb = live ? 'Editing' : 'Edited';
   final changes = item.changes;
   if (changes.length != 1) {
-    return changes.isEmpty
-        ? '$verb files'
-        : '$verb ${changes.length} files';
+    return changes.isEmpty ? '$verb files' : '$verb ${changes.length} files';
   }
   final change = changes.single;
   final counts = change.lineCounts;

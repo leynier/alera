@@ -55,4 +55,4 @@ final class AgentChatDraftStoreProvider
 }
 
 String _$agentChatDraftStoreHash() =>
-    r'672af79f447211ba09f84b4db607f19f038fcbd6';
+    r'39d2800222cd000dc1dc198f8d8e6f2e490fbe96';

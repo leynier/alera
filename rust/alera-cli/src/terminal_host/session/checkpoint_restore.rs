@@ -31,6 +31,7 @@ impl Session {
             tab_id,
             working_directory: checkpoint.working_directory,
             provider_setup: None,
+            provider_setup_desktop_leases: Default::default(),
             clients: HashSet::new(),
             observer_clients: HashSet::new(),
             driver: SessionDriver::Idle,

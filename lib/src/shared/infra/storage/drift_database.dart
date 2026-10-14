@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 part 'drift_database.g.dart';
 
-const int aleraSchemaVersion = 7;
+const int aleraSchemaVersion = 8;
 const String aleraDatabaseFileName = 'alera.sqlite';
 
 class ProjectsTable extends Table {
@@ -105,6 +105,14 @@ class WorkspaceActivityTable extends Table {
   Set<Column<Object>> get primaryKey => <Column<Object>>{workspaceId};
 }
 
+class AgentChatDraftsTable extends Table {
+  TextColumn get scopeKey => text()();
+  TextColumn get dataJson => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{scopeKey};
+}
+
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationSupportDirectory();
@@ -133,6 +141,7 @@ LazyDatabase _openConnection() {
     ProjectConfigsTable,
     AppWindowStateTable,
     WorkspaceActivityTable,
+    AgentChatDraftsTable,
   ],
 )
 class AleraDatabase({QueryExecutor? executor}) extends _$AleraDatabase {
@@ -165,6 +174,9 @@ class AleraDatabase({QueryExecutor? executor}) extends _$AleraDatabase {
       }
       if (from < 7 && to >= 7) {
         await m.addColumn(workspacesTable, workspacesTable.isArchived);
+      }
+      if (from < 8 && to >= 8) {
+        await m.createTable(agentChatDraftsTable);
       }
     },
   );

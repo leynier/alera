@@ -215,6 +215,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
               : AgentChatAttachmentType.file,
           path: attachment.path,
           name: attachment.displayName,
+          localSourcePath: attachment.localSourcePath,
+          attachmentId: attachment.attachmentId,
+          sizeBytes: attachment.sizeBytes,
         ),
     ];
     final text = _composer.textController.text;
@@ -239,7 +242,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     try {
       final paths = await widget.pickFiles();
       if (!mounted || paths.isEmpty) return;
-      _composer.addPathAttachments(paths);
+      _composer.addPathAttachments(paths, localSource: true);
       _composer.focusNode.requestFocus();
     } on Object catch (error) {
       AleraToast.publish(message: 'Could not add files: $error', tone: .error);
@@ -250,7 +253,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     try {
       final paths = await widget.clipboard.readFilePaths();
       if (paths.isNotEmpty) {
-        _composer.addPathAttachments(paths);
+        _composer.addPathAttachments(paths, localSource: true);
         return true;
       }
     } on Object {
@@ -268,6 +271,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       _composer.addPathAttachment(
         imagePath,
         kind: TerminalComposerAttachmentKind.image,
+        localSource: true,
       );
       return true;
     } on Object {
@@ -283,8 +287,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   Widget build(BuildContext context) {
     final textActions = AleraTextActionsScope.maybeOf(context);
     return DragTarget<TerminalPathDragPayload>(
-      onWillAcceptWithDetails: (_) => widget.canSend,
+      onWillAcceptWithDetails: (details) =>
+          widget.canSend && details.data.workspaceId == widget.workspaceId,
       onAcceptWithDetails: (details) {
+        if (details.data.workspaceId != widget.workspaceId) return;
         _composer.addPathAttachments(details.data.paths);
         _composer.focusNode.requestFocus();
       },

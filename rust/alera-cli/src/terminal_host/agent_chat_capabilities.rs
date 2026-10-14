@@ -15,6 +15,8 @@ pub(crate) const AGENT_CHAT_EXPERIENCE_CAPABILITIES: &[&str] = &[
     "agentChatTurnDiffV1",
     "agentChatReadCursorV1",
     "agentChatProviderSetupV1",
+    "agentChatRemoteProviderSetupV1",
+    "agentChatAttachmentUploadV1",
     "agentChatNativeRewindV1",
     "agentChatRewindFilesV1",
     "agentChatFileCheckpointsV1",

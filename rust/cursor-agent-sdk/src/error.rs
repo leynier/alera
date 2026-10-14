@@ -11,7 +11,7 @@ pub enum CursorSdkError {
         method: String,
         code: String,
         message: String,
-        details: serde_json::Value,
+        details: Box<serde_json::Value>,
     },
     #[error("cursor bridge protocol error: {0}")]
     Protocol(String),

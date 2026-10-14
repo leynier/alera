@@ -107,7 +107,12 @@ final class AgentChatDirectOpener {
       );
       _createRequestIds.remove(workspace.id);
       if (draft != null && !draft.isEmpty) {
-        read(agentChatComposerDraftsProvider).write(result.chatId, draft);
+        read(agentChatComposerDraftsProvider).write(
+          result.chatId,
+          draft,
+          hostId: workspace.hostId,
+          workspaceId: workspace.id,
+        );
       }
       final activate = !_movedOn(
         startSelection,
@@ -239,13 +244,17 @@ final class AgentChatDirectOpener {
     final drafts = read(agentChatComposerDraftsProvider);
     final candidates = <WorkspaceTabRecord>[
       for (final tab in read(workbenchControllerProvider).tabsFor(workspace.id))
-        if (tab.kind == WorkspaceTabKind.agentChat &&
-            tab.agentChatId != null &&
-            drafts.read(tab.agentChatId!).isEmpty)
+        if (tab.kind == WorkspaceTabKind.agentChat && tab.agentChatId != null)
           tab,
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final unread = <WorkspaceTabRecord>[];
-    for (final tab in candidates) {
+    for (final tab in candidates.take(_reuseCandidateLimit)) {
+      final draft = await drafts.hydrate(
+        tab.agentChatId!,
+        hostId: workspace.hostId,
+        workspaceId: workspace.id,
+      );
+      if (!draft.isEmpty) continue;
       final controller = agentChatControllerProvider(
         tab.agentChatId!,
         workspace.id,

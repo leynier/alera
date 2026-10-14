@@ -106,6 +106,7 @@ extension on _WorkspaceGitDiffPanelState {
           );
         }
         return _GitDiffGroups(
+          workspaceId: widget.workspace.id,
           groups: _groupsFor(status),
           workspacePath: widget.sourceControlScope.path,
           viewMode: widget.viewMode,

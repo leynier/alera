@@ -86,6 +86,7 @@ extension _WorkspaceTabsAgentChats on _WorkspaceTabsScreenState {
                     text,
                     const <AgentChatAttachment>[],
                   ),
+                  workspaceId: widget.workspace.id,
                 );
           }
           if (!mounted || tabId == null) return;
@@ -165,7 +166,10 @@ extension _WorkspaceTabsAgentChats on _WorkspaceTabsScreenState {
     for (final tab in previous) {
       final chatId = tab.agentChatId;
       if (chatId == null || remaining.contains(chatId)) continue;
-      final text = drafts.read(widget.hostId, chatId).value.text;
+      final text = drafts
+          .read(widget.hostId, chatId, workspaceId: tab.workspaceId)
+          .value
+          .text;
       if (text.trim().isEmpty) continue;
       _offerRemovedDraft(text);
     }
@@ -221,7 +225,7 @@ extension _WorkspaceTabsAgentChats on _WorkspaceTabsScreenState {
         ? ''
         : ref
               .read(agentChatDraftStoreProvider)
-              .read(widget.hostId, chatId)
+              .read(widget.hostId, chatId, workspaceId: tab.workspaceId)
               .value
               .text;
     final neverSent = view?.neverSent ?? false;

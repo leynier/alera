@@ -77,8 +77,17 @@ impl ServerActor {
                         "{forwarded_type} cannot be forwarded over a host link."
                     )));
                 }
-                let forwarded_payload =
+                let mut forwarded_payload =
                     payload.get("payload").cloned().unwrap_or_else(|| json!({}));
+                let provider_setup =
+                    forwarded_type == super::remote_provider_setup::INTERNAL_SETUP_REQUEST;
+                if provider_setup {
+                    forwarded_payload = self.forwarded_provider_setup_payload(
+                        &host_id,
+                        client_id,
+                        &forwarded_payload,
+                    )?;
+                }
                 let deadline = payload
                     .get("timeoutMs")
                     .and_then(Value::as_u64)
@@ -86,6 +95,15 @@ impl ServerActor {
                     .unwrap_or(crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT);
                 let links = self.host_links.clone();
                 self.spawn_deferred_request(client_id, request_id, async move {
+                    if provider_setup {
+                        return super::remote_provider_setup::forward_setup_request(
+                            links,
+                            host_id,
+                            forwarded_payload,
+                            deadline,
+                        )
+                        .await;
+                    }
                     let link = links.link(&host_id).await?;
                     link.request_with_timeout(&forwarded_type, forwarded_payload, deadline)
                         .await
@@ -145,6 +163,9 @@ impl ServerActor {
             return;
         };
         let payload = frame.get("payload").cloned().unwrap_or(Value::Null);
+        if self.relay_provider_setup_event(&host_id, name, &payload) {
+            return;
+        }
         self.relay_host_link_event(&host_id, name, &payload);
         if matches!(
             name,

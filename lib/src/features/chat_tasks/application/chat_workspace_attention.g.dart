@@ -122,7 +122,7 @@ final class ChatAttentionLiveProvider
         argument: null,
         retry: null,
         name: r'chatAttentionLiveProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -152,7 +152,7 @@ final class ChatAttentionLiveProvider
   }
 }
 
-String _$chatAttentionLiveHash() => r'98527055af12e49cb285539416f9f0121890d596';
+String _$chatAttentionLiveHash() => r'd777fc23cf0db361c4d786dad256afc250609455';
 
 /// What each workspace's chats want, for its sidebar row and the Agent
 /// Activity sort. Workspaces whose chats are idle are absent.
@@ -179,7 +179,7 @@ final class ChatWorkspaceAttentionProvider
         argument: null,
         retry: null,
         name: r'chatWorkspaceAttentionProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -210,4 +210,4 @@ final class ChatWorkspaceAttentionProvider
 }
 
 String _$chatWorkspaceAttentionHash() =>
-    r'43623ae9f43b7e35c57475e1772190551eb48f28';
+    r'f2da9a1a6085fa3d515372d7916429f5a3d01818';

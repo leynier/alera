@@ -4,7 +4,10 @@ use super::super::ClientKind;
 use super::*;
 
 impl ServerActor {
-    fn require_provider_setup_client(&self, client_id: u64) -> HostResult<()> {
+    pub(in crate::terminal_host::server) fn require_provider_setup_client(
+        &self,
+        client_id: u64,
+    ) -> HostResult<()> {
         let allowed = self.clients.get(&client_id).is_some_and(|client| {
             setup_caller_allowed(
                 client.authenticated,
@@ -47,6 +50,7 @@ impl ServerActor {
         session_id: &str,
         workspace_id: &str,
         tab_id: &str,
+        forwarded: bool,
     ) -> HostResult<()> {
         let requested = payload["launch"]
             .get("providerSetup")
@@ -60,11 +64,13 @@ impl ServerActor {
         if requested.is_none() && existing.is_none() {
             return Ok(());
         }
-        self.require_provider_setup_client(client_id)?;
+        if !forwarded {
+            self.require_provider_setup_client(client_id)?;
+        }
         if workspace_id != SETUP_WORKSPACE_ID || payload["attachmentMode"] == "observe" {
             return Err(HostError::conflict(
                 "notAllowed",
-                "Provider setup requires an ephemeral local command terminal.",
+                "Provider setup requires an ephemeral command terminal.",
                 json!({}),
             ));
         }

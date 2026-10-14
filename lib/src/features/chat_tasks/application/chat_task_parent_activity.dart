@@ -87,8 +87,9 @@ Set<String> chatTaskChildChatIds(Iterable<AgentChatTask> tasks) => <String>{
 };
 
 /// One runtime-wide list of unsettled tasks, read again on every change that
-/// may touch it. Hidden windows do no reads.
-@Riverpod(retry: chatTaskNoRetry)
+/// may touch it. The app-wide notification coordinator keeps it alive;
+/// hidden windows do no reads.
+@Riverpod(keepAlive: true, retry: chatTaskNoRetry)
 Stream<AgentChatTaskPage> chatTaskOpenTasks(Ref ref) {
   final repository = ref.watch(chatTaskRepositoryProvider);
   return foregroundBoardWatch(
@@ -99,7 +100,7 @@ Stream<AgentChatTaskPage> chatTaskOpenTasks(Ref ref) {
 
 /// What each parent chat waits on, keyed by parent chat id. Empty on a
 /// runtime without chat tasks or while a read fails.
-@riverpod
+@Riverpod(keepAlive: true)
 Map<String, ChatTaskParentActivity> chatTaskParentActivity(Ref ref) {
   if (ref.watch(chatTasksSupportedProvider).value != true) {
     return const <String, ChatTaskParentActivity>{};

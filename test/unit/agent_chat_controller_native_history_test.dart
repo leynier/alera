@@ -1,3 +1,4 @@
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -65,6 +66,9 @@ void main() {
     nextId = 0;
     container = ProviderContainer(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         agentChatRepositoryProvider.overrideWithValue(repository),
         agentChatLifecycleRepositoryProvider.overrideWithValue(lifecycle),
         agentChatIdGeneratorProvider.overrideWithValue(() => 'id-${nextId++}'),

@@ -6,7 +6,7 @@ Agent chats are workbench tabs that talk to a coding agent through the runtime h
 
 - `packages/alera_agent_chat` (pure Dart, shared with mobile): the `agentChat.*` wire contract, the snapshot and change models, the `AgentChatThread` reducer, the timeline projection and `RuntimeAgentChatRepository` over an `AgentChatTransport`. See its [readme](../packages/alera_agent_chat/readme.md).
 - `lib/src/features/agent_chat/infra`: `RuntimeHostAgentChatTransport` adapts the desktop runtime client, mapping host errors to package exceptions and the socket's connect/disconnect events to the package lifecycle events.
-- `lib/src/features/agent_chat/application`: `AgentChatController` (one per open chat) reads the snapshot after subscribing to changes, applies changes by cursor, reloads on a skipped cursor, a misaligned text append or a reconnect, and keeps itself alive while a send or a response is in flight. Composer drafts live in a session-only store and are never persisted.
+- `lib/src/features/agent_chat/application`: `AgentChatController` (one per open chat) reads the snapshot after subscribing to changes, applies changes by cursor, reloads on a skipped cursor, a misaligned text append or a reconnect, and keeps itself alive while a send or a response is in flight. Composer drafts persist locally in desktop SQLite and phone preferences, scoped by host, workspace and chat. Hydration cannot overwrite newer edits. Unanswered submissions retain their original IDs and are restored separately from later composer text.
 - `lib/src/features/agent_chat/presentation`: the tab surface, timeline, docks, composer, direct chat entry and archived-chat picker.
 - `mobile/lib/src/features/agent_chat`: phone controllers and presentation over the same package, with `MobileAgentChatTransport` adapting the direct or relay runtime connection. The phone never starts a provider process.
 
@@ -46,7 +46,15 @@ Large native metadata keeps a redacted preview on its visible item and stores th
 
 Settings manages provider instances for the selected host, including enabled state, executable and arguments, environment overrides, custom models, defaults, hidden models and favorites. Sensitive environment and option values are write-only; responses expose only whether a secret is saved. Mutations use revisions and request receipts. Catalog status distinguishes installation, bounded discovery and verified sign-in evidence rather than treating an existing credential as proof of authentication.
 
-New-chat selection resolves project defaults, the launching chat in the same workspace, an explicit default, remembered selection and finally the first enabled available instance. Preferences synchronize through the host. Paired phones can change preferences, model visibility, enabled state and secrets; launch definitions remain desktop administration. Verified installation and sign-in suppress redundant Install and Sign In actions. An ACP instance without an executable shows Setup Required rather than a launch error. Local Sign In, Install and Update actions use an opaque provider-instance/action request: the host selects its verified recipe and hydrates the instance environment before spawning a command terminal. Secrets and launch recipes are never typed by the client. Remote setup actions remain disabled.
+New-chat selection resolves project defaults, the launching chat in the same workspace, an explicit default, remembered selection and finally the first enabled available instance. Preferences synchronize through the host. Paired phones can change preferences, model visibility, enabled state and secrets; launch definitions remain desktop administration. Verified installation and sign-in suppress redundant Install and Sign In actions. An ACP instance without an executable shows Setup Required rather than a launch error. Sign In, Install and Update use an opaque provider-instance/action request: the owning host selects its verified recipe and hydrates the instance environment before spawning a command terminal. Secrets and launch recipes are never typed by the client. A desktop can run these actions on a Remote Host when both runtimes advertise `agentChatRemoteProviderSetupV1`; older hosts retain the copy-only explanation. The phone retains copy-only setup. Remote setup output and input are restricted to admitted desktop clients, and the ephemeral terminal is closed with its dialog.
+
+## Attachments and Attention Push
+
+`agentChatAttachmentUploadV1` transfers selected local files to the chat's owning host through bounded, replayable chunks. Uploads are scoped to the authenticated human, workspace and chat. A completed upload returns an attachment receipt; send resolves that receipt on the owner instead of trusting a client path. Desktop transfers device-picked or pasted files before sending; workspace references remain owner-host paths and are never guessed from matching local files. Phones can upload photos and files directly through their paired hub to a remote chat owner. Unsupported remote uploads fail explicitly; older local hosts retain their existing path/upload flow.
+
+Unanswered submissions retain completed attachment receipts and the same client message ID, so retry does not silently upload or execute a different prompt. Upload errors keep the submission available for Retry or Edit. Unused uploads expire; referenced files remain with their chat history. Device-local drafts are not synchronized between clients.
+
+With runtime cloud push enabled and the phone subscribed to Attention, newly committed approval/question requests and Chat Tasks needing attention produce identifier-only notifications. Cursor replay, request/task overlap and cooldown repeats are damped; snapshots do not trigger notifications. Remote chat events use the hub's cloud account after owner validation. Tapping opens the matching chat or Activity task; arrival and foreground notices never navigate automatically. Tests use fake cloud delivery and do not prove FCM delivery to a real phone.
 
 ## History and File Checkpoints
 
@@ -64,7 +72,6 @@ Read cursors are host-shared. Task and waiting-input notices do not change the s
 
 ## Known limits
 
-- Attachments are host paths. Files picked or pasted on this machine are not uploaded to a remote workspace's host, matching the terminal composer.
-- Phone photo and file attachments upload to the paired host through `mobile.promptImage.*` and `mobile.promptFile.*`; chats on another host offer only workspace files.
+- Uploads require the owning host's attachment capability; there is no remote path fallback for a device-local file.
 - Reasoning effort is shown only for verified provider/model metadata; an adapter API alone does not fabricate available values.
-- Cloud push for chat attention and unification with terminal orchestration are separate follow-ups.
+- Unification with terminal orchestration remains a separate follow-up.

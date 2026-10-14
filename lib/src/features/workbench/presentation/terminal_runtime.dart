@@ -364,7 +364,10 @@ abstract interface class TerminalPtySession {
 /// Only the runtime-host adapter may execute provider setup recipes.
 abstract interface class ProviderSetupTerminalPtySession
     implements TerminalPtySession {
-  void configureProviderSetup(CommandTerminalProviderSetup setup);
+  void configureProviderSetup(
+    CommandTerminalProviderSetup setup, {
+    String? hostId,
+  });
 }
 
 /// A session that may be attached read-only to an automation-owned tab.

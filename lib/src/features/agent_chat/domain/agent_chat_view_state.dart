@@ -38,6 +38,7 @@ class const AgentChatViewState({
       const <AgentChatOutgoingMessage>[],
   final Set<String> respondingRequestIds = const <String>{},
   final Set<String> cancellingQueueIds = const <String>{},
+  final Set<String> preparingAttachmentIds = const <String>{},
   final bool interrupting = false,
   final bool loadingHistory = false,
   final bool configuring = false,
@@ -55,6 +56,8 @@ class const AgentChatViewState({
   final String? actionError,
 }) {
   bool get live => connection == AgentChatConnection.live;
+
+  bool get preparingAttachments => preparingAttachmentIds.isNotEmpty;
 
   bool get busy => thread?.session.busy ?? false;
 
@@ -105,6 +108,7 @@ class const AgentChatViewState({
     List<AgentChatOutgoingMessage>? outgoing,
     Set<String>? respondingRequestIds,
     Set<String>? cancellingQueueIds,
+    Set<String>? preparingAttachmentIds,
     bool? interrupting,
     bool? loadingHistory,
     bool? configuring,
@@ -122,6 +126,8 @@ class const AgentChatViewState({
     outgoing: outgoing ?? this.outgoing,
     respondingRequestIds: respondingRequestIds ?? this.respondingRequestIds,
     cancellingQueueIds: cancellingQueueIds ?? this.cancellingQueueIds,
+    preparingAttachmentIds:
+        preparingAttachmentIds ?? this.preparingAttachmentIds,
     interrupting: interrupting ?? this.interrupting,
     loadingHistory: loadingHistory ?? this.loadingHistory,
     configuring: configuring ?? this.configuring,

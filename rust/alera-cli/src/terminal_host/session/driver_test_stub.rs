@@ -24,6 +24,7 @@ impl Session {
             tab_id: format!("tab-{id}"),
             working_directory: ".".to_string(),
             provider_setup: None,
+            provider_setup_desktop_leases: Default::default(),
             clients: HashSet::new(),
             observer_clients: HashSet::new(),
             driver: SessionDriver::Idle,

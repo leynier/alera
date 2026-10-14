@@ -23,7 +23,7 @@ AgentChatOrchestrationRepository chatTaskRepository(Ref ref) =>
 
 /// Whether the connected runtime runs chat tasks. An unreachable runtime
 /// reads as unsupported, so no entry point is offered that would fail.
-@riverpod
+@Riverpod(keepAlive: true)
 Future<bool> chatTasksSupported(Ref ref) async {
   try {
     return await ref.watch(chatTaskRepositoryProvider).supported();
@@ -44,7 +44,8 @@ Stream<AgentChatTaskPage> chatTaskList(Ref ref, AgentChatTaskQuery query) {
 }
 
 /// Tasks waiting for input, or failed and not reviewed: the Activity count.
-@Riverpod(retry: chatTaskNoRetry)
+/// The app-wide notification coordinator also consumes this paused stream.
+@Riverpod(keepAlive: true, retry: chatTaskNoRetry)
 Stream<AgentChatTaskPage> chatTaskAttention(Ref ref) {
   final repository = ref.watch(chatTaskRepositoryProvider);
   return foregroundBoardWatch(

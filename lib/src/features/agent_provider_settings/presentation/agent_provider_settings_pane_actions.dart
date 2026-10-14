@@ -265,34 +265,48 @@ extension _AgentProviderPaneActions on _AgentProviderSettingsPaneState {
     }
   }
 
-  /// Runs a setup action in a terminal on This Device, then checks the
-  /// provider again, whatever happened there. Only the instance id and the
-  /// action leave this pane: the host resolves the verified recipe, with the
-  /// instance's own profile and credentials, so a custom instance can never
-  /// sign in through another instance's account.
+  /// Runs a setup action in a terminal on the host that owns the instance,
+  /// then checks the provider again on that host, whatever happened there.
+  /// Only the instance id and the action leave this pane: the owning host
+  /// resolves the verified recipe, with the instance's own profile and
+  /// credentials, so a custom instance can never sign in through another
+  /// instance's account. A Remote Host needs a runtime that routes setup.
   Future<void> _runSetup(
     String providerInstanceId,
     AgentChatProviderSetupCommand command,
     String title,
   ) async {
-    if (_hostId != null) {
+    final hostId = _hostId;
+    final remoteSetup =
+        ref.read(agentProviderSettingsSupportProvider).value?.remoteSetup ??
+        false;
+    if (hostId != null && !remoteSetup) {
       return;
     }
+    final host = hostId == null ? null : _hostLabel();
     await showCommandTerminalDialog(
       context,
       ref,
       CommandTerminalRequest(
-        title: '${command.label}: $title',
+        title: host == null
+            ? '${command.label}: $title'
+            : '${command.label}: $title on $host',
         command: command.label,
-        description: 'Alera checks $title again when you close this terminal.',
+        description: host == null
+            ? 'Alera checks $title again when you close this terminal.'
+            : 'This terminal runs on $host. Alera checks $title again on '
+                  '$host when you close it.',
         providerSetup: CommandTerminalProviderSetup(
           providerInstanceId: providerInstanceId,
           action: command.action,
         ),
+        hostId: hostId,
       ),
     );
     if (mounted) {
-      await _refresh();
+      await ref
+          .read(agentProviderCatalogControllerProvider(hostId).notifier)
+          .refresh();
     }
   }
 

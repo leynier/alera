@@ -9,13 +9,15 @@ part of 'chat_task_parent_activity.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// One runtime-wide list of unsettled tasks, read again on every change that
-/// may touch it. Hidden windows do no reads.
+/// may touch it. The app-wide notification coordinator keeps it alive;
+/// hidden windows do no reads.
 
 @ProviderFor(chatTaskOpenTasks)
 final chatTaskOpenTasksProvider = ChatTaskOpenTasksProvider._();
 
 /// One runtime-wide list of unsettled tasks, read again on every change that
-/// may touch it. Hidden windows do no reads.
+/// may touch it. The app-wide notification coordinator keeps it alive;
+/// hidden windows do no reads.
 
 final class ChatTaskOpenTasksProvider
     extends
@@ -28,14 +30,15 @@ final class ChatTaskOpenTasksProvider
         $FutureModifier<AgentChatTaskPage>,
         $StreamProvider<AgentChatTaskPage> {
   /// One runtime-wide list of unsettled tasks, read again on every change that
-  /// may touch it. Hidden windows do no reads.
+  /// may touch it. The app-wide notification coordinator keeps it alive;
+  /// hidden windows do no reads.
   ChatTaskOpenTasksProvider._()
     : super(
         from: null,
         argument: null,
         retry: chatTaskNoRetry,
         name: r'chatTaskOpenTasksProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -55,7 +58,7 @@ final class ChatTaskOpenTasksProvider
   }
 }
 
-String _$chatTaskOpenTasksHash() => r'0f0da42541d78402253ab476b39a6d7e4ada9178';
+String _$chatTaskOpenTasksHash() => r'5b0c7d32cceca7f4f19e6ff861db38b94ad8ba93';
 
 /// What each parent chat waits on, keyed by parent chat id. Empty on a
 /// runtime without chat tasks or while a read fails.
@@ -82,7 +85,7 @@ final class ChatTaskParentActivityProvider
         argument: null,
         retry: null,
         name: r'chatTaskParentActivityProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -113,4 +116,4 @@ final class ChatTaskParentActivityProvider
 }
 
 String _$chatTaskParentActivityHash() =>
-    r'3055fbb736a759d30c3a94de226fbfea40f20e93';
+    r'10aa8aef70a014ef7ddc76971ef310dbbf72de81';

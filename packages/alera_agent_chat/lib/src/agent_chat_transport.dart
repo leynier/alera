@@ -19,6 +19,8 @@ abstract final class AgentChatWire {
   static const String approvalHistoryCapability = 'agentChatApprovalHistoryV1';
   static const String turnDiffCapability = 'agentChatTurnDiffV1';
   static const String readCursorCapability = 'agentChatReadCursorV1';
+  static const String attachmentUploadCapability =
+      'agentChatAttachmentUploadV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -53,6 +55,10 @@ abstract final class AgentChatWire {
   static const String history = 'agentChat.history';
   static const String payload = 'agentChat.payload';
   static const String send = 'agentChat.send';
+  static const String attachmentStart = 'agentChat.attachment.start';
+  static const String attachmentChunk = 'agentChat.attachment.chunk';
+  static const String attachmentComplete = 'agentChat.attachment.complete';
+  static const String attachmentCancel = 'agentChat.attachment.cancel';
   static const String queueCancel = 'agentChat.queueCancel';
   static const String queueEdit = 'agentChat.queueEdit';
   static const String queueSteer = 'agentChat.queueSteer';

@@ -323,6 +323,7 @@ class _AgentProviderSettingsPaneState
         ? defaultLabel
         : draft.label.trim();
     final local = _hostId == null;
+    final canRunSetup = local || support.remoteSetup;
     final String? launchReadOnlyReason = !support.providerSettings
         ? 'The Alera runtime needs an update before provider launch settings '
               'can be edited here.'
@@ -337,12 +338,17 @@ class _AgentProviderSettingsPaneState
       status: _statusOf(entry, catalog.checking),
       now: now,
       catalog: entry.catalog,
-      canRunSetup: local,
-      setupUnavailableReason: local
+      canRunSetup: canRunSetup,
+      setupHostLabel: local ? null : _hostLabel(),
+      // A runtime without remote setup cannot route the terminal to the
+      // host, so the commands stay copy-only there.
+      setupUnavailableReason: canRunSetup
           ? null
           : 'Setup commands run in a terminal on This Device only. Run them '
                 'in a terminal on this host, then press Refresh.',
-      onRunSetup: (command) => unawaited(_runSetup(entry.id, command, title)),
+      onRunSetup: canRunSetup
+          ? (command) => unawaited(_runSetup(entry.id, command, title))
+          : null,
       editing: AgentProviderDraftEditing(
         draft: draft,
         pendingSecrets: Map<String, AgentProviderPendingSecret>.unmodifiableOf(
@@ -389,6 +395,15 @@ class _AgentProviderSettingsPaneState
       onRevert: _revert,
     );
   }
+
+  /// The selected host's name as Remote Hosts lists it.
+  String _hostLabel() =>
+      ref
+          .read(agentProviderHostOptionsProvider)
+          .where((host) => host.hostId == _hostId)
+          .firstOrNull
+          ?.label ??
+      'This Device';
 
   /// Lets the part-file extensions rebuild without calling the protected
   /// [setState] from outside the class.

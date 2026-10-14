@@ -11,6 +11,7 @@ import 'support/fake_agent_chat_client.dart';
 ProviderContainer _container(FakeAgentChatClient client) {
   final container = ProviderContainer(
     overrides: [
+      agentChatDraftStoreProvider.overrideWithValue(AgentChatDraftStore()),
       mobileAgentChatClientProvider('host').overrideWith((ref) async => client),
     ],
   );
@@ -104,6 +105,7 @@ void main() {
           const AgentChatComposerDraft(
             value: TextEditingValue(text: 'half a thought'),
           ),
+          workspaceId: 'workspace-1',
         );
     await _open(container);
     expect(client.payloadsOf('agentChat.create'), hasLength(1));

@@ -1,3 +1,5 @@
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
@@ -269,6 +271,9 @@ Future<_ChatShellWorkbenchController> _pumpChatShell(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentChatComposerDraftsProvider.overrideWithValue(
+          AgentChatComposerDrafts(),
+        ),
         ...inboxClientOverrides(InboxTestClient()..supported = false),
         aleraDatabaseProvider.overrideWith((ref) async => db),
         workbenchControllerProvider.overrideWith(() => controller),

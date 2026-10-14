@@ -94,7 +94,11 @@ impl<T: HttpTransport> OpenCodeClient<T> {
                         return Err(malformed());
                     }
                 }
-                Ok(servers.keys().cloned().collect())
+                // serde_json's key order follows workspace feature unification
+                // (`preserve_order`), so sort to keep the list deterministic.
+                let mut names: Vec<String> = servers.keys().cloned().collect();
+                names.sort();
+                Ok(names)
             }
             Generation::V2 => {
                 if body

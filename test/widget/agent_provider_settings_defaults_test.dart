@@ -13,6 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_agent_chat_settings_repository.dart';
 
+/// A runtime that advertises none of the additive chat capabilities.
+final class const _NoRuntimeCapabilities() extends AgentChatLifecycleRepository;
+
 void main() {
   final checkedAt = DateTime.now().subtract(const Duration(minutes: 2));
 
@@ -91,6 +94,9 @@ void main() {
       ProviderScope(
         overrides: [
           agentChatSettingsRepositoryProvider.overrideWithValue(fake),
+          agentChatLifecycleRepositoryProvider.overrideWithValue(
+            const _NoRuntimeCapabilities(),
+          ),
           agentProviderHostOptionsProvider.overrideWithValue(
             const <AgentProviderHostOption>[
               AgentProviderHostOption(hostId: null, label: 'This Device'),

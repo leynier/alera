@@ -43,11 +43,13 @@ class const AgentChatSurface({
   ConsumerState<AgentChatSurface> createState() => _AgentChatSurfaceState();
 }
 
-class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
+class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
+    with WidgetsBindingObserver {
   final TerminalComposerController _composer = TerminalComposerController();
   final AleraPopoverController _picker = AleraPopoverController();
   late final AgentChatComposerDrafts _drafts;
   late AgentChatTimelineActions _actions;
+  bool _restoringDraft = false;
   AgentChatTurnHistoryActions get _history => AgentChatTurnHistoryActions(
     chat: AgentChatRef(chatId: widget.chatId, workspaceId: widget.workspace.id),
     composer: _composer,
@@ -66,6 +68,8 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
   void initState() {
     super.initState();
     _drafts = ref.read(agentChatComposerDraftsProvider);
+    WidgetsBinding.instance.addObserver(this);
+    _listenToDraft();
     _restoreDraft();
     // The draft map stays current while typing, so New Agent Chat can tell
     // an empty never-sent chat from one with unsent text.
@@ -84,7 +88,38 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
     }
   }
 
-  void _saveCurrentDraft() => _saveDraft(widget.chatId);
+  void _saveCurrentDraft() {
+    if (!_restoringDraft) _saveDraft(widget.chatId, widget.workspace);
+  }
+
+  void _listenToDraft() {
+    _drafts.addListener(
+      widget.chatId,
+      _restoreDraft,
+      hostId: widget.workspace.hostId,
+      workspaceId: widget.workspace.id,
+    );
+    unawaited(
+      _drafts.hydrate(
+        widget.chatId,
+        hostId: widget.workspace.hostId,
+        workspaceId: widget.workspace.id,
+      ),
+    );
+  }
+
+  void _stopListeningToDraft(String chatId, Workspace workspace) =>
+      _drafts.removeListener(
+        chatId,
+        _restoreDraft,
+        hostId: workspace.hostId,
+        workspaceId: workspace.id,
+      );
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) unawaited(_drafts.flush());
+  }
 
   /// Another client discarded or deleted this chat. Unsent text here is the
   /// person's and must survive; it can start a new chat, never by itself.
@@ -104,7 +139,13 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
           'kept.',
       actionLabel: 'Start New Chat With This Text',
       onAction: () {
-        container.read(agentChatComposerDraftsProvider).remove(chatId);
+        container
+            .read(agentChatComposerDraftsProvider)
+            .remove(
+              chatId,
+              hostId: workspace.hostId,
+              workspaceId: workspace.id,
+            );
         unawaited(
           container
               .read(agentChatDirectOpenerProvider)
@@ -134,8 +175,12 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
   @override
   void didUpdateWidget(covariant AgentChatSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.chatId != widget.chatId) {
-      _saveDraft(oldWidget.chatId);
+    if (oldWidget.chatId != widget.chatId ||
+        oldWidget.workspace.id != widget.workspace.id ||
+        oldWidget.workspace.hostId != widget.workspace.hostId) {
+      _stopListeningToDraft(oldWidget.chatId, oldWidget.workspace);
+      _saveDraft(oldWidget.chatId, oldWidget.workspace);
+      _listenToDraft();
       _restoreDraft();
     }
     if (!oldWidget.autofocus && widget.autofocus) {
@@ -147,7 +192,10 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
 
   @override
   void dispose() {
-    _saveDraft(widget.chatId);
+    _saveDraft(widget.chatId, widget.workspace);
+    _stopListeningToDraft(widget.chatId, widget.workspace);
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_drafts.flush());
     _composer.removeListener(_saveCurrentDraft);
     _composer.textController.removeListener(_saveCurrentDraft);
     _composer.dispose();
@@ -156,7 +204,13 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
   }
 
   void _restoreDraft() {
-    final draft = _drafts.read(widget.chatId);
+    if (!mounted) return;
+    final draft = _drafts.read(
+      widget.chatId,
+      hostId: widget.workspace.hostId,
+      workspaceId: widget.workspace.id,
+    );
+    _restoringDraft = true;
     _composer.textController.text = draft.text;
     _composer.removeAttachments(
       _composer.attachments.map((attachment) => attachment.id).toList(),
@@ -166,16 +220,22 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
         kind: attachment.kind,
         path: attachment.path,
         displayName: attachment.displayName,
+        localSourcePath: attachment.localSourcePath,
+        attachmentId: attachment.attachmentId,
+        sizeBytes: attachment.sizeBytes,
       );
     }
+    _restoringDraft = false;
   }
 
-  void _saveDraft(String chatId) => _drafts.write(
+  void _saveDraft(String chatId, Workspace workspace) => _drafts.write(
     chatId,
     AgentChatComposerDraft(
       text: _composer.textController.text,
       attachments: List.unmodifiable(_composer.attachments),
     ),
+    hostId: workspace.hostId,
+    workspaceId: workspace.id,
   );
 
   void _focusComposerNextFrame({required bool onlyIfParked}) {
@@ -350,6 +410,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
           session: state.thread!.session,
           pendingOperation: state.thread!.pendingNativeOperation,
           hint: agentChatEmptyHint(state),
+          preparingAttachmentIds: state.preparingAttachmentIds,
         ),
       ),
     );
@@ -398,6 +459,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
         canLoadEarlier: view.canLoadEarlier,
         loadingEarlier: view.loadingEarlier,
         onLoadEarlier: () => unawaited(_controller.loadEarlier()),
+        preparingAttachmentIds: view.preparingAttachmentIds,
       ),
     );
   }

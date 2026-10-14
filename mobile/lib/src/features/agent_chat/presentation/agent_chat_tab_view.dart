@@ -14,6 +14,7 @@ import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_availabil
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_view_state.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_picker.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_upload_bar.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_native_history_rewind_sheet.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_sheets.dart';
@@ -25,6 +26,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
+
+part 'agent_chat_tab_drafts.dart';
+part 'agent_chat_tab_read_cursor.dart';
 
 /// The body of an agent chat tab. Everything shown comes from the runtime's
 /// copy of the chat; a dropped connection keeps the last copy readable and
@@ -62,6 +66,9 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
   final AgentChatTypingClock typing = AgentChatTypingClock();
   @override
   final ValueNotifier<int> scrollToEnd = ValueNotifier<int>(0);
+  @override
+  final ValueNotifier<AgentChatAttachmentUploadStatus?> upload =
+      ValueNotifier<AgentChatAttachmentUploadStatus?>(null);
   List<AgentChatDraftAttachment> _attachments =
       const <AgentChatDraftAttachment>[];
   bool _restoring = false;
@@ -79,15 +86,31 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
   void initState() {
     super.initState();
     _store = ref.read(agentChatDraftStoreProvider)
-      ..activate(widget.hostId, widget.chatId);
+      ..activate(widget.hostId, widget.chatId, workspaceId: widget.workspaceId);
     _memory = ref
         .read(agentChatViewMemoryStoreProvider)
         .of(widget.hostId, widget.chatId);
-    final draft = _store.read(widget.hostId, widget.chatId);
+    final draft = _store.read(
+      widget.hostId,
+      widget.chatId,
+      workspaceId: widget.workspaceId,
+    );
     _composer = TextEditingController.fromValue(draft.value)
       ..addListener(_persist);
     _attachments = draft.attachments;
-    _store.addListener(widget.hostId, widget.chatId, _restored);
+    _store.addListener(
+      widget.hostId,
+      widget.chatId,
+      _restored,
+      workspaceId: widget.workspaceId,
+    );
+    unawaited(
+      _store.hydrate(
+        widget.hostId,
+        widget.chatId,
+        workspaceId: widget.workspaceId,
+      ),
+    );
     _focus.addListener(() {
       if (!_focus.hasFocus) typing.settle();
     });
@@ -102,37 +125,37 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
   @override
   void dispose() {
     _readTimer?.cancel();
-    _store.removeListener(widget.hostId, widget.chatId, _restored);
+    _store.removeListener(
+      widget.hostId,
+      widget.chatId,
+      _restored,
+      workspaceId: widget.workspaceId,
+    );
+    unawaited(_store.flush());
     _composer
       ..removeListener(_persist)
       ..dispose();
     _focus.dispose();
     scrollToEnd.dispose();
+    upload.dispose();
     super.dispose();
   }
 
-  void _persist() {
-    if (_restoring) return;
-    typing.keystroke();
-    _store.write(
-      widget.hostId,
-      widget.chatId,
-      AgentChatComposerDraft(value: _composer.value, attachments: _attachments),
-    );
-  }
-
-  /// An upload finished or a refused prompt came back while this was shown.
-  void _restored() {
-    if (!mounted) return;
-    final draft = _store.read(widget.hostId, widget.chatId);
-    _restoring = true;
-    _composer.value = draft.value;
-    _restoring = false;
-    setState(() => _attachments = draft.attachments);
-  }
+  void _persist() => _persistDraft();
+  void _restored() => _restoreStoredDraft();
 
   @override
   void removeAttachment(AgentChatDraftAttachment attachment) {
+    final uploader = AgentChatAttachmentSources.read(
+      ref,
+      widget.hostId,
+      remoteWorkspace: widget.remoteWorkspace,
+    ).uploads;
+    final chat = AgentChatRef(
+      chatId: widget.chatId,
+      workspaceId: widget.workspaceId,
+    );
+    final attachmentId = attachment.attachmentId;
     setState(() {
       _attachments = <AgentChatDraftAttachment>[
         for (final existing in _attachments)
@@ -140,29 +163,20 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       ];
     });
     _persist();
+    if (uploader != null && attachmentId != null) {
+      unawaited(
+        uploader.cancel(chat: chat, uploadId: attachmentId).catchError((
+          Object _,
+        ) {
+          Logger('AgentChatAttachments')
+              .fine('Unused attachment cleanup will retry through expiration.');
+        }),
+      );
+    }
   }
 
   @override
-  Future<void> send({bool steer = false}) async {
-    final draft = AgentChatComposerDraft(
-      value: _composer.value,
-      attachments: _attachments,
-    );
-    if (!draft.canSubmit) return;
-    typing.settle();
-    _restoring = true;
-    _composer.clear();
-    _restoring = false;
-    setState(() => _attachments = const <AgentChatDraftAttachment>[]);
-    _store.write(widget.hostId, widget.chatId, const AgentChatComposerDraft());
-    scrollToEnd.value += 1;
-    try {
-      await ref.read(_provider.notifier).send(draft, steer: steer);
-    } on Object catch (error, stackTrace) {
-      _store.restore(widget.hostId, widget.chatId, draft);
-      _report('Could not send the message.', error, stackTrace);
-    }
-  }
+  Future<void> send({bool steer = false}) => _sendDraft(steer: steer);
 
   /// Runs an action and explains a failure, without leaving the chat.
   @override
@@ -193,6 +207,7 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
           widget.hostId,
           widget.chatId,
           AgentChatComposerDraft.fromMessage(entry.text, entry.attachments),
+          workspaceId: widget.workspaceId,
         );
       });
 
@@ -247,16 +262,47 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       remoteWorkspace: widget.remoteWorkspace,
     );
     if (sources.isEmpty) return null;
-    return () => unawaited(
-      pickAgentChatAttachments(
-        context,
-        ref,
-        hostId: widget.hostId,
-        workspaceId: widget.workspaceId,
-        chatId: widget.chatId,
-        sources: sources,
-      ),
+    return () => unawaited(_pickAttachments(sources));
+  }
+
+  /// Picks and uploads while the composer shows how far the upload got. The
+  /// picker reports an upload failure explicitly so Retry stays available.
+  Future<void> _pickAttachments(AgentChatAttachmentSources sources) async {
+    if (upload.value is AgentChatAttachmentUploading) return;
+    upload.value = null;
+    final (hostId, chatId, workspaceId) = (
+      widget.hostId,
+      widget.chatId,
+      widget.workspaceId,
     );
+    var failed = false;
+    await pickAgentChatAttachments(
+      context,
+      ref,
+      hostId: hostId,
+      workspaceId: workspaceId,
+      chatId: chatId,
+      sources: sources,
+      onUploadingChanged: (uploading) {
+        if (!uploading) return;
+        if (mounted) upload.value = const AgentChatAttachmentUploading();
+      },
+      onProgress: (uploadedBytes, totalBytes) {
+        if (!mounted) return;
+        upload.value = AgentChatAttachmentUploading(
+          uploadedBytes: uploadedBytes,
+          totalBytes: totalBytes,
+        );
+      },
+      onUploadFailed: () => failed = true,
+    );
+    if (!mounted) return;
+    upload.value = failed ? const AgentChatAttachmentUploadFailed() : null;
+  }
+
+  @override
+  void dismissUpload() {
+    if (upload.value is AgentChatAttachmentUploadFailed) upload.value = null;
   }
 
   /// Fork opens the new chat's tab, because the person asked for it.
@@ -291,6 +337,7 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
           widget.hostId,
           widget.chatId,
           AgentChatComposerDraft.fromMessage(result.prompt, result.attachments),
+          workspaceId: widget.workspaceId,
         );
         notice = agentChatRewindResultNotice(result);
       }
@@ -347,27 +394,21 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
 
   @override
   void startNewChatWithText() {
-    final text = _store.read(widget.hostId, widget.chatId).value.text;
+    final text = _store
+        .read(widget.hostId, widget.chatId, workspaceId: widget.workspaceId)
+        .value
+        .text;
     widget.onStartNewChatWithText?.call(text);
   }
 
-  /// The person is looking at this chat: tell the runtime, once output has
-  /// paused, so the other devices stop calling it unread.
-  void _scheduleRead(AgentChatViewState view, bool visible) {
-    if (!visible || view.thread.cursor == 0) return;
-    _readTimer?.cancel();
-    _readTimer = Timer(_readDebounce, () {
-      if (!mounted) return;
-      unawaited(
-        ref.read(_provider.notifier).markRead().catchError((Object error) {
-          _logger.fine('Could not mark the chat read.', error);
-        }),
-      );
-    });
-  }
+  void _scheduleRead(AgentChatViewState view, bool visible) =>
+      _scheduleChatRead(view, visible);
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(appLifecycleControllerProvider, (_, next) {
+      if (next != AppLifecycleState.resumed) unawaited(_store.flush());
+    });
     final async = ref.watch(_provider);
     final view = async.value;
     final lifecycle = ref.watch(appLifecycleControllerProvider);
@@ -425,7 +466,10 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       composer: _composer,
       focusNode: _focus,
       attachments: _attachments,
-      draftText: _store.read(widget.hostId, widget.chatId).value.text,
+      draftText: _store
+          .read(widget.hostId, widget.chatId, workspaceId: widget.workspaceId)
+          .value
+          .text,
       handlers: this,
       controller: ref.read(_provider.notifier),
       onRetryConnection: () => ref.invalidate(_provider),

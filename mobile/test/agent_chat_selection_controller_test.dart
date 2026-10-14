@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
@@ -12,6 +13,7 @@ final _chat = agentChatControllerProvider('host', 'workspace-1', 'chat-1');
 ProviderContainer _container(FakeAgentChatClient client) {
   final container = ProviderContainer(
     overrides: [
+      agentChatDraftStoreProvider.overrideWithValue(AgentChatDraftStore()),
       mobileAgentChatClientProvider('host').overrideWith((ref) async => client),
     ],
   );

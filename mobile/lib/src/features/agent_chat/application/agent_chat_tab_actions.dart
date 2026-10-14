@@ -38,7 +38,8 @@ class AgentChatTabActions(
       rethrow;
     }
     _requestIds.settleClose(_hostId, chatId);
-    _drafts.close(_hostId, chatId);
+    _drafts.close(_hostId, chatId, workspaceId: workspaceId);
+    await _drafts.flush();
     _memory.forget(_hostId, chatId);
     return result;
   }
@@ -70,7 +71,7 @@ class AgentChatTabActions(
         requestId: requestId,
       );
       _requestIds.settleReopen(_hostId, chatId);
-      _drafts.activate(_hostId, chatId);
+      _drafts.activate(_hostId, chatId, workspaceId: workspaceId);
       return result;
     } on AgentChatConnectionException {
       rethrow;
@@ -90,7 +91,8 @@ class AgentChatTabActions(
       requestId: const Uuid().v4(),
     );
     if (deleted) {
-      _drafts.close(_hostId, chatId);
+      _drafts.close(_hostId, chatId, workspaceId: workspaceId);
+      await _drafts.flush();
       _memory.forget(_hostId, chatId);
     }
     return deleted;

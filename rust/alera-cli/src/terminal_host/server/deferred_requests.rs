@@ -28,6 +28,12 @@ impl ServerActor {
         }
         self.require_shared_checkout_support(client_id, request_type)?;
         self.refuse_hub_only_payload_fields(client_id, payload)?;
+        if self
+            .try_handle_remote_provider_setup(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         // The reverse channel runs before every local handler: on a satellite,
         // a hub-owned verb such as `project.hosts.add` must reach the hub
         // instead of the handler below that would act on this runtime's copies.

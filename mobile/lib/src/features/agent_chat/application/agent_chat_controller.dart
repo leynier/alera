@@ -51,7 +51,9 @@ class AgentChatController extends _$AgentChatController {
     );
     _sync = sync;
     ref.onDispose(sync.dispose);
-    final view = await sync.start(previous: _last);
+    await sync.start(previous: _last);
+    await _restorePendingOutgoing(sync);
+    final view = sync.view!;
     _last = view;
     return view;
   }
@@ -84,10 +86,54 @@ class AgentChatController extends _$AgentChatController {
 
   Future<void> resync() async => _sync?.resync();
 
+  Future<void> _restorePendingOutgoing(AgentChatSync sync) async {
+    final store = ref.read(agentChatDraftStoreProvider);
+    await store.ensureHydrated(hostId, chatId, workspaceId: workspaceId);
+    if (!ref.mounted || sync.view == null) return;
+    final outgoing = <AgentChatOutgoingMessage>[...sync.view!.outbox];
+    for (final submission in store.pending(
+      hostId,
+      chatId,
+      workspaceId: workspaceId,
+    )) {
+      if (sync.view!.thread.containsClientMessage(submission.clientMessageId)) {
+        store.settleSubmission(
+          hostId,
+          chatId,
+          submission.clientMessageId,
+          workspaceId: workspaceId,
+        );
+      } else if (!outgoing.any(
+        (message) => message.clientMessageId == submission.clientMessageId,
+      )) {
+        outgoing.add(
+          AgentChatOutgoingMessage(
+            clientMessageId: submission.clientMessageId,
+            text: submission.draft.text,
+            createdAt: submission.createdAt,
+            attachments: submission.input(chatId, workspaceId).attachments,
+            status: .failed,
+            error: 'Delivery was not confirmed. Retry to check it.',
+          ),
+        );
+      }
+    }
+    sync.update((view) => view.copyWith(outbox: outgoing));
+    unawaited(store.flush());
+  }
+
   /// Sends a composed prompt; the runtime starts a turn or queues it behind
   /// the running one. Failures stay in the timeline with Retry and Edit.
   Future<void> send(AgentChatComposerDraft draft, {bool steer = false}) async {
     if (!draft.canSubmit) return;
+    if (state.isLoading && !state.hasValue) {
+      throw const AgentChatConnectionException(
+        'Chat drafts are still loading.',
+      );
+    }
+    await ref
+        .read(agentChatDraftStoreProvider)
+        .ensureHydrated(hostId, chatId, workspaceId: workspaceId);
     final sync = _ready();
     if (sync.view!.nativeOperationPending) {
       throw const AgentChatRequestException(
@@ -98,7 +144,7 @@ class AgentChatController extends _$AgentChatController {
     await _applyHeldModelReset(sync);
     final ids = ref
         .read(agentChatDraftStoreProvider)
-        .submissionIds(hostId, chatId);
+        .submissionIds(hostId, chatId, workspaceId: workspaceId);
     final message = AgentChatOutgoingMessage(
       clientMessageId: ids.claim(draft.signature, _uuid.v4),
       text: draft.text,
@@ -126,7 +172,7 @@ class AgentChatController extends _$AgentChatController {
     if (message == null) return;
     final retrying = message.withStatus(AgentChatOutgoingStatus.sending);
     _putOutgoing(sync, retrying);
-    await _deliver(sync, retrying, _signature(message));
+    await _deliver(sync, retrying, _signature(message), preserveOptions: true);
   }
 
   /// Takes a refused prompt out of the timeline and back into the composer.
@@ -139,8 +185,13 @@ class AgentChatController extends _$AgentChatController {
       message.attachments,
     );
     final store = ref.read(agentChatDraftStoreProvider);
-    store.submissionIds(hostId, chatId).settled(draft.signature);
-    store.restore(hostId, chatId, draft);
+    store.settleSubmission(
+      hostId,
+      chatId,
+      clientMessageId,
+      workspaceId: workspaceId,
+    );
+    store.restore(hostId, chatId, draft, workspaceId: workspaceId);
     sync.update(
       (view) => view.copyWith(
         outbox: <AgentChatOutgoingMessage>[
@@ -156,40 +207,49 @@ class AgentChatController extends _$AgentChatController {
     AgentChatOutgoingMessage message,
     String signature, {
     AgentChatDelivery delivery = AgentChatDelivery.auto,
+    bool preserveOptions = false,
   }) async {
     final store = ref.read(agentChatDraftStoreProvider);
-    final ids = store.submissionIds(hostId, chatId);
+    final ids = store.submissionIds(hostId, chatId, workspaceId: workspaceId);
     final held = sync.view?.pendingModel;
+    store.beginSubmission(
+      hostId,
+      chatId,
+      message.clientMessageId,
+      AgentChatComposerDraft.fromMessage(message.text, message.attachments),
+      workspaceId: workspaceId,
+      model: held?.model,
+      delivery: delivery,
+      createdAt: message.createdAt,
+      replaceOptions: !preserveOptions,
+      messageAttachments: message.attachments,
+    );
+    final retained = store
+        .pending(hostId, chatId, workspaceId: workspaceId)
+        .where(
+          (submission) => submission.clientMessageId == message.clientMessageId,
+        )
+        .single;
     try {
-      await sync.repository.send(
-        AgentChatSendInput(
-          chatId: chatId,
-          workspaceId: workspaceId,
-          clientMessageId: message.clientMessageId,
-          text: message.text,
-          attachments: message.attachments,
-          model: held?.model,
-          delivery: delivery,
-        ),
-      );
+      await store.flushSubmission(hostId, chatId, workspaceId: workspaceId);
+      await sync.repository.send(retained.input(chatId, workspaceId));
       ids.settled(signature);
+      store.settleSubmission(
+        hostId,
+        chatId,
+        message.clientMessageId,
+        workspaceId: workspaceId,
+      );
+      await store.flush();
       // A held reset stays until the chat is idle and it can be configured.
-      if (held?.model != null) {
+      if (!preserveOptions && held?.model != null) {
         sync.update((view) => view.copyWith(clearPendingModel: true));
       }
       _putOutgoing(sync, message.withStatus(AgentChatOutgoingStatus.accepted));
     } on Object catch (error) {
-      // A connection failure may hide a send that landed, so it keeps its id
-      // for a safe retry; a refusal is final and the next try is new.
-      if (error is! AgentChatConnectionException) ids.settled(signature);
-      if (!ref.mounted) {
-        store.restore(
-          hostId,
-          chatId,
-          AgentChatComposerDraft.fromMessage(message.text, message.attachments),
-        );
-        return;
-      }
+      // Any failed reply can hide acceptance by a forwarded owner. Only
+      // acceptance or explicit Edit settles the persisted retry identity.
+      if (!ref.mounted) return;
       _putOutgoing(
         sync,
         message.withStatus(

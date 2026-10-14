@@ -159,6 +159,41 @@ fn parse_rpc_error(path: &str, status: u16, value: Value) -> CursorSdkError {
             code
         },
         message,
-        details: value,
+        details: Box::new(value),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn rpc_errors_preserve_response_details_and_existing_diagnostics() {
+        let response = json!({
+            "code": "permission_denied",
+            "message": "Workspace access denied",
+            "details": [{"reason": "workspace_scope", "workspaceId": "workspace-1"}],
+        });
+        for (status, expected_code) in [(403, "permission_denied"), (401, "unauthenticated")] {
+            let error = parse_rpc_error("/workspace/open", status, response.clone());
+            assert_eq!(
+                error.to_string(),
+                format!("cursor bridge RPC `/workspace/open` failed with {expected_code}: Workspace access denied")
+            );
+            let CursorSdkError::Rpc {
+                method,
+                code,
+                message,
+                details,
+            } = error
+            else {
+                panic!("expected a typed RPC error");
+            };
+            assert_eq!(method, "/workspace/open");
+            assert_eq!(code, expected_code);
+            assert_eq!(message, "Workspace access denied");
+            assert_eq!(serde_json::to_value(details).unwrap(), response);
+        }
     }
 }

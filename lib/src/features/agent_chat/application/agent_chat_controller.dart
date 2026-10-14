@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_attachment_preparation.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
+import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_view_state.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_chat_controller.g.dart';
 part 'agent_chat_controller_actions.dart';
+part 'agent_chat_controller_delivery.dart';
 
 // The runtime ends an interrupted turn through events; this only bounds how
 // long the Stop control stays disabled if that never arrives.
@@ -16,7 +20,7 @@ const Duration _interruptSettleTimeout = Duration(seconds: 3);
 /// cursor-ordered changes, plus this client's in-flight actions.
 @riverpod
 class AgentChatController extends _$AgentChatController
-    with _AgentChatComposerActions {
+    with _AgentChatComposerActions, _AgentChatDelivery {
   @override
   late AgentChatRepository _repository;
   @override
@@ -25,6 +29,7 @@ class AgentChatController extends _$AgentChatController
   late String Function() _nextId;
   @override
   final Map<String, String> _reconcileRequestIds = <String, String>{};
+  @override
   late DateTime Function() _now;
   StreamSubscription<AgentChatStreamEvent>? _events;
   Timer? _interruptTimer;
@@ -78,6 +83,8 @@ class AgentChatController extends _$AgentChatController
       final snapshot = await _repository.snapshot(_chat);
       if (!_current(generation)) return;
       var thread = AgentChatThread.fromSnapshot(snapshot);
+      await _restorePendingOutgoing(thread);
+      if (!_current(generation)) return;
       final buffered = _pending ?? const <AgentChatChange>[];
       _pending = null;
       var gap = false;
@@ -245,111 +252,6 @@ class AgentChatController extends _$AgentChatController
               previous: state.projection,
             ),
     );
-  }
-
-  /// Sends a message, or queues it behind a running turn. Returns whether
-  /// the composer may clear: the message is now owned by the timeline, which
-  /// shows its delivery and lets the user retry it.
-  bool send(
-    String text, {
-    List<AgentChatAttachment> attachments = const <AgentChatAttachment>[],
-    AgentChatDelivery delivery = AgentChatDelivery.auto,
-  }) {
-    final trimmed = text.trim();
-    if (!state.canSend ||
-        state.nativeOperationPending ||
-        (trimmed.isEmpty && attachments.isEmpty)) {
-      return false;
-    }
-    final message = AgentChatOutgoingMessage(
-      clientMessageId: _nextId(),
-      text: trimmed,
-      createdAt: _now().toUtc(),
-      attachments: List<AgentChatAttachment>.unmodifiable(attachments),
-    );
-    final pending = state.pendingModel;
-    // A provider default cannot travel on a message; it waits for idle.
-    final model = pending?.model;
-    if (model != null) state = state.copyWith(pendingModel: null);
-    final firstSend = state.neverSent;
-    _setOutgoing(<AgentChatOutgoingMessage>[...state.outgoing, message]);
-    unawaited(
-      _deliver(
-        message,
-        delivery == AgentChatDelivery.steer && !state.canSteer
-            ? AgentChatDelivery.auto
-            : delivery,
-        model: model,
-        firstSend: firstSend,
-      ),
-    );
-    return true;
-  }
-
-  Future<void> retrySend(String clientMessageId) async {
-    final message = state.outgoing
-        .where((message) => message.clientMessageId == clientMessageId)
-        .firstOrNull;
-    if (message == null ||
-        message.status != AgentChatOutgoingStatus.failed ||
-        !state.canSend ||
-        state.nativeOperationPending) {
-      return;
-    }
-    _replaceOutgoing(message.withStatus(AgentChatOutgoingStatus.sending));
-    await _deliver(message, AgentChatDelivery.auto);
-  }
-
-  Future<void> _deliver(
-    AgentChatOutgoingMessage message,
-    AgentChatDelivery delivery, {
-    String? model,
-    bool firstSend = false,
-  }) async {
-    // A send outlives the tab being hidden; its result must still land.
-    final keepAlive = ref.keepAlive();
-    try {
-      await _repository.send(
-        AgentChatSendInput(
-          chatId: chatId,
-          workspaceId: workspaceId,
-          clientMessageId: message.clientMessageId,
-          text: message.text,
-          attachments: message.attachments,
-          model: model,
-          delivery: delivery,
-        ),
-      );
-      if (!ref.mounted) return;
-      if (firstSend) _rememberSelection();
-      _replaceOutgoing(message.withStatus(AgentChatOutgoingStatus.accepted));
-    } on Object catch (error) {
-      if (!ref.mounted) return;
-      _replaceOutgoing(
-        message.withStatus(
-          AgentChatOutgoingStatus.failed,
-          error: agentChatErrorMessage(error),
-        ),
-      );
-    } finally {
-      keepAlive.close();
-    }
-  }
-
-  void _replaceOutgoing(AgentChatOutgoingMessage message) {
-    final thread = state.thread;
-    if (thread != null &&
-        thread.containsClientMessage(message.clientMessageId)) {
-      _setOutgoing(<AgentChatOutgoingMessage>[
-        for (final other in state.outgoing)
-          if (other.clientMessageId != message.clientMessageId) other,
-      ]);
-      return;
-    }
-    _setOutgoing(<AgentChatOutgoingMessage>[
-      for (final other in state.outgoing)
-        other.clientMessageId == message.clientMessageId ? message : other,
-    ]);
   }
 
   Future<void> interrupt() async {

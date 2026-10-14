@@ -596,14 +596,12 @@ final class AgentChatClockProvider
 
 String _$agentChatClockHash() => r'4e8cbcbdaa2b6c9c73224b3e46ec37c2e4d7b328';
 
-/// Unsent composer text and attachments per chat. Kept for the session so a
-/// tab switch or a reconnect never loses a draft.
+/// Device-local unsent text and attachments, scoped to the chat's host and workspace.
 
 @ProviderFor(agentChatComposerDrafts)
 final agentChatComposerDraftsProvider = AgentChatComposerDraftsProvider._();
 
-/// Unsent composer text and attachments per chat. Kept for the session so a
-/// tab switch or a reconnect never loses a draft.
+/// Device-local unsent text and attachments, scoped to the chat's host and workspace.
 
 final class AgentChatComposerDraftsProvider
     extends
@@ -613,8 +611,7 @@ final class AgentChatComposerDraftsProvider
           AgentChatComposerDrafts
         >
     with $Provider<AgentChatComposerDrafts> {
-  /// Unsent composer text and attachments per chat. Kept for the session so a
-  /// tab switch or a reconnect never loses a draft.
+  /// Device-local unsent text and attachments, scoped to the chat's host and workspace.
   AgentChatComposerDraftsProvider._()
     : super(
         from: null,
@@ -650,7 +647,7 @@ final class AgentChatComposerDraftsProvider
 }
 
 String _$agentChatComposerDraftsHash() =>
-    r'13578dd1cae5f3f683b8ade73e1449a1761ffb9a';
+    r'41a7c6af5906e26364eff592ab7ca2fad8623c7e';
 
 /// The selection of the last chat that sent its first message in this
 /// session. Runtimes with chat preferences remember it themselves; this only

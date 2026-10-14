@@ -26,11 +26,19 @@ class const AgentChatTimelineView({
   required final bool canLoadEarlier,
   required final bool loadingEarlier,
   required final VoidCallback onLoadEarlier,
+
+  /// Client message ids whose attachments are still uploading.
+  final Set<String> preparingAttachmentIds = const <String>{},
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentChatTimelineView> createState() =>
       _AgentChatTimelineViewState();
 }
+
+/// A stand-in token for an outgoing message while its attachments upload.
+/// The message object does not change when the upload starts, so without it
+/// the cached row would keep saying Sending.
+final Expando<Object> _uploadingTokens = Expando<Object>('uploading');
 
 final class _CachedEntry {
   _CachedEntry(this.token, this.widget, this.anchorKey);
@@ -169,6 +177,9 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
   Object _tokenFor(AgentChatTimelineEntry entry) => switch (entry) {
     AgentChatTurnEntry(:final section) => section,
     AgentChatStandaloneEntry(:final item) => item,
+    AgentChatOutgoingEntry(:final message)
+        when widget.preparingAttachmentIds.contains(message.clientMessageId) =>
+      _uploadingTokens[message] ??= Object(),
     AgentChatOutgoingEntry(:final message) => message,
   };
 
@@ -197,6 +208,7 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
               actions: widget.actions,
               expansion: _session.expansion,
               workspacePath: widget.workspacePath,
+              preparingAttachmentIds: widget.preparingAttachmentIds,
             ),
           ),
         ),

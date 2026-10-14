@@ -6,6 +6,7 @@ mod automation_precheck_process_store;
 mod remote_automation_precheck_result_store;
 pub use automation_precheck_process_store::AutomationPrecheckProcess;
 mod owner_automation_precheck_store;
+mod owner_workspace_registration_store;
 pub use owner_automation_precheck_store::{
     OwnerAutomationPrecheck, OwnerAutomationPrecheckOutcome, OwnerAutomationPrecheckRequest,
 };

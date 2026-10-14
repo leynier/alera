@@ -80,6 +80,10 @@ impl RemoteChatTransport for LinkedChatTransport {
         let (link, _) = mirror_workspace(&self.store, &self.links, workspace_id)
             .await
             .map_err(|_| host_unavailable())?;
+        super::agent_chat_attachment_requests::require_remote_upload_capability(
+            &payload,
+            &link.attachment().runtime_capabilities,
+        )?;
         link.request_with_timeout(
             verb,
             payload,
@@ -89,17 +93,22 @@ impl RemoteChatTransport for LinkedChatTransport {
         .map_err(remote_transport_error)
     }
     async fn request_host(&self, host_id: &str, verb: &str, payload: Value) -> HostResult<Value> {
-        self.links
+        let link = self
+            .links
             .link(host_id)
             .await
-            .map_err(|_| host_unavailable())?
-            .request_with_timeout(
-                verb,
-                payload,
-                crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
-            )
-            .await
-            .map_err(remote_transport_error)
+            .map_err(|_| host_unavailable())?;
+        super::agent_chat_attachment_requests::require_remote_upload_capability(
+            &payload,
+            &link.attachment().runtime_capabilities,
+        )?;
+        link.request_with_timeout(
+            verb,
+            payload,
+            crate::terminal_host::host_link::DEFAULT_REQUEST_TIMEOUT,
+        )
+        .await
+        .map_err(remote_transport_error)
     }
 }
 

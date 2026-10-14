@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_availability.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_view_state.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_upload_bar.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_footer.dart';
@@ -24,6 +25,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_sta
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_timeline_view.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,6 +40,10 @@ abstract interface class AgentChatTabHandlers {
   Future<void> reopen();
   void openProviderSettings();
   VoidCallback? attachHandler(AgentChatViewState view);
+
+  /// The attachment upload in flight, or the last one that failed.
+  ValueListenable<AgentChatAttachmentUploadStatus?> get upload;
+  void dismissUpload();
   void removeAttachment(AgentChatDraftAttachment attachment);
   void startNewChatWithText();
   Future<void> fork(String turnId);
@@ -312,6 +318,8 @@ class const AgentChatTabBody({
                 canInterrupt: view.session.capabilities.interrupt,
                 interrupting: view.interrupting,
                 onAttach: handlers.attachHandler(view),
+                upload: handlers.upload,
+                onDismissUpload: handlers.dismissUpload,
                 onRemoveAttachment: handlers.removeAttachment,
                 onSend: () => unawaited(handlers.send()),
                 onSteer: steerable

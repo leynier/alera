@@ -128,7 +128,7 @@ class ChatAttentionEntries extends _$ChatAttentionEntries {
 /// The chats with live child task counts merged in, since the runtime's list
 /// only refreshes them on its next read. On a runtime without chat tasks the
 /// list's own counts stand.
-@riverpod
+@Riverpod(keepAlive: true)
 Map<String, ChatAttentionEntry> chatAttentionLive(Ref ref) {
   final entries = ref.watch(chatAttentionEntriesProvider);
   if (ref.watch(chatTasksSupportedProvider).value != true) return entries;
@@ -150,6 +150,6 @@ Map<String, ChatAttentionEntry> chatAttentionLive(Ref ref) {
 
 /// What each workspace's chats want, for its sidebar row and the Agent
 /// Activity sort. Workspaces whose chats are idle are absent.
-@riverpod
+@Riverpod(keepAlive: true)
 Map<String, ChatWorkspaceAttention> chatWorkspaceAttention(Ref ref) =>
     chatWorkspaceAttentionOf(ref.watch(chatAttentionLiveProvider).values);

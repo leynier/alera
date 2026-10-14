@@ -79,7 +79,7 @@ final class ChatTasksSupportedProvider
         argument: null,
         retry: null,
         name: r'chatTasksSupportedProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -99,7 +99,7 @@ final class ChatTasksSupportedProvider
 }
 
 String _$chatTasksSupportedHash() =>
-    r'c2a68adada9e7633587838f8a62bdd8ccf80ac27';
+    r'c1fc6f9d7604c67126dbdc8a6fa50483fcc14653';
 
 /// One Activity list, read again on every change that may touch it. Hidden
 /// windows do no reads.
@@ -197,11 +197,13 @@ final class ChatTaskListFamily extends $Family
 }
 
 /// Tasks waiting for input, or failed and not reviewed: the Activity count.
+/// The app-wide notification coordinator also consumes this paused stream.
 
 @ProviderFor(chatTaskAttention)
 final chatTaskAttentionProvider = ChatTaskAttentionProvider._();
 
 /// Tasks waiting for input, or failed and not reviewed: the Activity count.
+/// The app-wide notification coordinator also consumes this paused stream.
 
 final class ChatTaskAttentionProvider
     extends
@@ -214,13 +216,14 @@ final class ChatTaskAttentionProvider
         $FutureModifier<AgentChatTaskPage>,
         $StreamProvider<AgentChatTaskPage> {
   /// Tasks waiting for input, or failed and not reviewed: the Activity count.
+  /// The app-wide notification coordinator also consumes this paused stream.
   ChatTaskAttentionProvider._()
     : super(
         from: null,
         argument: null,
         retry: chatTaskNoRetry,
         name: r'chatTaskAttentionProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -240,7 +243,7 @@ final class ChatTaskAttentionProvider
   }
 }
 
-String _$chatTaskAttentionHash() => r'290b0ae3cdb771c9bdd3d2a1ceedda7a1a1192e5';
+String _$chatTaskAttentionHash() => r'bc113bce5405a6e77c1147aa6428cbc7b7bc049f';
 
 /// One task, live. Reading it never acknowledges its result.
 

@@ -27,17 +27,20 @@ Map<String, Object?> _command(String id, String command, {String? status}) =>
       normalized: <String, Object?>{'command': command},
     );
 
-Map<String, Object?> _edit(String id, String path, {String status = 'completed'}) =>
-    _item(
-      id,
-      'file_change',
-      status: status,
-      normalized: <String, Object?>{
-        'changes': <Object?>[
-          <String, Object?>{'path': path, 'kind': 'update', 'diff': '+a\n-b'},
-        ],
-      },
-    );
+Map<String, Object?> _edit(
+  String id,
+  String path, {
+  String status = 'completed',
+}) => _item(
+  id,
+  'file_change',
+  status: status,
+  normalized: <String, Object?>{
+    'changes': <Object?>[
+      <String, Object?>{'path': path, 'kind': 'update', 'diff': '+a\n-b'},
+    ],
+  },
+);
 
 AgentChatThread _thread(
   List<Map<String, Object?>> items, {
@@ -59,18 +62,20 @@ AgentChatThread _thread(
   }),
 );
 
-Map<String, Object?> _turn(String status, {String? reason}) => <String, Object?>{
-  'turnId': 'turn-1',
-  'status': status,
-  'startedAt': '2026-10-12T10:00:00Z',
-  'completedAt': '2026-10-12T10:00:03Z',
-  'reason': ?reason,
-};
+Map<String, Object?> _turn(String status, {String? reason}) =>
+    <String, Object?>{
+      'turnId': 'turn-1',
+      'status': status,
+      'startedAt': '2026-10-12T10:00:00Z',
+      'completedAt': '2026-10-12T10:00:03Z',
+      'reason': ?reason,
+    };
 
 AgentChatTurnSection _section(AgentChatThread thread) =>
-    AgentChatTimelineProjection.build(
-      thread,
-    ).entries.whereType<AgentChatTurnEntry>().single.section;
+    AgentChatTimelineProjection.build(thread).entries
+        .whereType<AgentChatTurnEntry>()
+        .single
+        .section;
 
 final List<Map<String, Object?>> _work = <Map<String, Object?>>[
   _item('u1', 'user_message', text: 'Fix it'),
@@ -112,7 +117,10 @@ void main() {
         expect(section.failed, isTrue);
         expect(section.collapsedByDefault, isFalse);
         expect(section.liveWork, isNull);
-        expect(agentChatTurnHeaderLabel(section, now: DateTime.utc(2030)), label);
+        expect(
+          agentChatTurnHeaderLabel(section, now: DateTime.utc(2030)),
+          label,
+        );
       });
     }
 
@@ -248,7 +256,10 @@ void main() {
 
     test('long messages collapse past 8 lines or 600 characters', () {
       expect(agentChatMessageCollapses('short'), isFalse);
-      expect(agentChatMessageCollapses(List.filled(8, 'x').join('\n')), isFalse);
+      expect(
+        agentChatMessageCollapses(List.filled(8, 'x').join('\n')),
+        isFalse,
+      );
       expect(agentChatMessageCollapses(List.filled(9, 'x').join('\n')), isTrue);
       expect(agentChatMessageCollapses('x' * 600), isFalse);
       expect(agentChatMessageCollapses('x' * 601), isTrue);

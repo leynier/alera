@@ -11,6 +11,7 @@ Agent chat domain shared by the Alera desktop and mobile apps. It holds the `age
 - Continuation projection joins contiguous text, reasoning and output streams without changing wire item IDs. Incomplete history stays explicitly partial; hidden metadata rows never enter the timeline.
 - Optional `AgentChatPayloadRepository`, verified payload pages and explicit `loadPayloadJson` preserve complete redacted JSON as text. Chunk order and revisions are checked without decoding large native data on the UI isolate.
 - `AgentChatRepository` and `RuntimeAgentChatRepository`, which speaks the wire over an `AgentChatTransport`. Each app adapts its own runtime client to that transport and emits `AgentChatTransportEvents.connected` and `disconnected` for its connection.
+- `AgentChatAttachmentUploader` streams bounded chunks to the owning runtime, resumes a stable upload ID after connection loss and validates the completed attachment receipt. Device source paths stay client-only; the wire carries owner-host paths or scoped receipt IDs.
 - Orchestration task, target, result and capability models, `ChatOrchestrationRepository`, live task lists and delegation-form validation for `chatOrchestration.*`. These support existing chats, new chats in existing workspaces, and explicitly selected worktree or shared workspaces across projects and hosts.
 
 ## Rules

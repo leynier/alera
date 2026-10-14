@@ -8,7 +8,6 @@ mixin _AgentChatComposerActions on _$AgentChatController {
   String Function() get _nextId;
   Map<String, String> get _reconcileRequestIds;
   AgentChatRef get _chat;
-  void _setOutgoing(List<AgentChatOutgoingMessage> outgoing);
   Future<void> _guard(
     Future<void> Function() action, {
     void Function()? onError,
@@ -74,24 +73,6 @@ mixin _AgentChatComposerActions on _$AgentChatController {
         ),
       ),
     );
-  }
-
-  /// Keeps this session's stand-in for the runtime's remembered selection,
-  /// for runtimes without chat preferences.
-  void _rememberSelection() {
-    final thread = state.thread;
-    if (thread == null || thread.providerInstanceId.isEmpty) return;
-    final session = thread.session;
-    ref
-        .read(agentChatLaunchPreferenceProvider.notifier)
-        .remember(
-          AgentChatSelection(
-            providerInstanceId: thread.providerInstanceId,
-            model: session.model,
-            runtimeMode: session.runtimeMode,
-            interactionMode: session.interactionMode,
-          ),
-        );
   }
 
   /// Turns the agent's own file checkpoints on or off for this chat. The
@@ -200,20 +181,5 @@ mixin _AgentChatComposerActions on _$AgentChatController {
         ),
       ),
     );
-  }
-
-  /// Drops a failed message and returns it so the composer can edit it.
-  AgentChatOutgoingMessage? discardSend(String clientMessageId) {
-    final message = state.outgoing
-        .where((message) => message.clientMessageId == clientMessageId)
-        .firstOrNull;
-    if (message == null || message.status != AgentChatOutgoingStatus.failed) {
-      return null;
-    }
-    _setOutgoing(<AgentChatOutgoingMessage>[
-      for (final other in state.outgoing)
-        if (other.clientMessageId != clientMessageId) other,
-    ]);
-    return message;
   }
 }

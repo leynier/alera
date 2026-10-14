@@ -43,8 +43,7 @@ final class AgentChatRewindOptions {
       // Only an exact rollback to before a chosen turn can match the
       // transcript; removing a count of recent turns cannot.
       conversation: conversationSupported && native.rollbackBeforeTurn,
-      files:
-          filesSupported && native.rewindFiles && session.fileCheckpointing,
+      files: filesSupported && native.rewindFiles && session.fileCheckpointing,
     );
   }
 
@@ -109,8 +108,9 @@ String agentChatRewindResultNotice(AgentChatRewindResult result) =>
     switch (result.filesystemChangesReverted) {
       true => 'Rewound the chat, and the provider reverted file changes.',
       false => 'Rewound the chat. Files stay as they are.',
-      null => 'Rewound the chat. Whether any files changed is not verified. '
-          'Check the workspace.',
+      null =>
+        'Rewound the chat. Whether any files changed is not verified. '
+            'Check the workspace.',
     };
 
 /// After a file rewind. An acknowledgement alone is not proof that files
@@ -177,8 +177,7 @@ String agentChatNativeOperationActionLabel(
   AgentChatNativeHistoryAction action,
 ) => switch (action) {
   AgentChatNativeHistoryAction.finishAcknowledged => 'Finish Rewind',
-  AgentChatNativeHistoryAction.continueFromCurrentFiles =>
-    'Keep Current Files',
+  AgentChatNativeHistoryAction.continueFromCurrentFiles => 'Keep Current Files',
   AgentChatNativeHistoryAction.restartFromTranscript =>
     'Restart From Transcript',
   AgentChatNativeHistoryAction.cancelUnstarted => 'Cancel Rewind',

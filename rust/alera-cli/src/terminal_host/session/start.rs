@@ -66,6 +66,7 @@ impl Session {
             tab_id,
             working_directory,
             provider_setup: launch.provider_setup.clone(),
+            provider_setup_desktop_leases: Default::default(),
             clients: HashSet::new(),
             observer_clients: HashSet::new(),
             driver: SessionDriver::Idle,

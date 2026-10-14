@@ -328,12 +328,18 @@ class const AgentChatAssistantMessageView({
   }
 }
 
-/// A message on its way to the runtime, or one it refused.
+/// Shown while a message's attachments upload to the runtime, which happens
+/// before the message itself goes out.
+const String agentChatUploadingFilesLabel = 'Uploading files';
+
+/// A message on its way to the runtime, or one it refused. [uploading] is
+/// true while its attachments are still uploading.
 class const AgentChatOutgoingMessageView({
   super.key,
   required final AgentChatOutgoingMessage message,
   required final VoidCallback onRetry,
   required final VoidCallback onEdit,
+  final bool uploading = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -396,7 +402,12 @@ class const AgentChatOutgoingMessageView({
               ),
             ] else
               AleraShimmerText(
-                text: message.status == AgentChatOutgoingStatus.sending
+                key: ValueKey<String>(
+                  'agent-chat-outgoing-status-${message.clientMessageId}',
+                ),
+                text: uploading
+                    ? agentChatUploadingFilesLabel
+                    : message.status == AgentChatOutgoingStatus.sending
                     ? 'Sending'
                     : 'Sent',
                 style: AleraTokens.labelMicroFaintStyle,

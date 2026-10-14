@@ -66,18 +66,22 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 // Keep the full request router out of nested lifecycle futures.
-                Box::pin(self.handle_authenticated_request(client_id, request_type, payload)).await
+                Box::pin(self.handle_authenticated_request(client_id, request_type, payload, false))
+                    .await
             }
         }
     }
 
-    async fn handle_authenticated_request(
+    pub(super) async fn handle_authenticated_request(
         &mut self,
         client_id: u64,
         request_type: &str,
         payload: &Value,
+        forwarded_setup: bool,
     ) -> HostResult<Value> {
-        self.require_provider_setup_session_access(client_id, payload)?;
+        if !forwarded_setup {
+            self.require_provider_setup_session_access(client_id, payload)?;
+        }
         if request_type.starts_with("chatOrchestration.") {
             return self
                 .handle_chat_orchestration_request(client_id, request_type, payload)
