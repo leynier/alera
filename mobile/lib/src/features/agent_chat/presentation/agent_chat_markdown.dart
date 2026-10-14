@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_link_target.dart';
 import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
@@ -10,14 +11,15 @@ import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_
 import 'package:flutter/material.dart';
 
 /// The chat a timeline row belongs to. Provided once by the chat body so
-/// every message can open the files the agent names, and so notices can say
-/// which chat they are about.
+/// every message can open the files the agent names, so notices can say
+/// which chat they are about, and so folds remember what the person opened.
 class const AgentChatScope({
   super.key,
   required final String hostId,
   required final String workspaceId,
   required final String chatId,
   required final String? cwd,
+  final AgentChatViewMemory? memory,
   required super.child,
 }) extends InheritedWidget {
   static AgentChatScope? maybeOf(BuildContext context) =>
@@ -28,8 +30,32 @@ class const AgentChatScope({
       hostId != oldWidget.hostId ||
       workspaceId != oldWidget.workspaceId ||
       chatId != oldWidget.chatId ||
-      cwd != oldWidget.cwd;
+      cwd != oldWidget.cwd ||
+      !identical(memory, oldWidget.memory);
 }
+
+/// Whether the fold under [key] is open: the person's own choice for this
+/// chat when they made one, else [fallback].
+bool agentChatFoldExpanded(
+  BuildContext context,
+  String key, {
+  required bool fallback,
+}) =>
+    context.getInheritedWidgetOfExactType<AgentChatScope>()?.memory?.expansion(
+      key,
+    ) ??
+    fallback;
+
+/// Keeps a fold the person toggled the way they left it, across tab
+/// switches and reconnects.
+void agentChatRememberFold(
+  BuildContext context,
+  String key, {
+  required bool expanded,
+}) => context
+    .getInheritedWidgetOfExactType<AgentChatScope>()
+    ?.memory
+    ?.rememberExpansion(key, expanded: expanded);
 
 /// Agent Markdown in the shared viewer style. Web links open in the browser;
 /// file links open the workspace file viewer, which the user asked for by

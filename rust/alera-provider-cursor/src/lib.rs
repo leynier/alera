@@ -7,4 +7,5 @@ mod provider;
 mod stream_state;
 
 pub use config::CursorProviderConfig;
+pub use provider::reasoning_effort::{default_model_reasoning_effort, model_reasoning_efforts};
 pub use provider::CursorProvider;

@@ -1,18 +1,17 @@
 use alera_core::runtime::{ChatOrchestrationTaskFilter, ChatOrchestrationTaskStatus};
 
-use super::authorization::OrchestrationCaller;
 use super::service::ChatOrchestrationService;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 impl ChatOrchestrationService {
-    pub(super) async fn caller_parent_task_id(
+    pub(super) async fn parent_task_id_for_chat(
         &self,
-        caller: &OrchestrationCaller,
+        parent_chat_id: Option<&str>,
     ) -> HostResult<Option<String>> {
-        let Some(bound) = &caller.bound else {
+        let Some(parent_chat_id) = parent_chat_id else {
             return Ok(None);
         };
-        let snapshot = self.runtime.snapshot(&bound.chat_id).await?;
+        let snapshot = self.runtime.snapshot(parent_chat_id).await?;
         let Some(active_turn) = snapshot["session"]["activeTurnId"].as_str() else {
             return Ok(None);
         };
@@ -21,7 +20,7 @@ impl ChatOrchestrationService {
             let page = self
                 .store
                 .list_chat_orchestration_tasks(&ChatOrchestrationTaskFilter {
-                    child_chat_id: Some(bound.chat_id.clone()),
+                    child_chat_id: Some(parent_chat_id.to_owned()),
                     statuses: vec![
                         ChatOrchestrationTaskStatus::Preparing,
                         ChatOrchestrationTaskStatus::Running,
@@ -37,7 +36,7 @@ impl ChatOrchestrationService {
                 let turn = self
                     .runtime
                     .turn_for_client_message(
-                        &bound.chat_id,
+                        parent_chat_id,
                         &format!("chat-orchestration-task:{}", task.task_id),
                     )
                     .await

@@ -153,6 +153,9 @@ pub(crate) fn provider_traits(provider: &str) -> Option<ProviderTraits> {
         _ => return None,
     };
     traits.capabilities.native_turn_ids = matches!(provider, "codex" | "cursor" | "muse");
+    traits.capabilities.steer = provider == "codex";
+    traits.capabilities.fork = matches!(provider, "codex" | "claudeAgent");
+    traits.capabilities.rollback = provider == "codex";
     Some(traits)
 }
 

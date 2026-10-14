@@ -48,6 +48,7 @@ Future<_ChatHost> _pumpScreen(
   WidgetTester tester, {
   Set<String>? capabilities,
   String? initialTabId,
+  void Function(_ChatHost host)? prepare,
 }) async {
   final host = _ChatHost(capabilities: capabilities)
     ..tabs = <WorkspaceTabSummary>[
@@ -55,6 +56,7 @@ Future<_ChatHost> _pumpScreen(
       _chatTab,
     ];
   host.chats.handlers['agentChat.snapshot'] = (_) => agentChatSnapshot();
+  prepare?.call(host);
   addTearDown(host.dispose);
   await tester.pumpWidget(
     ProviderScope(
@@ -90,7 +92,8 @@ void main() {
     final host = await _pumpScreen(tester, initialTabId: 'tab-chat');
     expect(find.text('Fix the build'), findsOneWidget);
     expect(find.text('Shell'), findsOneWidget);
-    expect(find.text('Ask Codex to work on this workspace.'), findsOneWidget);
+    // Nothing was sent yet, so the chat is ready rather than stopped.
+    expect(find.text('Send a message to start.'), findsOneWidget);
     expect(
       host.chats.payloadsOf('agentChat.snapshot').single,
       <String, Object?>{'chatId': 'chat-1', 'workspaceId': 'workspace-1'},
@@ -104,6 +107,7 @@ void main() {
     await tester.tap(find.byTooltip('New Tab'));
     await tester.pumpAndSettle();
     expect(find.text('New Chat'), findsOneWidget);
+    expect(find.text('Archived Chats'), findsOneWidget);
     await tester.tapAt(Offset.zero);
     await tester.pumpAndSettle();
 
@@ -113,4 +117,51 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('New Chat'), findsNothing);
   });
+
+  testWidgets('New Chat opens a chat at once, with no picker first', (
+    tester,
+  ) async {
+    final host = await _pumpScreen(tester, prepare: _prepareCreate);
+    expect(host.chats.payloadsOf('agentChat.create'), isEmpty);
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Chat'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start Chat'), findsNothing);
+    final payload = host.chats.payloadsOf('agentChat.create').single;
+    expect(payload['providerInstanceId'], 'codex');
+    expect(payload['workspaceId'], 'workspace-1');
+    expect(find.text('Send a message to start.'), findsOneWidget);
+  });
+}
+
+void _prepareCreate(_ChatHost host) {
+  host.chats.handlers['agentChat.providers'] = (_) => <String, Object?>{
+    'providers': <Object?>[agentChatProviderRow('codex', label: 'Codex')],
+  };
+  host.chats.handlers['agentChat.list'] = (_) => <String, Object?>{
+    'chats': <Object?>[],
+  };
+  host.chats.handlers['agentChat.create'] = (_) {
+    host.tabs = <WorkspaceTabSummary>[
+      ...host.tabs,
+      const WorkspaceTabSummary(
+        id: 'tab-new',
+        workspaceId: 'workspace-1',
+        kind: 'agentChat',
+        title: 'Codex',
+        payload: <String, Object?>{
+          'chatId': 'chat-new',
+          'provider': 'codex',
+          'providerInstanceId': 'codex',
+        },
+      ),
+    ];
+    return <String, Object?>{
+      'chatId': 'chat-new',
+      'tabId': 'tab-new',
+      'snapshot': agentChatSnapshot(chatId: 'chat-new'),
+    };
+  };
 }

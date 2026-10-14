@@ -1,11 +1,19 @@
 import 'package:alera_agent_chat/src/agent_chat_continuation_projection.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
+import 'package:alera_agent_chat/src/agent_chat_json.dart';
+import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
+import 'package:alera_agent_chat/src/agent_chat_native_history_inputs.dart';
+import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
 import 'package:alera_agent_chat/src/agent_chat_outgoing_message.dart';
 import 'package:alera_agent_chat/src/agent_chat_request.dart';
+import 'package:alera_agent_chat/src/agent_chat_request_labels.dart';
 import 'package:alera_agent_chat/src/agent_chat_session.dart';
 import 'package:alera_agent_chat/src/agent_chat_thread.dart';
 import 'package:alera_agent_chat/src/agent_chat_worked_actions.dart';
+
+part 'agent_chat_timeline_projection_history.dart';
+part 'agent_chat_timeline_projection_turn.dart';
 
 /// A row under a turn's "Worked for" divider.
 sealed class AgentChatActivityRow {
@@ -42,7 +50,9 @@ final class AgentChatItemRow extends AgentChatActivityRow {
 
 /// One turn: the prompt, the work under "Worked for", then what the agent
 /// said. Sections are reused while their items are unchanged, so a stream of
-/// changes to the live turn leaves earlier turns' widgets untouched.
+/// changes to the live turn leaves earlier turns' widgets untouched. Both
+/// apps read the turn grammar (live row, folding, header label) from here so
+/// they show a turn the same way.
 final class AgentChatTurnSection {
   AgentChatTurnSection._({
     required this.turnId,
@@ -156,15 +166,37 @@ final class AgentChatTurnSection {
     },
   );
 
-  /// A finished turn folds its work away unless there is only one row.
-  bool get collapsedByDefault => !working && actionCount > 1;
+  /// How the turn ended, or that it still runs.
+  late final AgentChatTurnOutcome outcome = _outcomeOf(this);
 
-  bool get canToggleActivity => working ? activity.isNotEmpty : actionCount > 1;
+  /// What a running turn shows instead of every action: one row for the
+  /// current action. Null once the turn settles or before it did anything.
+  late final AgentChatLiveWork? liveWork = working && activity.isNotEmpty
+      ? AgentChatLiveWork._from(activity)
+      : null;
 
-  bool get failed =>
-      turn?.status == AgentChatTurnStatus.failed ||
-      turn?.status == AgentChatTurnStatus.interrupted ||
-      turn?.status == AgentChatTurnStatus.cancelled;
+  /// Files the turn changed, one entry per path with its latest change.
+  late final List<AgentChatFileChange> changedFiles = _changedFiles(
+    sourceItems,
+  );
+
+  /// Whether the work rows start folded. A running turn folds them into its
+  /// live row; a succeeded turn folds them under "Worked for" unless there is
+  /// only one; a failed, stopped or cancelled turn keeps them open so the
+  /// failing action stays in view.
+  bool get collapsedByDefault => switch (outcome) {
+    AgentChatTurnOutcome.running => activity.isNotEmpty,
+    AgentChatTurnOutcome.succeeded => actionCount > 1,
+    _ => false,
+  };
+
+  bool get canToggleActivity =>
+      working ? (liveWork?.hiddenCount ?? 0) > 0 : actionCount > 1;
+
+  bool get failed => switch (outcome) {
+    AgentChatTurnOutcome.running || AgentChatTurnOutcome.succeeded => false,
+    _ => true,
+  };
 }
 
 bool _isActivity(AgentChatItem item) =>
@@ -196,6 +228,21 @@ List<AgentChatActivityRow> _activityRows(List<AgentChatItem> items) {
 
 Duration? _span(DateTime start, DateTime end) =>
     end.isBefore(start) ? null : end.difference(start);
+
+/// Whether [next] holds exactly the request objects of [previous], in any
+/// order: the dock order is derived, so only membership matters.
+bool _sameRequests(
+  List<AgentChatRequest> previous,
+  List<AgentChatRequest> next,
+) {
+  if (previous.length != next.length) return false;
+  for (final request in next) {
+    if (!previous.any((candidate) => identical(candidate, request))) {
+      return false;
+    }
+  }
+  return true;
+}
 
 bool _sameItems(List<AgentChatItem> previous, List<AgentChatItem> next) {
   if (previous.length != next.length) return false;
@@ -230,17 +277,6 @@ final class AgentChatStandaloneEntry extends AgentChatTimelineEntry {
   String get key => 'item-${item.id}';
 }
 
-/// An approval, MCP form or unknown request awaiting the user. Questions are
-/// not entries: they dock above the composer.
-final class AgentChatRequestEntry extends AgentChatTimelineEntry {
-  const AgentChatRequestEntry(this.request);
-
-  final AgentChatRequest request;
-
-  @override
-  String get key => 'request-${request.id}';
-}
-
 /// A message the user sent that the runtime has not stamped into the
 /// timeline yet, or that it rejected.
 final class AgentChatOutgoingEntry extends AgentChatTimelineEntry {
@@ -256,7 +292,7 @@ final class AgentChatOutgoingEntry extends AgentChatTimelineEntry {
 final class AgentChatTimelineProjection {
   AgentChatTimelineProjection._(
     this.entries,
-    this.questions,
+    this.requests,
     this._sections,
     this._continuations,
   ) : _indexes = <String, int>{
@@ -312,22 +348,18 @@ final class AgentChatTimelineProjection {
       sections[turnId] = section;
       entries.add(AgentChatTurnEntry(section));
     }
-    final questions = <AgentChatRequest>[];
-    for (final request in thread.pendingRequests) {
-      if (request.isQuestion) {
-        questions.add(request);
-      } else {
-        entries.add(AgentChatRequestEntry(request));
-      }
-    }
     for (final message in outgoing) {
       if (!thread.containsClientMessage(message.clientMessageId)) {
         entries.add(AgentChatOutgoingEntry(message));
       }
     }
+    final previousRequests = previous?.requests;
     return AgentChatTimelineProjection._(
       List<AgentChatTimelineEntry>.unmodifiable(entries),
-      List<AgentChatRequest>.unmodifiable(questions),
+      previousRequests != null &&
+              _sameRequests(previousRequests, thread.pendingRequests)
+          ? previousRequests
+          : agentChatRequestDockOrder(thread.pendingRequests),
       sections,
       continuations,
     );
@@ -335,13 +367,23 @@ final class AgentChatTimelineProjection {
 
   final List<AgentChatTimelineEntry> entries;
 
-  /// Pending questions in arrival order, for the docked question card.
-  final List<AgentChatRequest> questions;
+  /// Every pending request, in the order the request dock pages through
+  /// them: approvals, then MCP forms, then the rest, oldest first within
+  /// each. Requests are not timeline entries; both apps dock them above the
+  /// composer. The list is reused while the requests are unchanged, so the
+  /// dock rebuilds only when one arrives or resolves.
+  final List<AgentChatRequest> requests;
   final Map<String, AgentChatTurnSection> _sections;
   final AgentChatContinuationProjection _continuations;
   final Map<String, int> _indexes;
 
-  bool get isEmpty => entries.isEmpty && questions.isEmpty;
+  /// Pending questions, in dock order.
+  List<AgentChatRequest> get questions => <AgentChatRequest>[
+    for (final request in requests)
+      if (request.isQuestion) request,
+  ];
+
+  bool get isEmpty => entries.isEmpty && requests.isEmpty;
 
   int? indexOfKey(String key) => _indexes[key];
 

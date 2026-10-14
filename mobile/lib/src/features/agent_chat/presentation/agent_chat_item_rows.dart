@@ -1,6 +1,7 @@
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
@@ -15,8 +16,9 @@ class const AgentChatItemRowView({super.key, required final AgentChatItem item})
   Widget build(BuildContext context) => switch (item.type) {
     AgentChatItemType.reasoning => _Expandable(
       icon: AleraIcons.sparkles,
-      label: item.isInProgress ? 'Thinking' : 'Thought',
+      label: agentChatReasoningLabel(item),
       streaming: item.isInProgress,
+      foldKey: agentChatReasoningFoldKey(item.id),
       child: AgentChatToolDetails(item: item),
     ),
     AgentChatItemType.assistantMessage => Padding(
@@ -52,6 +54,7 @@ class const AgentChatItemRowView({super.key, required final AgentChatItem item})
       icon: AleraIcons.info,
       label: item.title ?? item.detail ?? 'Activity',
       streaming: item.isInProgress,
+      foldKey: agentChatActionFoldKey(item.id),
       child: item.hasDetails ? AgentChatToolDetails(item: item) : null,
     ),
   };
@@ -143,6 +146,18 @@ class const AgentChatPlanCard({super.key, required final AgentChatItem item})
             AgentChatPlanSteps(steps: item.planSteps)
           else if (item.text.trim().isNotEmpty)
             AgentChatMarkdown(text: item.text),
+          if (AgentChatHistoryActions.maybeOf(context)?.onImplementPlan
+              case final implement?
+              when !item.isInProgress &&
+                  (item.text.trim().isNotEmpty || item.planSteps.isNotEmpty))
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => implement(item),
+                icon: const Icon(AleraIcons.workspaceChildren),
+                label: const Text('Implement In New Workspace'),
+              ),
+            ),
         ],
       ),
     );
@@ -225,6 +240,7 @@ class const _Expandable({
   required final IconData icon,
   required final String label,
   required final bool streaming,
+  required final String foldKey,
   required final Widget? child,
 }) extends StatefulWidget {
   @override
@@ -232,7 +248,16 @@ class const _Expandable({
 }
 
 class _ExpandableState extends State<_Expandable> {
-  bool _expanded = false;
+  late bool _expanded = agentChatFoldExpanded(
+    context,
+    widget.foldKey,
+    fallback: false,
+  );
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    agentChatRememberFold(context, widget.foldKey, expanded: _expanded);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -242,37 +267,39 @@ class _ExpandableState extends State<_Expandable> {
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
-        InkWell(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-          onTap: child == null
-              ? null
-              : () => setState(() => _expanded = !_expanded),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: AleraTokens.minTapTarget,
-            ),
-            child: Row(
-              children: <Widget>[
-                Icon(
-                  widget.icon,
-                  size: AleraTokens.space16,
-                  color: AleraTokens.foregroundMuted,
-                ),
-                const SizedBox(width: AleraTokens.space8),
-                Expanded(
-                  child: widget.streaming
-                      ? AgentChatShimmerText(text: widget.label, style: style)
-                      : Text(widget.label, style: style, overflow: .ellipsis),
-                ),
-                if (child != null)
+        Semantics(
+          button: child != null,
+          expanded: child == null ? null : _expanded,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            onTap: child == null ? null : _toggle,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AleraTokens.minTapTarget,
+              ),
+              child: Row(
+                children: <Widget>[
                   Icon(
-                    _expanded
-                        ? AleraIcons.chevronDown
-                        : AleraIcons.chevronRight,
+                    widget.icon,
                     size: AleraTokens.space16,
-                    color: AleraTokens.foregroundFaint,
+                    color: AleraTokens.foregroundMuted,
                   ),
-              ],
+                  const SizedBox(width: AleraTokens.space8),
+                  Expanded(
+                    child: widget.streaming
+                        ? AgentChatShimmerText(text: widget.label, style: style)
+                        : Text(widget.label, style: style, overflow: .ellipsis),
+                  ),
+                  if (child != null)
+                    Icon(
+                      _expanded
+                          ? AleraIcons.chevronDown
+                          : AleraIcons.chevronRight,
+                      size: AleraTokens.space16,
+                      color: AleraTokens.foregroundFaint,
+                    ),
+                ],
+              ),
             ),
           ),
         ),

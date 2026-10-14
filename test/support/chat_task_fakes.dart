@@ -50,9 +50,12 @@ Map<String, Object?> chatTaskJson({
 /// The runtime as both apps' repositories see it: `agentChat.*` and
 /// `chatOrchestration.*` answered from memory, with every request logged.
 final class FakeChatTaskTransport implements AgentChatTransport {
-  FakeChatTaskTransport({this.orchestration = true});
+  FakeChatTaskTransport({this.orchestration = true, this.personParent = false});
 
   bool orchestration;
+
+  /// Whether the runtime lets a person name a parent chat for a task.
+  bool personParent;
   final List<(String, Map<String, Object?>)> requests =
       <(String, Map<String, Object?>)>[];
   final Map<String, Map<String, Object?>> tasks =
@@ -81,7 +84,10 @@ final class FakeChatTaskTransport implements AgentChatTransport {
   @override
   Future<bool> supportsCapability(String capability) async =>
       capability == AgentChatWire.capability ||
-      (orchestration && capability == AgentChatOrchestrationWire.capability);
+      (orchestration && capability == AgentChatOrchestrationWire.capability) ||
+      (orchestration &&
+          personParent &&
+          capability == AgentChatOrchestrationWire.personParentCapability);
 
   Iterable<Map<String, Object?>> sent(String verb) => requests
       .where((request) => request.$1 == verb)
@@ -217,7 +223,7 @@ final class FakeChatTaskTransport implements AgentChatTransport {
         taskId: id,
         status: 'preparing',
         title: payload['title'] as String? ?? 'Delegated',
-        parentChatId: null,
+        parentChatId: payload['parentChatId'] as String?,
         childChatId: null,
         workspaceId: workspace?['workspaceId'] as String?,
         updatedAt: '2026-08-30T12:00:00Z',
@@ -237,7 +243,7 @@ final class FakeChatTaskTransport implements AgentChatTransport {
       chatTaskJson(
         taskId: id,
         title: 'Follow-up',
-        parentChatId: null,
+        parentChatId: payload['parentChatId'] as String?,
         childChatId: payload['chatId']! as String,
         updatedAt: '2026-08-30T12:30:00Z',
       ),

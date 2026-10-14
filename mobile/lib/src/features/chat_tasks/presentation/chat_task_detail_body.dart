@@ -4,8 +4,7 @@ import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_key_value_row.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_mode_labels.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_card.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_request_card.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_tiles.dart';
 import 'package:flutter/material.dart';
 
@@ -128,7 +127,12 @@ class const ChatTaskDetailBody({
           const SizedBox(height: AleraTokens.spaceLg),
           const AleraSectionHeader(label: 'Waiting For Input'),
           for (final request in requests)
-            _Request(request: request, enabled: !busy, callbacks: callbacks),
+            ChatTaskRequestCard(
+              request: request,
+              enabled: !busy,
+              onDecision: callbacks.onDecision,
+              onAnswerInChat: callbacks.onOpenChat,
+            ),
         ],
         if (failure != null) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceLg),
@@ -185,18 +189,29 @@ class const _Actions({
         icon: const Icon(AleraIcons.workspaceMain),
         label: const Text('Open Workspace'),
       ),
-      if (!task.status.settled)
-        OutlinedButton.icon(
-          key: const ValueKey<String>('chatTaskWait'),
-          onPressed: busy || waiting ? null : callbacks.onWait,
-          icon: waiting
-              ? const SizedBox.square(
-                  dimension: AleraTokens.iconSm,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(AleraIcons.time),
-          label: Text(waiting ? 'Waiting…' : 'Wait For Result'),
-        ),
+      // Waiting blocks for up to the runtime's maximum and is rarely what a
+      // person wants, so it sits behind the overflow.
+      if (!task.status.settled && callbacks.onWait != null)
+        waiting
+            ? const OutlinedButton(
+                key: ValueKey<String>('chatTaskWaiting'),
+                onPressed: null,
+                child: Text('Waiting…'),
+              )
+            : PopupMenuButton<VoidCallback>(
+                key: const ValueKey<String>('chatTaskMoreActions'),
+                tooltip: 'More Task Actions',
+                enabled: !busy,
+                icon: const Icon(AleraIcons.more),
+                onSelected: (action) => action(),
+                itemBuilder: (_) => <PopupMenuEntry<VoidCallback>>[
+                  PopupMenuItem<VoidCallback>(
+                    key: const ValueKey<String>('chatTaskWait'),
+                    value: callbacks.onWait,
+                    child: const Text('Wait For Result'),
+                  ),
+                ],
+              ),
       if (task.status.settled && callbacks.onFollowUp != null)
         OutlinedButton.icon(
           key: const ValueKey<String>('chatTaskFollowUp'),
@@ -214,71 +229,4 @@ class const _Actions({
         ),
     ],
   );
-}
-
-class const _Request({
-  required final AgentChatTaskRequest request,
-  required final bool enabled,
-  required final ChatTaskDetailCallbacks callbacks,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final value = request.request;
-    final decide = callbacks.onDecision;
-    final lines = <String>[?value.title, ?value.detail, ?value.command];
-    return Card(
-      key: ValueKey<String>('chatTaskRequest:${value.id}'),
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.spaceMd),
-        child: Column(
-          crossAxisAlignment: .start,
-          children: <Widget>[
-            for (final line in lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AleraTokens.spaceXs),
-                child: SelectableText(line),
-              ),
-            for (final question in value.questions) Text(question.question),
-            const SizedBox(height: AleraTokens.spaceSm),
-            Wrap(
-              spacing: AleraTokens.spaceSm,
-              runSpacing: AleraTokens.spaceSm,
-              children: <Widget>[
-                if (value.isApproval && decide != null)
-                  for (final decision in value.offeredDecisions)
-                    _DecisionButton(
-                      key: ValueKey<String>(
-                        'chatTaskDecision:${value.id}:${decision.wire}',
-                      ),
-                      decision: decision,
-                      onPressed: enabled
-                          ? () => decide(request, decision)
-                          : null,
-                    )
-                else
-                  OutlinedButton(
-                    onPressed: enabled ? callbacks.onOpenChat : null,
-                    child: const Text('Answer In Chat'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class const _DecisionButton({
-  super.key,
-  required final AgentChatApprovalDecision decision,
-  required final VoidCallback? onPressed,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final label = Text(agentChatDecisionLabel(decision));
-    return decision.accepts
-        ? FilledButton(onPressed: onPressed, child: label)
-        : OutlinedButton(onPressed: onPressed, child: label);
-  }
 }

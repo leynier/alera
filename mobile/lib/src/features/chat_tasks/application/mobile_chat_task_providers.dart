@@ -197,3 +197,49 @@ class MobileDelegateChatTaskForm extends _$MobileDelegateChatTaskForm {
 
   void update(AgentChatDelegateDraft draft) => state = draft;
 }
+
+/// Whether the paired runtime lets a person name a parent chat, so a task
+/// delegated from a chat reports back to it. A plain no on older runtimes.
+@riverpod
+Future<bool> mobileChatTaskPersonParent(Ref ref, String hostId) async {
+  try {
+    final repository = await ref.watch(
+      mobileChatTaskRepositoryProvider(hostId).future,
+    );
+    return await repository.supportsPersonParent();
+  } on Object {
+    return false;
+  }
+}
+
+/// Which chats on this host show their Tasks dock expanded. Session state,
+/// so leaving and reopening a chat keeps it.
+@Riverpod(keepAlive: true)
+class MobileChatTaskDockExpansion extends _$MobileChatTaskDockExpansion {
+  @override
+  Set<String> build(String hostId) => const <String>{};
+
+  void set(String chatId, {required bool expanded}) {
+    if (state.contains(chatId) == expanded) return;
+    state = expanded
+        ? Set<String>.unmodifiable(<String>{...state, chatId})
+        : Set<String>.unmodifiable(<String>{
+            for (final id in state)
+              if (id != chatId) id,
+          });
+  }
+}
+
+/// Whether a delegation on this host may choose the child's reasoning
+/// effort. Without it no effort control appears.
+@riverpod
+Future<bool> mobileChatTaskEffortSupported(Ref ref, String hostId) async {
+  try {
+    final repository = await ref.watch(
+      mobileChatTaskRepositoryProvider(hostId).future,
+    );
+    return await repository.supportsEffort();
+  } on Object {
+    return false;
+  }
+}

@@ -1,7 +1,11 @@
 use super::authorization::{enforce_mode_ceiling, OrchestrationCaller};
+use super::delegation_options::delegation_effort;
+use super::messages::task_message_origin;
 use super::models::{DelegateInput, DelegateMode, ParsedTarget};
+use super::native_operation_guard::task_creation_error;
 use super::operations::{cancel_requested_task, task_launch_options};
-use super::service::{ChatOrchestrationService, TASK_ORIGIN};
+use super::parent::task_parent_chat_id;
+use super::service::ChatOrchestrationService;
 use super::targets::ResolvedChatTarget;
 use super::tasks::{task_value, transition_status};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -22,7 +26,40 @@ impl ChatOrchestrationService {
         input: DelegateInput,
         caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
+        let mut payload = json!({
+            "task": input.task,
+            "title": input.title,
+            "role": input.role,
+            "notify": input.notify,
+            "mode": match input.mode { DelegateMode::Async => "async", DelegateMode::Wait => "wait" },
+            "waitSeconds": input.wait_seconds,
+            "agent": {"providerInstanceId": input.agent.provider_instance_id, "model": input.agent.model, "options": input.agent.options},
+            "runtimeMode": input.runtime_mode,
+            "interactionMode": input.interaction_mode,
+            "target": input.target.store_target(),
+        });
+        if let Some(parent) = &input.parent_chat_id {
+            payload["parentChatId"] = json!(parent);
+        }
+        if let Some(response) = self
+            .check_receipt(caller, "delegate", &input.request_id, &payload)
+            .await?
+        {
+            return Ok(response);
+        }
+        let parent_chat_id = task_parent_chat_id(caller, input.parent_chat_id.as_deref())?;
+        let destination = match &input.target {
+            ParsedTarget::Chat { chat_id } => Some(chat_id.as_str()),
+            _ => None,
+        };
+        super::native_operation_guard::require_unfrozen_admission(
+            self.runtime.as_ref(),
+            parent_chat_id.as_deref(),
+            destination,
+        )
+        .await?;
         let mut runtime_mode = enforce_mode_ceiling(caller, input.runtime_mode.as_deref())?;
+        let reasoning_effort = delegation_effort(input.agent.options.as_ref())?;
         let mut turn_model = None;
         if let ParsedTarget::Chat { chat_id } = &input.target {
             let snapshot = self.runtime.snapshot(chat_id).await?;
@@ -42,7 +79,11 @@ impl ChatOrchestrationService {
                         snapshot["providerInstanceId"].as_str() != Some(instance)
                     })
             {
-                return Err(HostError::conflict("unsupported", "Configure the existing chat before delegating with a different provider or runtime mode.", json!({})));
+                return Err(HostError::conflict(
+                    "unsupported",
+                    "Configure the existing chat before delegating with a different provider or runtime mode.",
+                    json!({}),
+                ));
             }
             let different_model = input
                 .agent
@@ -64,19 +105,9 @@ impl ChatOrchestrationService {
                 turn_model = input.agent.model.clone();
             }
         }
-        if input.agent.options.as_ref().is_some_and(|options| {
-            !options.is_null()
-                && !options
-                    .as_object()
-                    .is_some_and(|options| options.is_empty())
-        }) {
-            return Err(HostError::conflict(
-                "unsupported",
-                "Agent options are not supported by this chat runtime.",
-                json!({}),
-            ));
-        }
-        let parent_task_id = self.caller_parent_task_id(caller).await?;
+        let parent_task_id = self
+            .parent_task_id_for_chat(parent_chat_id.as_deref())
+            .await?;
         let task_id = new_chat_orchestration_task_id();
         let launch_options = {
             let mut value = task_launch_options(&input);
@@ -93,21 +124,7 @@ impl ChatOrchestrationService {
             scope: caller.ctx.scope.clone(),
             verb: "delegate".into(),
             request_id: input.request_id.clone(),
-            digest: chat_orchestration_request_digest(
-                "delegate",
-                &json!({
-                    "task": input.task,
-                    "title": input.title,
-                    "role": input.role,
-                    "notify": input.notify,
-                    "mode": match input.mode { DelegateMode::Async => "async", DelegateMode::Wait => "wait" },
-                    "waitSeconds": input.wait_seconds,
-                    "agent": {"providerInstanceId": input.agent.provider_instance_id, "model": input.agent.model, "options": input.agent.options},
-                    "runtimeMode": input.runtime_mode,
-                    "interactionMode": input.interaction_mode,
-                    "target": input.target.store_target(),
-                }),
-            ),
+            digest: chat_orchestration_request_digest("delegate", &payload),
             response: initial.clone(),
         };
         let new_task = NewChatOrchestrationTask {
@@ -115,7 +132,7 @@ impl ChatOrchestrationService {
             kind: ChatOrchestrationTaskKind::Delegate,
             caller_scope: caller.ctx.scope.clone(),
             parent_task_id,
-            parent_chat_id: caller.bound.as_ref().map(|bound| bound.chat_id.clone()),
+            parent_chat_id: parent_chat_id.clone(),
             child_chat_id: match &input.target {
                 ParsedTarget::Chat { chat_id } => Some(chat_id.clone()),
                 _ => None,
@@ -147,7 +164,7 @@ impl ChatOrchestrationService {
             .store
             .create_chat_orchestration_task(new_task, Some(&receipt))
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(task_creation_error)?;
         let task = match created {
             ChatOrchestrationCreateOutcome::Replay(response) => return Ok(response),
             ChatOrchestrationCreateOutcome::Conflict => {
@@ -155,7 +172,7 @@ impl ChatOrchestrationService {
                     "request_conflict",
                     "This requestId was already used for a different request.",
                     json!({}),
-                ))
+                ));
             }
             ChatOrchestrationCreateOutcome::Created(task) => task,
         };
@@ -212,7 +229,7 @@ impl ChatOrchestrationService {
                         &input,
                         &task_id,
                         &runtime_mode,
-                        caller.bound.as_ref().map(|bound| bound.chat_id.as_str()),
+                        parent_chat_id.as_deref(),
                     )
                     .await
                 {
@@ -253,16 +270,13 @@ impl ChatOrchestrationService {
                     attachments: Vec::new(),
                     delivery: "auto".into(),
                     model: turn_model,
+                    reasoning_effort,
                     interaction_mode: input.interaction_mode.clone(),
                     runtime_mode_ceiling: caller
                         .bound
                         .as_ref()
                         .map(|bound| bound.runtime_mode.clone()),
-                    origin: Some(json!({
-                        "kind": TASK_ORIGIN,
-                        "senderChatId": caller.bound.as_ref().map(|bound| bound.chat_id.clone()),
-                        "taskIds": [task_id.clone()],
-                    })),
+                    origin: Some(task_message_origin(caller, Some(&task_id))),
                 },
                 caller,
             )
@@ -407,6 +421,7 @@ impl ChatOrchestrationService {
                     provider: None,
                     provider_instance_id: Some(instance),
                     model: input.agent.model.clone(),
+                    reasoning_effort: delegation_effort(input.agent.options.as_ref())?,
                     runtime_mode: Some(runtime_mode.to_owned()),
                     interaction_mode: input.interaction_mode.clone(),
                     title: input.title.clone(),

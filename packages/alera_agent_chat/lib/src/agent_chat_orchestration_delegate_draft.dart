@@ -35,9 +35,11 @@ class const AgentChatDelegateDraft({
   final String sourceBranch = '',
   final String workspaceName = '',
   final String? parentWorkspaceId,
+  final String? parentChatId,
   final AgentChatWorkspaceSetup setup = AgentChatWorkspaceSetup.inline,
   final String? providerInstanceId,
   final String? model,
+  final String? reasoningEffort,
   final AgentChatRuntimeMode? runtimeMode,
   final bool plan = false,
 }) {
@@ -55,9 +57,11 @@ class const AgentChatDelegateDraft({
     String? sourceBranch,
     String? workspaceName,
     Object? parentWorkspaceId = _keep,
+    Object? parentChatId = _keep,
     AgentChatWorkspaceSetup? setup,
     Object? providerInstanceId = _keep,
     Object? model = _keep,
+    Object? reasoningEffort = _keep,
     Object? runtimeMode = _keep,
     bool? plan,
   }) => AgentChatDelegateDraft(
@@ -79,11 +83,17 @@ class const AgentChatDelegateDraft({
     parentWorkspaceId: identical(parentWorkspaceId, _keep)
         ? this.parentWorkspaceId
         : parentWorkspaceId as String?,
+    parentChatId: identical(parentChatId, _keep)
+        ? this.parentChatId
+        : parentChatId as String?,
     setup: setup ?? this.setup,
     providerInstanceId: identical(providerInstanceId, _keep)
         ? this.providerInstanceId
         : providerInstanceId as String?,
     model: identical(model, _keep) ? this.model : model as String?,
+    reasoningEffort: identical(reasoningEffort, _keep)
+        ? this.reasoningEffort
+        : reasoningEffort as String?,
     runtimeMode: identical(runtimeMode, _keep)
         ? this.runtimeMode
         : runtimeMode as AgentChatRuntimeMode?,
@@ -145,11 +155,15 @@ class const AgentChatDelegateDraft({
       task: task.trim(),
       target: target,
       title: _text(title),
+      parentChatId: parentChatId,
       agent: startsChat
           ? AgentChatTaskAgent(
               providerInstanceId: providerInstanceId!,
               model: model,
+              reasoningEffort: reasoningEffort,
             )
+          : reasoningEffort?.trim().isNotEmpty ?? false
+          ? AgentChatTaskAgent(reasoningEffort: reasoningEffort)
           : null,
       runtimeMode: startsChat ? runtimeMode : null,
       interactionMode: startsChat && plan

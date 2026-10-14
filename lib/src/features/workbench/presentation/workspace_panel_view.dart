@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 part 'workspace_panel_pane.dart';
 part 'workspace_panel_split.dart';
 part 'workspace_panel_menus.dart';
+part 'workspace_panel_add_tab_menu.dart';
 part 'workspace_panel_empty.dart';
 
 class const WorkspaceMainDropSurface({

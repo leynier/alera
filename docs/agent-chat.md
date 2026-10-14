@@ -7,23 +7,25 @@ Agent chats are workbench tabs that talk to a coding agent through the runtime h
 - `packages/alera_agent_chat` (pure Dart, shared with mobile): the `agentChat.*` wire contract, the snapshot and change models, the `AgentChatThread` reducer, the timeline projection and `RuntimeAgentChatRepository` over an `AgentChatTransport`. See its [readme](../packages/alera_agent_chat/readme.md).
 - `lib/src/features/agent_chat/infra`: `RuntimeHostAgentChatTransport` adapts the desktop runtime client, mapping host errors to package exceptions and the socket's connect/disconnect events to the package lifecycle events.
 - `lib/src/features/agent_chat/application`: `AgentChatController` (one per open chat) reads the snapshot after subscribing to changes, applies changes by cursor, reloads on a skipped cursor, a misaligned text append or a reconnect, and keeps itself alive while a send or a response is in flight. Composer drafts live in a session-only store and are never persisted.
-- `lib/src/features/agent_chat/presentation`: the tab surface, timeline, docks, composer and the New Agent Chat dialog.
+- `lib/src/features/agent_chat/presentation`: the tab surface, timeline, docks, composer, direct chat entry and archived-chat picker.
 - `mobile/lib/src/features/agent_chat`: phone controllers and presentation over the same package, with `MobileAgentChatTransport` adapting the direct or relay runtime connection. The phone never starts a provider process.
 
 The runtime side is described in `rust/alera-cli/src/terminal_host/server/agent_chat_runtime/readme.md`; chat orchestration in [agent-chat-orchestration.md](agent-chat-orchestration.md).
 
+Human CLI/MCP controls, independent capability gates, host Settings, explicit model resets, and retry identities are described in [Agent Chat CLI And MCP](agent-chat-cli.md). The `alera agent-chat` group is distinct from lineage-bound `alera chat` orchestration; Settings tools do not enter the injected agent catalog.
+
 ## Workbench integration
 
 - Tab kind `agentChat` with host-owned payload `{chatId, provider, providerInstanceId, model?}`; `agentChatId` is read as a legacy alias. The app declares `supportedTabKinds: ["agentChat"]` in its hello, so older apps never receive these tabs.
-- "Agent Chat" in a pane's add-tab menu and the New Agent Chat shortcut (`Mod+Shift+T`) open a dialog to pick the provider instance, model, approval mode and plan mode. Creating the chat opens its tab in the chosen pane group and focuses it only while the person is still on that workspace.
-- Closing the tab archives the chat on the runtime and stops its provider; history is kept. The New Agent Chat dialog lists the workspace's archived chats, and Reopen brings one back in a new tab.
+- "Agent Chat" in a pane's add-tab menu, the Agent Chat card of an empty side panel, and the New Agent Chat shortcut (`Mod+Shift+T`) open a composer directly. Provider startup is deferred until the first send. The selected provider and model can be changed in the composer; when no enabled provider is available, the draft remains unselected and offers Provider Settings. Creating or reusing a draft focuses it only while the person is still on that workspace.
+- Closing a chat that has never sent a message discards its record and tab atomically; otherwise it archives the chat and stops its provider while retaining history. The host guards close/send races. A deletion event lets another client retain its local unsent text. Archived Chats is a separate entry, and Reopen brings a retained chat back in a tab.
 - A chat tab shows the status dot colors agent terminals use (working, waiting for the person, failed) even while the chat is not open. The dots come from `agentChat.list` statuses kept current by each chat's session and request changes, not from terminal agent presence.
 - Every entry point checks `agentChatV1`. Against an older runtime the menu entry is hidden, the shortcut explains that an update is required, and an existing chat tab shows Update Required. There is no fallback.
 
 ## Conversation
 
-- Each turn shows the prompt, a "Worked for" divider that folds the agent's commands, edits, tool calls, reasoning and narration, then the answer. A running turn shows a live "Working for" counter and stays expanded; a finished turn with more than one action folds by default. Consecutive actions collapse into one summary line such as "Edited 2 files, ran 3 commands"; each action expands to its command, output tail, diff, tool input and result, or raw provider data.
-- Approvals, MCP forms and requests the app cannot answer appear as cards in the timeline and offer exactly the decisions the runtime lists. Questions dock above the composer, with paging across several pending requests and drafts kept per request.
+- Each turn shows the prompt, compact live work, a "Worked for" divider, then the answer. Commands, edits, tool calls and reasoning expand for details; failed or interrupted work stays visible. Scroll position and disclosure state are kept per chat, with an explicit Jump To Latest action when the reader leaves the live edge.
+- Approvals, questions and supported elicitation forms share a request dock above the composer. It offers exactly the runtime's decisions, pages through pending requests and retains drafts per request. Focus changes respect recent typing rather than interrupting the composer.
 - Input that another chat or an orchestration wake sent renders as a notice rather than as the person's message, and never navigates anywhere.
 - Desktop agent Markdown is rendered without fetching images; `http`, `https` and `mailto` links leave the app. Mobile uses the workspace Markdown viewer's remote-image URI policy and opens `http` and `https` links in the browser. Bare file paths open as workspace files on both surfaces.
 
@@ -33,13 +35,36 @@ Large native metadata keeps a redacted preview on its visible item and stores th
 
 ## Composer
 
-- Enter sends; while a turn runs the runtime queues the message (or steers when requested), and the queue dock lets any client take a queued message back. Escape stops a running turn. Arrow keys in an empty composer recall earlier prompts the person sent.
+- New chat entry shows a pending state while the host creates the draft and focuses its composer, including side panels. Moving to another field or surface during creation preserves that focus and selection.
+- Enter sends; while a turn runs the runtime queues the message, or steers only when the adapter supports native steering. The queue dock supports cancellation, text editing without losing attachments, and promotion to steering with the exact active turn id. Failed or unsupported steering leaves the queued entry intact. Escape stops a running turn. Arrow keys in an empty composer recall earlier prompts the person sent.
 - A sent message shows immediately and is replaced by the runtime's item carrying the same client message id. A failed send keeps its id, so Retry is deduplicated by the runtime; Edit returns the text to the composer.
-- The footer shows the provider (switchable only while the chat is idle with nothing pending, with confirmation), model, approval mode, plan mode and context usage. Settings apply to the next turn through `agentChat.configure`; the runtime rejects what the provider cannot honor and the reason appears above the composer.
+- A searchable combined provider/model picker lives in the composer. Provider switches require an idle chat and preserve context. Choosing Provider Default explicitly clears the prior model. Approval mode, plan mode, verified model-specific reasoning effort and context usage stay alongside the picker. Full Access requires confirmation. The runtime rejects settings it cannot honor and explains the failure above the composer.
+- Narrow composers shorten the provider-default label to Default and fold secondary controls into More Controls. Active Full Access and Plan remain visible as warning/mode indicators; model labels truncate with their complete value available in the tooltip.
 - A dropped connection keeps the transcript readable, disables the composer and reloads the snapshot when the runtime returns. A stopped session offers the recovery actions the runtime verified (resume or start a new session); sending also resumes it.
+
+## Providers and Models
+
+Settings manages provider instances for the selected host, including enabled state, executable and arguments, environment overrides, custom models, defaults, hidden models and favorites. Sensitive environment and option values are write-only; responses expose only whether a secret is saved. Mutations use revisions and request receipts. Catalog status distinguishes installation, bounded discovery and verified sign-in evidence rather than treating an existing credential as proof of authentication.
+
+New-chat selection resolves project defaults, the launching chat in the same workspace, an explicit default, remembered selection and finally the first enabled available instance. Preferences synchronize through the host. Paired phones can change preferences, model visibility, enabled state and secrets; launch definitions remain desktop administration. Verified installation and sign-in suppress redundant Install and Sign In actions. An ACP instance without an executable shows Setup Required rather than a launch error. Local Sign In, Install and Update actions use an opaque provider-instance/action request: the host selects its verified recipe and hydrates the instance environment before spawning a command terminal. Secrets and launch recipes are never typed by the client. Remote setup actions remain disabled.
+
+## History and File Checkpoints
+
+Fork, transcript rewind, native conversation rewind, file rewind, approval history and turn diff are independent capability-gated operations. Transcript rewind restores the prompt and retained history without reverting files. Native conversation rewind requires an exact supported provider boundary from the current process; the host does not retry a count-based rollback as an approximation.
+
+Claude File Checkpointing can be enabled while idle and takes effect on the next provider start. Rewind Files uses only a provider-observed user-message UUID. Provider acknowledgment and observed file effects are separate result fields; missing evidence is presented as unverified.
+
+Native rewinds reserve a durable intent before provider I/O and finalize history and receipts atomically. An interrupted or ambiguous operation pauses mutations and exposes explicit reconciliation actions. Restart recovery never blindly repeats native I/O. Both clients preserve the draft while the operation is unresolved.
+
+## Chat Tasks and Attention
+
+Chats can send messages to existing chats or delegate work into an existing workspace, a shared workspace or an isolated worktree in another project. The task dock preserves parent/child context and keeps navigation explicit. Settled plans can open Implement In New Workspace using the same delegation form. Human callers can attach a parent chat; injected agents remain bound to host-validated lineage and generation credentials. Activity remains the common attention surface for Chat Tasks, Runs, Questions and Automations.
+
+Read cursors are host-shared. Task and waiting-input notices do not change the selected workspace or tab. Native provider subagent metadata is retained separately from application-owned chat tasks.
 
 ## Known limits
 
 - Attachments are host paths. Files picked or pasted on this machine are not uploaded to a remote workspace's host, matching the terminal composer.
 - Phone photo and file attachments upload to the paired host through `mobile.promptImage.*` and `mobile.promptFile.*`; chats on another host offer only workspace files.
-- Reasoning effort is not part of the runtime contract yet, so no effort selector is shown.
+- Reasoning effort is shown only for verified provider/model metadata; an adapter API alone does not fabricate available values.
+- Cloud push for chat attention and unification with terminal orchestration are separate follow-ups.

@@ -12,7 +12,7 @@ use super::item_normalization::segment_complete_item;
 use super::provider_traits::provider_traits;
 use super::session::{ChatSession, DeferredTurn, FLUSH_TEXT_BYTES};
 use super::session_turn_admission::{client_message_digest, provider_attachments};
-use super::wire::{ChatItem, ChatTurn, QueueEntry, STREAM_TEXT};
+use super::wire::{ChatItem, ChatTurn, STREAM_TEXT};
 
 const CLIENT_MESSAGE_VERB: &str = "clientMessage";
 
@@ -24,26 +24,13 @@ impl ChatSession {
         )
     }
 
-    fn validate_turn_model(&self, requested: Option<&str>) -> HostResult<bool> {
-        let per_turn_model = self
-            .live_caps
-            .as_ref()
-            .map(|caps| caps.model_switch)
-            .unwrap_or_else(|| {
-                provider_traits(&self.header.provider).is_some_and(|traits| traits.per_turn_model)
-            });
-        if let Some(requested) = requested {
-            if !per_turn_model && self.header.session.model.as_deref() != Some(requested) {
-                return Err(unsupported(format!(
-                    "{} cannot switch models during an active chat.",
-                    self.header.provider
-                )));
-            }
-        }
-        Ok(per_turn_model)
-    }
-
     pub(super) async fn send(&mut self, input: SendInput, ctx: &CallerCtx) -> HostResult<Value> {
+        if self.header.provider == alera_core::runtime::AGENT_CHAT_UNSELECTED_PROVIDER {
+            return Err(conflict(
+                "providerRequired",
+                "Choose an agent before sending a message.",
+            ));
+        }
         if input.text.trim().is_empty() && input.attachments.is_empty() {
             return Err(HostError::format("a message needs text or attachments"));
         }
@@ -61,23 +48,42 @@ impl ChatSession {
         }
         let scope = self.client_message_scope();
         let digest = client_message_digest(&input);
-        if let AgentChatReceiptCheck::Replay(response) = self
+        match self
             .deps
             .store
             .check_agent_chat_receipt(&scope, &input.client_message_id, &digest)
             .await
             .map_err(|error| HostError::state(error.to_string()))?
         {
-            return Ok(response);
+            AgentChatReceiptCheck::Replay(response) => return Ok(response),
+            AgentChatReceiptCheck::Conflict => return Err(super::session_ops::receipt_conflict()),
+            AgentChatReceiptCheck::New => {}
         }
-        self.validate_turn_model(input.model.as_deref())?;
+        let effort = input.reasoning_effort.clone().or_else(|| {
+            (!input
+                .model
+                .as_deref()
+                .is_some_and(|model| self.header.session.model.as_deref() != Some(model)))
+            .then(|| self.header.session.reasoning_effort.clone())
+            .flatten()
+        });
+        let provider = self.header.provider.clone();
+        let instance_id = self.header.provider_instance_id.clone();
+        let model = input
+            .model
+            .clone()
+            .or_else(|| self.header.session.model.clone());
+        self.validate_effort(&provider, &instance_id, model.as_deref(), effort.as_deref())
+            .await?;
         if input.delivery == "steer" && !self.live_caps.as_ref().is_some_and(|caps| caps.steer) {
             return Err(unsupported(
                 "This provider cannot take input during a running turn.",
             ));
         }
         let client_message_id = input.client_message_id.clone();
-        let response = if self.must_queue() {
+        let response = if input.delivery == "steer" {
+            self.steer_message(input, ctx).await?
+        } else if self.must_queue() {
             self.enqueue(input, ctx)
         } else {
             self.start_turn(input, ctx).await?
@@ -98,70 +104,6 @@ impl ChatSession {
             || !self.header.pending_requests.is_empty()
             || !self.header.queue.is_empty()
             || self.deferred_turn.is_some()
-    }
-
-    fn enqueue(&mut self, input: SendInput, ctx: &CallerCtx) -> Value {
-        let entry = QueueEntry {
-            queue_id: new_id("queue"),
-            client_message_id: input.client_message_id,
-            text: input.text,
-            attachments: input.attachments,
-            created_at: now(),
-            model: input.model,
-            interaction_mode: input.interaction_mode,
-            runtime_mode_ceiling: input.runtime_mode_ceiling,
-            actor: Some(ctx.actor.clone()),
-            origin: input.origin,
-        };
-        let queue_id = entry.queue_id.clone();
-        self.header.queue.push(entry);
-        json!({"delivery": "queued", "queueId": queue_id})
-    }
-
-    pub(super) fn cancel_queued(&mut self, queue_id: &str) -> Value {
-        let before = self.header.queue.len();
-        self.header.queue.retain(|entry| entry.queue_id != queue_id);
-        json!({"cancelled": self.header.queue.len() != before})
-    }
-
-    pub(super) async fn cancel_message(&mut self, client_message_id: &str) -> HostResult<Value> {
-        let marked = self
-            .deps
-            .store
-            .cancel_agent_chat_message(&self.header.chat_id, client_message_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let before = self.header.queue.len();
-        self.header
-            .queue
-            .retain(|entry| entry.client_message_id != client_message_id);
-        if self.header.queue.len() != before {
-            return Ok(json!({"cancelled": true, "marked": marked}));
-        }
-        let Some(active_turn_id) = self.header.session.active_turn_id.clone() else {
-            return Ok(json!({"cancelled": false, "marked": marked}));
-        };
-        let turn = self
-            .deps
-            .store
-            .agent_chat_turn_for_client_message(&self.header.chat_id, client_message_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let owns_active_turn = turn
-            .as_ref()
-            .and_then(|value| value.get("turnId"))
-            .and_then(Value::as_str)
-            == Some(active_turn_id.as_str());
-        if !owns_active_turn {
-            return Ok(json!({"cancelled": false, "marked": marked}));
-        }
-        let response = self.interrupt(Some(&active_turn_id)).await?;
-        Ok(json!({
-            "cancelled": true,
-            "marked": marked,
-            "turnId": active_turn_id,
-            "interrupted": response.get("interrupted").cloned().unwrap_or(Value::Bool(false)),
-        }))
     }
 
     pub(super) async fn start_turn(
@@ -209,7 +151,8 @@ impl ChatSession {
                 self.header.provider
             )));
         }
-        let per_turn_model = self.validate_turn_model(input.model.as_deref())?;
+        let per_turn_model = self.apply_turn_configuration(&input).await?;
+        self.derive_first_send_title(&input.text).await;
         let resume =
             (self.provider.is_none() && self.startup.is_none()).then(|| self.plan_start(None));
         let stamp = now();
@@ -224,6 +167,7 @@ impl ChatSession {
                 .model
                 .clone()
                 .or_else(|| self.header.session.model.clone()),
+            reasoning_effort: self.header.session.reasoning_effort.clone(),
             provider: self.header.provider.clone(),
             provider_instance_id: self.header.provider_instance_id.clone(),
             generation: self.generation,
@@ -272,17 +216,24 @@ impl ChatSession {
                 HostError::state(format!("The message could not be saved: {error}"))
             })?;
         }
+        let mut options = super::session_effort::turn_effort_options(
+            &self.header.provider,
+            self.header.session.reasoning_effort.as_deref(),
+        );
+        if self.header.provider == "claudeAgent" {
+            options.insert("appUserItemId".into(), json!(item_id));
+        }
         let turn_input = TurnInput {
             thread_id: self.header.chat_id.clone(),
             input: text,
             attachments: provider_attachments(&input.attachments),
-            model: input.model.clone().filter(|_| per_turn_model),
+            model: self.header.session.model.clone().filter(|_| per_turn_model),
             interaction_mode: if interaction == "plan" {
                 InteractionMode::Plan
             } else {
                 InteractionMode::Default
             },
-            options: Default::default(),
+            options,
         };
         if self.provider.is_some() {
             self.submit_turn(turn_input).await;
@@ -318,7 +269,12 @@ impl ChatSession {
         };
         match provider.send_turn(input).await {
             Ok(result) => {
-                self.provider_turn_id = Some(result.turn_id.clone());
+                self.provider_turn_id = Some(
+                    result
+                        .native_turn_id
+                        .clone()
+                        .unwrap_or_else(|| result.turn_id.clone()),
+                );
                 if let Some(app_turn) = self.header.session.active_turn_id.clone() {
                     self.map_native_turn(&result.turn_id, &app_turn).await;
                     if let Some(native) = &result.native_turn_id {
@@ -327,6 +283,7 @@ impl ChatSession {
                 }
                 self.handoff_pending = false;
                 self.events_armed = true;
+                self.remember_first_send().await;
             }
             Err(error) => {
                 let message = error.to_string();
@@ -352,6 +309,8 @@ impl ChatSession {
             return Err(conflict("turnNotActive", "That turn is no longer running."));
         }
         if self.deferred_turn.take().is_some() || self.provider.is_none() {
+            self.cancel_startup().await;
+            self.revoke_launch_credentials("interrupted").await;
             self.finish_turn("interrupted", None, Some("interrupted".into()))
                 .await;
             return Ok(json!({"acknowledged": true, "interrupted": true}));
@@ -411,7 +370,10 @@ impl ChatSession {
         self.expire_requests_of_turn(Some(&turn_id));
         if self.provider.is_some() {
             self.set_status("ready");
-        } else if matches!(self.header.session.status.as_str(), "running" | "waiting") {
+        } else if matches!(
+            self.header.session.status.as_str(),
+            "running" | "waiting" | "starting"
+        ) {
             self.set_status("stopped");
         }
         if status == "failed" {
@@ -446,6 +408,7 @@ impl ChatSession {
             attachments: entry.attachments,
             delivery: "auto".into(),
             model: entry.model,
+            reasoning_effort: entry.reasoning_effort,
             interaction_mode: entry.interaction_mode,
             runtime_mode_ceiling: entry.runtime_mode_ceiling,
             origin: entry.origin,

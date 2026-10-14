@@ -53,6 +53,10 @@ abstract final class AleraTokens {
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
   static const double chatBubbleMaxWidth = 620.0;
+
+  /// Share of a narrow transcript a sent message may span, so the bubble
+  /// still reads as right-aligned on a phone instead of filling the row.
+  static const double chatBubbleWidthFactor = 0.85;
   static const Size previewPhoneSize = Size(390, 844);
 
   // Control radii match desktop so ported DS widgets look identical.

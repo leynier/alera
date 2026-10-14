@@ -31,8 +31,47 @@ fn map_notification<T: JsonTransport>(
     let native_thread_id = thread_id(&params);
     let native_turn_id = turn_id(&params);
     let native_item_id = item_id(&params);
-    let kind = notification_kind(method, &params);
-    let payload = normalized_payload(method, &params)?;
+    let mut kind = notification_kind(method, &params);
+    let mut payload = normalized_payload(method, &params)?;
+    if let Some(task) = crate::lineage::native_task(&params)? {
+        if let Some(parent) = &task.parent_native_thread_id {
+            if provider
+                .session
+                .as_ref()
+                .is_some_and(|session| &session.native_thread_id == parent)
+            {
+                for child in &task.child_native_thread_ids {
+                    provider
+                        .native_child_parents
+                        .insert(child.clone(), parent.clone());
+                }
+            }
+        }
+        payload["nativeTask"] = serde_json::to_value(task).expect("native task is serializable");
+    }
+    let child_parent = native_thread_id
+        .as_deref()
+        .and_then(|id| provider.native_child_parents.get(id))
+        .cloned();
+    if let (Some(child), Some(parent)) = (native_thread_id.as_ref(), child_parent.as_ref()) {
+        let terminal = matches!(method, "turn/completed" | "turn/aborted" | "thread/closed");
+        kind = if terminal {
+            EventKind::TaskCompleted
+        } else if matches!(method, "thread/started" | "turn/started") {
+            EventKind::TaskStarted
+        } else {
+            EventKind::TaskProgress
+        };
+        payload = serde_json::json!({
+            "taskId":child,
+            "status":if terminal { "completed" } else { "running" },
+            "nativeTask":alera_provider_protocol::NativeTask {
+                parent_native_thread_id:Some(parent.clone()), child_native_thread_ids:vec![child.clone()],
+                status:Some(method.into()), ..Default::default()
+            },
+            "detail":payload,
+        });
+    }
     let thread_id = provider.app_thread_id(native_thread_id.as_deref());
     let mut event = ProviderEvent::new(
         alera_provider_protocol::ProviderKind::Codex,
@@ -42,7 +81,14 @@ fn map_notification<T: JsonTransport>(
         payload,
         Some(raw_event(method, "notification", message)),
     );
-    event.turn_id = native_turn_id.clone();
+    event.turn_id = if child_parent.is_some() {
+        provider
+            .session
+            .as_ref()
+            .and_then(|session| session.active_turn_id.clone())
+    } else {
+        native_turn_id.clone()
+    };
     event.item_id = native_item_id.clone();
     event.provider_refs = Some(ProviderRefs {
         provider_turn_id: native_turn_id,
@@ -50,7 +96,14 @@ fn map_notification<T: JsonTransport>(
         provider_request_id: None,
     });
     event.validate()?;
-    provider.apply_notification_state(method, event.turn_id.as_deref());
+    if native_thread_id.as_deref().is_none_or(|id| {
+        provider
+            .session
+            .as_ref()
+            .is_none_or(|session| session.native_thread_id == id)
+    }) {
+        provider.apply_notification_state(method, event.turn_id.as_deref());
+    }
     Ok(event)
 }
 

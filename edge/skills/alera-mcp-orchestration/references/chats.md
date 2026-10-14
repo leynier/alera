@@ -23,7 +23,7 @@ Optional delegation fields are `title`, `role`, `agent` (`providerInstanceId`, o
 
 ## Follow Work And Send Messages
 
-- `chat_task_status` reads a task's lineage, state and bounded final result. `acknowledge` marks a delivered result as read. Completion follows the child's settled turn, not the initial request acknowledgement.
+- `chat_task_status` reads a task's lineage, state and bounded final result. `acknowledge:true` marks a delivered result as read; supply stable `clientRequestId` for the updated host's durable acknowledgement receipt. The ID is accepted only with acknowledgement; omission preserves legacy no-ID behavior. Because this mixed tool can acknowledge, it advertises execute access rather than read-only. Completion follows the child's settled turn, not the initial request acknowledgement.
 - `chat_task_wait` waits for `taskIds`, with `until` `any` or `all` (default `all`) and `timeoutSeconds` from 1 to 50 (default 50). Repeat with the same ids while work continues.
 - `chat_task_list` filters by `parentChatId`, `childChatId`, `rootTaskId`, `projectId`, `workspaceId`, `hostId`, `statuses`, or `attention`. `limit` defaults to 100 and accepts 1 to 200; pass `nextCursor` back as `cursor` for the next page.
 - `chat_send` sends `message` to `chatId`. `delivery` is `auto` (default) or `queue`, which waits behind an active turn. `expectReply` creates a message task whose settled result can notify the sender.
@@ -36,6 +36,6 @@ Follow-up delegation creates a new task even when it reuses a chat. Completion n
 - `chat_interrupt` takes `chatId` and optional `turnId`, interrupting the active turn without archiving its chat.
 - `chat_requests` lists open approval, user-input and elicitation requests, optionally filtered by `chatId` or `taskId`.
 - `chat_respond` answers `runtimeRequestId` for `chatId` with the exact offered decision or native object in `response`.
-- `chat_configure` changes an idle chat. Pass `chatId` and at least one of `provider`, `providerInstanceId`, `model`, `runtimeMode`, or `interactionMode`. Provider changes preserve chat identity and lineage while changing native session generation.
+- `chat_configure` changes an idle chat. Pass `chatId` and at least one of `provider`, `providerInstanceId`, `model`, `resetModel`, `reasoningEffort`, `resetReasoningEffort`, `runtimeMode`, or `interactionMode`. Model and effort omission preserve selection; `resetModel:true` and `resetReasoningEffort:true` send explicit null for provider defaults. Never combine a selection with its reset. Provider changes preserve chat identity and lineage while changing native session generation. These controls do not grant Settings administration.
 
 Every mutation accepts `clientRequestId`. Choose a stable id before the first call and reuse it with the same payload after an unclear answer. The runtime replays its durable receipt; a reused key with a different payload conflicts. Do not retry with a new key when the previous mutation may have succeeded.

@@ -30,6 +30,9 @@ pub struct CodexProvider<T> {
     pub(crate) approval_policy: Option<ApprovalPolicy>,
     pub(crate) sandbox_mode: Option<SandboxMode>,
     pub(crate) terminal_event_pending: bool,
+    pub(crate) history_mode: Option<String>,
+    pub(crate) session_effort: Option<String>,
+    pub(crate) native_child_parents: HashMap<String, String>,
 }
 
 impl<T> CodexProvider<T> {
@@ -48,6 +51,9 @@ impl<T> CodexProvider<T> {
             approval_policy: None,
             sandbox_mode: None,
             terminal_event_pending: false,
+            history_mode: None,
+            session_effort: None,
+            native_child_parents: HashMap::new(),
         }
     }
 
@@ -108,15 +114,30 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
             native_turn_ids: true,
             multiple_threads: false,
             model_switch: true,
-            steer: false,
+            steer: true,
             snapshot: false,
-            rollback: false,
-            fork: false,
+            rollback: true,
+            fork: true,
         }
     }
 
     fn session(&self) -> Option<&ProviderSession> {
         self.session.as_ref()
+    }
+
+    fn reasoning_effort_capabilities(
+        &self,
+    ) -> alera_provider_protocol::ReasoningEffortCapabilities {
+        crate::reasoning_effort::capabilities()
+    }
+
+    fn native_history_capabilities(&self) -> alera_provider_protocol::NativeHistoryCapabilities {
+        alera_provider_protocol::NativeHistoryCapabilities {
+            fork_at_turn: true,
+            rollback_remove_turns: self.history_mode.as_deref() != Some("paginated"),
+            rollback_before_turn: self.history_mode.as_deref() == Some("paginated"),
+            ..Default::default()
+        }
     }
 
     async fn initialize(&mut self) -> Result<(), ProviderError> {
@@ -131,63 +152,36 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         &mut self,
         input: SessionStartInput,
     ) -> Result<ProviderSession, ProviderError> {
-        input.validate()?;
-        if self.session.is_some() {
-            return Err(ProviderError::InvalidState(
-                "Codex provider supports one session per connection".into(),
-            ));
-        }
-        self.pending_thread_id = Some(input.thread_id.clone());
-        if let Err(error) = self.initialize().await {
-            self.pending_thread_id = None;
-            return Err(error);
-        }
-        let native_requested = self.next_session_thread(&input);
         let method = if input.resume_thread_id.is_some() {
             "thread/resume"
         } else {
             "thread/start"
         };
-        let mut params = self.thread_params(&input)?;
-        if method == "thread/resume" {
-            params.insert("threadId".into(), Value::String(native_requested.clone()));
-        }
-        let response = self.call(method, Value::Object(params)).await;
-        self.pending_thread_id = None;
-        let response = response?;
-        let native_thread_id = Self::decode_thread_id(&response)?;
-        let model = input.model.or_else(|| self.config.model.clone());
-        let cwd = input.cwd.or_else(|| self.config.cwd.clone());
-        let defaults = crate::policy::runtime_defaults(input.runtime_mode);
-        self.runtime_mode = input.runtime_mode;
-        self.approval_policy = Some(
-            input
-                .approval_policy
-                .or(self.config.approval_policy)
-                .unwrap_or(defaults.approval_policy),
-        );
-        self.sandbox_mode = Some(
-            input
-                .sandbox_mode
-                .or(self.config.sandbox_mode)
-                .unwrap_or(defaults.sandbox_mode),
-        );
-        let session = ProviderSession {
-            provider: ProviderKind::Codex,
-            provider_instance_id: self.config.instance_id.clone(),
-            thread_id: input.thread_id,
-            native_thread_id,
-            status: if self.pending_requests.is_empty() {
-                SessionStatus::Ready
-            } else {
-                SessionStatus::Waiting
-            },
-            model,
-            cwd,
-            active_turn_id: None,
-        };
-        self.session = Some(session.clone());
-        Ok(session)
+        let native = input.resume_thread_id.clone();
+        self.start_native_session(input, method, native.as_deref(), None)
+            .await
+    }
+
+    async fn fork_session(
+        &mut self,
+        input: alera_provider_protocol::NativeForkInput,
+    ) -> Result<alera_provider_protocol::NativeForkResult, ProviderError> {
+        self.fork_native(input).await
+    }
+
+    async fn rollback_session(
+        &mut self,
+        input: alera_provider_protocol::NativeRollbackInput,
+    ) -> Result<alera_provider_protocol::NativeRollbackResult, ProviderError> {
+        self.rollback_native(input).await
+    }
+
+    async fn steer_turn(
+        &mut self,
+        input: TurnInput,
+        expected_turn_id: &str,
+    ) -> Result<(), ProviderError> {
+        self.steer_native(input, expected_turn_id).await
     }
 
     async fn send_turn(&mut self, input: TurnInput) -> Result<TurnStartResult, ProviderError> {

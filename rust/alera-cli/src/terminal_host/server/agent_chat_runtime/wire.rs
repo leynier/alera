@@ -106,6 +106,8 @@ pub(crate) struct ChatTurn {
     pub reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
     #[serde(default)]
     pub provider: String,
     #[serde(default)]
@@ -155,6 +157,8 @@ pub(crate) struct QueueEntry {
     pub created_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interaction_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

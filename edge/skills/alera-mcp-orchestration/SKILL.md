@@ -2,14 +2,14 @@
 name: alera-mcp-orchestration
 description: Delegate tasks to Alera agents and start, follow, and steer runs, their gates, and run recipes through this MCP server. Use when work should be split among agents or tracked as a run.
 metadata:
-  version: 4
+  version: 5
 ---
 
 # Alera Orchestration Through MCP
 
 A run groups a plan, its tasks, gates, a timeline, and the worktrees it keeps. A coordinator agent plans it and workers carry it out; the runtime owns the lifecycle. Workers need no acceptance or heartbeat: the runtime sees them start and stall on its own. As an MCP client you are not a coordinator terminal, so the tools that cancel or interrupt a task run as audited administrative actions. Pass a clear `reason` to them.
 
-Live agent chats use a separate credential-bound catalog injected into their provider sessions. Read [chat orchestration](references/chats.md) when working inside such a chat or explaining that boundary. Those tools are absent from this cloud connection and an ordinary local server.
+Human chat-task orchestration uses four public tools with explicit operations and exact request bodies. Read [human chat tasks](references/chat-tasks.md) for delegation, messaging, bounded status/wait, parent binding, and controls. Live agents use a separate credential-bound catalog injected into their provider sessions; read [injected chat orchestration](references/chats.md) when working inside such a chat or explaining its lineage boundary. Injected tools remain absent from the ordinary local/cloud catalog, and public human tools remain absent from injected sessions.
 
 ## Pick The Simplest Tool
 

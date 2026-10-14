@@ -10,6 +10,7 @@ class const CommandTerminalRequest({
   required this.command,
   this.workingDirectory,
   this.description,
+  this.providerSetup,
 }) {
   /// Dialog title, in title case like the rest of the visible copy.
   final String title;
@@ -19,6 +20,9 @@ class const CommandTerminalRequest({
   /// parse time and nushell removed it, and a second line would land on the
   /// first command's stdin because PTY bytes go to the foreground process.
   final String command;
+
+  /// Host-only verified recipe selection. Command is display text in this mode.
+  final CommandTerminalProviderSetup? providerSetup;
 
   /// Directory the shell starts in. Null falls back to the user's home.
   final String? workingDirectory;
@@ -51,3 +55,32 @@ String? commandTerminalHomeDirectory(Map<String, String> environment) {
   }
   return null;
 }
+
+/// Opaque profile selection. Credentials and launch definitions stay on the host.
+final class const CommandTerminalProviderSetup({
+  required final String providerInstanceId,
+  required final String action,
+}) {
+  factory fromJson(Object? value) {
+    if (value is! Map ||
+        value.length != 2 ||
+        value['providerInstanceId'] is! String ||
+        value['action'] is! String) {
+      throw const FormatException('Provider setup selection is invalid.');
+    }
+    final id = value['providerInstanceId'] as String;
+    final action = value['action'] as String;
+    if (id.trim().isEmpty ||
+        !const ['signIn', 'install', 'update'].contains(action)) {
+      throw const FormatException('Provider setup selection is invalid.');
+    }
+    return CommandTerminalProviderSetup(providerInstanceId: id, action: action);
+  }
+
+  Map<String, Object?> toJson() => {
+    'providerInstanceId': providerInstanceId,
+    'action': action,
+  };
+}
+
+const String commandTerminalProviderSetupPayloadKey = 'providerSetup';

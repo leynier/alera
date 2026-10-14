@@ -40,7 +40,7 @@ pub(super) fn task_status(payload: &Value) -> Option<&'static str> {
         Some("completed" | "complete" | "done") => Some("completed"),
         Some("failed" | "error") => Some("failed"),
         Some("cancelled" | "canceled") => Some("cancelled"),
-        Some("interrupted" | "aborted") => Some("interrupted"),
+        Some("interrupted" | "aborted" | "stopped") => Some("interrupted"),
         _ => None,
     }
 }

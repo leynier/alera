@@ -1241,3 +1241,290 @@ abstract class _$MobileDelegateChatTaskForm
     return element.handleCreate(ref, () => build(_$args));
   }
 }
+
+/// Whether the paired runtime lets a person name a parent chat, so a task
+/// delegated from a chat reports back to it. A plain no on older runtimes.
+
+@ProviderFor(mobileChatTaskPersonParent)
+final mobileChatTaskPersonParentProvider = MobileChatTaskPersonParentFamily._();
+
+/// Whether the paired runtime lets a person name a parent chat, so a task
+/// delegated from a chat reports back to it. A plain no on older runtimes.
+
+final class MobileChatTaskPersonParentProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether the paired runtime lets a person name a parent chat, so a task
+  /// delegated from a chat reports back to it. A plain no on older runtimes.
+  MobileChatTaskPersonParentProvider._({
+    required MobileChatTaskPersonParentFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileChatTaskPersonParentProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileChatTaskPersonParentHash();
+
+  @override
+  String toString() {
+    return r'mobileChatTaskPersonParentProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    final argument = this.argument as String;
+    return mobileChatTaskPersonParent(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileChatTaskPersonParentProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileChatTaskPersonParentHash() =>
+    r'5c6aa42b87a29ba0dda8821248ad2084245977ac';
+
+/// Whether the paired runtime lets a person name a parent chat, so a task
+/// delegated from a chat reports back to it. A plain no on older runtimes.
+
+final class MobileChatTaskPersonParentFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<bool>, String> {
+  MobileChatTaskPersonParentFamily._()
+    : super(
+        retry: null,
+        name: r'mobileChatTaskPersonParentProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether the paired runtime lets a person name a parent chat, so a task
+  /// delegated from a chat reports back to it. A plain no on older runtimes.
+
+  MobileChatTaskPersonParentProvider call(String hostId) =>
+      MobileChatTaskPersonParentProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'mobileChatTaskPersonParentProvider';
+}
+
+/// Which chats on this host show their Tasks dock expanded. Session state,
+/// so leaving and reopening a chat keeps it.
+
+@ProviderFor(MobileChatTaskDockExpansion)
+final mobileChatTaskDockExpansionProvider =
+    MobileChatTaskDockExpansionFamily._();
+
+/// Which chats on this host show their Tasks dock expanded. Session state,
+/// so leaving and reopening a chat keeps it.
+final class MobileChatTaskDockExpansionProvider
+    extends $NotifierProvider<MobileChatTaskDockExpansion, Set<String>> {
+  /// Which chats on this host show their Tasks dock expanded. Session state,
+  /// so leaving and reopening a chat keeps it.
+  MobileChatTaskDockExpansionProvider._({
+    required MobileChatTaskDockExpansionFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileChatTaskDockExpansionProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileChatTaskDockExpansionHash();
+
+  @override
+  String toString() {
+    return r'mobileChatTaskDockExpansionProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  MobileChatTaskDockExpansion create() => MobileChatTaskDockExpansion();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Set<String> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Set<String>>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileChatTaskDockExpansionProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileChatTaskDockExpansionHash() =>
+    r'a9be5497362d4d704513e345085fa06af06bf0be';
+
+/// Which chats on this host show their Tasks dock expanded. Session state,
+/// so leaving and reopening a chat keeps it.
+
+final class MobileChatTaskDockExpansionFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          MobileChatTaskDockExpansion,
+          Set<String>,
+          Set<String>,
+          Set<String>,
+          String
+        > {
+  MobileChatTaskDockExpansionFamily._()
+    : super(
+        retry: null,
+        name: r'mobileChatTaskDockExpansionProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// Which chats on this host show their Tasks dock expanded. Session state,
+  /// so leaving and reopening a chat keeps it.
+
+  MobileChatTaskDockExpansionProvider call(String hostId) =>
+      MobileChatTaskDockExpansionProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'mobileChatTaskDockExpansionProvider';
+}
+
+/// Which chats on this host show their Tasks dock expanded. Session state,
+/// so leaving and reopening a chat keeps it.
+
+abstract class _$MobileChatTaskDockExpansion extends $Notifier<Set<String>> {
+  late final _$args = ref.$arg as String;
+  String get hostId => _$args;
+
+  Set<String> build(String hostId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<Set<String>, Set<String>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<Set<String>, Set<String>>,
+              Set<String>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
+/// Whether a delegation on this host may choose the child's reasoning
+/// effort. Without it no effort control appears.
+
+@ProviderFor(mobileChatTaskEffortSupported)
+final mobileChatTaskEffortSupportedProvider =
+    MobileChatTaskEffortSupportedFamily._();
+
+/// Whether a delegation on this host may choose the child's reasoning
+/// effort. Without it no effort control appears.
+
+final class MobileChatTaskEffortSupportedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether a delegation on this host may choose the child's reasoning
+  /// effort. Without it no effort control appears.
+  MobileChatTaskEffortSupportedProvider._({
+    required MobileChatTaskEffortSupportedFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mobileChatTaskEffortSupportedProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mobileChatTaskEffortSupportedHash();
+
+  @override
+  String toString() {
+    return r'mobileChatTaskEffortSupportedProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    final argument = this.argument as String;
+    return mobileChatTaskEffortSupported(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MobileChatTaskEffortSupportedProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mobileChatTaskEffortSupportedHash() =>
+    r'1996a45f9f186ac39cd99780573c3326ee96f132';
+
+/// Whether a delegation on this host may choose the child's reasoning
+/// effort. Without it no effort control appears.
+
+final class MobileChatTaskEffortSupportedFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<bool>, String> {
+  MobileChatTaskEffortSupportedFamily._()
+    : super(
+        retry: null,
+        name: r'mobileChatTaskEffortSupportedProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether a delegation on this host may choose the child's reasoning
+  /// effort. Without it no effort control appears.
+
+  MobileChatTaskEffortSupportedProvider call(String hostId) =>
+      MobileChatTaskEffortSupportedProvider._(argument: hostId, from: this);
+
+  @override
+  String toString() => r'mobileChatTaskEffortSupportedProvider';
+}

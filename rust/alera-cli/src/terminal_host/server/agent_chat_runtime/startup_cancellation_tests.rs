@@ -17,6 +17,9 @@ use crate::terminal_host::server::chat_orchestration::ChatCredentialLaunchHook;
 
 const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
+#[path = "startup_deferred_tests.rs"]
+mod deferred_tests;
+
 #[derive(Default)]
 struct FirstStartupGate {
     attempts: AtomicUsize,
@@ -146,6 +149,24 @@ impl StartupHarness {
         .await
         .unwrap()
         .unwrap();
+        self.runtime
+            .send(
+                created["chatId"].as_str().unwrap(),
+                SendInput {
+                    client_message_id: "first-startup-message".into(),
+                    text: "Start the deferred provider.".into(),
+                    attachments: Vec::new(),
+                    delivery: "auto".into(),
+                    model: None,
+                    reasoning_effort: None,
+                    interaction_mode: None,
+                    runtime_mode_ceiling: None,
+                    origin: None,
+                },
+                CallerCtx::runtime(),
+            )
+            .await
+            .unwrap();
         tokio::time::timeout(TEST_DEADLINE, self.gate.entered.notified())
             .await
             .unwrap();
@@ -286,6 +307,7 @@ async fn cancelled_launch_cannot_revoke_reopened_same_generation_credentials() {
                 attachments: Vec::new(),
                 delivery: "auto".into(),
                 model: None,
+                reasoning_effort: None,
                 interaction_mode: None,
                 runtime_mode_ceiling: None,
                 origin: None,

@@ -1,24 +1,27 @@
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chat/alera_message_queue.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_question_card.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_card.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_dock.dart';
 import 'package:flutter/material.dart';
 
-/// What sits between the transcript and the composer: the question the agent
-/// is blocked on, and the messages the runtime holds for after this turn.
-/// The docks scroll within half the available height. The composer pins its
-/// actions while its input shrinks for a keyboard or large text.
+/// What sits between the transcript and the composer, in priority order:
+/// notices, the requests the agent is blocked on, then the messages the
+/// runtime holds for after this turn. The docks scroll within half the
+/// available height. The composer pins its actions while its input shrinks
+/// for a keyboard or large text.
 class const AgentChatFooter({
   super.key,
-  required final List<AgentChatRequest> questions,
+  required final List<AgentChatRequest> requests,
   required final List<AgentChatQueueEntry> queue,
   required final bool canRespond,
   required final Set<String> respondingRequestIds,
   required final AgentChatRespond onRespond,
+  required final AgentChatTypingClock typing,
   required final Future<void> Function(AgentChatQueueEntry entry)
   onRemoveQueued,
   required final Future<void> Function(AgentChatQueueEntry entry) onEditQueued,
+  final Future<void> Function(AgentChatQueueEntry entry)? onSteerQueued,
   required final Widget composer,
   required final double minimumComposerHeight,
   final List<Widget> notices = const <Widget>[],
@@ -26,15 +29,15 @@ class const AgentChatFooter({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final question = questions.firstOrNull;
     final upper = <Widget>[
       ...notices,
-      if (question != null)
-        AgentChatQuestionCard(
-          key: ValueKey<String>('question-${question.id}'),
-          request: question,
-          enabled: canRespond && !respondingRequestIds.contains(question.id),
+      if (requests.isNotEmpty)
+        AgentChatRequestDock(
+          requests: requests,
+          enabled: canRespond,
+          respondingRequestIds: respondingRequestIds,
           onRespond: onRespond,
+          typing: typing,
         ),
       if (queue.isNotEmpty)
         AleraMessageQueue(
@@ -49,10 +52,10 @@ class const AgentChatFooter({
                 ),
               ),
           ],
-          // Steering a queued message would be two requests that can half
-          // fail; Edit and Remove are what the runtime offers atomically.
-          canSteer: false,
-          onSteer: (_) async {},
+          // Steer is offered only where the runtime moves the entry into the
+          // running turn in one step; two requests could half fail.
+          canSteer: onSteerQueued != null,
+          onSteer: (id) => _withEntry(id, onSteerQueued ?? (_) async {}),
           onRemove: (id) => _withEntry(id, onRemoveQueued),
           onEdit: (id) => _withEntry(id, onEditQueued),
         ),

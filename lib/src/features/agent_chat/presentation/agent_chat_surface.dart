@@ -2,17 +2,22 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/surfaces/alera_popover.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_commands.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_direct_open.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_view_state.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_archived_chats_dialog.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_settings.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_full_data.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_view.dart';
-import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
@@ -40,9 +45,19 @@ class const AgentChatSurface({
 
 class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
   final TerminalComposerController _composer = TerminalComposerController();
-  final AgentChatExpansion _expansion = AgentChatExpansion();
+  final AleraPopoverController _picker = AleraPopoverController();
   late final AgentChatComposerDrafts _drafts;
   late AgentChatTimelineActions _actions;
+  AgentChatTurnHistoryActions get _history => AgentChatTurnHistoryActions(
+    chat: AgentChatRef(chatId: widget.chatId, workspaceId: widget.workspace.id),
+    composer: _composer,
+    onOpenFile: (path) => unawaited(_openFile(path)),
+  );
+  AgentChatHistorySupport _historySupport = (
+    fork: false,
+    diff: false,
+    rewind: const AgentChatRewindOptions(),
+  );
 
   AgentChatControllerProvider get _provider =>
       agentChatControllerProvider(widget.chatId, widget.workspace.id);
@@ -52,8 +67,68 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
     super.initState();
     _drafts = ref.read(agentChatComposerDraftsProvider);
     _restoreDraft();
+    // The draft map stays current while typing, so New Agent Chat can tell
+    // an empty never-sent chat from one with unsent text.
+    _composer.addListener(_saveCurrentDraft);
+    _composer.textController.addListener(_saveCurrentDraft);
     _actions = _buildActions(implementablePlanId: null);
-    if (widget.autofocus) _focusComposerNextFrame(onlyIfParked: false);
+    // New Agent Chat focuses the chat it created even in a surface that
+    // does not autofocus, such as the side panel's single surface; a chat
+    // created while the person moved on to another field waits for that
+    // field to let go.
+    final requested = ref
+        .read(agentChatDirectOpenerProvider)
+        .takeInitialFocus(widget.chatId);
+    if (requested != null || widget.autofocus) {
+      _focusComposerNextFrame(onlyIfParked: requested ?? false);
+    }
+  }
+
+  void _saveCurrentDraft() => _saveDraft(widget.chatId);
+
+  /// Another client discarded or deleted this chat. Unsent text here is the
+  /// person's and must survive; it can start a new chat, never by itself.
+  void _offerRemovedDraft() {
+    final draft = AgentChatComposerDraft(
+      text: _composer.textController.text,
+      attachments: List.unmodifiable(_composer.attachments),
+    );
+    if (draft.isEmpty) return;
+    // The tab may close before the toast's action is pressed.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final workspace = widget.workspace;
+    final chatId = widget.chatId;
+    AleraToast.publish(
+      message:
+          'This chat was removed on another device. Your unsent text is '
+          'kept.',
+      actionLabel: 'Start New Chat With This Text',
+      onAction: () {
+        container.read(agentChatComposerDraftsProvider).remove(chatId);
+        unawaited(
+          container
+              .read(agentChatDirectOpenerProvider)
+              .open(
+                read: container.read,
+                exists: container.exists,
+                workspace: workspace,
+                draft: draft,
+              ),
+        );
+      },
+    );
+  }
+
+  void _onCommand(AgentChatComposerCommand? command) {
+    if (command == null || command.chatId != widget.chatId || !mounted) {
+      return;
+    }
+    switch (command.kind) {
+      case AgentChatComposerCommandKind.focus:
+        _composer.focusNode.requestFocus();
+      case AgentChatComposerCommandKind.chooseModel:
+        _picker.open();
+    }
   }
 
   @override
@@ -73,7 +148,10 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
   @override
   void dispose() {
     _saveDraft(widget.chatId);
+    _composer.removeListener(_saveCurrentDraft);
+    _composer.textController.removeListener(_saveCurrentDraft);
     _composer.dispose();
+    _picker.dispose();
     super.dispose();
   }
 
@@ -114,52 +192,44 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
     required String? implementablePlanId,
   }) => AgentChatTimelineActions(
     chatId: widget.chatId,
-    onRespond: (request, response) =>
-        unawaited(_controller.respond(request, response)),
     onRetrySend: (id) => unawaited(_controller.retrySend(id)),
     onEditSend: _editFailedSend,
     onOpenLink: (link) => unawaited(_openLink(link)),
     onOpenFile: (path) => unawaited(_openFile(path)),
     onImplementPlan: () => unawaited(_implementPlan()),
     implementablePlanId: implementablePlanId,
+    onForkTurn: _historySupport.fork
+        ? (turnId) => unawaited(_history.fork(context, ref, turnId))
+        : null,
+    onRewindTurn: _historySupport.rewind.transcript
+        ? (turnId) => unawaited(_history.rewind(context, ref, turnId))
+        : null,
+    onNativeRewindTurn: _historySupport.rewind.conversation
+        ? (turnId) => unawaited(
+            _history.rewind(
+              context,
+              ref,
+              turnId,
+              kind: AgentChatRewindKind.conversation,
+            ),
+          )
+        : null,
+    onRewindFilesTurn: _historySupport.rewind.files
+        ? (turnId) => unawaited(_history.rewindFiles(context, ref, turnId))
+        : null,
+    onShowTurnDiff: _historySupport.diff
+        ? (turnId) => unawaited(_history.showDiff(context, ref, turnId))
+        : null,
   );
 
   void _editFailedSend(String clientMessageId) {
     final message = _controller.discardSend(clientMessageId);
     if (message == null) return;
-    final draft = _composer.textController.text;
-    final text = message.text.isEmpty
-        ? draft
-        : draft.isEmpty
-        ? message.text
-        : '$draft\n\n${message.text}';
-    _composer.textController.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-    );
-    for (final attachment in message.attachments) {
-      final path = attachment.path;
-      if (path == null) continue;
-      final kind = attachment.type.isImage
-          ? TerminalComposerAttachmentKind.image
-          : TerminalComposerAttachmentKind.file;
-      if (_composer.attachments.any(
-        (current) => current.path == path && current.kind == kind,
-      )) {
-        continue;
-      }
-      _composer.addAttachment(
-        kind: kind,
-        path: path,
-        displayName: attachment.displayName,
-      );
-    }
-    if (draft.isNotEmpty) {
+    if (appendAgentChatDraft(_composer, message.text, message.attachments)) {
       AleraToast.publish(
         message: 'The failed message was added to your draft.',
       );
     }
-    _composer.focusNode.requestFocus();
   }
 
   Future<void> _implementPlan() async {
@@ -211,6 +281,12 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(agentChatComposerCommandsProvider, (_, command) {
+      _onCommand(command);
+    });
+    ref.listen(_provider.select((state) => state.removed), (was, removed) {
+      if (removed && was != true) _offerRemovedDraft();
+    });
     final phase = ref.watch(_provider.select((state) => state.phase));
     final hasThread = ref.watch(
       _provider.select((state) => state.thread != null),
@@ -228,18 +304,33 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
     }
     return ColoredBox(
       color: AleraTokens.bg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Expanded(child: _buildTimeline()),
-          AgentChatFooter(
-            chatId: widget.chatId,
-            workspace: widget.workspace,
-            fallbackProvider: widget.fallbackProvider,
-            composer: _composer,
-            onOpenFile: (path) => unawaited(_openFile(path)),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(child: _buildTimeline()),
+            AgentChatFooter(
+              chatId: widget.chatId,
+              workspace: widget.workspace,
+              fallbackProvider: widget.fallbackProvider,
+              composer: _composer,
+              pickerController: _picker,
+              requestDockMaxHeight: constraints.maxHeight.isFinite
+                  ? constraints.maxHeight *
+                        AleraTokens.agentChatRequestDockHeightFraction
+                  : null,
+              onOpenFile: (path) => unawaited(_openFile(path)),
+              onOpenLink: (link) => unawaited(_openLink(link)),
+              onOpenArchived: () => unawaited(
+                showAgentChatArchivedChats(
+                  context,
+                  ref,
+                  workspace: widget.workspace,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -249,37 +340,48 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
       _provider.select(
         (state) => (
           projection: state.projection!,
-          responding: state.respondingRequestIds,
-          enabled: state.canSend,
           canLoadEarlier: state.thread!.historyBefore != null,
           loadingEarlier: state.loadingHistory,
           implementablePlanId: _implementablePlanId(state),
           title: state.thread!.title,
           provider: state.thread!.provider,
+          providerInstanceId: state.thread!.providerInstanceId,
           model: state.thread!.session.model,
+          session: state.thread!.session,
+          pendingOperation: state.thread!.pendingNativeOperation,
           hint: agentChatEmptyHint(state),
         ),
       ),
     );
-    if (_actions.implementablePlanId != view.implementablePlanId) {
+    final historySupport = watchAgentChatHistorySupport(
+      ref,
+      session: view.session,
+      pendingOperation: view.pendingOperation,
+    );
+    if (_actions.implementablePlanId != view.implementablePlanId ||
+        !sameAgentChatHistorySupport(_historySupport, historySupport)) {
+      _historySupport = historySupport;
       _actions = _buildActions(implementablePlanId: view.implementablePlanId);
     }
     if (view.projection.isEmpty && !view.canLoadEarlier) {
-      final provider = view.provider.isEmpty
-          ? widget.fallbackProvider
-          : view.provider;
+      final provider =
+          view.provider.isNotEmpty || view.providerInstanceId.isEmpty
+          ? view.provider
+          : widget.fallbackProvider;
+      final instance = ref
+          .watch(agentChatProviderCatalogProvider(widget.workspace.id))
+          .value
+          ?.where((instance) => instance.id == view.providerInstanceId)
+          .firstOrNull;
       return AgentChatEmptyConversation(
         title: view.title.isEmpty ? widget.fallbackTitle : view.title,
         provider: provider,
-        providerLabel:
-            ref
-                .watch(agentChatProviderCatalogProvider(widget.workspace.id))
-                .value
-                ?.where((instance) => instance.provider == provider)
-                .firstOrNull
-                ?.label ??
-            agentChatProviderFallbackLabel(provider),
-        model: view.model,
+        providerLabel: provider.isEmpty
+            ? agentChatNoAgentLabel
+            : instance?.label ?? agentChatProviderFallbackLabel(provider),
+        model: provider.isEmpty
+            ? null
+            : agentChatModelLabel(instance, view.model),
         workspacePath: widget.workspace.path,
         hint: view.hint,
       );
@@ -292,9 +394,6 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface> {
       child: AgentChatTimelineView(
         projection: view.projection,
         actions: _actions,
-        expansion: _expansion,
-        respondingRequestIds: view.responding,
-        enabled: view.enabled,
         workspacePath: widget.workspace.path,
         canLoadEarlier: view.canLoadEarlier,
         loadingEarlier: view.loadingEarlier,

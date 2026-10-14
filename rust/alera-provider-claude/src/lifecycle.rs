@@ -53,6 +53,10 @@ impl ClaudeProvider {
             stream_message_id: None,
             open_items: HashMap::new(),
             stream_items: HashMap::new(),
+            session_effort: None,
+            file_checkpointing: false,
+            fork_source_native_thread_id: None,
+            pending_user_prompt: None,
         })
     }
 
@@ -65,16 +69,46 @@ impl ClaudeProvider {
                 "Claude Code does not expose a read-only filesystem sandbox".into(),
             ));
         }
-        if let Some(unsupported) = input
-            .options
-            .keys()
-            .find(|key| !matches!(key.as_str(), "permissionMode" | "interactionMode"))
-        {
+        if let Some(unsupported) = input.options.keys().find(|key| {
+            !matches!(
+                key.as_str(),
+                "permissionMode"
+                    | "interactionMode"
+                    | "reasoningEffort"
+                    | "enableFileCheckpointing"
+            )
+        }) {
             return Err(ProviderError::Unsupported(format!(
                 "unsupported Claude session option: {unsupported}"
             )));
         }
         let mut options = self.config.options.clone();
+        if let Some(effort) = alera_provider_protocol::reasoning_effort(&input.options)? {
+            reasoning_effort::validate(
+                effort,
+                input.model.as_deref().or(options.model.as_deref()),
+            )?;
+            options.effort = Some(effort.into());
+        }
+        if let Some(value) = input.options.get("enableFileCheckpointing") {
+            options.enable_file_checkpointing = value.as_bool().ok_or_else(|| {
+                ProviderError::Validation("enableFileCheckpointing must be a boolean".into())
+            })?;
+        }
+        if options.enable_file_checkpointing {
+            if options
+                .extra_args
+                .get("replay-user-messages")
+                .is_some_and(Option::is_some)
+            {
+                return Err(ProviderError::Validation(
+                    "Claude replay-user-messages checkpoint flag cannot have a value".into(),
+                ));
+            }
+            options
+                .extra_args
+                .insert("replay-user-messages".into(), None);
+        }
         if input.cwd.is_some() {
             options.cwd = input.cwd.clone();
         }
@@ -215,6 +249,9 @@ impl ClaudeProvider {
     }
 
     pub(super) fn set_native_thread(&mut self, native: &str) {
+        if self.fork_source_native_thread_id.as_deref() == Some(native) {
+            return;
+        }
         if let Some(session) = &mut self.session {
             if !native.is_empty() {
                 session.native_thread_id = native.to_owned();
@@ -232,6 +269,9 @@ impl ClaudeProvider {
             session_started_payload(&native_thread_id),
             self.raw("session", json!({ "status": "ready" })),
         ));
+        if self.fork_source_native_thread_id.is_some() && native_thread_id.starts_with("pending:") {
+            return;
+        }
         self.queue(self.event(
             EventKind::ThreadStarted,
             json!({ "providerThreadId": native_thread_id.clone() }),
@@ -257,6 +297,21 @@ mod tests {
     use alera_provider_protocol::{McpServerSpec, McpTransport};
     use std::collections::BTreeMap;
     use std::path::PathBuf;
+
+    #[test]
+    fn checkpoint_enabling_adds_native_replay_flag_without_claiming_active_rewind() {
+        let provider = ClaudeProvider::new(ClaudeProviderConfig::default()).unwrap();
+        let mut input = SessionStartInput::new("app");
+        input
+            .options
+            .insert("enableFileCheckpointing".into(), json!(true));
+        let options = provider.build_options(&input).unwrap();
+        assert!(options.enable_file_checkpointing);
+        assert_eq!(options.extra_args.get("replay-user-messages"), Some(&None));
+        let capabilities = provider.native_history_capabilities();
+        assert!(capabilities.file_checkpointing);
+        assert!(!capabilities.rewind_files);
+    }
 
     #[test]
     fn full_access_overrides_configured_default_permission_mode() {

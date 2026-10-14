@@ -10,16 +10,23 @@ mod cancellation;
 mod credentials;
 mod delegate_wait;
 mod delegation;
+mod delegation_options;
+mod job_lifecycle;
 mod lineage;
 mod messages;
 mod models;
 mod monitor;
+mod native_operation_guard;
+pub(crate) mod operation_wire;
 mod operations;
+mod parent;
 mod queries;
 mod request_admission;
+mod request_parser;
 mod runtime;
 mod service;
 mod targets;
+mod task_acknowledgement;
 mod tasks;
 mod wakes;
 
@@ -48,17 +55,31 @@ mod delegate_wait_tests;
 #[cfg(test)]
 mod delegation_tests;
 #[cfg(test)]
+mod effort_configuration_tests;
+#[cfg(test)]
+mod frozen_receipt_replay_tests;
+#[cfg(test)]
 pub(crate) mod mock_provider;
+#[cfg(test)]
+mod native_operation_guard_tests;
+#[cfg(test)]
+mod operation_wire_tests;
 #[cfg(test)]
 mod parser_boundary_tests;
 #[cfg(test)]
 mod paused_runtime_fixture;
+#[cfg(test)]
+mod person_parent_tests;
 #[cfg(test)]
 mod preparation_failure_tests;
 #[cfg(test)]
 mod restart_recovery_tests;
 #[cfg(test)]
 mod satellite_fixture;
+#[cfg(test)]
+mod shutdown_tests;
+#[cfg(test)]
+mod task_acknowledgement_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 #[cfg(test)]

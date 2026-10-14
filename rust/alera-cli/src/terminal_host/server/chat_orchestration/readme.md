@@ -35,21 +35,21 @@ The scope and actor always come from the connection; payload fields such as `act
 
 ## Verbs
 
-Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond` and `configure`) carry `requestId`. Receipts are keyed by `(scope, verb, requestId)` plus a canonical payload digest: the same payload replays the stored response, a different one fails with `request_conflict`. Task acknowledgement is a separate idempotent state update without a request id; bound callers may acknowledge only tasks in their descendant lineage.
+Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, `configure`, and `task` with `acknowledge: true`) carry `requestId`. Receipts are keyed by `(scope, verb, requestId)` plus a canonical payload digest: the same payload replays the stored response, a different one fails with `request_conflict`. A task acknowledgement's digest contains its task id and acknowledgement action, and its bound lineage is checked before replay. New CLI and MCP acknowledgement mutations must send a request id. Legacy `task {acknowledge: true}` without `requestId` remains supported as an idempotent state update, but does not store a receipt or guarantee stable response replay or request-id conflicts. Plain task queries never acknowledge a result or record a receipt.
 
 | Verb | Payload | Result |
 | --- | --- | --- |
 | `chatOrchestration.capabilities` | `{}` | `{maxWaitSeconds: 50, providers: [Provider + {mcpInjection {stdio, http}, orchestration {supported, reason?}}], runtimeModes, ceilingRuntimeModes, caller?: {chatId, runtimeMode}}` |
-| `chatOrchestration.delegate` | `{requestId, task, title?, role?, notify?, mode?: async\|wait, waitSeconds?, agent?: {providerInstanceId, model?, options?}, runtimeMode?, interactionMode?, target}` | `{taskId, chatId?, workspaceId?, status, result?, task}` |
-| `chatOrchestration.send` | `{requestId, chatId, message, delivery?: auto\|queue, expectReply?}` | `{chatId, delivery, taskId?}` |
-| `chatOrchestration.task` | `{taskId, acknowledge?}` | `{task}` |
+| `chatOrchestration.delegate` | `{requestId, task, parentChatId?, title?, role?, notify?, mode?: async\|wait, waitSeconds?, agent?: {providerInstanceId, model?, options?}, runtimeMode?, interactionMode?, target}` | `{taskId, chatId?, workspaceId?, status, result?, task}` |
+| `chatOrchestration.send` | `{requestId, chatId, message, parentChatId?, delivery?: auto\|queue, expectReply?}` | `{chatId, delivery, taskId?}` |
+| `chatOrchestration.task` | `{taskId, acknowledge?, requestId?}` (new acknowledgements send `requestId`) | `{task}` |
 | `chatOrchestration.tasks.list` | `{parentChatId?, childChatId?, rootTaskId?, workspaceId?, projectId?, statuses?, attention?, limit?, cursor?}` | `{tasks, nextCursor?}` |
 | `chatOrchestration.wait` | `{taskIds, waitSeconds?, until?: all\|any}` (default `all`) | `{tasks, timedOut}` |
 | `chatOrchestration.cancel` | `{requestId, taskId, reason?}` | `{task, cancelledTaskIds}` |
 | `chatOrchestration.interrupt` | `{requestId, chatId}` | `{acknowledged: true}` |
 | `chatOrchestration.requests` | `{taskId?, chatId?}` | `{requests: [{chatId, taskId?, request}]}` |
 | `chatOrchestration.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |
-| `chatOrchestration.configure` | `{requestId, chatId, providerInstanceId?, model?, runtimeMode?, interactionMode?}` | `{snapshot}` (as `agentChat.configure`) |
+| `chatOrchestration.configure` | `{requestId, chatId, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` (as `agentChat.configure`) |
 | `chatOrchestration.read` | `{chatId, limit?}` | `{chat, messages, plans, truncated}` |
 | `chatOrchestration.list` | `{workspaceId?, projectId?, hostId?, includeArchived?}` | `{chats}` |
 
@@ -59,7 +59,11 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond` a
 
 `notify`: `always` (async default), `settled_only` (wait default; becomes `always` when the wait times out), `never`.
 
-Nonempty `agent.options` is currently unsupported. Delegating to an existing chat does not implicitly replace its provider or runtime policy: incompatible explicit settings fail, and the caller can configure an eligible idle chat first. A differing model is accepted only when the target can honor it for that turn.
+With `chatOrchestrationPersonParentV1`, authenticated desktop, local CLI, and paired-phone callers may set `parentChatId` to an existing unarchived local or remote chat. The task belongs to that parent's dock, active task lineage, and wake delivery while its actor remains the person and its brief has no `senderChatId`. Omitting the parent keeps standalone tasks. A bound agent's parent always remains its authenticated chat; a conflicting payload fails with `not_in_lineage`. Satellite reverse callers cannot claim person parent authority. `send` ignores a person's parent when `expectReply` is false. Caller and lineage authorization precede receipt lookup. A matching receipt replays its stored response during a native freeze; a changed digest still fails with `request_conflict`. Only new requests apply the `nativeOperationPending` or `nativeOperationUncertain` parent/destination check before workspace preparation or native input. The store also checks the parent, resolved root, child, and existing-chat destination atomically at task creation, so a freeze observed during atomic task admission prevents the task and subsequent workspace effects.
+
+With `chatOrchestrationEffortV1`, `agent.options` accepts only `reasoningEffort` as a nonempty string; omit it for the default. Unknown keys and non-string efforts are rejected. The destination runtime validates the selected model's verified effort support before creation or message admission, including on a remote host. Delegating to an existing chat does not implicitly replace its provider or runtime policy: incompatible explicit settings fail, and the caller can configure an eligible idle chat first. A differing model is accepted only when the target can honor it for that turn.
+
+For `configure`, omitting `model` or `reasoningEffort` preserves the current selection; explicit `null` resets it to the instance/provider model default or default effort. This distinction is preserved through remote operations and receipt digests. Model or instance changes can clear an incompatible effort according to the chat runtime's configuration rules. Runtime ceilings remain derived from the authenticated caller.
 
 ### Task
 
@@ -67,7 +71,7 @@ The store record is internal; the wire task is a projection:
 
 `{taskId, kind: delegate|message, status, parentTaskId?, rootTaskId, depth, parentChatId?, childChatId?, workspaceId?, projectId?, hostId?, target, title?, role?, brief?, notify, attention: bool, attentionKind?: needs_input|failed, resultDelivery: pending|notified|acknowledged, result?: {text, truncated, turnId?}, error?: {code?, message}, pendingRequestCount?, provider?, providerInstanceId?, model?, runtimeMode?, labels?: {parentChatTitle?, childChatTitle?, projectName?, workspaceName?, hostLabel?}, actor, createdAt, updatedAt, completedAt?}`
 
-`status`: `preparing|running|needs_input|completed|failed|interrupted|cancel_requested|cancelled`. A task completes when the child's turn started for it (matched by `clientMessageId`) settles; its result is the final assistant text of that turn (bounded). An open child request moves it to `needs_input`; answering moves it back to `running`. `brief` is the task text, bounded like the result. `attention` is true for `needs_input`, and for `failed` until the result is acknowledged. `task` with `acknowledge: true` acknowledges a settled result; reading without it never does, so a person looking at a child's task does not take the result from its parent.
+`status`: `preparing|running|needs_input|completed|failed|interrupted|cancel_requested|cancelled`. A task completes when the child's turn started for it (matched by `clientMessageId`) settles; its result is the final assistant text of that turn (bounded). An open child request moves it to `needs_input`; answering moves it back to `running`. `brief` is the task text, bounded like the result. `attention` is true for `needs_input`, and for `failed` until the result is acknowledged. `task` with `acknowledge: true` acknowledges a settled result without changing its status; an unsettled task fails with `task_not_settled` and does not consume the request id. Reading without acknowledgement never writes a receipt or takes the result from its parent.
 
 ### Chat summary and read
 
@@ -83,7 +87,13 @@ A wake is a message into the parent chat with `origin {kind: orchestrationWake, 
 
 ## Errors
 
-`errorCode` (snake_case) next to `error`: `request_conflict`, `chat_not_found`, `task_not_found`, `not_in_lineage`, `mode_ceiling`, `caller_turn_inactive`, `chat_credential_invalid`, `chat_scope_denied`, `chat_archived`, `invalid_target`, `unsupported`, `host_unavailable`.
+`errorCode` (snake_case) next to `error`: `request_conflict`, `chat_not_found`, `task_not_found`, `not_in_lineage`, `mode_ceiling`, `caller_turn_inactive`, `chat_credential_invalid`, `chat_scope_denied`, `chat_archived`, `invalid_target`, `unsupported`, `host_unavailable`, `chat_orchestration_shutdown`.
+
+## Host shutdown
+
+The host calls `ChatOrchestrationService::shutdown().await` before `AgentChatRuntime::shutdown`. Orchestration permanently closes admission, aborts its requests and task monitors, and awaits their cancellation within one five-second deadline. Wake delivery is inline in those jobs and quiesces with them. A `false` result retains unfinished handles for a shutdown retry; the host must leave chat actors running and must not claim disposal until shutdown returns `true`. Completed jobs remove their own handles instead of accumulating task history in memory.
+
+Shutdown does not fail or cancel durable tasks, remove receipts, or acknowledge undelivered wakes. A request stopped during preparation or inference leaves its committed state for startup recovery. A sealed wake keeps its stable message id for replay. Requests arriving after admission closes fail with `chat_orchestration_shutdown` before authorization, target preparation, or runtime effects; ordinary request authorization and receipt behavior remain unchanged while admission is open.
 
 ## Remote hosts
 

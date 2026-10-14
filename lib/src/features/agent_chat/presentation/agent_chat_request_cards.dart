@@ -1,14 +1,18 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_key_value_row.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
+import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_elicitation_form.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
 /// An approval the agent is blocked on: what it wants to run, change or read,
-/// and the decisions the runtime offers, in the runtime's order, since a
-/// provider may not honor any other.
+/// and exactly the decisions the runtime offers, in the runtime's order,
+/// since a provider may not honor any other. Two are buttons (the first
+/// decision and Decline when offered); the rest wait in an overflow.
 class const AgentChatApprovalCard({
   super.key,
   required final AgentChatRequest request,
@@ -25,7 +29,7 @@ class const AgentChatApprovalCard({
     final detail = agentChatJsonString(request.detail);
     final expiresAt = request.expiresAt;
     return _RequestCardFrame(
-      title: agentChatJsonString(request.title) ?? _approvalTitle(request.kind),
+      title: agentChatRequestTitle(request),
       responding: responding,
       actions: _decisionButtons(
         request.offeredDecisions,
@@ -68,6 +72,11 @@ class const AgentChatElicitationCard({
   )
   onRespond,
   final ValueChanged<String>? onOpenUrl,
+
+  /// The form's entries when the owner keeps them across rebuilds, as the
+  /// request dock does while the person pages between requests. The card
+  /// disposes only a form it created itself.
+  final AgentChatElicitationForm? form,
 }) extends StatefulWidget {
   @override
   State<AgentChatElicitationCard> createState() =>
@@ -75,21 +84,23 @@ class const AgentChatElicitationCard({
 }
 
 class _AgentChatElicitationCardState extends State<AgentChatElicitationCard> {
-  late AgentChatElicitationForm _form = AgentChatElicitationForm(
-    widget.request.elicitation,
-  );
+  AgentChatElicitationForm? _ownedForm;
+
+  AgentChatElicitationForm get _form =>
+      widget.form ??
+      (_ownedForm ??= AgentChatElicitationForm(widget.request.elicitation));
 
   @override
   void didUpdateWidget(covariant AgentChatElicitationCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.request.id == widget.request.id) return;
-    _form.dispose();
-    _form = AgentChatElicitationForm(widget.request.elicitation);
+    _ownedForm?.dispose();
+    _ownedForm = null;
   }
 
   @override
   void dispose() {
-    _form.dispose();
+    _ownedForm?.dispose();
     super.dispose();
   }
 
@@ -115,7 +126,7 @@ class _AgentChatElicitationCardState extends State<AgentChatElicitationCard> {
       .unsupported => false,
     };
     return _RequestCardFrame(
-      title: agentChatJsonString(widget.request.title) ?? 'Input Requested',
+      title: agentChatRequestTitle(widget.request),
       responding: widget.responding,
       actions: <Widget>[
         if (shape != .unsupported)
@@ -186,7 +197,7 @@ class const AgentChatUnsupportedRequestCard({
     final theme = Theme.of(context);
     final detail = agentChatJsonString(request.detail);
     return _RequestCardFrame(
-      title: agentChatJsonString(request.title) ?? 'The Agent Is Waiting',
+      title: agentChatRequestTitle(request),
       responding: responding,
       actions: _decisionButtons(
         request.decisions,
@@ -226,39 +237,100 @@ bool _isWebUrl(String url) {
   return scheme == 'https' || scheme == 'http';
 }
 
-String _approvalTitle(AgentChatRequestKind kind) => switch (kind) {
-  .commandExecutionApproval || .execCommandApproval => 'Run Command?',
-  .fileChangeApproval || .applyPatchApproval => 'Apply File Changes?',
-  .fileReadApproval => 'Read File?',
-  .permissionApproval => 'Permission Request',
-  _ => 'Approval Required',
-};
-
-String _decisionLabel(AgentChatApprovalDecision decision) => switch (decision) {
-  .accept => 'Allow Once',
-  .acceptForSession => 'Allow For Session',
-  .acceptAlways => 'Always Allow',
-  .decline => 'Decline',
-  .cancel => 'Cancel Turn',
-};
-
+/// The decisions as controls: the first decision and Decline (when offered)
+/// as buttons, the rest in an overflow, each group in the runtime's order.
 List<Widget> _decisionButtons(
   List<AgentChatApprovalDecision> decisions, {
   required bool enabled,
   required ValueChanged<AgentChatApprovalDecision> onDecision,
-}) => <Widget>[
-  for (final decision in decisions)
-    if (decision == .accept)
-      FilledButton(
-        onPressed: enabled ? () => onDecision(decision) : null,
-        child: Text(_decisionLabel(decision)),
-      )
-    else
-      TextButton(
-        onPressed: enabled ? () => onDecision(decision) : null,
-        child: Text(_decisionLabel(decision)),
+}) {
+  if (decisions.isEmpty) return const <Widget>[];
+  final primary = <AgentChatApprovalDecision>{
+    decisions.first,
+    if (decisions.contains(AgentChatApprovalDecision.decline))
+      AgentChatApprovalDecision.decline
+    else if (decisions.length > 1)
+      decisions[1],
+  };
+  final overflow = <AgentChatApprovalDecision>[
+    for (final decision in decisions)
+      if (!primary.contains(decision)) decision,
+  ];
+  return <Widget>[
+    for (final decision in decisions)
+      if (primary.contains(decision))
+        if (decision == decisions.first)
+          FilledButton(
+            key: ValueKey<String>('agent-chat-decision-${decision.wire}'),
+            onPressed: enabled ? () => onDecision(decision) : null,
+            child: Text(agentChatDecisionLabel(decision)),
+          )
+        else
+          OutlinedButton(
+            key: ValueKey<String>('agent-chat-decision-${decision.wire}'),
+            onPressed: enabled ? () => onDecision(decision) : null,
+            child: Text(agentChatDecisionLabel(decision)),
+          ),
+    if (overflow.isNotEmpty)
+      _DecisionOverflow(
+        decisions: overflow,
+        enabled: enabled,
+        onDecision: onDecision,
       ),
-];
+  ];
+}
+
+class const _DecisionOverflow({
+  required final List<AgentChatApprovalDecision> decisions,
+  required final bool enabled,
+  required final ValueChanged<AgentChatApprovalDecision> onDecision,
+}) extends StatefulWidget {
+  @override
+  State<_DecisionOverflow> createState() => _DecisionOverflowState();
+}
+
+class _DecisionOverflowState extends State<_DecisionOverflow> {
+  final AleraPopoverController _popover = AleraPopoverController();
+
+  @override
+  void dispose() {
+    _popover.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraPopover(
+      controller: _popover,
+      toggleOnAnchorTap: false,
+      width: AleraTokens.contextMenuWidth,
+      builder: (context, close) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (final decision in widget.decisions)
+            AleraMenuItem(
+              key: ValueKey<String>('agent-chat-decision-${decision.wire}'),
+              label: agentChatDecisionLabel(decision),
+              selected: false,
+              enabled: widget.enabled,
+              onTap: () {
+                close();
+                widget.onDecision(decision);
+              },
+            ),
+        ],
+      ),
+      child: AleraIconButton(
+        key: const ValueKey<String>('agent-chat-decision-more'),
+        tooltip: 'More Decisions',
+        icon: AleraIcons.more,
+        minSize: AleraTokens.iconButtonSm,
+        onPressed: widget.enabled ? _popover.toggle : null,
+      ),
+    );
+  }
+}
 
 String _clockTime(BuildContext context, DateTime value) =>
     MaterialLocalizations.of(context).formatTimeOfDay(

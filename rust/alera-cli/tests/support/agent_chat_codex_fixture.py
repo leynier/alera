@@ -33,7 +33,21 @@ def complete(thread, turn, item, status="completed"):
     })
 
 
-record({"event": "started", "cwd": os.getcwd(),
+arguments = sys.argv[1:]
+if arguments in (["--version"], ["debug", "models"]):
+    record({"event": "metadata_probe", "args": arguments,
+            "credentialPath": os.environ.get("ALERA_CHAT_CREDENTIAL_FILE")})
+    if arguments == ["--version"]:
+        sys.stdout.write("codex-cli 1.2.3\n")
+    else:
+        sys.stdout.write('{"models": []}\n')
+    sys.stdout.flush()
+    sys.exit(0)
+if arguments != ["app-server"]:
+    record({"event": "unexpected_command", "args": arguments})
+    raise RuntimeError("unsupported fixture command: %r" % arguments)
+
+record({"event": "started", "args": arguments, "cwd": os.getcwd(),
         "credentialPath": os.environ.get("ALERA_CHAT_CREDENTIAL_FILE"),
         "originator": os.environ.get("CODEX_INTERNAL_ORIGINATOR_OVERRIDE")})
 thread = "fixture-thread-" + str(os.getpid())

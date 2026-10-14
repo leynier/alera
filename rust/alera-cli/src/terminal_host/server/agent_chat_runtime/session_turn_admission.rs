@@ -15,6 +15,7 @@ pub(super) fn client_message_digest(input: &SendInput) -> String {
         "attachments": input.attachments,
         "delivery": input.delivery,
         "model": input.model,
+        "reasoningEffort": input.reasoning_effort,
         "interactionMode": input.interaction_mode,
         "origin": input.origin,
     }))
@@ -41,6 +42,34 @@ pub(super) fn provider_attachments(attachments: &[Value]) -> Vec<Attachment> {
 }
 
 impl ChatSession {
+    pub(super) async fn derive_first_send_title(&mut self, text: &str) {
+        if !self.never_sent() || self.header.title_source != "default" {
+            return;
+        }
+        let title: String = text
+            .lines()
+            .find(|line| !line.trim().is_empty())
+            .unwrap_or_default()
+            .trim()
+            .chars()
+            .take(200)
+            .collect();
+        if title.is_empty() {
+            return;
+        }
+        self.header.title = title;
+        self.header.title_source = "derived".into();
+        if let Ok(Some(workspace_id)) = self
+            .deps
+            .tabs
+            .rename_tab(&self.header.tab_id, &self.header.title)
+            .await
+        {
+            self.notify_tabs(workspace_id);
+        }
+        self.notify_chats();
+    }
+
     pub(super) async fn record_rejected_queued_turn(
         &mut self,
         input: SendInput,
@@ -60,6 +89,10 @@ impl ChatSession {
                 .model
                 .clone()
                 .or_else(|| self.header.session.model.clone()),
+            reasoning_effort: input
+                .reasoning_effort
+                .clone()
+                .or_else(|| self.header.session.reasoning_effort.clone()),
             provider: self.header.provider.clone(),
             provider_instance_id: self.header.provider_instance_id.clone(),
             generation: self.generation,

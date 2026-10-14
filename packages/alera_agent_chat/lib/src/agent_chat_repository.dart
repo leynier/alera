@@ -28,6 +28,11 @@ final class AgentChatConnectionLost extends AgentChatStreamEvent {
   const AgentChatConnectionLost();
 }
 
+/// The host discarded a never-sent draft or explicitly deleted an archive.
+/// Clients retain any local unsent text without selecting a different chat.
+final class const AgentChatRemoved({final bool discarded = false})
+    extends AgentChatStreamEvent;
+
 /// A chat list may have changed. [workspaceId] scopes it; `null` means any.
 final class AgentChatListChanged {
   const AgentChatListChanged([this.workspaceId]);
@@ -121,6 +126,7 @@ abstract interface class AgentChatRepository {
     AgentChatRecoverMode? mode,
   });
 
-  /// Archives the chat and stops its provider process; history is kept.
+  /// Archives sent chats or discards never-sent drafts. Use the additive
+  /// lifecycle service when the caller needs the host's close outcome.
   Future<void> close(AgentChatRef chat, {required String requestId});
 }

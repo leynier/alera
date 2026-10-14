@@ -199,7 +199,9 @@ pub struct AgentChatSnapshot {
     pub chat_id: String,
     pub workspace_id: String,
     pub tab_id: String,
+    #[serde(with = "super::agent_chat_selection")]
     pub provider_instance_id: String,
+    #[serde(with = "super::agent_chat_selection")]
     pub provider: String,
     #[serde(default)]
     pub title: String,

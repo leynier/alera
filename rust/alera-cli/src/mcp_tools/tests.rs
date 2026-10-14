@@ -305,6 +305,51 @@ fn chat_delegate_mcp_request_uses_client_request_id_and_task_stdin() {
 }
 
 #[test]
+fn injected_task_acknowledgement_maps_optional_request_id_without_changing_legacy_calls() {
+    let tool = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_task_status")
+        .unwrap();
+    let keyed = tool
+        .invocation(&json!({"taskId":"t","acknowledge":true,"clientRequestId":"ack-retry-1"}))
+        .unwrap();
+    assert!(keyed.args.contains(&"--request-id=ack-retry-1".into()));
+    let legacy = tool
+        .invocation(&json!({"taskId":"t","acknowledge":true}))
+        .unwrap();
+    assert!(!legacy
+        .args
+        .iter()
+        .any(|arg| arg.starts_with("--request-id=")));
+    assert!(tool
+        .invocation(&json!({"taskId":"t","clientRequestId":"read-only-1"}))
+        .is_err());
+}
+
+#[test]
+fn native_history_failures_require_observation_instead_of_automatic_retry() {
+    for arguments in [
+        json!({"operation":"rewind","payload":{"mode":"native"}}),
+        json!({"operation":"rewind-files","payload":{}}),
+        json!({"operation":"native-history-reconcile","payload":{}}),
+    ] {
+        let result = super::executor::guard_native_history_failure(
+            "agent_chat_control",
+            &arguments,
+            super::ToolResult::error("request did not finish within 30 seconds"),
+        );
+        assert_eq!(result.structured.unwrap()["error"]["retryable"], false);
+        assert!(result.text.contains("Read native-history-operation"));
+    }
+    let transcript = super::executor::guard_native_history_failure(
+        "agent_chat_control",
+        &json!({"operation":"rewind","payload":{"mode":"transcript"}}),
+        super::ToolResult::error("request did not finish within 30 seconds"),
+    );
+    assert_eq!(transcript.structured.unwrap()["error"]["retryable"], true);
+}
+
+#[test]
 fn chat_credential_file_validation_rejects_missing_and_empty_files() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("chat.token");

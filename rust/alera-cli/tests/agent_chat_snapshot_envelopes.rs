@@ -19,8 +19,28 @@ fn setup() -> (Host, Socket, String) {
     host.seed(&mut desktop);
     let created = desktop.create();
     let chat = created["chatId"].as_str().unwrap().to_owned();
-    desktop.wait_snapshot(&chat, |snapshot| snapshot["session"]["status"] == "ready");
+    let draft = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    assert_eq!(draft["session"]["status"], "stopped");
+    assert_eq!(draft["turns"], json!([]));
+    assert_eq!(draft["items"], json!([]));
+    host.assert_no_provider_start();
     (host, desktop, chat)
+}
+
+fn first_turn(desktop: &mut Socket, chat: &str) -> Value {
+    desktop.ok(
+        "agentChat.send",
+        json!({
+            "requestId": "first-send", "chatId": chat, "workspaceId": WORKSPACE,
+            "clientMessageId": "first-message", "text": "first",
+        }),
+    );
+    desktop.wait_snapshot(chat, |snapshot| {
+        snapshot["session"]["status"] == "ready"
+            && snapshot["turns"]
+                .as_array()
+                .is_some_and(|turns| turns.len() == 1 && turns[0]["status"] == "completed")
+    })
 }
 
 fn envelope_snapshot<'a>(response: &'a Value, chat: &str) -> &'a Value {
@@ -51,7 +71,7 @@ fn committed_event(socket: &mut Socket, chat: &str, cursor: &Value) {
 
 #[test]
 fn configure_envelopes_the_final_committed_snapshot_and_replays_it_exactly() {
-    let (_host, mut desktop, chat) = setup();
+    let (host, mut desktop, chat) = setup();
     let before = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
     assert!(
         before.get("snapshot").is_none(),
@@ -61,6 +81,7 @@ fn configure_envelopes_the_final_committed_snapshot_and_replays_it_exactly() {
     let configured = desktop.ok("agentChat.configure", payload.clone());
     let snapshot = envelope_snapshot(&configured, &chat);
     assert_eq!(snapshot["session"]["model"], "changed-model");
+    assert_eq!(snapshot["session"]["status"], "stopped");
     assert_eq!(
         snapshot["cursor"].as_u64(),
         Some(before["cursor"].as_u64().unwrap() + 2)
@@ -91,12 +112,48 @@ fn configure_envelopes_the_final_committed_snapshot_and_replays_it_exactly() {
     assert_eq!(error["ok"], false);
     assert_eq!(error["errorCode"], "request_conflict");
     assert!(error.get("payload").is_none());
+    host.assert_no_provider_start();
+    first_turn(&mut desktop, &chat);
+    assert_eq!(
+        host.inputs("thread/start")[0]["message"]["params"]["model"],
+        "later-model"
+    );
+    assert_eq!(
+        host.inputs("turn/start")[0]["message"]["params"]["model"],
+        "later-model"
+    );
+}
+
+#[test]
+fn recovering_an_unsent_draft_replays_one_envelope_without_starting_a_provider() {
+    for mode in [None, Some("resume"), Some("restart")] {
+        let (host, mut desktop, chat) = setup();
+        let before = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+        let payload = json!({"requestId": "recover-draft", "chatId": chat, "mode": mode});
+        let recovered = desktop.ok("agentChat.recover", payload.clone());
+        let snapshot = envelope_snapshot(&recovered, &chat);
+        assert_eq!(snapshot["session"], before["session"]);
+        assert_eq!(snapshot["turns"], json!([]));
+        assert_eq!(snapshot["items"], json!([]));
+        assert!(snapshot["recovery"].is_null());
+        assert_eq!(
+            snapshot["cursor"].as_u64(),
+            Some(before["cursor"].as_u64().unwrap() + 1)
+        );
+        committed_event(&mut desktop, &chat, &snapshot["cursor"]);
+        assert_eq!(desktop.ok("agentChat.recover", payload), recovered);
+        assert_eq!(
+            desktop.ok("agentChat.snapshot", json!({"chatId": chat})),
+            *snapshot
+        );
+        host.assert_no_provider_start();
+    }
 }
 
 #[test]
 fn recovering_an_already_running_session_returns_one_envelope_without_a_restart() {
     let (host, mut desktop, chat) = setup();
-    let before = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    let before = first_turn(&mut desktop, &chat);
     let payload = json!({"requestId": "recover-running", "chatId": chat, "mode": "resume"});
     let recovered = desktop.ok("agentChat.recover", payload.clone());
     let snapshot = envelope_snapshot(&recovered, &chat);
@@ -125,10 +182,13 @@ fn recovering_an_already_running_session_returns_one_envelope_without_a_restart(
 
 fn recover_stopped_session(mode: &str) {
     let (host, mut desktop, chat) = setup();
-    let before = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    let before = first_turn(&mut desktop, &chat);
+    let first_pid = host.inputs("thread/start")[0]["pid"].as_i64().unwrap();
     desktop.ok("workspace.sleep", json!({"workspaceId": WORKSPACE}));
     let stopped =
         desktop.wait_snapshot(&chat, |snapshot| snapshot["session"]["status"] == "stopped");
+    host.wait_for_exit(first_pid);
+    host.assert_no_chat_credentials();
     let payload = json!({"requestId": "recover-stopped", "chatId": chat, "mode": mode});
     let recovered = desktop.ok("agentChat.recover", payload.clone());
     let snapshot = envelope_snapshot(&recovered, &chat);
@@ -138,6 +198,8 @@ fn recover_stopped_session(mode: &str) {
         before["session"]["generation"]
     );
     assert!(snapshot["recovery"].is_null());
+    assert_eq!(snapshot["items"], before["items"]);
+    assert_eq!(snapshot["turns"], before["turns"]);
     assert_eq!(
         snapshot["cursor"].as_u64(),
         Some(stopped["cursor"].as_u64().unwrap() + 2)
@@ -154,6 +216,11 @@ fn recover_stopped_session(mode: &str) {
         desktop.ok("agentChat.snapshot", json!({"chatId": chat})),
         ready
     );
+    assert_eq!(
+        host.inputs("turn/start").len(),
+        1,
+        "recovery resent the completed turn"
+    );
     match mode {
         "restart" => {
             assert_eq!(host.inputs("thread/start").len(), 2);
@@ -163,13 +230,6 @@ fn recover_stopped_session(mode: &str) {
             assert_eq!(host.inputs("thread/start").len(), 1);
             let resumes = host.inputs("thread/resume");
             assert_eq!(resumes.len(), 1);
-            let first_pid = host
-                .log()
-                .into_iter()
-                .find(|row| row["event"] == "started")
-                .unwrap()["pid"]
-                .as_i64()
-                .unwrap();
             assert_eq!(
                 resumes[0]["message"]["params"]["threadId"],
                 format!("fixture-thread-{first_pid}")
@@ -191,7 +251,7 @@ fn recovering_a_stopped_session_resumes_its_native_thread_and_keeps_generation()
 
 #[test]
 fn snapshot_mutation_errors_keep_the_existing_protocol_shape() {
-    let (_host, mut desktop, chat) = setup();
+    let (host, mut desktop, chat) = setup();
     let invalid = desktop.request(
         "agentChat.configure",
         json!({
@@ -200,12 +260,18 @@ fn snapshot_mutation_errors_keep_the_existing_protocol_shape() {
     );
     assert_eq!(invalid["ok"], false);
     assert_eq!(invalid["errorCode"], "unsupported");
-    assert!(invalid["error"]
-        .as_str()
-        .unwrap()
-        .contains("unknown interaction mode"));
+    assert!(
+        invalid["error"]
+            .as_str()
+            .expect("invalid configure must keep its string error field")
+            .to_ascii_lowercase()
+            .contains("interaction mode"),
+        "invalid configure did not explain its rejected interaction mode: {invalid}"
+    );
     assert!(invalid.get("payload").is_none());
     assert!(invalid.get("snapshot").is_none());
+    host.assert_no_provider_start();
+    first_turn(&mut desktop, &chat);
     desktop.ok("workspace.sleep", json!({"workspaceId": WORKSPACE}));
     desktop.wait_snapshot(&chat, |snapshot| snapshot["session"]["status"] == "stopped");
     let invalid = desktop.request(
@@ -226,12 +292,13 @@ fn snapshot_mutation_errors_keep_the_existing_protocol_shape() {
 
 #[test]
 fn orchestration_configure_forwards_a_single_committed_snapshot_envelope() {
-    let (_host, mut desktop, chat) = setup();
+    let (host, mut desktop, chat) = setup();
     let before = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
     let payload = json!({"requestId": "orchestration-configure", "chatId": chat, "model": "orchestrated-model"});
     let configured = desktop.ok("chatOrchestration.configure", payload.clone());
     let snapshot = envelope_snapshot(&configured, &chat);
     assert_eq!(snapshot["session"]["model"], "orchestrated-model");
+    assert_eq!(snapshot["session"]["status"], "stopped");
     assert_eq!(
         snapshot["cursor"].as_u64(),
         Some(before["cursor"].as_u64().unwrap() + 2)
@@ -249,6 +316,7 @@ fn orchestration_configure_forwards_a_single_committed_snapshot_envelope() {
         desktop.ok("agentChat.snapshot", json!({"chatId": chat})),
         *snapshot
     );
+    host.assert_no_provider_start();
 }
 
 #[test]

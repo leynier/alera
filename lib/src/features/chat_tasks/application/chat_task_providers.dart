@@ -80,6 +80,17 @@ Future<List<AgentChatTaskRequest>> chatTaskRequests(
   return ref.watch(chatTaskRepositoryProvider).requests(taskId: taskId);
 }
 
+/// Whether a delegation may choose the child's reasoning effort. Without it
+/// no effort control appears.
+@riverpod
+Future<bool> chatTaskEffortSupported(Ref ref) async {
+  try {
+    return await ref.watch(chatTaskRepositoryProvider).supportsEffort();
+  } on Object {
+    return false;
+  }
+}
+
 @riverpod
 Future<AgentChatOrchestrationCapabilities> chatTaskCapabilities(Ref ref) =>
     ref.watch(chatTaskRepositoryProvider).capabilities();

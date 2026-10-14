@@ -150,6 +150,9 @@ impl ServerActor {
             name,
             "agentChatChanged"
                 | "agentChatsChanged"
+                | "agentChatDeleted"
+                | "agentChatProvidersChanged"
+                | "agentChatPreferencesChanged"
                 | "workspaceTabsChanged"
                 | super::hub_reverse_requests::HUB_REQUEST_EVENT
         ) {

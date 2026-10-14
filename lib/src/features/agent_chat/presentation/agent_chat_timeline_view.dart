@@ -3,28 +3,33 @@ import 'dart:collection';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_timeline_sessions.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_announcer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_entry.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_scrolling.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The scrolling conversation. It follows new output while the reader is at
-/// the bottom, keeps the reader's place when earlier history is loaded above,
-/// and reuses the widgets of rows whose data did not change.
+/// the end, pins a just-sent prompt near the top until the agent starts using
+/// tools, stays put once the reader scrolls away, keeps the reader's place
+/// when earlier history loads above, and restores scroll and folds when the
+/// tab comes back. Rows whose data did not change reuse their widgets, so a
+/// stream into the live turn rebuilds only that turn.
 class const AgentChatTimelineView({
   super.key,
   required final AgentChatTimelineProjection projection,
   required final AgentChatTimelineActions actions,
-  required final AgentChatExpansion expansion,
-  required final Set<String> respondingRequestIds,
-  required final bool enabled,
   required final String workspacePath,
   required final bool canLoadEarlier,
   required final bool loadingEarlier,
   required final VoidCallback onLoadEarlier,
-}) extends StatefulWidget {
+}) extends ConsumerStatefulWidget {
   @override
-  State<AgentChatTimelineView> createState() => _AgentChatTimelineViewState();
+  ConsumerState<AgentChatTimelineView> createState() =>
+      _AgentChatTimelineViewState();
 }
 
 final class _CachedEntry {
@@ -35,145 +40,143 @@ final class _CachedEntry {
   final GlobalKey anchorKey;
 }
 
-class _AgentChatTimelineViewState extends State<AgentChatTimelineView> {
+class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
+    with AgentChatTimelineScrolling<AgentChatTimelineView> {
   static const int _cacheLimit = 128;
   static const String _entryKeyPrefix = 'agent-chat-entry:';
 
-  final ScrollController _scroll = ScrollController();
-  final GlobalKey _viewportKey = GlobalKey();
   final LinkedHashMap<String, _CachedEntry> _cache =
       LinkedHashMap<String, _CachedEntry>();
-  bool _showJumpToBottom = false;
-  bool _followScheduled = false;
-  ({String key, double top})? _anchor;
+  late AgentChatTimelineSession _session;
+  ({String key, double top})? _historyAnchor;
+
+  @override
+  AgentChatTimelineSession get session => _session;
+
+  @override
+  RenderBox? entryBox(String key) {
+    final box =
+        _cache[key]?.anchorKey.currentContext?.findRenderObject() as RenderBox?;
+    return box == null || !box.attached || !box.hasSize ? null : box;
+  }
+
+  @override
+  Iterable<String> get builtEntryKeys => _cache.keys;
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_handleScroll);
-    _followOutput();
+    _session = ref
+        .read(agentChatTimelineSessionsProvider)
+        .of(widget.actions.chatId);
+    initScrolling();
   }
 
   @override
   void didUpdateWidget(covariant AgentChatTimelineView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.actions.chatId != widget.actions.chatId) {
+      saveScrolling();
+      _session = ref
+          .read(agentChatTimelineSessionsProvider)
+          .of(widget.actions.chatId);
+      _cache.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) => restoreScrolling());
+      return;
+    }
     if (oldWidget.workspacePath != widget.workspacePath ||
-        !identical(oldWidget.actions, widget.actions) ||
-        oldWidget.enabled != widget.enabled) {
+        !identical(oldWidget.actions, widget.actions)) {
       _cache.clear();
     }
     if (!oldWidget.loadingEarlier && widget.loadingEarlier) {
-      _anchor = _captureAnchor();
+      _historyAnchor = captureAnchor();
     }
     if (oldWidget.loadingEarlier && !widget.loadingEarlier) {
-      final anchor = _anchor;
-      _anchor = null;
+      final anchor = _historyAnchor;
+      _historyAnchor = null;
       if (anchor != null) {
         WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _restoreAnchor(anchor),
+          (_) => restoreAnchor(anchor),
         );
       }
-    } else if (!identical(oldWidget.projection, widget.projection) &&
-        !_showJumpToBottom) {
-      _followOutput();
+      return;
     }
+    if (identical(oldWidget.projection, widget.projection)) return;
+    if (TickerMode.valuesOf(context).enabled) {
+      AgentChatTimelineAnnouncer.announce(
+        context,
+        before: oldWidget.projection,
+        after: widget.projection,
+      );
+    }
+    _trackSend(oldWidget.projection);
+    applyScrollMode();
+  }
+
+  /// A message this client just sent anchors the timeline; once the runtime
+  /// stamps it into a turn, the anchor moves to that turn, and once the turn
+  /// starts using tools the timeline follows the output instead.
+  void _trackSend(AgentChatTimelineProjection before) {
+    final projection = widget.projection;
+    for (final entry in projection.entries.reversed) {
+      if (entry is! AgentChatOutgoingEntry) continue;
+      if (before.indexOfKey(entry.key) != null) break;
+      if (entry.message.status == AgentChatOutgoingStatus.failed) break;
+      startAnchoring(entry.key, clientMessageId: entry.message.clientMessageId);
+      return;
+    }
+    if (session.mode != AgentChatScrollMode.anchoring) return;
+    var key = session.anchoredEntryKey;
+    if (key != null && projection.indexOfKey(key) == null) {
+      key = _turnKeyFor(session.anchoredClientMessageId);
+      session.anchoredEntryKey = key;
+    }
+    final index = key == null ? null : projection.indexOfKey(key);
+    final entry = index == null ? null : projection.entries[index];
+    if (entry == null) {
+      stopAnchoring();
+    } else if (entry case AgentChatTurnEntry(:final section)
+        when section.activity.any((row) => row is AgentChatActionGroupRow)) {
+      stopAnchoring();
+    }
+  }
+
+  String? _turnKeyFor(String? clientMessageId) {
+    if (clientMessageId == null) return null;
+    for (final entry in widget.projection.entries.reversed) {
+      if (entry is AgentChatTurnEntry &&
+          entry.section.prompts.any(
+            (prompt) => prompt.clientMessageId == clientMessageId,
+          )) {
+        return entry.key;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void deactivate() {
+    saveScrolling();
+    super.deactivate();
   }
 
   @override
   void dispose() {
-    _scroll
-      ..removeListener(_handleScroll)
-      ..dispose();
+    disposeScrolling();
     super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!_scroll.hasClients) return;
-    final show = _scroll.position.extentAfter > AleraTokens.space48;
-    if (show != _showJumpToBottom) setState(() => _showJumpToBottom = show);
-  }
-
-  /// Lazily built rows change the scroll extent as they lay out, so one jump
-  /// can land short; settle over a few frames.
-  void _followOutput({bool animate = false}) {
-    if (_followScheduled) return;
-    _followScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        for (var attempt = 0; attempt < 4; attempt += 1) {
-          if (!mounted || !_scroll.hasClients) return;
-          final position = _scroll.position;
-          if (position.extentAfter < AleraTokens.dividerExtent) return;
-          if (animate && attempt == 0) {
-            await _scroll.animateTo(
-              position.maxScrollExtent,
-              duration: AleraTokens.durationMid,
-              curve: Curves.easeOut,
-            );
-          } else {
-            _scroll.jumpTo(position.maxScrollExtent);
-          }
-          await WidgetsBinding.instance.endOfFrame;
-        }
-      } finally {
-        _followScheduled = false;
-      }
-    });
-  }
-
-  ({String key, double top})? _captureAnchor() {
-    final viewport =
-        _viewportKey.currentContext?.findRenderObject() as RenderBox?;
-    if (viewport == null || !viewport.hasSize) return null;
-    final viewportTop = viewport.localToGlobal(Offset.zero).dy;
-    final viewportBottom = viewportTop + viewport.size.height;
-    ({String key, double top})? best;
-    for (final entry in _cache.entries) {
-      final box =
-          entry.value.anchorKey.currentContext?.findRenderObject()
-              as RenderBox?;
-      if (box == null || !box.attached || !box.hasSize) continue;
-      final top = box.localToGlobal(Offset.zero).dy;
-      if (top >= viewportBottom || top + box.size.height <= viewportTop) {
-        continue;
-      }
-      if (best == null || top < best.top) best = (key: entry.key, top: top);
-    }
-    return best;
-  }
-
-  void _restoreAnchor(({String key, double top}) anchor) {
-    if (!mounted || !_scroll.hasClients) return;
-    final box =
-        _cache[anchor.key]?.anchorKey.currentContext?.findRenderObject()
-            as RenderBox?;
-    if (box == null || !box.attached || !box.hasSize) return;
-    final correction = box.localToGlobal(Offset.zero).dy - anchor.top;
-    if (correction.abs() < 0.5) return;
-    final position = _scroll.position;
-    _scroll.jumpTo(
-      (position.pixels + correction).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      ),
-    );
   }
 
   Object _tokenFor(AgentChatTimelineEntry entry) => switch (entry) {
     AgentChatTurnEntry(:final section) => section,
     AgentChatStandaloneEntry(:final item) => item,
     AgentChatOutgoingEntry(:final message) => message,
-    AgentChatRequestEntry(:final request) => (
-      request,
-      widget.respondingRequestIds.contains(request.id),
-    ),
   };
 
   Widget _buildEntry(BuildContext context, int index) {
     final entry = widget.projection.entries[index];
     final token = _tokenFor(entry);
     final cached = _cache.remove(entry.key);
-    if (cached != null && cached.token == token) {
+    if (cached != null && identical(cached.token, token)) {
       _cache[entry.key] = cached;
       return cached.widget;
     }
@@ -192,13 +195,7 @@ class _AgentChatTimelineViewState extends State<AgentChatTimelineView> {
             child: AgentChatTimelineEntryView(
               entry: entry,
               actions: widget.actions,
-              expansion: widget.expansion,
-              responding: switch (entry) {
-                AgentChatRequestEntry(:final request) =>
-                  widget.respondingRequestIds.contains(request.id),
-                _ => false,
-              },
-              enabled: widget.enabled,
+              expansion: _session.expansion,
               workspacePath: widget.workspacePath,
             ),
           ),
@@ -225,77 +222,111 @@ class _AgentChatTimelineViewState extends State<AgentChatTimelineView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Stack(
-      key: _viewportKey,
+      key: viewportKey,
       children: <Widget>[
         AleraShimmerScope(
           child: SelectionArea(
-            child: CustomScrollView(
-              key: const ValueKey<String>('agent-chat-timeline'),
-              controller: _scroll,
-              slivers: <Widget>[
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: AleraTokens.space48,
-                    child: widget.canLoadEarlier || widget.loadingEarlier
-                        ? Center(
-                            child: widget.loadingEarlier
-                                ? AleraShimmerText(
-                                    text: 'Loading earlier messages',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: AleraTokens.foregroundMuted,
+            child: NotificationListener<ScrollEndNotification>(
+              onNotification: (_) {
+                recordReaderPlace();
+                return false;
+              },
+              child: CustomScrollView(
+                key: const ValueKey<String>('agent-chat-timeline'),
+                controller: scroll,
+                slivers: <Widget>[
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: AleraTokens.space48,
+                      child: widget.canLoadEarlier || widget.loadingEarlier
+                          ? Center(
+                              child: widget.loadingEarlier
+                                  ? AleraShimmerText(
+                                      text: 'Loading earlier messages',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: AleraTokens.foregroundMuted,
+                                          ),
+                                    )
+                                  : TextButton.icon(
+                                      key: const ValueKey<String>(
+                                        'agent-chat-load-earlier',
+                                      ),
+                                      onPressed: widget.onLoadEarlier,
+                                      icon: const Icon(
+                                        AleraIcons.chevronUp,
+                                        size: AleraTokens.iconSm,
+                                      ),
+                                      label: const Text(
+                                        'Load Earlier Messages',
+                                      ),
                                     ),
-                                  )
-                                : TextButton.icon(
-                                    key: const ValueKey<String>(
-                                      'agent-chat-load-earlier',
-                                    ),
-                                    onPressed: widget.onLoadEarlier,
-                                    icon: const Icon(
-                                      AleraIcons.chevronUp,
-                                      size: AleraTokens.iconSm,
-                                    ),
-                                    label: const Text('Load Earlier Messages'),
-                                  ),
-                          )
-                        : null,
+                            )
+                          : null,
+                    ),
                   ),
-                ),
-                SliverList.builder(
-                  itemCount: widget.projection.entries.length,
-                  itemBuilder: _buildEntry,
-                  findChildIndexCallback: _findIndex,
-                ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AleraTokens.space24),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_showJumpToBottom)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: AleraTokens.space12,
-            child: Center(
-              child: IconButton(
-                key: const ValueKey<String>('agent-chat-scroll-to-bottom'),
-                tooltip: 'Scroll To Bottom',
-                onPressed: () => _followOutput(animate: true),
-                style: IconButton.styleFrom(
-                  backgroundColor: AleraTokens.surfaceElevated,
-                  foregroundColor: AleraTokens.foreground,
-                  side: const BorderSide(color: AleraTokens.border),
-                  shape: const CircleBorder(),
-                ),
-                icon: const Icon(
-                  AleraIcons.arrowDown,
-                  size: AleraTokens.iconLg,
-                ),
+                  SliverList.builder(
+                    itemCount: widget.projection.entries.length,
+                    itemBuilder: _buildEntry,
+                    findChildIndexCallback: _findIndex,
+                  ),
+                  SliverToBoxAdapter(
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: anchorSpacer,
+                      builder: (context, spacer, _) =>
+                          SizedBox(height: AleraTokens.space24 + spacer),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: AleraTokens.space12,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: showScrollToEnd,
+            builder: (context, show, _) => show
+                ? Center(
+                    child: _ScrollToEndPill(
+                      label: agentChatScrollToEndLabel(
+                        widget.projection.requests,
+                      ),
+                      onPressed: () => followToEnd(animate: true),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class const _ScrollToEndPill({
+  required final String label,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final attention = label != agentChatScrollToEndDefaultLabel;
+    return OutlinedButton.icon(
+      key: const ValueKey<String>('agent-chat-scroll-to-bottom'),
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: AleraTokens.surfaceElevated,
+        foregroundColor: attention
+            ? AleraTokens.warning
+            : AleraTokens.foreground,
+        side: BorderSide(
+          color: attention ? AleraTokens.warning : AleraTokens.border,
+        ),
+        shape: const StadiumBorder(),
+      ),
+      icon: const Icon(AleraIcons.arrowDown, size: AleraTokens.iconMd),
+      label: Text(label),
     );
   }
 }

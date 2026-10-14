@@ -31,7 +31,9 @@ double agentChatComposerMinimumHeight(BuildContext context) =>
 
 /// The prompt field of a chat. Send stays available while a turn runs: the
 /// runtime queues the message behind it, so the person never has to wait to
-/// write the next instruction. Stop sits next to it while there is a turn.
+/// write the next instruction. Where the agent takes input mid-turn, a long
+/// press on Send steers the running turn instead. Stop sits next to it while
+/// there is a turn.
 class const AgentChatComposer({
   super.key,
   required final String hostId,
@@ -42,6 +44,7 @@ class const AgentChatComposer({
   required final List<AgentChatDraftAttachment> attachments,
   required final bool enabled,
   required final String hintText,
+  final bool sendBlocked = false,
   required final bool turnActive,
   required final bool canInterrupt,
   required final bool interrupting,
@@ -49,6 +52,7 @@ class const AgentChatComposer({
   required final ValueChanged<AgentChatDraftAttachment> onRemoveAttachment,
   required final VoidCallback onSend,
   required final VoidCallback onStop,
+  final VoidCallback? onSteer,
   final Widget? settings,
 }) extends StatelessWidget {
   String get _dictationTarget => 'agent-chat-$chatId';
@@ -176,17 +180,36 @@ class const AgentChatComposer({
                         ValueListenableBuilder<TextEditingValue>(
                           valueListenable: controller,
                           builder: (context, value, _) {
+                            // Typing stays open while the agent cannot run, so
+                            // the draft is ready once it can.
                             final ready =
                                 enabled &&
+                                !sendBlocked &&
                                 (value.text.trim().isNotEmpty ||
                                     attachments.isNotEmpty);
-                            return IconButton.filled(
-                              tooltip: turnActive ? 'Queue Message' : 'Send',
+                            final steer = turnActive ? onSteer : null;
+                            final button = IconButton.filled(
+                              // A tooltip would take the long press Steer
+                              // needs, so the hint moves to semantics.
+                              tooltip: steer != null
+                                  ? null
+                                  : turnActive
+                                  ? 'Queue Message'
+                                  : 'Send',
                               onPressed: ready ? onSend : null,
                               icon: Icon(
                                 turnActive
                                     ? AleraIcons.queuedMessage
                                     : AleraIcons.send,
+                              ),
+                            );
+                            if (steer == null) return button;
+                            return Semantics(
+                              label: 'Queue Message',
+                              onLongPressHint: 'Steer the running turn',
+                              child: GestureDetector(
+                                onLongPress: ready ? steer : null,
+                                child: button,
                               ),
                             );
                           },

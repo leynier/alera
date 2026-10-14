@@ -12,7 +12,17 @@ use super::session_provider::StartMode;
 use super::tab_directory::{chat_tab_payload, chat_tab_record};
 
 impl ChatSession {
-    fn require_idle(&self, what: &str) -> HostResult<()> {
+    pub(super) fn require_idle(&self, what: &str) -> HostResult<()> {
+        if let Some(op) = self
+            .native_operation
+            .as_ref()
+            .filter(|op| super::session_native_history_recovery::native_operation_freezes(op))
+        {
+            return Err(super::session_native_history::native_pending_error(
+                op,
+                op.state == "uncertain",
+            ));
+        }
         if self.header.session.active_turn_id.is_some()
             || !self.header.pending_requests.is_empty()
             || !self.header.queue.is_empty()
@@ -30,14 +40,11 @@ impl ChatSession {
         let instance_id = input
             .provider_instance_id
             .clone()
-            .or_else(|| input.provider.clone());
-        let switching = instance_id
-            .as_ref()
-            .is_some_and(|id| id != &self.header.provider_instance_id);
-        if switching {
-            let instance_id = instance_id.expect("checked above");
-            let provider = self
-                .deps
+            .or_else(|| input.provider.clone())
+            .unwrap_or_else(|| self.header.provider_instance_id.clone());
+        let switching = instance_id != self.header.provider_instance_id;
+        let provider = if switching {
+            self.deps
                 .instances
                 .provider_of(&instance_id, input.provider.as_deref())
                 .ok_or_else(|| {
@@ -45,58 +52,95 @@ impl ChatSession {
                         "providerUnavailable",
                         format!("Unknown provider instance {instance_id}"),
                     )
-                })?;
-            self.require_idle("switching providers")?;
-            self.switch_provider(provider, instance_id, input.model.clone().flatten())
+                })?
+        } else {
+            self.header.provider.clone()
+        };
+        let default_model = self
+            .deps
+            .instances
+            .find(&instance_id)
+            .and_then(|instance| instance.default_model);
+        let model = match &input.model {
+            Some(model) => model.clone().or(default_model),
+            None if switching => default_model,
+            None => self.header.session.model.clone(),
+        };
+        let effort = match &input.reasoning_effort {
+            Some(effort) => effort.clone(),
+            None if switching || model != self.header.session.model => None,
+            None => self.header.session.reasoning_effort.clone(),
+        };
+        if provider == alera_core::runtime::AGENT_CHAT_UNSELECTED_PROVIDER {
+            return Err(conflict(
+                "providerRequired",
+                "Choose an agent before configuring this chat.",
+            ));
+        }
+        let traits = provider_traits(&provider)
+            .ok_or_else(|| conflict("providerUnavailable", "Unknown provider"))?;
+        let runtime_mode = input.runtime_mode.clone().unwrap_or_else(|| {
+            if traits
+                .runtime_modes
+                .contains(&self.header.session.runtime_mode.as_str())
+            {
+                self.header.session.runtime_mode.clone()
+            } else {
+                "approval-required".into()
+            }
+        });
+        let interaction_mode = input.interaction_mode.clone().unwrap_or_else(|| {
+            if traits
+                .interaction_modes
+                .contains(&self.header.session.interaction_mode.as_str())
+            {
+                self.header.session.interaction_mode.clone()
+            } else {
+                "default".into()
+            }
+        });
+        if !traits.runtime_modes.contains(&runtime_mode.as_str())
+            || !traits
+                .interaction_modes
+                .contains(&interaction_mode.as_str())
+        {
+            return Err(unsupported(
+                "This agent does not support the requested runtime or interaction mode.",
+            ));
+        }
+        self.validate_effort(&provider, &instance_id, model.as_deref(), effort.as_deref())
+            .await?;
+        let restart = !switching
+            && (self.provider.is_some() || self.startup.is_some())
+            && ((model != self.header.session.model
+                && (!traits.per_turn_model || model.is_none()))
+                || runtime_mode != self.header.session.runtime_mode);
+        if switching || restart {
+            self.require_idle("changing the agent settings")?;
+        }
+        if switching {
+            self.switch_provider(provider, instance_id, model.clone())
                 .await?;
-            if let Some(mode) = &input.runtime_mode {
-                self.set_runtime_mode(mode)?;
-            }
-            if let Some(mode) = &input.interaction_mode {
-                self.set_interaction_mode(mode)?;
-            }
-            self.start_provider(Some(StartMode::Fresh)).await;
-            return self.snapshot().await;
-        }
-
-        let mut restart = false;
-        if let Some(model) = input.model.clone() {
-            if model != self.header.session.model {
-                let per_turn = provider_traits(&self.header.provider)
-                    .is_some_and(|traits| traits.per_turn_model);
-                if !per_turn && (self.provider.is_some() || self.startup.is_some()) {
-                    self.require_idle("changing the model")?;
-                    restart = true;
-                }
-                self.header.session.model = model;
-                self.pending.session();
-                self.update_tab_payload().await;
-            }
-        }
-        if let Some(mode) = &input.runtime_mode {
-            if mode != &self.header.session.runtime_mode {
-                let previous = self.header.session.runtime_mode.clone();
-                self.set_runtime_mode(mode)?;
-                if self.provider.is_some() || self.startup.is_some() {
-                    if let Err(error) = self.require_idle("changing the runtime mode") {
-                        self.header.session.runtime_mode = previous;
-                        return Err(error);
-                    }
-                    restart = true;
-                }
-            }
-        }
-        if let Some(mode) = &input.interaction_mode {
-            self.set_interaction_mode(mode)?;
-        }
-        if restart {
+        } else if restart {
             self.stop_provider(
                 "reconfigured",
-                "The session restarts with the new settings.",
+                "The next message starts the session with the new settings.",
             )
             .await;
-            self.start_provider(None).await;
+            self.native_thread = None;
+            self.deps
+                .store
+                .bind_agent_chat_native_thread(&self.header.chat_id, self.generation, None)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+            self.handoff_pending = self.has_items;
+            self.header.recovery = None;
         }
+        self.header.session.model = model;
+        self.header.session.reasoning_effort = effort;
+        self.set_runtime_mode(&runtime_mode)?;
+        self.set_interaction_mode(&interaction_mode)?;
+        self.update_tab_payload().await;
         self.snapshot().await
     }
 
@@ -167,10 +211,38 @@ impl ChatSession {
         self.generation += 1;
         self.header.session.generation = self.generation;
         self.native_thread = None;
+        self.native_fork = None;
+        self.fork_source_turn_id = None;
+        self.header.session.extra.remove("historyOperation");
+        self.header.session.extra.remove("fileCheckpointing");
         self.process_epoch = process_epoch();
         self.native_ids.clear();
         self.handoff_pending = self.has_items;
         self.header.recovery = None;
+        self.set_status("stopped");
+        self.header.session.error_message = None;
+        self.header.session.reasoning_effort = None;
+        if !self.has_items && self.header.title_source == "default" {
+            self.header.title = self
+                .deps
+                .instances
+                .find(&instance_id)
+                .and_then(|instance| instance.label)
+                .unwrap_or_else(|| {
+                    traits
+                        .map(|traits| traits.label)
+                        .unwrap_or("Agent Chat")
+                        .into()
+                });
+            if let Ok(Some(workspace_id)) = self
+                .deps
+                .tabs
+                .rename_tab(&self.header.tab_id, &self.header.title)
+                .await
+            {
+                self.notify_tabs(workspace_id);
+            }
+        }
         self.pending.session();
         self.pending.recovery();
         self.update_tab_payload().await;
@@ -178,7 +250,7 @@ impl ChatSession {
         Ok(())
     }
 
-    async fn update_tab_payload(&mut self) {
+    pub(super) async fn update_tab_payload(&mut self) {
         let payload = chat_tab_payload(
             &self.header.chat_id,
             &self.header.provider,
@@ -196,14 +268,23 @@ impl ChatSession {
     }
 
     pub(super) async fn recover(&mut self, mode: Option<&str>) -> HostResult<Value> {
+        if self.never_sent() {
+            return self.snapshot().await;
+        }
         if self.provider.is_some() || self.startup.is_some() {
             return self.snapshot().await;
+        }
+        if mode == Some("restart") && self.native_fork_pending() {
+            self.clear_native_fork("transcriptFork")
+                .await
+                .map_err(HostError::state)?;
+            self.handoff_pending = self.has_items;
         }
         let mode = match mode {
             Some("resume") if !self.can_resume() => {
                 return Err(unsupported(
                     "This chat's provider session cannot be resumed.",
-                ))
+                ));
             }
             Some("resume") => StartMode::Resume,
             Some("restart") => StartMode::Fresh,

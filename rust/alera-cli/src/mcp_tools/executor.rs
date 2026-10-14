@@ -152,6 +152,45 @@ pub(crate) async fn run_tool(
     origin: &CallOrigin,
     cancelled: Option<oneshot::Receiver<()>>,
 ) -> ToolResult {
+    let result = run_tool_inner(execution, tool, arguments, origin, cancelled).await;
+    guard_native_history_failure(tool.name, arguments, result)
+}
+
+pub(super) fn guard_native_history_failure(
+    tool_name: &str,
+    arguments: &Value,
+    mut result: ToolResult,
+) -> ToolResult {
+    let sensitive = tool_name == "agent_chat_control"
+        && match arguments["operation"].as_str() {
+            Some("rewind") => arguments["payload"]["mode"] == "native",
+            Some("rewind-files" | "native-history-reconcile") => true,
+            _ => false,
+        };
+    if sensitive && result.is_error {
+        let notice = "Read native-history-operation before any retry; resolve an ambiguous native result through an offered reconciliation action.";
+        result.text.push('\n');
+        result.text.push_str(notice);
+        if let Some(error) = result
+            .structured
+            .as_mut()
+            .and_then(|value| value.get_mut("error"))
+            .and_then(Value::as_object_mut)
+        {
+            error.insert("retryable".into(), json!(false));
+            error.insert("message".into(), json!(result.text));
+        }
+    }
+    result
+}
+
+async fn run_tool_inner(
+    execution: &ToolExecution,
+    tool: &ToolSpec,
+    arguments: &Value,
+    origin: &CallOrigin,
+    cancelled: Option<oneshot::Receiver<()>>,
+) -> ToolResult {
     let invocation = match tool.invocation(arguments) {
         Ok(invocation) => invocation,
         Err(error) => return ToolResult::error(error.0),

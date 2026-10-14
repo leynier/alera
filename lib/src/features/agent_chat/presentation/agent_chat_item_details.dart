@@ -1,14 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_full_data.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Long process output only shows its tail; the full text stays on the host.
 const int _maxShownOutputLength = 20000;
+
+// A diff renders this many lines until the person asks for the rest, so
+// opening a large edit does not lay out thousands of rows at once.
+const int _maxShownDiffLines = 200;
+
+// Tool input or result JSON with more values than this is formatted on a
+// background isolate instead of during the frame that opens the row.
+const int _backgroundFormatNodes = 2000;
 
 const JsonEncoder _prettyJson = JsonEncoder.withIndent('  ');
 
@@ -64,12 +75,12 @@ class _AgentChatItemDetailsState extends State<AgentChatItemDetails> {
       if (item.input != null)
         _Section(
           label: 'Input',
-          child: _MonoBlock(text: _format(item.input)),
+          child: _FormattedBlock(value: item.input),
         ),
       if (item.result != null)
         _Section(
           label: 'Result',
-          child: _MonoBlock(text: _format(item.result)),
+          child: _FormattedBlock(value: item.result),
         ),
       if (item.detail case final String detail
           when detail.trim().isNotEmpty && detail != item.command)
@@ -92,7 +103,7 @@ class _AgentChatItemDetailsState extends State<AgentChatItemDetails> {
           ),
         ),
       if (_showRaw && !agentChatItemHasFullData(item))
-        _MonoBlock(text: _format(item.data), scrollable: true),
+        _FormattedBlock(value: item.data, scrollable: true),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -111,12 +122,84 @@ class _AgentChatItemDetailsState extends State<AgentChatItemDetails> {
   ].join(' · ');
 }
 
-String _format(Object? value) {
+String _formatValue(Object? value) {
   if (value is String) return value;
   try {
     return _prettyJson.convert(value);
   } on Object {
     return value.toString();
+  }
+}
+
+/// How many values [value] holds, counting no further than [limit].
+int _nodeCount(Object? value, int limit) {
+  var count = 0;
+  final pending = <Object?>[value];
+  while (pending.isNotEmpty && count <= limit) {
+    final next = pending.removeLast();
+    count += 1;
+    if (next is Map) {
+      pending.addAll(next.values);
+    } else if (next is Iterable) {
+      pending.addAll(next);
+    }
+  }
+  return count;
+}
+
+/// Tool JSON, formatted once per value: inline when small, on a background
+/// isolate when large, so expanding a row never stalls a frame.
+class const _FormattedBlock({
+  required final Object? value,
+  final bool scrollable = false,
+}) extends StatefulWidget {
+  @override
+  State<_FormattedBlock> createState() => _FormattedBlockState();
+}
+
+class _FormattedBlockState extends State<_FormattedBlock> {
+  String? _text;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _format();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FormattedBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.value, widget.value)) _format();
+  }
+
+  void _format() {
+    final value = widget.value;
+    final generation = ++_generation;
+    if (value is String ||
+        _nodeCount(value, _backgroundFormatNodes) <= _backgroundFormatNodes) {
+      _text = _formatValue(value);
+      return;
+    }
+    _text = null;
+    unawaited(
+      compute(_formatValue, value).then((text) {
+        if (mounted && generation == _generation) setState(() => _text = text);
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _text;
+    if (text == null) {
+      return AleraShimmerText(
+        text: 'Formatting',
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
+      );
+    }
+    return _MonoBlock(text: text, scrollable: widget.scrollable);
   }
 }
 
@@ -242,10 +325,46 @@ class const _FileChangeView({
   }
 }
 
-class const _DiffBlock({required final String diff}) extends StatelessWidget {
+class const _DiffBlock({required final String diff}) extends StatefulWidget {
+  @override
+  State<_DiffBlock> createState() => _DiffBlockState();
+}
+
+class _DiffBlockState extends State<_DiffBlock> {
+  late List<String> _lines = _tail(widget.diff).split('\n');
+  bool _showAll = false;
+
+  @override
+  void didUpdateWidget(covariant _DiffBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.diff != widget.diff) {
+      _lines = _tail(widget.diff).split('\n');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final lines = _tail(diff).split('\n');
+    final hidden = _showAll ? 0 : _lines.length - _maxShownDiffLines;
+    final lines = hidden > 0 ? _lines.take(_maxShownDiffLines) : _lines;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _diffBody(lines),
+        if (hidden > 0)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => setState(() => _showAll = true),
+              child: Text(
+                hidden == 1 ? 'Show 1 More Line' : 'Show $hidden More Lines',
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _diffBody(Iterable<String> lines) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AleraTokens.bg,

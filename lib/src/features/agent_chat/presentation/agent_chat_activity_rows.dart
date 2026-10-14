@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_item_details.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
@@ -172,7 +173,7 @@ class const _ReasoningRow({
 }
 
 class _ReasoningRowState extends State<_ReasoningRow> {
-  String get _key => 'reasoning-${widget.item.id}';
+  String get _key => agentChatReasoningFoldKey(widget.item.id);
 
   @override
   Widget build(BuildContext context) {
@@ -183,49 +184,43 @@ class _ReasoningRowState extends State<_ReasoningRow> {
         : item.text;
     final expanded = widget.expansion.isExpanded(_key, byDefault: false);
     final hasText = text.trim().isNotEmpty;
-    final label = item.title ?? 'Thinking';
+    final label = agentChatReasoningLabel(item);
     final style = theme.textTheme.bodySmall?.copyWith(
       color: AleraTokens.foregroundMuted,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        InkWell(
+        AgentChatDisclosure(
           key: ValueKey<String>('agent-chat-reasoning-${item.id}'),
-          onTap: hasText
+          expanded: expanded,
+          onToggle: hasText
               ? () => setState(
                   () => widget.expansion.set(_key, expanded: !expanded),
                 )
               : null,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space6,
-              vertical: AleraTokens.space4,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Icon(
-                  AleraIcons.ai,
-                  size: AleraTokens.iconSm,
-                  color: AleraTokens.foregroundMuted,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(
+                AleraIcons.ai,
+                size: AleraTokens.iconSm,
+                color: AleraTokens.foregroundMuted,
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              if (item.isInProgress)
+                AleraShimmerText(text: label, style: style)
+              else
+                Text(label, style: style),
+              if (hasText) ...<Widget>[
+                const SizedBox(width: AleraTokens.space4),
+                Icon(
+                  expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+                  size: AleraTokens.iconMd,
+                  color: AleraTokens.foregroundFaint,
                 ),
-                const SizedBox(width: AleraTokens.space6),
-                if (item.isInProgress)
-                  AleraShimmerText(text: label, style: style)
-                else
-                  Text(label, style: style),
-                if (hasText) ...<Widget>[
-                  const SizedBox(width: AleraTokens.space4),
-                  Icon(
-                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-                    size: AleraTokens.iconMd,
-                    color: AleraTokens.foregroundFaint,
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
         ),
         if (expanded && hasText)
@@ -271,7 +266,8 @@ class _ActionGroupState extends State<_ActionGroup> {
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
-    final expanded = widget.expansion.isExpanded(group.key, byDefault: false);
+    final key = agentChatActionGroupFoldKey(group);
+    final expanded = widget.expansion.isExpanded(key, byDefault: false);
     final first = group.actions.first;
     final icon =
         group.actions.any(
@@ -290,9 +286,8 @@ class _ActionGroupState extends State<_ActionGroup> {
           streaming: group.streaming,
           expandable: true,
           expanded: expanded,
-          onTap: () => setState(
-            () => widget.expansion.set(group.key, expanded: !expanded),
-          ),
+          onTap: () =>
+              setState(() => widget.expansion.set(key, expanded: !expanded)),
         ),
         if (expanded)
           Padding(
@@ -328,7 +323,7 @@ class const _ActionRow({
 }
 
 class _ActionRowState extends State<_ActionRow> {
-  String get _key => 'action-${widget.action.item.id}';
+  String get _key => agentChatActionFoldKey(widget.action.item.id);
 
   @override
   Widget build(BuildContext context) {
@@ -392,46 +387,37 @@ class const _RowHeader({
   Widget build(BuildContext context) {
     final color = failed ? AleraTokens.error : AleraTokens.foregroundMuted;
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(color: color);
-    return InkWell(
-      onTap: onTap,
-      mouseCursor: onTap == null
-          ? SystemMouseCursors.basic
-          : SystemMouseCursors.click,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space6,
-          vertical: AleraTokens.space4,
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(icon, size: AleraTokens.iconMd, color: color),
-            const SizedBox(width: AleraTokens.space8),
-            Flexible(
-              child: streaming
-                  ? AleraShimmerText(
-                      text: label,
-                      style: style,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : Text(
-                      label,
-                      style: style,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+    return AgentChatDisclosure(
+      expanded: expanded,
+      onToggle: expandable ? onTap : null,
+      child: Row(
+        children: <Widget>[
+          Icon(icon, size: AleraTokens.iconMd, color: color),
+          const SizedBox(width: AleraTokens.space8),
+          Flexible(
+            child: streaming
+                ? AleraShimmerText(
+                    text: label,
+                    style: style,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : Text(
+                    label,
+                    style: style,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+          ),
+          if (expandable && !streaming) ...<Widget>[
+            const SizedBox(width: AleraTokens.space4),
+            Icon(
+              expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+              size: AleraTokens.iconMd,
+              color: AleraTokens.foregroundFaint,
             ),
-            if (expandable && !streaming) ...<Widget>[
-              const SizedBox(width: AleraTokens.space4),
-              Icon(
-                expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-                size: AleraTokens.iconMd,
-                color: AleraTokens.foregroundFaint,
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }

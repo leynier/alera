@@ -15,7 +15,10 @@ import 'package:alera_agent_chat/src/agent_chat_transport.dart';
 /// checks the capability first, so an older runtime fails closed with
 /// [AgentChatOrchestrationUpdateRequired] and nothing is sent.
 final class RuntimeAgentChatOrchestrationRepository
-    implements AgentChatOrchestrationRepository {
+    implements
+        AgentChatOrchestrationRepository,
+        AgentChatPersonParentRepository,
+        AgentChatOrchestrationEffortRepository {
   RuntimeAgentChatOrchestrationRepository(this._transport);
 
   final AgentChatTransport _transport;
@@ -29,6 +32,24 @@ final class RuntimeAgentChatOrchestrationRepository
   @override
   Future<bool> supported() =>
       _transport.supportsCapability(AgentChatOrchestrationWire.capability);
+
+  @override
+  Future<bool> supportsPersonParent() => _transport.supportsCapability(
+    AgentChatOrchestrationWire.personParentCapability,
+  );
+
+  @override
+  Future<bool> supportsEffort() => _transport.supportsCapability(
+    AgentChatOrchestrationWire.effortCapability,
+  );
+
+  Future<void> _requirePersonParent(String? parentChatId) async {
+    if (parentChatId != null && !await supportsPersonParent()) {
+      throw const AgentChatCapabilityRequired(
+        AgentChatOrchestrationWire.personParentCapability,
+      );
+    }
+  }
 
   Future<Map<String, Object?>> _request(
     String verb,
@@ -49,23 +70,33 @@ final class RuntimeAgentChatOrchestrationRepository
       );
 
   @override
-  Future<AgentChatDelegateResult> delegate(
-    AgentChatDelegateInput input,
-  ) async => AgentChatDelegateResult.fromJson(
-    await _request(
-      AgentChatOrchestrationWire.delegate,
-      input.toJson(),
-      timeout: _delegateTimeout,
-    ),
-  );
+  Future<AgentChatDelegateResult> delegate(AgentChatDelegateInput input) async {
+    await _requirePersonParent(input.parentChatId);
+    if (input.agent?.reasoningEffort?.trim().isNotEmpty == true &&
+        !await supportsEffort()) {
+      throw const AgentChatCapabilityRequired(
+        AgentChatOrchestrationWire.effortCapability,
+      );
+    }
+    return AgentChatDelegateResult.fromJson(
+      await _request(
+        AgentChatOrchestrationWire.delegate,
+        input.toJson(),
+        timeout: _delegateTimeout,
+      ),
+    );
+  }
 
   @override
   Future<AgentChatTaskMessageResult> send(
     AgentChatTaskMessageInput input,
-  ) async => AgentChatTaskMessageResult.fromJson(
-    await _request(AgentChatOrchestrationWire.send, input.toJson()),
-    chatId: input.chatId,
-  );
+  ) async {
+    await _requirePersonParent(input.parentChatId);
+    return AgentChatTaskMessageResult.fromJson(
+      await _request(AgentChatOrchestrationWire.send, input.toJson()),
+      chatId: input.chatId,
+    );
+  }
 
   @override
   Future<AgentChatTask> task(String taskId, {bool acknowledge = false}) async {
@@ -155,6 +186,13 @@ final class RuntimeAgentChatOrchestrationRepository
     required String requestId,
     required AgentChatConfiguration configuration,
   }) async {
+    if ((configuration.reasoningEffort != null ||
+            configuration.resetReasoningEffort) &&
+        !await supportsEffort()) {
+      throw const AgentChatCapabilityRequired(
+        AgentChatOrchestrationWire.effortCapability,
+      );
+    }
     // The instance names the provider; the verb takes no separate provider.
     final settings = configuration.toJson()..remove('provider');
     final response = await _request(

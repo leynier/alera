@@ -89,4 +89,61 @@ void main() {
       AgentChatTabActivity.idle,
     );
   });
+
+  test('delegated tasks rank below the chat\'s own state', () {
+    expect(
+      agentChatTabActivity(AgentChatSessionStatus.ready, waitingOnTasks: true),
+      AgentChatTabActivity.waitingOnTasks,
+    );
+    expect(
+      agentChatTabActivity(
+        AgentChatSessionStatus.running,
+        waitingOnTasks: true,
+      ),
+      AgentChatTabActivity.working,
+    );
+    expect(
+      agentChatTabActivity(AgentChatSessionStatus.error, waitingOnTasks: true),
+      AgentChatTabActivity.failed,
+    );
+    expect(
+      agentChatTabActivity(AgentChatSessionStatus.error, childNeedsInput: true),
+      AgentChatTabActivity.needsInput,
+    );
+  });
+
+  test('live task state folds into a known chat state', () {
+    expect(
+      agentChatTabActivityWithTasks(
+        AgentChatTabActivity.idle,
+        childNeedsInput: false,
+        waitingOnTasks: true,
+      ),
+      AgentChatTabActivity.waitingOnTasks,
+    );
+    expect(
+      agentChatTabActivityWithTasks(
+        AgentChatTabActivity.working,
+        childNeedsInput: false,
+        waitingOnTasks: true,
+      ),
+      AgentChatTabActivity.working,
+    );
+    expect(
+      agentChatTabActivityWithTasks(
+        AgentChatTabActivity.failed,
+        childNeedsInput: true,
+        waitingOnTasks: true,
+      ),
+      AgentChatTabActivity.needsInput,
+    );
+    expect(
+      agentChatTabActivityWithTasks(
+        AgentChatTabActivity.idle,
+        childNeedsInput: false,
+        waitingOnTasks: false,
+      ),
+      AgentChatTabActivity.idle,
+    );
+  });
 }

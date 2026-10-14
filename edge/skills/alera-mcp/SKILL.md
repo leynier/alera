@@ -2,7 +2,7 @@
 name: alera-mcp
 description: Work with Alera through this MCP server. Covers runtimes, projects, workspaces, agents and terminals, inbox questions, pull requests, events, and runtime settings. Read it before the first Alera task of a conversation.
 metadata:
-  version: 5
+  version: 6
 ---
 
 # Alera Through MCP
@@ -30,7 +30,8 @@ Do only what the user asked for. Before removing anything, run the matching prev
 - Pull requests on GitHub, GitLab, and Azure DevOps, Ship, and Watch and Fix: read [pull requests](references/pull-requests.md).
 - Following what happens without polling each item, and webhooks: read [events](references/events.md).
 - Runtime status, settings, quotas, voice, status hooks, and the agents' Alera skills: read [runtime](references/runtime.md).
-- Delegating tasks to terminal agents, runs, run recipes, and the separate live-chat orchestration boundary: use the `alera-mcp-orchestration` skill.
+- Persistent Agent Chat controls, queue/history operations, host preferences, provider instances, and write-only secrets: read [agent chats](references/agent-chats.md).
+- Delegating tasks to terminal agents, runs, run recipes, public human chat tasks, and the separate injected live-chat boundary: use the `alera-mcp-orchestration` skill.
 - Scheduled or recurring agent work: use the `alera-mcp-automations` skill.
 - Creating or changing agent profiles: use the `alera-mcp-agent-profiles` skill.
 

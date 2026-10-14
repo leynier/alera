@@ -13,9 +13,9 @@ typedef AgentChatRespond = Future<void> Function(
   AgentChatResponse response,
 );
 
-/// An approval or MCP form the agent is blocked on, in the timeline where it
-/// was asked. Only the decisions the runtime lists are offered, because a
-/// provider may not honor the others.
+/// An approval or MCP form the agent is blocked on, shown in the request
+/// dock above the composer. Only the decisions the runtime lists are offered,
+/// because a provider may not honor the others.
 class const AgentChatRequestCard({
   super.key,
   required final AgentChatRequest request,
@@ -28,7 +28,6 @@ class const AgentChatRequestCard({
     final detail = request.detail?.trim() ?? '';
     final elicitation = request.elicitation;
     return Container(
-      margin: const EdgeInsets.only(bottom: AleraTokens.space12),
       padding: const EdgeInsets.all(AleraTokens.space12),
       decoration: BoxDecoration(
         color: AleraTokens.surfaceElevated,
@@ -49,7 +48,7 @@ class const AgentChatRequestCard({
               const SizedBox(width: AleraTokens.space8),
               Expanded(
                 child: Text(
-                  request.title ?? agentChatRequestTitle(request),
+                  agentChatRequestTitle(request),
                   style: theme.textTheme.titleSmall,
                 ),
               ),
@@ -94,27 +93,6 @@ class const AgentChatRequestCard({
   }
 }
 
-String agentChatRequestTitle(AgentChatRequest request) =>
-    switch (request.kind) {
-      AgentChatRequestKind.commandExecutionApproval ||
-      AgentChatRequestKind.execCommandApproval => 'Run this command?',
-      AgentChatRequestKind.fileChangeApproval ||
-      AgentChatRequestKind.applyPatchApproval => 'Apply these changes?',
-      AgentChatRequestKind.fileReadApproval => 'Read this file?',
-      AgentChatRequestKind.permissionApproval => 'Grant this permission?',
-      AgentChatRequestKind.mcpElicitationApproval => 'A tool needs input',
-      _ => 'The agent needs a response',
-    };
-
-String agentChatDecisionLabel(AgentChatApprovalDecision decision) =>
-    switch (decision) {
-      AgentChatApprovalDecision.accept => 'Allow',
-      AgentChatApprovalDecision.acceptForSession => 'Allow For Session',
-      AgentChatApprovalDecision.acceptAlways => 'Always Allow',
-      AgentChatApprovalDecision.decline => 'Decline',
-      AgentChatApprovalDecision.cancel => 'Cancel Turn',
-    };
-
 class const _ApprovalActions({
   required final AgentChatRequest request,
   required final bool enabled,
@@ -122,22 +100,43 @@ class const _ApprovalActions({
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Exactly the runtime's decisions in its order: the first two as
+    // buttons, the rest one tap further, so no choice is ever invented.
     final decisions = request.offeredDecisions;
+    final primary = decisions.take(2).toList(growable: false);
+    final more = decisions.skip(2).toList(growable: false);
     return Wrap(
       spacing: AleraTokens.space8,
       runSpacing: AleraTokens.space4,
+      crossAxisAlignment: .center,
       children: <Widget>[
-        for (final decision in decisions)
-          if (decision == AgentChatApprovalDecision.accept)
+        for (final (index, decision) in primary.indexed)
+          if (index == 0 && decision.accepts)
             FilledButton(
               onPressed: enabled ? () => _answer(decision) : null,
               child: Text(agentChatDecisionLabel(decision)),
             )
           else
-            TextButton(
+            OutlinedButton(
               onPressed: enabled ? () => _answer(decision) : null,
               child: Text(agentChatDecisionLabel(decision)),
             ),
+        if (more.isNotEmpty)
+          PopupMenuButton<AgentChatApprovalDecision>(
+            tooltip: 'More Decisions',
+            enabled: enabled,
+            icon: const Icon(AleraIcons.more),
+            onSelected: _answer,
+            itemBuilder: (context) =>
+                <PopupMenuEntry<AgentChatApprovalDecision>>[
+                  for (final decision in more)
+                    PopupMenuItem<AgentChatApprovalDecision>(
+                      value: decision,
+                      height: AleraTokens.minTapTarget,
+                      child: Text(agentChatDecisionLabel(decision)),
+                    ),
+                ],
+          ),
       ],
     );
   }

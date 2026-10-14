@@ -214,6 +214,12 @@ class _WorkspacePanelPaneState extends State<_WorkspacePanelPane> {
         ),
         null => null,
       },
+      onOpenArchivedChats: switch (AgentChatLaunchScope.maybeOf(context)) {
+        final AgentChatLauncher launcher => () => launcher.openArchived(
+          targetGroupId: widget.groupId,
+        ),
+        null => null,
+      },
     );
     final activeKey = _activeKey;
     final surface = activeKey == null

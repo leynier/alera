@@ -14,7 +14,7 @@ pub const ORCHESTRATION_SKILL_VERSION: i64 = 5;
 /// Versions of the other agent skills in `skills/`, kept in step with each
 /// SKILL.md's `metadata.version` so `alera skill status` can tell whether an
 /// installed copy matches this runtime.
-pub const CLI_SKILL_VERSION: i64 = 7;
+pub const CLI_SKILL_VERSION: i64 = 8;
 pub const AUTOMATIONS_SKILL_VERSION: i64 = 5;
 pub const AGENT_PROFILES_SKILL_VERSION: i64 = 1;
 /// `agentSkill.install` takes a `skills` list, runs as a runtime job that one
@@ -127,7 +127,7 @@ impl TerminalHostConfig {
 }
 
 /// A shell launch request, mirroring `TerminalHostLaunch`.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TerminalHostLaunch {
     // Carried through the protocol for display parity; the host does not use
     // the label when spawning.
@@ -136,6 +136,8 @@ pub struct TerminalHostLaunch {
     pub shell: String,
     pub arguments: Vec<String>,
     pub environment: BTreeMap<String, String>,
+    pub provider_setup:
+        Option<super::server::agent_chat_provider_settings::setup::ProviderSetupContext>,
 }
 
 impl TerminalHostLaunch {
@@ -155,16 +157,33 @@ impl TerminalHostLaunch {
             shell,
             arguments: as_string_list(value.get("arguments")),
             environment: as_string_map(value.get("environment")),
+            provider_setup: value.get("providerSetup").filter(|value| !value.is_null()).map(super::server::agent_chat_provider_settings::setup::ProviderSetupContext::from_json).transpose()?,
         })
     }
 
     pub fn to_json(&self) -> Value {
-        json!({
+        let mut value = json!({
             "label": self.label,
             "shell": self.shell,
             "arguments": self.arguments,
-            "environment": self.environment,
-        })
+            "environment": if self.provider_setup.is_some() { BTreeMap::new() } else { self.environment.clone() },
+        });
+        if let Some(context) = &self.provider_setup {
+            value["providerSetup"] = json!(context);
+        }
+        value
+    }
+}
+
+impl std::fmt::Debug for TerminalHostLaunch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TerminalHostLaunch")
+            .field("label", &self.label)
+            .field("shell", &self.shell)
+            .field("argument_count", &self.arguments.len())
+            .field("environment_count", &self.environment.len())
+            .field("provider_setup", &self.provider_setup)
+            .finish()
     }
 }
 

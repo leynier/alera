@@ -13,7 +13,14 @@ impl ServerActor {
                     session_id,
                     "terminal host shutdown retained the session because terminal history is pending"
                 );
-                self.schedule_history_shutdown_retry();
+                self.schedule_shutdown_retry();
+                return;
+            }
+        }
+        if let Some(orchestration) = &self.chat_orchestration {
+            if !orchestration.shutdown().await {
+                tracing::error!("terminal host shutdown retained chat actors while orchestration jobs are pending");
+                self.schedule_shutdown_retry();
                 return;
             }
         }
@@ -52,7 +59,7 @@ impl ServerActor {
         control_file::delete_control_file(&self.control_file_path);
     }
 
-    fn schedule_history_shutdown_retry(&self) {
+    fn schedule_shutdown_retry(&self) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;

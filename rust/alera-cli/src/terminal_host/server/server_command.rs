@@ -18,6 +18,10 @@ pub enum ServerCommand {
     },
     /// Wakes idle-shutdown accounting after a chat starts or stops work.
     AgentChatActivityChanged,
+    AgentChatSettingsChanged {
+        name: String,
+        payload: Value,
+    },
     /// Completion of a client agent-chat/orchestration request executed away
     /// from the actor loop so provider I/O cannot block the MCP handshake.
     AgentChatRequestFinished {

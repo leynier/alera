@@ -2,10 +2,7 @@ use crate::config::{AcpFlavor, AcpProviderConfig};
 use crate::mapping::{map_incoming, MappingContext};
 use crate::mcp::{map_servers, negotiated_capabilities};
 use crate::policy::is_auth_required;
-use crate::runtime_response::{
-    acp_error, cancelled_response, grok_permission_response, permission_response,
-    user_input_response, xai_user_input_response,
-};
+use crate::runtime_response::{acp_error, cancelled_response};
 use crate::transport::{raw, PendingRequest};
 use agent_client_protocol::{AcpClient, AcpRequestId, RpcError};
 use alera_agent_transport::JsonTransport;
@@ -70,6 +67,11 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
     fn session(&self) -> Option<&ProviderSession> {
         self.session.as_ref()
     }
+    fn reasoning_effort_capabilities(
+        &self,
+    ) -> alera_provider_protocol::ReasoningEffortCapabilities {
+        crate::reasoning_effort::capabilities(&self.session_config_options)
+    }
     async fn initialize(&mut self) -> Result<(), ProviderError> {
         self.ensure_open()?;
         if self.initialized {
@@ -94,7 +96,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         input: SessionStartInput,
     ) -> Result<ProviderSession, ProviderError> {
         input.validate()?;
-        if !input.options.is_empty() {
+        if input.options.keys().any(|key| key != "reasoningEffort") {
             return Err(ProviderError::Unsupported(
                 "ACP session options require a provider flavor mapping".into(),
             ));
@@ -198,13 +200,24 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
                     "ACP agent did not advertise a model configuration option".into(),
                 ));
             }
-            self.client
+            let configured = self
+                .client
                 .set_model(&native_thread_id, model)
                 .await
                 .map_err(acp_error)?;
+            if let Some(options) = configured
+                .get("configOptions")
+                .and_then(serde_json::Value::as_array)
+            {
+                self.session_config_options = options.clone();
+            }
         }
         self.apply_runtime_policy(&native_thread_id, runtime_mode)
             .await?;
+        if let Some(effort) = alera_provider_protocol::reasoning_effort(&input.options)? {
+            self.apply_reasoning_effort(&native_thread_id, effort)
+                .await?;
+        }
         let session = ProviderSession {
             provider: self.kind(),
             provider_instance_id: self.config.provider_instance_id.clone(),
@@ -249,7 +262,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
                 "ACP attachment forwarding is not negotiated by this adapter".into(),
             ));
         }
-        if !input.options.is_empty() {
+        if input.options.keys().any(|key| key != "reasoningEffort") {
             return Err(ProviderError::Unsupported(
                 "ACP turn options require a provider flavor mapping".into(),
             ));
@@ -263,6 +276,10 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             return Err(ProviderError::Unsupported(
                 "ACP per-turn interaction mode is not negotiated by this adapter".into(),
             ));
+        }
+        if let Some(effort) = alera_provider_protocol::reasoning_effort(&input.options)? {
+            self.apply_reasoning_effort(&session.native_thread_id, effort)
+                .await?;
         }
         let turn_id = format!("turn:{}", Uuid::new_v4());
         let prompt_text = input.input.clone();
@@ -347,88 +364,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             .map_err(acp_error)
     }
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {
-        self.ensure_open()?;
-        let key = response.request_id().to_string();
-        let pending =
-            self.pending_requests.get(&key).cloned().ok_or_else(|| {
-                ProviderError::InvalidState("unknown ACP runtime request id".into())
-            })?;
-        let wire = match response {
-            RuntimeResponse::Approval { decision, .. } => {
-                if pending.method != "session/request_permission" {
-                    return Err(ProviderError::Validation(
-                        "approval response does not match ACP request".into(),
-                    ));
-                }
-                if self.config.flavor == AcpFlavor::Grok {
-                    grok_permission_response(&pending.params, decision)?
-                } else {
-                    permission_response(&pending.params, decision)?
-                }
-            }
-            RuntimeResponse::Elicitation {
-                action, content, ..
-            } => {
-                if pending.method != "elicitation/create"
-                    && pending.method != "session/elicitation"
-                    && pending.method != "_session/elicitation"
-                {
-                    return Err(ProviderError::Validation(
-                        "elicitation response does not match ACP request".into(),
-                    ));
-                }
-                let action = match action {
-                    alera_provider_protocol::ElicitationAction::Accept => "accept",
-                    alera_provider_protocol::ElicitationAction::Decline => "decline",
-                    alera_provider_protocol::ElicitationAction::Cancel => "cancel",
-                };
-                json!({"action":action,"content":content})
-            }
-            RuntimeResponse::UserInput { answers, .. } => {
-                if pending.kind != RequestKind::ToolUserInput {
-                    return Err(ProviderError::Validation(
-                        "user-input response does not match ACP request".into(),
-                    ));
-                }
-                if self.config.flavor == AcpFlavor::Grok && pending.method.contains("ask_user") {
-                    xai_user_input_response(&pending.params, answers)?
-                } else {
-                    user_input_response(answers)
-                }
-            }
-            RuntimeResponse::Native { result, .. } => {
-                if pending.kind != RequestKind::DynamicToolCall {
-                    return Err(ProviderError::Validation(
-                        "native response does not match ACP request".into(),
-                    ));
-                }
-                result
-            }
-        };
-        self.client
-            .respond(&pending.rpc_id, Ok(wire))
-            .await
-            .map_err(acp_error)?;
-        self.pending_requests.remove(&key);
-        let session = self.session.clone().ok_or_else(|| {
-            ProviderError::InvalidState("ACP runtime request has no active session".into())
-        })?;
-        let mut event = ProviderEvent::new(
-            self.kind(),
-            self.config.provider_instance_id.clone(),
-            session.thread_id,
-            EventKind::RequestResolved,
-            json!({"requestType":pending.kind,"decision":"resolved"}),
-            Some(raw(&pending.method, pending.raw)),
-        );
-        event.request_id = Some(pending.logical_id);
-        event.provider_refs = Some(ProviderRefs {
-            provider_turn_id: session.active_turn_id,
-            provider_item_id: None,
-            provider_request_id: Some(pending.rpc_id.to_string()),
-        });
-        event.validate()?;
-        self.queue_event(event)
+        self.respond_native(response).await
     }
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError> {
         self.ensure_open()?;
@@ -450,6 +386,18 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             ProviderError::InvalidState("ACP event arrived before session/new".into())
         })?;
         let provider_kind = self.kind();
+        if let agent_client_protocol::AcpIncoming::Notification { params, .. } = &incoming {
+            if params.get("sessionId").and_then(serde_json::Value::as_str)
+                == Some(session.native_thread_id.as_str())
+            {
+                if let Some(options) = params
+                    .pointer("/update/configOptions")
+                    .and_then(serde_json::Value::as_array)
+                {
+                    self.session_config_options = options.clone();
+                }
+            }
+        }
         let context = MappingContext {
             provider: &provider_kind,
             instance_id: &self.config.provider_instance_id,

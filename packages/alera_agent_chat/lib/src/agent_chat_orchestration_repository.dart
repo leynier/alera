@@ -11,6 +11,30 @@ enum AgentChatTaskWaitUntil(final String wire) {
   any('any'),
 }
 
+/// Kept separate so clients and existing repository fakes can upgrade
+/// independently of human-parent support on the host.
+abstract interface class AgentChatPersonParentRepository {
+  Future<bool> supportsPersonParent();
+}
+
+abstract interface class AgentChatOrchestrationEffortRepository {
+  Future<bool> supportsEffort();
+}
+
+extension AgentChatOrchestrationEffortSupport
+    on AgentChatOrchestrationRepository {
+  Future<bool> supportsEffort() =>
+      this is AgentChatOrchestrationEffortRepository
+      ? (this as AgentChatOrchestrationEffortRepository).supportsEffort()
+      : Future.value(false);
+}
+
+extension AgentChatPersonParentSupport on AgentChatOrchestrationRepository {
+  Future<bool> supportsPersonParent() => this is AgentChatPersonParentRepository
+      ? (this as AgentChatPersonParentRepository).supportsPersonParent()
+      : Future.value(false);
+}
+
 /// Everything the apps ask of chat orchestration. People on the desktop and
 /// on a paired phone have the same verbs; nothing here selects a workspace
 /// or a tab. Mutations take a caller-allocated request id so a retry after a

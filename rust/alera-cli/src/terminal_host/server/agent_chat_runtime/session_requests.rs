@@ -53,6 +53,7 @@ impl ChatSession {
             item_id,
             &now(),
         );
+        self.record_request_history(&view, "pending", None, None);
         self.open_requests.push(super::session::OpenRequest {
             request_id,
             native: request.request_id.clone(),
@@ -84,6 +85,15 @@ impl ChatSession {
         } else {
             return;
         };
+        if let Some(row) = self
+            .header
+            .pending_requests
+            .iter()
+            .find(|request| request.request_id == app_id)
+            .cloned()
+        {
+            self.record_request_history(&row, "providerResolved", None, None);
+        }
         self.header
             .pending_requests
             .retain(|request| request.request_id != app_id);
@@ -137,15 +147,25 @@ impl ChatSession {
                 other => HostError::state(other.to_string()),
             })?;
         self.events_armed = true;
+        self.record_request_history(&row, "resolved", Some(&response), Some(&ctx.actor));
         self.header.pending_requests.remove(index);
         self.open_requests
             .retain(|request| request.request_id != runtime_request_id);
         self.refresh_waiting_status();
-        let _ = ctx;
         Ok(json!({"resolved": true}))
     }
 
     pub(super) fn expire_requests_of_turn(&mut self, turn_id: Option<&str>) {
+        let expired: Vec<_> = self
+            .header
+            .pending_requests
+            .iter()
+            .filter(|request| turn_id.is_none_or(|id| request.turn_id.as_deref() == Some(id)))
+            .cloned()
+            .collect();
+        for request in expired {
+            self.record_request_history(&request, "expired", None, None);
+        }
         self.header
             .pending_requests
             .retain(|request| turn_id.is_some_and(|id| request.turn_id.as_deref() != Some(id)));

@@ -6,29 +6,31 @@ extension _WorkspaceTabsClose on _WorkspaceTabsScreenState {
   Future<void> _closeTab(WorkspaceTabSummary tab) async {
     if (!mounted) return;
     final chat = tab.isAgentChat;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(chat ? 'Close Chat' : 'Close Tab'),
-        content: Text(
-          chat
-              ? 'The agent stops and the chat is archived on the host. Its '
-                    'history is kept.'
-              : tab.displayTitle,
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
+    final bool confirmed;
+    if (chat) {
+      confirmed = await _confirmChatClose(tab);
+    } else {
+      confirmed =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Close Tab'),
+              content: Text(tab.displayTitle),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ) ==
+          true;
+    }
+    if (!confirmed || !mounted) {
       return;
     }
     final tabsController = ref.read(

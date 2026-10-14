@@ -2,8 +2,10 @@
 
 use alera_agent_http::{HttpClientConfig, ReqwestTransport};
 use alera_provider_protocol::{
-    InterruptInput, Provider, ProviderCapabilities, ProviderError, ProviderEvent, ProviderKind,
-    ProviderSession, RuntimeResponse, SessionStartInput, TurnInput, TurnStartResult,
+    InterruptInput, NativeForkInput, NativeForkResult, NativeHistoryCapabilities,
+    NativeRewindFilesInput, NativeRewindFilesResult, NativeRollbackInput, NativeRollbackResult,
+    Provider, ProviderCapabilities, ProviderError, ProviderEvent, ProviderKind, ProviderSession,
+    ReasoningEffortCapabilities, RuntimeResponse, SessionStartInput, TurnInput, TurnStartResult,
 };
 use async_trait::async_trait;
 
@@ -91,6 +93,12 @@ impl Provider for OwnedProvider {
     fn session(&self) -> Option<&ProviderSession> {
         self.provider.session()
     }
+    fn reasoning_effort_capabilities(&self) -> ReasoningEffortCapabilities {
+        self.provider.reasoning_effort_capabilities()
+    }
+    fn native_history_capabilities(&self) -> NativeHistoryCapabilities {
+        self.provider.native_history_capabilities()
+    }
     async fn initialize(&mut self) -> Result<(), ProviderError> {
         self.provider.initialize().await
     }
@@ -102,6 +110,31 @@ impl Provider for OwnedProvider {
     }
     async fn send_turn(&mut self, input: TurnInput) -> Result<TurnStartResult, ProviderError> {
         self.provider.send_turn(input).await
+    }
+    async fn steer_turn(
+        &mut self,
+        input: TurnInput,
+        expected_turn_id: &str,
+    ) -> Result<(), ProviderError> {
+        self.provider.steer_turn(input, expected_turn_id).await
+    }
+    async fn fork_session(
+        &mut self,
+        input: NativeForkInput,
+    ) -> Result<NativeForkResult, ProviderError> {
+        self.provider.fork_session(input).await
+    }
+    async fn rollback_session(
+        &mut self,
+        input: NativeRollbackInput,
+    ) -> Result<NativeRollbackResult, ProviderError> {
+        self.provider.rollback_session(input).await
+    }
+    async fn rewind_files(
+        &mut self,
+        input: NativeRewindFilesInput,
+    ) -> Result<NativeRewindFilesResult, ProviderError> {
+        self.provider.rewind_files(input).await
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         self.provider.interrupt(input).await

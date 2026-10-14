@@ -8,13 +8,34 @@ Delegation always names its target: an existing chat, a new chat in an existing 
 
 ## Contract
 
-The additive capability is `chatOrchestrationV1`. Host verbs use `chatOrchestration.*`; MCP tools use the `chat_` prefix so they cannot collide with terminal tools. The verbs are `capabilities`, `delegate`, `send`, `task`, `tasks.list`, `wait`, `cancel`, `interrupt`, `requests`, `respond`, `configure`, `read` and `list`. The CLI group is `alera chat`. Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond` and `configure`) carry `requestId`; MCP exposes `clientRequestId` and maps it to that field. Reading a task with `acknowledge: true` acknowledges its result without a request ID.
+The additive capability is `chatOrchestrationV1`. Host verbs use `chatOrchestration.*`; MCP tools use the `chat_` prefix so they cannot collide with terminal tools. The verbs are `capabilities`, `delegate`, `send`, `task`, `tasks.list`, `wait`, `cancel`, `interrupt`, `requests`, `respond`, `configure`, `read` and `list`. The CLI group is `alera chat`. Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond` and `configure`) carry `requestId`; MCP exposes `clientRequestId` and maps it to that field. A task acknowledgement with an explicit request ID also uses a durable receipt; legacy no-ID acknowledgement remains compatible. Pure task reads never acknowledge.
 
 `delegate` accepts `{task, title?, role?, notify?, mode: async|wait, waitSeconds?, requestId, agent?: {providerInstanceId?, model?, options?}, runtimeMode?, interactionMode?, target}`. A target is exactly one of `{chat:{chatId}}`, `{workspace:{workspaceId}}` or `{newWorkspace:{projectId,hostId,mode:worktree|shared,branch?,sourceBranch?,reuseExistingBranch?,name?,parentWorkspaceId?,setup:inline|deferred}}`. Worktree targets require `branch`; setup defaults to `inline`. Its response includes `{taskId,chatId?,workspaceId?,status,result?}`.
 
 `send` accepts `{chatId,message,delivery:auto|queue,expectReply,requestId}`. With `expectReply`, it creates a message task whose completion can notify the sender. `task` reads and optionally acknowledges a result; `wait` waits for at most 50 seconds. `tasks.list` includes lineage, target, status, attention and result delivery state. `read` exposes user and assistant text and canonical plans, without provider credentials or hidden reasoning. The event `chatOrchestrationChanged {taskId,parentChatId?,childChatId?,workspaceId?}` invalidates lists on desktop and mobile.
 
+`configure` preserves omitted model and reasoning effort. Explicit null resets either to its provider default. CLI `--reset-model` and `--reset-reasoning-effort` and bound MCP `resetModel:true` and `resetReasoningEffort:true` express these resets without an empty identifier. Settings administration and direct lifecycle/history operations use the separate [Agent Chat CLI And MCP](agent-chat-cli.md) surface and remain absent from injected chat credentials.
+
 Tasks have app-owned `taskId` distinct from `childChatId`, and states `preparing|running|needs_input|completed|failed|interrupted|cancel_requested|cancelled`. Completion follows the child's settled turn, not request acknowledgement. Results contain bounded final assistant text. Open child requests produce `needs_input`. Follow-up work produces a new task even when reusing a child chat.
+
+Human delegate/send requests can explicitly name `parentChatId` (`alera chat --parent-chat-id` on those actions), binding task and wake delivery to their originating chat. This field does not impersonate a bound agent or replace host-derived caller identity. Bound callers retain their credentialed parent and lineage restrictions; their injected MCP surface does not offer human parent selection.
+
+## Human CLI And Public MCP
+
+`alera chat --json human <operation>` accepts an exact structured body through `--payload`, `--payload-file`, or `--payload-stdin`. It refuses chat-bound credentials before dispatch, rather than replacing them. Public MCP tools call this human route and remain absent from the injected catalog. Caller identity comes from the existing host handshake and MCP origin, not a fabricated agent token.
+
+| Public tool | Access | Explicit operations |
+| --- | --- | --- |
+| `chat_task_query` | Read | `capabilities`, `list`, `read`, `task`, `task-list`, `wait`, `requests` |
+| `chat_task_delegate` | Execute | `delegate` |
+| `chat_task_send` | Execute | `send` |
+| `chat_task_control` | Execute | `acknowledge`, `cancel`, `interrupt`, `respond`, `configure` |
+
+Each tool uses `{operation,payload}` and rejects fields outside the selected operation's canonical body. Mutable tools map their separate `clientRequestId` to `requestId`, including receipt-backed acknowledgement on updated hosts. The legacy CLI and injected acknowledgement path preserves omission when no ID is supplied; supplied IDs remain unchanged. The injected mixed status/acknowledge tool advertises execute access because it can mutate, while public task query remains read-only. The control access class matches existing public task cancellation, terminal interruption, and per-chat execution. Provider/global Settings and secret management continue to require their separate admin tools.
+
+Read/task-list pages default to 100 and accept limits from 1 to 200; task-list uses the returned nonnegative cursor. Query never acknowledges results. Wait accepts 1 to 200 IDs and 1 to 50 seconds, defaulting to 50 and `until:all`; a timeout does not cancel work. Task/message text is capped at 64 KiB and the body at 256 KiB. Requests require `chatId` or `taskId`. The MCP schemas list exact target, agent, policy, and operation bodies, with no arbitrary provider-option escape hatch.
+
+Human parent binding requires `chatOrchestrationPersonParentV1` on delegate/send; task-list parent filtering is just a query. Delegation effort belongs only in `agent.options.reasoningEffort`, a nonempty string of at most 128 bytes. It and configure effort selection/reset require the independent `chatOrchestrationEffortV1` plus verified destination-model support. Default selection omits model/effort; configure alone accepts explicit null resets. Unknown provider options and credentials are rejected. The ordinary `alera chat` commands share these additive capability checks while retaining their bound lineage route.
 
 ## Notifications and cancellation
 

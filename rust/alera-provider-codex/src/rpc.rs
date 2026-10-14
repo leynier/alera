@@ -59,18 +59,12 @@ impl<T: JsonTransport> CodexProvider<T> {
         }
     }
 
-    pub(crate) fn next_session_thread(&self, input: &SessionStartInput) -> String {
-        input
-            .resume_thread_id
-            .clone()
-            .unwrap_or_else(|| input.thread_id.clone())
-    }
-
     pub(crate) fn thread_params(
         &self,
         input: &SessionStartInput,
     ) -> Result<Map<String, Value>, ProviderError> {
         let mut params = input.options.clone();
+        crate::reasoning_effort::thread_options(&mut params)?;
         // The native thread id is controlled by the start/resume operation.
         params.remove("threadId");
         let defaults = crate::policy::runtime_defaults(input.runtime_mode);
@@ -114,23 +108,8 @@ impl<T: JsonTransport> CodexProvider<T> {
         session: &ProviderSession,
     ) -> Result<Map<String, Value>, ProviderError> {
         let mut params = input.options.clone();
-        let mut values = Vec::new();
-        if !input.input.is_empty() {
-            values.push(json!({ "type": "text", "text": input.input }));
-        }
-        for attachment in &input.attachments {
-            values.push(match attachment {
-                Attachment::Image { url } => json!({ "type": "image", "url": url }),
-                Attachment::LocalImage { path } => {
-                    json!({ "type": "localImage", "path": path.to_string_lossy() })
-                }
-                Attachment::File { .. } => {
-                    return Err(ProviderError::Unsupported(
-                        "Codex app-server does not support file attachments".into(),
-                    ));
-                }
-            });
-        }
+        let effort = crate::reasoning_effort::turn_options(&mut params)?;
+        let values = native_input(input)?;
         params.insert(
             "threadId".into(),
             Value::String(session.native_thread_id.clone()),
@@ -178,7 +157,7 @@ impl<T: JsonTransport> CodexProvider<T> {
                     "mode": "plan",
                     "settings": {
                         "model": model,
-                        "reasoning_effort": "medium"
+                        "reasoning_effort": effort.as_deref().or(self.session_effort.as_deref()).unwrap_or("medium")
                     }
                 }),
             );
@@ -221,4 +200,25 @@ impl<T: JsonTransport> CodexProvider<T> {
             .ok_or_else(|| ProviderError::Protocol("Codex response has no turn id".into()))
             .map(ToOwned::to_owned)
     }
+}
+
+pub(crate) fn native_input(input: &TurnInput) -> Result<Vec<Value>, ProviderError> {
+    let mut values = Vec::new();
+    if !input.input.is_empty() {
+        values.push(json!({ "type": "text", "text": input.input }));
+    }
+    for attachment in &input.attachments {
+        values.push(match attachment {
+            Attachment::Image { url } => json!({ "type": "image", "url": url }),
+            Attachment::LocalImage { path } => {
+                json!({ "type": "localImage", "path": path.to_string_lossy() })
+            }
+            Attachment::File { .. } => {
+                return Err(ProviderError::Unsupported(
+                    "Codex app-server does not support file attachments".into(),
+                ))
+            }
+        });
+    }
+    Ok(values)
 }

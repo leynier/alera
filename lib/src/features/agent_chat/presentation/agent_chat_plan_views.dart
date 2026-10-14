@@ -3,11 +3,13 @@ import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
+import 'package:alera/src/features/chat_tasks/presentation/chat_task_plan_delegation.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
 /// A plan the agent proposed in plan mode. Long plans show a preview until
-/// expanded; the latest one offers to leave plan mode and implement it.
+/// expanded; the latest one offers to leave plan mode and implement it, and
+/// any settled one can be implemented in a new workspace instead.
 class const AgentChatProposedPlanView({
   super.key,
   required final AgentChatItem item,
@@ -85,16 +87,27 @@ class _AgentChatProposedPlanViewState extends State<AgentChatProposedPlanView> {
                 ),
               ),
             ),
-          if (widget.onImplement case final VoidCallback implement) ...<Widget>[
+          if (!item.isInProgress) ...<Widget>[
             const SizedBox(height: AleraTokens.space12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                key: const ValueKey<String>('agent-chat-implement-plan'),
-                onPressed: implement,
-                icon: const Icon(AleraIcons.check, size: AleraTokens.iconMd),
-                label: const Text('Implement Plan'),
-              ),
+            // Implement In New Workspace hides itself without chat tasks, so
+            // the row may hold only Implement Plan, or nothing.
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AleraTokens.space8,
+              runSpacing: AleraTokens.space8,
+              children: <Widget>[
+                ChatTaskImplementPlanButton(plan: item),
+                if (widget.onImplement case final VoidCallback implement)
+                  FilledButton.icon(
+                    key: const ValueKey<String>('agent-chat-implement-plan'),
+                    onPressed: implement,
+                    icon: const Icon(
+                      AleraIcons.check,
+                      size: AleraTokens.iconMd,
+                    ),
+                    label: const Text('Implement Plan'),
+                  ),
+              ],
             ),
           ],
         ],

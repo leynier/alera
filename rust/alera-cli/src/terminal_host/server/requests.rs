@@ -77,6 +77,7 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<Value> {
+        self.require_provider_setup_session_access(client_id, payload)?;
         if request_type.starts_with("chatOrchestration.") {
             return self
                 .handle_chat_orchestration_request(client_id, request_type, payload)

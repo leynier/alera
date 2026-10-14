@@ -4,18 +4,22 @@ import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
 /// trailing check for the [selected] value, optional leading content, an
-/// optional muted [detail] beside the label, and pop-on-tap semantics.
+/// optional short muted [detail] beside the label, an optional [description]
+/// sentence under it, and pop-on-tap semantics.
 class const AleraDropdownEntry<T>({
   super.key,
   required final T value,
   required final String label,
   final Widget? leading,
   final String? detail,
+  final String? description,
   final bool selected = false,
   final bool enabled = true,
 }) extends PopupMenuEntry<T> {
   @override
-  double get height => 36;
+  double get height => description == null
+      ? AleraTokens.menuRowHeight
+      : AleraTokens.menuRowWithDescriptionHeight;
 
   @override
   bool represents(T? value) => enabled && this.value == value;
@@ -53,10 +57,24 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
                 const SizedBox(width: AleraTokens.space8),
               ],
               Expanded(
-                child: Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: color),
+                child: Column(
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .start,
+                  children: <Widget>[
+                    Text(
+                      widget.label,
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: color),
+                    ),
+                    if (widget.description case final description?)
+                      Text(
+                        description,
+                        maxLines: 2,
+                        overflow: .ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: AleraTokens.foregroundMuted),
+                      ),
+                  ],
                 ),
               ),
               if (widget.detail case final detail?) ...<Widget>[

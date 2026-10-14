@@ -6,6 +6,11 @@ impl ClaudeProvider {
     pub(crate) fn map_assistant(&mut self, message: AssistantMessage) -> Vec<ProviderEvent> {
         let mut events = Vec::new();
         let raw = message.raw.clone();
+        if let Some(native) = message.session_id.as_deref() {
+            self.set_native_thread(native);
+        }
+        let native_message_id = message.uuid.clone().filter(|id| !id.trim().is_empty());
+        let parent_tool_use_id = message.parent_tool_use_id.clone();
         let suppress_text = self.take_streamed_text(message.message_id.as_deref());
         let suppress_thinking = self.take_streamed_thinking(message.message_id.as_deref());
         for block in message.content {
@@ -92,6 +97,18 @@ impl ClaudeProvider {
                 json!({ "itemType": "assistant_message", "status": "completed", "data": raw.clone() }),
                 self.raw("assistant", raw),
             ));
+        }
+        for event in &mut events {
+            if let Some(id) = &native_message_id {
+                event.payload["nativeMessageId"] = json!(id);
+            }
+            if let Some(id) = &parent_tool_use_id {
+                event.payload["parentToolUseId"] = json!(id);
+                event.payload["nativeTask"] = json!(alera_provider_protocol::NativeTask {
+                    native_tool_call_id: Some(id.clone()),
+                    ..Default::default()
+                });
+            }
         }
         events
     }

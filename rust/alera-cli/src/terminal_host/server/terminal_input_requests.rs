@@ -39,6 +39,7 @@ impl ServerActor {
         request_id: i64,
         payload: &Value,
     ) -> HostResult<bool> {
+        self.require_provider_setup_session_access(client_id, payload)?;
         let session_id = self.require_session(payload)?;
         self.require_terminal_writer(client_id, &session_id)?;
         let mut bytes = decode_bytes(payload.get("dataBase64"))?;

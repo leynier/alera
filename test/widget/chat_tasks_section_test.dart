@@ -136,7 +136,10 @@ void main() {
       'task-running',
     );
     expect(find.text('Do Review the parser and report back.'), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('chatTaskWait')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('chatTaskMoreActions')),
+      findsOneWidget,
+    );
     expect(workbench.actions, isEmpty);
     expect(
       container.read(workbenchControllerProvider).activeWorkspaceId,

@@ -243,7 +243,14 @@ impl RuntimeStore {
         parent_chat_id: &str,
     ) -> Result<Option<ChatOrchestrationWake>> {
         require_id("parentChatId", parent_chat_id)?;
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
+        if super::agent_chat_native_operations::active_operation_in(&mut tx, parent_chat_id)
+            .await?
+            .is_some()
+        {
+            tx.commit().await?;
+            return Ok(None);
+        }
         let now = format_timestamp(Utc::now());
         sqlx::query(
             "UPDATE chatOrchestrationWakes SET status = 'sealed', sealedAt = ?, updatedAt = ? \

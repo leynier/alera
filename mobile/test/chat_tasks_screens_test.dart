@@ -223,7 +223,9 @@ void main() {
     expect(transport.requests, isEmpty);
   });
 
-  testWidgets('chat notices list wake tasks and the open dock', (tester) async {
+  testWidgets('chat notices show wake outcomes, the banner and the dock', (
+    tester,
+  ) async {
     final transport = _transport();
     addTearDown(transport.dispose);
     await tester.pumpWidget(
@@ -248,7 +250,19 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Write the changelog'), findsOneWidget);
-    expect(find.text('Delegated Tasks'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('chatTaskOutcome:task-done')),
+      findsOneWidget,
+    );
+    expect(find.text('Tasks · 1 running · 1 needs input'), findsOneWidget);
+    expect(
+      find.text('Task needs input: Approve the migration'),
+      findsOneWidget,
+    );
+    expect(find.text('Review the parser'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey<String>('chatTaskDockToggle')));
+    await tester.pumpAndSettle();
     expect(find.text('Review the parser'), findsOneWidget);
     expect(find.text('Approve the migration'), findsOneWidget);
 
@@ -258,5 +272,96 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ChatTaskDetailScreen), findsOneWidget);
     expect(find.byType(WorkspaceTabsScreen), findsNothing);
+  });
+
+  testWidgets('the banner yields to the parent chat\'s own requests', (
+    tester,
+  ) async {
+    final transport = _transport();
+    addTearDown(transport.dispose);
+    await tester.pumpWidget(
+      _app(
+        transport,
+        const Scaffold(
+          body: ChatTasksForChat(
+            hostId: 'host',
+            chatId: 'chat-parent',
+            parentHasPendingRequest: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tasks · 1 running · 1 needs input'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('chatTaskInputBanner:task-input')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('Answer Here resolves a child approval in place', (tester) async {
+    final transport = _transport()
+      ..pendingRequests.add(<String, Object?>{
+        'chatId': 'chat-child',
+        'taskId': 'task-input',
+        'workspaceId': 'ws-1',
+        'request': <String, Object?>{
+          'requestId': 'request-1',
+          'kind': 'commandExecutionApproval',
+          'command': 'cargo test',
+          'decisions': <String>['accept', 'decline'],
+          'createdAt': '2026-08-30T10:30:00Z',
+        },
+      });
+    addTearDown(transport.dispose);
+    await tester.pumpWidget(
+      _app(
+        transport,
+        const Scaffold(
+          body: ChatTasksForChat(hostId: 'host', chatId: 'chat-parent'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('chatTaskAnswerHere:task-input')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('chatTaskDecision:request-1:accept')),
+    );
+    await tester.pumpAndSettle();
+    final responded = transport.sent(AgentChatOrchestrationWire.respond).single;
+    expect(responded['chatId'], 'chat-child');
+    expect(responded['runtimeRequestId'], 'request-1');
+    expect(find.byType(WorkspaceTabsScreen), findsNothing);
+    expect(find.byType(ChatTaskDetailScreen), findsNothing);
+  });
+
+  testWidgets('a task brief says who delegated it', (tester) async {
+    final transport = _transport();
+    addTearDown(transport.dispose);
+    await tester.pumpWidget(
+      _app(
+        transport,
+        const Scaffold(
+          body: ChatTaskOriginNotice(
+            hostId: 'host',
+            chatId: 'chat-child',
+            origin: AgentChatItemOrigin(
+              kind: AgentChatItemOriginKind.chatMessage,
+              taskIds: <String>['task-done'],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Delegated by you'), findsOneWidget);
+    expect(find.textContaining('another chat'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('chatTaskOriginOpenParent')),
+      findsNothing,
+    );
   });
 }

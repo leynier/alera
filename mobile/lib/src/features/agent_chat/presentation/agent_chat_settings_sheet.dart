@@ -3,30 +3,33 @@ import 'dart:async';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_mode_labels.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_provider_identity.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:flutter/material.dart';
 
 /// What the settings sheet shows for the chat as it is now.
 class const AgentChatSettingsCurrent({
-  required final String providerInstanceId,
-  required final String? model,
   required final AgentChatRuntimeMode runtimeMode,
   required final AgentChatInteractionMode interactionMode,
-  required final bool canSwitchProvider,
+  final AgentChatProviderInstance? instance,
+  final AgentChatModelOption? model,
+  final String? reasoningEffort,
+  final bool effortSupported = false,
+  final bool? fileCheckpointing,
+  final bool canChangeFileCheckpointing = false,
 });
 
-/// Agent, model, approvals and plan mode for the next turn. Each choice is
-/// sent on its own; the runtime refuses what the provider cannot honor, and
-/// refuses a provider switch while anything is still running.
+/// Approvals, plan mode and, where the model reports it, reasoning effort
+/// for the next turn. The agent and model are picked from the composer chip.
+/// Each choice is sent on its own; the runtime refuses what the provider
+/// cannot honor.
 Future<void> showAgentChatSettingsSheet(
   BuildContext context, {
-  required List<AgentChatProviderInstance> providers,
   required AgentChatSettingsCurrent current,
   required Future<void> Function(AgentChatConfiguration configuration)
   onConfigure,
+  Future<void> Function(bool enabled)? onFileCheckpointing,
 }) => showModalBottomSheet<void>(
   context: context,
   showDragHandle: true,
@@ -37,12 +40,17 @@ Future<void> showAgentChatSettingsSheet(
         maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
       child: AgentChatSettingsPanel(
-        providers: providers,
         current: current,
         onConfigure: (configuration) async {
           Navigator.of(context).pop();
           await onConfigure(configuration);
         },
+        onFileCheckpointing: onFileCheckpointing == null
+            ? null
+            : (enabled) async {
+                Navigator.of(context).pop();
+                await onFileCheckpointing(enabled);
+              },
       ),
     ),
   ),
@@ -50,75 +58,23 @@ Future<void> showAgentChatSettingsSheet(
 
 class const AgentChatSettingsPanel({
   super.key,
-  required final List<AgentChatProviderInstance> providers,
   required final AgentChatSettingsCurrent current,
   required final Future<void> Function(AgentChatConfiguration) onConfigure,
+  final Future<void> Function(bool enabled)? onFileCheckpointing,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    AgentChatProviderInstance? instance;
-    for (final candidate in providers) {
-      if (candidate.id == current.providerInstanceId) instance = candidate;
-    }
-    final models = instance?.models ?? const <AgentChatModelOption>[];
-    final modelSwitch = instance?.capabilities.modelSwitch ?? false;
+    final instance = current.instance;
     final runtimeModes =
         instance?.runtimeModes ?? const <AgentChatRuntimeMode>[];
+    final efforts = current.effortSupported
+        ? current.model?.reasoningEfforts ?? const <String>[]
+        : const <String>[];
+    final effort =
+        current.reasoningEffort ?? current.model?.defaultReasoningEffort;
     return ListView(
       shrinkWrap: true,
       children: <Widget>[
-        if (providers.length > 1) ...<Widget>[
-          const AleraSectionHeader(label: 'Agent'),
-          if (!current.canSwitchProvider)
-            const ListTile(
-              dense: true,
-              subtitle: Text(
-                'Switch agents once the current turn, requests and queued '
-                'messages have finished.',
-              ),
-            ),
-          for (final provider in providers)
-            ListTile(
-              minTileHeight: AleraTokens.minTapTarget,
-              leading: AgentIdentityIcon(
-                agentType: agentChatAgentType(provider.provider),
-                size: AleraTokens.space20,
-                showTooltip: false,
-              ),
-              title: Text(provider.label),
-              subtitle: provider.available
-                  ? null
-                  : Text(provider.unavailableReason ?? 'Not available'),
-              trailing: provider.id == current.providerInstanceId
-                  ? const Icon(AleraIcons.check)
-                  : null,
-              enabled:
-                  provider.available &&
-                  current.canSwitchProvider &&
-                  provider.id != current.providerInstanceId,
-              onTap: () => unawaited(
-                onConfigure(
-                  AgentChatConfiguration(providerInstanceId: provider.id),
-                ),
-              ),
-            ),
-        ],
-        if (models.length > 1 && modelSwitch) ...<Widget>[
-          const AleraSectionHeader(label: 'Model'),
-          for (final model in models)
-            ListTile(
-              minTileHeight: AleraTokens.minTapTarget,
-              title: Text(model.label),
-              trailing: model.id == current.model
-                  ? const Icon(AleraIcons.check)
-                  : null,
-              onTap: model.id == current.model
-                  ? null
-                  : () => unawaited(
-                      onConfigure(AgentChatConfiguration(model: model.id)),
-                    ),
-            ),
-        ],
         if (runtimeModes.length > 1) ...<Widget>[
           const AleraSectionHeader(label: 'Approvals'),
           for (final mode in runtimeModes)
@@ -157,6 +113,49 @@ class const AgentChatSettingsPanel({
               ),
             ),
           ),
+        // Shown whenever the agent supports it, on or off; it only changes
+        // while the chat is idle, and takes effect with the next message.
+        if (current.fileCheckpointing case final enabled?)
+          SwitchListTile(
+            title: const Text('File Checkpointing'),
+            subtitle: Text(
+              current.canChangeFileCheckpointing
+                  ? 'Save file checkpoints so a rewind can restore files. '
+                        'Applies from the next message, which starts a new '
+                        'agent session.'
+                  : 'Change this once the current turn ends and nothing is '
+                        'pending.',
+            ),
+            value: enabled,
+            onChanged:
+                current.canChangeFileCheckpointing &&
+                    onFileCheckpointing != null
+                ? (on) => unawaited(onFileCheckpointing!(on))
+                : null,
+          ),
+        if (efforts.isNotEmpty) ...<Widget>[
+          const AleraSectionHeader(label: 'Reasoning Effort'),
+          for (final option in efforts)
+            ListTile(
+              minTileHeight: AleraTokens.minTapTarget,
+              title: Text(agentChatEffortLabel(option)),
+              subtitle: option == current.model?.defaultReasoningEffort
+                  ? const Text('Model default')
+                  : null,
+              trailing: option == effort ? const Icon(AleraIcons.check) : null,
+              onTap: option == effort
+                  ? null
+                  : () => unawaited(
+                      onConfigure(
+                        option == current.model?.defaultReasoningEffort
+                            ? const AgentChatConfiguration(
+                                resetReasoningEffort: true,
+                              )
+                            : AgentChatConfiguration(reasoningEffort: option),
+                      ),
+                    ),
+            ),
+        ],
       ],
     );
   }
@@ -166,33 +165,34 @@ class const AgentChatSettingsPanel({
     AgentChatRuntimeMode mode,
   ) async {
     if (mode == AgentChatRuntimeMode.fullAccess &&
-        !await _confirmFullAccess(context)) {
+        !await confirmAgentChatFullAccess(context)) {
       return;
     }
     await onConfigure(AgentChatConfiguration(runtimeMode: mode));
   }
 }
 
-Future<bool> _confirmFullAccess(BuildContext context) async =>
+/// The same confirmation the desktop asks before Full Access.
+Future<bool> confirmAgentChatFullAccess(BuildContext context) async =>
     await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(AleraIcons.warning, color: AleraTokens.warning),
-        title: const Text('Turn On Full Access?'),
-        content: const Text(
-          'The agent will be able to run commands, use the network, and '
-          'create, edit or delete files on the host without asking.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Turn On'),
-          ),
-        ],
+      builder: (context) => const AleraConfirmDialog(
+        title: agentChatFullAccessTitle,
+        message: agentChatFullAccessMessage,
+        confirmLabel: agentChatFullAccessConfirm,
+      ),
+    ) ??
+    false;
+
+/// Asked only once a chat has history to hand over; an empty chat switches
+/// without a question.
+Future<bool> confirmAgentChatSwitch(BuildContext context, String agent) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => AleraConfirmDialog(
+        title: agentChatSwitchAgentTitle(agent),
+        message: agentChatSwitchAgentMessage(agent),
+        confirmLabel: agentChatSwitchAgentConfirm,
       ),
     ) ??
     false;

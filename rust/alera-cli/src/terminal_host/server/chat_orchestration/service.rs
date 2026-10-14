@@ -8,15 +8,13 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::agent_chat_runtime::commands::ConfigureInput;
 use crate::terminal_host::server::agent_chat_runtime::AgentChatRuntime;
 
-use super::authorization::{
-    authorize_request, modes_at_or_below, require_lineage_for_task, BoundChat, OrchestrationCaller,
-};
+use super::authorization::{authorize_request, modes_at_or_below, BoundChat, OrchestrationCaller};
 use super::credentials::ChatCredentialLaunchHook;
+use super::job_lifecycle::{OrchestrationJobs, RequestJob};
 use super::models::OrchestrationRequest;
 use super::request_admission::RequestAdmission;
 use super::runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
 use super::targets::ChatTargetResolver;
-use super::tasks::task_value_for;
 
 pub(super) const TASK_ORIGIN: &str = "chatMessage";
 
@@ -40,6 +38,7 @@ pub(crate) struct ChatOrchestrationService {
     pub(super) credentials: Arc<ChatCredentialLaunchHook>,
     pub(super) events: Arc<dyn OrchestrationEventSink>,
     pub(super) admission: Arc<RequestAdmission>,
+    pub(super) jobs: Arc<OrchestrationJobs>,
 }
 
 impl ChatOrchestrationService {
@@ -56,6 +55,7 @@ impl ChatOrchestrationService {
             credentials,
             events: Arc::new(NullOrchestrationEventSink),
             admission: Arc::new(RequestAdmission::default()),
+            jobs: Arc::default(),
         }
     }
 
@@ -67,6 +67,12 @@ impl ChatOrchestrationService {
     pub(crate) fn with_events(mut self, events: Arc<dyn OrchestrationEventSink>) -> Self {
         self.events = events;
         self
+    }
+
+    /// Stops orchestration requests, monitors and their inline wake delivery.
+    /// A false result requires another attempt before shutting down chat actors.
+    pub(crate) async fn shutdown(&self) -> bool {
+        self.jobs.shutdown().await
     }
 
     #[cfg(test)]
@@ -129,8 +135,36 @@ impl ChatOrchestrationService {
         payload: &Value,
         caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
+        let service = self.clone();
+        let verb = verb.to_owned();
+        let payload = payload.clone();
+        let caller = caller.clone();
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let Some(_request) = self
+            .jobs
+            .spawn(async move {
+                let response = service.handle_admitted(&verb, &payload, &caller).await;
+                let _ = sender.send(response);
+            })
+            .map(RequestJob)
+        else {
+            return Err(shutdown_error());
+        };
+        receiver.await.unwrap_or_else(|_| Err(shutdown_error()))
+    }
+
+    async fn handle_admitted(
+        &self,
+        verb: &str,
+        payload: &Value,
+        caller: &OrchestrationCaller,
+    ) -> HostResult<Value> {
         let request = OrchestrationRequest::parse(verb, payload)?;
-        let _admission = if let Some(request_id) = payload.get("requestId").and_then(Value::as_str)
+        let _admission = if let Some(request_id) = payload
+            .get("requestId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
         {
             Some(
                 self.admission
@@ -148,16 +182,15 @@ impl ChatOrchestrationService {
                 workspace_id,
                 host_id,
             } => self.capabilities(workspace_id, host_id, caller).await,
-            OrchestrationRequest::Delegate(input) => self.delegate(input, caller).await,
+            OrchestrationRequest::Delegate(input) => self.delegate(*input, caller).await,
             OrchestrationRequest::Send(input) => self.send(input, caller).await,
             OrchestrationRequest::Task {
                 task_id,
                 acknowledge,
+                request_id,
             } => {
-                if acknowledge {
-                    require_lineage_for_task(caller, &self.store, &task_id).await?;
-                }
-                task_value_for(&self.store, &task_id, acknowledge).await
+                self.task_request(&task_id, acknowledge, request_id.as_deref(), caller)
+                    .await
             }
             OrchestrationRequest::TasksList(input) => self.tasks_list(input, caller).await,
             OrchestrationRequest::Wait(input) => self.wait(input, caller).await,
@@ -202,6 +235,7 @@ impl ChatOrchestrationService {
                 provider,
                 provider_instance_id,
                 model,
+                reasoning_effort,
                 runtime_mode,
                 interaction_mode,
             } => {
@@ -212,6 +246,7 @@ impl ChatOrchestrationService {
                         provider,
                         provider_instance_id,
                         model,
+                        reasoning_effort,
                         runtime_mode,
                         interaction_mode,
                     },
@@ -282,4 +317,12 @@ impl ChatOrchestrationService {
         }
         Ok(value)
     }
+}
+
+fn shutdown_error() -> HostError {
+    HostError::conflict(
+        "chat_orchestration_shutdown",
+        "Chat orchestration is shutting down. Retry after the runtime restarts.",
+        json!({}),
+    )
 }

@@ -4,14 +4,18 @@ import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_orchestration_target.dart';
 import 'package:alera_agent_chat/src/agent_chat_orchestration_task.dart';
 
-/// The agent a new child chat starts with, from the runtime's catalog.
+/// The agent a new child chat starts with, or an effort-only override for an
+/// existing chat. The destination host validates exact model effort values.
 class const AgentChatTaskAgent({
-  required final String providerInstanceId,
+  final String? providerInstanceId,
   final String? model,
+  final String? reasoningEffort,
 }) {
   AgentChatJson toJson() => <String, Object?>{
-    'providerInstanceId': providerInstanceId,
-    'model': ?model,
+    'providerInstanceId': ?agentChatJsonString(providerInstanceId),
+    'model': ?agentChatJsonString(model),
+    if (agentChatJsonString(reasoningEffort) case final effort?)
+      'options': <String, Object?>{'reasoningEffort': effort},
   };
 }
 
@@ -22,6 +26,7 @@ class const AgentChatDelegateInput({
   required final String task,
   required final AgentChatTaskTarget target,
   final String? title,
+  final String? parentChatId,
   final String? role,
   final AgentChatTaskNotify? notify,
   final AgentChatTaskAgent? agent,
@@ -34,6 +39,7 @@ class const AgentChatDelegateInput({
     'mode': 'async',
     'target': target.toJson(),
     'title': ?title,
+    'parentChatId': ?parentChatId,
     'role': ?role,
     'notify': ?notify?.wire,
     'agent': ?agent?.toJson(),
@@ -86,6 +92,7 @@ class const AgentChatTaskMessageInput({
   required final String requestId,
   required final String chatId,
   required final String message,
+  final String? parentChatId,
   final AgentChatTaskMessageDelivery delivery =
       AgentChatTaskMessageDelivery.auto,
   final bool expectReply = false,
@@ -94,6 +101,7 @@ class const AgentChatTaskMessageInput({
     'requestId': requestId,
     'chatId': chatId,
     'message': message,
+    'parentChatId': ?parentChatId,
     'delivery': delivery.wire,
     'expectReply': expectReply,
   };

@@ -155,7 +155,10 @@ pub(super) async fn insert_tab_in(
     Ok(())
 }
 
-async fn require_workspace_in(connection: &mut SqliteConnection, workspace_id: &str) -> Result<()> {
+pub(super) async fn require_workspace_in(
+    connection: &mut SqliteConnection,
+    workspace_id: &str,
+) -> Result<()> {
     let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM workspaces WHERE id = ?)")
         .bind(workspace_id)
         .fetch_one(&mut *connection)
@@ -168,7 +171,10 @@ async fn require_workspace_in(connection: &mut SqliteConnection, workspace_id: &
     Ok(())
 }
 
-fn require_new_record(record: &AgentChatRecord, snapshot: &AgentChatSnapshot) -> Result<()> {
+pub(super) fn require_new_record(
+    record: &AgentChatRecord,
+    snapshot: &AgentChatSnapshot,
+) -> Result<()> {
     require_chat_id(&record.chat_id)?;
     require_id("tabId", &record.tab_id)?;
     require_id("workspaceId", &record.workspace_id)?;
@@ -176,6 +182,12 @@ fn require_new_record(record: &AgentChatRecord, snapshot: &AgentChatSnapshot) ->
     require_id("providerInstanceId", &record.provider_instance_id)?;
     if let Some(native) = &record.native_thread_id {
         require_id("nativeThreadId", native)?;
+        if record.provider == super::AGENT_CHAT_UNSELECTED_PROVIDER {
+            return Err(AgentChatStoreError::Invalid(
+                "an unselected draft cannot have a native thread".into(),
+            )
+            .into());
+        }
     }
     let invalid = |message: &str| -> anyhow::Error {
         AgentChatStoreError::Invalid(message.to_string()).into()
@@ -416,8 +428,19 @@ impl RuntimeStore {
         tx.commit().await?;
         let mut events = Vec::new();
         let mut budget = 0_usize;
+        let host_cursor = row.cursor;
         for row in rows {
             let json: String = row.try_get("deltaJson")?;
+            let delta: Value = serde_json::from_str(&json)?;
+            if delta.get("snapshotRequired").and_then(Value::as_bool) == Some(true) {
+                return Ok(AgentChatEventPage {
+                    chat_id: chat_id.to_string(),
+                    events: Vec::new(),
+                    cursor: host_cursor,
+                    has_more: false,
+                    snapshot_required: true,
+                });
+            }
             if !events.is_empty() && budget + json.len() > AGENT_CHAT_PAGE_MAX_BYTES {
                 break;
             }
@@ -425,7 +448,7 @@ impl RuntimeStore {
             events.push(AgentChatEvent {
                 chat_id: chat_id.to_string(),
                 cursor: row.try_get("cursor")?,
-                delta: serde_json::from_str(&json)?,
+                delta,
                 occurred_at: row.try_get("occurredAt")?,
             });
         }

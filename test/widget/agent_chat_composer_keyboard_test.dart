@@ -1,10 +1,21 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+const AgentChatComposerSettings _settings = AgentChatComposerSettings(
+  provider: 'codex',
+  providerInstanceId: 'codex',
+  session: AgentChatSession(status: AgentChatSessionStatus.ready),
+  providers: <AgentChatProviderInstance>[],
+  canSwitchProvider: true,
+  configuring: false,
+  catalog: AgentChatCatalogState.loading,
+);
 
 final class _Harness {
   _Harness(this.history);
@@ -12,48 +23,55 @@ final class _Harness {
   final List<String> history;
   final TerminalComposerController composer = TerminalComposerController();
   final List<String> sent = <String>[];
+  final List<String> steered = <String>[];
   int interrupts = 0;
 
   TextEditingController get text => composer.textController;
 
-  Widget build({bool canInterrupt = false}) => MaterialApp(
-    theme: buildAleraDarkTheme(),
-    home: Scaffold(
-      body: Align(
-        alignment: Alignment.bottomCenter,
-        child: AgentChatComposer(
-          controller: composer,
-          workspaceId: 'ws-1',
-          chatId: 'chat-1',
-          settings: null,
-          usage: const AgentChatUsage(),
-          canSend: true,
-          busy: canInterrupt,
-          canInterrupt: canInterrupt,
-          interrupting: false,
-          hintText: 'Message the agent',
-          promptHistory: () => history,
-          onSend: (text, _) {
-            sent.add(text);
-            return true;
-          },
-          onInterrupt: () => interrupts += 1,
-          onConfigure: (_) {},
-          onOpenFile: (_) {},
+  Widget build({bool canInterrupt = false, bool canSteer = false}) =>
+      MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: AgentChatComposer(
+              controller: composer,
+              workspaceId: 'ws-1',
+              chatId: 'chat-1',
+              settings: _settings,
+              usage: const AgentChatUsage(),
+              canSend: true,
+              canSteer: canSteer,
+              busy: canInterrupt || canSteer,
+              canInterrupt: canInterrupt,
+              interrupting: false,
+              hintText: 'Message the agent',
+              promptHistory: () => history,
+              onSend: (text, _, {steer = false}) {
+                (steer ? steered : sent).add(text);
+                return true;
+              },
+              onInterrupt: () => interrupts += 1,
+              onConfigure: (_) {},
+              onChoose: (_, _) {},
+              onOpenFile: (_) {},
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 Future<_Harness> _pump(
   WidgetTester tester,
   List<String> history, {
   bool canInterrupt = false,
+  bool canSteer = false,
 }) async {
   final harness = _Harness(history);
   addTearDown(harness.composer.dispose);
-  await tester.pumpWidget(harness.build(canInterrupt: canInterrupt));
+  await tester.pumpWidget(
+    harness.build(canInterrupt: canInterrupt, canSteer: canSteer),
+  );
   await tester.tap(find.byType(TextField));
   await tester.pump();
   return harness;
@@ -201,4 +219,35 @@ void main() {
     },
     variant: TargetPlatformVariant.only(TargetPlatform.macOS),
   );
+
+  testWidgets(
+    'Mod+Enter steers into the running turn when the agent accepts it',
+    (tester) async {
+      final harness = await _pump(tester, const <String>[], canSteer: true);
+      await tester.enterText(find.byType(TextField), 'Also update the docs');
+      await _press(
+        tester,
+        LogicalKeyboardKey.enter,
+        modifier: LogicalKeyboardKey.metaLeft,
+      );
+      expect(harness.steered, <String>['Also update the docs']);
+      expect(harness.sent, isEmpty);
+      expect(harness.text.text, isEmpty);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
+
+  testWidgets('Mod+Enter without steering support sends like Enter', (
+    tester,
+  ) async {
+    final harness = await _pump(tester, const <String>[]);
+    await tester.enterText(find.byType(TextField), 'Queue this');
+    await _press(
+      tester,
+      LogicalKeyboardKey.enter,
+      modifier: LogicalKeyboardKey.controlLeft,
+    );
+    expect(harness.sent, <String>['Queue this']);
+    expect(harness.steered, isEmpty);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

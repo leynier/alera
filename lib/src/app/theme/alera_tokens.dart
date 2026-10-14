@@ -44,7 +44,16 @@ abstract final class AleraTokens {
   static const double agentChatRequestMaxHeight = 320.0;
   static const double agentChatDetailsMaxHeight = 360.0;
   static const double agentChatAttachmentThumbnailSize = 60.0;
+  static const double agentChatComposerCompactWidth = 560.0;
   static const double agentChatStatusDotSize = 7.0;
+  // A chat timeline follows new output again once the reader is this close
+  // to the end.
+  static const double agentChatFollowRearmExtent = 40.0;
+  // Narrow panes size user messages by share of the width instead of
+  // [agentChatUserMessageLeftInset].
+  static const double agentChatUserMessageWidthFraction = 0.85;
+  // The request dock never takes more than this share of the chat pane.
+  static const double agentChatRequestDockHeightFraction = 0.5;
   static const double imagePreviewMaxScale = 5.0;
   static const double chatBubbleMaxWidth = 620.0;
   static const double activityLogHeight = 160.0;
@@ -73,6 +82,11 @@ abstract final class AleraTokens {
   /// Height of compact single-line controls (dropdown fields, the number and
   /// time inputs beside them) so they line up in one row.
   static const double controlHeight = 34.0;
+
+  /// Height of an `AleraDropdownEntry` row, and of one that adds a
+  /// description line under its label (one `bodySmall` line more).
+  static const double menuRowHeight = 36.0;
+  static const double menuRowWithDescriptionHeight = 52.0;
 
   /// Label column of `AleraKeyValueList`, and the width under which it stacks
   /// each label above its value instead.

@@ -270,12 +270,24 @@ pub(crate) async fn authorize_request(
             }
         }
         OrchestrationRequest::Delegate(input) => {
+            super::parent::authorize_parent_chat(&caller, runtime, input.parent_chat_id.as_deref())
+                .await?;
             enforce_mode_ceiling(&caller, input.runtime_mode.as_deref())?;
             if let super::models::ParsedTarget::Chat { chat_id } = &input.target {
                 authorize_target_chat(&caller, runtime, chat_id).await?;
             }
         }
         OrchestrationRequest::Send(input) => {
+            if input.expect_reply {
+                super::parent::authorize_parent_chat(
+                    &caller,
+                    runtime,
+                    input.parent_chat_id.as_deref(),
+                )
+                .await?;
+            } else if caller.bound.is_some() {
+                super::parent::task_parent_chat_id(&caller, input.parent_chat_id.as_deref())?;
+            }
             authorize_target_chat(&caller, runtime, &input.chat_id).await?;
         }
         _ => {}

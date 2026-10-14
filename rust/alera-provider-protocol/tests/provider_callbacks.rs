@@ -78,6 +78,51 @@ struct FixedHandler {
     seen_request_ids: Vec<RequestId>,
 }
 
+#[tokio::test]
+async fn native_extension_defaults_are_explicitly_unsupported() {
+    let mut provider = FakeProvider {
+        events: VecDeque::new(),
+        responses: Vec::new(),
+        session: None,
+    };
+    assert!(matches!(
+        provider
+            .steer_turn(TurnInput::text("app", "input"), "native-turn")
+            .await,
+        Err(ProviderError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider
+            .fork_session(alera_provider_protocol::NativeForkInput {
+                source_native_thread_id: "source".into(),
+                session: SessionStartInput::new("target"),
+                boundary: None,
+            })
+            .await,
+        Err(ProviderError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider
+            .rollback_session(alera_provider_protocol::NativeRollbackInput {
+                thread_id: "app".into(),
+                boundary: alera_provider_protocol::NativeRollbackBoundary::RemoveTurns(1),
+            })
+            .await,
+        Err(ProviderError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider
+            .rewind_files(alera_provider_protocol::NativeRewindFilesInput {
+                thread_id: "app".into(),
+                native_user_message_id: "checkpoint".into(),
+            })
+            .await,
+        Err(ProviderError::Unsupported(_))
+    ));
+    assert_eq!(provider.reasoning_effort_capabilities(), Default::default());
+    assert_eq!(provider.native_history_capabilities(), Default::default());
+}
+
 impl FixedHandler {
     fn returning(response: RuntimeResponse) -> Self {
         Self {

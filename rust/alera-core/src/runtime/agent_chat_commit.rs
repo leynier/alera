@@ -187,14 +187,19 @@ async fn sync_tab_payload_in(
     tab_id: &str,
     snapshot: &AgentChatSnapshot,
 ) -> Result<()> {
+    let provider = (snapshot.provider != super::AGENT_CHAT_UNSELECTED_PROVIDER)
+        .then_some(snapshot.provider.as_str());
+    let provider_instance_id = (snapshot.provider_instance_id
+        != super::AGENT_CHAT_UNSELECTED_PROVIDER)
+        .then_some(snapshot.provider_instance_id.as_str());
     sqlx::query(
         "UPDATE workspaceTabs SET payloadJson = json_set(payloadJson, '$.provider', ?1, \
          '$.providerInstanceId', ?2) WHERE id = ?3 AND kind = 'agentChat' \
          AND (json_extract(payloadJson, '$.provider') IS NOT ?1 \
          OR json_extract(payloadJson, '$.providerInstanceId') IS NOT ?2)",
     )
-    .bind(&snapshot.provider)
-    .bind(&snapshot.provider_instance_id)
+    .bind(provider)
+    .bind(provider_instance_id)
     .bind(tab_id)
     .execute(&mut *connection)
     .await?;
@@ -242,6 +247,14 @@ pub(super) async fn commit_in(
         return Err(invalid("snapshot identity must match the chat"));
     }
     let stored = parse_header(&row.snapshot_json)?;
+    super::agent_chat_native_operations::require_native_operation_safe_commit_in(
+        connection,
+        &row.chat_id,
+        &stored,
+        &snapshot,
+        &delta,
+    )
+    .await?;
     let provider = delta
         .provider
         .clone()
@@ -295,6 +308,25 @@ pub(super) async fn commit_in(
     )
     .await?;
     require_extra(&stored.extra, &snapshot.extra, &delta.extra)?;
+    if snapshot.provider == super::AGENT_CHAT_UNSELECTED_PROVIDER {
+        let history: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM agentChatItems WHERE chatId = ?1) \
+             OR EXISTS(SELECT 1 FROM agentChatTurns WHERE chatId = ?1) \
+             OR EXISTS(SELECT 1 FROM agentChatNativeIds WHERE chatId = ?1)",
+        )
+        .bind(&row.chat_id)
+        .fetch_one(&mut *connection)
+        .await?;
+        if history
+            || row.native_thread_id.is_some()
+            || delta.items.as_ref().is_some_and(|items| !items.is_empty())
+            || delta.turns.as_ref().is_some_and(|turns| !turns.is_empty())
+        {
+            return Err(invalid(
+                "an unselected draft cannot have native activity or history",
+            ));
+        }
+    }
 
     write_turns_in(
         connection,

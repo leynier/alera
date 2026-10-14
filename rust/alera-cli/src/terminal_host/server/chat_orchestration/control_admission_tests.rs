@@ -5,12 +5,14 @@ use super::delegation_tests::delegate_payload;
 use super::paused_runtime_fixture::{CommandGate, PausedChatRuntime};
 use super::test_support::{error_code, human, TestHarness, TEST_DEADLINE};
 
-async fn ready(harness: &TestHarness, chat_id: &str) {
+async fn idle(harness: &TestHarness, chat_id: &str) {
     tokio::time::timeout(TEST_DEADLINE, async {
         loop {
             let snapshot = harness.service.runtime.snapshot(chat_id).await.unwrap();
-            if snapshot["session"]["status"] == "ready"
-                && snapshot["session"]["activeTurnId"].is_null()
+            if matches!(
+                snapshot["session"]["status"].as_str(),
+                Some("ready" | "stopped")
+            ) && snapshot["session"]["activeTurnId"].is_null()
             {
                 break;
             }
@@ -70,7 +72,7 @@ async fn bound_controls_recheck_target_mode_at_actor_admission_after_human_confi
         harness
             .task_status(task["taskId"].as_str().unwrap(), Status::Completed)
             .await;
-        ready(&harness, child).await;
+        idle(&harness, child).await;
         let mut payload = json!({"requestId": format!("bound-{verb}"), "chatId": child});
         if verb == "configure" {
             payload["model"] = json!("racing-agent-model");
@@ -111,7 +113,7 @@ async fn bound_controls_recheck_target_mode_at_actor_admission_after_human_confi
                 .await
                 .unwrap();
             before.complete(2, "The human resolved the prior request.");
-            ready(&harness, child).await;
+            idle(&harness, child).await;
         }
         paused
             .handle(
@@ -122,7 +124,7 @@ async fn bound_controls_recheck_target_mode_at_actor_admission_after_human_confi
             )
             .await
             .unwrap();
-        ready(&harness, child).await;
+        idle(&harness, child).await;
         gate.release.notify_one();
         let error = tokio::time::timeout(TEST_DEADLINE, control)
             .await
@@ -135,9 +137,19 @@ async fn bound_controls_recheck_target_mode_at_actor_admission_after_human_confi
         let snapshot = harness.service.runtime.snapshot(child).await.unwrap();
         assert_eq!(snapshot["session"]["runtimeMode"], "full-access");
         assert_eq!(snapshot["session"]["model"], "human-model");
-        let current = harness.control(child).await;
-        assert!(current.interrupts.lock().unwrap().is_empty());
-        assert!(current.responses.lock().unwrap().is_empty());
+        assert!(before.interrupts.lock().unwrap().is_empty());
+        assert_eq!(snapshot["session"]["status"], "stopped");
+        assert_eq!(
+            harness
+                .factory
+                .launches
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|launch| launch.chat_id == child)
+                .count(),
+            1
+        );
         assert_eq!(
             before.responses.lock().unwrap().len(),
             usize::from(verb == "respond")
@@ -156,6 +168,21 @@ async fn bound_controls_recheck_target_mode_at_actor_admission_after_human_confi
                 harness.service.runtime.snapshot(child).await.unwrap()["session"]["model"],
                 "human-final-model"
             );
+            harness
+                .send_human(
+                    child,
+                    "human-final-model-turn",
+                    "Send with the human-selected model.",
+                )
+                .await;
+            let current = harness.factory.control_after(child, &before).await;
+            tokio::time::timeout(TEST_DEADLINE, current.wait_turns(1))
+                .await
+                .unwrap();
+            assert_eq!(
+                current.turns.lock().unwrap()[0].model.as_deref(),
+                Some("human-final-model")
+            );
         } else {
             harness
                 .send_human(
@@ -164,6 +191,7 @@ async fn bound_controls_recheck_target_mode_at_actor_admission_after_human_confi
                     "Human authority remains available.",
                 )
                 .await;
+            let current = harness.factory.control_after(child, &before).await;
             tokio::time::timeout(TEST_DEADLINE, current.wait_turns(1))
                 .await
                 .unwrap();

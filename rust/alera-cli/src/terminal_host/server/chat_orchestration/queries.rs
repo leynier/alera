@@ -26,7 +26,7 @@ pub(super) fn runtime_receipt_key(
         ),
         digest: chat_orchestration_request_digest(
             verb,
-            &json!({"chatId":chat_id, "operation":operation}),
+            &json!({"chatId":chat_id, "operation":super::operation_wire::encode_operation(operation)}),
         ),
     }
 }

@@ -13,9 +13,22 @@ use crate::terminal_host::server::agent_chat_runtime::commands::{
 
 use super::authorization::OrchestrationCaller;
 use super::models::SendInput;
+use super::native_operation_guard::task_creation_error;
 use super::operations::cancel_requested_task;
+use super::parent::task_parent_chat_id;
 use super::service::{ChatOrchestrationService, TASK_ORIGIN};
 use super::tasks::{task_value, transition_status};
+
+pub(super) fn task_message_origin(caller: &OrchestrationCaller, task_id: Option<&str>) -> Value {
+    let mut origin = json!({"kind": TASK_ORIGIN});
+    if let Some(bound) = &caller.bound {
+        origin["senderChatId"] = json!(bound.chat_id);
+    }
+    if let Some(task_id) = task_id {
+        origin["taskIds"] = json!([task_id]);
+    }
+    origin
+}
 
 impl ChatOrchestrationService {
     pub(super) async fn send_chat_input(
@@ -49,15 +62,30 @@ impl ChatOrchestrationService {
         if input.delivery != "auto" && input.delivery != "queue" {
             return Err(HostError::format("delivery must be auto or queue"));
         }
-        let payload = json!({"chatId": input.chat_id, "message": input.message,
+        let mut payload = json!({"chatId": input.chat_id, "message": input.message,
             "delivery": input.delivery, "expectReply": input.expect_reply});
+        if input.expect_reply {
+            if let Some(parent) = &input.parent_chat_id {
+                payload["parentChatId"] = json!(parent);
+            }
+        }
         if let Some(response) = self
             .check_receipt(caller, "send", &input.request_id, &payload)
             .await?
         {
             return Ok(response);
         }
-        let sender = caller.bound.as_ref().map(|bound| bound.chat_id.clone());
+        let parent = if input.expect_reply {
+            task_parent_chat_id(caller, input.parent_chat_id.as_deref())?
+        } else {
+            None
+        };
+        super::native_operation_guard::require_unfrozen_admission(
+            self.runtime.as_ref(),
+            parent.as_deref(),
+            Some(&input.chat_id),
+        )
+        .await?;
         let (task_id, receipt) = if input.expect_reply {
             let task_id = new_chat_orchestration_task_id();
             let receipt = ChatOrchestrationReceipt {
@@ -75,8 +103,8 @@ impl ChatOrchestrationService {
                         task_id: task_id.clone(),
                         kind: ChatOrchestrationTaskKind::Message,
                         caller_scope: caller.ctx.scope.clone(),
-                        parent_task_id: self.caller_parent_task_id(caller).await?,
-                        parent_chat_id: sender.clone(),
+                        parent_task_id: self.parent_task_id_for_chat(parent.as_deref()).await?,
+                        parent_chat_id: parent,
                         child_chat_id: Some(input.chat_id.clone()),
                         project_id: resolved.project_id,
                         workspace_id: Some(resolved.workspace_id),
@@ -93,7 +121,7 @@ impl ChatOrchestrationService {
                     Some(&receipt),
                 )
                 .await
-                .map_err(|error| HostError::state(error.to_string()))?;
+                .map_err(task_creation_error)?;
             match created {
                 ChatOrchestrationCreateOutcome::Replay(response) => return Ok(response),
                 ChatOrchestrationCreateOutcome::Conflict => {
@@ -101,7 +129,7 @@ impl ChatOrchestrationService {
                         "request_conflict",
                         "This requestId was already used for a different request.",
                         json!({}),
-                    ))
+                    ));
                 }
                 ChatOrchestrationCreateOutcome::Created(task) => self.emit_change(&task).await,
             }
@@ -130,12 +158,26 @@ impl ChatOrchestrationService {
                     )
                 )
             });
-        let response = self.send_chat_input(&input.chat_id, RuntimeSendInput {
-            client_message_id: client_message_id.clone(), text: input.message, attachments: Vec::new(),
-            delivery: input.delivery, model: None, interaction_mode: None,
-            runtime_mode_ceiling: caller.bound.as_ref().map(|bound| bound.runtime_mode.clone()),
-            origin: Some(json!({"kind":TASK_ORIGIN, "senderChatId":sender, "taskIds":task_id.as_ref().map(|id| vec![id])})),
-        }, caller).await;
+        let response = self
+            .send_chat_input(
+                &input.chat_id,
+                RuntimeSendInput {
+                    client_message_id: client_message_id.clone(),
+                    text: input.message,
+                    attachments: Vec::new(),
+                    delivery: input.delivery,
+                    model: None,
+                    reasoning_effort: None,
+                    interaction_mode: None,
+                    runtime_mode_ceiling: caller
+                        .bound
+                        .as_ref()
+                        .map(|bound| bound.runtime_mode.clone()),
+                    origin: Some(task_message_origin(caller, task_id.as_deref())),
+                },
+                caller,
+            )
+            .await;
         let response = match response {
             Ok(response) => response,
             Err(error) => {

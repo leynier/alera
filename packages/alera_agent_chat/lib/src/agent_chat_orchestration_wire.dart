@@ -7,6 +7,9 @@ import 'package:alera_agent_chat/src/agent_chat_transport.dart';
 /// terminal orchestration and from the `agentChat.*` verbs it builds on.
 abstract final class AgentChatOrchestrationWire {
   static const String capability = 'chatOrchestrationV1';
+  static const String personParentCapability =
+      'chatOrchestrationPersonParentV1';
+  static const String effortCapability = 'chatOrchestrationEffortV1';
   static const String changedEvent = 'chatOrchestrationChanged';
 
   static const String capabilities = 'chatOrchestration.capabilities';

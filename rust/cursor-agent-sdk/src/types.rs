@@ -2,34 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct ModelSelection {
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub params: Vec<ModelParameterValue>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ModelParameterValue {
-    pub id: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SdkModel {
-    pub id: String,
-    #[serde(default)]
-    pub display_name: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub parameters: Vec<Value>,
-    #[serde(default)]
-    pub variants: Vec<Value>,
-}
+use crate::models::ModelSelection;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

@@ -1,6 +1,24 @@
 /// Wire names shared by the runtime, the desktop app and the phone.
 abstract final class AgentChatWire {
   static const String capability = 'agentChatV1';
+  static const String deferredStartCapability = 'agentChatDeferredStartV1';
+  static const String unselectedDraftCapability = 'agentChatUnselectedDraftV1';
+  static const String preferencesCapability = 'agentChatPreferencesV1';
+  static const String providerSettingsCapability =
+      'agentChatProviderSettingsV1';
+  static const String effortCapability = 'agentChatEffortV1';
+  static const String queueSteerCapability = 'agentChatQueueSteerV1';
+  static const String queueEditCapability = 'agentChatQueueEditV1';
+  static const String forkCapability = 'agentChatForkV1';
+  static const String rewindCapability = 'agentChatRewindV1';
+  static const String nativeRewindCapability = 'agentChatNativeRewindV1';
+  static const String rewindFilesCapability = 'agentChatRewindFilesV1';
+  static const String fileCheckpointsCapability = 'agentChatFileCheckpointsV1';
+  static const String nativeHistoryCapability = 'agentChatNativeHistoryV1';
+  static const String deleteCapability = 'agentChatDeleteV1';
+  static const String approvalHistoryCapability = 'agentChatApprovalHistoryV1';
+  static const String turnDiffCapability = 'agentChatTurnDiffV1';
+  static const String readCursorCapability = 'agentChatReadCursorV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -12,6 +30,21 @@ abstract final class AgentChatWire {
 
   static const String changedEvent = 'agentChatChanged';
   static const String listChangedEvent = 'agentChatsChanged';
+  static const String preferencesChangedEvent = 'agentChatPreferencesChanged';
+  static const String providersChangedEvent = 'agentChatProvidersChanged';
+  static const String deletedEvent = 'agentChatDeleted';
+
+  static const String preferencesGet = 'agentChat.preferences.get';
+  static const String preferencesUpdate = 'agentChat.preferences.update';
+  static const String providerInstancesGet = 'agentChat.providerInstances.get';
+  static const String providerInstancesUpsert =
+      'agentChat.providerInstances.upsert';
+  static const String providerInstancesRemove =
+      'agentChat.providerInstances.remove';
+  static const String providerInstancesRemovalImpact =
+      'agentChat.providerInstances.removalImpact';
+  static const String secretsSet = 'agentChat.secrets.set';
+  static const String secretsClear = 'agentChat.secrets.clear';
 
   static const String providers = 'agentChat.providers';
   static const String create = 'agentChat.create';
@@ -21,6 +54,21 @@ abstract final class AgentChatWire {
   static const String payload = 'agentChat.payload';
   static const String send = 'agentChat.send';
   static const String queueCancel = 'agentChat.queueCancel';
+  static const String queueEdit = 'agentChat.queueEdit';
+  static const String queueSteer = 'agentChat.queueSteer';
+  static const String markRead = 'agentChat.markRead';
+  static const String fork = 'agentChat.fork';
+  static const String rewind = 'agentChat.rewind';
+  static const String rewindFiles = 'agentChat.rewindFiles';
+  static const String fileCheckpointsConfigure =
+      'agentChat.fileCheckpoints.configure';
+  static const String nativeHistoryReconcile =
+      'agentChat.nativeHistory.reconcile';
+  static const String nativeHistoryOperation =
+      'agentChat.nativeHistory.operation';
+  static const String delete = 'agentChat.delete';
+  static const String approvalHistory = 'agentChat.approvalHistory';
+  static const String turnDiff = 'agentChat.turnDiff';
   static const String interrupt = 'agentChat.interrupt';
   static const String respond = 'agentChat.respond';
   static const String configure = 'agentChat.configure';
@@ -82,4 +130,11 @@ final class const AgentChatUpdateRequired() implements Exception {
   String toString() =>
       'This Alera runtime does not support agent chats yet. Update it to '
       'continue.';
+}
+
+final class const AgentChatCapabilityRequired(final String capability)
+    implements Exception {
+  @override
+  String toString() =>
+      'This Alera runtime needs an update to support $capability.';
 }

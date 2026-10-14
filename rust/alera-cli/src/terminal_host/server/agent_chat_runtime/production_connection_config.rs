@@ -29,7 +29,7 @@ pub(super) fn cursor(
         bridge_url: url.clone().unwrap_or_default(),
         bridge_bearer_token: token.clone().unwrap_or_default(),
         allow_remote_bridge: option_bool(instance, "allowRemoteBridge")?,
-        api_key: option_string(instance, "apiKey")?,
+        api_key: option_string(instance, "apiKey")?.or_else(|| env.get("CURSOR_API_KEY").cloned()),
         cwd: launch.cwd.clone(),
         model,
         ..Default::default()

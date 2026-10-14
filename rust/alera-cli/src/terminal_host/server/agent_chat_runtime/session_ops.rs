@@ -1,7 +1,7 @@
 //! Command dispatch: an idempotency check before every mutation, then the
 //! operation, then one commit that carries the change and its receipt.
 
-use alera_core::runtime::{AgentChatReceipt, AgentChatReceiptCheck};
+use alera_core::runtime::{AgentChatDeleteOutcome, AgentChatReceipt, AgentChatReceiptCheck};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -19,7 +19,7 @@ pub(crate) fn receipt_conflict() -> HostError {
 }
 
 impl ChatSession {
-    fn ensure_mode_ceiling(
+    pub(super) fn ensure_mode_ceiling(
         &self,
         runtime_mode_ceiling: &str,
         requested_mode: Option<&str>,
@@ -71,9 +71,63 @@ impl ChatSession {
                 }
             }
         }
+        if let Err(error) = self.guard_native_operation(&op, &ctx, receipt_key.as_ref()) {
+            let _ = reply.send(Err(error));
+            return;
+        }
+        if let Some(result) = self
+            .dispatch_native_history(&op, &ctx, receipt_key.as_ref())
+            .await
+        {
+            let _ = reply.send(result);
+            return;
+        }
+        let history_result = match &op {
+            ChatOp::Fork {
+                turn_id,
+                new_chat_id,
+                new_tab_id,
+                title,
+            } => Some(
+                self.fork_history(
+                    turn_id,
+                    new_chat_id,
+                    new_tab_id,
+                    title.as_deref(),
+                    &ctx,
+                    receipt_key.as_ref(),
+                )
+                .await,
+            ),
+            ChatOp::Rewind { turn_id } => Some(
+                self.rewind_history(turn_id, &ctx, receipt_key.as_ref())
+                    .await,
+            ),
+            ChatOp::Delete => Some(self.delete_history(&ctx, receipt_key.as_ref()).await),
+            _ => None,
+        };
+        if let Some(result) = history_result {
+            let _ = reply.send(result);
+            return;
+        }
+        if matches!(op, ChatOp::Close) && self.never_sent() {
+            match self.discard_draft(&ctx, receipt_key.as_ref()).await {
+                Ok(Some(response)) => {
+                    let _ = reply.send(Ok(response));
+                    return;
+                }
+                Err(error) => {
+                    let _ = reply.send(Err(error));
+                    return;
+                }
+                Ok(None) => {}
+            }
+        }
         let mutates = op.mutates();
         let snapshot_response = match &op {
-            ChatOp::Configure(_) | ChatOp::Recover { .. } => true,
+            ChatOp::Configure(_)
+            | ChatOp::Recover { .. }
+            | ChatOp::NativeFileCheckpoints { .. } => true,
             ChatOp::WithinCeiling { operation, .. } => {
                 matches!(operation.as_ref(), ChatOp::Configure(_))
             }
@@ -115,7 +169,7 @@ impl ChatSession {
         let _ = reply.send(result);
     }
 
-    async fn check_receipt(
+    pub(crate) async fn check_receipt(
         store: alera_core::runtime::RuntimeStore,
         ctx: &CallerCtx,
         key: &ReceiptKey,
@@ -139,6 +193,9 @@ impl ChatSession {
             op,
             ChatOp::Snapshot
                 | ChatOp::History { .. }
+                | ChatOp::ApprovalHistory { .. }
+                | ChatOp::TurnDiff { .. }
+                | ChatOp::NativeHistoryOperation { .. }
                 | ChatOp::Rename { .. }
                 | ChatOp::Reopen { .. }
                 | ChatOp::Close
@@ -156,6 +213,17 @@ impl ChatSession {
         match op {
             ChatOp::Snapshot => self.snapshot().await,
             ChatOp::History { before, limit } => self.history(&before, limit).await,
+            ChatOp::ApprovalHistory { before, limit } => {
+                self.approval_history(before.as_deref(), limit).await
+            }
+            ChatOp::TurnDiff { turn_id } => self.turn_diff(&turn_id).await,
+            ChatOp::NativeHistoryOperation { operation_id } => {
+                self.native_history_operation_status(operation_id.as_deref())
+                    .await
+            }
+            ChatOp::NativeFileCheckpoints { enabled } => {
+                self.configure_file_checkpoints(enabled).await
+            }
             ChatOp::Send(input) => self.send(input, ctx).await,
             ChatOp::SendWithinCeiling {
                 mut input,
@@ -177,7 +245,7 @@ impl ChatSession {
                     _ => {
                         return Err(unsupported(
                             "The requested operation is not allowed for this chat binding.",
-                        ))
+                        ));
                     }
                 };
                 self.ensure_mode_ceiling(&runtime_mode_ceiling, requested_mode)?;
@@ -197,6 +265,10 @@ impl ChatSession {
                 }
             }
             ChatOp::QueueCancel { queue_id } => Ok(self.cancel_queued(&queue_id)),
+            ChatOp::QueueEdit { queue_id, text } => self.edit_queued(&queue_id, text),
+            ChatOp::QueuePromoteToSteer { queue_id, turn_id } => {
+                self.promote_queue_to_steer(&queue_id, &turn_id, ctx).await
+            }
             ChatOp::CancelMessage { client_message_id } => {
                 self.cancel_message(&client_message_id).await
             }
@@ -219,6 +291,68 @@ impl ChatSession {
                 self.shutdown().await;
                 Ok(json!({"stopped": true}))
             }
+            ChatOp::Fork { .. }
+            | ChatOp::Rewind { .. }
+            | ChatOp::Delete
+            | ChatOp::NativeRewind { .. }
+            | ChatOp::NativeRewindFiles { .. }
+            | ChatOp::NativeHistoryReconcile { .. } => Err(unsupported(
+                "History operations require receipt-aware dispatch.",
+            )),
+        }
+    }
+
+    async fn discard_draft(
+        &mut self,
+        ctx: &CallerCtx,
+        key: Option<&ReceiptKey>,
+    ) -> HostResult<Option<Value>> {
+        self.flush().await.map_err(HostError::state)?;
+        let response = json!({"chatId":self.header.chat_id,"tabId":self.header.tab_id,"archived":false,"discarded":true});
+        let receipt = key.map(|key| AgentChatReceipt {
+            caller_scope: receipt_scope(&ctx.scope, &key.verb),
+            request_id: key.request_id.clone(),
+            digest: key.digest.clone(),
+            receipt: response.clone(),
+        });
+        match self
+            .deps
+            .store
+            .discard_agent_chat_if_never_sent(
+                &self.header.chat_id,
+                self.committed.cursor,
+                receipt.as_ref(),
+            )
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+        {
+            AgentChatDeleteOutcome::Deleted => {
+                self.closed = true;
+                self.deps
+                    .sink
+                    .emit(ChatRuntimeEvent::Deleted {
+                        chat_id: self.header.chat_id.clone(),
+                        workspace_id: self.header.workspace_id.clone(),
+                        discarded: true,
+                    })
+                    .await;
+                self.deps
+                    .sink
+                    .emit(ChatRuntimeEvent::ChatsChanged {
+                        workspace_id: Some(self.header.workspace_id.clone()),
+                    })
+                    .await;
+                self.deps
+                    .sink
+                    .emit(ChatRuntimeEvent::TabsChanged {
+                        workspace_id: self.header.workspace_id.clone(),
+                    })
+                    .await;
+                Ok(Some(response))
+            }
+            AgentChatDeleteOutcome::NotNeverSent => Ok(None),
+            AgentChatDeleteOutcome::Replay(value) => Ok(Some(value)),
+            AgentChatDeleteOutcome::ReceiptConflict => Err(receipt_conflict()),
         }
     }
 
@@ -227,6 +361,7 @@ impl ChatSession {
         if title.is_empty() {
             return Err(HostError::format("title must not be empty"));
         }
+        self.header.title_source = "user".into();
         if title != self.header.title {
             self.header.title = title.clone();
             if !self.header.archived {

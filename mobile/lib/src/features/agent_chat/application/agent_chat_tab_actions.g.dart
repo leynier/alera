@@ -67,7 +67,7 @@ final class AgentChatTabActionsProvider
 }
 
 String _$agentChatTabActionsHash() =>
-    r'cd437cd33ffb6ad6636e78c5f7dca023ec4c3107';
+    r'de1b7b16b0b7b3aca99e355bce807b2da28c8f0b';
 
 final class AgentChatTabActionsFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<AgentChatTabActions>, String> {

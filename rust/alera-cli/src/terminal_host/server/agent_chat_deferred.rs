@@ -31,7 +31,11 @@ pub(super) async fn dispatch(
                     payload
                         .get("refreshModels")
                         .and_then(Value::as_bool)
-                        .unwrap_or(false),
+                        .unwrap_or(false)
+                        || payload
+                            .get("refresh")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false),
                 )
                 .await
         }
@@ -64,6 +68,7 @@ pub(super) async fn dispatch(
                         provider: optional_string(payload, "provider")?,
                         provider_instance_id: optional_string(payload, "providerInstanceId")?,
                         model: optional_string(payload, "model")?,
+                        reasoning_effort: optional_string(payload, "reasoningEffort")?,
                         runtime_mode: optional_string(payload, "runtimeMode")?,
                         interaction_mode: optional_string(payload, "interactionMode")?,
                         title: optional_string(payload, "title")?,
@@ -120,6 +125,7 @@ pub(super) async fn dispatch(
                 attachments: validated_attachments.unwrap_or_default(),
                 delivery,
                 model: optional_string(payload, "model")?,
+                reasoning_effort: optional_string(payload, "reasoningEffort")?,
                 interaction_mode: optional_string(payload, "interactionMode")?,
                 runtime_mode_ceiling: None,
                 origin: None,
@@ -143,6 +149,156 @@ pub(super) async fn dispatch(
                     },
                     ctx,
                     Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
+        "agentChat.queueSteer" | "agentChat.queueEdit" => {
+            let request_id = required_string(payload, "requestId")?;
+            let queue_id = required_string(payload, "queueId")?;
+            let operation = if request_type == "agentChat.queueSteer" {
+                ChatOp::QueuePromoteToSteer {
+                    queue_id,
+                    turn_id: required_string(payload, "turnId")?,
+                }
+            } else {
+                ChatOp::QueueEdit {
+                    queue_id,
+                    text: optional_string(payload, "text")?.unwrap_or_default(),
+                }
+            };
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    operation,
+                    ctx,
+                    Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
+        "agentChat.approvalHistory" => {
+            let limit = payload
+                .get("limit")
+                .and_then(Value::as_u64)
+                .unwrap_or(100)
+                .clamp(1, 500) as usize;
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::ApprovalHistory {
+                        before: optional_string(payload, "before")?,
+                        limit,
+                    },
+                    ctx,
+                    None,
+                )
+                .await
+        }
+        "agentChat.turnDiff" => {
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::TurnDiff {
+                        turn_id: required_string(payload, "turnId")?,
+                    },
+                    ctx,
+                    None,
+                )
+                .await
+        }
+        "agentChat.fork" | "agentChat.rewind" | "agentChat.delete" => {
+            let request_id = required_string(payload, "requestId")?;
+            let chat_id = required_string(payload, "chatId")?;
+            let key = Some(receipt(&request_id, request_type, payload));
+            match request_type {
+                "agentChat.fork" => {
+                    runtime
+                        .fork(
+                            &chat_id,
+                            &required_string(payload, "turnId")?,
+                            optional_string(payload, "title")?,
+                            ctx,
+                            key,
+                        )
+                        .await
+                }
+                "agentChat.rewind" => {
+                    let turn_id = required_string(payload, "turnId")?;
+                    match optional_string(payload, "mode")?
+                        .as_deref()
+                        .unwrap_or("transcript")
+                    {
+                        "transcript" => runtime.rewind(&chat_id, &turn_id, ctx, key).await,
+                        "native" => {
+                            runtime
+                                .command(&chat_id, ChatOp::NativeRewind { turn_id }, ctx, key)
+                                .await
+                        }
+                        _ => Err(HostError::format("mode must be transcript or native")),
+                    }
+                }
+                _ => runtime.delete(&chat_id, ctx, key).await,
+            }
+        }
+        "agentChat.markRead" => {
+            let request_id = required_string(payload, "requestId")?;
+            let cursor = payload
+                .get("cursor")
+                .and_then(Value::as_i64)
+                .ok_or_else(|| HostError::format("cursor must be an integer"))?;
+            runtime
+                .mark_read(
+                    &required_string(payload, "chatId")?,
+                    cursor,
+                    ctx,
+                    Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
+        "agentChat.rewindFiles"
+        | "agentChat.fileCheckpoints.configure"
+        | "agentChat.nativeHistory.reconcile" => {
+            let request_id = required_string(payload, "requestId")?;
+            let op = match request_type {
+                "agentChat.rewindFiles" => ChatOp::NativeRewindFiles {
+                    turn_id: required_string(payload, "turnId")?,
+                },
+                "agentChat.fileCheckpoints.configure" => ChatOp::NativeFileCheckpoints {
+                    enabled: payload
+                        .get("enabled")
+                        .and_then(Value::as_bool)
+                        .ok_or_else(|| HostError::format("enabled must be a boolean"))?,
+                },
+                _ => ChatOp::NativeHistoryReconcile {
+                    operation_id: required_string(payload, "operationId")?,
+                    expected_revision: payload
+                        .get("expectedRevision")
+                        .map(|value| {
+                            value.as_i64().ok_or_else(|| {
+                                HostError::format("expectedRevision must be an integer")
+                            })
+                        })
+                        .transpose()?,
+                    action: required_string(payload, "action")?,
+                },
+            };
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    op,
+                    ctx,
+                    Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
+        "agentChat.nativeHistory.operation" => {
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::NativeHistoryOperation {
+                        operation_id: optional_string(payload, "operationId")?,
+                    },
+                    ctx,
+                    None,
                 )
                 .await
         }
@@ -190,6 +346,10 @@ pub(super) async fn dispatch(
                         provider: optional_string(payload, "provider")?,
                         provider_instance_id: optional_string(payload, "providerInstanceId")?,
                         model,
+                        reasoning_effort: payload
+                            .get("reasoningEffort")
+                            .map(|_| optional_string(payload, "reasoningEffort"))
+                            .transpose()?,
                         runtime_mode: optional_string(payload, "runtimeMode")?,
                         interaction_mode: optional_string(payload, "interactionMode")?,
                     }),

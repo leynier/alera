@@ -2,22 +2,28 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
+import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_actions.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_queue.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_native_history_notice.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_question_dock.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_dock.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
-import 'package:alera/src/features/chat_tasks/presentation/chat_task_notice.dart';
+import 'package:alera/src/features/agent_provider_settings/presentation/agent_provider_settings_launcher.dart';
+import 'package:alera/src/features/chat_tasks/presentation/chat_task_dock.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Everything under the conversation: problems and the way out of them, the
-/// runtime's queue, the plan in progress, open questions, and the composer.
+/// Everything under the conversation: the chat's tasks, problems and the way
+/// out of them, the requests the agent waits on, the runtime's queue, the
+/// plan in progress, and the composer.
 class const AgentChatFooter({
   super.key,
   required final String chatId,
@@ -25,6 +31,10 @@ class const AgentChatFooter({
   required final String fallbackProvider,
   required final TerminalComposerController composer,
   required final ValueChanged<String> onOpenFile,
+  final ValueChanged<String>? onOpenLink,
+  final AleraPopoverController? pickerController,
+  final VoidCallback? onOpenArchived,
+  final double? requestDockMaxHeight,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,17 +47,22 @@ class const AgentChatFooter({
           recovery: state.thread?.recovery,
           recovering: state.recovering,
           queue: state.thread?.queue ?? const <AgentChatQueueEntry>[],
-          cancelling: state.cancellingQueueIds,
           planSteps: state.projection?.activePlanSteps,
           busy: state.busy,
-          requests: state.thread?.pendingRequests ?? const <AgentChatRequest>[],
+          requests: state.projection?.requests ?? const <AgentChatRequest>[],
           responding: state.respondingRequestIds,
           canSend: state.canSend,
+          canSteer: state.canSteer,
           canInterrupt: state.canInterrupt,
           interrupting: state.interrupting,
           configuring: state.configuring,
           canSwitchProvider: state.canSwitchProvider,
+          switchBlockedReason: state.providerSwitchBlockedReason,
+          neverSent: state.neverSent,
+          pendingModel: state.pendingModel,
           archived: state.archived,
+          nativeOperation: state.thread?.pendingNativeOperation,
+          reconciling: state.reconcilingNativeOperation,
           session: state.thread?.session,
           provider: state.thread?.provider ?? '',
           providerInstanceId: state.thread?.providerInstanceId ?? '',
@@ -56,29 +71,61 @@ class const AgentChatFooter({
       ),
     );
     final controller = ref.read(provider.notifier);
-    final catalog = ref
-        .watch(agentChatProviderCatalogProvider(workspace.id))
-        .value;
-    final session = view.session ?? const AgentChatSession();
+    final catalogProvider = agentChatProviderCatalogProvider(workspace.id);
+    final catalog = ref.watch(catalogProvider);
+    final hostKey = agentChatHostKey(workspace.hostId);
+    final preferences =
+        ref.watch(agentChatPreferencesProvider(hostKey)).value ??
+        const AgentChatPreferences();
     final settings = AgentChatComposerSettings(
-      provider: view.provider.isEmpty ? fallbackProvider : view.provider,
+      // A chat without an agent yet has neither field; the tab's provider
+      // only fills in for older runtimes that omitted it.
+      provider: view.provider.isNotEmpty || view.providerInstanceId.isEmpty
+          ? view.provider
+          : fallbackProvider,
       providerInstanceId: view.providerInstanceId,
-      session: session,
-      providers: catalog ?? const <AgentChatProviderInstance>[],
+      session: view.session ?? const AgentChatSession(),
+      providers: catalog.value ?? const <AgentChatProviderInstance>[],
       canSwitchProvider: view.canSwitchProvider,
       configuring: view.configuring,
+      catalog: catalog.hasValue
+          ? AgentChatCatalogState.ready
+          : catalog.isLoading || !catalog.hasError
+          ? AgentChatCatalogState.loading
+          : AgentChatCatalogState.failed,
+      neverSent: view.neverSent,
+      switchBlockedReason: view.switchBlockedReason,
+      preferences: preferences,
+      pendingModel: view.pendingModel,
     );
-    final questions = <AgentChatRequest>[
-      for (final request in view.requests)
-        if (request.isQuestion) request,
-    ];
+    void openProviderSettings() => unawaited(
+      openAgentChatProviderSettings(
+        context,
+        hostId: workspace.hostId,
+        providerInstanceId: view.providerInstanceId.isEmpty
+            ? null
+            : view.providerInstanceId,
+      ),
+    );
+    final canSubmit =
+        view.nativeOperation == null &&
+        settings.hasSelection &&
+        !(settings.catalog == AgentChatCatalogState.ready &&
+            settings.providerUnavailable);
     final docks = <Widget>[
+      if (view.nativeOperation case final AgentChatNativeOperation operation)
+        AgentChatNativeOperationNotice(
+          operation: operation,
+          enabled: view.live,
+          busy: view.reconciling,
+          onAction: (action) =>
+              unawaited(controller.reconcileNativeOperation(action)),
+        ),
       if (view.actionError case final String error)
         AgentChatActionErrorBanner(
           message: error,
           onDismiss: controller.dismissError,
         ),
-      if (!view.live) const AgentChatReconnectingBanner(),
       if (view.recovery case final AgentChatRecovery recovery when !view.busy)
         AgentChatRecoveryNotice(
           recovery: recovery,
@@ -88,28 +135,44 @@ class const AgentChatFooter({
           onRestart: () =>
               unawaited(controller.recover(AgentChatRecoverMode.restart)),
         ),
-      if (view.queue.isNotEmpty)
-        AgentChatQueueDock(
-          queue: view.queue,
-          cancellingQueueIds: view.cancelling,
-          onCancel: (queueId) => unawaited(controller.cancelQueued(queueId)),
-        ),
-      if (view.planSteps case final AgentChatItem steps when view.busy)
-        AgentChatPlanProgressDock(item: steps),
-      if (questions.isNotEmpty)
-        AgentChatQuestionDock(
-          key: ValueKey<String>('agent-chat-questions-$chatId'),
+      if (!view.live) const AgentChatReconnectingBanner(),
+      if (view.requests.isNotEmpty)
+        AgentChatRequestDock(
+          key: ValueKey<String>('agent-chat-requests-$chatId'),
           chatId: chatId,
-          requests: questions,
+          requests: view.requests,
           respondingRequestIds: view.responding,
           enabled: view.live,
           onRespond: controller.respond,
+          composer: composer,
+          onOpenLink: onOpenLink,
+          maxHeight: requestDockMaxHeight,
         ),
+      if (view.queue.isNotEmpty)
+        AgentChatFooterQueue(
+          chatId: chatId,
+          workspaceId: workspace.id,
+          queue: view.queue,
+          canSteer: view.canSteer,
+          composer: composer,
+        ),
+      if (view.planSteps case final AgentChatItem steps when view.busy)
+        AgentChatPlanProgressDock(item: steps),
       if (view.archived)
-        const AleraInlineNotice(
+        AleraInlineNotice(
           message:
               'This chat is archived. Its history stays on the runtime; '
-              'reopen it from New Agent Chat to continue.',
+              'reopen it from $agentChatArchivedChatsLabel to continue.',
+          child: onOpenArchived == null
+              ? null
+              : Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    key: const ValueKey<String>('agent-chat-open-archived'),
+                    onPressed: onOpenArchived,
+                    child: const Text(agentChatArchivedChatsLabel),
+                  ),
+                ),
         ),
     ];
     return Center(
@@ -127,7 +190,10 @@ class const AgentChatFooter({
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space12,
               ),
-              child: ChatTasksForChat(chatId: chatId),
+              child: ChatTasksForChat(
+                chatId: chatId,
+                parentHasPendingRequest: view.requests.isNotEmpty,
+              ),
             ),
             if (docks.isNotEmpty)
               Padding(
@@ -149,25 +215,39 @@ class const AgentChatFooter({
                 controller: composer,
                 workspaceId: workspace.id,
                 chatId: chatId,
-                settings: catalog == null ? null : settings,
+                settings: settings,
                 usage: view.usage,
                 canSend: view.canSend,
+                canSubmit: canSubmit,
+                canSteer: view.canSteer,
                 busy: view.busy,
                 canInterrupt: view.canInterrupt,
                 interrupting: view.interrupting,
-                hintText: !view.live
-                    ? 'Reconnecting to the Alera runtime'
-                    : view.busy
-                    ? 'Send a message to queue it after this turn'
-                    : 'Ask ${settings.providerLabel} anything',
+                hintText: view.nativeOperation != null
+                    ? agentChatNativeOperationSendBlockedHint
+                    : _hint(view.live, view.busy, view.requests, settings),
                 promptHistory: () =>
                     ref.read(provider).projection?.promptHistory ??
                     const <String>[],
-                onSend: (text, attachments) =>
-                    controller.send(text, attachments: attachments),
+                pickerController: pickerController,
+                onSend: (text, attachments, {steer = false}) => controller.send(
+                  text,
+                  attachments: attachments,
+                  delivery: steer
+                      ? AgentChatDelivery.steer
+                      : AgentChatDelivery.auto,
+                ),
                 onInterrupt: () => unawaited(controller.interrupt()),
                 onConfigure: (configuration) =>
                     unawaited(controller.configure(configuration)),
+                onChoose: (pick, label) =>
+                    unawaited(controller.choose(pick, label: label)),
+                onRetryCatalog: () => ref.invalidate(catalogProvider),
+                onOpenProviderSettings: openProviderSettings,
+                chatActions: AgentChatActionsMenu(
+                  chatId: chatId,
+                  workspaceId: workspace.id,
+                ),
                 onOpenFile: onOpenFile,
               ),
           ],
@@ -175,4 +255,21 @@ class const AgentChatFooter({
       ),
     );
   }
+}
+
+String _hint(
+  bool live,
+  bool busy,
+  List<AgentChatRequest> requests,
+  AgentChatComposerSettings settings,
+) {
+  if (!live) return 'Reconnecting to the Alera runtime';
+  if (requests.isNotEmpty) return agentChatRequestPendingHint;
+  if (!settings.hasSelection) return 'Choose an agent to start this chat';
+  if (settings.catalog == AgentChatCatalogState.ready &&
+      settings.providerUnavailable) {
+    return '${settings.providerLabel} cannot start yet; your draft is kept';
+  }
+  if (busy) return 'Send a message to queue it after this turn';
+  return 'Ask ${settings.providerLabel} anything';
 }

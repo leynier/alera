@@ -73,6 +73,13 @@ impl ChatSession {
                     self.record_projection_error(&error);
                 }
             }
+            EventKind::TurnDiffUpdated => {
+                if let Some(turn_id) = self.app_turn_id(&event) {
+                    if let Err(error) = self.record_turn_diff(&turn_id, &event.payload).await {
+                        self.record_projection_error(&error);
+                    }
+                }
+            }
             EventKind::ItemStarted | EventKind::ItemUpdated | EventKind::ItemCompleted => {
                 if let Err(error) = self.apply_item(&event).await {
                     self.record_projection_error(&error);
@@ -229,6 +236,7 @@ impl ChatSession {
             .to_string();
         // The runtime records the user's message itself when it sends it.
         if item_type == "user_message" {
+            self.record_native_user_echo(event).await?;
             return Ok(());
         }
         let native = event.item_id.clone().unwrap_or_else(|| {

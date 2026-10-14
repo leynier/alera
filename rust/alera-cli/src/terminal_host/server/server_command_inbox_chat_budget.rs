@@ -20,6 +20,12 @@ pub(super) fn runtime_event_bytes(
             .map(string_bytes)
             .unwrap_or_default(),
         ChatRuntimeEvent::TabsChanged { workspace_id } => string_bytes(workspace_id),
+        ChatRuntimeEvent::PreferencesChanged { revision } => std::mem::size_of_val(revision),
+        ChatRuntimeEvent::Deleted {
+            chat_id,
+            workspace_id,
+            ..
+        } => string_bytes(chat_id) + string_bytes(workspace_id),
     }
 }
 

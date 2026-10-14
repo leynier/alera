@@ -172,7 +172,6 @@ void main() {
         workspacePath: '',
         actions: AgentChatTimelineActions(
           chatId: 'chat',
-          onRespond: (_, _) {},
           onRetrySend: (_) {},
           onEditSend: (_) {},
           onOpenLink: (_) {},
@@ -182,7 +181,7 @@ void main() {
       ),
     );
     expect(find.text(_note), findsOneWidget);
-    await tester.tap(find.text('Thinking'));
+    await tester.tap(find.text('Thought'));
     await tester.pump();
     expect(find.text(_note), findsOneWidget);
     expect(find.byType(AgentChatMarkdown), findsNothing);

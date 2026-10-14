@@ -9,6 +9,14 @@ use super::test_support::TestHarness;
 async fn injected_mcp_launch_parses_the_real_cli_with_its_runtime_and_credential() {
     let harness = TestHarness::new().await;
     let chat = harness.create_chat("ws-a", "approval-required").await;
+    assert!(harness.factory.launches.lock().unwrap().is_empty());
+    harness
+        .send_human(
+            &chat,
+            "first-send",
+            "Start the deferred provider with its credential hook.",
+        )
+        .await;
     harness.control(&chat).await;
     let launch = harness
         .factory

@@ -18,10 +18,13 @@ fn parse_history_token(token: &str) -> HostResult<i64> {
 
 impl ChatSession {
     pub(super) async fn snapshot(&mut self) -> HostResult<Value> {
-        self.flush()
-            .await
-            .map_err(|error| HostError::state(format!("The chat could not be saved: {error}")))?;
-        self.deps
+        if self.native_operation.is_none() {
+            self.flush().await.map_err(|error| {
+                HostError::state(format!("The chat could not be saved: {error}"))
+            })?;
+        }
+        let mut snapshot = self
+            .deps
             .store
             .agent_chat(&self.header.chat_id)
             .await
@@ -29,7 +32,14 @@ impl ChatSession {
             .map(|record| record.snapshot)
             .ok_or_else(|| {
                 HostError::conflict("chatNotFound", "The chat no longer exists.", json!({}))
-            })
+            })?;
+        snapshot["pendingNativeOperation"] = self
+            .native_operation
+            .as_ref()
+            .filter(|op| super::session_native_history_recovery::native_operation_freezes(op))
+            .map(super::session_native_history_recovery::native_operation_public_summary)
+            .unwrap_or(Value::Null);
+        Ok(snapshot)
     }
 
     pub(super) async fn history(&mut self, before: &str, limit: usize) -> HostResult<Value> {

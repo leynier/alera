@@ -421,6 +421,48 @@ final class ChatTaskRequestsFamily extends $Family
   String toString() => r'chatTaskRequestsProvider';
 }
 
+/// Whether a delegation may choose the child's reasoning effort. Without it
+/// no effort control appears.
+
+@ProviderFor(chatTaskEffortSupported)
+final chatTaskEffortSupportedProvider = ChatTaskEffortSupportedProvider._();
+
+/// Whether a delegation may choose the child's reasoning effort. Without it
+/// no effort control appears.
+
+final class ChatTaskEffortSupportedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// Whether a delegation may choose the child's reasoning effort. Without it
+  /// no effort control appears.
+  ChatTaskEffortSupportedProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'chatTaskEffortSupportedProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$chatTaskEffortSupportedHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    return chatTaskEffortSupported(ref);
+  }
+}
+
+String _$chatTaskEffortSupportedHash() =>
+    r'70428b57ab175c87b87eed9de66e31f7fe2f395d';
+
 @ProviderFor(chatTaskCapabilities)
 final chatTaskCapabilitiesProvider = ChatTaskCapabilitiesProvider._();
 

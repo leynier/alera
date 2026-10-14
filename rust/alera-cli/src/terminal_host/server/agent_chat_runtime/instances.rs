@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 use serde::Deserialize;
+use serde_json::Value;
 
 use super::provider_factory::ProviderInstanceConfig;
 use super::provider_traits::PROVIDERS;
@@ -24,6 +25,15 @@ enum InstancesFile {
 pub(crate) struct InstanceDirectory {
     path: Option<PathBuf>,
     instances: RwLock<Vec<ProviderInstanceConfig>>,
+    pub(crate) catalog_cache: tokio::sync::Mutex<CatalogCache>,
+    pub(crate) catalog_refresh: tokio::sync::Mutex<()>,
+}
+
+#[derive(Default)]
+pub(crate) struct CatalogCache {
+    pub(crate) value: Option<Value>,
+    pub(crate) checked: Option<std::time::Instant>,
+    pub(crate) revision: u64,
 }
 
 impl InstanceDirectory {
@@ -31,6 +41,7 @@ impl InstanceDirectory {
         let directory = Self {
             path: Some(runtime_dir.join(INSTANCES_FILE_NAME)),
             instances: RwLock::new(Vec::new()),
+            ..Default::default()
         };
         directory.reload();
         directory
@@ -41,6 +52,7 @@ impl InstanceDirectory {
         Self {
             path: None,
             instances: RwLock::new(instances),
+            ..Default::default()
         }
     }
 
@@ -58,10 +70,10 @@ impl InstanceDirectory {
                         line = error.line(),
                         "agent chat provider instances file is invalid"
                     );
-                    Vec::new()
+                    return;
                 }
             },
-            Err(_) => Vec::new(),
+            Err(_) => return,
         };
         let valid = loaded
             .into_iter()
@@ -89,9 +101,28 @@ impl InstanceDirectory {
             .find(|instance| instance.provider_instance_id == instance_id)
     }
 
+    pub(crate) async fn replace(&self, configured: Vec<ProviderInstanceConfig>) {
+        if let Ok(mut instances) = self.instances.write() {
+            *instances = configured;
+        }
+        let mut cache = self.catalog_cache.lock().await;
+        cache.value = None;
+        cache.checked = None;
+        cache.revision = cache.revision.wrapping_add(1);
+    }
+
+    pub(crate) fn enabled(&self, instance_id: &str) -> bool {
+        self.find(instance_id)
+            .map(|instance| instance.enabled)
+            .unwrap_or_else(|| PROVIDERS.contains(&instance_id))
+    }
+
     /// The provider an instance runs. A default instance's id is its
     /// provider's id. A `provider` hint must agree with the instance.
     pub(crate) fn provider_of(&self, instance_id: &str, hint: Option<&str>) -> Option<String> {
+        if !self.enabled(instance_id) {
+            return None;
+        }
         let provider = if PROVIDERS.contains(&instance_id) {
             instance_id.to_string()
         } else {

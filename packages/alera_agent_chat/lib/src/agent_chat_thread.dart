@@ -1,5 +1,6 @@
 import 'package:alera_agent_chat/src/agent_chat_change.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
+import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
 import 'package:alera_agent_chat/src/agent_chat_queue_entry.dart';
 import 'package:alera_agent_chat/src/agent_chat_request.dart';
 import 'package:alera_agent_chat/src/agent_chat_session.dart';
@@ -61,6 +62,7 @@ final class AgentChatThread {
   String get providerInstanceId => snapshot.providerInstanceId;
   String get title => snapshot.title;
   bool get archived => snapshot.archived;
+  bool get neverSent => snapshot.neverSent;
   AgentChatSession get session => snapshot.session;
   List<AgentChatTurn> get turns => snapshot.turns;
   List<AgentChatItem> get items => snapshot.items;
@@ -68,6 +70,8 @@ final class AgentChatThread {
   List<AgentChatQueueEntry> get queue => snapshot.queue;
   AgentChatUsage get usage => snapshot.usage;
   AgentChatRecovery? get recovery => snapshot.recovery;
+  AgentChatNativeOperation? get pendingNativeOperation =>
+      snapshot.pendingNativeOperation;
   String? get historyBefore => snapshot.historyBefore;
 
   AgentChatItem? itemById(String id) {
@@ -138,6 +142,7 @@ final class AgentChatThread {
           provider: change.provider,
           providerInstanceId: change.providerInstanceId,
           title: change.title,
+          titleSource: change.titleSource,
           archived: change.archived,
           session: change.session,
           turns: change.turns.isEmpty ? null : _mergeTurns(turns, change.turns),
@@ -150,6 +155,9 @@ final class AgentChatThread {
               : List<AgentChatQueueEntry>.unmodifiable(change.queue!),
           usage: change.usage,
           recovery: change.hasRecovery ? change.recovery : recovery,
+          pendingNativeOperation: change.hasPendingNativeOperation
+              ? change.pendingNativeOperation
+              : pendingNativeOperation,
         ),
       ),
     );

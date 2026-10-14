@@ -31,6 +31,22 @@ impl ServerActor {
             ChatRuntimeEvent::TabsChanged { workspace_id } => {
                 self.broadcast_workspace_tabs_changed(Some(&workspace_id));
             }
+            ChatRuntimeEvent::PreferencesChanged { revision } => {
+                self.broadcast_agent_chat(event(
+                    "agentChatPreferencesChanged",
+                    json!({"revision":revision}),
+                ));
+            }
+            ChatRuntimeEvent::Deleted {
+                chat_id,
+                workspace_id,
+                discarded,
+            } => {
+                self.broadcast_agent_chat(event(
+                    "agentChatDeleted",
+                    json!({"chatId":chat_id,"workspaceId":workspace_id,"discarded":discarded}),
+                ));
+            }
         }
     }
 }
@@ -82,6 +98,79 @@ fn public_chat_delta(mut delta: serde_json::Value) -> serde_json::Value {
 mod tests {
     use super::public_chat_delta;
     use serde_json::json;
+
+    #[tokio::test]
+    async fn local_and_relayed_settings_events_require_negotiation_and_human_binding() {
+        use crate::terminal_host::client::ClientHandle;
+        use crate::terminal_host::server::actor_test_harness::{mobile_client, test_actor};
+        use crate::terminal_host::server::chat_orchestration::BoundChat;
+        use crate::terminal_host::server::{ClientState, ServerCommand};
+        use std::collections::HashMap;
+        use tokio::sync::mpsc;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut clients = HashMap::new();
+        let mut receivers = Vec::new();
+        for id in 0..6 {
+            let (control, receiver) = mpsc::unbounded_channel();
+            let (terminal, _terminal_receiver) = mpsc::channel(1);
+            let handle = ClientHandle::new(control, terminal);
+            let mut client = if id == 1 {
+                mobile_client(handle, "fixture-phone")
+            } else {
+                ClientState::local(handle, true)
+            };
+            match id {
+                2 => client.agent_chat_supported = false,
+                3 => client.agent_chat_capability = false,
+                4 => {
+                    client.chat_orchestration_binding = Some(BoundChat {
+                        chat_id: "fixture-chat".into(),
+                        generation: 1,
+                        runtime_mode: "approval-required".into(),
+                        credential_hash: "fixture-hash".into(),
+                        origin_host_id: None,
+                    });
+                }
+                5 => client.authenticated = false,
+                _ => {}
+            }
+            clients.insert(id, client);
+            receivers.push(receiver);
+        }
+        let mut actor = test_actor(&dir, clients, HashMap::new()).await;
+        actor.handle_agent_chat_runtime_event(super::ChatRuntimeEvent::PreferencesChanged {
+            revision: 1,
+        });
+        actor
+            .handle(ServerCommand::AgentChatSettingsChanged {
+                name: "agentChatProvidersChanged".into(),
+                payload: json!({"revision":2}),
+            })
+            .await;
+        actor.relay_host_link_event(
+            "fixture-host",
+            "agentChatProvidersChanged",
+            &json!({"revision":3}),
+        );
+        for (id, receiver) in receivers.iter_mut().enumerate() {
+            let mut frames = Vec::new();
+            while let Ok(frame) = receiver.try_recv() {
+                frames.push(frame.as_json().unwrap());
+            }
+            if id < 2 {
+                assert_eq!(frames.len(), 3);
+                assert_eq!(frames[0]["payload"]["revision"], 1);
+                assert_eq!(frames[1]["payload"]["revision"], 2);
+                assert_eq!(frames[2]["payload"]["hostId"], "fixture-host");
+            } else {
+                assert!(
+                    frames.is_empty(),
+                    "restricted client {id} received settings"
+                );
+            }
+        }
+    }
 
     #[test]
     fn hidden_payload_rows_are_removed_from_public_delta() {

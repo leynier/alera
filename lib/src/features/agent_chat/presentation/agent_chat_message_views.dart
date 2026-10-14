@@ -1,94 +1,171 @@
-import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_meta.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_notice.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 /// What the person sent, on the trailing edge. Input another chat or the
 /// runtime sent on the chat's behalf renders as a notice instead, so it is
-/// never mistaken for the person's own words.
+/// never mistaken for the person's own words. A long message starts
+/// collapsed behind Show Full Message; [expansion] keeps that choice when
+/// the row scrolls away or the tab comes back.
 class const AgentChatUserMessageView({
   super.key,
   required final String chatId,
   required final AgentChatItem item,
   required final String workspacePath,
   required final ValueChanged<String> onOpenFile,
+  final AgentChatExpansion? expansion,
   final bool steering = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (item.isAutomatedInput) {
-      return _AutomatedInputNotice(chatId: chatId, item: item);
+      return _AutomatedInputNotice(
+        chatId: chatId,
+        item: item,
+        expansion: expansion,
+      );
     }
-    return _HoverActions(
-      alignment: CrossAxisAlignment.end,
-      copyText: item.text,
-      timestamp: item.createdAt,
-      caption: _actorCaption(item.actor),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.only(
-          left: AleraTokens.agentChatUserMessageLeftInset,
-          top: AleraTokens.space6,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            if (item.attachments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: AleraTokens.space6,
-                  runSpacing: AleraTokens.space6,
-                  children: <Widget>[
-                    for (final attachment in item.attachments)
-                      AgentChatAttachmentChip(
-                        attachment: attachment,
-                        onOpen: attachment.path == null
-                            ? null
-                            : () => onOpenFile(
-                                _resolve(attachment.path!, workspacePath),
-                              ),
-                      ),
-                  ],
+    return LayoutBuilder(
+      builder: (context, constraints) => AgentChatMessageMeta(
+        alignment: CrossAxisAlignment.end,
+        copyText: item.text,
+        timestamp: item.createdAt,
+        caption: _actorCaption(item.actor),
+        builder: (context) => Padding(
+          padding: EdgeInsets.only(
+            left: agentChatUserMessageInset(constraints.maxWidth),
+            top: AleraTokens.space6,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              if (item.attachments.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: AleraTokens.space6,
+                    runSpacing: AleraTokens.space6,
+                    children: <Widget>[
+                      for (final attachment in item.attachments)
+                        AgentChatAttachmentChip(
+                          attachment: attachment,
+                          onOpen: attachment.path == null
+                              ? null
+                              : () => onOpenFile(
+                                  _resolve(attachment.path!, workspacePath),
+                                ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            if (item.text.trim().isNotEmpty || item.isPartialContinuation)
-              Container(
-                key: ValueKey<String>('agent-chat-user-message-${item.id}'),
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                decoration: BoxDecoration(
-                  color: AleraTokens.accentSubtle,
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                  border: steering
-                      ? Border.all(color: AleraTokens.border)
-                      : null,
+              if (item.text.trim().isNotEmpty || item.isPartialContinuation)
+                Container(
+                  key: ValueKey<String>('agent-chat-user-message-${item.id}'),
+                  padding: const EdgeInsets.all(AleraTokens.space12),
+                  decoration: BoxDecoration(
+                    color: AleraTokens.accentSubtle,
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    border: steering
+                        ? Border.all(color: AleraTokens.border)
+                        : null,
+                  ),
+                  child: item.isPartialContinuation
+                      ? AgentChatPartialText(text: item.text)
+                      : _CollapsibleText(item: item, expansion: expansion),
                 ),
-                child: item.isPartialContinuation
-                    ? AgentChatPartialText(text: item.text)
-                    : AgentChatMarkdown(data: item.text),
-              ),
-            if (steering)
-              Padding(
-                padding: const EdgeInsets.only(top: AleraTokens.space4),
-                child: Text(
-                  'Sent during the turn',
-                  style: AleraTokens.labelMicroFaintStyle,
+              if (steering)
+                Padding(
+                  padding: const EdgeInsets.only(top: AleraTokens.space4),
+                  child: Text(
+                    'Sent during the turn',
+                    style: AleraTokens.labelMicroFaintStyle,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// The leading inset of a user message: the fixed inset on a wide pane, a
+/// share of the width on a narrow one so the bubble keeps room for text.
+double agentChatUserMessageInset(double width) {
+  if (!width.isFinite) return AleraTokens.agentChatUserMessageLeftInset;
+  return math.min(
+    AleraTokens.agentChatUserMessageLeftInset,
+    width * (1 - AleraTokens.agentChatUserMessageWidthFraction),
+  );
+}
+
+/// A sent message's text, collapsed past
+/// [agentChatMessageCollapseLines] lines or
+/// [agentChatMessageCollapseCharacters] characters.
+class const _CollapsibleText({
+  required final AgentChatItem item,
+  required final AgentChatExpansion? expansion,
+}) extends StatefulWidget {
+  @override
+  State<_CollapsibleText> createState() => _CollapsibleTextState();
+}
+
+class _CollapsibleTextState extends State<_CollapsibleText> {
+  bool? _localExpanded;
+
+  String get _key => agentChatMessageFoldKey(widget.item.id);
+
+  @override
+  Widget build(BuildContext context) {
+    final text = widget.item.text;
+    if (!agentChatMessageCollapses(text)) return AgentChatMarkdown(data: text);
+    final expansion = widget.expansion;
+    final expanded =
+        expansion?.isExpanded(_key, byDefault: false) ??
+        (_localExpanded ?? false);
+    void toggle() => setState(() {
+      if (expansion == null) {
+        _localExpanded = !expanded;
+      } else {
+        expansion.set(_key, expanded: !expanded);
+      }
+    });
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        if (expanded)
+          AgentChatMarkdown(data: text)
+        else
+          Text(
+            text,
+            maxLines: agentChatMessageCollapseLines,
+            overflow: TextOverflow.fade,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        AgentChatDisclosure(
+          key: ValueKey<String>('agent-chat-message-toggle-${widget.item.id}'),
+          expanded: expanded,
+          onToggle: toggle,
+          child: Text(
+            expanded ? agentChatShowLessLabel : agentChatShowFullMessageLabel,
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -109,31 +186,33 @@ String? _actorCaption(String? actor) {
 class const _AutomatedInputNotice({
   required final String chatId,
   required final AgentChatItem item,
+  required final AgentChatExpansion? expansion,
 }) extends StatefulWidget {
   @override
   State<_AutomatedInputNotice> createState() => _AutomatedInputNoticeState();
 }
 
+/// Input from another chat or a wake. A delegated task brief starts open and
+/// reads "Task"; other notices start folded. A wake is one response boundary
+/// with the task outcomes inside it.
 class _AutomatedInputNoticeState extends State<_AutomatedInputNotice> {
-  bool _expanded = false;
+  bool? _localExpanded;
+
+  String get _key => agentChatMessageFoldKey(widget.item.id);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final origin = widget.item.origin!;
-    final count = origin.taskIds.length;
-    final label = switch (origin.kind) {
-      AgentChatItemOriginKind.orchestrationWake =>
-        count == 0
-            ? 'Resumed after delegated work finished'
-            : 'Resumed after $count delegated '
-                  '${count == 1 ? 'task' : 'tasks'} finished',
-      _ => 'Message from another chat',
-    };
     final item = widget.item;
+    final origin = item.origin!;
     final text = item.isPartialContinuation ? item.text : item.text.trim();
+    final byDefault = agentChatOriginStartsExpanded(origin);
+    final expansion = widget.expansion;
+    final expanded =
+        expansion?.isExpanded(_key, byDefault: byDefault) ??
+        (_localExpanded ?? byDefault);
     return Container(
-      key: ValueKey<String>('agent-chat-automated-input-${widget.item.id}'),
+      key: ValueKey<String>('agent-chat-automated-input-${item.id}'),
       margin: const EdgeInsets.only(
         top: AleraTokens.space6,
         bottom: AleraTokens.space4,
@@ -147,11 +226,17 @@ class _AutomatedInputNoticeState extends State<_AutomatedInputNotice> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          InkWell(
-            onTap: text.isEmpty
+          AgentChatDisclosure(
+            expanded: expanded,
+            onToggle: text.isEmpty
                 ? null
-                : () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                : () => setState(() {
+                    if (expansion == null) {
+                      _localExpanded = !expanded;
+                    } else {
+                      expansion.set(_key, expanded: !expanded);
+                    }
+                  }),
             child: Row(
               children: <Widget>[
                 const Icon(
@@ -162,7 +247,7 @@ class _AutomatedInputNoticeState extends State<_AutomatedInputNotice> {
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
                   child: Text(
-                    label,
+                    agentChatOriginHeading(origin),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),
@@ -170,23 +255,21 @@ class _AutomatedInputNoticeState extends State<_AutomatedInputNotice> {
                 ),
                 if (text.isNotEmpty)
                   Icon(
-                    _expanded
-                        ? AleraIcons.chevronDown
-                        : AleraIcons.chevronRight,
+                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
                     size: AleraTokens.iconMd,
                     color: AleraTokens.foregroundFaint,
                   ),
               ],
             ),
           ),
-          if (_expanded)
+          if (expanded && text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: AleraTokens.space8),
               child: item.isPartialContinuation
                   ? AgentChatPartialText(text: text, muted: true)
                   : AgentChatMarkdown(data: text, muted: true),
             ),
-          if (item.isPartialContinuation && !_expanded)
+          if (item.isPartialContinuation && !expanded)
             const AgentChatPartialMessageNote(),
           ChatTaskOriginNotice(origin: origin, chatId: widget.chatId),
         ],
@@ -217,7 +300,7 @@ class const AgentChatAssistantMessageView({
             )
           : const SizedBox.shrink();
     }
-    return _HoverActions(
+    return AgentChatMessageMeta(
       alignment: CrossAxisAlignment.start,
       copyText: text,
       timestamp: item.isInProgress ? null : item.updatedAt,
@@ -256,66 +339,70 @@ class const AgentChatOutgoingMessageView({
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final failed = message.status == AgentChatOutgoingStatus.failed;
-    return Padding(
-      key: ValueKey<String>('agent-chat-outgoing-${message.clientMessageId}'),
-      padding: const EdgeInsets.only(
-        left: AleraTokens.agentChatUserMessageLeftInset,
-        top: AleraTokens.space6,
-        bottom: AleraTokens.space12,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          if (message.attachments.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: AleraTokens.space6,
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        key: ValueKey<String>('agent-chat-outgoing-${message.clientMessageId}'),
+        padding: EdgeInsets.only(
+          left: agentChatUserMessageInset(constraints.maxWidth),
+          top: AleraTokens.space6,
+          bottom: AleraTokens.space12,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            if (message.attachments.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: AleraTokens.space6,
+                  children: <Widget>[
+                    for (final attachment in message.attachments)
+                      AgentChatAttachmentChip(attachment: attachment),
+                  ],
+                ),
+              ),
+            if (message.text.isNotEmpty)
+              Opacity(
+                opacity: failed ? 1 : AleraTokens.agentChatPendingOpacity,
+                child: Container(
+                  padding: const EdgeInsets.all(AleraTokens.space12),
+                  decoration: BoxDecoration(
+                    color: AleraTokens.accentSubtle,
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    border: failed
+                        ? Border.all(color: AleraTokens.error)
+                        : null,
+                  ),
+                  child: Text(message.text, style: theme.textTheme.bodyMedium),
+                ),
+              ),
+            const SizedBox(height: AleraTokens.space4),
+            if (failed) ...<Widget>[
+              Text(
+                message.error ?? 'The message was not sent.',
+                textAlign: TextAlign.end,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.error,
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: <Widget>[
-                  for (final attachment in message.attachments)
-                    AgentChatAttachmentChip(attachment: attachment),
+                  TextButton(onPressed: onEdit, child: const Text('Edit')),
+                  const SizedBox(width: AleraTokens.space4),
+                  FilledButton(onPressed: onRetry, child: const Text('Retry')),
                 ],
               ),
-            ),
-          if (message.text.isNotEmpty)
-            Opacity(
-              opacity: failed ? 1 : AleraTokens.agentChatPendingOpacity,
-              child: Container(
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                decoration: BoxDecoration(
-                  color: AleraTokens.accentSubtle,
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                  border: failed ? Border.all(color: AleraTokens.error) : null,
-                ),
-                child: Text(message.text, style: theme.textTheme.bodyMedium),
+            ] else
+              AleraShimmerText(
+                text: message.status == AgentChatOutgoingStatus.sending
+                    ? 'Sending'
+                    : 'Sent',
+                style: AleraTokens.labelMicroFaintStyle,
               ),
-            ),
-          const SizedBox(height: AleraTokens.space4),
-          if (failed) ...<Widget>[
-            Text(
-              message.error ?? 'The message was not sent.',
-              textAlign: TextAlign.end,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.error,
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                TextButton(onPressed: onEdit, child: const Text('Edit')),
-                const SizedBox(width: AleraTokens.space4),
-                FilledButton(onPressed: onRetry, child: const Text('Retry')),
-              ],
-            ),
-          ] else
-            AleraShimmerText(
-              text: message.status == AgentChatOutgoingStatus.sending
-                  ? 'Sending'
-                  : 'Sent',
-              style: AleraTokens.labelMicroFaintStyle,
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -373,69 +460,6 @@ class const AgentChatAttachmentChip({
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Copy and time controls under a message, revealed on hover.
-class const _HoverActions({
-  required final CrossAxisAlignment alignment,
-  required final String copyText,
-  required final DateTime? timestamp,
-  required final WidgetBuilder builder,
-  final String? caption,
-}) extends StatefulWidget {
-  @override
-  State<_HoverActions> createState() => _HoverActionsState();
-}
-
-class _HoverActionsState extends State<_HoverActions> {
-  bool _hovered = false;
-
-  Future<void> _copy() async {
-    await Clipboard.setData(ClipboardData(text: widget.copyText));
-    AleraToast.publish(message: 'Copied to clipboard.');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final timestamp = widget.timestamp;
-    final localizations = MaterialLocalizations.of(context);
-    final time = timestamp == null
-        ? null
-        : localizations.formatTimeOfDay(
-            TimeOfDay.fromDateTime(timestamp.toLocal()),
-          );
-    final details = <String>[?widget.caption, ?time].join(' · ');
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Column(
-        crossAxisAlignment: widget.alignment,
-        children: <Widget>[
-          widget.builder(context),
-          AnimatedOpacity(
-            opacity: _hovered ? 1 : 0,
-            duration: AleraTokens.durationFast,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (details.isNotEmpty)
-                  Text(details, style: AleraTokens.labelMicroFaintStyle),
-                AleraIconButton(
-                  tooltip: 'Copy Message',
-                  icon: AleraIcons.copy,
-                  iconSize: AleraTokens.iconSm,
-                  minSize: AleraTokens.iconButtonSm,
-                  onPressed: widget.copyText.isEmpty
-                      ? null
-                      : () => unawaited(_copy()),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

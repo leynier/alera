@@ -19,6 +19,7 @@ import 'package:alera/src/features/agent_status/presentation/agent_identity_icon
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+import 'package:alera/src/features/chat_tasks/presentation/chat_workspace_attention_dot.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';

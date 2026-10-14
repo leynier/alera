@@ -35,6 +35,8 @@ pub(crate) struct SendInput {
     /// `auto | steer | queue`.
     pub delivery: String,
     pub model: Option<String>,
+    #[serde(default)]
+    pub reasoning_effort: Option<String>,
     pub interaction_mode: Option<String>,
     /// The maximum runtime mode allowed by the authenticated host caller.
     /// This is stamped by host code before an internal send and is never
@@ -51,9 +53,54 @@ pub(crate) struct SendInput {
 pub(crate) struct ConfigureInput {
     pub provider: Option<String>,
     pub provider_instance_id: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_optional_string"
+    )]
     pub model: Option<Option<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_optional_string"
+    )]
+    pub reasoning_effort: Option<Option<String>>,
     pub runtime_mode: Option<String>,
     pub interaction_mode: Option<String>,
+}
+
+fn present_optional_string<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(Some)
+}
+
+#[cfg(test)]
+mod configure_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn serialized_configuration_preserves_omission_and_explicit_resets() {
+        let omitted = serde_json::to_value(ConfigureInput::default()).unwrap();
+        assert!(omitted.get("model").is_none());
+        assert!(omitted.get("reasoning_effort").is_none());
+        let reset = ConfigureInput {
+            model: Some(None),
+            reasoning_effort: Some(None),
+            ..Default::default()
+        };
+        let encoded = serde_json::to_value(&reset).unwrap();
+        assert_eq!(encoded["model"], Value::Null);
+        assert_eq!(encoded["reasoning_effort"], Value::Null);
+        let decoded: ConfigureInput = serde_json::from_value(encoded).unwrap();
+        assert_eq!(decoded.model, Some(None));
+        assert_eq!(decoded.reasoning_effort, Some(None));
+        let decoded: ConfigureInput = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(decoded.model, None);
+        assert_eq!(decoded.reasoning_effort, None);
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +125,48 @@ pub(crate) enum ChatOp {
     },
     QueueCancel {
         queue_id: String,
+    },
+    QueuePromoteToSteer {
+        queue_id: String,
+        turn_id: String,
+    },
+    ApprovalHistory {
+        before: Option<String>,
+        limit: usize,
+    },
+    TurnDiff {
+        turn_id: String,
+    },
+    Fork {
+        turn_id: String,
+        new_chat_id: String,
+        new_tab_id: String,
+        title: Option<String>,
+    },
+    Rewind {
+        turn_id: String,
+    },
+    NativeRewind {
+        turn_id: String,
+    },
+    NativeRewindFiles {
+        turn_id: String,
+    },
+    NativeFileCheckpoints {
+        enabled: bool,
+    },
+    NativeHistoryOperation {
+        operation_id: Option<String>,
+    },
+    NativeHistoryReconcile {
+        operation_id: String,
+        expected_revision: Option<i64>,
+        action: String,
+    },
+    Delete,
+    QueueEdit {
+        queue_id: String,
+        text: String,
     },
     /// Atomically cancel one client message, removing it from the queue or
     /// interrupting its owned active turn.
@@ -112,7 +201,14 @@ pub(crate) enum ChatOp {
 
 impl ChatOp {
     pub(crate) fn mutates(&self) -> bool {
-        !matches!(self, ChatOp::Snapshot | ChatOp::History { .. })
+        !matches!(
+            self,
+            ChatOp::Snapshot
+                | ChatOp::History { .. }
+                | ChatOp::ApprovalHistory { .. }
+                | ChatOp::TurnDiff { .. }
+                | ChatOp::NativeHistoryOperation { .. }
+        )
     }
 }
 

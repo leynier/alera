@@ -36,6 +36,18 @@ fn items_of_type<'a>(snapshot: &'a Value, kind: &str) -> Vec<&'a Value> {
         .collect()
 }
 
+fn chat_events(socket: &Socket) -> Vec<&Value> {
+    socket
+        .events
+        .iter()
+        .filter(|event| {
+            event["event"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("agentChat"))
+        })
+        .collect()
+}
+
 #[test]
 fn socket_chat_streams_approval_once_and_reconnects_to_the_durable_snapshot() {
     let host = Host::start();
@@ -56,15 +68,35 @@ fn socket_chat_streams_approval_once_and_reconnects_to_the_durable_snapshot() {
     assert_eq!(fixture["available"], true);
     assert_eq!(fixture["modelsSource"], "configured");
     assert_eq!(fixture["models"][0]["id"], "fixture-model");
-    assert!(
-        host.log().is_empty(),
-        "catalog must not start a model process"
+    assert_eq!(fixture["installed"], true);
+    assert_eq!(fixture["version"], "1.2.3");
+    let probes = host.log();
+    assert_eq!(
+        probes.len(),
+        2,
+        "catalog did not use exactly two metadata probes"
+    );
+    assert_eq!(probes[0]["args"], json!(["--version"]));
+    assert_eq!(probes[1]["args"], json!(["debug", "models"]));
+    host.assert_no_provider_start();
+    assert_eq!(
+        desktop.ok("agentChat.providers", json!({"workspaceId": WORKSPACE})),
+        catalog
+    );
+    assert_eq!(
+        host.log(),
+        probes,
+        "cached catalog repeated its status probe"
     );
 
     let created = desktop.create();
     let chat = created["chatId"].as_str().unwrap();
     let tab = created["tabId"].as_str().unwrap();
-    desktop.wait_snapshot(chat, |snapshot| snapshot["session"]["status"] == "ready");
+    let draft = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    assert_eq!(draft["session"]["status"], "stopped");
+    assert_eq!(draft["turns"], json!([]));
+    assert_eq!(draft["items"], json!([]));
+    host.assert_no_provider_start();
     let tab_record = desktop.ok("tab.find", json!({"id": tab}));
     assert_eq!(tab_record["kind"], "agentChat");
     assert_eq!(tab_record["payload"]["chatId"], chat);
@@ -106,15 +138,14 @@ fn socket_chat_streams_approval_once_and_reconnects_to_the_durable_snapshot() {
             && event["payload"]["delta"].to_string().contains("Fixture")
     });
 
-    desktop.ok(
-        "agentChat.respond",
-        json!({
-            "requestId": "accept-approval", "chatId": chat,
-            "runtimeRequestId": runtime_request,
-            "response": {"type": "approval", "decision": "accept"},
-        }),
-    );
+    let approval = json!({
+        "requestId": "accept-approval", "chatId": chat,
+        "runtimeRequestId": runtime_request,
+        "response": {"type": "approval", "decision": "accept"},
+    });
+    let accepted = desktop.ok("agentChat.respond", approval.clone());
     let finished = completed(&mut desktop, chat, 1);
+    assert_eq!(desktop.ok("agentChat.respond", approval), accepted);
     assert_eq!(finished["pendingRequests"], json!([]));
     assert_eq!(
         items_of_type(&finished, "assistant_message")[0]["text"],
@@ -138,12 +169,16 @@ fn socket_chat_streams_approval_once_and_reconnects_to_the_durable_snapshot() {
     assert_eq!(messages[2]["params"]["approvalPolicy"], "untrusted");
     assert_eq!(messages[3]["method"], "turn/start");
     assert_eq!(messages[3]["params"]["input"][0]["text"], "approval");
-    assert!(
-        messages.iter().any(|message| message
-            == &json!({
-                "id": 7001, "result": {"decision": "accept"},
-            })),
-        "approval did not reach the native JSONL request id"
+    assert_eq!(
+        messages
+            .iter()
+            .filter(|message| *message
+                == &json!({
+                    "id": 7001, "result": {"decision": "accept"},
+                }))
+            .count(),
+        1,
+        "approval did not reach the native JSONL request id exactly once"
     );
 
     drop(desktop);
@@ -163,7 +198,9 @@ fn close_reaps_provider_and_reopening_a_cached_archived_chat_resumes_history() {
     let created = desktop.create();
     let chat = created["chatId"].as_str().unwrap();
     let old_tab = created["tabId"].as_str().unwrap();
-    desktop.wait_snapshot(chat, |snapshot| snapshot["session"]["status"] == "ready");
+    let draft = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    assert_eq!(draft["session"]["status"], "stopped");
+    host.assert_no_provider_start();
     desktop.ok(
         "agentChat.send",
         send_input(chat, "send-first", "first-message", "first"),
@@ -207,6 +244,7 @@ fn close_reaps_provider_and_reopening_a_cached_archived_chat_resumes_history() {
     );
     assert_eq!(rejected["ok"], false);
     assert_eq!(rejected["errorCode"], "chatArchived");
+    let before_reopen = host.log();
     let reopened = desktop.ok(
         "agentChat.reopen",
         json!({"requestId": "reopen-first", "chatId": chat}),
@@ -215,10 +253,15 @@ fn close_reaps_provider_and_reopening_a_cached_archived_chat_resumes_history() {
     let new_tab = reopened["tabId"].as_str().unwrap();
     assert_ne!(new_tab, old_tab);
     assert_eq!(reopened["snapshot"]["archived"], false);
+    assert_eq!(reopened["snapshot"]["session"]["status"], "stopped");
     let visible = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
     assert_eq!(visible["archived"], false);
     assert_eq!(visible["tabId"], new_tab);
     assert_eq!(visible["items"], first["items"]);
+    assert_eq!(visible["turns"], first["turns"]);
+    assert_eq!(visible["session"]["status"], "stopped");
+    assert_eq!(host.log(), before_reopen, "reopen eagerly started the SDK");
+    host.assert_no_chat_credentials();
     assert_eq!(
         desktop.ok("tab.list", json!({"workspaceId": WORKSPACE}))[0]["id"],
         new_tab
@@ -261,9 +304,14 @@ fn capability_opt_in_and_chat_credentials_enforce_socket_visibility_and_permissi
     let created = desktop.create();
     let chat = created["chatId"].as_str().unwrap();
     let tab = created["tabId"].as_str().unwrap();
-    desktop.wait_snapshot(chat, |snapshot| snapshot["session"]["status"] == "ready");
+    let draft = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    assert_eq!(draft["session"]["status"], "stopped");
+    host.assert_no_provider_start();
     let record = desktop.ok("tab.find", json!({"id": tab}));
-    for legacy in [&mut no_kinds, &mut no_capability] {
+    for (client_name, legacy) in [
+        ("no_supported_tab_kinds", &mut no_kinds),
+        ("no_agent_chat_capability", &mut no_capability),
+    ] {
         assert_eq!(legacy.ok("tab.find", json!({"id": tab})), Value::Null);
         assert_eq!(
             legacy.ok("tab.list", json!({"workspaceId": WORKSPACE})),
@@ -272,14 +320,18 @@ fn capability_opt_in_and_chat_credentials_enforce_socket_visibility_and_permissi
         let rejected = legacy.request("tab.upsert", record.clone());
         assert_eq!(rejected["ok"], false);
         assert_eq!(rejected["errorCode"], "unsupported");
+        let events = chat_events(legacy);
         assert!(
-            !legacy.events.iter().any(|event| event["event"]
-                .as_str()
-                .is_some_and(|name| name.starts_with("agentChat"))),
-            "a client missing one opt-in received chat events"
+            events.is_empty(),
+            "{client_name} received chat events: {events:?}"
         );
     }
 
+    desktop.ok(
+        "agentChat.send",
+        send_input(chat, "mint-bound-credential", "credential-message", "first"),
+    );
+    completed(&mut desktop, chat, 1);
     let start = host
         .log()
         .into_iter()
@@ -316,7 +368,7 @@ fn capability_opt_in_and_chat_credentials_enforce_socket_visibility_and_permissi
     });
     bound.ok("chatOrchestration.read", json!({"chatId": chat}));
     let authorized_turns = host.inputs("turn/start").len();
-    assert_eq!(authorized_turns, 1);
+    assert_eq!(authorized_turns, 2);
     for (verb, payload) in [
         ("agentChat.snapshot", json!({"chatId": chat})),
         (
@@ -346,13 +398,21 @@ fn capability_opt_in_and_chat_credentials_enforce_socket_visibility_and_permissi
     });
     for legacy in [&mut no_kinds, &mut no_capability, &mut bound] {
         legacy.ok("status.get", json!({}));
-        assert!(
-            !legacy.events.iter().any(|event| event["event"]
-                .as_str()
-                .is_some_and(|name| name.starts_with("agentChat"))),
-            "an unnegotiated or bound socket received a chat event"
-        );
     }
+    let received = json!({
+        "no_supported_tab_kinds": chat_events(&no_kinds),
+        "no_agent_chat_capability": chat_events(&no_capability),
+        "chat_bound": chat_events(&bound),
+    });
+    assert_eq!(
+        received,
+        json!({
+            "no_supported_tab_kinds": [],
+            "no_agent_chat_capability": [],
+            "chat_bound": [],
+        }),
+        "an unnegotiated or bound socket received chat events: {received}"
+    );
     desktop.ok(
         "agentChat.close",
         json!({"requestId": "close-bound", "chatId": chat}),

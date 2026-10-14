@@ -194,6 +194,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
         ServerCommand::VoiceSynthesizeFinished { result, .. } => host_result_serialized_bytes(result),
         ServerCommand::AgentChatRuntimeEvent { event } => chat_budget::runtime_event_bytes(event),
         ServerCommand::AgentChatActivityChanged => 1,
+        ServerCommand::AgentChatSettingsChanged { name, payload } => string_bytes(name) + value_bytes(payload),
         ServerCommand::ChatOrchestrationChanged { change } => value_bytes(change),
         ServerCommand::OwnerAutomationPrecheckFinished { operation_id } => string_bytes(operation_id),
         ServerCommand::AutomationPrecheckFinished {

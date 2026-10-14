@@ -46,7 +46,10 @@ WorkspaceTabRecord buildCommandTerminalTab({
     payload: <String, Object?>{
       workspaceTabTerminalSessionIdPayloadKey: tabId,
       workspaceTabManualTitlePayloadKey: true,
-      workspaceTabInitialCommandPayloadKey: request.command,
+      if (request.providerSetup case final setup?)
+        commandTerminalProviderSetupPayloadKey: setup.toJson()
+      else
+        workspaceTabInitialCommandPayloadKey: request.command,
     },
   );
 }

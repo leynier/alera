@@ -2,16 +2,26 @@
 mod callbacks;
 #[path = "canonical_payload.rs"]
 mod canonical_payload;
+#[path = "history.rs"]
+mod history;
 #[path = "lifecycle.rs"]
 mod lifecycle;
+#[path = "lineage.rs"]
+mod lineage;
 #[path = "mapping.rs"]
 mod mapping;
 #[path = "mapping_stream.rs"]
 mod mapping_stream;
 #[path = "mcp.rs"]
 mod mcp;
+#[path = "reasoning_effort.rs"]
+mod reasoning_effort;
 #[path = "runtime_response.rs"]
 mod runtime_response;
+#[path = "turns.rs"]
+mod turns;
+#[path = "user_messages.rs"]
+mod user_messages;
 
 use alera_agent_transport::{JsonTransport, TransportError};
 use alera_provider_protocol::{
@@ -91,6 +101,10 @@ pub struct ClaudeProvider {
     stream_message_id: Option<String>,
     open_items: HashMap<String, String>,
     stream_items: HashMap<String, String>,
+    session_effort: Option<String>,
+    file_checkpointing: bool,
+    fork_source_native_thread_id: Option<String>,
+    pending_user_prompt: Option<user_messages::UserPromptCorrelation>,
 }
 
 fn sdk_error(error: ClaudeSdkError) -> ProviderError {
@@ -126,12 +140,41 @@ impl Provider for ClaudeProvider {
             steer: false,
             snapshot: false,
             rollback: false,
-            fork: false,
+            fork: true,
         }
     }
 
     fn session(&self) -> Option<&ProviderSession> {
         self.session.as_ref()
+    }
+
+    fn reasoning_effort_capabilities(
+        &self,
+    ) -> alera_provider_protocol::ReasoningEffortCapabilities {
+        reasoning_effort::capabilities()
+    }
+
+    fn native_history_capabilities(&self) -> alera_provider_protocol::NativeHistoryCapabilities {
+        alera_provider_protocol::NativeHistoryCapabilities {
+            file_checkpointing: true,
+            fork_at_message: true,
+            rewind_files: self.file_checkpointing && self.session.is_some() && !self.closed,
+            ..Default::default()
+        }
+    }
+
+    async fn fork_session(
+        &mut self,
+        input: alera_provider_protocol::NativeForkInput,
+    ) -> Result<alera_provider_protocol::NativeForkResult, ProviderError> {
+        self.fork_native(input).await
+    }
+
+    async fn rewind_files(
+        &mut self,
+        input: alera_provider_protocol::NativeRewindFilesInput,
+    ) -> Result<alera_provider_protocol::NativeRewindFilesResult, ProviderError> {
+        self.rewind_native_files(input).await
     }
 
     async fn initialize(&mut self) -> Result<(), ProviderError> {
@@ -158,6 +201,8 @@ impl Provider for ClaudeProvider {
             ));
         }
         let options = self.build_options(&input)?;
+        self.session_effort = options.effort.clone();
+        self.file_checkpointing = options.enable_file_checkpointing;
         *self.thread_id.lock().await = Some(input.thread_id.clone());
         let client = if let Some(transport) = self.transport.take() {
             let client = ClaudeClient::with_transport(BoxedTransport(transport), options)
@@ -168,10 +213,14 @@ impl Provider for ClaudeProvider {
             ClaudeClient::connect(options).await.map_err(sdk_error)?
         };
         self.client = Some(client);
-        let native_thread_id = input
-            .resume_thread_id
-            .clone()
-            .unwrap_or_else(|| format!("pending:{}", input.thread_id));
+        let native_thread_id = if self.fork_source_native_thread_id.is_some() {
+            format!("pending:{}", input.thread_id)
+        } else {
+            input
+                .resume_thread_id
+                .clone()
+                .unwrap_or_else(|| format!("pending:{}", input.thread_id))
+        };
         let session = ProviderSession {
             provider: ProviderKind::Claude,
             provider_instance_id: self.config.provider_instance_id.clone(),
@@ -188,117 +237,7 @@ impl Provider for ClaudeProvider {
     }
 
     async fn send_turn(&mut self, input: TurnInput) -> Result<TurnStartResult, ProviderError> {
-        input.validate()?;
-        if !input.attachments.is_empty() {
-            return Err(ProviderError::Unsupported(
-                "Claude Code turns do not support provider attachments".into(),
-            ));
-        }
-        if !input.options.is_empty() {
-            return Err(ProviderError::Unsupported(
-                "Claude Code turn options are not supported by this adapter".into(),
-            ));
-        }
-        if input.interaction_mode != InteractionMode::Default {
-            return Err(ProviderError::Unsupported(
-                "Claude Code per-turn interaction mode is not supported by this adapter".into(),
-            ));
-        }
-        let session = self
-            .session
-            .clone()
-            .ok_or_else(|| ProviderError::InvalidState("session has not started".into()))?;
-        if input.thread_id != session.thread_id {
-            return Err(ProviderError::Validation(
-                "turn threadId does not match session".into(),
-            ));
-        }
-        if session.active_turn_id.is_some()
-            || matches!(
-                session.status,
-                SessionStatus::Running | SessionStatus::Waiting
-            )
-        {
-            return Err(ProviderError::InvalidState(
-                "cannot start a Claude turn while another turn is active or awaiting an event"
-                    .into(),
-            ));
-        }
-        if self.closed {
-            return Err(ProviderError::Closed);
-        }
-        if let Some(model) = &input.model {
-            if session.model.as_deref() != Some(model.as_str()) {
-                return Err(ProviderError::Unsupported(
-                    "Claude model switching is not enabled by this adapter".into(),
-                ));
-            }
-        }
-        if self.client.is_none() {
-            return Err(ProviderError::InvalidState(
-                "session client is unavailable".into(),
-            ));
-        }
-        let next_turn = self.next_turn + 1;
-        let turn_id = format!("turn:claude:{next_turn}");
-        let previous_streamed_text_message_ids = self.streamed_text_message_ids.clone();
-        let previous_streamed_thinking_message_ids = self.streamed_thinking_message_ids.clone();
-        let previous_streamed_text_unscoped = self.streamed_text_unscoped;
-        let previous_streamed_thinking_unscoped = self.streamed_thinking_unscoped;
-        let previous_stream_message_id = self.stream_message_id.clone();
-        let previous_open_items = std::mem::take(&mut self.open_items);
-        let previous_stream_items = std::mem::take(&mut self.stream_items);
-        let previous_status = session.status;
-        let previous_active_turn_id = session.active_turn_id.clone();
-        self.streamed_text_message_ids.clear();
-        self.streamed_thinking_message_ids.clear();
-        self.streamed_text_unscoped = false;
-        self.streamed_thinking_unscoped = false;
-        self.stream_message_id = None;
-        self.open_items = HashMap::new();
-        self.stream_items = HashMap::new();
-        *self.active_turn_id.lock().await = Some(turn_id.clone());
-        if let Some(session) = &mut self.session {
-            session.status = SessionStatus::Running;
-            session.active_turn_id = Some(turn_id.clone());
-        }
-        let send_result = self
-            .client
-            .as_ref()
-            .expect("client checked before turn state setup")
-            .send_prompt(input.input)
-            .await;
-        if let Err(error) = send_result {
-            *self.active_turn_id.lock().await = previous_active_turn_id.clone();
-            self.streamed_text_message_ids = previous_streamed_text_message_ids;
-            self.streamed_thinking_message_ids = previous_streamed_thinking_message_ids;
-            self.streamed_text_unscoped = previous_streamed_text_unscoped;
-            self.streamed_thinking_unscoped = previous_streamed_thinking_unscoped;
-            self.stream_message_id = previous_stream_message_id;
-            self.open_items = previous_open_items;
-            self.stream_items = previous_stream_items;
-            if let Some(session) = &mut self.session {
-                session.status = previous_status;
-                session.active_turn_id = previous_active_turn_id;
-            }
-            self.pending.lock().await.clear();
-            return Err(sdk_error(error));
-        }
-        self.next_turn = next_turn;
-        let mut payload = json!({});
-        if let Some(model) = session.model {
-            payload["model"] = Value::String(model);
-        }
-        self.queue(self.event(
-            EventKind::TurnStarted,
-            payload.clone(),
-            self.raw("turn", payload),
-        ));
-        Ok(TurnStartResult {
-            thread_id: input.thread_id,
-            turn_id,
-            native_turn_id: None,
-        })
+        self.send_native_turn(input).await
     }
 
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
@@ -474,6 +413,7 @@ impl Provider for ClaudeProvider {
             return Ok(());
         }
         self.pending.lock().await.clear();
+        self.pending_user_prompt = None;
         if let Some(client) = &self.client {
             client.close().await.map_err(sdk_error)?;
         } else if let Some(mut transport) = self.transport.take() {

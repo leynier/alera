@@ -219,7 +219,7 @@ void main() {
     },
   );
 
-  testWidgets('an approval is answered from the timeline', (tester) async {
+  testWidgets('an approval is answered from the request dock', (tester) async {
     final repository = FakeAgentChatRepository()
       ..snapshots.add(
         () => agentChatSnapshotFixture(

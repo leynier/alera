@@ -39,33 +39,69 @@ class const AgentChatStatusBanner({
 }
 
 /// The provider session stopped and the runtime knows a way back. Sending a
-/// message also restarts it, so the buttons are a shortcut, not a gate.
+/// message also restarts it, so the buttons are a shortcut, not a gate. An
+/// agent that is missing or signed out on the host is fixed in Provider
+/// Settings, which this offers instead of guessing at a restart.
 class const AgentChatRecoveryBanner({
   super.key,
   required final AgentChatRecovery recovery,
   required final bool enabled,
   required final ValueChanged<AgentChatRecoverMode> onRecover,
+  final VoidCallback? onOpenProviderSettings,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final needsSettings =
+        recovery.kind == AgentChatRecoveryKind.providerMissing ||
+        recovery.kind == AgentChatRecoveryKind.authRequired;
+    return _Banner(
+      icon: AleraIcons.warning,
+      tone: AleraTokens.warning,
+      message: recovery.message,
+      clampMessage: true,
+      action: Wrap(
+        spacing: AleraTokens.space4,
+        children: <Widget>[
+          if (needsSettings && onOpenProviderSettings != null)
+            TextButton(
+              onPressed: onOpenProviderSettings,
+              child: const Text(agentChatOpenProviderSettingsLabel),
+            ),
+          if (recovery.canResume)
+            TextButton(
+              onPressed: enabled ? () => onRecover(.resume) : null,
+              child: const Text('Resume Session'),
+            ),
+          if (recovery.canRestart)
+            TextButton(
+              onPressed: enabled ? () => onRecover(.restart) : null,
+              child: const Text('Start New Session'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The chat's agent cannot run on the host right now, or there is none.
+/// Send waits; Provider Settings is where it gets fixed.
+class const AgentChatProviderNotice({
+  super.key,
+  required final String message,
+  final VoidCallback? onOpenProviderSettings,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _Banner(
-    icon: AleraIcons.warning,
+    icon: AleraIcons.agent,
     tone: AleraTokens.warning,
-    message: recovery.message,
-    action: Wrap(
-      spacing: AleraTokens.space4,
-      children: <Widget>[
-        if (recovery.canResume)
-          TextButton(
-            onPressed: enabled ? () => onRecover(.resume) : null,
-            child: const Text('Resume'),
+    message: message,
+    clampMessage: true,
+    action: onOpenProviderSettings == null
+        ? null
+        : TextButton(
+            onPressed: onOpenProviderSettings,
+            child: const Text(agentChatOpenProviderSettingsLabel),
           ),
-        if (recovery.canRestart)
-          TextButton(
-            onPressed: enabled ? () => onRecover(.restart) : null,
-            child: const Text('Restart'),
-          ),
-      ],
-    ),
   );
 }
 
@@ -75,7 +111,22 @@ class const _Banner({
   required final String message,
   final Widget? action,
   final bool busy = false,
-}) extends StatelessWidget {
+  final bool clampMessage = false,
+}) extends StatefulWidget {
+  @override
+  State<_Banner> createState() => _BannerState();
+}
+
+/// Errors clamp to three lines; tapping the text shows the rest.
+class _BannerState extends State<_Banner> {
+  bool _full = false;
+
+  IconData get icon => widget.icon;
+  Color get tone => widget.tone;
+  String get message => widget.message;
+  Widget? get action => widget.action;
+  bool get busy => widget.busy;
+
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: Color.alphaBlend(
@@ -106,10 +157,19 @@ class const _Banner({
                   Icon(icon, size: AleraTokens.space16, color: tone),
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
-                  child: Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: AleraTokens.foreground),
+                  child: GestureDetector(
+                    onTap: widget.clampMessage
+                        ? () => setState(() => _full = !_full)
+                        : null,
+                    child: Text(
+                      message,
+                      maxLines: widget.clampMessage && !_full ? 3 : null,
+                      overflow: widget.clampMessage && !_full
+                          ? .ellipsis
+                          : null,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foreground),
+                    ),
                   ),
                 ),
               ],

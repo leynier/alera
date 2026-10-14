@@ -12,9 +12,12 @@ pub use owner_automation_precheck_store::{
 mod agent_chat_admission;
 #[cfg(test)]
 mod agent_chat_admission_tests;
+mod agent_chat_attention;
 mod agent_chat_commit;
 #[cfg(test)]
 mod agent_chat_commit_tests;
+mod agent_chat_deletion;
+mod agent_chat_history_mutations;
 #[cfg(test)]
 mod agent_chat_history_tests;
 mod agent_chat_identity;
@@ -24,6 +27,20 @@ mod agent_chat_lifecycle;
 #[cfg(test)]
 mod agent_chat_lifecycle_receipt_tests;
 mod agent_chat_models;
+mod agent_chat_native_operations;
+pub use agent_chat_native_operations::*;
+mod agent_chat_selection;
+mod agent_chat_settings_models;
+mod agent_chat_settings_schema;
+mod agent_chat_settings_store;
+#[cfg(test)]
+mod agent_chat_settings_tests;
+pub use agent_chat_selection::AGENT_CHAT_UNSELECTED_PROVIDER;
+mod agent_chat_preferences;
+mod agent_chat_provider_store;
+mod agent_chat_provider_validation;
+pub use agent_chat_provider_store::agent_chat_provider_instances_response;
+pub use agent_chat_settings_models::*;
 #[cfg(test)]
 mod agent_chat_payload_tests;
 mod agent_chat_payloads;
@@ -51,9 +68,9 @@ mod agent_chat_turn_migration_tests;
 mod agent_chat_turns;
 mod agent_chat_validation;
 #[cfg(test)]
-mod agent_chat_write_concurrency_tests;
-#[cfg(test)]
 mod agent_chat_wire_tests;
+#[cfg(test)]
+mod agent_chat_write_concurrency_tests;
 pub use agent_chat_models::*;
 pub use agent_chat_validation::agent_chat_command_digest;
 mod chat_orchestration_cancellation;

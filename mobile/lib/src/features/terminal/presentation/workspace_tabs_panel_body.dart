@@ -47,7 +47,10 @@ extension _WorkspaceTabsPanelBody on _WorkspaceTabsScreenState {
       chatId: chatId,
       provider: tab.agentChatProvider ?? '',
       remoteWorkspace: widget.workspace.isOnRemoteHost,
+      remoteHostId: _remoteHostId,
+      autofocus: tab.id == _focusTabId,
       onOpenTab: _openTab,
+      onStartNewChatWithText: (text) => unawaited(_createAgentChat(text: text)),
     );
   }
 }

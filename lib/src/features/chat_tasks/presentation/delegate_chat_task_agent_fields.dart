@@ -1,7 +1,11 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera/src/design_system/forms/alera_provider_model_picker.dart';
+import 'package:alera/src/design_system/layout/alera_sectioned_picker.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_model_picker.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_settings.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_provider_icon.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
@@ -19,6 +23,7 @@ class const DelegateChatTaskAgentFields({
   required final AgentChatDelegateDraft draft,
   required final ValueChanged<AgentChatDelegateDraftEdit> onEdit,
   final bool enabled = true,
+  final bool effortSupported = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -40,56 +45,95 @@ class const DelegateChatTaskAgentFields({
         if (ceiling.isEmpty || ceiling.contains(mode)) mode,
     ];
     final support = catalog.supportFor(provider.id);
+    final selected = AgentChatSelection(
+      providerInstanceId: provider.id,
+      model: draft.providerInstanceId == provider.id
+          ? draft.model
+          : provider.initialModel?.id,
+    );
+    final model = provider.modelById(selected.model);
+    final efforts = model?.reasoningEfforts ?? const <String>[];
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
-        AleraDropdownField<String>(
+        // The same grouped picker the composer uses, so an agent and model
+        // read and search alike wherever a chat is started.
+        AleraProviderModelPicker<AgentChatSelection>(
           key: const ValueKey<String>('delegateAgent'),
-          value: provider.id,
-          labelText: 'Agent',
+          label:
+              '${provider.label} · '
+              '${agentChatModelLabel(provider, selected.model)}',
+          leading: AgentChatProviderIcon(provider: provider.provider),
+          tooltip: 'Choose Agent And Model',
           enabled: enabled,
-          filterable: catalog.providers.length > 8,
-          entries: <AleraDropdownFieldEntry<String>>[
-            for (final item in catalog.providers)
-              AleraDropdownFieldEntry<String>(
-                value: item.id,
-                label: item.label,
-                enabled: item.available,
-                detail: item.available ? null : item.unavailableReason,
+          selectedValue: selected,
+          sections: <AleraPickerSection<AgentChatSelection>>[
+            for (final group in agentChatPickerGroups(
+              providers: catalog.providers,
+              currentSelection: selected,
+            ))
+              AleraPickerSection<AgentChatSelection>(
+                title: group.instance.label,
+                rows: <AleraPickerRow<AgentChatSelection>>[
+                  for (final row in group.rows)
+                    AleraPickerRow<AgentChatSelection>(
+                      value: row.selection,
+                      title: row.model.label,
+                      subtitle: agentChatModelSubtitle(row.model),
+                      disabledReason: row.enabled
+                          ? null
+                          : row.disabledReason ?? 'Unavailable',
+                      keywords: <String>[group.instance.label, ?row.model.id],
+                    ),
+                ],
               ),
           ],
-          onChanged: (id) {
-            final next = catalog.providers.firstWhere((item) => item.id == id);
-            onEdit(
-              (draft) => draft.copyWith(
-                providerInstanceId: id,
-                model: next.initialModel?.id,
-                runtimeMode: null,
-                plan: false,
-              ),
-            );
-          },
+          onSelected: (pick) => onEdit(
+            (draft) => pick.providerInstanceId == provider.id
+                ? draft.copyWith(
+                    providerInstanceId: provider.id,
+                    model: pick.model,
+                    reasoningEffort: null,
+                  )
+                : draft.copyWith(
+                    providerInstanceId: pick.providerInstanceId,
+                    model: pick.model,
+                    reasoningEffort: null,
+                    runtimeMode: null,
+                    plan: false,
+                  ),
+          ),
         ),
-        if (provider.models.isNotEmpty) ...<Widget>[
+        if (effortSupported && efforts.isNotEmpty) ...<Widget>[
           const SizedBox(height: AleraTokens.space8),
-          AleraDropdownField<String>(
-            key: const ValueKey<String>('delegateModel'),
-            value:
-                provider.modelById(draft.model)?.id ??
-                provider.initialModel?.id,
-            labelText: 'Model',
+          AleraDropdownField<String?>(
+            key: const ValueKey<String>('delegateEffort'),
+            value: efforts.contains(draft.reasoningEffort)
+                ? draft.reasoningEffort
+                : null,
+            labelText: 'Reasoning Effort',
             enabled: enabled,
-            filterable: provider.models.length > 8,
-            entries: <AleraDropdownFieldEntry<String>>[
-              for (final model in provider.models)
-                AleraDropdownFieldEntry<String>(
-                  value: model.id,
-                  label: model.label,
+            entries: <AleraDropdownFieldEntry<String?>>[
+              AleraDropdownFieldEntry<String?>(
+                value: null,
+                label: switch (model?.defaultReasoningEffort) {
+                  final effort? =>
+                    'Model Default (${agentChatEffortLabel(effort)})',
+                  null => 'Model Default',
+                },
+              ),
+              for (final effort in efforts)
+                AleraDropdownFieldEntry<String?>(
+                  value: effort,
+                  label: agentChatEffortLabel(effort),
                 ),
             ],
-            onChanged: (id) => onEdit(
-              (draft) =>
-                  draft.copyWith(providerInstanceId: provider.id, model: id),
+            onChanged: (effort) => onEdit(
+              (draft) => draft.copyWith(
+                providerInstanceId: provider.id,
+                model: selected.model,
+                reasoningEffort: effort,
+              ),
             ),
           ),
         ],

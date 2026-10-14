@@ -242,6 +242,14 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     searchKeywords: <String>['agent', 'chat', 'assistant'],
   ),
   KeybindingDefinition(
+    id: .chooseAgentChatModel,
+    label: 'Choose Model',
+    group: .tabs,
+    description: 'Choose the agent and model of the active agent chat.',
+    defaultBindings: .uniform(<String>['Mod+Shift+M']),
+    searchKeywords: <String>['agent', 'chat', 'model', 'provider'],
+  ),
+  KeybindingDefinition(
     id: .closeTab,
     label: 'Close Tab',
     group: .tabs,

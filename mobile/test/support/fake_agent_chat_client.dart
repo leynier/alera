@@ -65,9 +65,15 @@ Map<String, Object?> agentChatSession({
   String? model = 'gpt-5',
   bool interrupt = true,
   bool attachments = false,
+  bool steer = false,
+  bool fork = false,
+  bool rollback = false,
+  bool fileCheckpointingSupported = false,
+  bool fileCheckpointing = false,
 }) => <String, Object?>{
   'status': status,
   'model': ?model,
+  'fileCheckpointing': fileCheckpointing,
   'runtimeMode': 'approval-required',
   'interactionMode': 'default',
   'activeTurnId': ?activeTurnId,
@@ -77,7 +83,36 @@ Map<String, Object?> agentChatSession({
     'approvals': true,
     'userInput': true,
     'attachments': attachments,
+    'steer': steer,
+    'fork': fork,
+    'rollback': rollback,
+    'nativeHistory': <String, Object?>{
+      'fileCheckpointing': fileCheckpointingSupported,
+    },
   },
+};
+
+/// A catalog row for `agentChat.providers`.
+Map<String, Object?> agentChatProviderRow(
+  String id, {
+  String? provider,
+  String? label,
+  bool available = true,
+  bool enabled = true,
+  String? unavailableReason,
+  List<Map<String, Object?>> models = const <Map<String, Object?>>[],
+  List<String> runtimeModes = const <String>[],
+  Map<String, Object?>? auth,
+}) => <String, Object?>{
+  'providerInstanceId': id,
+  'provider': provider ?? id,
+  'label': label ?? id,
+  'available': available,
+  'enabled': enabled,
+  'unavailableReason': ?unavailableReason,
+  'models': models,
+  'runtimeModes': runtimeModes,
+  'auth': ?auth,
 };
 
 Map<String, Object?> agentChatItem(
@@ -127,12 +162,16 @@ Map<String, Object?> agentChatSnapshot({
   bool archived = false,
   Map<String, Object?>? recovery,
   String? historyBefore,
+  String chatId = 'chat-1',
+  String provider = 'codex',
+  String providerInstanceId = 'codex',
+  Map<String, Object?>? pendingNativeOperation,
 }) => <String, Object?>{
-  'chatId': 'chat-1',
+  'chatId': chatId,
   'workspaceId': 'workspace-1',
   'tabId': 'tab-chat',
-  'provider': 'codex',
-  'providerInstanceId': 'codex',
+  'provider': provider,
+  'providerInstanceId': providerInstanceId,
   'title': 'Fix the build',
   'archived': archived,
   'cursor': cursor,
@@ -143,4 +182,5 @@ Map<String, Object?> agentChatSnapshot({
   'queue': queue,
   'recovery': ?recovery,
   'historyBefore': ?historyBefore,
+  'pendingNativeOperation': ?pendingNativeOperation,
 };

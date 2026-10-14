@@ -6,6 +6,7 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_chat_controller.g.dart';
+part 'agent_chat_controller_actions.dart';
 
 // The runtime ends an interrupted turn through events; this only bounds how
 // long the Stop control stays disabled if that never arrives.
@@ -14,9 +15,16 @@ const Duration _interruptSettleTimeout = Duration(seconds: 3);
 /// One chat as the desktop renders it: a runtime snapshot kept current by
 /// cursor-ordered changes, plus this client's in-flight actions.
 @riverpod
-class AgentChatController extends _$AgentChatController {
+class AgentChatController extends _$AgentChatController
+    with _AgentChatComposerActions {
+  @override
   late AgentChatRepository _repository;
+  @override
+  late AgentChatLifecycleRepository _lifecycle;
+  @override
   late String Function() _nextId;
+  @override
+  final Map<String, String> _reconcileRequestIds = <String, String>{};
   late DateTime Function() _now;
   StreamSubscription<AgentChatStreamEvent>? _events;
   Timer? _interruptTimer;
@@ -27,12 +35,14 @@ class AgentChatController extends _$AgentChatController {
   bool _reloadQueued = false;
   int _loadGeneration = 0;
 
+  @override
   AgentChatRef get _chat =>
       AgentChatRef(chatId: chatId, workspaceId: workspaceId);
 
   @override
   AgentChatViewState build(String chatId, String workspaceId) {
     _repository = ref.watch(agentChatRepositoryProvider);
+    _lifecycle = ref.watch(agentChatLifecycleRepositoryProvider);
     _nextId = ref.watch(agentChatIdGeneratorProvider);
     _now = ref.watch(agentChatClockProvider);
     // Subscribe before the first read so no change falls in between.
@@ -127,6 +137,8 @@ class AgentChatController extends _$AgentChatController {
 
   /// Reads a fresh snapshot while the current copy stays on screen.
   void _resync() {
+    // A deleted chat has no snapshot left to read.
+    if (state.removed) return;
     if (_pending != null) {
       _reloadQueued = true;
       return;
@@ -166,6 +178,14 @@ class AgentChatController extends _$AgentChatController {
         }
       case AgentChatConnectionLost():
         state = state.copyWith(connection: AgentChatConnection.reconnecting);
+      case AgentChatRemoved():
+        // The surface keeps any unsent text and offers it to a new chat.
+        _interruptTimer?.cancel();
+        state = state.copyWith(
+          removed: true,
+          interrupting: false,
+          pendingModel: null,
+        );
     }
   }
 
@@ -188,6 +208,7 @@ class AgentChatController extends _$AgentChatController {
       for (final request in thread.pendingRequests) request.id,
     };
     final queueIds = <String>{for (final entry in thread.queue) entry.queueId};
+    final wasBusy = state.busy;
     final interruptedTurn = state.thread?.session.activeTurnId;
     final interrupting =
         state.interrupting &&
@@ -208,8 +229,10 @@ class AgentChatController extends _$AgentChatController {
       cancellingQueueIds: _retained(state.cancellingQueueIds, queueIds),
       interrupting: interrupting,
     );
+    if (wasBusy && !state.busy) _applyPendingModel();
   }
 
+  @override
   void _setOutgoing(List<AgentChatOutgoingMessage> outgoing) {
     final thread = state.thread;
     state = state.copyWith(
@@ -233,7 +256,9 @@ class AgentChatController extends _$AgentChatController {
     AgentChatDelivery delivery = AgentChatDelivery.auto,
   }) {
     final trimmed = text.trim();
-    if (!state.canSend || (trimmed.isEmpty && attachments.isEmpty)) {
+    if (!state.canSend ||
+        state.nativeOperationPending ||
+        (trimmed.isEmpty && attachments.isEmpty)) {
       return false;
     }
     final message = AgentChatOutgoingMessage(
@@ -242,8 +267,22 @@ class AgentChatController extends _$AgentChatController {
       createdAt: _now().toUtc(),
       attachments: List<AgentChatAttachment>.unmodifiable(attachments),
     );
+    final pending = state.pendingModel;
+    // A provider default cannot travel on a message; it waits for idle.
+    final model = pending?.model;
+    if (model != null) state = state.copyWith(pendingModel: null);
+    final firstSend = state.neverSent;
     _setOutgoing(<AgentChatOutgoingMessage>[...state.outgoing, message]);
-    unawaited(_deliver(message, delivery));
+    unawaited(
+      _deliver(
+        message,
+        delivery == AgentChatDelivery.steer && !state.canSteer
+            ? AgentChatDelivery.auto
+            : delivery,
+        model: model,
+        firstSend: firstSend,
+      ),
+    );
     return true;
   }
 
@@ -253,32 +292,20 @@ class AgentChatController extends _$AgentChatController {
         .firstOrNull;
     if (message == null ||
         message.status != AgentChatOutgoingStatus.failed ||
-        !state.canSend) {
+        !state.canSend ||
+        state.nativeOperationPending) {
       return;
     }
     _replaceOutgoing(message.withStatus(AgentChatOutgoingStatus.sending));
     await _deliver(message, AgentChatDelivery.auto);
   }
 
-  /// Drops a failed message and returns it so the composer can edit it.
-  AgentChatOutgoingMessage? discardSend(String clientMessageId) {
-    final message = state.outgoing
-        .where((message) => message.clientMessageId == clientMessageId)
-        .firstOrNull;
-    if (message == null || message.status != AgentChatOutgoingStatus.failed) {
-      return null;
-    }
-    _setOutgoing(<AgentChatOutgoingMessage>[
-      for (final other in state.outgoing)
-        if (other.clientMessageId != clientMessageId) other,
-    ]);
-    return message;
-  }
-
   Future<void> _deliver(
     AgentChatOutgoingMessage message,
-    AgentChatDelivery delivery,
-  ) async {
+    AgentChatDelivery delivery, {
+    String? model,
+    bool firstSend = false,
+  }) async {
     // A send outlives the tab being hidden; its result must still land.
     final keepAlive = ref.keepAlive();
     try {
@@ -289,10 +316,12 @@ class AgentChatController extends _$AgentChatController {
           clientMessageId: message.clientMessageId,
           text: message.text,
           attachments: message.attachments,
+          model: model,
           delivery: delivery,
         ),
       );
       if (!ref.mounted) return;
+      if (firstSend) _rememberSelection();
       _replaceOutgoing(message.withStatus(AgentChatOutgoingStatus.accepted));
     } on Object catch (error) {
       if (!ref.mounted) return;
@@ -367,46 +396,6 @@ class AgentChatController extends _$AgentChatController {
     );
   }
 
-  Future<void> cancelQueued(String queueId) async {
-    if (state.cancellingQueueIds.contains(queueId)) return;
-    state = state.copyWith(
-      cancellingQueueIds: <String>{...state.cancellingQueueIds, queueId},
-    );
-    await _guard(
-      () => _repository.cancelQueued(
-        _chat,
-        requestId: _nextId(),
-        queueId: queueId,
-      ),
-      onError: () => state = state.copyWith(
-        cancellingQueueIds: <String>{
-          for (final id in state.cancellingQueueIds)
-            if (id != queueId) id,
-        },
-      ),
-    );
-  }
-
-  /// Applies settings to the next turn; the session change arrives as an
-  /// event. Returns whether the runtime accepted it.
-  Future<bool> configure(AgentChatConfiguration configuration) async {
-    if (configuration.isEmpty || state.configuring || !state.canSend) {
-      return false;
-    }
-    state = state.copyWith(configuring: true, actionError: null);
-    var accepted = false;
-    await _guard(() async {
-      await _repository.configure(
-        _chat,
-        requestId: _nextId(),
-        configuration: configuration,
-      );
-      accepted = true;
-    });
-    if (ref.mounted) state = state.copyWith(configuring: false);
-    return accepted;
-  }
-
   Future<void> recover([AgentChatRecoverMode? mode]) async {
     if (state.recovering) return;
     state = state.copyWith(recovering: true, actionError: null);
@@ -444,6 +433,7 @@ class AgentChatController extends _$AgentChatController {
     }
   }
 
+  @override
   Future<void> _guard(
     Future<void> Function() action, {
     String? ignoreCode,

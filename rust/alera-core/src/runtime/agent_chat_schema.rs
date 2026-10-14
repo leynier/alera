@@ -60,6 +60,8 @@ const TABLES: &[&str] = &[
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS agentChatTurnsSeqIdx ON agentChatTurns(chatId, seq);",
     "CREATE INDEX IF NOT EXISTS agentChatTurnsStatusIdx ON agentChatTurns(chatId, status);",
+    "CREATE INDEX IF NOT EXISTS agentChatTurnsAttentionIdx \
+     ON agentChatTurns(chatId, updatedCursor, status);",
     "CREATE TABLE IF NOT EXISTS agentChatEvents (
         chatId TEXT NOT NULL,
         cursor INTEGER NOT NULL,
@@ -78,6 +80,8 @@ const TABLES: &[&str] = &[
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS agentChatNativeIdsAppIdx \
      ON agentChatNativeIds(chatId, kind, appId);",
+    "CREATE INDEX IF NOT EXISTS agentChatNativeIdsBoundaryIdx \
+     ON agentChatNativeIds(chatId, generation, appId, kind);",
     "CREATE TABLE IF NOT EXISTS agentChatReceipts (
         callerScope TEXT NOT NULL,
         requestId TEXT NOT NULL,
@@ -124,6 +128,7 @@ fn triggers() -> Vec<String> {
          DELETE FROM agentChatEvents WHERE chatId = OLD.chatId; \
          DELETE FROM agentChatNativeIds WHERE chatId = OLD.chatId; \
          DELETE FROM agentChatCancelledMessages WHERE chatId = OLD.chatId; \
+         DELETE FROM agentChatReadCursors WHERE chatId = OLD.chatId; \
          DELETE FROM agentChatReceipts WHERE chatId = OLD.chatId; END;"
             .to_string(),
     ]
@@ -136,6 +141,8 @@ impl RuntimeStore {
         }
         self.ensure_column("agentChatSessions", "metadataJson", "TEXT")
             .await?;
+        self.migrate_agent_chat_settings().await?;
+        self.migrate_agent_chat_native_operations().await?;
         let mut tx = self.pool().begin().await?;
         super::agent_chat_turns::migrate_turn_headers_in(&mut tx).await?;
         for statement in triggers() {

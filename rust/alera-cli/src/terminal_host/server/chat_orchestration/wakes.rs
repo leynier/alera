@@ -55,6 +55,7 @@ pub(crate) async fn deliver_next_wake(
                 attachments: Vec::new(),
                 delivery: "queue".into(),
                 model: None,
+                reasoning_effort: None,
                 interaction_mode: None,
                 runtime_mode_ceiling: None,
                 origin: Some(json!({

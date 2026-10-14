@@ -1,7 +1,6 @@
 import 'package:alera/src/design_system/alera_preview.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_detail_view.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_list.dart';
-import 'package:alera/src/features/chat_tasks/presentation/chat_task_notice_views.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
@@ -108,24 +107,5 @@ Widget chatTaskDetailPreview() => SizedBox(
       onCancel: () {},
       onDecision: (_, _) {},
     ),
-  ),
-);
-
-@AleraPreview(name: 'Chat dock', group: 'Chat tasks', size: Size(520, 200))
-Widget chatTaskDockPreview() => SizedBox(
-  width: 480,
-  child: Column(
-    mainAxisSize: .min,
-    children: <Widget>[
-      ChatTaskDockView(
-        tasks: _tasks.take(2).toList(),
-        total: 4,
-        onView: (_) {},
-      ),
-      const ChatMessageSenderRow(
-        senderTitle: 'Planner',
-        senderPlace: 'Alera / main',
-      ),
-    ],
   ),
 );

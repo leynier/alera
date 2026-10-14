@@ -77,11 +77,34 @@ async fn insert_task_in(
     let (root_task_id, root_chat_id, depth) = match &task.parent_task_id {
         Some(parent_id) => {
             let parent = require_task_in(connection, parent_id).await?;
+            require_native_operation_free_chats_in(
+                connection,
+                &[
+                    parent.parent_chat_id.as_deref(),
+                    parent.root_chat_id.as_deref(),
+                    parent.child_chat_id.as_deref(),
+                ],
+            )
+            .await?;
             let root_chat_id = parent.root_chat_id.or(parent.parent_chat_id);
             (parent.root_task_id, root_chat_id, parent.depth + 1)
         }
         None => (task.task_id.clone(), task.parent_chat_id.clone(), 0),
     };
+    let target_chat = match &task.target {
+        ChatOrchestrationTarget::Chat { chat_id } => Some(chat_id.as_str()),
+        _ => None,
+    };
+    require_native_operation_free_chats_in(
+        connection,
+        &[
+            task.parent_chat_id.as_deref(),
+            root_chat_id.as_deref(),
+            task.child_chat_id.as_deref(),
+            target_chat,
+        ],
+    )
+    .await?;
     let now = format_timestamp(Utc::now());
     sqlx::query(
         "INSERT INTO chatOrchestrationTasks (taskId, kind, status, revision, callerScope, \
@@ -113,6 +136,23 @@ async fn insert_task_in(
     .execute(&mut *connection)
     .await?;
     require_task_in(connection, &task.task_id).await
+}
+
+async fn require_native_operation_free_chats_in(
+    connection: &mut SqliteConnection,
+    chats: &[Option<&str>],
+) -> Result<()> {
+    for chat_id in chats.iter().flatten() {
+        if super::agent_chat_native_operations::active_operation_in(connection, chat_id)
+            .await?
+            .is_some()
+        {
+            return Err(conflict(
+                "native operation pending; reconcile it before creating linked tasks",
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Applies `transition` inside the caller's transaction. The conditional
@@ -229,7 +269,7 @@ impl RuntimeStore {
         if let Some(receipt) = receipt {
             require_receipt(receipt)?;
         }
-        let mut tx = self.pool().begin().await?;
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         prune_receipts_in(&mut tx).await?;
         if let Some(receipt) = receipt {
             match check_receipt_in(

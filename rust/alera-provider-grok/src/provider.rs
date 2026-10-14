@@ -48,6 +48,12 @@ impl<T: JsonTransport> Provider for GrokProvider<T> {
         self.inner.capabilities()
     }
 
+    fn reasoning_effort_capabilities(
+        &self,
+    ) -> alera_provider_protocol::ReasoningEffortCapabilities {
+        self.inner.reasoning_effort_capabilities()
+    }
+
     fn session(&self) -> Option<&alera_provider_protocol::ProviderSession> {
         self.inner.session()
     }

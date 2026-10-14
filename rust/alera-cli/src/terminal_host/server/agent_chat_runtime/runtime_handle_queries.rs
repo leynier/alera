@@ -30,7 +30,34 @@ impl AgentChatRuntime {
             }
         }
         .map_err(|error| HostError::state(error.to_string()))?;
-        Ok(chats.iter().map(chat_summary).collect())
+        let mut summaries = Vec::with_capacity(chats.len());
+        for chat in chats {
+            let mut summary = chat_summary(&chat);
+            let attention = self
+                .inner
+                .deps
+                .store
+                .agent_chat_attention(&chat.chat_id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+            summary["readCursor"] = serde_json::json!(attention.read_cursor);
+            summary["unread"] = serde_json::json!(attention.unread);
+            summary["openChildTaskCount"] = serde_json::json!(attention.open_child_task_count);
+            summary["childNeedsInput"] = serde_json::json!(attention.child_needs_input);
+            summary["childFailed"] = serde_json::json!(attention.child_failed);
+            summary["pendingNativeOperation"] = self
+                .inner
+                .deps
+                .store
+                .pending_agent_chat_native_operation(&chat.chat_id)
+                .await
+                .map_err(|_| HostError::state("The native history operation could not be read."))?
+                .as_ref()
+                .map(super::super::session_native_history_recovery::native_operation_public_summary)
+                .unwrap_or(Value::Null);
+            summaries.push(summary);
+        }
+        Ok(summaries)
     }
 
     pub(crate) async fn providers(
@@ -50,8 +77,8 @@ impl AgentChatRuntime {
             None => None,
         };
         Ok(provider_catalog(
-            self.inner.deps.factory.as_ref(),
-            &self.inner.deps.instances,
+            self.inner.deps.factory.clone(),
+            self.inner.deps.instances.clone(),
             cwd,
             refresh,
         )
@@ -80,6 +107,12 @@ impl AgentChatRuntime {
     }
 
     pub(crate) async fn recover_after_restart(&self) -> Result<Vec<String>, String> {
+        self.inner
+            .deps
+            .store
+            .recover_agent_chat_native_operations()
+            .await
+            .map_err(|_| "Pending native history operations could not be recovered.".to_owned())?;
         restart_recovery::recover_after_restart(&self.inner.deps.store).await
     }
 }

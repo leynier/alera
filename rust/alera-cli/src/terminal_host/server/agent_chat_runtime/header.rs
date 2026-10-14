@@ -14,6 +14,8 @@ pub(crate) struct SessionView {
     pub status: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
     pub runtime_mode: String,
     pub interaction_mode: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -44,6 +46,11 @@ pub(crate) struct Header {
     pub provider: String,
     #[serde(default)]
     pub title: String,
+    #[serde(
+        default = "default_title_source",
+        skip_serializing_if = "legacy_title_source"
+    )]
+    pub title_source: String,
     pub cursor: i64,
     pub session: SessionView,
     #[serde(default)]
@@ -66,18 +73,38 @@ pub(crate) struct Header {
     pub extra: Map<String, Value>,
 }
 
+fn default_title_source() -> String {
+    "legacy".into()
+}
+
+fn legacy_title_source(source: &String) -> bool {
+    source == "legacy"
+}
+
 impl Header {
     /// Parses a stored snapshot, dropping the item page a read attaches.
     pub(crate) fn from_snapshot(mut snapshot: Value) -> Result<Self, String> {
         if let Some(object) = snapshot.as_object_mut() {
             object.remove("items");
             object.remove("historyBefore");
+            for key in ["provider", "providerInstanceId"] {
+                if object.get(key) == Some(&Value::Null) {
+                    object.insert(
+                        key.into(),
+                        Value::String(alera_core::runtime::AGENT_CHAT_UNSELECTED_PROVIDER.into()),
+                    );
+                }
+            }
         }
         serde_json::from_value(snapshot).map_err(|error| format!("chat header: {error}"))
     }
 
     pub(crate) fn to_snapshot(&self) -> Value {
         let mut value = json(self);
+        if self.provider == alera_core::runtime::AGENT_CHAT_UNSELECTED_PROVIDER {
+            value["provider"] = Value::Null;
+            value["providerInstanceId"] = Value::Null;
+        }
         value["items"] = Value::Array(Vec::new());
         value
     }
@@ -97,6 +124,15 @@ impl Header {
 /// Header fields of the delta from `old` to `new`.
 pub(crate) fn header_delta(old: &Header, new: &Header) -> Map<String, Value> {
     let mut delta = Map::new();
+    if old.extra.get("pendingNativeOperation") != new.extra.get("pendingNativeOperation") {
+        delta.insert(
+            "pendingNativeOperation".into(),
+            new.extra
+                .get("pendingNativeOperation")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+    }
     if old.session != new.session {
         delta.insert("session".into(), json(&new.session));
     }
@@ -105,6 +141,12 @@ pub(crate) fn header_delta(old: &Header, new: &Header) -> Map<String, Value> {
     }
     if old.title != new.title {
         delta.insert("title".into(), Value::String(new.title.clone()));
+    }
+    if old.title_source != new.title_source {
+        delta.insert(
+            "titleSource".into(),
+            Value::String(new.title_source.clone()),
+        );
     }
     if old.usage != new.usage {
         delta.insert("usage".into(), new.usage.clone().unwrap_or(Value::Null));
@@ -198,6 +240,21 @@ mod tests {
         old.recovery = Some(json!({"kind": "resumable"}));
         let new = header();
         assert_eq!(header_delta(&old, &new)["recovery"], Value::Null);
+    }
+
+    #[test]
+    fn native_operation_projection_clear_is_explicit() {
+        let mut old = header();
+        old.extra.insert(
+            "pendingNativeOperation".into(),
+            json!({"operationId":"op","state":"uncertain","kind":"rewind"}),
+        );
+        let new = header();
+        assert_eq!(
+            header_delta(&old, &new)["pendingNativeOperation"],
+            Value::Null
+        );
+        assert!(!header_delta(&new, &new).contains_key("pendingNativeOperation"));
     }
 
     #[test]

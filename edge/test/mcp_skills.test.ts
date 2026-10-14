@@ -55,7 +55,10 @@ describe('MCP skill catalog', () => {
   test('chat-bound tools stay out of the public runtime catalog', () => {
     expect(CHAT_TOOLS.length).toBeGreaterThan(0);
     expect(new Set(CHAT_TOOLS).size).toBe(CHAT_TOOLS.length);
-    expect([...RUNTIME_TOOLS.keys()].filter((name) => name.startsWith('chat_'))).toEqual([]);
+    expect(CHAT_TOOLS.filter((name) => RUNTIME_TOOLS.has(name))).toEqual([]);
+    expect([...RUNTIME_TOOLS.keys()].filter((name) => name.startsWith('chat_')).sort()).toEqual([
+      'chat_task_control', 'chat_task_delegate', 'chat_task_query', 'chat_task_send',
+    ]);
   });
 
   test('links and skill names resolve', () => {

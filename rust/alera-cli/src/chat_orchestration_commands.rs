@@ -16,7 +16,7 @@ use crate::chat_orchestration_commands_args::{
     ChatTaskArgs, ChatTaskListArgs, ChatWaitArgs,
 };
 use crate::cli::RuntimeDirArgs;
-use crate::orchestration_commands::{request_value_with_capability, WAIT_CLIENT_GRACE_MS};
+use crate::orchestration_commands::WAIT_CLIENT_GRACE_MS;
 
 pub(crate) const CHAT_ORCHESTRATION_CAPABILITY: &str = "chatOrchestrationV1";
 const MAX_WAIT_SECONDS: u64 = 50;
@@ -26,6 +26,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
     let json_output = command.output.json;
     let action = command.action;
     let result = match action {
+        ChatAction::Human(args) => crate::chat_task_commands::run(&runtime, args).await,
         ChatAction::Capabilities => {
             request(&runtime, "chatOrchestration.capabilities", json!({})).await
         }
@@ -52,7 +53,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
 }
 
 async fn request(runtime: &RuntimeDirArgs, verb: &str, payload: Value) -> Result<Value> {
-    request_value_with_capability(runtime, CHAT_ORCHESTRATION_CAPABILITY, verb, payload, None).await
+    crate::chat_orchestration_request::request(runtime, verb, payload, None).await
 }
 
 async fn request_with_deadline(
@@ -61,14 +62,7 @@ async fn request_with_deadline(
     payload: Value,
     deadline_ms: u64,
 ) -> Result<Value> {
-    request_value_with_capability(
-        runtime,
-        CHAT_ORCHESTRATION_CAPABILITY,
-        verb,
-        payload,
-        Some(deadline_ms),
-    )
-    .await
+    crate::chat_orchestration_request::request(runtime, verb, payload, Some(deadline_ms)).await
 }
 
 async fn list(runtime: &RuntimeDirArgs, args: ChatListArgs) -> Result<Value> {
@@ -98,6 +92,22 @@ async fn read(runtime: &RuntimeDirArgs, args: ChatReadArgs) -> Result<Value> {
 }
 
 async fn delegate(runtime: &RuntimeDirArgs, args: ChatDelegateArgs) -> Result<Value> {
+    let deadline_ms = (args.mode == "wait").then(|| {
+        args.wait_seconds
+            .min(MAX_WAIT_SECONDS)
+            .saturating_mul(1_000)
+            .saturating_add(WAIT_CLIENT_GRACE_MS)
+    });
+    let payload = delegate_payload(args)?;
+    match deadline_ms {
+        Some(deadline_ms) => {
+            request_with_deadline(runtime, "chatOrchestration.delegate", payload, deadline_ms).await
+        }
+        None => request(runtime, "chatOrchestration.delegate", payload).await,
+    }
+}
+
+fn delegate_payload(args: ChatDelegateArgs) -> Result<Value> {
     let task = read_text_source(
         args.source.task,
         args.source.task_file.as_deref(),
@@ -111,7 +121,7 @@ async fn delegate(runtime: &RuntimeDirArgs, args: ChatDelegateArgs) -> Result<Va
         .map(|value| parse_object(value, "agent"))
         .transpose()?;
     let request_id = request_id(args.request_id)?;
-    let payload = json!({
+    let mut payload = json!({
         "requestId": request_id,
         "task": task,
         "title": args.title,
@@ -119,23 +129,17 @@ async fn delegate(runtime: &RuntimeDirArgs, args: ChatDelegateArgs) -> Result<Va
         "notify": args.notify,
         "mode": args.mode,
         "waitSeconds": args.wait_seconds.min(MAX_WAIT_SECONDS),
-        "agent": agent,
         "runtimeMode": args.runtime_mode,
         "interactionMode": args.interaction_mode,
         "target": target,
     });
-    let deadline_ms = (args.mode == "wait").then(|| {
-        args.wait_seconds
-            .min(MAX_WAIT_SECONDS)
-            .saturating_mul(1_000)
-            .saturating_add(WAIT_CLIENT_GRACE_MS)
-    });
-    match deadline_ms {
-        Some(deadline_ms) => {
-            request_with_deadline(runtime, "chatOrchestration.delegate", payload, deadline_ms).await
-        }
-        None => request(runtime, "chatOrchestration.delegate", payload).await,
+    if let Some(agent) = agent {
+        payload["agent"] = agent;
     }
+    if let Some(parent) = optional_text(args.parent_chat_id, "parent-chat-id")? {
+        payload["parentChatId"] = json!(parent);
+    }
+    Ok(payload)
 }
 
 async fn send(runtime: &RuntimeDirArgs, args: ChatSendArgs) -> Result<Value> {
@@ -146,19 +150,18 @@ async fn send(runtime: &RuntimeDirArgs, args: ChatSendArgs) -> Result<Value> {
         "message",
     )?;
     let request_id = request_id(args.request_id)?;
-    request(
-        runtime,
-        "chatOrchestration.send",
-        json!({
-            "requestId": request_id.clone(),
-            "clientMessageId": request_id,
-            "chatId": require_text(&args.chat_id, "chat-id")?,
-            "message": message,
-            "delivery": args.delivery,
-            "expectReply": args.expect_reply,
-        }),
-    )
-    .await
+    let mut payload = json!({
+        "requestId": request_id.clone(),
+        "clientMessageId": request_id,
+        "chatId": require_text(&args.chat_id, "chat-id")?,
+        "message": message,
+        "delivery": args.delivery,
+        "expectReply": args.expect_reply,
+    });
+    if let Some(parent) = optional_text(args.parent_chat_id, "parent-chat-id")? {
+        payload["parentChatId"] = json!(parent);
+    }
+    request(runtime, "chatOrchestration.send", payload).await
 }
 
 async fn task_list(runtime: &RuntimeDirArgs, args: ChatTaskListArgs) -> Result<Value> {
@@ -187,15 +190,19 @@ async fn task_list(runtime: &RuntimeDirArgs, args: ChatTaskListArgs) -> Result<V
 }
 
 async fn task(runtime: &RuntimeDirArgs, args: ChatTaskArgs) -> Result<Value> {
-    request(
-        runtime,
-        "chatOrchestration.task",
-        json!({
-            "taskId": require_text(&args.task_id, "task-id")?,
-            "acknowledge": args.acknowledge,
-        }),
-    )
-    .await
+    request(runtime, "chatOrchestration.task", task_payload(args)?).await
+}
+
+fn task_payload(args: ChatTaskArgs) -> Result<Value> {
+    let mut payload =
+        json!({"taskId":require_text(&args.task_id,"task-id")?,"acknowledge":args.acknowledge});
+    if let Some(id) = optional_text(args.request_id, "request-id")? {
+        if !args.acknowledge {
+            bail!("request-id requires acknowledge");
+        }
+        payload["requestId"] = json!(id);
+    }
+    Ok(payload)
 }
 
 async fn wait(runtime: &RuntimeDirArgs, args: ChatWaitArgs) -> Result<Value> {
@@ -279,28 +286,41 @@ async fn respond(runtime: &RuntimeDirArgs, args: ChatRespondArgs) -> Result<Valu
 }
 
 async fn configure(runtime: &RuntimeDirArgs, args: ChatConfigureArgs) -> Result<Value> {
+    let payload = configure_payload(args)?;
+    request(runtime, "chatOrchestration.configure", payload).await
+}
+
+fn configure_payload(args: ChatConfigureArgs) -> Result<Value> {
     if args.provider.is_none()
         && args.provider_instance_id.is_none()
         && args.model.is_none()
+        && !args.reset_model
+        && args.reasoning_effort.is_none()
+        && !args.reset_reasoning_effort
         && args.runtime_mode.is_none()
         && args.interaction_mode.is_none()
     {
         bail!("at least one configuration field is required");
     }
-    request(
-        runtime,
-        "chatOrchestration.configure",
-        json!({
-            "requestId": request_id(args.request_id)?,
-            "chatId": require_text(&args.chat_id, "chat-id")?,
-            "provider": optional_text(args.provider, "provider")?,
-            "providerInstanceId": optional_text(args.provider_instance_id, "provider-instance-id")?,
-            "model": optional_text(args.model, "model")?,
-            "runtimeMode": optional_text(args.runtime_mode, "runtime-mode")?,
-            "interactionMode": optional_text(args.interaction_mode, "interaction-mode")?,
-        }),
-    )
-    .await
+    let mut payload = json!({
+        "requestId": request_id(args.request_id)?,
+        "chatId": require_text(&args.chat_id, "chat-id")?,
+        "provider": optional_text(args.provider, "provider")?,
+        "providerInstanceId": optional_text(args.provider_instance_id, "provider-instance-id")?,
+        "runtimeMode": optional_text(args.runtime_mode, "runtime-mode")?,
+        "interactionMode": optional_text(args.interaction_mode, "interaction-mode")?,
+    });
+    if args.reset_model {
+        payload["model"] = Value::Null;
+    } else if let Some(model) = optional_text(args.model, "model")? {
+        payload["model"] = json!(model);
+    }
+    if args.reset_reasoning_effort {
+        payload["reasoningEffort"] = Value::Null;
+    } else if let Some(effort) = optional_text(args.reasoning_effort, "reasoning-effort")? {
+        payload["reasoningEffort"] = json!(effort);
+    }
+    Ok(payload)
 }
 
 fn parse_target(raw: &str) -> Result<Value> {
@@ -339,7 +359,7 @@ fn parse_target(raw: &str) -> Result<Value> {
     Ok(value)
 }
 
-fn validate_response(response: &Value) -> Result<()> {
+pub(crate) fn validate_response(response: &Value) -> Result<()> {
     let object = response
         .as_object()
         .ok_or_else(|| anyhow::anyhow!("response must be a JSON object"))?;

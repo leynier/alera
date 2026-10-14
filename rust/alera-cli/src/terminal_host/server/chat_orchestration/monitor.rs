@@ -76,7 +76,7 @@ impl ChatOrchestrationService {
         client_message_id: String,
     ) {
         let service = self.clone();
-        tokio::spawn(async move {
+        let _ = self.jobs.spawn(async move {
             service
                 .monitor_task(task_id, child_chat_id, client_message_id)
                 .await;
@@ -313,6 +313,9 @@ impl ChatOrchestrationService {
         &self,
         task: &alera_core::runtime::ChatOrchestrationTask,
     ) {
+        if self.jobs.is_closed() {
+            return;
+        }
         if let Some(parent) = &task.parent_chat_id {
             let _ =
                 deliver_next_wake(&self.store, self.runtime.as_ref(), parent, &self.events).await;

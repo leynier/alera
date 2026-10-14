@@ -124,7 +124,18 @@ impl ServerActor {
 
     pub(super) fn relay_host_link_event(&self, host_id: &str, event_name: &str, payload: &Value) {
         match event_name {
-            "agentChatChanged" | "agentChatsChanged" | "workspaceTabsChanged" => {
+            "agentChatProvidersChanged" | "agentChatPreferencesChanged" => {
+                if let Some(revision) = payload["revision"].as_i64().filter(|value| *value >= 0) {
+                    self.broadcast_agent_chat(crate::terminal_host::protocol::event(
+                        event_name,
+                        serde_json::json!({"hostId":host_id,"revision":revision}),
+                    ));
+                }
+            }
+            "agentChatChanged"
+            | "agentChatsChanged"
+            | "agentChatDeleted"
+            | "workspaceTabsChanged" => {
                 self.relay_remote_agent_chat_event(host_id, event_name, payload);
             }
             AGENT_HOOK_EVENT => {

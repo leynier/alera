@@ -2,12 +2,14 @@
 //! access class and its default timeout; every domain module lists its tools
 //! in the order clients see them.
 
+mod agent_chat;
 mod agent_skills;
 mod agents;
 mod agents_manage;
 mod automations;
 mod automations_manage;
 mod chat_orchestration;
+mod chat_tasks;
 mod events;
 mod inbox;
 mod inbox_manage;
@@ -126,7 +128,9 @@ pub(super) fn admin(
 }
 
 pub(super) fn tools() -> Vec<ToolSpec> {
-    let groups: [fn() -> Vec<ToolSpec>; 23] = [
+    let groups: [fn() -> Vec<ToolSpec>; 25] = [
+        agent_chat::tools,
+        chat_tasks::tools,
         runtime::tools,
         runtime_manage::tools,
         projects::tools,

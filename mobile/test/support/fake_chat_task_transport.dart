@@ -47,6 +47,10 @@ final class FakeChatTaskTransport implements AgentChatTransport {
   final Map<String, Map<String, Object?>> tasks =
       <String, Map<String, Object?>>{};
   List<Map<String, Object?>> chats = <Map<String, Object?>>[];
+
+  /// Open child requests `chatOrchestration.requests` answers with; a
+  /// response removes the one it answers.
+  final List<Map<String, Object?>> pendingRequests = <Map<String, Object?>>[];
   final StreamController<AgentChatTransportEvent> _events =
       StreamController<AgentChatTransportEvent>.broadcast(sync: true);
   int _next = 1;
@@ -142,7 +146,39 @@ final class FakeChatTaskTransport implements AgentChatTransport {
       case AgentChatOrchestrationWire.capabilities:
         return <String, Object?>{'maxWaitSeconds': 50, 'providers': providers};
       case AgentChatOrchestrationWire.requests:
-        return const <String, Object?>{'requests': <Object?>[]};
+        return <String, Object?>{
+          'requests': <Object?>[
+            for (final request in pendingRequests)
+              if (payload['taskId'] == null ||
+                  payload['taskId'] == request['taskId'])
+                request,
+          ],
+        };
+      case AgentChatOrchestrationWire.respond:
+        pendingRequests.removeWhere(
+          (request) =>
+              (request['request']! as Map<String, Object?>)['requestId'] ==
+              (payload['runtimeRequestId'] ?? payload['requestId']),
+        );
+        return const <String, Object?>{};
+      case AgentChatOrchestrationWire.send:
+        final id = 'task-sent-${_next++}';
+        if (payload['expectReply'] == true) {
+          put(<String, Object?>{
+            ...chatTaskJson(
+              taskId: id,
+              title: 'Reply',
+              parentChatId: payload['parentChatId'] as String?,
+              childChatId: payload['chatId'] as String?,
+            ),
+            'kind': 'message',
+          });
+        }
+        return <String, Object?>{
+          'chatId': payload['chatId'],
+          'delivery': 'started',
+          if (payload['expectReply'] == true) 'taskId': id,
+        };
       case AgentChatOrchestrationWire.list:
         return <String, Object?>{'chats': chats};
       case AgentChatOrchestrationWire.read:

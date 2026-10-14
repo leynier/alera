@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
+
 const int aleraTerminalHostProtocolVersion = 5;
 const String aleraCliExecutableName = 'alera';
 const String aleraCliWindowsExecutableName = 'alera.exe';
@@ -262,6 +264,7 @@ final class const TerminalHostLaunch({
   required final String shell,
   required final List<String> arguments,
   required final Map<String, String> environment,
+  final CommandTerminalProviderSetup? providerSetup,
 }) {
   factory fromJson(Map<String, Object?> json) {
     final shell = json['shell'];
@@ -273,6 +276,9 @@ final class const TerminalHostLaunch({
       shell: shell,
       arguments: asTerminalHostStringList(json['arguments']),
       environment: asTerminalHostStringMap(json['environment']),
+      providerSetup: json['providerSetup'] == null
+          ? null
+          : CommandTerminalProviderSetup.fromJson(json['providerSetup']),
     );
   }
 
@@ -282,6 +288,7 @@ final class const TerminalHostLaunch({
       'shell': shell,
       'arguments': arguments,
       'environment': environment,
+      if (providerSetup case final setup?) 'providerSetup': setup.toJson(),
     };
   }
 }

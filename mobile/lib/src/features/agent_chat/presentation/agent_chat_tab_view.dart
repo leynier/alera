@@ -2,27 +2,25 @@ import 'dart:async';
 
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
+import 'package:alera_mobile/src/design_system/chat/alera_message_editor.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_tab_actions.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_availability.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_view_state.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_picker.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_footer.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_mode_labels.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_provider_identity.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_settings_sheet.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_status_banner.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_timeline_view.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_usage_button.dart';
-import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
-import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_native_history_rewind_sheet.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_sheets.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_dock.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_body.dart';
+import 'package:alera_mobile/src/features/agent_provider_settings/presentation/agent_providers_screen.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_chat_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
@@ -38,20 +36,38 @@ class const AgentChatTabView({
   required final String chatId,
   required final String provider,
   final bool remoteWorkspace = false,
+  final String? remoteHostId,
+  final bool autofocus = false,
   final ValueChanged<String>? onOpenTab,
+  final ValueChanged<String>? onStartNewChatWithText,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentChatTabView> createState() => _AgentChatTabViewState();
 }
 
-class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
+const Uuid _uuid = Uuid();
+
+class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
+    implements AgentChatTabHandlers {
   static final Logger _logger = Logger('AgentChatTabView');
+
+  /// Reading is reported once activity settles, not once per streamed delta.
+  static const Duration _readDebounce = Duration(seconds: 1);
+
   late final AgentChatDraftStore _store;
+  late final AgentChatViewMemory _memory;
   late final TextEditingController _composer;
   final FocusNode _focus = FocusNode();
+  @override
+  final AgentChatTypingClock typing = AgentChatTypingClock();
+  @override
+  final ValueNotifier<int> scrollToEnd = ValueNotifier<int>(0);
   List<AgentChatDraftAttachment> _attachments =
       const <AgentChatDraftAttachment>[];
   bool _restoring = false;
+  bool _reconciling = false;
+  final Map<String, String> _reconcileIds = <String, String>{};
+  Timer? _readTimer;
 
   AgentChatControllerProvider get _provider => agentChatControllerProvider(
     widget.hostId,
@@ -64,25 +80,40 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
     super.initState();
     _store = ref.read(agentChatDraftStoreProvider)
       ..activate(widget.hostId, widget.chatId);
+    _memory = ref
+        .read(agentChatViewMemoryStoreProvider)
+        .of(widget.hostId, widget.chatId);
     final draft = _store.read(widget.hostId, widget.chatId);
     _composer = TextEditingController.fromValue(draft.value)
       ..addListener(_persist);
     _attachments = draft.attachments;
     _store.addListener(widget.hostId, widget.chatId, _restored);
+    _focus.addListener(() {
+      if (!_focus.hasFocus) typing.settle();
+    });
+    // New Chat focuses the composer it opened; the person asked for it.
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focus.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _readTimer?.cancel();
     _store.removeListener(widget.hostId, widget.chatId, _restored);
     _composer
       ..removeListener(_persist)
       ..dispose();
     _focus.dispose();
+    scrollToEnd.dispose();
     super.dispose();
   }
 
   void _persist() {
     if (_restoring) return;
+    typing.keystroke();
     _store.write(
       widget.hostId,
       widget.chatId,
@@ -100,7 +131,8 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
     setState(() => _attachments = draft.attachments);
   }
 
-  void _removeAttachment(AgentChatDraftAttachment attachment) {
+  @override
+  void removeAttachment(AgentChatDraftAttachment attachment) {
     setState(() {
       _attachments = <AgentChatDraftAttachment>[
         for (final existing in _attachments)
@@ -110,19 +142,22 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
     _persist();
   }
 
-  Future<void> _send() async {
+  @override
+  Future<void> send({bool steer = false}) async {
     final draft = AgentChatComposerDraft(
       value: _composer.value,
       attachments: _attachments,
     );
     if (!draft.canSubmit) return;
+    typing.settle();
     _restoring = true;
     _composer.clear();
     _restoring = false;
     setState(() => _attachments = const <AgentChatDraftAttachment>[]);
     _store.write(widget.hostId, widget.chatId, const AgentChatComposerDraft());
+    scrollToEnd.value += 1;
     try {
-      await ref.read(_provider.notifier).send(draft);
+      await ref.read(_provider.notifier).send(draft, steer: steer);
     } on Object catch (error, stackTrace) {
       _store.restore(widget.hostId, widget.chatId, draft);
       _report('Could not send the message.', error, stackTrace);
@@ -130,7 +165,8 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
   }
 
   /// Runs an action and explains a failure, without leaving the chat.
-  Future<void> _run(String what, Future<void> Function() action) async {
+  @override
+  Future<void> run(String what, Future<void> Function() action) async {
     try {
       await action();
     } on Object catch (error, stackTrace) {
@@ -145,61 +181,214 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
         ?.showSnackBar(SnackBar(content: Text(agentChatErrorMessage(error))));
   }
 
-  Future<void> _editQueued(AgentChatQueueEntry entry) => _run(
-    'Could not edit the queued message.',
-    () async {
-      final withdrawn = await ref.read(_provider.notifier).cancelQueued(entry);
-      if (!withdrawn) return;
-      _store.restore(
-        widget.hostId,
-        widget.chatId,
-        AgentChatComposerDraft.fromMessage(entry.text, entry.attachments),
-      );
-    },
+  /// Edits in place where the runtime can; elsewhere the entry comes back to
+  /// the composer, which is the same outcome in two steps.
+  @override
+  Future<void> editQueued(AgentChatQueueEntry entry) =>
+      run('Could not edit the queued message.', () async {
+        final controller = ref.read(_provider.notifier);
+        final withdrawn = await controller.cancelQueued(entry);
+        if (!withdrawn) return;
+        _store.restore(
+          widget.hostId,
+          widget.chatId,
+          AgentChatComposerDraft.fromMessage(entry.text, entry.attachments),
+        );
+      });
+
+  @override
+  Future<void> editQueuedInPlace(AgentChatQueueEntry entry) => showDialog<void>(
+    context: context,
+    builder: (_) => AleraMessageEditor(
+      text: entry.text,
+      attachmentCount: entry.attachments.length,
+      onSave: (text) async {
+        final edited = await ref
+            .read(_provider.notifier)
+            .editQueued(entry, text);
+        return edited ? null : 'This message already left the queue.';
+      },
+    ),
   );
 
-  Future<void> _reopen() => _run('Could not reopen the chat.', () async {
-    final repository = await ref.read(
-      agentChatRepositoryProvider(widget.hostId).future,
+  @override
+  Future<void> reopen() => run('Could not reopen the chat.', () async {
+    final actions = await ref.read(
+      agentChatTabActionsProvider(widget.hostId).future,
     );
-    final result = await repository.reopen(
-      AgentChatRef(chatId: widget.chatId, workspaceId: widget.workspaceId),
-      requestId: const Uuid().v4(),
+    final result = await actions.reopen(
+      workspaceId: widget.workspaceId,
+      chatId: widget.chatId,
     );
     final tabId = result.tabId;
     if (tabId != null) widget.onOpenTab?.call(tabId);
   });
 
-  Future<void> _openSettings(AgentChatViewState view) =>
-      _run('Could not load the agent settings.', () async {
-        final providers = await ref.read(
-          agentChatProvidersProvider(widget.hostId, widget.workspaceId).future,
+  /// Provider Settings opens because the person asked for it from the chat.
+  @override
+  void openProviderSettings() => unawaited(
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => AgentProvidersScreen(
+          hostId: widget.hostId,
+          initialRemoteHostId: widget.remoteHostId,
+        ),
+      ),
+    ),
+  );
+
+  @override
+  VoidCallback? attachHandler(AgentChatViewState view) {
+    final capabilities = view.session.capabilities;
+    if (!capabilities.attachments && !capabilities.images) return null;
+    final sources = AgentChatAttachmentSources.read(
+      ref,
+      widget.hostId,
+      remoteWorkspace: widget.remoteWorkspace,
+    );
+    if (sources.isEmpty) return null;
+    return () => unawaited(
+      pickAgentChatAttachments(
+        context,
+        ref,
+        hostId: widget.hostId,
+        workspaceId: widget.workspaceId,
+        chatId: widget.chatId,
+        sources: sources,
+      ),
+    );
+  }
+
+  /// Fork opens the new chat's tab, because the person asked for it.
+  @override
+  Future<void> fork(String turnId) => run('Could not fork the chat.', () async {
+    final result = await ref.read(_provider.notifier).fork(turnId);
+    final tabId = result.tabId;
+    if (tabId != null) widget.onOpenTab?.call(tabId);
+  });
+
+  /// The rewound turn's prompt comes back to the composer, next to anything
+  /// already typed there. The sheet offers only the rewinds that exist now
+  /// and confirms the chosen one; a file rewind leaves the transcript alone.
+  @override
+  Future<void> rewind(String turnId, AgentChatRewindOptions options) async {
+    final kind = await showAgentChatRewindSheet(context, options: options);
+    if (kind == null || !mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final controller = ref.read(_provider.notifier);
+    await run('Could not rewind the chat.', () async {
+      final String notice;
+      if (kind == AgentChatRewindKind.files) {
+        notice = agentChatFileRewindNotice(
+          await controller.rewindFiles(turnId),
         );
-        if (!mounted) return;
-        await showAgentChatSettingsSheet(
-          context,
-          providers: providers,
-          current: AgentChatSettingsCurrent(
-            providerInstanceId: view.thread.providerInstanceId,
-            model: view.session.model,
-            runtimeMode: view.session.runtimeMode,
-            interactionMode: view.session.interactionMode,
-            canSwitchProvider:
-                !view.turnActive &&
-                view.thread.pendingRequests.isEmpty &&
-                view.thread.queue.isEmpty,
-          ),
-          onConfigure: (configuration) => _run(
-            'Could not change the agent settings.',
-            () => ref.read(_provider.notifier).configure(configuration),
-          ),
+      } else {
+        final result = await controller.rewind(
+          turnId,
+          native: kind == AgentChatRewindKind.conversation,
         );
-      });
+        _store.restore(
+          widget.hostId,
+          widget.chatId,
+          AgentChatComposerDraft.fromMessage(result.prompt, result.attachments),
+        );
+        notice = agentChatRewindResultNotice(result);
+      }
+      messenger?.showSnackBar(SnackBar(content: Text(notice)));
+    });
+  }
+
+  /// One request id per chosen action until the runtime answers, so a retry
+  /// after a lost answer replays it; nothing retries on its own.
+  @override
+  Future<void> reconcile(
+    AgentChatNativeOperation operation,
+    AgentChatNativeHistoryAction action,
+  ) async {
+    if (_reconciling) return;
+    final key = '${operation.operationId}\u0000${action.wire}';
+    final requestId = _reconcileIds.putIfAbsent(key, _uuid.v4);
+    setState(() => _reconciling = true);
+    try {
+      await ref
+          .read(_provider.notifier)
+          .reconcileNativeOperation(operation, action, requestId: requestId);
+      _reconcileIds.remove(key);
+    } on AgentChatConnectionException catch (error, stackTrace) {
+      _report('Could not settle the history change.', error, stackTrace);
+    } on Object catch (error, stackTrace) {
+      _reconcileIds.remove(key);
+      _report('Could not settle the history change.', error, stackTrace);
+    } finally {
+      if (mounted) setState(() => _reconciling = false);
+    }
+  }
+
+  @override
+  bool get reconciling => _reconciling;
+
+  @override
+  Future<void> viewChanges(String turnId) => showAgentChatTurnDiffSheet(
+    context,
+    load: () => ref.read(_provider.notifier).turnDiff(turnId),
+  );
+
+  /// Opens the delegate form prefilled from the plan, targeting a new
+  /// workspace; the person reviews it before anything is created.
+  @override
+  Future<void> implementPlan(AgentChatItem plan) =>
+      showImplementPlanInNewWorkspace(
+        context,
+        hostId: widget.hostId,
+        chatId: widget.chatId,
+        workspaceId: widget.workspaceId,
+        plan: plan,
+      );
+
+  @override
+  void startNewChatWithText() {
+    final text = _store.read(widget.hostId, widget.chatId).value.text;
+    widget.onStartNewChatWithText?.call(text);
+  }
+
+  /// The person is looking at this chat: tell the runtime, once output has
+  /// paused, so the other devices stop calling it unread.
+  void _scheduleRead(AgentChatViewState view, bool visible) {
+    if (!visible || view.thread.cursor == 0) return;
+    _readTimer?.cancel();
+    _readTimer = Timer(_readDebounce, () {
+      if (!mounted) return;
+      unawaited(
+        ref.read(_provider.notifier).markRead().catchError((Object error) {
+          _logger.fine('Could not mark the chat read.', error);
+        }),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(_provider);
     final view = async.value;
+    final lifecycle = ref.watch(appLifecycleControllerProvider);
+    final visible =
+        lifecycle == AppLifecycleState.resumed &&
+        TickerMode.valuesOf(context).enabled;
+    final readCursor =
+        ref
+            .watch(
+              agentChatCapabilityProvider(
+                widget.hostId,
+                AgentChatWire.readCursorCapability,
+              ),
+            )
+            .value ??
+        false;
+    if (readCursor) {
+      ref.listen(_provider, (_, next) {
+        if (next.value case final next?) _scheduleRead(next, visible);
+      });
+    }
     if (view == null) {
       return switch (async) {
         AsyncError(:final error) => AleraEmptyState(
@@ -223,199 +412,25 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView> {
       disconnected: view.stale,
       readOnly: view.thread.archived,
     );
-    final canAct = availability.allowsInput;
-    final controller = ref.read(_provider.notifier);
-    final lifecycle = ref.watch(appLifecycleControllerProvider);
-    final providerName = agentChatProviderName(
-      view.thread.provider.isEmpty ? widget.provider : view.thread.provider,
-    );
-    final recovery = view.thread.recovery;
-    final tasksSupported =
-        ref.watch(mobileChatTasksSupportedProvider(widget.hostId)).value ==
-        true;
-    final taskPage = tasksSupported
-        ? ref
-              .watch(
-                mobileChatTaskListProvider(
-                  widget.hostId,
-                  AgentChatTaskQuery(parentChatId: widget.chatId),
-                ),
-              )
-              .value
-        : null;
-    final hasTasks =
-        taskPage?.tasks.any(
-          (task) => !task.status.settled || task.needsAttention,
-        ) ==
-        true;
-    return Column(
-      children: <Widget>[
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) => Column(
-              children: <Widget>[
-                Expanded(
-                  child: AgentChatShimmerScope(
-                    enabled:
-                        view.turnActive &&
-                        lifecycle == AppLifecycleState.resumed &&
-                        TickerMode.valuesOf(context).enabled &&
-                        !MediaQuery.disableAnimationsOf(context),
-                    child: AgentChatScope(
-                      hostId: widget.hostId,
-                      workspaceId: widget.workspaceId,
-                      chatId: widget.chatId,
-                      cwd: view.session.cwd,
-                      child: AgentChatTimelineView(
-                        timeline: view.timeline,
-                        emptyMessage:
-                            'Ask $providerName to work on this workspace.',
-                        canLoadEarlier: view.thread.historyBefore != null,
-                        loadingEarlier: view.loadingHistory,
-                        canRespond: canAct,
-                        respondingRequestIds: view.respondingRequestIds,
-                        onLoadEarlier: () => unawaited(
-                          _run(
-                            'Could not load earlier messages.',
-                            controller.loadEarlier,
-                          ),
-                        ),
-                        onRespond: (request, response) => _run(
-                          'Could not answer the agent.',
-                          () => controller.respond(request, response),
-                        ),
-                        onRetry: (id) => unawaited(
-                          _run(
-                            'Could not send the message.',
-                            () => controller.retry(id),
-                          ),
-                        ),
-                        onEdit: controller.edit,
-                      ),
-                    ),
-                  ),
-                ),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-                  child: AgentChatFooter(
-                    minimumComposerHeight: agentChatComposerMinimumHeight(
-                      context,
-                    ),
-                    notices: <Widget>[
-                      if (availability != AgentChatAvailability.live)
-                        AgentChatStatusBanner(
-                          availability: availability,
-                          onRetry: () => ref.invalidate(_provider),
-                          onReopen: () => unawaited(_reopen()),
-                        ),
-                      if (recovery != null && !view.thread.archived)
-                        AgentChatRecoveryBanner(
-                          recovery: recovery,
-                          enabled: canAct,
-                          onRecover: (mode) => unawaited(
-                            _run(
-                              'Could not restart the agent.',
-                              () => controller.recover(mode),
-                            ),
-                          ),
-                        ),
-                    ],
-                    questions: view.timeline.questions,
-                    queue: view.thread.queue,
-                    canRespond: canAct,
-                    respondingRequestIds: view.respondingRequestIds,
-                    onRespond: (request, response) => _run(
-                      'Could not answer the agent.',
-                      () => controller.respond(request, response),
-                    ),
-                    onRemoveQueued: (entry) => _run(
-                      'Could not remove the queued message.',
-                      () => controller.cancelQueued(entry),
-                    ),
-                    onEditQueued: _editQueued,
-                    tasks: hasTasks
-                        ? ChatTasksForChat(
-                            chatId: widget.chatId,
-                            hostId: widget.hostId,
-                          )
-                        : null,
-                    composer: AgentChatComposer(
-                      hostId: widget.hostId,
-                      workspaceId: widget.workspaceId,
-                      chatId: widget.chatId,
-                      controller: _composer,
-                      focusNode: _focus,
-                      attachments: _attachments,
-                      enabled: canAct,
-                      hintText: switch (availability) {
-                        AgentChatAvailability.readOnly =>
-                          'This chat is archived',
-                        AgentChatAvailability.live =>
-                          'Ask $providerName anything',
-                        _ => 'Waiting for the host',
-                      },
-                      turnActive: view.turnActive,
-                      canInterrupt: view.session.capabilities.interrupt,
-                      interrupting: view.interrupting,
-                      onAttach: _attachHandler(view),
-                      onRemoveAttachment: _removeAttachment,
-                      onSend: () => unawaited(_send()),
-                      onStop: () => unawaited(
-                        _run('Could not stop the agent.', controller.interrupt),
-                      ),
-                      settings: Row(
-                        mainAxisSize: .min,
-                        children: <Widget>[
-                          Flexible(
-                            child: TextButton.icon(
-                              onPressed: canAct
-                                  ? () => unawaited(_openSettings(view))
-                                  : null,
-                              icon: const Icon(AleraIcons.tune),
-                              label: Text(
-                                agentChatSettingsSummary(
-                                  providerLabel: providerName,
-                                  model: view.session.model,
-                                  interactionMode: view.session.interactionMode,
-                                ),
-                                overflow: .ellipsis,
-                              ),
-                            ),
-                          ),
-                          AgentChatUsageButton(usage: view.thread.usage),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Attachments are offered when the provider takes them and the runtime
-  /// serves at least one source for this workspace.
-  VoidCallback? _attachHandler(AgentChatViewState view) {
-    final capabilities = view.session.capabilities;
-    if (!capabilities.attachments && !capabilities.images) return null;
-    final sources = AgentChatAttachmentSources.read(
-      ref,
-      widget.hostId,
-      remoteWorkspace: widget.remoteWorkspace,
-    );
-    if (sources.isEmpty) return null;
-    return () => unawaited(
-      pickAgentChatAttachments(
-        context,
-        ref,
-        hostId: widget.hostId,
-        workspaceId: widget.workspaceId,
-        chatId: widget.chatId,
-        sources: sources,
-      ),
+    return AgentChatTabBody(
+      hostId: widget.hostId,
+      workspaceId: widget.workspaceId,
+      chatId: widget.chatId,
+      provider: widget.provider,
+      remoteHostId: widget.remoteHostId,
+      view: view,
+      availability: availability,
+      animate: view.turnActive && visible,
+      memory: _memory,
+      composer: _composer,
+      focusNode: _focus,
+      attachments: _attachments,
+      draftText: _store.read(widget.hostId, widget.chatId).value.text,
+      handlers: this,
+      controller: ref.read(_provider.notifier),
+      onRetryConnection: () => ref.invalidate(_provider),
+      canStartNewChat: widget.onStartNewChatWithText != null,
+      minimumComposerHeight: agentChatComposerMinimumHeight(context),
     );
   }
 }

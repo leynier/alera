@@ -123,8 +123,9 @@ class _NewTabButtonState extends State<_NewTabButton> {
             label: 'New Terminal',
           ),
         ),
-        if (widget.canCreateAgentChats)
-          const PopupMenuItem<_NewTabAction>(
+        if (widget
+            .canCreateAgentChats) ...const <PopupMenuEntry<_NewTabAction>>[
+          PopupMenuItem<_NewTabAction>(
             value: _NewAgentChatTabAction(),
             height: AleraTokens.minTapTarget,
             child: _NewTabMenuRow(
@@ -132,6 +133,15 @@ class _NewTabButtonState extends State<_NewTabButton> {
               label: 'New Chat',
             ),
           ),
+          PopupMenuItem<_NewTabAction>(
+            value: _ArchivedChatsTabAction(),
+            height: AleraTokens.minTapTarget,
+            child: _NewTabMenuRow(
+              leading: Icon(AleraIcons.archive, size: AleraTokens.space20),
+              label: agentChatArchivedChatsLabel,
+            ),
+          ),
+        ],
         for (final profile in profiles)
           PopupMenuItem<_NewTabAction>(
             value: _NewAgentProfileTabAction(profile),

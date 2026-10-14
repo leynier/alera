@@ -198,6 +198,7 @@ async fn sealed_wake_replays_after_sql_reopen_without_a_second_parent_turn() {
                 attachments: Vec::new(),
             delivery: "queue".into(),
                 model: None,
+                reasoning_effort: None,
                 interaction_mode: None,
                 runtime_mode_ceiling: None,
                 origin: Some(json!({"kind": "orchestrationWake", "taskIds": task_ids})),

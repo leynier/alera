@@ -53,7 +53,7 @@ pub(crate) fn build_process_config(options: &ClaudeAgentOptions) -> ProcessConfi
     if options.enable_file_checkpointing {
         config.env.insert(
             "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING".into(),
-            "1".into(),
+            "true".into(),
         );
     }
     if let Some(cwd) = &options.cwd {
@@ -250,6 +250,53 @@ fn push_equals(args: &mut Vec<OsString>, name: &str, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_fork_and_effort_launch_args_match_upstream_options() {
+        let options = ClaudeAgentOptions {
+            resume: Some("source-session".into()),
+            fork_session: true,
+            resume_session_at: Some("transcript-uuid".into()),
+            effort: Some("high".into()),
+            ..Default::default()
+        };
+        let config = build_process_config(&options);
+        let args = config
+            .args
+            .iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert!(args.iter().any(|arg| arg == "--resume=source-session"));
+        assert!(args.iter().any(|arg| arg == "--fork-session"));
+        assert!(args
+            .iter()
+            .any(|arg| arg == "--resume-session-at=transcript-uuid"));
+        assert!(args.windows(2).any(|pair| pair == ["--effort", "high"]));
+        assert!(!args.iter().any(|arg| arg == "--reasoning-effort"));
+    }
+
+    #[test]
+    fn file_checkpointing_uses_exact_upstream_environment_value() {
+        let options = ClaudeAgentOptions {
+            enable_file_checkpointing: true,
+            env: std::collections::BTreeMap::from([(
+                "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING".into(),
+                "caller-value".into(),
+            )]),
+            ..Default::default()
+        };
+        let config = build_process_config(&options);
+        assert_eq!(
+            config
+                .env
+                .get(&OsString::from("CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING")),
+            Some(&OsString::from("true"))
+        );
+        let disabled = build_process_config(&ClaudeAgentOptions::default());
+        assert!(!disabled
+            .env
+            .contains_key(&OsString::from("CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING")));
+    }
 
     #[test]
     fn session_state_events_are_enabled_without_overriding_options_env() {

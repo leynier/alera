@@ -3,17 +3,21 @@ import 'dart:async';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_detail_screen.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice_views.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_open.dart';
-import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_tiles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// What a chat on the phone embeds for chat orchestration. Both widgets hide
-// on a runtime without chat tasks and when a read fails, and lead nowhere
-// until a tap: View Task opens the task, Open Chat pushes that chat.
+export 'chat_task_dock.dart' show ChatTasksForChat;
 
-/// Details under a message another chat or the runtime put into [chatId]:
-/// the tasks a wake names, or the chat a message came from.
+// What a chat on the phone embeds for chat orchestration. Every widget hides
+// on a runtime without chat tasks and when a read fails, and leads nowhere
+// until a tap: View Task opens the task, Open Chat and Open Parent push that
+// chat.
+
+/// Details under a message another chat, a person's delegation or the
+/// runtime put into [chatId]: one outcome card per task a wake names, where a
+/// task brief came from, or the chat a message came from.
 class const ChatTaskOriginNotice({
   super.key,
   required final AgentChatItemOrigin origin,
@@ -28,18 +32,23 @@ class const ChatTaskOriginNotice({
       return const SizedBox.shrink();
     }
     final sender = origin.senderChatId;
+    final taskId = origin.taskIds.firstOrNull;
     return switch (origin.kind) {
       AgentChatItemOriginKind.orchestrationWake => Column(
         crossAxisAlignment: .stretch,
         mainAxisSize: .min,
         children: <Widget>[
           for (final taskId in origin.taskIds.take(maxTasks))
-            _WakeTask(
+            _WakeOutcome(
               key: ValueKey<String>(taskId),
               hostId: hostId,
               taskId: taskId,
             ),
         ],
+      ),
+      AgentChatItemOriginKind.chatMessage when taskId != null => _TaskOrigin(
+        hostId: hostId,
+        taskId: taskId,
       ),
       AgentChatItemOriginKind.chatMessage when sender != null => _Sender(
         hostId: hostId,
@@ -50,38 +59,7 @@ class const ChatTaskOriginNotice({
   }
 }
 
-/// The tasks [chatId] delegated that still run or need someone.
-class const ChatTasksForChat({
-  super.key,
-  required final String chatId,
-  required final String hostId,
-}) extends ConsumerWidget {
-  static const int maxRows = 5;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(mobileChatTasksSupportedProvider(hostId)).value != true) {
-      return const SizedBox.shrink();
-    }
-    final page = ref.watch(
-      mobileChatTaskListProvider(
-        hostId,
-        AgentChatTaskQuery(parentChatId: chatId),
-      ),
-    );
-    final open = <AgentChatTask>[
-      for (final task in page.value?.tasks ?? const <AgentChatTask>[])
-        if (!task.status.settled || task.needsAttention) task,
-    ];
-    return ChatTaskDockView(
-      tasks: open.take(maxRows).toList(),
-      total: open.length,
-      onView: (task) => unawaited(openChatTaskDetail(context, hostId, task.id)),
-    );
-  }
-}
-
-class const _WakeTask({
+class const _WakeOutcome({
   super.key,
   required final String hostId,
   required final String taskId,
@@ -92,8 +70,9 @@ class const _WakeTask({
     if (task == null) return const SizedBox.shrink();
     final childChatId = task.childChatId;
     final workspaceId = task.workspaceId;
-    return ChatTaskNoticeRow(
+    return ChatTaskOutcomeCard(
       task: task,
+      now: DateTime.now(),
       onView: () => unawaited(openChatTaskDetail(context, hostId, task.id)),
       onOpenChat: childChatId == null || workspaceId == null
           ? null
@@ -106,6 +85,37 @@ class const _WakeTask({
                 workspaceId: workspaceId,
               ),
             ),
+    );
+  }
+}
+
+/// `Delegated by Planner` with Open Parent, or `Delegated by you`.
+class const _TaskOrigin({
+  required final String hostId,
+  required final String taskId,
+}) extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final task = ref.watch(mobileChatTaskDetailProvider(hostId, taskId)).value;
+    if (task == null) return const SizedBox.shrink();
+    final parentChatId = task.parentChatId;
+    final parent = parentChatId == null
+        ? null
+        : ref.watch(mobileChatTaskChatProvider(hostId, parentChatId)).value;
+    return ChatTaskOriginRow(
+      label: agentChatTaskOriginLabel(task, parentTitle: parent?.title),
+      onOpenParent: parent == null
+          ? null
+          : () => unawaited(
+              openMobileChatTaskChat(
+                context,
+                ref,
+                hostId: hostId,
+                chatId: parent.chatId,
+                workspaceId: parent.workspaceId,
+              ),
+            ),
+      onView: () => unawaited(openChatTaskDetail(context, hostId, task.id)),
     );
   }
 }

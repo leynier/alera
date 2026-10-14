@@ -128,7 +128,7 @@ void main() {
     expect(projection.promptHistory, <String>['Fix the build']);
   });
 
-  test('a running turn stays expanded and keeps streaming text as answer', () {
+  test('a running turn folds into its live row and streams the answer', () {
     final projection = AgentChatTimelineProjection.build(
       _thread(<Map<String, Object?>>[
         _item('u1', 'user_message', text: 'Hi'),
@@ -143,7 +143,10 @@ void main() {
     );
     final section = _section(projection);
     expect(section.working, isTrue);
-    expect(section.collapsedByDefault, isFalse);
+    expect(section.outcome, AgentChatTurnOutcome.running);
+    expect(section.collapsedByDefault, isTrue);
+    expect(section.liveWork?.label, 'Running ls');
+    expect(section.canToggleActivity, isFalse);
     expect(section.answers.single.id, 'a1');
     expect(
       (section.activity.single as AgentChatActionGroupRow).streaming,
@@ -193,7 +196,7 @@ void main() {
     );
   });
 
-  test('questions dock; approvals and forms are timeline entries', () {
+  test('every request docks in priority order, none is a timeline entry', () {
     final projection = AgentChatTimelineProjection.build(
       _thread(
         <Map<String, Object?>>[_item('n1', 'notice', turnId: null)],
@@ -217,6 +220,16 @@ void main() {
             ],
           },
           <String, Object?>{
+            'requestId': 'e1',
+            'kind': 'mcp_elicitation_approval',
+            'createdAt': '2026-10-12T10:00:01Z',
+          },
+          <String, Object?>{
+            'requestId': 'a2',
+            'kind': 'command_execution_approval',
+            'createdAt': '2026-10-12T10:00:02Z',
+          },
+          <String, Object?>{
             'requestId': 'a1',
             'kind': 'file_change_approval',
             'createdAt': '2026-10-12T10:00:00Z',
@@ -225,10 +238,14 @@ void main() {
       ),
     );
     expect(projection.questions.single.id, 'q1');
-    expect(projection.entries.map((entry) => entry.key), <String>[
-      'item-n1',
-      'request-a1',
+    expect(projection.requests.map((request) => request.id), <String>[
+      'a1',
+      'a2',
+      'e1',
+      'q1',
     ]);
+    expect(projection.entries.map((entry) => entry.key), <String>['item-n1']);
+    expect(projection.isEmpty, isFalse);
   });
 
   test('optimistic messages render until the runtime stamps them', () {

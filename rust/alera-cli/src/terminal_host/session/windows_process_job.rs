@@ -220,6 +220,7 @@ mod tests {
     fn workflow_pty_job_bootstrap_uses_the_test_harness_entrypoint() {
         let job = WindowsProcessJob::create().unwrap();
         let launch = TerminalHostLaunch {
+            provider_setup: None,
             label: "shell".into(),
             shell: "cmd.exe".into(),
             arguments: vec!["/k".into()],

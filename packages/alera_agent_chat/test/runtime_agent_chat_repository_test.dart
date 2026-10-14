@@ -270,5 +270,21 @@ void main() {
       agentChatErrorMessage(const AgentChatUpdateRequired()),
       contains('Update it'),
     );
+    const nativeMessages = <String, String>{
+      AgentChatErrorCodes.nativeOperationUncertain: 'Alera could not confirm how the rewind ended. Choose how to continue in the notice above the composer. Your draft is kept.',
+      AgentChatErrorCodes.nativeOperationPending: 'A rewind is still being resolved. Send is paused and your draft is kept.',
+      AgentChatErrorCodes.nativeOperationRevisionConflict: 'The chat changed while the rewind was being resolved. Review the latest state and choose again.',
+    };
+    for (final entry in nativeMessages.entries) {
+      expect(
+        agentChatErrorMessage(
+          AgentChatRequestException(
+            code: entry.key,
+            message: 'Provider-specific details.',
+          ),
+        ),
+        entry.value,
+      );
+    }
   });
 }

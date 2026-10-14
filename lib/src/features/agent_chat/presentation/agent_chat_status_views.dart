@@ -93,11 +93,19 @@ class const AgentChatEmptyConversation({
                 ),
               ),
               const SizedBox(height: AleraTokens.space4),
-              Text(
-                workspacePath,
-                textAlign: TextAlign.center,
-                style: AleraTokens.monoStyle.copyWith(
-                  color: AleraTokens.foregroundFaint,
+              // A narrow panel would otherwise give a deep path more lines
+              // than the rest of the empty state; the tooltip keeps all of it.
+              Tooltip(
+                message: workspacePath,
+                child: Text(
+                  workspacePath,
+                  key: const ValueKey<String>('agent-chat-empty-path'),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AleraTokens.monoStyle.copyWith(
+                    color: AleraTokens.foregroundFaint,
+                  ),
                 ),
               ),
               if (hint != null) ...<Widget>[
@@ -131,6 +139,12 @@ String? agentChatEmptyHint(AgentChatViewState state) {
   }
   if (!state.live) return 'Waiting for the Alera runtime to reconnect.';
   if (state.recovering) return 'Recovering the agent session.';
+  // A chat that was never sent to starts its agent on the first message, so
+  // a stopped session there is the ready state, not a failure; this holds
+  // after a runtime restart too.
+  if (thread.snapshot.neverSent && thread.recovery == null) {
+    return state.canSend ? 'Send a message to start.' : null;
+  }
   if (thread.recovery case final AgentChatRecovery recovery) {
     return recovery.canResume || recovery.canRestart
         ? 'The agent session stopped. Resume it or start a new session below.'
@@ -144,22 +158,83 @@ String? agentChatEmptyHint(AgentChatViewState state) {
   };
 }
 
-/// A dismissible failure of the last action, above the composer.
+/// A dismissible failure of the last action, above the composer, clamped to
+/// [maxLines] lines with the full text one tap away.
 class const AgentChatActionErrorBanner({
   super.key,
   required final String message,
   required final VoidCallback onDismiss,
-}) extends StatelessWidget {
+}) extends StatefulWidget {
+  static const int maxLines = 3;
+
   @override
-  Widget build(BuildContext context) => AleraInlineNotice(
-    key: const ValueKey<String>('agent-chat-action-error'),
-    tone: AleraInlineNoticeTone.error,
-    message: message,
-    child: Align(
-      alignment: Alignment.centerRight,
-      child: TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
-    ),
-  );
+  State<AgentChatActionErrorBanner> createState() =>
+      _AgentChatActionErrorBannerState();
+}
+
+class _AgentChatActionErrorBannerState
+    extends State<AgentChatActionErrorBanner> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant AgentChatActionErrorBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message != widget.message) _expanded = false;
+  }
+
+  /// Whether the message needs more than [AgentChatActionErrorBanner.maxLines]
+  /// lines at [width], measured with the notice's own text style and insets.
+  bool _overflows(BuildContext context, double width) {
+    final textWidth =
+        width -
+        AleraTokens.space12 * 2 -
+        AleraTokens.iconMd -
+        AleraTokens.space8;
+    if (!textWidth.isFinite || textWidth <= 0) return false;
+    final painter = TextPainter(
+      text: TextSpan(
+        text: widget.message,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      maxLines: AgentChatActionErrorBanner.maxLines,
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: textWidth);
+    final overflows = painter.didExceedMaxLines;
+    painter.dispose();
+    return overflows;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final long = _overflows(context, constraints.maxWidth);
+        return AleraInlineNotice(
+          key: const ValueKey<String>('agent-chat-action-error'),
+          tone: AleraInlineNoticeTone.error,
+          message: widget.message,
+          maxLines: _expanded ? null : AgentChatActionErrorBanner.maxLines,
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: AleraTokens.space8,
+            children: <Widget>[
+              if (long || _expanded)
+                TextButton(
+                  key: const ValueKey<String>('agent-chat-action-error-more'),
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                  child: Text(_expanded ? 'Show Less' : 'Show Full Error'),
+                ),
+              TextButton(
+                onPressed: widget.onDismiss,
+                child: const Text('Dismiss'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class const AgentChatReconnectingBanner({super.key}) extends StatelessWidget {

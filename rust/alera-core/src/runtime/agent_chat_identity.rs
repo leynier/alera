@@ -41,7 +41,68 @@ async fn app_id_in(
     .await?)
 }
 
+pub(super) async fn native_id_for_app_in(
+    connection: &mut SqliteConnection,
+    chat_id: &str,
+    generation: i64,
+    kind_prefix: &str,
+    app_id: &str,
+) -> Result<Option<AgentChatNativeId>> {
+    let kind = kind_prefix.trim_end_matches('@');
+    require_id("kind prefix", kind)?;
+    require_id("appId", app_id)?;
+    let prefix = format!("{kind}@");
+    let rows = sqlx::query(
+            "SELECT MIN(n.kind) AS kind, n.nativeIdJson FROM agentChatNativeIds n JOIN agentChatSessions s \
+             ON n.chatId = s.chatId AND n.generation = s.generation \
+             WHERE n.chatId = ?1 AND n.generation = ?2 AND n.appId = ?3 \
+             AND (n.kind = ?4 OR substr(n.kind, 1, length(?5)) = ?5) \
+             GROUP BY n.nativeIdJson ORDER BY kind LIMIT 2",
+        )
+        .bind(chat_id)
+        .bind(generation)
+        .bind(app_id)
+        .bind(kind)
+        .bind(prefix)
+        .fetch_all(&mut *connection)
+        .await?;
+    let Some(first) = rows.first() else {
+        return Ok(None);
+    };
+    let native_json: &str = first.try_get("nativeIdJson")?;
+    if rows
+        .iter()
+        .skip(1)
+        .any(|row| row.try_get::<&str, _>("nativeIdJson").ok() != Some(native_json))
+    {
+        return Err(conflict(
+            chat_id,
+            "app id resolves to ambiguous native boundaries".into(),
+        ));
+    }
+    Ok(Some(AgentChatNativeId {
+        chat_id: chat_id.into(),
+        generation,
+        kind: first.try_get("kind")?,
+        native_id: serde_json::from_str(native_json)?,
+        app_id: app_id.into(),
+    }))
+}
+
 impl RuntimeStore {
+    /// Resolves an app boundary in the current provider generation across
+    /// epoch-suffixed kinds. Conflicting native ids are never guessed.
+    pub async fn agent_chat_native_id_for_app(
+        &self,
+        chat_id: &str,
+        generation: i64,
+        kind_prefix: &str,
+        app_id: &str,
+    ) -> Result<Option<AgentChatNativeId>> {
+        let mut connection = self.pool().acquire().await?;
+        native_id_for_app_in(&mut connection, chat_id, generation, kind_prefix, app_id).await
+    }
+
     /// Returns the app id for a native id, minting a UUIDv4 (or adopting
     /// `app_id`) the first time. Only the chat's current generation may add
     /// mappings; earlier generations stay readable.
@@ -53,6 +114,11 @@ impl RuntimeStore {
         }
         let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
         let row = require_session_row_in(&mut tx, &input.chat_id).await?;
+        if row.provider == super::AGENT_CHAT_UNSELECTED_PROVIDER {
+            anyhow::bail!(AgentChatStoreError::Invalid(
+                "an unselected draft cannot map native ids".into()
+            ));
+        }
         if let Some(existing) = app_id_in(
             &mut tx,
             &input.chat_id,
@@ -162,9 +228,9 @@ impl RuntimeStore {
         .transpose()
     }
 
-    /// Records the provider thread of the current generation. A stale
-    /// generation (the chat switched provider meanwhile) is refused so a
-    /// late answer from the old provider cannot claim the new session.
+    /// Records the provider thread of the current generation. Changing or
+    /// clearing it invalidates only that generation's native lookups, since
+    /// their boundaries belong to the previous thread. Transcript rows stay.
     pub async fn bind_agent_chat_native_thread(
         &self,
         chat_id: &str,
@@ -174,7 +240,28 @@ impl RuntimeStore {
         if let Some(native) = native_thread_id {
             require_id("nativeThreadId", native)?;
         }
-        let result = sqlx::query(
+        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
+        let row = require_session_row_in(&mut tx, chat_id).await?;
+        if generation != row.generation
+            || (row.provider == super::AGENT_CHAT_UNSELECTED_PROVIDER && native_thread_id.is_some())
+        {
+            return Err(conflict(
+                chat_id,
+                format!("generation {generation} is no longer current"),
+            ));
+        }
+        if row.native_thread_id.as_deref() == native_thread_id {
+            tx.commit().await?;
+            return Ok(());
+        }
+        super::agent_chat_native_operations::require_no_native_operation_in(&mut tx, chat_id)
+            .await?;
+        sqlx::query("DELETE FROM agentChatNativeIds WHERE chatId = ? AND generation = ?")
+            .bind(chat_id)
+            .bind(generation)
+            .execute(&mut *tx)
+            .await?;
+        let updated = sqlx::query(
             "UPDATE agentChatSessions SET nativeThreadId = ?, updatedAt = ? \
              WHERE chatId = ? AND generation = ?",
         )
@@ -182,23 +269,15 @@ impl RuntimeStore {
         .bind(format_timestamp(Utc::now()))
         .bind(chat_id)
         .bind(generation)
-        .execute(self.pool())
+        .execute(&mut *tx)
         .await?;
-        if result.rows_affected() == 0 {
-            let exists: bool = sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM agentChatSessions WHERE chatId = ?)",
-            )
-            .bind(chat_id)
-            .fetch_one(self.pool())
-            .await?;
-            if !exists {
-                anyhow::bail!(AgentChatStoreError::NotFound(chat_id.to_string()));
-            }
+        if updated.rows_affected() != 1 {
             return Err(conflict(
                 chat_id,
-                format!("generation {generation} is no longer current"),
+                "native thread binding was not persisted".into(),
             ));
         }
+        tx.commit().await?;
         Ok(())
     }
 }

@@ -1,8 +1,10 @@
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
+import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
 import 'package:alera_agent_chat/src/agent_chat_queue_entry.dart';
 import 'package:alera_agent_chat/src/agent_chat_request.dart';
 import 'package:alera_agent_chat/src/agent_chat_session.dart';
+import 'package:alera_agent_chat/src/agent_chat_title_source.dart';
 
 /// `agentChat.snapshot`: the runtime's projection of one chat at [cursor].
 /// Every later `agentChatChanged` for the chat carries the next cursor.
@@ -14,6 +16,7 @@ class const AgentChatSnapshot({
   final String provider = '',
   final String providerInstanceId = '',
   final String title = '',
+  final AgentChatTitleSource titleSource = AgentChatTitleSource.defaultLabel,
   final bool archived = false,
   final AgentChatSession session = const AgentChatSession(),
   final List<AgentChatTurn> turns = const <AgentChatTurn>[],
@@ -22,6 +25,7 @@ class const AgentChatSnapshot({
   final List<AgentChatQueueEntry> queue = const <AgentChatQueueEntry>[],
   final AgentChatUsage usage = const AgentChatUsage(),
   final AgentChatRecovery? recovery,
+  final AgentChatNativeOperation? pendingNativeOperation,
   final String? historyBefore,
 }) {
   factory fromJson(Object? value) {
@@ -39,6 +43,7 @@ class const AgentChatSnapshot({
       provider: agentChatJsonText(json['provider']),
       providerInstanceId: agentChatJsonText(json['providerInstanceId']),
       title: agentChatJsonText(json['title']),
+      titleSource: AgentChatTitleSource.fromJson(json['titleSource']),
       archived: agentChatJsonBool(json['archived']),
       session: AgentChatSession.fromJson(json['session']),
       turns: agentChatTurnsFromJson(json['turns']),
@@ -47,6 +52,9 @@ class const AgentChatSnapshot({
       queue: agentChatQueueFromJson(json['queue']),
       usage: AgentChatUsage.fromJson(json['usage']),
       recovery: recovery is Map ? AgentChatRecovery.fromJson(recovery) : null,
+      pendingNativeOperation: agentChatPendingNativeOperationFromJson(
+        json['pendingNativeOperation'],
+      ),
       historyBefore: agentChatJsonString(json['historyBefore']),
     );
   }
@@ -57,6 +65,7 @@ class const AgentChatSnapshot({
     String? provider,
     String? providerInstanceId,
     String? title,
+    AgentChatTitleSource? titleSource,
     bool? archived,
     AgentChatSession? session,
     List<AgentChatTurn>? turns,
@@ -65,6 +74,7 @@ class const AgentChatSnapshot({
     List<AgentChatQueueEntry>? queue,
     AgentChatUsage? usage,
     Object? recovery = _unchanged,
+    Object? pendingNativeOperation = _unchanged,
     Object? historyBefore = _unchanged,
   }) => AgentChatSnapshot(
     chatId: chatId,
@@ -74,6 +84,7 @@ class const AgentChatSnapshot({
     provider: provider ?? this.provider,
     providerInstanceId: providerInstanceId ?? this.providerInstanceId,
     title: title ?? this.title,
+    titleSource: titleSource ?? this.titleSource,
     archived: archived ?? this.archived,
     session: session ?? this.session,
     turns: turns ?? this.turns,
@@ -84,10 +95,21 @@ class const AgentChatSnapshot({
     recovery: identical(recovery, _unchanged)
         ? this.recovery
         : recovery as AgentChatRecovery?,
+    pendingNativeOperation: identical(pendingNativeOperation, _unchanged)
+        ? this.pendingNativeOperation
+        : pendingNativeOperation as AgentChatNativeOperation?,
     historyBefore: identical(historyBefore, _unchanged)
         ? this.historyBefore
         : historyBefore as String?,
   );
+
+  bool get neverSent =>
+      items.isEmpty &&
+      turns.isEmpty &&
+      historyBefore == null &&
+      pendingNativeOperation == null;
+
+  bool get hasSelection => providerInstanceId.isNotEmpty || provider.isNotEmpty;
 }
 
 const Object _unchanged = Object();

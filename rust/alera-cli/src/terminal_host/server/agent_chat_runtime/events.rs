@@ -18,9 +18,21 @@ pub(crate) enum ChatRuntimeEvent {
     },
     /// The chat list of a workspace changed (create, close, reopen, rename,
     /// provider switch).
-    ChatsChanged { workspace_id: Option<String> },
+    ChatsChanged {
+        workspace_id: Option<String>,
+    },
+    PreferencesChanged {
+        revision: i64,
+    },
+    Deleted {
+        chat_id: String,
+        workspace_id: String,
+        discarded: bool,
+    },
     /// A tab record was created, removed or renamed by the chat runtime.
-    TabsChanged { workspace_id: String },
+    TabsChanged {
+        workspace_id: String,
+    },
 }
 
 #[async_trait]

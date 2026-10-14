@@ -117,6 +117,7 @@ impl TestHarness {
     }
 
     pub async fn restart(self) -> Self {
+        assert!(self.service.shutdown().await);
         self.runtime.shutdown().await;
         self.satellites.shutdown().await;
         self.store.pool().close().await;
@@ -153,6 +154,7 @@ impl TestHarness {
                     attachments: Vec::new(),
                     delivery: "auto".into(),
                     model: None,
+                    reasoning_effort: None,
                     interaction_mode: None,
                     runtime_mode_ceiling: None,
                     origin: None,
@@ -219,6 +221,7 @@ impl TestHarness {
     }
 
     pub async fn finish(self) {
+        assert!(self.service.shutdown().await);
         self.runtime.shutdown().await;
         self.satellites.shutdown().await;
         self.store.pool().close().await;
@@ -319,7 +322,9 @@ impl ChatTargetResolver for FakeChatTargetResolver {
         let gate = self.pause_creation.lock().unwrap().clone();
         if let Some(gate) = gate {
             gate.entered.notify_one();
-            gate.resume.notified().await;
+            tokio::time::timeout(TEST_DEADLINE, gate.resume.notified())
+                .await
+                .expect("workspace creation gate was not released before the fixture deadline");
         }
         Ok(ResolvedChatTarget {
             workspace_id: id,

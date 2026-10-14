@@ -5,6 +5,7 @@ import 'package:alera/src/features/agent_status/application/agent_status_control
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/agent_status/infra/agent_runtime_overlay_service.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
@@ -118,6 +119,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
     ),
     agentStatuses: ref.watch(agentStatusControllerProvider),
     lastActivityByWorkspaceId: ref.watch(workspaceActivityControllerProvider),
+    chatAttention: ref.watch(chatWorkspaceAttentionProvider),
   );
 }
 

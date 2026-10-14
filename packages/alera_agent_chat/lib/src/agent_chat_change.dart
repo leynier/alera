@@ -1,9 +1,11 @@
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
+import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
 import 'package:alera_agent_chat/src/agent_chat_queue_entry.dart';
 import 'package:alera_agent_chat/src/agent_chat_request.dart';
 import 'package:alera_agent_chat/src/agent_chat_session.dart';
 import 'package:alera_agent_chat/src/agent_chat_snapshot.dart';
+import 'package:alera_agent_chat/src/agent_chat_title_source.dart';
 
 /// Which text field of an item a streamed append extends.
 enum AgentChatTextStream {
@@ -54,11 +56,14 @@ class const AgentChatChange({
   final AgentChatSession? session,
   final AgentChatUsage? usage,
   final String? title,
+  final AgentChatTitleSource? titleSource,
   final String? provider,
   final String? providerInstanceId,
   final bool? archived,
   final bool hasRecovery = false,
   final AgentChatRecovery? recovery,
+  final bool hasPendingNativeOperation = false,
+  final AgentChatNativeOperation? pendingNativeOperation,
 }) {
   /// Parses the event payload `{chatId, workspaceId, cursor, delta}`.
   factory fromJson(Object? value) {
@@ -89,11 +94,18 @@ class const AgentChatChange({
           ? AgentChatUsage.fromJson(delta['usage'])
           : null,
       title: delta['title'] is String ? delta['title']! as String : null,
+      titleSource: delta.containsKey('titleSource')
+          ? AgentChatTitleSource.fromJson(delta['titleSource'])
+          : null,
       provider: agentChatJsonString(delta['provider']),
       providerInstanceId: agentChatJsonString(delta['providerInstanceId']),
       archived: delta['archived'] is bool ? delta['archived']! as bool : null,
       hasRecovery: delta.containsKey('recovery'),
       recovery: recovery is Map ? AgentChatRecovery.fromJson(recovery) : null,
+      hasPendingNativeOperation: delta.containsKey('pendingNativeOperation'),
+      pendingNativeOperation: agentChatPendingNativeOperationFromJson(
+        delta['pendingNativeOperation'],
+      ),
     );
   }
 }

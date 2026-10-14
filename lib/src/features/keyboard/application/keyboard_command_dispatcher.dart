@@ -10,7 +10,9 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_close_confirmation.dart';
-import 'package:alera/src/features/agent_chat/presentation/new_agent_chat_dialog.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_commands.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart'
     show AgentChatUpdateRequired;
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
@@ -111,6 +113,8 @@ class const KeyboardCommandDispatcher({
         _newTerminalTab();
       case KeyboardActionId.newAgentChatTab:
         unawaited(_newAgentChat());
+      case KeyboardActionId.chooseAgentChatModel:
+        _chooseAgentChatModel();
       case KeyboardActionId.closeTab:
         _closeActiveTab();
       case KeyboardActionId.nextTab:
@@ -198,12 +202,23 @@ class const KeyboardCommandDispatcher({
     }
     if (!context.mounted) return;
     final groupId = state.layoutFor(workspace.id)?.activeGroupId;
-    await showNewAgentChatFlow(
+    await launchNewAgentChat(
       context,
       ref,
       workspace: workspace,
       targetGroupId: groupId == null || groupId.isEmpty ? null : groupId,
     );
+  }
+
+  /// Opens the agent and model picker of the active chat tab; elsewhere the
+  /// chord does nothing.
+  void _chooseAgentChatModel() {
+    final tab = ref.read(workbenchControllerProvider).activeWorkspaceTab;
+    final chatId = tab?.kind == WorkspaceTabKind.agentChat
+        ? tab!.agentChatId
+        : null;
+    if (chatId == null) return;
+    ref.read(agentChatComposerCommandsProvider.notifier).chooseModel(chatId);
   }
 
   void _showContextPanel(WorkbenchContextPanelTab tab) {

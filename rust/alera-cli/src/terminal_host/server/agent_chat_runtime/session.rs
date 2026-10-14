@@ -66,6 +66,10 @@ pub(crate) struct ChatSession {
     pub(super) deps: SessionDeps,
     pub(super) generation: i64,
     pub(super) native_thread: Option<String>,
+    pub(super) native_fork: Option<super::session_native_fork::NativeForkPlan>,
+    pub(super) fork_source_turn_id: Option<String>,
+    pub(super) startup_forking: bool,
+    pub(super) native_operation: Option<alera_core::runtime::AgentChatNativeOperation>,
     /// What the store holds at `committed.cursor`.
     pub(super) committed: Header,
     /// What the next commit writes.
@@ -126,6 +130,22 @@ impl ChatSession {
             .unwrap_or_default();
         let stored_header = Header::from_snapshot(record.snapshot.clone())?;
         let mut header = stored_header.clone();
+        if header.title_source == "legacy" {
+            let default_title = deps
+                .instances
+                .find(&header.provider_instance_id)
+                .and_then(|instance| instance.label)
+                .or_else(|| {
+                    super::provider_traits::provider_traits(&header.provider)
+                        .map(|traits| traits.label.into())
+                });
+            header.title_source = if default_title.as_deref() == Some(&header.title) {
+                "default"
+            } else {
+                "user"
+            }
+            .into();
+        }
         header.cursor = record.cursor;
         header.tab_id = record.tab_id.clone();
         header.archived = header.archived || record.archived;
@@ -151,10 +171,23 @@ impl ChatSession {
         committed.cursor = record.cursor;
         committed.tab_id = record.tab_id.clone();
         committed.archived = committed.archived || record.archived;
-        Ok(Self {
+        let mut session = Self {
             deps,
             generation: record.generation,
             native_thread: record.native_thread_id,
+            native_fork: record
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("nativeFork"))
+                .and_then(|fork| serde_json::from_value(fork.clone()).ok()),
+            fork_source_turn_id: record
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("forkedFromTurnId"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            startup_forking: false,
+            native_operation: None,
             committed,
             header,
             pending: PendingItems::default(),
@@ -178,7 +211,9 @@ impl ChatSession {
             busy_flag: false,
             live_flag: false,
             closed: false,
-        })
+        };
+        session.load_native_history_recovery().await?;
+        Ok(session)
     }
 
     pub(super) async fn run(mut self, mut rx: mpsc::Receiver<ChatEnvelope>) {
@@ -235,11 +270,25 @@ impl ChatSession {
     }
 
     pub(super) fn is_busy(&self) -> bool {
-        self.header.session.active_turn_id.is_some()
+        self.native_operation
+            .as_ref()
+            .is_some_and(super::session_native_history_recovery::native_operation_freezes)
+            || self.header.session.active_turn_id.is_some()
             || !self.header.pending_requests.is_empty()
             || !self.header.queue.is_empty()
             || self.startup.is_some()
             || self.deferred_turn.is_some()
+    }
+
+    pub(super) fn never_sent(&self) -> bool {
+        !self.has_items
+            && self.header.turns.is_empty()
+            && self.native_thread.is_none()
+            && self.header.queue.is_empty()
+            && self.deferred_turn.is_none()
+            && self.startup.is_none()
+            && self.header.session.active_turn_id.is_none()
+            && self.header.pending_requests.is_empty()
     }
 
     fn sync_activity(&mut self) {
@@ -265,11 +314,32 @@ impl ChatSession {
         }
     }
 
-    fn refresh_capabilities(&mut self) {
+    pub(super) fn refresh_capabilities(&mut self) {
         self.header.session.capabilities = super::provider_traits::capabilities_json(
             &self.header.provider,
             self.live_caps.as_ref(),
         );
+        self.header.session.capabilities["rollback"] = Value::Bool(false);
+        self.header.session.capabilities["transcriptFork"] = Value::Bool(true);
+        self.header.session.capabilities["transcriptRewind"] = Value::Bool(true);
+        self.header.session.capabilities["approvalHistory"] = Value::Bool(true);
+        self.header.session.capabilities["turnDiff"] = Value::Bool(true);
+        let native = self
+            .provider
+            .as_ref()
+            .map(|provider| provider.native_history_capabilities())
+            .unwrap_or_default();
+        self.header.session.capabilities["nativeHistory"] = serde_json::json!({
+            "forkAtTurn":native.fork_at_turn,"forkAtMessage":false,
+            "rollbackRemoveTurns":false,"rollbackBeforeTurn":native.rollback_before_turn,
+            "rewindFiles":native.rewind_files,
+            "fileCheckpointing":native.file_checkpointing || self.header.provider == "claudeAgent",
+        });
+        self.header.session.capabilities["rollback"] = Value::Bool(native.rollback_before_turn);
+        if let Some(provider) = self.provider.as_ref() {
+            self.header.session.capabilities["reasoningEffort"] =
+                super::wire::json(&provider.reasoning_effort_capabilities());
+        }
     }
 
     /// Commits everything pending as one cursor step and broadcasts it.

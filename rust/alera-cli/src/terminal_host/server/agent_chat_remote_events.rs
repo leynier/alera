@@ -61,6 +61,30 @@ impl RemoteChatDirectory {
 }
 
 impl RemoteChatRouter {
+    pub(crate) async fn validated_deletion(
+        &self,
+        host_id: &str,
+        payload: &Value,
+    ) -> HostResult<Option<ChatRuntimeEvent>> {
+        let (Some(workspace_id), Some(chat_id), Some(discarded)) = (
+            payload["workspaceId"].as_str(),
+            payload["chatId"].as_str(),
+            payload["discarded"].as_bool(),
+        ) else {
+            return Ok(None);
+        };
+        if self.remote_workspace(workspace_id).await?.as_deref() != Some(host_id)
+            || self.directory.route(chat_id) != Some((workspace_id.into(), host_id.into()))
+        {
+            return Ok(None);
+        }
+        Ok(Some(ChatRuntimeEvent::Deleted {
+            chat_id: chat_id.into(),
+            workspace_id: workspace_id.into(),
+            discarded,
+        }))
+    }
+
     pub(crate) async fn sync_workspace(&self, workspace_id: &str) -> HostResult<()> {
         let chats = self.list_remote(workspace_id, true).await?;
         let answer = self
@@ -191,6 +215,14 @@ impl ServerActor {
                     if let Some(change) = router.validated_change(&host_id, &payload).await? {
                         router.directory.publish(change.clone());
                         let _ = inbox.send(ServerCommand::AgentChatRuntimeEvent { event: change });
+                    }
+                } else if name == "agentChatDeleted" {
+                    if let Some(change) = router.validated_deletion(&host_id, &payload).await? {
+                        router.directory.publish(change.clone());
+                        let _ = inbox.send(ServerCommand::AgentChatRuntimeEvent { event: change });
+                        router
+                            .sync_workspace(payload["workspaceId"].as_str().unwrap())
+                            .await?;
                     }
                 } else {
                     for workspace in router

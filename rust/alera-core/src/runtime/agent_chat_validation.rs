@@ -53,7 +53,12 @@ pub(super) fn require_tab(record: &AgentChatRecord, tab: &WorkspaceTabRecord) ->
         ("provider", &record.provider),
         ("providerInstanceId", &record.provider_instance_id),
     ] {
-        if payload.get(key).and_then(Value::as_str) != Some(expected.as_str()) {
+        let matches = if expected == super::AGENT_CHAT_UNSELECTED_PROVIDER && key != "chatId" {
+            payload.get(key).is_some_and(|value| value.is_null())
+        } else {
+            payload.get(key).and_then(Value::as_str) == Some(expected.as_str())
+        };
+        if !matches {
             return Err(invalid(format!("tab payload {key} must match the chat")));
         }
     }
@@ -83,7 +88,35 @@ pub(super) fn parse_snapshot(value: &Value) -> Result<AgentChatSnapshot> {
         }
     }
     require_requests(&snapshot.pending_requests)?;
+    require_selected_snapshot(&snapshot)?;
     Ok(snapshot)
+}
+
+pub(super) fn require_selected_snapshot(snapshot: &AgentChatSnapshot) -> Result<()> {
+    let unselected = snapshot.provider == super::AGENT_CHAT_UNSELECTED_PROVIDER;
+    if unselected != (snapshot.provider_instance_id == super::AGENT_CHAT_UNSELECTED_PROVIDER) {
+        return Err(invalid("unselected provider and instance must agree"));
+    }
+    if unselected
+        && (!snapshot.items.is_empty()
+            || !snapshot.turns.is_empty()
+            || !snapshot.pending_requests.is_empty()
+            || snapshot.session.active_turn_id.is_some()
+            || snapshot.session.status != AgentChatSessionStatus::Stopped
+            || snapshot.session.model.is_some()
+            || ["queue", "queuedMessages"].iter().any(|key| {
+                snapshot
+                    .extra
+                    .get(*key)
+                    .and_then(Value::as_array)
+                    .is_some_and(|queue| !queue.is_empty())
+            }))
+    {
+        return Err(invalid(
+            "an unselected draft cannot have native activity or history",
+        ));
+    }
+    Ok(())
 }
 
 fn require_session(session: &AgentChatSession) -> Result<()> {

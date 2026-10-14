@@ -6,6 +6,7 @@ use crate::{
 impl ProviderEvent {
     /// Validate the shared envelope and core payload invariants without rejecting native extension fields.
     pub fn validate(&self) -> Result<(), ProviderError> {
+        self.native_task()?;
         nonempty(&self.event_id, "eventId")?;
         nonempty(&self.provider_instance_id, "providerInstanceId")?;
         nonempty(&self.thread_id, "threadId")?;

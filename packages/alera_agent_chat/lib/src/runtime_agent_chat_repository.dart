@@ -7,6 +7,9 @@ import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_payload.dart';
 import 'package:alera_agent_chat/src/agent_chat_provider_catalog.dart';
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
+import 'package:alera_agent_chat/src/agent_chat_repository_services.dart';
+import 'package:alera_agent_chat/src/runtime_agent_chat_lifecycle_repository.dart';
+import 'package:alera_agent_chat/src/runtime_agent_chat_settings_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_snapshot.dart';
 import 'package:alera_agent_chat/src/agent_chat_summary.dart';
 import 'package:alera_agent_chat/src/agent_chat_transport.dart';
@@ -15,10 +18,24 @@ import 'package:alera_agent_chat/src/agent_chat_transport.dart';
 /// checks the capability, so an older runtime fails closed with
 /// [AgentChatUpdateRequired] instead of an unknown-request error.
 final class RuntimeAgentChatRepository
-    implements AgentChatRepository, AgentChatPayloadRepository {
+    implements
+        AgentChatRepository,
+        AgentChatPayloadRepository,
+        AgentChatExtendedRepository {
   RuntimeAgentChatRepository(this._transport);
 
   final AgentChatTransport _transport;
+
+  @override
+  late final lifecycle = RuntimeAgentChatLifecycleRepository(_transport);
+
+  @override
+  late final settings = RuntimeAgentChatSettingsRepository(_transport);
+
+  Future<void> _require(String capability) async {
+    if (!await _transport.supportsCapability(capability))
+      throw AgentChatCapabilityRequired(capability);
+  }
 
   // Creating or reopening a chat may wait for the provider's first handshake.
   static const Duration _openTimeout = Duration(seconds: 60);
@@ -72,10 +89,11 @@ final class RuntimeAgentChatRepository
       .where(
         (event) =>
             event.name == AgentChatWire.listChangedEvent ||
+            event.name == AgentChatWire.deletedEvent ||
             event.name == AgentChatTransportEvents.connected,
       )
       .map(
-        (event) => event.name == AgentChatWire.listChangedEvent
+        (event) => event.name != AgentChatTransportEvents.connected
             ? AgentChatListChanged(
                 agentChatJsonString(event.payload['workspaceId']),
               )
@@ -83,14 +101,20 @@ final class RuntimeAgentChatRepository
       );
 
   @override
-  Future<AgentChatOpenResult> create(AgentChatCreateInput input) async =>
-      AgentChatOpenResult.fromJson(
-        await _request(
-          AgentChatWire.create,
-          input.toJson(),
-          timeout: _openTimeout,
-        ),
-      );
+  Future<AgentChatOpenResult> create(AgentChatCreateInput input) async {
+    if (input.provider == null && input.providerInstanceId == null) {
+      await _require(AgentChatWire.unselectedDraftCapability);
+    }
+    if (agentChatJsonString(input.reasoningEffort) != null)
+      await _require(AgentChatWire.effortCapability);
+    return AgentChatOpenResult.fromJson(
+      await _request(
+        AgentChatWire.create,
+        input.toJson(),
+        timeout: _openTimeout,
+      ),
+    );
+  }
 
   @override
   Future<AgentChatOpenResult> reopen(
@@ -152,6 +176,10 @@ final class RuntimeAgentChatRepository
           yield const AgentChatResyncRequired();
         case AgentChatTransportEvents.disconnected:
           yield const AgentChatConnectionLost();
+        case AgentChatWire.deletedEvent when event.payload['chatId'] == chatId:
+          yield AgentChatRemoved(
+            discarded: agentChatJsonBool(event.payload['discarded']),
+          );
         case AgentChatWire.changedEvent when event.payload['chatId'] == chatId:
           final AgentChatChange change;
           try {
@@ -167,10 +195,13 @@ final class RuntimeAgentChatRepository
   );
 
   @override
-  Future<AgentChatSendResult> send(AgentChatSendInput input) async =>
-      AgentChatSendResult.fromJson(
-        await _request(AgentChatWire.send, input.toJson()),
-      );
+  Future<AgentChatSendResult> send(AgentChatSendInput input) async {
+    if (agentChatJsonString(input.reasoningEffort) != null)
+      await _require(AgentChatWire.effortCapability);
+    return AgentChatSendResult.fromJson(
+      await _request(AgentChatWire.send, input.toJson()),
+    );
+  }
 
   @override
   Future<bool> cancelQueued(
@@ -219,6 +250,10 @@ final class RuntimeAgentChatRepository
     required String requestId,
     required AgentChatConfiguration configuration,
   }) async {
+    if (configuration.resetReasoningEffort ||
+        configuration.reasoningEffort != null) {
+      await _require(AgentChatWire.effortCapability);
+    }
     final response = await _request(
       AgentChatWire.configure,
       _scoped(chat, <String, Object?>{

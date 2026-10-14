@@ -41,6 +41,26 @@ pub async fn run_terminal_host_server(
     let (inbox, mut rx) = ServerInbox::channel();
     let agent_chat_instances =
         Arc::new(super::agent_chat_runtime::InstanceDirectory::from_runtime_dir(&runtime_dir));
+    let settings_inbox = inbox.clone();
+    let agent_chat_provider_settings =
+        super::agent_chat_provider_settings::ProviderSettingsService::new(
+            runtime_store.clone(),
+            agent_chat_instances.clone(),
+            &runtime_dir,
+            account_push.service.runtime_id(),
+            Arc::new(move |name, payload| {
+                let _ = settings_inbox.send(ServerCommand::AgentChatSettingsChanged {
+                    name: name.to_owned(),
+                    payload,
+                });
+            }),
+        );
+    if let Err(error) = agent_chat_provider_settings.initialize().await {
+        tracing::warn!(
+            "agent chat provider settings initialization unavailable: {}",
+            error.wire_message()
+        );
+    }
     let agent_chat_tabs: Arc<dyn super::agent_chat_runtime::tab_directory::TabDirectory> =
         Arc::new(runtime_store.clone());
     let agent_chat_runtime = super::agent_chat_runtime::AgentChatRuntime::new(
@@ -171,6 +191,7 @@ pub async fn run_terminal_host_server(
         codex: None,
         codex_starting: None,
         agent_chat_runtime: Some(agent_chat_runtime),
+        agent_chat_provider_settings: Some(agent_chat_provider_settings),
         chat_orchestration: Some(chat_orchestration),
         inbox: inbox.clone(),
         next_client_id,

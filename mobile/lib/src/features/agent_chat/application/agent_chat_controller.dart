@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 part 'agent_chat_controller.g.dart';
+part 'agent_chat_controller_history.dart';
 
 const Uuid _uuid = Uuid();
 
@@ -27,6 +28,9 @@ class AgentChatController extends _$AgentChatController {
 
   /// Mutation ids per pending request, reused when an answer is retried.
   final Map<String, String> _responseIds = <String, String>{};
+
+  /// The highest cursor already reported read from this phone.
+  int _readCursor = 0;
 
   AgentChatRef get _chat =>
       AgentChatRef(chatId: chatId, workspaceId: workspaceId);
@@ -82,9 +86,16 @@ class AgentChatController extends _$AgentChatController {
 
   /// Sends a composed prompt; the runtime starts a turn or queues it behind
   /// the running one. Failures stay in the timeline with Retry and Edit.
-  Future<void> send(AgentChatComposerDraft draft) async {
+  Future<void> send(AgentChatComposerDraft draft, {bool steer = false}) async {
     if (!draft.canSubmit) return;
     final sync = _ready();
+    if (sync.view!.nativeOperationPending) {
+      throw const AgentChatRequestException(
+        message: 'The last history change has not finished yet.',
+        code: AgentChatErrorCodes.nativeOperationPending,
+      );
+    }
+    await _applyHeldModelReset(sync);
     final ids = ref
         .read(agentChatDraftStoreProvider)
         .submissionIds(hostId, chatId);
@@ -97,7 +108,15 @@ class AgentChatController extends _$AgentChatController {
       ],
     );
     _putOutgoing(sync, message);
-    await _deliver(sync, message, draft.signature);
+    final view = sync.view!;
+    await _deliver(
+      sync,
+      message,
+      draft.signature,
+      delivery: steer && view.turnActive && view.session.capabilities.steer
+          ? AgentChatDelivery.steer
+          : AgentChatDelivery.auto,
+    );
   }
 
   /// Sends a refused prompt again under its original client message id.
@@ -135,10 +154,12 @@ class AgentChatController extends _$AgentChatController {
   Future<void> _deliver(
     AgentChatSync sync,
     AgentChatOutgoingMessage message,
-    String signature,
-  ) async {
+    String signature, {
+    AgentChatDelivery delivery = AgentChatDelivery.auto,
+  }) async {
     final store = ref.read(agentChatDraftStoreProvider);
     final ids = store.submissionIds(hostId, chatId);
+    final held = sync.view?.pendingModel;
     try {
       await sync.repository.send(
         AgentChatSendInput(
@@ -147,9 +168,15 @@ class AgentChatController extends _$AgentChatController {
           clientMessageId: message.clientMessageId,
           text: message.text,
           attachments: message.attachments,
+          model: held?.model,
+          delivery: delivery,
         ),
       );
       ids.settled(signature);
+      // A held reset stays until the chat is idle and it can be configured.
+      if (held?.model != null) {
+        sync.update((view) => view.copyWith(clearPendingModel: true));
+      }
       _putOutgoing(sync, message.withStatus(AgentChatOutgoingStatus.accepted));
     } on Object catch (error) {
       // A connection failure may hide a send that landed, so it keeps its id
@@ -262,6 +289,54 @@ class AgentChatController extends _$AgentChatController {
   Future<bool> cancelQueued(AgentChatQueueEntry entry) => _ready().repository
       .cancelQueued(_chat, requestId: _uuid.v4(), queueId: entry.queueId);
 
+  /// Rewrites a queued message in place, in one runtime step, and says
+  /// whether it was still queued.
+  Future<bool> editQueued(AgentChatQueueEntry entry, String text) =>
+      _ready().repository.lifecycle.queueEdit(
+        _chat,
+        requestId: _uuid.v4(),
+        queueId: entry.queueId,
+        text: text,
+      );
+
+  /// Moves a queued message into the running turn. The runtime does it in
+  /// one step against that exact turn, so it cannot half fail.
+  Future<void> steerQueued(AgentChatQueueEntry entry) async {
+    final sync = _ready();
+    final turnId = sync.view!.session.activeTurnId;
+    if (turnId == null) return;
+    await sync.repository.lifecycle.queueSteer(
+      AgentChatQueueSteerInput(
+        chatId: chatId,
+        workspaceId: workspaceId,
+        requestId: _uuid.v4(),
+        queueId: entry.queueId,
+        turnId: turnId,
+      ),
+    );
+  }
+
+  /// Tells the runtime this chat was read up to its current cursor, so the
+  /// desktop and the phone agree on what is new.
+  Future<void> markRead() async {
+    final sync = _sync;
+    final view = sync?.view;
+    if (sync == null || view == null) return;
+    final cursor = view.thread.cursor;
+    if (cursor <= _readCursor) return;
+    _readCursor = cursor;
+    try {
+      await sync.repository.lifecycle.markRead(
+        _chat,
+        requestId: _uuid.v4(),
+        cursor: cursor,
+      );
+    } on Object {
+      _readCursor = 0;
+      rethrow;
+    }
+  }
+
   Future<void> loadEarlier() async {
     final sync = _ready();
     final view = sync.view!;
@@ -295,6 +370,41 @@ class AgentChatController extends _$AgentChatController {
         configuration: configuration,
       ),
     );
+  }
+
+  /// Applies an agent and model picked in the composer. A model picked while
+  /// a turn runs is held and goes out with the next message instead.
+  Future<void> select(AgentChatSelection selection) async {
+    final sync = _ready();
+    final view = sync.view!;
+    final switching =
+        view.unselected ||
+        selection.providerInstanceId != view.selection?.providerInstanceId;
+    if (!switching && view.turnActive) {
+      sync.update(
+        (view) => view.copyWith(
+          pendingModel: AgentChatPendingModel(model: selection.model),
+        ),
+      );
+      return;
+    }
+    await configure(
+      AgentChatConfiguration(
+        providerInstanceId: switching ? selection.providerInstanceId : null,
+        model: selection.model,
+        resetModel: selection.model == null,
+      ),
+    );
+    sync.update((view) => view.copyWith(clearPendingModel: true));
+  }
+
+  /// A held return to the provider default cannot ride on a send, which only
+  /// names a model, so it is configured just before the message goes out.
+  Future<void> _applyHeldModelReset(AgentChatSync sync) async {
+    final held = sync.view?.pendingModel;
+    if (held == null || held.model != null || sync.view!.turnActive) return;
+    await configure(const AgentChatConfiguration(resetModel: true));
+    sync.update((view) => view.copyWith(clearPendingModel: true));
   }
 
   Future<void> recover(AgentChatRecoverMode mode) async {

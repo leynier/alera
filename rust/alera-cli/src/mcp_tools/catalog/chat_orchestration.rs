@@ -145,7 +145,9 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 Ok(invocation.flag("--message-stdin").stdin(arguments.required("message")?))
             },
         ),
-        read(
+        ToolSpec {
+            client_request_flag: Some("--request-id"),
+            ..execute(
             "chat_task_status",
             "Read Chat Task",
             "Read one delegated task, its lineage, and its bounded result.",
@@ -159,11 +161,14 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 )
             },
             |arguments| {
+                if arguments.string(crate::mcp_tools::CLIENT_REQUEST_ID).is_some() && !arguments.flag("acknowledge") {
+                    return Err(ToolInputError("clientRequestId requires acknowledge:true.".into()));
+                }
                 Ok(Invocation::new("chat", &["task"])
                     .option("--task-id", arguments.required("taskId")?)
                     .flag_if("--acknowledge", arguments.flag("acknowledge")))
             },
-        ),
+        )},
         read(
             "chat_task_wait",
             "Wait For Chat Task",
@@ -350,6 +355,9 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("provider", string("Provider slug.")),
                         ("providerInstanceId", string("Provider instance id.")),
                         ("model", string("Model id.")),
+                        ("resetModel", boolean("Reset to the provider-default model.")),
+                        ("reasoningEffort", string("Provider-supported reasoning effort id.")),
+                        ("resetReasoningEffort", boolean("Reset to provider-default reasoning effort.")),
                         ("runtimeMode", one_of("Runtime policy.", RUNTIME_MODES)),
                         ("interactionMode", one_of("Interaction mode.", INTERACTION_MODES)),
                     ],
@@ -357,6 +365,10 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 )
             },
             |arguments| {
+                if (arguments.flag("resetModel") && arguments.string("model").is_some())
+                    || (arguments.flag("resetReasoningEffort") && arguments.string("reasoningEffort").is_some()) {
+                    return Err(ToolInputError("A selection and its reset cannot be combined.".into()));
+                }
                 let invocation = Invocation::new("chat", &["configure"])
                     .option("--chat-id", arguments.required("chatId")?)
                     .option_if("--provider", arguments.string("provider"))
@@ -365,12 +377,18 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         arguments.string("providerInstanceId"),
                     )
                     .option_if("--model", arguments.string("model"))
+                    .flag_if("--reset-model", arguments.flag("resetModel"))
+                    .option_if("--reasoning-effort", arguments.string("reasoningEffort"))
+                    .flag_if("--reset-reasoning-effort", arguments.flag("resetReasoningEffort"))
                     .option_if("--runtime-mode", arguments.string("runtimeMode"))
                     .option_if("--interaction-mode", arguments.string("interactionMode"));
                 if !invocation.args.iter().any(|arg| {
                     arg.starts_with("--provider=")
                         || arg.starts_with("--provider-instance-id=")
                         || arg.starts_with("--model=")
+                        || arg == "--reset-model"
+                        || arg.starts_with("--reasoning-effort=")
+                        || arg == "--reset-reasoning-effort"
                         || arg.starts_with("--runtime-mode=")
                         || arg.starts_with("--interaction-mode=")
                 }) {

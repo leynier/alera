@@ -4,6 +4,7 @@ class _WorkbenchSidebarRowBuilder(
   final WorkbenchState state, {
   required final Map<String, AgentStatusEntry> agentStatuses,
   required final Map<String, DateTime> lastActivityByWorkspaceId,
+  required final Map<String, ChatWorkspaceAttention> chatAttention,
   required final DateTime now,
 }) {
   this
@@ -317,6 +318,7 @@ class _WorkbenchSidebarRowBuilder(
         tabs: state.awakeTabsFor(workspace.id),
         agentStatuses: agentStatuses,
         now: now,
+        chats: chatAttention[workspace.id],
       ),
     );
   }
@@ -326,7 +328,9 @@ class _WorkbenchSidebarRowBuilder(
       return _activityByWorkspaceId[workspace.id];
     }
     final tabs = state.awakeTabsFor(workspace.id);
-    final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
+    final activity =
+        tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal) ||
+            chatAttention.containsKey(workspace.id)
         ? agentActivityRank(
             attention: _attentionOf(workspace),
             fallback:

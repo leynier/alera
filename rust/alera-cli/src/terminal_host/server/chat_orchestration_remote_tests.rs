@@ -4,7 +4,7 @@ use super::super::agent_chat_runtime::{InstanceDirectory, ProductionProviderFact
 use super::super::chat_orchestration::{ChatCredentialLaunchHook, RuntimeTargetResolver};
 use super::*;
 
-async fn service_fixture() -> (
+pub(super) async fn service_fixture() -> (
     tempfile::TempDir,
     RemoteChatRouter,
     Arc<super::super::agent_chat_remote::tests::FakeChatHost>,
@@ -204,6 +204,7 @@ async fn routed_creation_preserves_lineage_origin_and_receipt_scope_without_hub_
                 attachments: vec![],
                 delivery: "auto".into(),
                 model: None,
+                reasoning_effort: None,
                 interaction_mode: None,
                 runtime_mode_ceiling: None,
                 origin: Some(json!({"kind":"chatMessage", "senderChatId":"parent"})),
@@ -317,7 +318,9 @@ impl super::super::agent_chat_remote::RemoteChatTransport for PausedSatelliteTra
         self.received.lock().unwrap().push(payload.clone());
         if payload["op"].get("SendWithinCeiling").is_some() {
             self.arrived.notify_one();
-            self.release.notified().await;
+            tokio::time::timeout(std::time::Duration::from_secs(5), self.release.notified())
+                .await
+                .expect("satellite command gate was not released before the fixture deadline");
         }
         handle_internal_runtime(&self.runtime, &payload).await
     }
@@ -393,6 +396,7 @@ async fn a_remote_send_rechecks_the_carried_ceiling_after_concurrent_configurati
                         attachments: vec![],
                         delivery: "auto".into(),
                         model: None,
+                        reasoning_effort: None,
                         interaction_mode: None,
                         runtime_mode_ceiling: None,
                         origin: Some(json!({"kind":"chatMessage", "senderChatId":"parent"})),
@@ -451,12 +455,6 @@ async fn a_remote_send_rechecks_the_carried_ceiling_after_concurrent_configurati
         .as_array()
         .unwrap()
         .is_empty());
-    assert!(factory
-        .control(&chat_id)
-        .await
-        .turns
-        .lock()
-        .unwrap()
-        .is_empty());
+    assert!(factory.launches.lock().unwrap().is_empty());
     satellite.shutdown().await;
 }

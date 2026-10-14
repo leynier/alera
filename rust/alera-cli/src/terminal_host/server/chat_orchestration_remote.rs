@@ -18,6 +18,8 @@ use super::chat_orchestration::{
 };
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::chat_orchestration::operation_wire;
+
 struct MergedChatEvents {
     sender: broadcast::Sender<ChatRuntimeEvent>,
     tasks: Vec<tokio::task::JoinHandle<()>>,
@@ -208,6 +210,7 @@ impl ChatOrchestrationRuntime for RoutedChatRuntime {
         receipt: Option<ReceiptKey>,
     ) -> HostResult<Value> {
         if let Some(workspace_id) = self.remote_chat_workspace(chat_id).await? {
+            let operation = operation_wire::encode_operation(&operation);
             return self.remote_command(&workspace_id, json!({"operation": "command", "chatId": chat_id, "op": operation, "caller": caller, "receipt": receipt})).await;
         }
         self.local
@@ -293,7 +296,7 @@ pub(crate) async fn handle_internal_runtime(
     match payload["operation"].as_str().unwrap_or_default() {
         "summaries" => super::agent_chat_remote::remote_chat_summaries(runtime, payload).await,
         "create" => runtime.create(decode(payload, "input")?, decode(payload, "caller")?, decode_optional(payload, "receipt")?).await,
-        "command" => runtime.command(&text(payload, "chatId")?, decode(payload, "op")?, decode(payload, "caller")?, decode_optional(payload, "receipt")?).await,
+        "command" => runtime.command(&text(payload, "chatId")?, operation_wire::decode_operation(payload)?, decode(payload, "caller")?, decode_optional(payload, "receipt")?).await,
         "validateBinding" => local.validate_binding(&BoundChat { chat_id: text(payload, "chatId")?, generation: payload["generation"].as_i64().filter(|generation| *generation > 0).ok_or_else(invalid_binding)?, credential_hash: text(payload, "credentialHash")?, runtime_mode: "approval-required".into(), origin_host_id: None }).await,
         "turnForClientMessage" => Ok(local.turn_for_client_message(&text(payload, "chatId")?, &text(payload, "clientMessageId")?).await?.unwrap_or(Value::Null)),
         "childTurn" => Ok(local.child_turn(&text(payload, "chatId")?, &text(payload, "turnId")?).await?.map(|turn| json!({"turnStatus": turn.turn_status, "finalAssistantText": turn.final_assistant_text})).unwrap_or(Value::Null)),
@@ -428,3 +431,7 @@ fn invalid_binding() -> HostError {
 #[cfg(test)]
 #[path = "chat_orchestration_remote_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chat_orchestration_remote_parent_tests.rs"]
+mod parent_tests;

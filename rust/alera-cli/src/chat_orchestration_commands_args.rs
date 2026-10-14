@@ -14,6 +14,8 @@ pub struct ChatCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum ChatAction {
+    /// Submit an exact structured human task request; unavailable to bound agents.
+    Human(crate::chat_task_commands::ChatHumanArgs),
     /// Show the chat orchestration capability and supported actions.
     Capabilities,
     /// List chat orchestration tasks and child chats.
@@ -92,6 +94,9 @@ pub struct ChatTaskSourceArgs {
 pub struct ChatDelegateArgs {
     #[command(flatten)]
     pub source: ChatTaskSourceArgs,
+    /// Human caller's parent chat; bound callers retain their credentialed parent.
+    #[arg(long = "parent-chat-id")]
+    pub parent_chat_id: Option<String>,
     /// Exactly one JSON target: chat, workspace, or newWorkspace.
     #[arg(long, value_name = "json")]
     pub target: String,
@@ -147,6 +152,9 @@ pub struct ChatMessageSourceArgs {
 pub struct ChatSendArgs {
     #[command(flatten)]
     pub source: ChatMessageSourceArgs,
+    /// Attribute human-initiated task/wake delivery to this parent chat.
+    #[arg(long = "parent-chat-id")]
+    pub parent_chat_id: Option<String>,
     #[arg(long = "chat-id")]
     pub chat_id: String,
     /// Stable message id used for idempotent retries.
@@ -167,6 +175,9 @@ pub struct ChatTaskArgs {
     /// Mark a delivered result as acknowledged.
     #[arg(long)]
     pub acknowledge: bool,
+    /// Stable acknowledgement retry key; omission preserves legacy no-id behavior.
+    #[arg(long = "request-id", requires = "acknowledge")]
+    pub request_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -275,8 +286,16 @@ pub struct ChatConfigureArgs {
     pub provider: Option<String>,
     #[arg(long = "provider-instance-id")]
     pub provider_instance_id: Option<String>,
-    #[arg(long)]
+    #[arg(long, conflicts_with = "reset_model")]
     pub model: Option<String>,
+    /// Explicitly reset the model to the provider default.
+    #[arg(long = "reset-model")]
+    pub reset_model: bool,
+    #[arg(long = "reasoning-effort", conflicts_with = "reset_reasoning_effort")]
+    pub reasoning_effort: Option<String>,
+    /// Explicitly reset reasoning effort to the provider default.
+    #[arg(long = "reset-reasoning-effort")]
+    pub reset_reasoning_effort: bool,
     #[arg(long = "runtime-mode", value_parser = ["approval-required", "auto-accept-edits", "auto", "full-access"])]
     pub runtime_mode: Option<String>,
     #[arg(long = "interaction-mode", value_parser = ["default", "plan"])]

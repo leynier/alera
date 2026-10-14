@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use alera_provider_protocol::SessionStartInput;
+use alera_provider_protocol::{NativeForkInput, SessionStartInput};
 use tokio::sync::oneshot;
 
 use super::ids::process_epoch;
@@ -51,12 +51,17 @@ impl ChatSession {
     pub(super) fn plan_start(&mut self, mode: Option<StartMode>) -> Option<String> {
         let resume = mode != Some(StartMode::Fresh) && self.can_resume();
         if !resume && self.has_items {
-            self.handoff_pending = true;
+            self.handoff_pending =
+                !self.native_fork_pending() || self.native_fork_has_local_history();
         }
         resume.then(|| self.native_thread.clone()).flatten()
     }
 
     pub(super) async fn spawn_startup(&mut self, resume_thread_id: Option<String>) {
+        let native_fork = (resume_thread_id.is_none() && self.native_fork_pending())
+            .then(|| self.native_fork.clone())
+            .flatten();
+        self.startup_forking = native_fork.is_some();
         self.startup_resume = resume_thread_id.is_some();
         self.process_epoch = process_epoch();
         self.native_ids.clear();
@@ -94,13 +99,36 @@ impl ChatSession {
             .read()
             .map(|hooks| hooks.clone())
             .unwrap_or_default();
+        let mut options = super::session_effort::session_effort_options(
+            &self.header.provider,
+            self.header.session.reasoning_effort.as_deref(),
+        );
+        if self.header.provider == "claudeAgent" {
+            options.insert(
+                "enableFileCheckpointing".into(),
+                serde_json::json!(self.file_checkpointing_enabled()),
+            );
+        }
         let factory = self.deps.factory.clone();
+        let instances = self.deps.instances.clone();
         let (tx, rx) = oneshot::channel::<StartupResult>();
         self.startup = Some(rx);
         self.startup_task = Some(tokio::spawn(async move {
             let attempt = async {
+                if instances
+                    .provider_of(&launch.provider_instance_id, Some(&launch.provider))
+                    .is_none()
+                {
+                    return Err("The selected agent instance was not found or is disabled.".into());
+                }
                 for hook in hooks {
                     hook.prepare(&mut launch).await?;
+                }
+                if instances
+                    .provider_of(&launch.provider_instance_id, Some(&launch.provider))
+                    .is_none()
+                {
+                    return Err("The selected agent instance was not found or is disabled.".into());
                 }
                 let mut provider = factory
                     .spawn(&launch)
@@ -108,6 +136,12 @@ impl ChatSession {
                     .map_err(|error| error.to_string())?;
                 let started = async {
                     provider.initialize().await?;
+                    if options.contains_key("reasoningEffort") {
+                        let effort = provider.reasoning_effort_capabilities();
+                        if !effort.session || !effort.turn {
+                            return Err(alera_provider_protocol::ProviderError::Unsupported("This agent cannot honor reasoning effort for the session and turns.".into()));
+                        }
+                    }
                     let injection = provider.capabilities().mcp_injection;
                     if let Some(server) = launch
                         .mcp_servers
@@ -129,11 +163,38 @@ impl ChatSession {
                         runtime_mode: launch.runtime_mode,
                         approval_policy: None,
                         sandbox_mode: None,
-                        options: Default::default(),
+                        options,
                         mcp_servers: launch.mcp_servers.clone(),
                     };
                     input.validate()?;
-                    provider.start_session(input).await
+                    if let Some(plan) = native_fork {
+                        let capabilities = provider.native_history_capabilities();
+                        let supported = match &plan.boundary {
+                            alera_provider_protocol::NativeForkBoundary::Turn(_) => {
+                                capabilities.fork_at_turn
+                            }
+                            alera_provider_protocol::NativeForkBoundary::Message(_) => {
+                                capabilities.fork_at_message
+                            }
+                        };
+                        if !supported {
+                            return Err(alera_provider_protocol::ProviderError::Unsupported(
+                                "The agent cannot fork at the selected native boundary.".into(),
+                            ));
+                        }
+                        let fork_input = NativeForkInput {
+                            source_native_thread_id: plan.source_native_thread_id,
+                            boundary: Some(plan.boundary),
+                            session: input,
+                        };
+                        fork_input.validate()?;
+                        provider
+                            .fork_session(fork_input)
+                            .await
+                            .map(|fork| fork.session)
+                    } else {
+                        provider.start_session(input).await
+                    }
                 }
                 .await;
                 match started {
@@ -181,6 +242,12 @@ impl ChatSession {
                 self.provider = Some(provider);
                 self.events_armed = true;
                 self.record_native_session(&session.native_thread_id).await;
+                if self.startup_forking {
+                    if let Err(error) = self.complete_native_fork().await {
+                        self.provider_failed(error).await;
+                        return;
+                    }
+                }
                 if self.header.session.model.is_none() {
                     self.header.session.model = session.model;
                 }
@@ -306,6 +373,16 @@ impl ChatSession {
     /// Stops the provider and leaves the chat resumable. Used for workspace
     /// sleep, reconfiguration and as the first half of closing a chat.
     pub(super) async fn stop_provider(&mut self, reason: &str, message: &str) {
+        if self
+            .native_operation
+            .as_ref()
+            .is_some_and(super::session_native_history_recovery::native_operation_freezes)
+        {
+            // The operation owns recovery until reconciliation. Normal stop
+            // would poison that frozen header and block the final store commit.
+            self.quiesce_native_history().await;
+            return;
+        }
         self.cancel_startup().await;
         self.revoke_launch_credentials(reason).await;
         self.deferred_turn = None;

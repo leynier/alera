@@ -116,24 +116,12 @@ pub(crate) async fn list_tasks(store: &RuntimeStore, input: &ListInput) -> HostR
     Ok(task_page_value(&page))
 }
 
-pub(crate) async fn task_value_for(
-    store: &RuntimeStore,
-    task_id: &str,
-    acknowledge: bool,
-) -> HostResult<Value> {
+pub(crate) async fn task_value_for(store: &RuntimeStore, task_id: &str) -> HostResult<Value> {
     let task = store
         .chat_orchestration_task(task_id)
         .await
         .map_err(|error| HostError::state(error.to_string()))?
         .ok_or_else(|| HostError::conflict("task_not_found", "Task not found.", json!({})))?;
-    let task = if acknowledge {
-        store
-            .acknowledge_chat_orchestration_result(task_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-    } else {
-        task
-    };
     Ok(json!({"task": task_value(&task)}))
 }
 

@@ -114,8 +114,24 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
     host.seed(&mut desktop);
     let created = desktop.create();
     let chat = created["chatId"].as_str().unwrap();
-    desktop.wait_snapshot(chat, |snapshot| snapshot["session"]["status"] == "ready");
+    let draft = desktop.ok("agentChat.snapshot", json!({"chatId": chat}));
+    assert_eq!(draft["session"]["status"], "stopped");
+    host.assert_no_provider_start();
+    desktop.ok(
+        "agentChat.send",
+        json!({
+            "requestId": "mint-mcp-credential", "chatId": chat, "workspaceId": WORKSPACE,
+            "clientMessageId": "mcp-credential-message", "text": "first"
+        }),
+    );
+    desktop.wait_snapshot(chat, |snapshot| {
+        snapshot["session"]["status"] == "ready"
+            && snapshot["turns"]
+                .as_array()
+                .is_some_and(|turns| turns.len() == 1 && turns[0]["status"] == "completed")
+    });
     let starts = host.inputs("thread/start");
+    assert_eq!(starts.len(), 1);
     let specification = &starts[0]["message"]["params"]["config"]["mcp_servers"]["alera"];
     assert_eq!(specification["command"], env!("CARGO_BIN_EXE_alera"));
     let mut mcp = McpChild::start(&host, specification);
@@ -169,14 +185,17 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
         snapshot["session"]["status"] == "waiting"
             && snapshot["session"]["activeTurnId"].is_string()
     });
-    let read = mcp.request("tools/call", arguments).await;
+    let read = mcp.request("tools/call", arguments.clone()).await;
     assert_eq!(read["result"]["isError"], false);
     assert_eq!(read["result"]["structuredContent"]["chat"]["chatId"], chat);
+    assert_eq!(host.inputs("turn/start").len(), 2);
     let resources = mcp.request("resources/list", json!({})).await;
     assert_eq!(resources["result"]["resources"], json!([]));
     desktop.ok(
         "agentChat.close",
         json!({"requestId": "close-mcp-bound-chat", "chatId": chat}),
     );
+    let revoked = mcp.request("tools/call", arguments).await;
+    assert_eq!(revoked["result"]["isError"], true);
     mcp.finish().await;
 }

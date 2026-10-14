@@ -47,6 +47,8 @@ mod account_status_requests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_chat_deferred;
+pub(crate) mod agent_chat_provider_settings;
+mod agent_chat_provider_settings_requests;
 mod agent_chat_remote;
 mod agent_chat_requests;
 mod agent_chat_runtime;
@@ -486,6 +488,7 @@ struct ServerActor {
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
     agent_chat_runtime: Option<agent_chat_runtime::AgentChatRuntime>,
+    agent_chat_provider_settings: Option<agent_chat_provider_settings::ProviderSettingsService>,
     chat_orchestration: Option<chat_orchestration::ChatOrchestrationService>,
     inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
@@ -742,6 +745,9 @@ impl ServerActor {
                 Err(error) => self.client_write(client_id, error_response(request_id, &error)),
             },
             ServerCommand::AgentChatActivityChanged => self.schedule_shutdown_if_idle(),
+            ServerCommand::AgentChatSettingsChanged { name, payload } => {
+                self.broadcast_agent_chat(event(&name, payload));
+            }
             ServerCommand::ChatOrchestrationChanged { change } => {
                 self.broadcast_authenticated(event("chatOrchestrationChanged", change));
             }

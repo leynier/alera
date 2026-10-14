@@ -7,10 +7,13 @@
 
 mod config;
 mod events;
+mod history;
+mod lineage;
 mod mcp;
 mod payloads;
 mod policy;
 mod provider;
+mod reasoning_effort;
 mod responses;
 mod rpc;
 mod state;

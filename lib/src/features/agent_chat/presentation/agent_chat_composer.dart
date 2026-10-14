@@ -8,9 +8,12 @@ import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.da
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
+import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_usage_popover.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_attachment_bar.dart';
@@ -18,13 +21,15 @@ import 'package:alera/src/features/workbench/presentation/terminal_composer_cont
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 typedef AgentChatSendCallback = bool Function(
   String text,
-  List<AgentChatAttachment> attachments,
-);
+  List<AgentChatAttachment> attachments, {
+  bool steer,
+});
 
 Future<List<String>> _pickFiles() async => <String>[
   for (final file in await openFiles())
@@ -32,15 +37,17 @@ Future<List<String>> _pickFiles() async => <String>[
 ];
 
 /// The message box under a chat. Enter sends (or queues behind a running
-/// turn), Shift+Enter breaks the line, Escape stops a running turn, and the
-/// arrow keys recall earlier prompts from an empty box until the recalled
-/// prompt is edited.
+/// turn), Mod+Enter steers into the running turn when the agent supports it,
+/// Shift+Enter breaks the line, Escape stops a running turn, and the arrow
+/// keys recall earlier prompts from an empty box until the recalled prompt is
+/// edited. [canSend] lets the person write; [canSubmit] lets the message go,
+/// so a draft can wait for an agent that cannot start yet.
 class const AgentChatComposer({
   super.key,
   required final TerminalComposerController controller,
   required final String workspaceId,
   required final String chatId,
-  required final AgentChatComposerSettings? settings,
+  required final AgentChatComposerSettings settings,
   required final AgentChatUsage usage,
   required final bool canSend,
   required final bool busy,
@@ -51,7 +58,16 @@ class const AgentChatComposer({
   required final AgentChatSendCallback onSend,
   required final VoidCallback onInterrupt,
   required final ValueChanged<AgentChatConfiguration> onConfigure,
+  required final AgentChatChooseCallback onChoose,
   required final ValueChanged<String> onOpenFile,
+  final bool canSubmit = true,
+  final bool canSteer = false,
+  final AleraPopoverController? pickerController,
+  final VoidCallback? onRetryCatalog,
+  final VoidCallback? onOpenProviderSettings,
+
+  /// Chat actions beside Add Files, such as Delegate Task.
+  final Widget? chatActions,
   final TerminalClipboard clipboard = const NativeTerminalClipboard(),
   final Future<List<String>> Function() pickFiles = _pickFiles,
 }) extends StatefulWidget {
@@ -96,6 +112,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      return _handleEnter(event);
+    }
     final up = key == LogicalKeyboardKey.arrowUp;
     if (!up && key != LogicalKeyboardKey.arrowDown) {
       return KeyEventResult.ignored;
@@ -143,6 +163,24 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     return KeyEventResult.handled;
   }
 
+  /// Mod+Enter steers when the running turn accepts it; every other Enter is
+  /// left to the composer's own bindings.
+  KeyEventResult _handleEnter(KeyEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    if (event is KeyRepeatEvent ||
+        !widget.canSteer ||
+        keyboard.isShiftPressed ||
+        keyboard.isAltPressed ||
+        !isModModifierPressed() ||
+        AleraImeCompositionKeyGuard.isComposing(
+          _composer.textController.value,
+        )) {
+      return KeyEventResult.ignored;
+    }
+    _send(steer: true);
+    return KeyEventResult.handled;
+  }
+
   /// Whether the caret is on the first line ([up]) or the last line of a
   /// recalled multiline prompt, past which the arrow leaves the prompt.
   static bool _caretOnEdgeLine(TextEditingValue value, {required bool up}) {
@@ -167,7 +205,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     );
   }
 
-  void _send() {
+  void _send({bool steer = false}) {
+    if (!widget.canSubmit) return;
     final attachments = <AgentChatAttachment>[
       for (final attachment in _composer.attachments)
         AgentChatAttachment(
@@ -179,7 +218,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         ),
     ];
     final text = _composer.textController.text;
-    if (!widget.onSend(text, attachments)) return;
+    if (!widget.onSend(text, attachments, steer: steer)) return;
     _historyIndex = null;
     _composer.textController.clear();
     _composer.removeAttachments(
@@ -243,7 +282,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   @override
   Widget build(BuildContext context) {
     final textActions = AleraTextActionsScope.maybeOf(context);
-    final settings = widget.settings;
     return DragTarget<TerminalPathDragPayload>(
       onWillAcceptWithDetails: (_) => widget.canSend,
       onAcceptWithDetails: (details) {
@@ -285,58 +323,12 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             onPaste: _paste,
             onSend: _send,
             onClose: _escape,
-            footer: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AleraTokens.space8,
-                0,
-                AleraTokens.space8,
-                AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  AleraIconButton(
-                    key: const ValueKey<String>('agent-chat-attach'),
-                    tooltip: 'Add Files',
-                    icon: AleraIcons.attach,
-                    onPressed: widget.canSend
-                        ? () => unawaited(_addFiles())
-                        : null,
-                  ),
-                  Expanded(
-                    child: AleraHorizontalScrollView(
-                      key: const ValueKey<String>(
-                        'agent-chat-composer-controls-scroll',
-                      ),
-                      child: settings == null
-                          ? const SizedBox.shrink()
-                          : AgentChatComposerControls(
-                              settings: settings,
-                              enabled: widget.canSend,
-                              onConfigure: widget.onConfigure,
-                            ),
-                    ),
-                  ),
-                  // Keeps a control clipped at the viewport edge from
-                  // running into the fixed controls.
-                  const SizedBox(width: AleraTokens.space8),
-                  AgentChatContextUsage(usage: widget.usage),
-                  AiDictationControl(
-                    key: const ValueKey<String>('agent-chat-dictation'),
-                    targetId: targetId,
-                  ),
-                  const SizedBox(width: AleraTokens.space4),
-                  _SendOrStopButton(
-                    hasDraft:
-                        _composer.textController.text.trim().isNotEmpty ||
-                        _composer.attachments.isNotEmpty,
-                    canSend: widget.canSend,
-                    busy: widget.busy,
-                    canInterrupt: widget.canInterrupt,
-                    interrupting: widget.interrupting,
-                    onSend: _send,
-                    onInterrupt: widget.onInterrupt,
-                  ),
-                ],
+            footer: LayoutBuilder(
+              builder: (context, constraints) => _footer(
+                targetId,
+                compact:
+                    constraints.maxWidth <
+                    AleraTokens.agentChatComposerCompactWidth,
               ),
             ),
           ),
@@ -344,12 +336,84 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       ),
     );
   }
+
+  Widget _footer(String targetId, {required bool compact}) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AleraTokens.space8,
+      0,
+      AleraTokens.space8,
+      AleraTokens.space8,
+    ),
+    child: Row(
+      children: <Widget>[
+        AleraIconButton(
+          key: const ValueKey<String>('agent-chat-attach'),
+          tooltip: 'Add Files',
+          icon: AleraIcons.attach,
+          onPressed: widget.canSend ? () => unawaited(_addFiles()) : null,
+        ),
+        ?widget.chatActions,
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, strip) {
+              final controls = AgentChatComposerControls(
+                settings: widget.settings,
+                enabled: widget.canSend,
+                busy: widget.busy,
+                compact: compact,
+                pickerController: widget.pickerController,
+                onConfigure: widget.onConfigure,
+                onChoose: widget.onChoose,
+                onRetryCatalog: widget.onRetryCatalog,
+                onOpenProviderSettings: widget.onOpenProviderSettings,
+              );
+              return AleraHorizontalScrollView(
+                key: const ValueKey<String>(
+                  'agent-chat-composer-controls-scroll',
+                ),
+                // Compact controls fit the strip, so a long model label
+                // ellipsizes instead of scrolling the mode state out of view.
+                child: compact
+                    ? ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: strip.maxWidth),
+                        child: controls,
+                      )
+                    : controls,
+              );
+            },
+          ),
+        ),
+        // Keeps a control clipped at the viewport edge from
+        // running into the fixed controls.
+        const SizedBox(width: AleraTokens.space8),
+        AgentChatUsageButton(usage: widget.usage),
+        AiDictationControl(
+          key: const ValueKey<String>('agent-chat-dictation'),
+          targetId: targetId,
+        ),
+        const SizedBox(width: AleraTokens.space4),
+        _SendOrStopButton(
+          hasDraft:
+              _composer.textController.text.trim().isNotEmpty ||
+              _composer.attachments.isNotEmpty,
+          canSend: widget.canSend && widget.canSubmit,
+          busy: widget.busy,
+          canSteer: widget.canSteer,
+          canInterrupt: widget.canInterrupt,
+          interrupting: widget.interrupting,
+          onSend: _send,
+          onInterrupt: widget.onInterrupt,
+        ),
+      ],
+    ),
+  );
 }
 
 class const _SendOrStopButton({
   required final bool hasDraft,
   required final bool canSend,
   required final bool busy,
+  required final bool canSteer,
   required final bool canInterrupt,
   required final bool interrupting,
   required final VoidCallback onSend,
@@ -374,7 +438,11 @@ class const _SendOrStopButton({
     final enabled = canSend && hasDraft;
     return AleraIconButton(
       key: const ValueKey<String>('agent-chat-send'),
-      tooltip: busy ? 'Queue Message' : 'Send Message',
+      tooltip: !busy
+          ? 'Send Message'
+          : canSteer
+          ? 'Queue Message, ${_modEnterLabel()} Steers Into This Turn'
+          : 'Queue Message',
       icon: AleraIcons.arrowUp,
       iconColor: enabled ? AleraTokens.onAccent : AleraTokens.foregroundFaint,
       backgroundColor: enabled ? AleraTokens.accent : AleraTokens.surface,
@@ -384,3 +452,6 @@ class const _SendOrStopButton({
     );
   }
 }
+
+String _modEnterLabel() =>
+    defaultTargetPlatform == TargetPlatform.macOS ? '⌘Enter' : 'Ctrl+Enter';

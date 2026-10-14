@@ -165,6 +165,10 @@ class AgentChatSync({
         unawaited(resync());
       case AgentChatConnectionLost():
         _view = view.copyWith(stale: true);
+      case AgentChatRemoved(:final discarded):
+        // The draft lives in the draft store, not here, so it survives; the
+        // tab list drops the chat and the screen offers the text back.
+        _view = view.copyWith(removed: true, discarded: discarded);
     }
   }
 

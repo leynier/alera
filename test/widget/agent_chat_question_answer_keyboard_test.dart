@@ -1,9 +1,11 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_question_card.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_question_dock.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_dock.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final List<AgentChatResponse> _responses = <AgentChatResponse>[];
@@ -28,7 +30,7 @@ final AgentChatRequest _freeText = _request(<String, Object?>{
 });
 
 final Finder _answerField = find.descendant(
-  of: find.byType(AgentChatQuestionDock),
+  of: find.byType(AgentChatRequestDock),
   matching: find.byType(TextField),
 );
 
@@ -37,18 +39,23 @@ Map<String, List<String>> get _lastAnswers =>
 
 Future<void> _pumpDock(WidgetTester tester, AgentChatRequest request) async {
   _responses.clear();
+  final composer = TerminalComposerController();
+  addTearDown(composer.dispose);
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildAleraDarkTheme(),
-      home: Scaffold(
-        body: Align(
-          alignment: Alignment.bottomCenter,
-          child: AgentChatQuestionDock(
-            chatId: 'chat-1',
-            requests: <AgentChatRequest>[request],
-            respondingRequestIds: const <String>{},
-            enabled: true,
-            onRespond: (request, response) async => _responses.add(response),
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: AgentChatRequestDock(
+              chatId: 'chat-1',
+              requests: <AgentChatRequest>[request],
+              respondingRequestIds: const <String>{},
+              enabled: true,
+              onRespond: (request, response) async => _responses.add(response),
+              composer: composer,
+            ),
           ),
         ),
       ),

@@ -36,6 +36,8 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
 
 /// Tools that need the `admin` class (F1 option B and F2).
 const ADMIN_TOOLS: &[&str] = &[
+    "agent_chat_settings_read",
+    "agent_chat_settings_update",
     "install_agent_skills",
     "update_runtime_settings",
     "set_agent_integrations",
@@ -102,6 +104,17 @@ fn sample_arguments(tool: &ToolSpec, all: bool) -> Value {
             },
         };
         arguments.insert(name.clone(), value);
+    }
+    let payload = match tool.name {
+        "chat_task_delegate" => {
+            Some(json!({"task":"inspect", "target":{"workspace":{"workspaceId":"w"}}}))
+        }
+        "chat_task_send" => Some(json!({"chatId":"c", "message":"hello"})),
+        "chat_task_control" => Some(json!({"taskId":"t"})),
+        _ => None,
+    };
+    if let Some(payload) = payload {
+        arguments.insert("payload".into(), payload);
     }
     Value::Object(arguments)
 }

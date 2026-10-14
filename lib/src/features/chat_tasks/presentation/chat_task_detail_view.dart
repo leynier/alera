@@ -3,7 +3,7 @@ import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_key_value_row.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_requests_view.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_status.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -231,18 +231,29 @@ class const _ActionRow({
           icon: const Icon(AleraIcons.workspaceMain, size: iconSize),
           label: const Text('Open Workspace'),
         ),
-        if (!task.status.settled)
-          OutlinedButton.icon(
-            key: const ValueKey<String>('chatTaskWait'),
-            onPressed: busy || waiting ? null : actions.onWait,
-            icon: waiting
-                ? const SizedBox.square(
-                    dimension: iconSize,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(AleraIcons.time, size: iconSize),
-            label: Text(waiting ? 'Waiting…' : 'Wait For Result'),
-          ),
+        // Waiting blocks for up to the runtime's maximum and is rarely what
+        // a person wants, so it sits behind the overflow.
+        if (!task.status.settled && actions.onWait != null)
+          waiting
+              ? const OutlinedButton(
+                  key: ValueKey<String>('chatTaskWaiting'),
+                  onPressed: null,
+                  child: Text('Waiting…'),
+                )
+              : PopupMenuButton<VoidCallback>(
+                  key: const ValueKey<String>('chatTaskMoreActions'),
+                  tooltip: 'More Task Actions',
+                  enabled: !busy,
+                  icon: const Icon(AleraIcons.more, size: iconSize),
+                  onSelected: (action) => action(),
+                  itemBuilder: (_) => <PopupMenuEntry<VoidCallback>>[
+                    AleraDropdownEntry<VoidCallback>(
+                      key: const ValueKey<String>('chatTaskWait'),
+                      value: actions.onWait!,
+                      label: 'Wait For Result',
+                    ),
+                  ],
+                ),
         if (task.status.settled && actions.onFollowUp != null)
           OutlinedButton.icon(
             key: const ValueKey<String>('chatTaskFollowUp'),

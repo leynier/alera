@@ -243,6 +243,43 @@ async fn relay_requires_owner_and_known_chat_and_ignores_stale_cursor() {
 }
 
 #[tokio::test]
+async fn deletion_relay_rejects_foreign_chat_host_and_missing_discard_state() {
+    let (_root, router, _host) = remote_fixture().await;
+    router.list_remote("task", true).await.unwrap();
+    let payload = json!({"chatId":"remote-chat","workspaceId":"task","discarded":true});
+    assert!(router
+        .validated_deletion("foreign-host", &payload)
+        .await
+        .unwrap()
+        .is_none());
+    let mut unknown = payload.clone();
+    unknown["chatId"] = json!("other-chat");
+    assert!(router
+        .validated_deletion("satellite", &unknown)
+        .await
+        .unwrap()
+        .is_none());
+    let mut malformed = payload.clone();
+    malformed.as_object_mut().unwrap().remove("discarded");
+    assert!(router
+        .validated_deletion("satellite", &malformed)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        router
+            .validated_deletion("satellite", &payload)
+            .await
+            .unwrap(),
+        Some(ChatRuntimeEvent::Deleted {
+            chat_id: "remote-chat".into(),
+            workspace_id: "task".into(),
+            discarded: true
+        })
+    );
+}
+
+#[tokio::test]
 async fn an_offline_owner_is_distinct_from_an_unknown_chat() {
     let (_root, router, host) = remote_fixture().await;
     *host.unavailable.lock().unwrap() = true;

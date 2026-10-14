@@ -41,6 +41,8 @@ impl RuntimeStore {
     /// process; a live status left behind is cleared by startup recovery.
     pub async fn archive_agent_chat(&self, chat_id: &str) -> Result<AgentChatRecord> {
         let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await?;
+        super::agent_chat_native_operations::require_no_native_operation_in(&mut tx, chat_id)
+            .await?;
         let row = require_session_row_in(&mut tx, chat_id).await?;
         if !row.archived {
             let removed = sqlx::query("DELETE FROM workspaceTabs WHERE id = ? AND kind = ?")

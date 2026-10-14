@@ -442,7 +442,7 @@ void main() {
           _expectPinnedActions(tester, enabled: !notice.offline);
           final action = find.widgetWithText(
             TextButton,
-            notice.offline ? 'Retry' : 'Resume',
+            notice.offline ? 'Retry' : 'Resume Session',
           );
           await tester.ensureVisible(action);
           await tester.pump();

@@ -23,6 +23,7 @@ impl Session {
             workspace_id: "workspace".to_string(),
             tab_id: format!("tab-{id}"),
             working_directory: ".".to_string(),
+            provider_setup: None,
             clients: HashSet::new(),
             observer_clients: HashSet::new(),
             driver: SessionDriver::Idle,

@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_orchestration_target.dart';
 import 'package:alera_agent_chat/src/agent_chat_orchestration_task.dart';
 
@@ -115,4 +116,77 @@ String agentChatTaskPlaceLabel(
   final place = <String>[?project, ?workspace].join(' / ');
   final placed = place.isEmpty ? 'Workspace Pending' : place;
   return host == null ? placed : '$placed · $host';
+}
+
+String agentChatOriginHeading(
+  AgentChatItemOrigin origin,
+) => switch (origin.kind) {
+  .orchestrationWake =>
+    origin.taskIds.isEmpty
+        ? 'Resumed after delegated work finished'
+        : 'Resumed after ${origin.taskIds.length} delegated ${origin.taskIds.length == 1 ? 'task' : 'tasks'} finished',
+  .chatMessage =>
+    origin.taskIds.isNotEmpty ? 'Task' : 'Message from another chat',
+  .user => 'Message',
+};
+
+bool agentChatOriginStartsExpanded(AgentChatItemOrigin origin) =>
+    origin.kind == .chatMessage && origin.taskIds.isNotEmpty;
+
+String agentChatTaskOriginLabel(AgentChatTask task, {String? parentTitle}) {
+  if (task.parentChatId != null) {
+    final parent =
+        parentTitle ?? task.labels.parentChatTitle ?? 'a parent chat';
+    return task.kind == .delegate
+        ? 'Delegated by $parent'
+        : 'Sent by $parent, reply expected';
+  }
+  if (task.kind == .message) return 'Sent by you, reply expected';
+  return switch (task.actor?.split(':').first) {
+    'cli' => 'Delegated from CLI',
+    'mcp' => 'Delegated from MCP Client',
+    _ => 'Delegated by you',
+  };
+}
+
+/// Builds a delegation brief from canonical plan fields, never raw payloads.
+String agentChatPlanTaskBrief(AgentChatItem plan) {
+  final explanation = plan.explanation?.trim() ?? '';
+  final sections = <String>[
+    'Implement the following plan.',
+    if (explanation.isNotEmpty) explanation,
+    if (plan.text.trim().isNotEmpty) plan.text.trim(),
+  ];
+  if (plan.planSteps.isNotEmpty) {
+    final steps = <String>[
+      for (final step in plan.planSteps)
+        if (step.step.trim().isNotEmpty) step.step.trim(),
+    ];
+    sections.add(
+      <String>[
+        'Steps:',
+        for (var index = 0; index < steps.length; index++)
+          '${index + 1}. ${steps[index]}',
+      ].join('\n'),
+    );
+  }
+  return sections.join('\n\n');
+}
+
+String agentChatPlanTaskTitle(AgentChatItem plan) {
+  var title = plan.title?.trim() ?? '';
+  if (title.isEmpty) {
+    for (final line in plan.text.split('\n')) {
+      final candidate = line.trim().replaceFirst(RegExp(r'^[#*\-\s]+'), '');
+      if (candidate.isNotEmpty) {
+        title = candidate;
+        break;
+      }
+    }
+  }
+  if (title.isEmpty) title = 'Implement Plan';
+  final characters = title.runes.take(81).toList();
+  return characters.length <= 80
+      ? title
+      : '${String.fromCharCodes(characters.take(79))}…';
 }

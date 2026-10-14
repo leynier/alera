@@ -9,3 +9,5 @@ Interactive approvals and user-input callbacks are reported as unsupported becau
 The provider depends on [`cursor-agent-sdk`](../cursor-agent-sdk/readme.md), which is MIT licensed for its public bridge contract. The external bridge executable and embedded SDK are separate runtime dependencies.
 
 Port provenance: `https://github.com/cursor/sdk-bridge`, protocol tag `v1.0.35`, checked source commit `d932194bcaf3d8ca4cae7373dfec32633ed0c9d0`. MIT applies to the public bridge contract; the external bridge and embedded SDK remain separate dependencies.
+
+Canonical `reasoningEffort` uses the selected model's advertised parameter definition and exact `model.params[{id,value}]` fields on create/resume/send. Authenticated model discovery and an explicit model are required; absent, ambiguous, or unadvertised values fail as unsupported. The exported metadata helpers derive choices and defaults from typed native model parameters and variants, never from model names.

@@ -94,6 +94,9 @@ class const _NewTerminalTabAction() extends _NewTabAction {}
 /// A runtime-owned agent chat, next to the terminals.
 class const _NewAgentChatTabAction() extends _NewTabAction {}
 
+/// Closed chats of this workspace, to reopen one.
+class const _ArchivedChatsTabAction() extends _NewTabAction {}
+
 class const _NewAgentProfileTabAction(final AgentProfileSummary profile)
     extends _NewTabAction {}
 

@@ -1,11 +1,80 @@
-use alera_core::runtime::ChatOrchestrationTaskStatus as Status;
+use std::time::Duration;
+
+use alera_core::runtime::{ChatOrchestrationTask, ChatOrchestrationTaskStatus as Status};
 use serde_json::json;
 
 use super::delegation_tests::delegate_payload;
 use super::test_support::{human, TestHarness, TEST_DEADLINE};
 
-#[tokio::test]
-async fn sql_reopen_reconciles_local_tasks_and_preserves_remote_host_authority() {
+const COMMITTED_RESULT: &str = "Result committed before the crash.";
+
+fn host_process_runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+}
+
+#[test]
+fn sql_reopen_reconciles_local_tasks_and_preserves_remote_host_authority() {
+    let before_crash = host_process_runtime();
+    let (directory, tasks, old_token) = before_crash.block_on(prepare_crash());
+    // A process crash removes actors and monitors without graceful shutdown
+    // revoking credentials or settling tasks before startup recovery runs.
+    before_crash.shutdown_timeout(TEST_DEADLINE);
+
+    host_process_runtime().block_on(async {
+        let harness = TestHarness::open(directory).await;
+        assert!(harness
+            .service
+            .credential_hook()
+            .verify(&old_token)
+            .await
+            .is_ok());
+        harness.runtime.recover_after_restart().await.unwrap();
+        let recovery = harness.store.recover_chat_orchestration().await.unwrap();
+        assert_eq!(recovery.settled.len(), 3);
+        assert_eq!(recovery.remote.len(), 1);
+        assert_eq!(recovery.remote[0].task_id, tasks[2].task_id);
+        assert_eq!(recovery.remote[0].host_id.as_deref(), Some("ssh-b"));
+        assert!(recovery.revoked_credentials > 0);
+
+        for (task, expected) in tasks.iter().zip([
+            Status::Completed,
+            Status::Interrupted,
+            Status::Running,
+            Status::Cancelled,
+        ]) {
+            let recovered = harness
+                .store
+                .chat_orchestration_task(&task.task_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(recovered.status, expected);
+            if expected == Status::Completed {
+                assert_eq!(recovered.result_text.as_deref(), Some(COMMITTED_RESULT));
+            }
+        }
+        assert!(harness
+            .service
+            .credential_hook()
+            .verify(&old_token)
+            .await
+            .is_err());
+        assert!(harness.factory.launches.lock().unwrap().is_empty());
+        assert!(harness
+            .store
+            .recover_chat_orchestration()
+            .await
+            .unwrap()
+            .settled
+            .is_empty());
+        harness.finish().await;
+    });
+}
+
+async fn prepare_crash() -> (tempfile::TempDir, Vec<ChatOrchestrationTask>, String) {
     let harness = TestHarness::new().await;
     let mut tasks = Vec::new();
     for (id, workspace) in [
@@ -24,113 +93,91 @@ async fn sql_reopen_reconciles_local_tasks_and_preserves_remote_host_authority()
             .await
             .unwrap();
         let child = response["childChatId"].as_str().unwrap();
-        let control = harness.control(child).await;
-        tokio::time::timeout(TEST_DEADLINE, control.wait_turns(1))
-            .await
-            .unwrap();
-        tasks.push(response);
+        harness.control(child).await.wait_turns(1).await;
+        let task = tokio::time::timeout(TEST_DEADLINE, async {
+            loop {
+                let task = harness
+                    .store
+                    .chat_orchestration_task(response["taskId"].as_str().unwrap())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                if task.child_turn_id.is_some() {
+                    break task;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("task monitor did not link the actual child turn before the fixture deadline");
+        assert_eq!(task.status, Status::Running);
+        tasks.push(task);
     }
-    let old_token_path =
-        harness.factory.launches.lock().unwrap()[0].env["ALERA_CHAT_CREDENTIAL_FILE"].clone();
-    let old_token = std::fs::read_to_string(old_token_path).unwrap();
-    let harness = harness.restart().await;
-    let completed_chat = tasks[0]["childChatId"].as_str().unwrap();
-    let record = harness
-        .store
-        .agent_chat(completed_chat)
+    // Keep the ledger in the window between the child's durable commit and
+    // monitor settlement, which is the state startup recovery must reconcile.
+    assert!(harness.service.shutdown().await);
+    let completed_chat = tasks[0].child_chat_id.as_deref().unwrap();
+    let completed_turn = tasks[0].child_turn_id.as_deref().unwrap();
+    harness
+        .control(completed_chat)
         .await
-        .unwrap()
-        .unwrap();
-    let task = harness
-        .store
-        .chat_orchestration_task(tasks[0]["taskId"].as_str().unwrap())
-        .await
-        .unwrap()
-        .unwrap();
-    let turn_id = task.child_turn_id.unwrap();
-    let mut snapshot = record.snapshot;
-    for turn in snapshot["turns"].as_array_mut().unwrap() {
-        if turn["turnId"] == turn_id {
-            turn["status"] = json!("completed");
+        .complete(1, COMMITTED_RESULT);
+    tokio::time::timeout(TEST_DEADLINE, async {
+        loop {
+            let turn = harness
+                .store
+                .chat_orchestration_child_turn(completed_chat, completed_turn)
+                .await
+                .unwrap()
+                .unwrap();
+            if turn.turn_status.as_deref() == Some("completed")
+                && turn.final_assistant_text.as_deref() == Some(COMMITTED_RESULT)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
-    }
-    snapshot["cursor"] = json!(record.cursor + 1);
-    snapshot["session"]["activeTurnId"] = serde_json::Value::Null;
-    snapshot["session"]["status"] = json!("ready");
-    let assistant = json!({"itemId": "committed-final", "type": "assistant_message",
-        "turnId": turn_id, "status": "completed", "streaming": false,
-        "createdAt": chrono::Utc::now().to_rfc3339(), "updatedAt": chrono::Utc::now().to_rfc3339(),
-        "generation": 1, "text": "Result committed before the crash.", "normalized": {}});
-    harness.store.commit_agent_chat(completed_chat, record.cursor, &snapshot,
-        &json!({"turns": snapshot["turns"], "session": snapshot["session"], "items": [assistant]}), None)
-        .await.unwrap();
+    })
+    .await
+    .expect("provider completion was not committed before the fixture deadline");
     harness
         .store
-        .request_chat_orchestration_cancel(tasks[3]["taskId"].as_str().unwrap())
+        .request_chat_orchestration_cancel(&tasks[3].task_id)
         .await
         .unwrap();
-    let recovery = harness.store.recover_chat_orchestration().await.unwrap();
-    assert_eq!(recovery.settled.len(), 3);
-    assert_eq!(recovery.remote.len(), 1);
-    assert_eq!(
-        recovery.remote[0].task_id,
-        tasks[2]["taskId"].as_str().unwrap()
-    );
-    assert_eq!(recovery.remote[0].host_id.as_deref(), Some("ssh-b"));
-    let completed = harness
-        .store
-        .chat_orchestration_task(tasks[0]["taskId"].as_str().unwrap())
-        .await
+    for (task, expected) in tasks.iter().zip([
+        Status::Running,
+        Status::Running,
+        Status::Running,
+        Status::CancelRequested,
+    ]) {
+        assert_eq!(
+            harness
+                .store
+                .chat_orchestration_task(&task.task_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            expected
+        );
+    }
+    let old_token_path = harness
+        .factory
+        .launches
+        .lock()
         .unwrap()
-        .unwrap();
-    assert_eq!(completed.status, Status::Completed);
-    assert_eq!(
-        completed.result_text.as_deref(),
-        Some("Result committed before the crash.")
-    );
-    assert_eq!(
-        harness
-            .store
-            .chat_orchestration_task(tasks[1]["taskId"].as_str().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        Status::Interrupted
-    );
-    assert_eq!(
-        harness
-            .store
-            .chat_orchestration_task(tasks[2]["taskId"].as_str().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        Status::Running
-    );
-    assert_eq!(
-        harness
-            .store
-            .chat_orchestration_task(tasks[3]["taskId"].as_str().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        Status::Cancelled
-    );
+        .iter()
+        .find(|launch| Some(&launch.chat_id) == tasks[1].child_chat_id.as_ref())
+        .unwrap()
+        .env["ALERA_CHAT_CREDENTIAL_FILE"]
+        .clone();
+    let old_token = std::fs::read_to_string(old_token_path).unwrap();
     assert!(harness
         .service
         .credential_hook()
         .verify(&old_token)
         .await
-        .is_err());
-    assert!(harness.factory.launches.lock().unwrap().is_empty());
-    assert!(harness
-        .store
-        .recover_chat_orchestration()
-        .await
-        .unwrap()
-        .settled
-        .is_empty());
-    harness.finish().await;
+        .is_ok());
+    (harness.directory, tasks, old_token)
 }

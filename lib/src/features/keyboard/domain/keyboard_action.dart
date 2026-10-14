@@ -70,6 +70,7 @@ enum KeyboardActionId {
   saveFile,
   newTerminalTab,
   newAgentChatTab,
+  chooseAgentChatModel,
   closeTab,
   nextTab,
   previousTab,

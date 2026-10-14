@@ -297,8 +297,8 @@ impl ClaudeClient {
         .map(|_| ())
     }
 
-    pub async fn rewind_files(&self, user_message_id: impl Into<String>) -> Result<()> {
-        self.control_command(serde_json::json!({ "subtype": "rewind_files", "user_message_id": user_message_id.into() }), self.options.initialize_timeout).await.map(|_| ())
+    pub(crate) fn options_initialize_timeout(&self) -> Duration {
+        self.options.initialize_timeout
     }
 
     pub async fn get_mcp_status(&self) -> Result<Value> {

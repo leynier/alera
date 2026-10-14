@@ -4,8 +4,9 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
 /// The open requests of a task's child chat. Approvals are answered here
-/// with the decisions the provider offers; questions and forms open the chat,
-/// where their full form lives.
+/// with the decisions the provider offers, in its order and with the labels
+/// the chat's own request dock uses; questions and forms open the chat, where
+/// their full form lives.
 class const ChatTaskRequestsView({
   super.key,
   required final List<AgentChatTaskRequest> requests,
@@ -60,7 +61,7 @@ class const _RequestCard({
             crossAxisAlignment: .start,
             children: <Widget>[
               Text(
-                chatTaskRequestTitle(value),
+                agentChatRequestTitle(value),
                 style: theme.textTheme.titleSmall,
               ),
               for (final line in detail) ...<Widget>[
@@ -90,7 +91,7 @@ class const _RequestCard({
                               onPressed: enabled
                                   ? () => decide(request, decision)
                                   : null,
-                              child: Text(chatTaskDecisionLabel(decision)),
+                              child: Text(agentChatDecisionLabel(decision)),
                             )
                           : OutlinedButton(
                               key: ValueKey<String>(
@@ -99,7 +100,7 @@ class const _RequestCard({
                               onPressed: enabled
                                   ? () => decide(request, decision)
                                   : null,
-                              child: Text(chatTaskDecisionLabel(decision)),
+                              child: Text(agentChatDecisionLabel(decision)),
                             )
                   else
                     OutlinedButton(
@@ -115,27 +116,3 @@ class const _RequestCard({
     );
   }
 }
-
-String chatTaskRequestTitle(AgentChatRequest request) {
-  if (request.isQuestion) return 'Question';
-  if (request.isElicitation) return 'Form Request';
-  return switch (request.kind) {
-    AgentChatRequestKind.commandExecutionApproval ||
-    AgentChatRequestKind.execCommandApproval => 'Run Command?',
-    AgentChatRequestKind.fileChangeApproval ||
-    AgentChatRequestKind.applyPatchApproval => 'Apply File Changes?',
-    AgentChatRequestKind.fileReadApproval => 'Read File?',
-    AgentChatRequestKind.permissionApproval => 'Permission Request',
-    _ => 'Approval Required',
-  };
-}
-
-/// The same decision names the chat's own request cards use.
-String chatTaskDecisionLabel(AgentChatApprovalDecision decision) =>
-    switch (decision) {
-      AgentChatApprovalDecision.accept => 'Allow Once',
-      AgentChatApprovalDecision.acceptForSession => 'Allow For Session',
-      AgentChatApprovalDecision.acceptAlways => 'Always Allow',
-      AgentChatApprovalDecision.decline => 'Decline',
-      AgentChatApprovalDecision.cancel => 'Cancel Turn',
-    };

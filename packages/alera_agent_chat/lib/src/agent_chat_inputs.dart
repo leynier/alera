@@ -9,9 +9,10 @@ import 'package:alera_agent_chat/src/agent_chat_snapshot.dart';
 class const AgentChatCreateInput({
   required final String requestId,
   required final String workspaceId,
-  required final String provider,
+  final String? provider,
   final String? providerInstanceId,
   final String? model,
+  final String? reasoningEffort,
   final AgentChatRuntimeMode? runtimeMode,
   final AgentChatInteractionMode? interactionMode,
   final String? title,
@@ -19,9 +20,10 @@ class const AgentChatCreateInput({
   AgentChatJson toJson() => <String, Object?>{
     'requestId': requestId,
     'workspaceId': workspaceId,
-    'provider': provider,
+    'provider': ?provider,
     'providerInstanceId': ?providerInstanceId,
-    'model': ?model,
+    'model': ?agentChatJsonString(model),
+    'reasoningEffort': ?agentChatJsonString(reasoningEffort),
     'runtimeMode': ?runtimeMode?.wire,
     'interactionMode': ?interactionMode?.wire,
     'title': ?title,
@@ -55,6 +57,7 @@ class const AgentChatSendInput({
   required final String text,
   final List<AgentChatAttachment> attachments = const <AgentChatAttachment>[],
   final String? model,
+  final String? reasoningEffort,
   final AgentChatInteractionMode? interactionMode,
   final AgentChatDelivery delivery = AgentChatDelivery.auto,
 }) {
@@ -68,7 +71,8 @@ class const AgentChatSendInput({
       'attachments': <AgentChatJson>[
         for (final attachment in attachments) attachment.toJson(),
       ],
-    'model': ?model,
+    'model': ?agentChatJsonString(model),
+    'reasoningEffort': ?agentChatJsonString(reasoningEffort),
     'interactionMode': ?interactionMode?.wire,
     'delivery': delivery.wire,
   };
@@ -162,6 +166,9 @@ class const AgentChatConfiguration({
   final String? provider,
   final String? providerInstanceId,
   final String? model,
+  final bool resetModel = false,
+  final String? reasoningEffort,
+  final bool resetReasoningEffort = false,
   final AgentChatRuntimeMode? runtimeMode,
   final AgentChatInteractionMode? interactionMode,
 }) {
@@ -169,6 +176,9 @@ class const AgentChatConfiguration({
       provider == null &&
       providerInstanceId == null &&
       model == null &&
+      !resetModel &&
+      reasoningEffort == null &&
+      !resetReasoningEffort &&
       runtimeMode == null &&
       interactionMode == null;
 
@@ -177,7 +187,9 @@ class const AgentChatConfiguration({
   AgentChatJson toJson() => <String, Object?>{
     'provider': ?provider,
     'providerInstanceId': ?providerInstanceId,
-    'model': ?model,
+    if (resetModel || model != null) 'model': agentChatJsonString(model),
+    if (resetReasoningEffort || reasoningEffort != null)
+      'reasoningEffort': agentChatJsonString(reasoningEffort),
     'runtimeMode': ?runtimeMode?.wire,
     'interactionMode': ?interactionMode?.wire,
   };

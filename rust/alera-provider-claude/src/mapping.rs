@@ -10,18 +10,7 @@ impl ClaudeProvider {
             Message::Result(message) => self.map_result(message),
             Message::RateLimit(info) => self.map_rate_limit(info),
             Message::System(message) => self.map_system(message),
-            Message::User(message) => {
-                let data = serde_json::to_value(&message).unwrap_or(Value::Null);
-                vec![self.event(
-                    EventKind::ItemUpdated,
-                    json!({
-                        "itemType": "user_message",
-                        "status": "completed",
-                        "data": data.clone()
-                    }),
-                    self.raw("user", message.raw.clone()),
-                )]
-            }
+            Message::User(message) => vec![self.map_user_message(message)],
             Message::ConversationReset(message) => {
                 if !message.session_id.is_empty() {
                     self.set_native_thread(&message.session_id);
@@ -62,6 +51,11 @@ impl ClaudeProvider {
             message.raw.clone()
         };
         let subtype = message.subtype.to_ascii_lowercase();
+        if matches!(subtype.as_str(), "init" | "initialize") {
+            if let Some(native) = text_field(&payload, &["session_id", "sessionId"]) {
+                self.set_native_thread(&native);
+            }
+        }
         let raw = || self.raw(subtype.clone(), payload.clone());
         match subtype.as_str() {
             "init" | "initialize" => vec![self.event(
@@ -96,54 +90,7 @@ impl ClaudeProvider {
                 json!({ "state": "compacted", "detail": payload }),
                 raw(),
             )],
-            _ if subtype.contains("task") => {
-                let task_id = task_id(&payload).unwrap_or_else(|| "task:unknown".into());
-                let description = text_field(&payload, &["description", "title", "command"])
-                    .unwrap_or_else(|| "Claude task".into());
-                let (kind, task_payload) = if subtype.contains("start") {
-                    (
-                        EventKind::TaskStarted,
-                        json!({
-                            "taskId": task_id,
-                            "description": description,
-                            "taskType": text_field(&payload, &["task_type", "taskType", "type"]),
-                            "title": text_field(&payload, &["title"]),
-                        }),
-                    )
-                } else if subtype.contains("progress") || subtype.contains("output") {
-                    (
-                        EventKind::TaskProgress,
-                        json!({
-                            "taskId": task_id,
-                            "description": description,
-                            "summary": text_field(&payload, &["summary", "output", "message"]),
-                            "status": task_status(&payload),
-                            "taskType": text_field(&payload, &["task_type", "taskType", "type"]),
-                        }),
-                    )
-                } else if subtype.contains("complete") || subtype.contains("finish") {
-                    (
-                        EventKind::TaskCompleted,
-                        json!({
-                            "taskId": task_id,
-                            "status": completed_task_status(&payload),
-                            "summary": text_field(&payload, &["summary", "output", "message"]),
-                            "taskType": text_field(&payload, &["task_type", "taskType", "type"]),
-                        }),
-                    )
-                } else {
-                    (
-                        EventKind::TaskUpdated,
-                        json!({
-                            "taskId": task_id,
-                            "status": task_status(&payload),
-                            "description": description,
-                            "taskType": text_field(&payload, &["task_type", "taskType", "type"]),
-                        }),
-                    )
-                };
-                vec![self.event(kind, compact_nulls(task_payload), raw())]
-            }
+            _ if subtype.contains("task") => self.map_native_task(&subtype, &payload),
             _ => vec![self.event(
                 EventKind::RuntimeWarning,
                 json!({
@@ -176,6 +123,7 @@ impl ClaudeProvider {
     }
 
     fn map_result(&mut self, message: ResultMessage) -> Vec<ProviderEvent> {
+        self.pending_user_prompt = None;
         if !message.session_id.is_empty() {
             self.set_native_thread(&message.session_id);
         }

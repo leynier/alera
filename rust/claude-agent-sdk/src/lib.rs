@@ -14,6 +14,7 @@ mod error;
 mod message;
 mod process;
 mod query;
+mod rewind_files;
 mod types;
 
 pub use client::ClaudeClient;
@@ -25,6 +26,7 @@ pub use message::{
     UserMessage, UserPrompt,
 };
 pub use query::{query, query_messages, Query};
+pub use rewind_files::RewindFilesResult;
 pub use types::{
     AgentDefinition, ClaudeAgentOptions, ControlRequestContext, HookCallback, HookMatcher,
     HookOutput, McpCallback, McpCallbackWithContext, PermissionCallback, PermissionResult,

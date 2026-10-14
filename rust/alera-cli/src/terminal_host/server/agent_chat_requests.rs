@@ -20,6 +20,22 @@ impl ServerActor {
         }
         self.require_auth(client_id)?;
         self.require_request_allowed(client_id, request_type)?;
+        if super::agent_chat_provider_settings::ProviderSettingsService::handles(request_type) {
+            let service = self.agent_chat_provider_settings.clone().ok_or_else(|| {
+                HostError::conflict(
+                    "unsupported",
+                    "Provider settings are unavailable.",
+                    json!({}),
+                )
+            })?;
+            let ctx = self.agent_chat_caller(client_id);
+            let verb = request_type.to_owned();
+            let payload = payload.clone();
+            self.spawn_agent_chat_request(client_id, request_id, async move {
+                service.dispatch(&verb, &payload, &ctx).await
+            });
+            return Ok(true);
+        }
         let runtime = self.agent_chat_runtime().ok_or_else(|| {
             HostError::conflict("unsupported", "Agent chats are unavailable.", json!({}))
         })?;
@@ -81,6 +97,20 @@ impl ServerActor {
         payload: &Value,
         ctx: CallerCtx,
     ) -> HostResult<Value> {
+        if super::agent_chat_provider_settings::ProviderSettingsService::handles(request_type) {
+            return self
+                .agent_chat_provider_settings
+                .as_ref()
+                .ok_or_else(|| {
+                    HostError::conflict(
+                        "unsupported",
+                        "Provider settings are unavailable.",
+                        json!({}),
+                    )
+                })?
+                .dispatch(request_type, payload, &ctx)
+                .await;
+        }
         let runtime = self.agent_chat_runtime().ok_or_else(|| {
             HostError::conflict("unsupported", "Agent chats are unavailable.", json!({}))
         })?;

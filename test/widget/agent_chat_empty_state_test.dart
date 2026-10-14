@@ -1,9 +1,11 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -123,5 +125,75 @@ void main() {
     await tester.pump();
     expect(_hintText(tester), 'Waiting for the Alera runtime to reconnect.');
     expect(find.text(_invite), findsNothing);
+  });
+
+  testWidgets('a chat without a model names the provider default', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AgentChatSnapshot.fromJson(<String, Object?>{
+        'chatId': 'chat-1',
+        'workspaceId': 'ws-1',
+        'tabId': 'tab-1',
+        'provider': 'codex',
+        'providerInstanceId': 'codex',
+        'title': 'Fix the build',
+        'cursor': 1,
+        'session': <String, Object?>{
+          'status': 'ready',
+          'runtimeMode': 'approval-required',
+          'interactionMode': 'default',
+        },
+      }),
+    );
+    expect(find.text('Codex · $agentChatProviderDefaultLabel'), findsOneWidget);
+  });
+
+  testWidgets('a chosen model is named as the runtime reports it', (
+    tester,
+  ) async {
+    await _pump(tester, agentChatSnapshotFixture());
+    expect(find.text('Codex · gpt-5'), findsOneWidget);
+  });
+
+  testWidgets('a deep workspace path keeps two lines and the full path', (
+    tester,
+  ) async {
+    const path =
+        '/Volumes/ExternalStorage/remote-builds/checkouts/feature-branch/'
+        'nested/workspace/directory/project-alpha';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              // About the width of the right panel in the Mac QA capture.
+              width: 280,
+              child: AgentChatEmptyConversation(
+                title: 'QA Chat',
+                provider: 'codex',
+                providerLabel: 'Codex',
+                model: agentChatProviderDefaultLabel,
+                workspacePath: path,
+                hint: _invite,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final finder = find.byKey(const ValueKey<String>('agent-chat-empty-path'));
+    final text = tester.widget<Text>(finder);
+    expect(text.data, path);
+    expect(text.maxLines, 2);
+    expect(text.overflow, TextOverflow.ellipsis);
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(of: finder, matching: find.byType(RichText)),
+    );
+    expect(paragraph.didExceedMaxLines, isTrue);
+    expect(find.byTooltip(path), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

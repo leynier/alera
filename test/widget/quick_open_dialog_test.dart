@@ -57,7 +57,7 @@ void main() {
       expect(location.visible, outcome != 'success');
       expect(location.runs.runId, 'run-1');
       expect(location.runs.taskId, 'task-1');
-      expect(controller.openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
+      expect(controller._openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
       if (outcome == 'failure') {
         expect(toasts.single.message, 'Could not open the selected file.');
       } else {
@@ -102,7 +102,7 @@ void main() {
 
     await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
-    expect(controller.openedFiles, <String>['lib/main_test.dart']);
+    expect(controller._openedFiles, <String>['lib/main_test.dart']);
   });
 
   testWidgets('ignores stale searches', (tester) async {
@@ -175,7 +175,7 @@ void main() {
     await tester.sendKeyEvent(.arrowDown);
     await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
-    expect(controller.openedFiles, <String>['b.dart']);
+    expect(controller._openedFiles, <String>['b.dart']);
     expect(anchorFocus.hasFocus, isTrue);
 
     await tester.tap(find.text('Open Quick Open'));
@@ -412,7 +412,7 @@ class _QuickOpenFileService({
 
 class _QuickOpenTestController(final WorkbenchState _seed)
     extends WorkbenchController {
-  final List<String> openedFiles = <String>[];
+  final List<String> _openedFiles = <String>[];
   Completer<void>? openGate;
 
   @override
@@ -430,11 +430,11 @@ class _QuickOpenTestController(final WorkbenchState _seed)
     bool preview = false,
     bool oppositePanel = false,
   }) async {
-    openedFiles.add(relativePath);
+    _openedFiles.add(relativePath);
     await openGate?.future;
     final now = DateTime.utc(2026);
     return WorkspaceTabRecord(
-      id: 'tab-${openedFiles.length}',
+      id: 'tab-${_openedFiles.length}',
       workspaceId: workspace.id,
       kind: .editor,
       title: relativePath,

@@ -2,7 +2,6 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
-import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_mode_labels.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_checkout_selection.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_hosts_controller.dart';
@@ -255,6 +254,7 @@ class const DelegateChatTaskAgentFields({
   required final AgentChatDelegateDraft draft,
   required final ValueChanged<AgentChatDelegateDraftEdit> onEdit,
   final bool enabled = true,
+  final bool effortSupported = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -293,6 +293,7 @@ class const DelegateChatTaskAgentFields({
                   .firstWhere((item) => item.id == id)
                   .initialModel
                   ?.id,
+              reasoningEffort: null,
               runtimeMode: null,
               plan: false,
             ),
@@ -300,7 +301,8 @@ class const DelegateChatTaskAgentFields({
         ),
         if (provider.models.isNotEmpty) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceSm),
-          AleraDropdownField<String>(
+          // A null model id is the provider default, never an empty string.
+          AleraDropdownField<String?>(
             key: const ValueKey<String>('delegateModel'),
             value:
                 provider.modelById(draft.model)?.id ??
@@ -308,19 +310,23 @@ class const DelegateChatTaskAgentFields({
             labelText: 'Model',
             enabled: enabled,
             filterable: provider.models.length > 6,
-            entries: <AleraDropdownFieldEntry<String>>[
+            entries: <AleraDropdownFieldEntry<String?>>[
               for (final model in provider.models)
-                AleraDropdownFieldEntry<String>(
+                AleraDropdownFieldEntry<String?>(
                   value: model.id,
                   label: model.label,
                 ),
             ],
             onChanged: (id) => onEdit(
-              (draft) =>
-                  draft.copyWith(providerInstanceId: provider.id, model: id),
+              (draft) => draft.copyWith(
+                providerInstanceId: provider.id,
+                model: id,
+                reasoningEffort: null,
+              ),
             ),
           ),
         ],
+        ..._effortField(provider),
         if (provider.runtimeModes.isNotEmpty) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceSm),
           AleraDropdownField<AgentChatRuntimeMode>(
@@ -372,5 +378,46 @@ class const DelegateChatTaskAgentFields({
           ),
       ],
     );
+  }
+
+  /// Reasoning effort, only when the runtime takes it for a delegation and
+  /// the chosen model reports its levels.
+  List<Widget> _effortField(AgentChatProviderInstance provider) {
+    final model = provider.modelById(draft.model) ?? provider.initialModel;
+    final efforts = model?.reasoningEfforts ?? const <String>[];
+    if (!effortSupported || efforts.isEmpty) return const <Widget>[];
+    return <Widget>[
+      const SizedBox(height: AleraTokens.spaceSm),
+      AleraDropdownField<String?>(
+        key: const ValueKey<String>('delegateEffort'),
+        value: efforts.contains(draft.reasoningEffort)
+            ? draft.reasoningEffort
+            : null,
+        labelText: 'Reasoning Effort',
+        enabled: enabled,
+        entries: <AleraDropdownFieldEntry<String?>>[
+          AleraDropdownFieldEntry<String?>(
+            value: null,
+            label: switch (model?.defaultReasoningEffort) {
+              final effort? =>
+                'Model Default (${agentChatEffortLabel(effort)})',
+              null => 'Model Default',
+            },
+          ),
+          for (final effort in efforts)
+            AleraDropdownFieldEntry<String?>(
+              value: effort,
+              label: agentChatEffortLabel(effort),
+            ),
+        ],
+        onChanged: (effort) => onEdit(
+          (draft) => draft.copyWith(
+            providerInstanceId: provider.id,
+            model: model?.id,
+            reasoningEffort: effort,
+          ),
+        ),
+      ),
+    ];
   }
 }

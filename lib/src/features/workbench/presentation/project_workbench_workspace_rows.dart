@@ -233,6 +233,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                     ),
                   ),
                 ),
+                ChatWorkspaceAttentionDot(workspaceId: widget.workspace.id),
                 if (!compact) ..._buildInlineTrays(theme),
               ],
             ),

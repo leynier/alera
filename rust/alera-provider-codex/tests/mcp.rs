@@ -127,7 +127,7 @@ async fn caller_mcp_name_collision_is_rejected_before_thread_request() {
     let error = provider.start_session(input).await.unwrap_err();
 
     assert!(matches!(error, ProviderError::Validation(message) if message.contains("collides")));
-    assert_eq!(provider.transport().writes().len(), 2);
+    assert!(provider.transport().writes().is_empty());
 }
 
 #[tokio::test]
@@ -150,5 +150,5 @@ async fn unsupported_stdio_cwd_is_rejected_explicitly() {
     let error = provider.start_session(input).await.unwrap_err();
 
     assert!(matches!(error, ProviderError::Unsupported(message) if message.contains("stdio cwd")));
-    assert_eq!(provider.transport().writes().len(), 2);
+    assert!(provider.transport().writes().is_empty());
 }

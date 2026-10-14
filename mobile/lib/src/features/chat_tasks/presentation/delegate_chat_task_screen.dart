@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
@@ -9,17 +11,31 @@ import 'package:alera_mobile/src/features/workbench/application/workspace_checko
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Opens Delegate Task. The created task opens in its place; its chat and
-/// workspace stay one tap away and nothing selects them.
-Future<void> openDelegateChatTask(BuildContext context, String hostId) =>
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => DelegateChatTaskScreen(hostId: hostId),
-      ),
-    );
+/// Opens Delegate Task. From Activity the created task opens in its place;
+/// from a chat ([initial] names it as parent) the form closes and a SnackBar
+/// offers View Task. Its chat and workspace stay one tap away and nothing
+/// selects them.
+Future<void> openDelegateChatTask(
+  BuildContext context,
+  String hostId, {
+  AgentChatDelegateDraft? initial,
+  bool openTaskWhenCreated = true,
+}) => Navigator.of(context).push<void>(
+  MaterialPageRoute<void>(
+    builder: (_) => DelegateChatTaskScreen(
+      hostId: hostId,
+      initial: initial,
+      openTaskWhenCreated: openTaskWhenCreated,
+    ),
+  ),
+);
 
-class const DelegateChatTaskScreen({super.key, required final String hostId})
-    extends ConsumerStatefulWidget {
+class const DelegateChatTaskScreen({
+  super.key,
+  required final String hostId,
+  final AgentChatDelegateDraft? initial,
+  final bool openTaskWhenCreated = true,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<DelegateChatTaskScreen> createState() =>
       _DelegateChatTaskScreenState();
@@ -33,6 +49,9 @@ class _DelegateChatTaskScreenState
   late final TextEditingController _task = TextEditingController(
     text: ref.read(mobileDelegateChatTaskFormProvider(widget.hostId)).task,
   );
+  late final TextEditingController _title = TextEditingController(
+    text: ref.read(mobileDelegateChatTaskFormProvider(widget.hostId)).title,
+  );
   bool _sending = false;
   bool _attempted = false;
   String? _error;
@@ -40,8 +59,19 @@ class _DelegateChatTaskScreenState
   String get _hostId => widget.hostId;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initial case final initial?) {
+      ref
+          .read(mobileDelegateChatTaskFormProvider(_hostId).notifier)
+          .update(initial);
+    }
+  }
+
+  @override
   void dispose() {
     _task.dispose();
+    _title.dispose();
     super.dispose();
   }
 
@@ -91,6 +121,7 @@ class _DelegateChatTaskScreenState
     setState(() => _attempted = true);
     if (draft.problem != null || _hostProblem(draft) != null) return;
     final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _sending = true;
       _error = null;
@@ -104,6 +135,32 @@ class _DelegateChatTaskScreenState
       );
       _requestIds.reset();
       ref.invalidate(mobileDelegateChatTaskFormProvider(_hostId));
+      if (!widget.openTaskWhenCreated) {
+        navigator.pop();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              draft.parentChatId == null
+                  ? 'Task delegated. Follow it in Activity.'
+                  : 'Task delegated. It reports back to this chat.',
+            ),
+            action: SnackBarAction(
+              label: 'View Task',
+              onPressed: () => unawaited(
+                navigator.push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ChatTaskDetailScreen(
+                      hostId: _hostId,
+                      taskId: result.taskId,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        return;
+      }
       await navigator.pushReplacement<void, void>(
         MaterialPageRoute<void>(
           builder: (_) =>
@@ -145,7 +202,9 @@ class _DelegateChatTaskScreenState
           padding: AleraTokens.contentPadding,
           children: <Widget>[
             Text(
-              'An agent chat works on this task with the brief you write. It does not see other chats. Nothing opens until you choose to.',
+              draft.parentChatId == null
+                  ? 'An agent chat works on this task with the brief you write. It does not see other chats. Nothing opens until you choose to.'
+                  : 'An agent chat works on this task with the brief you write. Its result comes back to this chat when it finishes. Nothing opens until you choose to.',
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
@@ -164,6 +223,7 @@ class _DelegateChatTaskScreenState
             const SizedBox(height: AleraTokens.spaceSm),
             AleraTextField(
               key: const ValueKey<String>('delegateTitle'),
+              controller: _title,
               labelText: 'Title',
               helperText: 'Shown in Activity; the task text when empty.',
               enabled: !_sending,
@@ -187,6 +247,11 @@ class _DelegateChatTaskScreenState
                   draft: draft,
                   onEdit: _edit,
                   enabled: !_sending,
+                  effortSupported:
+                      ref
+                          .watch(mobileChatTaskEffortSupportedProvider(_hostId))
+                          .value ==
+                      true,
                 )
               else
                 Text(

@@ -7,12 +7,14 @@ use super::delegation_tests::delegate_payload;
 use super::paused_runtime_fixture::{CommandGate, PausedChatRuntime};
 use super::test_support::{error_code, human, TestHarness, TEST_DEADLINE};
 
-async fn ready(harness: &TestHarness, chat_id: &str) {
+async fn idle(harness: &TestHarness, chat_id: &str) {
     tokio::time::timeout(TEST_DEADLINE, async {
         loop {
             let snapshot = harness.service.runtime.snapshot(chat_id).await.unwrap();
-            if snapshot["session"]["status"] == "ready"
-                && snapshot["session"]["activeTurnId"].is_null()
+            if matches!(
+                snapshot["session"]["status"].as_str(),
+                Some("ready" | "stopped")
+            ) && snapshot["session"]["activeTurnId"].is_null()
             {
                 break;
             }
@@ -71,7 +73,7 @@ async fn cancellation_carries_its_ceiling_and_human_override_blocks_delayed_send
         .unwrap()
         .to_owned();
     let client_id = format!("chat-orchestration-task:{task_id}");
-    ready(&harness, &child).await;
+    idle(&harness, &child).await;
     let cancel_gate = CommandGate::for_operation(Some(&child), "runtime", "CancelMessage");
     let cancelling_service = harness.service.clone().with_runtime(PausedChatRuntime::new(
         harness.service.runtime.clone(),
@@ -100,7 +102,7 @@ async fn cancellation_carries_its_ceiling_and_human_override_blocks_delayed_send
         )
         .await
         .unwrap();
-    ready(&harness, &child).await;
+    idle(&harness, &child).await;
     cancel_gate.release.notify_one();
     let denied = tokio::time::timeout(TEST_DEADLINE, cancellation)
         .await
@@ -136,9 +138,13 @@ async fn cancellation_carries_its_ceiling_and_human_override_blocks_delayed_send
         .is_agent_chat_message_cancelled(&child, &client_id)
         .await
         .unwrap());
-    let current = harness.control(&child).await;
-    assert!(current.turns.lock().unwrap().is_empty());
-    assert!(current.interrupts.lock().unwrap().is_empty());
+    assert!(!harness
+        .factory
+        .launches
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|launch| launch.chat_id == child));
     let human_cancel = cancelling_service
         .handle(
             "cancel",
@@ -166,7 +172,13 @@ async fn cancellation_carries_its_ceiling_and_human_override_blocks_delayed_send
             "mode_ceiling" | "request_resolved"
         )),
     }
-    assert!(current.turns.lock().unwrap().is_empty());
+    assert!(!harness
+        .factory
+        .launches
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|launch| launch.chat_id == child));
     assert!(
         harness.service.runtime.snapshot(&child).await.unwrap()["items"]
             .as_array()
@@ -201,6 +213,7 @@ async fn cancellation_carries_its_ceiling_and_human_override_blocks_delayed_send
                 attachments: Vec::new(),
                 delivery: "auto".into(),
                 model: None,
+                reasoning_effort: None,
                 interaction_mode: None,
                 runtime_mode_ceiling: None,
                 origin: None,

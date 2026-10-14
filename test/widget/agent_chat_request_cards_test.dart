@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_cards.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -64,17 +65,32 @@ void main() {
       expect(find.text('/work/alera'), findsOneWidget);
       expect(find.text('Runs the API test suite.'), findsOneWidget);
       expect(find.text('Expires at 14:05'), findsOneWidget);
-      expect(_actionLabels(tester), <String>[
-        'Allow Once',
-        'Allow For Session',
-        'Decline',
-        'Cancel Turn',
-      ]);
+      // The first decision and Decline are buttons; the rest wait in the
+      // overflow, each group in the runtime's order.
+      expect(_actionLabels(tester), <String>['Allow Once', 'Decline']);
       expect(find.widgetWithText(FilledButton, 'Allow Once'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'Cancel Turn'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Decline'), findsOneWidget);
+      expect(find.text('Allow For Session'), findsNothing);
 
+      await tester.tap(find.byTooltip('More Decisions'));
+      await tester.pumpAndSettle();
+      final overflow = <String?>[
+        for (final text in tester.widgetList<Text>(
+          find.descendant(
+            of: find.byType(AleraMenuItem),
+            matching: find.byType(Text),
+          ),
+        ))
+          text.data,
+      ];
+      expect(overflow, <String>['Allow For Session', 'Cancel Turn']);
       await tester.tap(find.text('Allow For Session'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('More Decisions'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel Turn'));
+      await tester.pumpAndSettle();
       expect(decisions, <AgentChatApprovalDecision>[
         AgentChatApprovalDecision.acceptForSession,
         AgentChatApprovalDecision.cancel,

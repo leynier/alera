@@ -17,21 +17,24 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Opens Delegate Task. A created task is selected in Activity; nothing
-/// selects its workspace or chat, which stay one press away.
-Future<void> showDelegateChatTaskDialog(
+/// Opens Delegate Task. From Activity a created task is selected there
+/// ([openInActivity]); from a chat it only shows up in that chat's dock or in
+/// Activity. Nothing selects its workspace or chat, which stay one press away.
+Future<AgentChatDelegateResult?> showDelegateChatTaskDialog(
   BuildContext context, {
   AgentChatDelegateDraft initial = const AgentChatDelegateDraft(),
+  bool openInActivity = true,
 }) async {
   final container = ProviderScope.containerOf(context);
   final result = await showDialog<AgentChatDelegateResult>(
     context: context,
     builder: (_) => DelegateChatTaskDialog(initial: initial),
   );
-  if (result == null) return;
+  if (result == null || !openInActivity) return result;
   container
       .read(activityNavigationProvider.notifier)
       .openChatTask(result.taskId);
+  return result;
 }
 
 class const DelegateChatTaskDialog({
@@ -52,6 +55,9 @@ class _DelegateChatTaskDialogState
   late final TextEditingController _task = TextEditingController(
     text: widget.initial.task,
   );
+  late final TextEditingController _title = TextEditingController(
+    text: widget.initial.title,
+  );
   bool _sending = false;
   bool _attempted = false;
   String? _error;
@@ -59,6 +65,7 @@ class _DelegateChatTaskDialogState
   @override
   void dispose() {
     _task.dispose();
+    _title.dispose();
     super.dispose();
   }
 
@@ -142,7 +149,9 @@ class _DelegateChatTaskDialogState
             ),
             const SizedBox(height: AleraTokens.space4),
             Text(
-              'An agent chat works on this task with the brief you write. It does not see other chats. Nothing opens until you choose to.',
+              _draft.parentChatId == null
+                  ? 'An agent chat works on this task with the brief you write. It does not see other chats. Nothing opens until you choose to.'
+                  : 'An agent chat works on this task with the brief you write. Its result comes back to this chat when it finishes. Nothing opens until you choose to.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),
@@ -168,6 +177,7 @@ class _DelegateChatTaskDialogState
                     const SizedBox(height: AleraTokens.space8),
                     AleraTextField(
                       key: const ValueKey<String>('delegateTitle'),
+                      controller: _title,
                       labelText: 'Title',
                       hintText: 'Shown in Activity; the task text when empty',
                       enabled: !_sending,
@@ -194,6 +204,11 @@ class _DelegateChatTaskDialogState
                           draft: _draft,
                           onEdit: _edit,
                           enabled: !_sending,
+                          effortSupported:
+                              ref
+                                  .watch(chatTaskEffortSupportedProvider)
+                                  .value ==
+                              true,
                         )
                       else
                         Text(

@@ -28,25 +28,66 @@ pub(crate) struct MockProviderControl {
 
 impl MockProviderFactory {
     pub async fn control(&self, chat_id: &str) -> Arc<MockProviderControl> {
-        loop {
-            let changed = self.changed.notified();
-            if let Some(control) = self.controls.lock().unwrap().get(chat_id).cloned() {
-                return control;
+        tokio::time::timeout(super::test_support::TEST_DEADLINE, async {
+            loop {
+                let changed = self.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                if let Some(control) = self.controls.lock().unwrap().get(chat_id).cloned() {
+                    break control;
+                }
+                changed.await;
             }
-            changed.await;
-        }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("provider {chat_id} did not start before the fixture deadline"))
+    }
+
+    pub async fn control_after(
+        &self,
+        chat_id: &str,
+        previous: &Arc<MockProviderControl>,
+    ) -> Arc<MockProviderControl> {
+        tokio::time::timeout(super::test_support::TEST_DEADLINE, async {
+            loop {
+                let changed = self.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                if let Some(control) = self.controls.lock().unwrap().get(chat_id).cloned() {
+                    if !Arc::ptr_eq(&control, previous) {
+                        break control;
+                    }
+                }
+                changed.await;
+            }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            panic!("provider {chat_id} did not restart before the fixture deadline")
+        })
     }
 }
 
 impl MockProviderControl {
     pub async fn wait_turns(&self, count: usize) {
-        loop {
-            let changed = self.changed.notified();
-            if self.turns.lock().unwrap().len() >= count {
-                return;
+        tokio::time::timeout(super::test_support::TEST_DEADLINE, async {
+            loop {
+                let changed = self.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                if self.turns.lock().unwrap().len() >= count {
+                    break;
+                }
+                changed.await;
             }
-            changed.await;
-        }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "provider {} did not receive {count} turns before the fixture deadline",
+                self.chat_id
+            )
+        });
     }
 
     pub fn event(&self, kind: EventKind, native_turn: usize, payload: serde_json::Value) {
@@ -144,6 +185,35 @@ impl ProviderFactory for MockProviderFactory {
     ) -> Result<(), String> {
         Ok(())
     }
+
+    async fn discover_model_metadata(
+        &self,
+        provider: &str,
+        _: Option<&ProviderInstanceConfig>,
+        _: Option<std::path::PathBuf>,
+    ) -> Option<Result<Vec<serde_json::Value>, String>> {
+        (provider == "codex").then(|| {
+            Ok(vec![json!({
+                "id": "test-model", "label": "Test Model", "reasoningEfforts": ["low", "high"],
+                "defaultReasoningEffort": "low",
+            })])
+        })
+    }
+
+    async fn validate_reasoning_effort(
+        &self,
+        provider: &str,
+        _: Option<&ProviderInstanceConfig>,
+        _: Option<std::path::PathBuf>,
+        model: Option<&str>,
+        effort: &str,
+    ) -> Result<(), String> {
+        if provider == "codex" && model == Some("test-model") && matches!(effort, "low" | "high") {
+            Ok(())
+        } else {
+            Err("This model does not report support for this reasoning effort.".into())
+        }
+    }
 }
 
 struct MockProvider {
@@ -156,6 +226,16 @@ struct MockProvider {
 impl Provider for MockProvider {
     fn kind(&self) -> ProviderKind {
         ProviderKind::Codex
+    }
+    fn reasoning_effort_capabilities(&self) -> ReasoningEffortCapabilities {
+        ReasoningEffortCapabilities {
+            session: true,
+            turn: true,
+            model_specific: true,
+            values: vec!["low".into(), "high".into()],
+            session_wire_field: Some("reasoningEffort".into()),
+            turn_wire_field: Some("reasoningEffort".into()),
+        }
     }
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities {

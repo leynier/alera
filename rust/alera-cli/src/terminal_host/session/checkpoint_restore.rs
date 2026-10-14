@@ -30,6 +30,7 @@ impl Session {
             workspace_id,
             tab_id,
             working_directory: checkpoint.working_directory,
+            provider_setup: None,
             clients: HashSet::new(),
             observer_clients: HashSet::new(),
             driver: SessionDriver::Idle,

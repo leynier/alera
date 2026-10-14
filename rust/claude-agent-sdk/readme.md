@@ -18,6 +18,10 @@ client.close().await?;
 
 The port covers typed stream messages, the provider CLI options that map to command-line or initialize fields, initialize negotiation, user prompts, control request routing, permission and hook callbacks, MCP callback messages, interrupts, model and permission-mode changes, file rewind, MCP status/toggle/reconnect, context usage, task stopping, injectable transports, bounded timeouts, and lifecycle cleanup.
 
+`ClaudeClient::rewind_files` returns `RewindFilesResult` with optional native outcome fields and the original response. The camelCase response contract is verified against Anthropic's published `@anthropic-ai/claude-agent-sdk` 0.3.276 `sdk.d.ts` and `sdk.mjs`, the version in the T3 reference lockfile: `canRewind`, `error`, `filesChanged`, `insertions`, `deletions`, and `skippedLinks`. Empty acknowledgements remain unknown, and malformed typed fields are errors. A dropped wait does not prove whether files changed; a late acknowledgement retains its original request id and cannot answer a subsequent request.
+
+File checkpoint launch sets `CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING=true`, matching the checked Python upstream. The adapter enables `--replay-user-messages` to receive checkpoint UUIDs. See the [official checkpoint documentation](https://code.claude.com/docs/en/agent-sdk/file-checkpointing); file rewind does not alter conversation history.
+
 Incoming permission callbacks expose the native request id and full envelope through `ToolPermissionContext.control`; `McpCallbackWithContext` provides the same metadata for MCP callbacks while the two-argument `McpCallback` remains available.
 
 `Query::collect` closes a one-shot stream after a result when no delegated task or non-idle session state remains; otherwise it keeps the control channel open for follow-up turns and waits for `session_state_changed: idle` or tracked task completion. `ClaudeAgentOptions::run_end_timeout` bounds that between-turn grace period and defaults to 10 minutes, matching the upstream CLI ceiling.

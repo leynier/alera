@@ -28,8 +28,14 @@ const SESSION_QUEUE: usize = 64;
 
 #[path = "runtime_handle_commands.rs"]
 mod runtime_handle_commands;
+#[path = "runtime_handle_create.rs"]
+mod runtime_handle_create;
 #[path = "runtime_handle_queries.rs"]
 mod runtime_handle_queries;
+
+#[cfg(test)]
+#[path = "runtime_handle_tests.rs"]
+mod tests;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct CreateChatInput {
@@ -37,6 +43,8 @@ pub(crate) struct CreateChatInput {
     pub provider: Option<String>,
     pub provider_instance_id: Option<String>,
     pub model: Option<String>,
+    #[serde(default)]
+    pub reasoning_effort: Option<String>,
     pub runtime_mode: Option<String>,
     pub interaction_mode: Option<String>,
     pub title: Option<String>,
@@ -113,6 +121,15 @@ impl AgentChatRuntime {
         &self.inner.deps.store
     }
 
+    #[cfg(test)]
+    pub(crate) fn instances(&self) -> Arc<InstanceDirectory> {
+        self.inner.deps.instances.clone()
+    }
+
+    pub(super) async fn publish_runtime_event(&self, event: ChatRuntimeEvent) {
+        self.inner.deps.sink.emit(event).await;
+    }
+
     async fn session(&self, chat_id: &str) -> HostResult<mpsc::Sender<ChatEnvelope>> {
         if let Some(sender) = self.live_sender(chat_id) {
             return Ok(sender);
@@ -153,6 +170,13 @@ impl AgentChatRuntime {
         ctx: CallerCtx,
         receipt_key: Option<ReceiptKey>,
     ) -> HostResult<Value> {
+        if let Some(key) = &receipt_key {
+            if let Some(response) =
+                ChatSession::check_receipt(self.inner.deps.store.clone(), &ctx, key).await?
+            {
+                return Ok(response);
+            }
+        }
         let mut envelope = ChatEnvelope {
             op,
             ctx,
@@ -167,7 +191,7 @@ impl AgentChatRuntime {
                 Ok(()) => {
                     return response
                         .await
-                        .unwrap_or_else(|_| Err(HostError::state("The chat session stopped.")))
+                        .unwrap_or_else(|_| Err(HostError::state("The chat session stopped.")));
                 }
                 Err(mpsc::error::SendError(returned)) => {
                     self.inner.sessions.lock().unwrap().remove(chat_id);
@@ -176,180 +200,6 @@ impl AgentChatRuntime {
             }
         }
         Err(HostError::state("The chat session is unavailable."))
-    }
-
-    pub(crate) async fn create(
-        &self,
-        input: CreateChatInput,
-        ctx: CallerCtx,
-        receipt_key: Option<ReceiptKey>,
-    ) -> HostResult<Value> {
-        let instance_id = input
-            .provider_instance_id
-            .clone()
-            .or_else(|| input.provider.clone())
-            .ok_or_else(|| HostError::format("provider or providerInstanceId is required"))?;
-        let provider = self
-            .inner
-            .deps
-            .instances
-            .provider_of(&instance_id, input.provider.as_deref())
-            .ok_or_else(|| {
-                conflict(
-                    "providerUnavailable",
-                    format!("Unknown provider instance {instance_id}"),
-                )
-            })?;
-        let traits = provider_traits(&provider)
-            .ok_or_else(|| conflict("providerUnavailable", "Unknown provider"))?;
-        let workspace = self
-            .inner
-            .deps
-            .tabs
-            .workspace(&input.workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("Unknown workspace {}", input.workspace_id)))?;
-        if workspace.host_id != "local" {
-            return Err(HostError::conflict(
-                "host_unavailable",
-                "The local chat runtime cannot start a chat on a remote host.",
-                json!({"hostId": workspace.host_id}),
-            ));
-        }
-        if workspace.archived {
-            return Err(HostError::state(
-                "Unarchive the workspace before starting a chat.",
-            ));
-        }
-        let runtime_mode = input
-            .runtime_mode
-            .clone()
-            .unwrap_or_else(|| "approval-required".into());
-        let interaction_mode = input
-            .interaction_mode
-            .clone()
-            .unwrap_or_else(|| "default".into());
-        if !traits.runtime_modes.contains(&runtime_mode.as_str()) {
-            return Err(super::commands::unsupported(format!(
-                "{provider} does not support the {runtime_mode} runtime mode."
-            )));
-        }
-        if !traits
-            .interaction_modes
-            .contains(&interaction_mode.as_str())
-        {
-            return Err(super::commands::unsupported(format!(
-                "{provider} does not support the {interaction_mode} interaction mode."
-            )));
-        }
-        let model = input.model.clone().or_else(|| {
-            self.inner
-                .deps
-                .instances
-                .find(&instance_id)
-                .and_then(|instance| instance.default_model)
-        });
-        let chat_id = uuid::Uuid::new_v4().to_string();
-        let tab_id = new_id("tab");
-        let title = input
-            .title
-            .clone()
-            .map(|title| title.trim().chars().take(200).collect())
-            .filter(|title: &String| !title.is_empty())
-            .unwrap_or_else(|| traits.label.to_string());
-        let capabilities = super::provider_traits::capabilities_json(&provider, None);
-        let snapshot = Header::from_snapshot(json!({
-            "chatId": chat_id.clone(),
-            "workspaceId": input.workspace_id.clone(),
-            "tabId": tab_id.clone(),
-            "providerInstanceId": instance_id.clone(),
-            "provider": provider.clone(),
-            "title": title.clone(),
-            "cursor": 0,
-            "session": {
-                "status": "stopped",
-                "model": model.clone(),
-                "runtimeMode": runtime_mode.clone(),
-                "interactionMode": interaction_mode.clone(),
-                "cwd": workspace.path.to_string_lossy(),
-                "generation": 1,
-                "capabilities": capabilities,
-            },
-            "lineage": super::header::lineage_from_metadata(input.metadata.as_ref()),
-            "turns": [], "items": [], "pendingRequests": [], "queue": []
-        }))
-        .map_err(HostError::state)?
-        .to_snapshot();
-        let stamp = chrono::Utc::now();
-        let record = AgentChatRecord {
-            chat_id: chat_id.clone(),
-            tab_id: tab_id.clone(),
-            workspace_id: input.workspace_id.clone(),
-            provider_instance_id: instance_id.clone(),
-            provider: provider.clone(),
-            native_thread_id: None,
-            generation: 1,
-            archived: false,
-            archived_at: None,
-            cursor: 0,
-            created_at: stamp,
-            updated_at: stamp,
-            metadata: input.metadata.clone(),
-            snapshot,
-        };
-        let tab = chat_tab_record(
-            &tab_id,
-            &input.workspace_id,
-            &title,
-            chat_tab_payload(&chat_id, &provider, &instance_id, model.as_deref()),
-        );
-        let receipt = receipt_key.as_ref().map(|key| AgentChatReceipt {
-            caller_scope: receipt_scope(&ctx.scope, &key.verb),
-            request_id: key.request_id.clone(),
-            digest: key.digest.clone(),
-            receipt: json!({"chatId": chat_id, "tabId": tab_id}),
-        });
-        let created = self
-            .inner
-            .deps
-            .store
-            .create_agent_chat(&record, &tab, receipt.as_ref())
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        match created {
-            AgentChatCreateOutcome::Replay(response) => return Ok(response),
-            AgentChatCreateOutcome::ReceiptConflict => {
-                return Err(conflict(
-                    "request_conflict",
-                    "This requestId was already used for a different request.",
-                ))
-            }
-            AgentChatCreateOutcome::Created(_) => {}
-        }
-        self.inner
-            .deps
-            .sink
-            .emit(ChatRuntimeEvent::ChatsChanged {
-                workspace_id: Some(input.workspace_id.clone()),
-            })
-            .await;
-        self.inner
-            .deps
-            .sink
-            .emit(ChatRuntimeEvent::TabsChanged {
-                workspace_id: input.workspace_id,
-            })
-            .await;
-        let _ = self
-            .command(&chat_id, ChatOp::Recover { mode: None }, ctx, None)
-            .await;
-        self.created_response(&chat_id).await
-    }
-
-    async fn created_response(&self, chat_id: &str) -> HostResult<Value> {
-        let snapshot = self.snapshot(chat_id).await?;
-        Ok(json!({"chatId": chat_id, "tabId": snapshot["tabId"], "snapshot": snapshot}))
     }
 
     pub(crate) async fn reopen(
@@ -403,57 +253,12 @@ pub(crate) fn chat_summary(chat: &AgentChatRecord) -> Value {
         "workspaceId": chat.workspace_id,
         "tabId": chat.tab_id,
         "title": snapshot["title"],
-        "provider": chat.provider,
-        "providerInstanceId": chat.provider_instance_id,
+        "provider": snapshot["provider"],
+        "providerInstanceId": snapshot["providerInstanceId"],
         "model": snapshot["session"]["model"],
         "status": snapshot["session"]["status"],
         "archived": chat.archived,
         "cursor": chat.cursor,
         "updatedAt": chat.updated_at,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::terminal_host::server::chat_orchestration::test_support::TestHarness;
-
-    #[tokio::test]
-    async fn creating_and_sending_a_chat_uses_a_canonical_header() {
-        let harness = TestHarness::new().await;
-        let chat_id = harness.create_chat("ws-a", "approval-required").await;
-        assert!(uuid::Uuid::parse_str(&chat_id).is_ok());
-        let response = harness.send_human(&chat_id, "message-1", "hello").await;
-        assert_eq!(response["delivery"], "started");
-        harness.finish().await;
-    }
-
-    #[tokio::test]
-    async fn reopening_a_cached_archived_chat_updates_the_session_actor() {
-        let harness = TestHarness::new().await;
-        let chat_id = harness.create_chat("ws-a", "approval-required").await;
-        assert!(uuid::Uuid::parse_str(&chat_id).is_ok());
-
-        harness
-            .runtime
-            .command(&chat_id, ChatOp::Close, CallerCtx::runtime(), None)
-            .await
-            .unwrap();
-        assert_eq!(
-            harness.runtime.snapshot(&chat_id).await.unwrap()["archived"],
-            Value::Bool(true)
-        );
-
-        let reopened = harness
-            .runtime
-            .reopen(&chat_id, CallerCtx::runtime(), None)
-            .await
-            .unwrap();
-        assert_eq!(reopened["snapshot"]["archived"], Value::Bool(false));
-        assert_eq!(
-            harness.runtime.snapshot(&chat_id).await.unwrap()["archived"],
-            Value::Bool(false)
-        );
-        harness.finish().await;
-    }
 }

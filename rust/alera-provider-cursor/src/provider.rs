@@ -19,8 +19,12 @@ const MAX_LOCAL_IMAGE_BYTES: usize = 8 * 1024 * 1024;
 
 #[path = "attachments.rs"]
 mod attachments;
+#[path = "reasoning_effort.rs"]
+pub(crate) mod reasoning_effort;
 #[path = "recovery.rs"]
 mod recovery;
+#[path = "session_options.rs"]
+mod session_options;
 
 pub struct CursorProvider {
     client: CursorClient,
@@ -38,6 +42,8 @@ pub struct CursorProvider {
     stream_recovery_attempted: bool,
     queued_events: VecDeque<ProviderEvent>,
     mcp_servers: Vec<alera_provider_protocol::McpServerSpec>,
+    effort_models: Vec<cursor_agent_sdk::SdkModel>,
+    session_effort: Option<String>,
 }
 
 impl CursorProvider {
@@ -64,6 +70,8 @@ impl CursorProvider {
             stream_recovery_attempted: false,
             queued_events: VecDeque::new(),
             mcp_servers: Vec::new(),
+            effort_models: Vec::new(),
+            session_effort: None,
         }
     }
 
@@ -85,33 +93,6 @@ impl CursorProvider {
         } else {
             Ok(())
         }
-    }
-
-    fn agent_options(&self, input: &SessionStartInput) -> Result<AgentOptions, ProviderError> {
-        Ok(AgentOptions {
-            model: input
-                .model
-                .clone()
-                .or_else(|| self.config.model.clone())
-                .map(|id| ModelSelection {
-                    id,
-                    params: Vec::new(),
-                }),
-            api_key: self.config.api_key.clone(),
-            name: None,
-            local: Some(LocalAgentOptions {
-                cwd: input
-                    .cwd
-                    .clone()
-                    .or_else(|| self.config.cwd.clone())
-                    .map(|path| vec![path.to_string_lossy().into_owned()])
-                    .unwrap_or_default(),
-                sandbox_options: Some(serde_json::json!({ "enabled": true })),
-                auto_review: Some(true),
-            }),
-            mode: None,
-            mcp_servers: native_mcp_servers(&input.mcp_servers)?,
-        })
     }
 
     fn active_session(&self) -> Result<ProviderSession, ProviderError> {
@@ -159,6 +140,12 @@ impl Provider for CursorProvider {
         self.session.as_ref()
     }
 
+    fn reasoning_effort_capabilities(
+        &self,
+    ) -> alera_provider_protocol::ReasoningEffortCapabilities {
+        reasoning_effort::capabilities(self)
+    }
+
     async fn initialize(&mut self) -> Result<(), ProviderError> {
         self.ensure_open()?;
         if !self.initialized {
@@ -193,7 +180,7 @@ impl Provider for CursorProvider {
     ) -> Result<ProviderSession, ProviderError> {
         input.validate()?;
         self.ensure_open()?;
-        if !input.options.is_empty() {
+        if input.options.keys().any(|key| key != "reasoningEffort") {
             return Err(ProviderError::Unsupported(
                 "Cursor session options are unsupported".into(),
             ));
@@ -214,6 +201,10 @@ impl Provider for CursorProvider {
             ));
         }
         self.initialize().await?;
+        let effort = alera_provider_protocol::reasoning_effort(&input.options)?.map(str::to_owned);
+        if effort.is_some() {
+            self.discover_effort_models().await?;
+        }
         if self.session.is_some() {
             return Err(ProviderError::InvalidState(
                 "Cursor provider supports one session per bridge connection".into(),
@@ -236,6 +227,7 @@ impl Provider for CursorProvider {
             (response.agent_id, response.model)
         };
         self.mcp_servers = mcp_servers;
+        self.session_effort = effort;
         let response_model =
             response_model.and_then(|model| (!model.id.is_empty()).then_some(model.id));
         let session = ProviderSession {
@@ -283,19 +275,22 @@ impl Provider for CursorProvider {
                 "Cursor turn is already running".into(),
             ));
         }
-        if !input.options.is_empty() {
+        if input.options.keys().any(|key| key != "reasoningEffort") {
             return Err(ProviderError::Unsupported(
                 "Cursor turn options are unsupported".into(),
             ));
         }
         let images = attachments::load_images(&input.attachments).await?;
-        let model = input
-            .model
-            .or_else(|| session.model.clone())
-            .map(|id| ModelSelection {
-                id,
-                params: Vec::new(),
-            });
+        let effort = alera_provider_protocol::reasoning_effort(&input.options)?
+            .map(str::to_owned)
+            .or(self.session_effort.clone());
+        if effort.is_some() {
+            self.discover_effort_models().await?;
+        }
+        let model = self.model_selection(
+            input.model.or_else(|| session.model.clone()),
+            effort.as_deref(),
+        )?;
         let options = SendOptions {
             model,
             enable_deltas: Some(true),

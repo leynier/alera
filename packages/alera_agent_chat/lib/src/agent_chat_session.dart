@@ -1,5 +1,6 @@
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
+import 'package:alera_agent_chat/src/agent_chat_native_history_capabilities.dart';
 
 /// What the provider behind a chat actually implements. Controls that need a
 /// missing capability are hidden or disabled rather than failing on use.
@@ -17,6 +18,8 @@ class const AgentChatCapabilities({
   final bool attachments = false,
   final bool images = false,
   final bool plan = false,
+  final AgentChatNativeHistoryCapabilities nativeHistory =
+      const AgentChatNativeHistoryCapabilities(),
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -34,6 +37,9 @@ class const AgentChatCapabilities({
       attachments: agentChatJsonBool(json['attachments']),
       images: agentChatJsonBool(json['images']),
       plan: agentChatJsonBool(json['plan']),
+      nativeHistory: AgentChatNativeHistoryCapabilities.fromJson(
+        json['nativeHistory'],
+      ),
     );
   }
 }
@@ -42,6 +48,7 @@ class const AgentChatSession({
   final AgentChatSessionStatus status = AgentChatSessionStatus.starting,
   final String? model,
   final String? reasoningEffort,
+  final bool fileCheckpointing = false,
   final AgentChatRuntimeMode runtimeMode =
       AgentChatRuntimeMode.approvalRequired,
   final AgentChatInteractionMode interactionMode =
@@ -58,6 +65,7 @@ class const AgentChatSession({
       status: AgentChatSessionStatus.fromJson(json['status']),
       model: agentChatJsonString(json['model']),
       reasoningEffort: agentChatJsonString(json['reasoningEffort']),
+      fileCheckpointing: agentChatJsonBool(json['fileCheckpointing']),
       runtimeMode:
           AgentChatRuntimeMode.tryParse(json['runtimeMode']) ??
           AgentChatRuntimeMode.approvalRequired,

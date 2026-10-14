@@ -88,34 +88,53 @@ AgentChatWorkedActionKind _toolActionKind(String? name) {
   return AgentChatWorkedActionKind.tool;
 }
 
-String _label(AgentChatItem item, AgentChatWorkedActionKind kind) {
+String _label(AgentChatItem item, AgentChatWorkedActionKind kind) =>
+    _phrase(item, kind, live: false);
+
+/// The present-tense label of an action a running turn is busy with:
+/// "Running make test", "Reading main.dart".
+String agentChatWorkedActionLiveLabel(AgentChatWorkedAction action) =>
+    _phrase(action.item, action.kind, live: true);
+
+String _phrase(
+  AgentChatItem item,
+  AgentChatWorkedActionKind kind, {
+  required bool live,
+}) {
   final target = _target(item);
+  String verb(String past, String present) => live ? present : past;
   return switch (kind) {
     AgentChatWorkedActionKind.review =>
       item.type == AgentChatItemType.reviewEntered
-          ? 'Entered review mode'
-          : 'Exited review mode',
-    AgentChatWorkedActionKind.edit => _editLabel(item),
+          ? '${verb('Entered', 'Entering')} review mode'
+          : '${verb('Exited', 'Exiting')} review mode',
+    AgentChatWorkedActionKind.edit => _editLabel(item, live: live),
     AgentChatWorkedActionKind.read =>
-      target == null ? 'Read a file' : 'Read ${_basename(target)}',
+      '${verb('Read', 'Reading')} '
+          '${target == null ? 'a file' : _basename(target)}',
     AgentChatWorkedActionKind.viewImage =>
-      target == null ? 'Viewed an image' : 'Viewed ${_basename(target)}',
+      '${verb('Viewed', 'Viewing')} '
+          '${target == null ? 'an image' : _basename(target)}',
     AgentChatWorkedActionKind.listFiles =>
-      target == null ? 'Listed files' : 'Listed files in $target',
+      target == null
+          ? '${verb('Listed', 'Listing')} files'
+          : '${verb('Listed', 'Listing')} files in $target',
     AgentChatWorkedActionKind.search =>
       item.query != null
-          ? 'Searched for ${item.query}'
-          : 'Searched with ${item.command ?? item.toolName ?? 'a tool'}',
+          ? '${verb('Searched', 'Searching')} for ${item.query}'
+          : '${verb('Searched', 'Searching')} with '
+                '${item.command ?? item.toolName ?? 'a tool'}',
     AgentChatWorkedActionKind.webSearch =>
       item.query == null
-          ? 'Searched the web'
-          : 'Searched the web for ${item.query}',
+          ? '${verb('Searched', 'Searching')} the web'
+          : '${verb('Searched', 'Searching')} the web for ${item.query}',
     AgentChatWorkedActionKind.delegate =>
-      'Delegated to ${item.agentId ?? item.title ?? 'an agent'}',
+      '${verb('Delegated', 'Delegating')} to '
+          '${item.agentId ?? item.title ?? 'an agent'}',
     AgentChatWorkedActionKind.tool =>
-      'Used ${item.toolName ?? item.title ?? 'a tool'}',
+      '${verb('Used', 'Using')} ${item.toolName ?? item.title ?? 'a tool'}',
     AgentChatWorkedActionKind.ran =>
-      'Ran ${item.command ?? item.title ?? 'a command'}',
+      '${verb('Ran', 'Running')} ${item.command ?? item.title ?? 'a command'}',
   };
 }
 
@@ -128,18 +147,21 @@ String? _target(AgentChatItem item) {
       item.title;
 }
 
-String _editLabel(AgentChatItem item) {
+String _editLabel(AgentChatItem item, {required bool live}) {
+  final verb = live ? 'Editing' : 'Edited';
   final changes = item.changes;
   if (changes.length != 1) {
-    return changes.isEmpty ? 'Edited files' : 'Edited ${changes.length} files';
+    return changes.isEmpty
+        ? '$verb files'
+        : '$verb ${changes.length} files';
   }
   final change = changes.single;
   final counts = change.lineCounts;
-  final suffix = counts.additions == 0 && counts.deletions == 0
+  final suffix = live || (counts.additions == 0 && counts.deletions == 0)
       ? ''
       : ' +${counts.additions} -${counts.deletions}';
   final name = change.path.isEmpty ? 'a file' : _basename(change.path);
-  return 'Edited $name$suffix';
+  return '$verb $name$suffix';
 }
 
 String _basename(String path) {
@@ -212,4 +234,35 @@ String agentChatDurationLabel(Duration duration) {
   final hours = duration.inHours;
   final rest = minutes - hours * 60;
   return rest == 0 ? '${hours}h' : '${hours}h ${rest}m';
+}
+
+/// The label of a reasoning row: the provider's title, else "Thinking" while
+/// the agent reasons and "Thought" once it is done.
+String agentChatReasoningLabel(AgentChatItem item) {
+  final title = item.title?.trim();
+  if (title != null && title.isNotEmpty) return title;
+  return item.isInProgress ? 'Thinking' : 'Thought';
+}
+
+/// The first sentence of [text], flattened to one line and clamped to
+/// [maxLength] characters, for the live row of a running turn. A leading
+/// markdown heading or bold title line counts as the sentence.
+String? agentChatReasoningSnippet(String text, {int maxLength = 140}) {
+  String? line;
+  for (final candidate in text.split('\n')) {
+    final cleaned = candidate
+        .replaceFirst(RegExp(r'^\s*(#+|>)\s*'), '')
+        .replaceAll(RegExp(r'\*\*|__|`'), '')
+        .trim();
+    if (cleaned.isNotEmpty) {
+      line = cleaned;
+      break;
+    }
+  }
+  if (line == null) return null;
+  final flat = line.replaceAll(RegExp(r'\s+'), ' ');
+  final end = RegExp(r'[.!?](\s|$)').firstMatch(flat);
+  final sentence = end == null ? flat : flat.substring(0, end.start + 1);
+  if (sentence.length <= maxLength) return sentence;
+  return '${sentence.substring(0, maxLength - 1).trimRight()}\u2026';
 }

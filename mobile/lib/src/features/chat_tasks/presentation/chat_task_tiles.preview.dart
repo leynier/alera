@@ -2,6 +2,8 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/alera_preview.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_detail_body.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_dock_view.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice_views.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_tiles.dart';
 import 'package:flutter/material.dart';
 
@@ -76,23 +78,44 @@ Widget chatTaskDetailPreview() => ChatTaskDetailBody(
 );
 
 @AleraPreview(name: 'Chat Dock', group: 'Chat Tasks')
-Widget chatTaskDockPreview() => Padding(
-  padding: AleraTokens.contentPadding,
-  child: Column(
-    children: <Widget>[
-      ChatTaskDockView(
-        tasks: <AgentChatTask>[
-          _task('task-5', AgentChatTaskStatus.running),
-          _task(
-            'task-6',
-            AgentChatTaskStatus.needsInput,
-            attention: AgentChatTaskAttention.needsInput,
-          ),
-        ],
-        total: 3,
-        onView: (_) {},
-      ),
-      const ChatMessageSenderRow(senderTitle: 'Planner'),
-    ],
-  ),
-);
+Widget chatTaskDockPreview() {
+  final tasks = <AgentChatTask>[
+    _task('task-5', AgentChatTaskStatus.running),
+    _task(
+      'task-6',
+      AgentChatTaskStatus.needsInput,
+      attention: AgentChatTaskAttention.needsInput,
+    ),
+    _task(
+      'task-7',
+      AgentChatTaskStatus.completed,
+      title: 'Write release notes',
+      result: const AgentChatTaskResult(text: 'Release notes are in docs/.'),
+    ),
+  ];
+  return Padding(
+    padding: AleraTokens.contentPadding,
+    child: Column(
+      spacing: AleraTokens.spaceSm,
+      children: <Widget>[
+        ChatTaskInputBanner(
+          task: tasks[1],
+          answering: false,
+          onAnswerHere: () {},
+          onOpenChat: () {},
+        ),
+        ChatTaskDockView(
+          tasks: tasks,
+          expanded: true,
+          onExpandedChanged: (_) {},
+          now: () => _now,
+          placeOf: agentChatTaskPlaceLabel,
+          actions: ChatTaskDockActions(onView: (_) {}, onStop: (_) {}),
+        ),
+        ChatTaskOutcomeCard(task: tasks[2], now: _now, onView: () {}),
+        const ChatTaskOriginRow(label: 'Delegated by Planner'),
+        const ChatMessageSenderRow(senderTitle: 'Planner'),
+      ],
+    ),
+  );
+}

@@ -17,6 +17,10 @@ class const AgentChatSummary({
   final bool archived = false,
   final bool busy = false,
   final int pendingRequestCount = 0,
+  final int openChildTaskCount = 0,
+  final bool childNeedsInput = false,
+  final bool unread = false,
+  final int readCursor = 0,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -40,6 +44,10 @@ class const AgentChatSummary({
       archived: agentChatJsonBool(json['archived']),
       busy: agentChatJsonBool(json['busy']),
       pendingRequestCount: agentChatJsonInt(json['pendingRequestCount']) ?? 0,
+      openChildTaskCount: agentChatJsonInt(json['openChildTaskCount']) ?? 0,
+      childNeedsInput: agentChatJsonBool(json['childNeedsInput']),
+      unread: agentChatJsonBool(json['unread']),
+      readCursor: agentChatJsonInt(json['readCursor']) ?? 0,
     );
   }
 }

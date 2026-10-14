@@ -11,7 +11,7 @@ use serde_json::Value;
 
 /// Launch overrides for one provider instance, read from
 /// `agent-chat-providers.json`. Environment values reach the process only.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderInstanceConfig {
     pub provider_instance_id: String,
@@ -32,6 +32,58 @@ pub(crate) struct ProviderInstanceConfig {
     /// ACP authentication, OpenCode generation, or Cursor bridge endpoints.
     #[serde(default)]
     pub options: serde_json::Map<String, Value>,
+    #[serde(default = "enabled_default")]
+    pub enabled: bool,
+    #[serde(skip)]
+    pub secret_refs: BTreeMap<String, String>,
+    #[serde(skip)]
+    pub credential_scope: Option<(PathBuf, String)>,
+}
+
+fn enabled_default() -> bool {
+    true
+}
+
+impl Default for ProviderInstanceConfig {
+    fn default() -> Self {
+        Self {
+            provider_instance_id: String::new(),
+            provider: String::new(),
+            label: None,
+            executable: None,
+            args: None,
+            env: BTreeMap::new(),
+            models: Vec::new(),
+            default_model: None,
+            options: Default::default(),
+            enabled: true,
+            secret_refs: BTreeMap::new(),
+            credential_scope: None,
+        }
+    }
+}
+
+impl std::fmt::Debug for ProviderInstanceConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProviderInstanceConfig")
+            .field("provider_instance_id", &self.provider_instance_id)
+            .field("provider", &self.provider)
+            .field("enabled", &self.enabled)
+            .field("environment_count", &self.env.len())
+            .field("option_count", &self.options.len())
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ProviderStatus {
+    pub available: bool,
+    pub setup_required: bool,
+    pub installed: Option<bool>,
+    pub version: Option<String>,
+    pub auth_status: String,
+    pub unavailable_reason: Option<String>,
+    pub setup: Value,
 }
 
 #[derive(Debug, Clone)]
@@ -79,6 +131,61 @@ pub(crate) trait ProviderFactory: Send + Sync + 'static {
         provider: &str,
         instance: Option<&ProviderInstanceConfig>,
     ) -> Result<(), String>;
+
+    async fn status(
+        &self,
+        provider: &str,
+        instance: Option<&ProviderInstanceConfig>,
+    ) -> ProviderStatus {
+        let availability = self.availability(provider, instance).await;
+        ProviderStatus {
+            available: availability.is_ok(),
+            setup_required: false,
+            installed: None,
+            version: None,
+            auth_status: "unknown".into(),
+            unavailable_reason: availability.err(),
+            setup: Value::Null,
+        }
+    }
+
+    async fn discover_model_metadata(
+        &self,
+        provider: &str,
+        instance: Option<&ProviderInstanceConfig>,
+        cwd: Option<PathBuf>,
+    ) -> Option<Result<Vec<Value>, String>> {
+        self.discover_models(provider, instance, cwd)
+            .await
+            .map(|result| {
+                result.map(|models| {
+                    models
+                        .into_iter()
+                        .map(|id| serde_json::json!({"id":id,"label":id}))
+                        .collect()
+                })
+            })
+    }
+
+    async fn validate_reasoning_effort(
+        &self,
+        _provider: &str,
+        _instance: Option<&ProviderInstanceConfig>,
+        _cwd: Option<PathBuf>,
+        _model: Option<&str>,
+        _effort: &str,
+    ) -> Result<(), String> {
+        Err("This agent does not support reasoning effort.".into())
+    }
+
+    /// Cached proof from a bounded authenticated discovery request, when supported.
+    async fn cached_verified_auth_status(
+        &self,
+        _provider: &str,
+        _instance: Option<&ProviderInstanceConfig>,
+    ) -> Option<(String, String)> {
+        None
+    }
 
     /// Models the provider reports without running inference, when it has a
     /// cheap discovery path. `None` means no discovery exists.

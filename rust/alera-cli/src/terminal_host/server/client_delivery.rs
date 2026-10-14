@@ -449,6 +449,7 @@ mod tests {
             codex: None,
             codex_starting: None,
             agent_chat_runtime: None,
+            agent_chat_provider_settings: None,
             chat_orchestration: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),

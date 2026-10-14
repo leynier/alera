@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
-import 'package:alera/src/features/agent_chat/presentation/new_agent_chat_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
@@ -141,8 +140,21 @@ WorkbenchState _chatWorkbenchState() {
 
 class _ChatShellWorkbenchController(final WorkbenchState _seed)
     extends WorkbenchController {
+  /// Tabs New Agent Chat asked to open, as (workspace, tab, only if current).
+  final List<(String, String, bool)> opened = <(String, String, bool)>[];
+
   @override
   WorkbenchState build() => const WorkbenchState();
+
+  @override
+  Future<void> openPersistedWorkspaceTab({
+    required String workspaceId,
+    required String tabId,
+    String? targetGroupId,
+    int? sleepGeneration,
+    bool activate = true,
+    bool activateOnlyIfCurrent = false,
+  }) async => opened.add((workspaceId, tabId, activateOnlyIfCurrent));
 
   @override
   Future<void> bootstrap() async => state = _seed;
@@ -286,9 +298,37 @@ Future<_ChatShellWorkbenchController> _pumpChatShell(
   return controller;
 }
 
-FakeAgentChatRepository _supportedRepository() =>
+/// A runtime whose chats already sent a message, so New Agent Chat creates a
+/// chat instead of reusing one. [sent] false keeps them never-sent.
+FakeAgentChatRepository _supportedRepository({bool sent = true}) =>
     FakeAgentChatRepository(isSupported: true)
-      ..snapshots.add(() => agentChatSnapshotFixture());
+      ..providerCatalog = const <AgentChatProviderInstance>[
+        AgentChatProviderInstance(
+          id: 'codex',
+          provider: 'codex',
+          label: 'Codex',
+        ),
+      ]
+      ..createResult = AgentChatOpenResult(
+        chatId: 'chat-9',
+        tabId: 'tab-9',
+        snapshot: agentChatSnapshotFixture(),
+      )
+      ..snapshots.add(
+        () => agentChatSnapshotFixture(
+          items: sent
+              ? <Map<String, Object?>>[
+                  agentChatItemFixture('u1', 'user_message', text: 'Hello'),
+                ]
+              : const <Map<String, Object?>>[],
+        ),
+      );
+
+List<AgentChatCreateInput> _creates(FakeAgentChatRepository repository) =>
+    <AgentChatCreateInput>[
+      for (final call in repository.calls)
+        if (call.$1 == 'create') call.$2! as AgentChatCreateInput,
+    ];
 
 Future<void> _pressChord(
   WidgetTester tester,
@@ -325,44 +365,51 @@ bool _focusReachesShortcutScope() {
       ].any((node) => node.debugLabel == 'KeyboardShortcutsScope');
 }
 
-Workspace _dialogWorkspace(WidgetTester tester) => tester
-    .widget<NewAgentChatDialog>(find.byType(NewAgentChatDialog))
-    .workspace;
-
 void main() {
-  testWidgets('Cmd+Shift+T in a focused chat composer opens New Agent Chat', (
-    tester,
-  ) async {
-    await _pumpChatShell(tester, _supportedRepository());
+  testWidgets(
+    'Cmd+Shift+T in a focused chat composer starts a chat without a dialog',
+    (tester) async {
+      final repository = _supportedRepository();
+      final controller = await _pumpChatShell(tester, repository);
 
-    await tester.tap(_composerField);
-    await tester.pumpAndSettle();
-    final field = tester.widget<EditableText>(_composerField);
-    expect(field.focusNode.hasPrimaryFocus, isTrue);
-    expect(find.byType(KeyboardShortcutsScope), findsOneWidget);
-    expect(_focusReachesShortcutScope(), isTrue);
+      await tester.tap(_composerField);
+      await tester.pumpAndSettle();
+      final field = tester.widget<EditableText>(_composerField);
+      expect(field.focusNode.hasPrimaryFocus, isTrue);
+      expect(find.byType(KeyboardShortcutsScope), findsOneWidget);
+      expect(_focusReachesShortcutScope(), isTrue);
 
-    // Ctrl is not the macOS Mod key, so the same chord on Ctrl must not
-    // match: this pins the test to the Mac binding rather than Linux's.
-    await _pressChord(tester, <LogicalKeyboardKey>[
-      .controlLeft,
-      .shiftLeft,
-    ], .keyT);
-    expect(find.byType(NewAgentChatDialog), findsNothing);
+      // Ctrl is not the macOS Mod key, so the same chord on Ctrl must not
+      // match: this pins the test to the Mac binding rather than Linux's.
+      await _pressChord(tester, <LogicalKeyboardKey>[
+        .controlLeft,
+        .shiftLeft,
+      ], .keyT);
+      expect(_creates(repository), isEmpty);
 
-    await _pressNewAgentChat(tester);
+      await _pressNewAgentChat(tester);
 
-    expect(find.byType(NewAgentChatDialog), findsOneWidget);
-    expect(_dialogWorkspace(tester).id, _mainWorkspace.id);
-    // The chord is a shortcut, not typing: the draft stays empty.
-    expect(field.controller.text, isEmpty);
-  }, variant: _macOS);
+      expect(find.byType(Dialog), findsNothing);
+      final create = _creates(repository).single;
+      expect(create.workspaceId, _mainWorkspace.id);
+      // The new chat inherits the agent of the chat it was started from.
+      expect(create.providerInstanceId, 'codex');
+      expect(create.model, 'gpt-5');
+      expect(controller.opened, <(String, String, bool)>[
+        (_mainWorkspace.id, 'tab-9', true),
+      ]);
+      // The chord is a shortcut, not typing: the draft stays empty.
+      expect(field.controller.text, isEmpty);
+    },
+    variant: _macOS,
+  );
 
   testWidgets(
-    'Cmd+Shift+T after picking a workspace in the sidebar opens New Agent '
-    'Chat for it',
+    'Cmd+Shift+T after picking a workspace in the sidebar starts a chat '
+    'there',
     (tester) async {
-      final controller = await _pumpChatShell(tester, _supportedRepository());
+      final repository = _supportedRepository();
+      final controller = await _pumpChatShell(tester, repository);
       await tester.tap(_composerField);
       await tester.pumpAndSettle();
 
@@ -379,9 +426,63 @@ void main() {
 
       await _pressNewAgentChat(tester);
 
-      expect(find.byType(NewAgentChatDialog), findsOneWidget);
-      expect(_dialogWorkspace(tester).id, _linkedWorkspace.id);
+      expect(_creates(repository).single.workspaceId, _linkedWorkspace.id);
+      expect(controller.opened.single.$1, _linkedWorkspace.id);
     },
     variant: _macOS,
   );
+
+  testWidgets(
+    'Cmd+Shift+T focuses a never-sent chat with an empty draft instead',
+    (tester) async {
+      final repository = _supportedRepository(sent: false);
+      final controller = await _pumpChatShell(tester, repository);
+      await tester.tap(_composerField);
+      await tester.pumpAndSettle();
+
+      await _pressNewAgentChat(tester);
+
+      expect(_creates(repository), isEmpty);
+      expect(controller.opened, isEmpty);
+      expect(controller.state.activeWorkspaceId, _mainWorkspace.id);
+      final field = tester.widget<EditableText>(_composerField);
+      expect(field.focusNode.hasPrimaryFocus, isTrue);
+    },
+    variant: _macOS,
+  );
+
+  testWidgets('a never-sent chat with unsent text is not reused', (
+    tester,
+  ) async {
+    final repository = _supportedRepository(sent: false);
+    await _pumpChatShell(tester, repository);
+    await tester.tap(_composerField);
+    await tester.pumpAndSettle();
+    await tester.enterText(_composerField, 'Draft in progress');
+    await tester.pump();
+
+    await _pressNewAgentChat(tester);
+
+    expect(_creates(repository), hasLength(1));
+    expect(
+      tester.widget<EditableText>(_composerField).controller.text,
+      'Draft in progress',
+    );
+  }, variant: _macOS);
+
+  testWidgets('Cmd+Shift+M opens the agent and model picker', (tester) async {
+    await _pumpChatShell(tester, _supportedRepository());
+    await tester.tap(_composerField);
+    await tester.pumpAndSettle();
+
+    await _pressChord(tester, <LogicalKeyboardKey>[
+      .metaLeft,
+      .shiftLeft,
+    ], .keyM);
+
+    expect(find.text(agentChatPickerSearchHint), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text(agentChatPickerSearchHint), findsNothing);
+  }, variant: _macOS);
 }

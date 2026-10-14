@@ -131,3 +131,106 @@ fn chat_action_names_are_not_terminal_orchestration_actions() {
     };
     assert!(matches!(command.action, ChatAction::TaskList(_)));
 }
+
+#[test]
+fn configure_omits_unselected_model_and_preserves_explicit_resets() {
+    for (flags, model_reset, effort_reset) in [
+        (vec!["--runtime-mode", "auto"], false, false),
+        (vec!["--reset-model"], true, false),
+        (vec!["--reset-reasoning-effort"], false, true),
+    ] {
+        let mut argv = vec!["alera", "chat", "configure", "--chat-id", "c"];
+        argv.extend(flags);
+        let Command::Chat(command) = Cli::try_parse_from(argv).unwrap().command else {
+            panic!("chat");
+        };
+        let ChatAction::Configure(args) = command.action else {
+            panic!("configure");
+        };
+        let payload = super::configure_payload(args).unwrap();
+        assert_eq!(payload.get("model").is_some(), model_reset);
+        assert_eq!(payload.get("reasoningEffort").is_some(), effort_reset);
+        if model_reset {
+            assert!(payload["model"].is_null());
+        }
+        if effort_reset {
+            assert!(payload["reasoningEffort"].is_null());
+        }
+    }
+    assert!(Cli::try_parse_from([
+        "alera",
+        "chat",
+        "configure",
+        "--chat-id",
+        "c",
+        "--model",
+        "m",
+        "--reset-model"
+    ])
+    .is_err());
+}
+
+#[test]
+fn default_delegation_omits_agent_and_explicit_human_parent_is_preserved() {
+    for parent in [None, Some("parent-chat")] {
+        let mut argv = vec![
+            "alera",
+            "chat",
+            "delegate",
+            "--task",
+            "inspect",
+            "--target",
+            r#"{"workspace":{"workspaceId":"w"}}"#,
+        ];
+        if let Some(parent) = parent {
+            argv.extend(["--parent-chat-id", parent]);
+        }
+        let Command::Chat(command) = Cli::try_parse_from(argv).unwrap().command else {
+            panic!("chat");
+        };
+        let ChatAction::Delegate(args) = command.action else {
+            panic!("delegate");
+        };
+        let payload = super::delegate_payload(*args).unwrap();
+        assert!(payload.get("agent").is_none());
+        assert_eq!(
+            payload
+                .get("parentChatId")
+                .and_then(serde_json::Value::as_str),
+            parent
+        );
+        assert!(payload.get("actor").is_none());
+    }
+}
+
+#[test]
+fn acknowledgement_preserves_explicit_retry_ids_and_legacy_omission() {
+    for request_id in [None, Some("ack-retry-1")] {
+        let mut argv = vec!["alera", "chat", "task", "--task-id", "t", "--acknowledge"];
+        if let Some(id) = request_id {
+            argv.extend(["--request-id", id]);
+        }
+        let Command::Chat(command) = Cli::try_parse_from(argv).unwrap().command else {
+            panic!("chat");
+        };
+        let ChatAction::Task(args) = command.action else {
+            panic!("task");
+        };
+        let payload = super::task_payload(args).unwrap();
+        assert_eq!(payload["acknowledge"], true);
+        assert_eq!(
+            payload.get("requestId").and_then(serde_json::Value::as_str),
+            request_id
+        );
+    }
+    assert!(Cli::try_parse_from([
+        "alera",
+        "chat",
+        "task",
+        "--task-id",
+        "t",
+        "--request-id",
+        "read-1"
+    ])
+    .is_err());
+}

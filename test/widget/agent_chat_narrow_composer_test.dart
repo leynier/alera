@@ -40,87 +40,98 @@ final Finder _scroll = find.byKey(
   const ValueKey<String>('agent-chat-composer-controls-scroll'),
 );
 final Finder _send = find.byKey(const ValueKey<String>('agent-chat-send'));
-final Finder _plan = find.byKey(
-  const ValueKey<String>('agent-chat-plan-toggle'),
+final Finder _picker = find.byKey(
+  const ValueKey<String>('agent-chat-model-picker'),
+);
+final Finder _more = find.byKey(
+  const ValueKey<String>('agent-chat-more-controls'),
 );
 final Finder _dictation = find.byKey(
   const ValueKey<String>('agent-chat-dictation'),
 );
 
 void main() {
-  testWidgets('a narrow composer scrolls its controls and keeps send usable', (
-    tester,
-  ) async {
-    final composer = TerminalComposerController();
-    addTearDown(composer.dispose);
-    final sent = <String>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildAleraDarkTheme(),
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            // About the width of a split right pane in the QA capture.
-            child: SizedBox(
-              width: 360,
-              child: AgentChatComposer(
-                controller: composer,
-                workspaceId: 'ws-1',
-                chatId: 'chat-1',
-                settings: _settings,
-                usage: const AgentChatUsage(),
-                canSend: true,
-                busy: false,
-                canInterrupt: false,
-                interrupting: false,
-                hintText: 'Ask QA Codex anything',
-                promptHistory: () => const <String>[],
-                onSend: (text, _) {
-                  sent.add(text);
-                  return true;
-                },
-                onInterrupt: () {},
-                onConfigure: (_) {},
-                onOpenFile: (_) {},
+  testWidgets(
+    'a narrow composer folds its settings and keeps the picker and send',
+    (tester) async {
+      final composer = TerminalComposerController();
+      addTearDown(composer.dispose);
+      final sent = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              // About the width of a split right pane in the QA capture.
+              child: SizedBox(
+                width: 360,
+                child: AgentChatComposer(
+                  controller: composer,
+                  workspaceId: 'ws-1',
+                  chatId: 'chat-1',
+                  settings: _settings,
+                  usage: const AgentChatUsage(),
+                  canSend: true,
+                  busy: false,
+                  canInterrupt: false,
+                  interrupting: false,
+                  hintText: 'Ask QA Codex anything',
+                  promptHistory: () => const <String>[],
+                  onSend: (text, _, {steer = false}) {
+                    sent.add(text);
+                    return true;
+                  },
+                  onInterrupt: () {},
+                  onConfigure: (_) {},
+                  onChoose: (_, _) {},
+                  onOpenFile: (_) {},
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    expect(tester.takeException(), isNull);
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
 
-    // The settings overflow into the scroll viewport instead of the row.
-    final position = tester
-        .state<ScrollableState>(
-          find.descendant(of: _scroll, matching: find.byType(Scrollable)),
-        )
-        .position;
-    expect(position.maxScrollExtent, greaterThan(0));
+      // Approvals and Plan fold into one overflow; the picker stays.
+      expect(_picker, findsOneWidget);
+      expect(_more, findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('agent-chat-plan-toggle')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('agent-chat-runtime-mode-chip')),
+        findsNothing,
+      );
 
-    // A clipped chip ends a token-sized gap before the fixed controls.
-    final viewport = tester.getRect(_scroll);
-    expect(
-      tester.getRect(_dictation).left - viewport.right,
-      greaterThanOrEqualTo(AleraTokens.space8),
-    );
-    final composerRect = tester.getRect(find.byType(AgentChatComposer));
-    final sendRect = tester.getRect(_send);
-    expect(sendRect.right, lessThanOrEqualTo(composerRect.right));
-    expect(sendRect.left, greaterThanOrEqualTo(viewport.right));
+      // Nothing needs a horizontal scroll at this width.
+      final position = tester
+          .state<ScrollableState>(
+            find.descendant(of: _scroll, matching: find.byType(Scrollable)),
+          )
+          .position;
+      expect(position.maxScrollExtent, 0);
 
-    // Scrolling reveals the offscreen Plan chip inside the viewport.
-    expect(tester.getRect(_plan).right, greaterThan(viewport.right));
-    position.jumpTo(position.maxScrollExtent);
-    await tester.pump();
-    expect(tester.getRect(_plan).right, lessThanOrEqualTo(viewport.right));
+      final viewport = tester.getRect(_scroll);
+      expect(
+        tester.getRect(_dictation).left - viewport.right,
+        greaterThanOrEqualTo(AleraTokens.space8),
+      );
+      final composerRect = tester.getRect(find.byType(AgentChatComposer));
+      final sendRect = tester.getRect(_send);
+      expect(sendRect.right, lessThanOrEqualTo(composerRect.right));
+      expect(sendRect.left, greaterThanOrEqualTo(viewport.right));
+      expect(tester.getRect(_picker).right, lessThanOrEqualTo(viewport.right));
 
-    await tester.enterText(find.byType(TextField), 'Run the tests');
-    await tester.pump();
-    await tester.tap(_send);
-    await tester.pump();
-    expect(sent, <String>['Run the tests']);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.enterText(find.byType(TextField), 'Run the tests');
+      await tester.pump();
+      await tester.tap(_send);
+      await tester.pump();
+      expect(sent, <String>['Run the tests']);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_view.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
@@ -117,12 +118,20 @@ void main() {
     client.handlers['agentChat.respond'] = (_) => <String, Object?>{
       'resolved': true,
     };
-    expect(find.text('Run this command?'), findsOneWidget);
+    expect(find.text('Run Command?'), findsOneWidget);
     expect(find.text(r'$ rm -rf build'), findsOneWidget);
+    expect(find.text('Allow Once'), findsOneWidget);
     expect(find.text('Allow For Session'), findsOneWidget);
+    // The third runtime decision is one tap further, never dropped.
+    expect(find.text('Decline'), findsNothing);
+    expect(find.byTooltip('More Decisions'), findsOneWidget);
     expect(find.text('Cancel Turn'), findsNothing);
+    expect(
+      find.text('The agent is waiting for your decision.'),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.text('Allow'));
+    await tester.tap(find.text('Allow Once'));
     await tester.pumpAndSettle();
     final payload = client.payloadsOf('agentChat.respond').single;
     expect(payload['runtimeRequestId'], 'request-1');
@@ -243,6 +252,193 @@ void main() {
       '',
     );
     expect(find.text('Add a changelog entry'), findsOneWidget);
+  });
+
+  testWidgets('a chat nothing was sent to shows its ready state', (
+    tester,
+  ) async {
+    await _pumpChat(
+      tester,
+      agentChatSnapshot(session: agentChatSession(status: 'stopped')),
+    );
+    expect(find.text('Send a message to start.'), findsOneWidget);
+    expect(find.text('/repo'), findsOneWidget);
+    expect(find.text('The agent session stopped.'), findsNothing);
+  });
+
+  testWidgets('a failed turn stays open with its failing action', (
+    tester,
+  ) async {
+    await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        turns: <Map<String, Object?>>[
+          agentChatTurn('turn-1', status: 'failed'),
+        ],
+        items: <Map<String, Object?>>[
+          agentChatItem('prompt', type: 'user_message', text: 'Fix the build'),
+          agentChatItem(
+            'read',
+            type: 'command_execution',
+            normalized: <String, Object?>{
+              'command': 'cat a.txt',
+              'exitCode': 0,
+            },
+          ),
+          agentChatItem(
+            'command',
+            type: 'command_execution',
+            status: 'failed',
+            normalized: <String, Object?>{'command': 'npm test', 'exitCode': 1},
+          ),
+        ],
+      ),
+    );
+    expect(find.text('Failed after 4s'), findsOneWidget);
+    expect(find.textContaining('npm test'), findsWidgets);
+  });
+
+  testWidgets('approvals dock ahead of questions, one page at a time', (
+    tester,
+  ) async {
+    await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        pendingRequests: <Map<String, Object?>>[
+          <String, Object?>{
+            ..._request(
+              'tool_user_input',
+              questions: <Map<String, Object?>>[
+                <String, Object?>{
+                  'id': 'target',
+                  'header': 'Deploy target',
+                  'question': 'Where should this go?',
+                  'options': <Object?>[
+                    <String, Object?>{'label': 'Staging'},
+                  ],
+                },
+              ],
+            ),
+            'requestId': 'question-1',
+            'createdAt': '2026-10-12T10:00:00Z',
+          },
+          <String, Object?>{
+            ..._request(
+              'command_execution_approval',
+              decisions: <String>['accept', 'decline'],
+            ),
+            'requestId': 'approval-1',
+            'createdAt': '2026-10-12T10:00:05Z',
+          },
+        ],
+      ),
+    );
+    expect(find.text('Request 1 of 2'), findsOneWidget);
+    expect(find.text('Run Command?'), findsOneWidget);
+    expect(find.text('Deploy target'), findsNothing);
+    await tester.tap(find.byTooltip('Next Request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request 2 of 2'), findsOneWidget);
+    expect(find.text('Deploy target'), findsOneWidget);
+  });
+
+  testWidgets('a long press on Send steers where the agent allows it', (
+    tester,
+  ) async {
+    final client = await _pumpChat(
+      tester,
+      agentChatSnapshot(
+        turns: <Map<String, Object?>>[
+          agentChatTurn('turn-1', status: 'running', completedAt: null),
+        ],
+        items: <Map<String, Object?>>[
+          agentChatItem('prompt', type: 'user_message', text: 'Build it'),
+        ],
+        session: agentChatSession(
+          status: 'running',
+          activeTurnId: 'turn-1',
+          steer: true,
+        ),
+      ),
+    );
+    client.handlers['agentChat.send'] = (_) => <String, Object?>{
+      'delivery': 'steered',
+    };
+    await tester.enterText(find.byType(TextField), 'Use the other file');
+    await tester.pump();
+    await tester.longPress(find.byIcon(AleraIcons.queuedMessage));
+    await tester.pump();
+    expect(client.payloadsOf('agentChat.send').single['delivery'], 'steer');
+  });
+
+  testWidgets('folds the person opened survive leaving the tab', (
+    tester,
+  ) async {
+    final client = FakeAgentChatClient();
+    client.handlers['agentChat.snapshot'] = (_) => agentChatSnapshot(
+      turns: <Map<String, Object?>>[agentChatTurn('turn-1')],
+      items: <Map<String, Object?>>[
+        agentChatItem('prompt', type: 'user_message', text: 'Fix the build'),
+        agentChatItem(
+          'command',
+          type: 'command_execution',
+          normalized: <String, Object?>{'command': 'npm test', 'exitCode': 0},
+        ),
+        agentChatItem(
+          'second',
+          type: 'command_execution',
+          normalized: <String, Object?>{
+            'command': 'npm run lint',
+            'exitCode': 0,
+          },
+        ),
+        agentChatItem('answer', text: 'Done.'),
+      ],
+    );
+    final workspace = FakeTerminalClient();
+    addTearDown(workspace.dispose);
+    var shown = true;
+    late StateSetter toggle;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          mobileAgentChatClientProvider('host')
+              .overrideWith((ref) async => client),
+          workspaceClientProvider('host')
+              .overrideWith((ref) async => workspace),
+          mobileAiDictationSettingsControllerProvider.overrideWith(
+            FakeMobileAiDictationSettingsController.new,
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                toggle = setState;
+                return shown
+                    ? const AgentChatTabView(
+                        hostId: 'host',
+                        workspaceId: 'workspace-1',
+                        chatId: 'chat-1',
+                        provider: 'codex',
+                      )
+                    : const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Worked for 4s'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ran 2 commands'), findsOneWidget);
+
+    toggle(() => shown = false);
+    await tester.pumpAndSettle();
+    toggle(() => shown = true);
+    await tester.pumpAndSettle();
+    expect(find.text('Ran 2 commands'), findsOneWidget);
   });
 
   testWidgets('an older runtime explains that it needs an update', (

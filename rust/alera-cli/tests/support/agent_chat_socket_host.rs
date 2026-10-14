@@ -177,6 +177,41 @@ impl Host {
             .collect()
     }
 
+    pub fn assert_no_chat_credentials(&self) {
+        assert_eq!(
+            fs::read_dir(self.root().join("agent-chat-mcp"))
+                .unwrap()
+                .count(),
+            0,
+            "an idle draft or reopened chat minted a launch credential"
+        );
+    }
+
+    pub fn assert_no_provider_start(&self) {
+        for row in self.log() {
+            assert_eq!(
+                row["event"], "metadata_probe",
+                "unexpected SDK activity: {row}"
+            );
+            let args = &row["args"];
+            assert!(args == &json!(["--version"]) || args == &json!(["debug", "models"]));
+            assert!(row["credentialPath"].is_null());
+        }
+        for method in [
+            "initialize",
+            "initialized",
+            "thread/start",
+            "thread/resume",
+            "turn/start",
+        ] {
+            assert!(
+                self.inputs(method).is_empty(),
+                "native {method} ran before the first send"
+            );
+        }
+        self.assert_no_chat_credentials();
+    }
+
     pub fn wait_for_exit(&self, pid: i64) {
         let deadline = Instant::now() + TIMEOUT;
         while unsafe { libc::kill(pid as libc::pid_t, 0) } == 0 {
