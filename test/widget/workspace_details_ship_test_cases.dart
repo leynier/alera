@@ -30,7 +30,12 @@ class _ShipReviews extends _Reviews {
     required PullRequestShipScope scope,
   }) async {
     shipped.add((base: baseBranch, draft: draft, scope: scope));
-    return const CreateReviewFailure(code: .blocked, message: 'Recorded');
+    return const CreateReviewFailure(
+      code: .pushFailed,
+      message:
+          'The changes were committed, but Ship could not finish: '
+          'push rejected',
+    );
   }
 }
 
@@ -118,6 +123,9 @@ void _registerWorkspaceDetailsShipTests() {
   ) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    final toasts = <AleraToastData>[];
+    final subscription = AleraToast.stream.listen(toasts.add);
+    addTearDown(subscription.cancel);
     final pumped = await _pumpShip(
       tester,
       settings: AleraSettings.defaults.copyWith(
@@ -138,5 +146,28 @@ void _registerWorkspaceDetailsShipTests() {
       pumped.settings.state.general.pullRequestShipFollowUp,
       PullRequestShipFollowUp.none,
     );
+    // Ship reports its failure as a result; the menu path still says why.
+    expect(toasts, hasLength(1));
+    expect(
+      toasts.single.message,
+      'The changes were committed, but Ship could not finish: push rejected',
+    );
+    expect(toasts.single.tone, AleraToastTone.error);
+  });
+
+  testWidgets('canceling the Ship scope stays silent', (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final toasts = <AleraToastData>[];
+    final subscription = AleraToast.stream.listen(toasts.add);
+    addTearDown(subscription.cancel);
+    final pumped = await _pumpShip(tester);
+    await tester.tap(find.text('Ship Changes'));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Ship All Changes'), findsNothing);
+    expect(pumped.reviews.shipped, isEmpty);
+    expect(toasts, isEmpty);
   });
 }

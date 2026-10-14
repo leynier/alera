@@ -92,18 +92,25 @@ extension on _WorkspaceDetailsOverlayState {
                 .pullRequestCreateAction ==
             PullRequestCreateAction.draft &&
         !followUp.merges;
+    CreateReviewResult? result;
     await shipPullRequestWithFollowUp(
       context: context,
       ref: ref,
       controller: controller,
       followUp: followUp,
       watchScope: watchScope,
-      ship: () => controller.ship(
+      ship: () async => result = await controller.ship(
         baseBranch: base,
         draft: draft,
         settings: settings.aiAssist,
         scope: shipScope,
       ),
     );
+    // Ship reports failures as a result, and with no pull request yet the
+    // card has no review row to show them, so say why here. Published
+    // globally because the card can unmount while shipping.
+    if (result case CreateReviewFailure(:final message)) {
+      AleraToast.publish(message: message, tone: .error);
+    }
   }
 }
