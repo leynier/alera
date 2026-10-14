@@ -35,6 +35,13 @@ class HomeComposerPrefsMapper extends ClassMapperBase<HomeComposerPrefs> {
     _$profileId,
     opt: true,
   );
+  static String _$prompt(HomeComposerPrefs v) => v.prompt;
+  static const Field<HomeComposerPrefs, String> _f$prompt = Field(
+    'prompt',
+    _$prompt,
+    opt: true,
+    def: '',
+  );
   static Map<String, HomeComposerProjectPrefs> _$projects(
     HomeComposerPrefs v,
   ) => v.projects;
@@ -50,6 +57,7 @@ class HomeComposerPrefsMapper extends ClassMapperBase<HomeComposerPrefs> {
   final MappableFields<HomeComposerPrefs> fields = const {
     #projectId: _f$projectId,
     #profileId: _f$profileId,
+    #prompt: _f$prompt,
     #projects: _f$projects,
   };
 
@@ -57,6 +65,7 @@ class HomeComposerPrefsMapper extends ClassMapperBase<HomeComposerPrefs> {
     return HomeComposerPrefs(
       projectId: data.dec(_f$projectId),
       profileId: data.dec(_f$profileId),
+      prompt: data.dec(_f$prompt),
       projects: data.dec(_f$projects),
     );
   }
@@ -146,6 +155,7 @@ abstract class HomeComposerPrefsCopyWith<
   $R call({
     String? projectId,
     String? profileId,
+    String? prompt,
     Map<String, HomeComposerProjectPrefs>? projects,
   });
   HomeComposerPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -181,11 +191,13 @@ class _HomeComposerPrefsCopyWithImpl<$R, $Out>
   $R call({
     Object? projectId = $none,
     Object? profileId = $none,
+    String? prompt,
     Map<String, HomeComposerProjectPrefs>? projects,
   }) => $apply(
     FieldCopyWithData({
       if (projectId != $none) #projectId: projectId,
       if (profileId != $none) #profileId: profileId,
+      if (prompt != null) #prompt: prompt,
       if (projects != null) #projects: projects,
     }),
   );
@@ -193,6 +205,7 @@ class _HomeComposerPrefsCopyWithImpl<$R, $Out>
   HomeComposerPrefs $make(CopyWithData data) => HomeComposerPrefs(
     projectId: data.get(#projectId, or: $value.projectId),
     profileId: data.get(#profileId, or: $value.profileId),
+    prompt: data.get(#prompt, or: $value.prompt),
     projects: data.get(#projects, or: $value.projects),
   );
 

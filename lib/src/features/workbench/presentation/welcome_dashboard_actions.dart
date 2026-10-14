@@ -62,6 +62,26 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     }
   }
 
+  /// Saves the draft once typing pauses, so each keystroke does not rewrite
+  /// the view prefs.
+  void _onPromptChanged() {
+    if (_promptController.text == _savedPrompt) {
+      _promptSave?.cancel();
+      return;
+    }
+    _promptSave?.cancel();
+    _promptSave = Timer(const Duration(milliseconds: 500), _savePrompt);
+  }
+
+  void _savePrompt() {
+    final prompt = _promptController.text;
+    if (prompt == _savedPrompt) {
+      return;
+    }
+    _savedPrompt = prompt;
+    _workbench.setHomeComposerPrompt(prompt);
+  }
+
   /// Records the current choices so the next Home visit, or the next launch,
   /// starts from them.
   void _saveSelection() {
@@ -462,6 +482,8 @@ extension _WelcomeDashboardActions on _WelcomeDashboardState {
     }
     done.ignore();
     _promptController.clear();
+    _promptSave?.cancel();
+    _savePrompt();
     _update(() => _error = null);
   }
 }

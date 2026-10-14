@@ -1,17 +1,18 @@
 part of 'workspace_details_overlay_test.dart';
 
-Workspace _related(String id, String name, {String? parent}) => Workspace(
-  id: id,
-  projectId: 'p',
-  name: name,
-  path: '/repo-$id',
-  branch: 'feature/$id',
-  createdAt: DateTime.utc(2026),
-  updatedAt: DateTime.utc(2026),
-  kind: WorkspaceKind.linked,
-  status: WorkspaceStatus.active,
-  parentWorkspaceId: parent,
-);
+Workspace _related(String id, String name, {String? parent, String? branch}) =>
+    Workspace(
+      id: id,
+      projectId: 'p',
+      name: name,
+      path: '/repo-$id',
+      branch: branch ?? 'feature/$id',
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+      kind: WorkspaceKind.linked,
+      status: WorkspaceStatus.active,
+      parentWorkspaceId: parent,
+    );
 
 WorkbenchState _relatedState(List<Workspace> others, {String? parent}) =>
     WorkbenchState(
@@ -94,6 +95,38 @@ void _registerWorkspaceDetailsRelatedTests() {
       lessThan(tester.getTopLeft(find.text('Beta')).dy),
     );
     expect(find.text('Old'), findsNothing);
+  });
+
+  testWidgets('long child names and branches stay on one line', (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const branch = 'feat/sprint-84/211914-portal-authentication-stack-layer';
+    await pumpOverlay(
+      tester,
+      const Size(1000, 800),
+      workbench: _relatedState([
+        _related(
+          'a',
+          'Portal Authentication Stack Layer',
+          parent: 'w',
+          branch: branch,
+        ),
+        _related('b', 'Beta', parent: 'w'),
+      ]),
+    );
+    await tester.tap(find.text('2 Child Workspaces'));
+    await tester.pumpAndSettle();
+    final name = tester.getSize(find.text('Portal Authentication Stack Layer'));
+    final detail = tester.getSize(find.text(branch));
+    expect(name.height, lessThan(24));
+    expect(detail.height, lessThan(24));
+    expect(name.width, greaterThan(100));
+    expect(
+      tester.getTopLeft(find.text(branch)).dy,
+      greaterThan(
+        tester.getTopLeft(find.text('Portal Authentication Stack Layer')).dy,
+      ),
+    );
   });
 
   testWidgets('an unrelated workspace has no related row', (tester) async {

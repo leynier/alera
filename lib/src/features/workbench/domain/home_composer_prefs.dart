@@ -8,10 +8,14 @@ part 'home_composer_prefs.mapper.dart';
 class const HomeComposerPrefs({
   this.projectId,
   this.profileId,
+  this.prompt = '',
   this.projects = const <String, HomeComposerProjectPrefs>{},
 }) with HomeComposerPrefsMappable {
   final String? projectId;
   final String? profileId;
+
+  /// Unsent prompt text, cleared once the prompt is sent.
+  final String prompt;
 
   /// Host, parent, and location are remembered per project because each
   /// project has its own hosts and branches.

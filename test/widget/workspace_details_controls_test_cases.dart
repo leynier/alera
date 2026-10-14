@@ -97,6 +97,7 @@ void _registerWorkspaceDetailsControlTests() {
     await tester.tap(open);
     await tester.pumpAndSettle();
     expect(top('Copy Path'), greaterThan(openBottom));
+    expect(top('Open In Browser'), lessThan(top('Copy Path')));
   });
 
   testWidgets('Changes opens Source Control in the side panel', (tester) async {
