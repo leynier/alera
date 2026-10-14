@@ -50,25 +50,38 @@ class _SecretDialogState extends State<_SecretDialog> {
           crossAxisAlignment: .stretch,
           spacing: AleraTokens.space12,
           children: <Widget>[
-            Text(
-              widget.replacing ? 'Replace Secret' : 'Set Secret',
-              style: theme.textTheme.titleMedium,
-            ),
-            Text(
-              'Saved on the host only. Alera never shows it again.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AleraTokens.foregroundMuted,
+            // The keyboard leaves little height on a short phone; the field
+            // scrolls into view while Cancel and Save stay reachable.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .stretch,
+                  spacing: AleraTokens.space12,
+                  children: <Widget>[
+                    Text(
+                      widget.replacing ? 'Replace Secret' : 'Set Secret',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Saved on the host only. Alera never shows it again.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                    AleraTextField(
+                      controller: _value,
+                      labelText: widget.name,
+                      autofocus: true,
+                      obscureText: true,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) => _save(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            AleraTextField(
-              controller: _value,
-              labelText: widget.name,
-              autofocus: true,
-              obscureText: true,
-              enableSuggestions: false,
-              autocorrect: false,
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => _save(),
             ),
             Row(
               children: <Widget>[

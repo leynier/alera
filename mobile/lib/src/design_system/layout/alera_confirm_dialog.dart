@@ -33,12 +33,23 @@ class const AleraConfirmDialog({
           mainAxisSize: .min,
           crossAxisAlignment: .start,
           children: <Widget>[
-            Text(title, style: theme.textTheme.titleMedium),
-            const SizedBox(height: AleraTokens.space12),
-            Text(
-              message,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AleraTokens.foregroundMuted,
+            // Long copy at large text sizes scrolls; the decision stays put.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .start,
+                  children: <Widget>[
+                    Text(title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AleraTokens.space12),
+                    Text(
+                      message,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: AleraTokens.space20),

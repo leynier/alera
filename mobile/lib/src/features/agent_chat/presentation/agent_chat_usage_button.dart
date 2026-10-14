@@ -38,37 +38,43 @@ class const AgentChatUsageButton({
   Future<void> _show(BuildContext context) => showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     builder: (context) {
       final localizations = MaterialLocalizations.of(context);
       final used = usage.contextTokens;
       final window = usage.contextWindow;
       final fraction = usage.contextFraction;
       return SafeArea(
-        child: Padding(
-          padding: AleraTokens.pagePadding,
-          child: Column(
-            mainAxisSize: .min,
-            crossAxisAlignment: .stretch,
-            spacing: AleraTokens.space8,
-            children: <Widget>[
-              if (fraction != null && used != null && window != null)
-                AleraKeyValueRow(
-                  label: 'Context Window',
-                  value:
-                      '${(fraction * 100).round()}% used, '
-                      '${localizations.formatDecimal(used)} of '
-                      '${localizations.formatDecimal(window)} tokens',
-                ),
-              for (final limit in usage.windows)
-                AleraKeyValueRow(
-                  label: limit.label,
-                  value: limit.resetsAt == null
-                      ? '${limit.usedPercent.round()}% used'
-                      : '${limit.usedPercent.round()}% used, resets '
-                            '${localizations.formatShortMonthDay(limit.resetsAt!.toLocal())} '
-                            '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(limit.resetsAt!.toLocal()))}',
-                ),
-            ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+          ),
+          child: SingleChildScrollView(
+            padding: AleraTokens.pagePadding,
+            child: Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .stretch,
+              spacing: AleraTokens.space8,
+              children: <Widget>[
+                if (fraction != null && used != null && window != null)
+                  AleraKeyValueRow(
+                    label: 'Context Window',
+                    value:
+                        '${(fraction * 100).round()}% used, '
+                        '${localizations.formatDecimal(used)} of '
+                        '${localizations.formatDecimal(window)} tokens',
+                  ),
+                for (final limit in usage.windows)
+                  AleraKeyValueRow(
+                    label: limit.label,
+                    value: limit.resetsAt == null
+                        ? '${limit.usedPercent.round()}% used'
+                        : '${limit.usedPercent.round()}% used, resets '
+                              '${localizations.formatShortMonthDay(limit.resetsAt!.toLocal())} '
+                              '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(limit.resetsAt!.toLocal()))}',
+                  ),
+              ],
+            ),
           ),
         ),
       );

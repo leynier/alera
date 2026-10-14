@@ -20,27 +20,32 @@ Future<AgentChatRewindKind?> showAgentChatRewindSheet(
       : await showModalBottomSheet<AgentChatRewindKind>(
           context: context,
           showDragHandle: true,
+          isScrollControlled: true,
           builder: (context) => SafeArea(
-            child: Column(
-              mainAxisSize: .min,
-              crossAxisAlignment: .stretch,
-              children: <Widget>[
-                const AleraSectionHeader(label: 'Rewind'),
-                for (final kind in kinds)
-                  ListTile(
-                    key: ValueKey<String>('agent-chat-rewind-${kind.name}'),
-                    leading: Icon(
-                      kind == AgentChatRewindKind.files
-                          ? AleraIcons.files
-                          : AleraIcons.restore,
-                      size: AleraTokens.iconMd,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  const AleraSectionHeader(label: 'Rewind'),
+                  for (final kind in kinds)
+                    ListTile(
+                      key: ValueKey<String>('agent-chat-rewind-${kind.name}'),
+                      leading: Icon(
+                        kind == AgentChatRewindKind.files
+                            ? AleraIcons.files
+                            : AleraIcons.restore,
+                        size: AleraTokens.iconMd,
+                      ),
+                      title: Text(agentChatRewindLabel(kind)),
+                      subtitle: Text(agentChatRewindDescription(kind)),
+                      onTap: () => Navigator.of(context).pop(kind),
                     ),
-                    title: Text(agentChatRewindLabel(kind)),
-                    subtitle: Text(agentChatRewindDescription(kind)),
-                    onTap: () => Navigator.of(context).pop(kind),
-                  ),
-                const SizedBox(height: AleraTokens.space8),
-              ],
+                  const SizedBox(height: AleraTokens.space8),
+                ],
+              ),
             ),
           ),
         );

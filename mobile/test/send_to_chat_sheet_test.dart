@@ -1,12 +1,15 @@
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_chat_actions.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_chat_task_transport.dart';
+import 'support/phone_modal_harness.dart';
 
 const ValueKey<String> _submit = ValueKey<String>('sendToChatSubmit');
 
@@ -41,6 +44,10 @@ Future<FakeChatTaskTransport> _openSheet(
         mobileChatTaskRepositoryProvider('host').overrideWith(
           (ref) async => RuntimeAgentChatOrchestrationRepository(transport),
         ),
+        agentChatRepositoryProvider('host')
+            .overrideWith((ref) async => RuntimeAgentChatRepository(transport)),
+        mobileChatTaskPlacesProvider('host')
+            .overrideWith((ref) async => const MobileChatTaskPlaces()),
         mobileChatTaskIdGeneratorProvider.overrideWithValue(
           () => 'id-${ids++}',
         ),
@@ -77,6 +84,7 @@ double _visibleBottom(WidgetTester tester) =>
     tester.view.physicalSize.height - tester.view.viewInsets.bottom;
 
 void main() {
+  setUpAll(loadShippedInter);
   testWidgets('Send clears the home indicator', (tester) async {
     await _openSheet(tester, homeIndicator: 34);
 
@@ -87,16 +95,14 @@ void main() {
     );
   });
 
-  testWidgets('a short phone at 200% text scrolls to Send over the keys', (
+  testWidgets('a short phone at 200% text sends and offers View Task', (
     tester,
   ) async {
-    // 360dp wide: at 320dp the Message Sent SnackBar's View Task action
-    // overflows on its own, which is not this sheet's layout.
     final transport = await _openSheet(
       tester,
-      size: const Size(360, 592),
+      size: const Size(320, 568),
       textScale: 2,
-      keyboard: 280,
+      keyboard: 260,
     );
     expect(tester.takeException(), isNull);
 
@@ -134,5 +140,44 @@ void main() {
     expect(sent['expectReply'], isTrue);
     expect(find.byKey(_submit), findsNothing);
     expect(find.text('Message sent.'), findsOneWidget);
+
+    // The action stays until it is used, and only it opens the task.
+    final viewTask = find.text('View Task');
+    await tester.pump(const Duration(seconds: 10));
+    expect(viewTask, findsOneWidget);
+    expect(find.byType(ChatTaskDetailScreen), findsNothing);
+    expect(tester.getRect(viewTask).right, lessThanOrEqualTo(320));
+    await tester.tap(viewTask);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ChatTaskDetailScreen), findsOneWidget);
+    expect(find.text('Message sent.'), findsNothing);
+  });
+
+  testWidgets('without Expect A Reply the SnackBar has no View Task', (
+    tester,
+  ) async {
+    final transport = await _openSheet(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('sendToChatTarget')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review chat · feature-oauth').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('sendToChatMessage')),
+        matching: find.byType(TextField),
+      ),
+      'FYI',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('sendToChatExpectReply')),
+    );
+    await tester.tap(find.byKey(_submit));
+    await tester.pumpAndSettle();
+
+    final sent = transport.sent(AgentChatOrchestrationWire.send).single;
+    expect(sent['expectReply'], isFalse);
+    expect(find.text('Message sent.'), findsOneWidget);
+    expect(find.text('View Task'), findsNothing);
   });
 }
