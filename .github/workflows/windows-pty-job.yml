@@ -77,7 +77,7 @@ jobs:
             $env:ALERA_WINDOWS_CLAUDE_SCRIPT_PATH = Join-Path $specialPath 'alera-runtime-agent-hook.ps1'
             cargo test --manifest-path rust/Cargo.toml --locked -p alera-cli --bin alera export_windows_claude_hook_fixture -- --ignored
             if ($LASTEXITCODE -ne 0) { throw 'Rust hook fixture generation failed.' }
-            & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tool/ci/test_windows_claude_hooks.ps1 -FixturePath $env:ALERA_WINDOWS_CLAUDE_FIXTURE_PATH
+            & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tool/ci/test_windows_claude_hooks.ps1 -FixturePath $env:ALERA_WINDOWS_CLAUDE_FIXTURE_PATH -Verbose
             if ($LASTEXITCODE -ne 0) { throw 'Rust hook acceptance failed.' }
           } finally {
             Remove-Item Env:ALERA_WINDOWS_CLAUDE_FIXTURE_PATH -ErrorAction SilentlyContinue

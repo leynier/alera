@@ -138,6 +138,65 @@ function Stop-FixtureProcess([Diagnostics.Process]$Process, [bool]$PipesOpen) {
     }
 }
 
+function Write-HookFailureDiagnostics([Diagnostics.ProcessStartInfo]$Info, [string]$Payload, [Net.Sockets.TcpListener]$Listener) {
+    # Replay a separate copy only after acceptance failed. Never turn it into a pass.
+    $diagnosticPath = $scriptPath + '.diagnostic.ps1'
+    $diagnosticCommand = [string]$fixture.command
+    $diagnosticCommand = $diagnosticCommand.Replace([IO.Path]::GetFileName($scriptPath), [IO.Path]::GetFileName($diagnosticPath))
+    $preamble = @'
+[Console]::Error.WriteLine('Diagnostic PowerShell: ' + $PSVersionTable.PSVersion)
+[Console]::Error.WriteLine('Diagnostic PSHOME: ' + $PSHOME)
+[Console]::Error.WriteLine('Diagnostic PSModulePath: ' + $env:PSModulePath)
+[Console]::Error.WriteLine('Diagnostic WinPSModulePath: ' + $env:WinPSModulePath)
+[Console]::Error.WriteLine('Diagnostic BASH_ENV present: ' + (-not [string]::IsNullOrEmpty($env:BASH_ENV)))
+[Console]::Error.WriteLine('Diagnostic endpoint exists: ' + [IO.File]::Exists($env:ALERA_AGENT_HOOK_ENDPOINT))
+[Console]::Error.WriteLine('Diagnostic Claude guard: ' + (-not [string]::IsNullOrEmpty($env:CLAUDECODE)))
+[Console]::Error.WriteLine('Diagnostic Grok guard: ' + (-not [string]::IsNullOrEmpty($env:GROK_HOOK_EVENT)))
+'@
+    $content = [string]$fixture.scriptContent
+    $lineEnd = $content.IndexOf("`n") + 1
+    $content = $content.Insert($lineEnd, $preamble + "`n")
+    $content = $content.Replace('} catch {}', '} catch { [Console]::Error.WriteLine($_.Exception.ToString()); [Console]::Error.WriteLine($_.ScriptStackTrace) }')
+    [IO.File]::WriteAllText($diagnosticPath, $content, $utf8)
+    $originalCommand = $Info.EnvironmentVariables['ALERA_ACCEPTANCE_COMMAND']
+    $process = New-Object Diagnostics.Process
+    $stdout = $null
+    $stderr = $null
+    try {
+        Write-Host ('Failed hook diagnostics through ' + $bash)
+        $Info.EnvironmentVariables['ALERA_ACCEPTANCE_COMMAND'] = $diagnosticCommand
+        $process.StartInfo = $Info
+        [void]$process.Start()
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        $bytes = $utf8.GetBytes($Payload)
+        $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+        $process.StandardInput.Close()
+        $elapsed = [Diagnostics.Stopwatch]::StartNew()
+        while (-not $process.HasExited -and $elapsed.Elapsed.TotalSeconds -lt 15) {
+            if ($Listener.Pending()) {
+                $client = $Listener.AcceptTcpClient()
+                try { Read-HookRequest $client $elapsed | Out-Null } finally { $client.Dispose() }
+            } else {
+                [Threading.Thread]::Sleep(10)
+            }
+        }
+        if (-not $process.HasExited) { Stop-FixtureProcess $process $true }
+        if ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdout, $stderr), 5000)) {
+            Write-Host $stdout.Result
+            Write-Host $stderr.Result
+        }
+    } catch {
+        Write-Warning ('Hook diagnostics failed: ' + $_.Exception.Message)
+    } finally {
+        $pipesOpen = ($stdout -and -not $stdout.IsCompleted) -or ($stderr -and -not $stderr.IsCompleted)
+        Stop-FixtureProcess $process $pipesOpen
+        $process.Dispose()
+        $Info.EnvironmentVariables['ALERA_ACCEPTANCE_COMMAND'] = $originalCommand
+        [IO.File]::Delete($diagnosticPath)
+    }
+}
+
 function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bool]$ExpectRequest) {
     Write-Verbose "Preparing $Mode / $CaseName."
     $listener = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 0)
@@ -236,7 +295,10 @@ function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bo
         if ($process.ExitCode -ne 0) { throw "Generated hook exited with $($process.ExitCode): $($stderr.Result)" }
         if ($stdout.Result.Length -ne 0 -or $stderr.Result.Length -ne 0) { throw "Generated hook was not silent: $($stdout.Result) $($stderr.Result)" }
         if ($ExpectRequest) {
-            if ($null -eq $request) { throw 'Generated hook did not reach the fixture receiver.' }
+            if ($null -eq $request) {
+                Write-HookFailureDiagnostics $info $Payload $listener
+                throw "Generated hook did not reach the fixture receiver: $Mode / $CaseName."
+            }
             foreach ($entry in $expectedFields.GetEnumerator()) {
                 if ([string]$request.($entry.Key) -cne [string]$entry.Value) { throw "Hook field $($entry.Key) did not match the fixture." }
             }
