@@ -2,8 +2,12 @@ use std::path::PathBuf;
 
 use super::integration_config::home_dir;
 
-// One script backs every managed hook command the runtime installs, for every
-// agent, parameterized by `ALERA_AGENT_TYPE` and `ALERA_AGENT_HOOK_EVENT`.
+#[cfg(any(windows, test))]
+#[path = "integration_hook_claude_windows.rs"]
+pub(super) mod claude_windows;
+
+// Claude on Windows uses its own PowerShell script; the remaining hooks share
+// this script, parameterized by `ALERA_AGENT_TYPE` and `ALERA_AGENT_HOOK_EVENT`.
 pub(super) fn write_managed_script() -> anyhow::Result<PathBuf> {
     let directory = home_dir()?.join(".alera/agent-hooks");
     std::fs::create_dir_all(&directory)?;

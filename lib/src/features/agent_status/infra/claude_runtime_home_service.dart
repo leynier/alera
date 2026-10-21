@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 
 part 'claude_runtime_resources.dart';
 part 'claude_runtime_hooks.dart';
+part 'claude_runtime_windows_script.dart';
 
 typedef ClaudeApplicationSupportDirectoryResolver =
     Future<Directory> Function();

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use super::user_hooks::cleanup_managed_hooks_file;
+use super::user_hooks::cleanup_claude_hooks_file;
 
 /// Strips Alera-managed Claude hooks from the CCS account instances.
 ///
@@ -30,7 +30,7 @@ pub(super) fn remove_ccs_claude_hooks(
         if !path.exists() {
             continue;
         }
-        if let Err(error) = cleanup_managed_hooks_file(&path) {
+        if let Err(error) = cleanup_claude_hooks_file(&path) {
             errors.push(format!("{}: {error}", path.display()));
         }
     }

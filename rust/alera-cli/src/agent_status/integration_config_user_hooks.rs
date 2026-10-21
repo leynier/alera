@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
+use super::claude::clean_claude_definitions;
 use super::{
     clean_managed_definitions, install_claude_hooks_into, object_field, write_json_object,
 };
@@ -35,7 +36,7 @@ pub(super) fn install_claude_user_hooks(home: &Path, script: &Path) -> anyhow::R
 pub(super) fn cleanup_claude_user_hooks(home: &Path) -> anyhow::Result<()> {
     let mut errors = Vec::new();
     for path in claude_settings_cleanup_paths(home) {
-        if let Err(error) = cleanup_managed_hooks_file(&path) {
+        if let Err(error) = cleanup_claude_hooks_file(&path) {
             errors.push(format!("{}: {error}", path.display()));
         }
     }
@@ -67,9 +68,16 @@ pub(super) fn read_jsonc_object(path: &Path) -> anyhow::Result<Option<Map<String
     Ok(parsed.as_object().cloned())
 }
 
-/// Strips Alera-managed hook definitions from a Claude- or Cursor-shaped JSON
-/// file. User entries stay. Missing files are a no-op.
+/// Strips managed definitions from other agents' hook files.
 pub(super) fn cleanup_managed_hooks_file(path: &Path) -> anyhow::Result<()> {
+    cleanup_hooks_file(path, clean_managed_definitions)
+}
+
+pub(super) fn cleanup_claude_hooks_file(path: &Path) -> anyhow::Result<()> {
+    cleanup_hooks_file(path, clean_claude_definitions)
+}
+
+fn cleanup_hooks_file(path: &Path, clean: fn(Option<Value>) -> Vec<Value>) -> anyhow::Result<()> {
     let contents = match std::fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -90,8 +98,8 @@ pub(super) fn cleanup_managed_hooks_file(path: &Path) -> anyhow::Result<()> {
                 continue;
             };
             let had = definitions.len();
-            let cleaned = clean_managed_definitions(Some(value));
-            if cleaned.len() != had {
+            let cleaned = clean(Some(value.clone()));
+            if cleaned != *definitions {
                 changed = true;
             }
             if !cleaned.is_empty() || had == 0 {

@@ -12,6 +12,8 @@ use super::integration_plugins::{
 
 #[path = "integration_config_ccs.rs"]
 mod ccs;
+#[path = "integration_config_claude.rs"]
+mod claude;
 #[path = "integration_config_codex.rs"]
 mod codex;
 #[path = "integration_config_codex_trust.rs"]
@@ -22,6 +24,9 @@ mod cursor;
 mod json;
 #[path = "integration_config_user_hooks.rs"]
 mod user_hooks;
+use claude::install_claude_hooks_into;
+#[cfg(test)]
+use claude::CLAUDE_HOOK_EVENTS;
 use json::{
     cleanup_agy, cleanup_dedicated_hooks_file, copilot_hooks_path, grok_hooks_path, install_agy,
     install_copilot, install_grok,
@@ -238,6 +243,10 @@ fn install_claude(
     script: &Path,
     environment: &BTreeMap<String, String>,
 ) -> anyhow::Result<()> {
+    #[cfg(windows)]
+    let script = super::integration_hook_scripts::claude_windows::write_script(script)?;
+    #[cfg(windows)]
+    let script = script.as_path();
     user_hooks::install_claude_user_hooks(home, script)?;
     ccs::remove_ccs_claude_hooks(home, environment)
 }
@@ -271,43 +280,6 @@ fn clear_legacy_runtime_state(runtime_dir: &Path) -> anyhow::Result<()> {
         Ok(())
     } else {
         Err(anyhow::anyhow!(errors.join("; ")))
-    }
-}
-
-// `Stop` never fires for an interrupted turn or an API error, so the turn can
-// only be closed from `PostToolUseFailure.is_interrupt`, `StopFailure` and the
-// `idle_prompt` notification. `SessionStart`/`SessionEnd` bracket each
-// conversation so a resumed, cleared or exited agent does not keep its state.
-// `SubagentStart`/`SubagentStop` track background sub-agents that keep working
-// after the main turn's `Stop`.
-pub(super) const CLAUDE_HOOK_EVENTS: &[(&str, Option<&str>)] = &[
-    ("SessionStart", None),
-    ("SessionEnd", None),
-    ("UserPromptSubmit", None),
-    ("Stop", None),
-    ("StopFailure", None),
-    ("Notification", None),
-    ("SubagentStart", None),
-    ("SubagentStop", None),
-    ("PreToolUse", Some("*")),
-    ("PostToolUse", Some("*")),
-    ("PostToolUseFailure", Some("*")),
-    ("PermissionRequest", Some("*")),
-];
-
-pub(super) fn install_claude_hooks_into(settings: &mut Map<String, Value>, script: &Path) {
-    let hooks = object_field(settings, "hooks");
-    for (event, matcher) in CLAUDE_HOOK_EVENTS {
-        let command = managed_command(script, "claude", event);
-        let mut definitions = clean_managed_definitions(hooks.remove(*event));
-        let mut definition = managed_hook_definition(*matcher, &command);
-        // Claude gives `SessionEnd` hooks 1.5 s unless they ask for more, and
-        // the Windows hook starts PowerShell first.
-        if *event == "SessionEnd" {
-            definition["hooks"][0]["timeout"] = json!(5);
-        }
-        definitions.push(definition);
-        hooks.insert((*event).to_string(), Value::Array(definitions));
     }
 }
 
@@ -354,11 +326,14 @@ pub(super) fn clean_managed_definitions(value: Option<Value>) -> Vec<Value> {
 }
 
 pub(super) fn is_alera_managed_definition(definition: &Value) -> bool {
-    let encoded = definition.to_string();
-    encoded.contains(MANAGED_MARKER)
+    is_alera_managed_command(&definition.to_string())
+}
+
+pub(super) fn is_alera_managed_command(command: &str) -> bool {
+    command.contains(MANAGED_MARKER)
         || LEGACY_MANAGED_MARKERS
             .iter()
-            .any(|marker| encoded.contains(marker))
+            .any(|marker| command.contains(marker))
 }
 
 pub(super) fn object_field<'a>(
