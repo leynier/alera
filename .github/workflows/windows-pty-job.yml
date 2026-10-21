@@ -7,8 +7,12 @@ on:
     paths:
       - rust/alera-cli/Cargo.toml
       - rust/alera-cli/src/pty_job_bootstrap.rs
+      - rust/alera-cli/src/agent_status/**
       - rust/alera-cli/src/terminal_host/session/**
       - rust/Cargo.lock
+      - lib/src/features/agent_status/infra/claude_runtime_*.dart
+      - test/unit/claude_runtime_home_service*.dart
+      - tool/ci/test_windows_claude_hooks.ps1
       - .github/workflows/windows-pty-job.yml
   workflow_dispatch:
 
@@ -47,8 +51,6 @@ jobs:
         uses: ./.github/actions/setup-flutter-workspace
         with:
           linux-toolchain: 'false'
-          native-assets: 'false'
-          preflight: 'false'
           rust: 'true'
 
       - name: Wait for Windows build environment
@@ -63,6 +65,32 @@ jobs:
           terminal_host::session::windows_process_job::tests
           --
           --nocapture
+
+      - name: Test Windows Claude runtime hooks through Git Bash
+        shell: pwsh
+        run: |
+          $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('alera-claude-ci-' + [Guid]::NewGuid().ToString('N'))
+          [void][IO.Directory]::CreateDirectory($fixtureRoot)
+          try {
+            $env:ALERA_WINDOWS_CLAUDE_FIXTURE_PATH = Join-Path $fixtureRoot 'rust-hook.json'
+            $specialPath = Join-Path $fixtureRoot 'Space (x)&O''Brien$`%PATH%!'
+            $env:ALERA_WINDOWS_CLAUDE_SCRIPT_PATH = Join-Path $specialPath 'alera-runtime-agent-hook.ps1'
+            cargo test --manifest-path rust/Cargo.toml --locked -p alera-cli --bin alera export_windows_claude_hook_fixture -- --ignored
+            if ($LASTEXITCODE -ne 0) { throw 'Rust hook fixture generation failed.' }
+            & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tool/ci/test_windows_claude_hooks.ps1 -FixturePath $env:ALERA_WINDOWS_CLAUDE_FIXTURE_PATH
+            if ($LASTEXITCODE -ne 0) { throw 'Rust hook acceptance failed.' }
+          } finally {
+            Remove-Item Env:ALERA_WINDOWS_CLAUDE_FIXTURE_PATH -ErrorAction SilentlyContinue
+            Remove-Item Env:ALERA_WINDOWS_CLAUDE_SCRIPT_PATH -ErrorAction SilentlyContinue
+            [IO.Directory]::Delete($fixtureRoot, $true)
+          }
+
+      - name: Test Windows Claude desktop hooks through Git Bash
+        run: >-
+          flutter test --no-pub
+          test/unit/claude_runtime_home_service_test.dart
+          test/unit/claude_runtime_home_service_windows_test.dart
+          test/unit/claude_runtime_home_service_windows_acceptance_test.dart
 
       - name: Report sccache statistics
         if: always()

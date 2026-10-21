@@ -218,7 +218,7 @@ void main() {
       expect(status.detail, contains('Managed hook missing for events: Stop.'));
     });
 
-    test('uses cmd runtime hooks on Windows', () async {
+    test('uses PowerShell script runtime hooks on Windows', () async {
       final windowsService = ClaudeRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
@@ -232,10 +232,10 @@ void main() {
       final runtimeHooks = _hooks(
         p.join(preparation.runtimeHomePath, 'settings.json'),
       );
-      expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.cmd'), 6);
+      expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.ps1'), 6);
       expect(
         File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.cmd'),
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.ps1'),
         ).readAsStringSync(),
         contains('/hook/claude'),
       );

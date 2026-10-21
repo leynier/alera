@@ -151,7 +151,7 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
   _ClaudeRuntimeHookDescriptor _descriptor(Directory runtimeHome) {
     final extension = switch (_platform) {
       ManagedAgentHookPlatform.posix => 'sh',
-      ManagedAgentHookPlatform.windows => 'cmd',
+      ManagedAgentHookPlatform.windows => 'ps1',
     };
     final scriptFileName = 'alera-claude-hook.$extension';
     return _ClaudeRuntimeHookDescriptor(
@@ -166,8 +166,10 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
         scriptFileName,
         'alera-claude-hook.sh',
         'alera-claude-hook.cmd',
+        'alera-claude-hook.ps1',
         'alera-runtime-agent-hook.sh',
         'alera-runtime-agent-hook.cmd',
+        'alera-runtime-agent-hook.ps1',
       },
     );
   }
