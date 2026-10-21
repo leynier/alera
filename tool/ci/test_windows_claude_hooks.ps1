@@ -138,7 +138,7 @@ function Stop-FixtureProcess([Diagnostics.Process]$Process, [bool]$PipesOpen) {
     }
 }
 
-function Write-HookFailureDiagnostics([Diagnostics.ProcessStartInfo]$Info, [string]$Payload, [Net.Sockets.TcpListener]$Listener) {
+function Write-HookFailureDiagnostics([Diagnostics.ProcessStartInfo]$Info, [Net.Sockets.TcpListener]$Listener) {
     # Replay a separate copy only after acceptance failed. Never turn it into a pass.
     $diagnosticPath = $scriptPath + '.diagnostic.ps1'
     $diagnosticCommand = [string]$fixture.command
@@ -169,9 +169,6 @@ function Write-HookFailureDiagnostics([Diagnostics.ProcessStartInfo]$Info, [stri
         [void]$process.Start()
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        $bytes = $utf8.GetBytes($Payload)
-        $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
-        $process.StandardInput.Close()
         $elapsed = [Diagnostics.Stopwatch]::StartNew()
         while (-not $process.HasExited -and $elapsed.Elapsed.TotalSeconds -lt 15) {
             if ($Listener.Pending()) {
@@ -204,6 +201,8 @@ function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bo
     $port = $listener.LocalEndpoint.Port
     $caseRoot = Join-Path $workRoot ($Mode + '-' + $CaseName)
     [void][IO.Directory]::CreateDirectory($caseRoot)
+    $stdinPath = Join-Path $caseRoot 'stdin.utf8'
+    [IO.File]::WriteAllText($stdinPath, $Payload, $utf8)
     $endpointDirectory = Join-Path $caseRoot 'agent-hooks'
     [void][IO.Directory]::CreateDirectory($endpointDirectory)
     $endpointPath = Join-Path $endpointDirectory 'endpoint.cmd'
@@ -221,11 +220,12 @@ function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bo
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $bash
     # Keep Bash alive across MSYS exec so the deadline owns the hook's lifetime.
-    $info.Arguments = '--noprofile --norc -c "eval \"$ALERA_ACCEPTANCE_COMMAND\"; hook_status=$?; exit \"$hook_status\""'
+    # .NET Framework's stdin writer can emit a BOM before raw BaseStream writes.
+    # Let Git Bash pipe the exact fixture bytes instead of creating that writer.
+    $info.Arguments = '--noprofile --norc -c "/usr/bin/cat -- \"$ALERA_ACCEPTANCE_STDIN_PATH\" | eval \"$ALERA_ACCEPTANCE_COMMAND\"; hook_status=$?; exit \"$hook_status\""'
     $info.WorkingDirectory = $caseRoot
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
-    $info.RedirectStandardInput = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
     $info.StandardOutputEncoding = $utf8
@@ -235,6 +235,7 @@ function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bo
     }
     $variables = @{
         ALERA_ACCEPTANCE_COMMAND = [string]$fixture.command
+        ALERA_ACCEPTANCE_STDIN_PATH = $stdinPath.Replace('\', '/')
         ALERA_AGENT_HOOK_ENDPOINT = $endpointPath
         ALERA_AGENT_HOOK_PORT = '1'
         ALERA_AGENT_HOOK_TOKEN = 'stale-token'
@@ -273,10 +274,7 @@ function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bo
         Write-Verbose "Git Bash started as $($process.Id)."
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        $bytes = $utf8.GetBytes($Payload)
-        $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
-        $process.StandardInput.Close()
-        Write-Verbose 'Hook stdin closed.'
+        Write-Verbose 'Hook stdin supplied through a raw byte pipe.'
         $elapsed = [Diagnostics.Stopwatch]::StartNew()
         while (-not $process.HasExited -or ($CaseName -ne 'unreachable' -and $listener.Pending())) {
             if ($elapsed.Elapsed.TotalSeconds -gt $CaseTimeoutSeconds) { throw "Generated hook exceeded the $CaseTimeoutSeconds-second fixture deadline." }
@@ -296,7 +294,7 @@ function Invoke-HookCase([string]$Mode, [string]$CaseName, [string]$Payload, [bo
         if ($stdout.Result.Length -ne 0 -or $stderr.Result.Length -ne 0) { throw "Generated hook was not silent: $($stdout.Result) $($stderr.Result)" }
         if ($ExpectRequest) {
             if ($null -eq $request) {
-                Write-HookFailureDiagnostics $info $Payload $listener
+                Write-HookFailureDiagnostics $info $listener
                 throw "Generated hook did not reach the fixture receiver: $Mode / $CaseName."
             }
             foreach ($entry in $expectedFields.GetEnumerator()) {
