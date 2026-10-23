@@ -78,7 +78,7 @@ final class MobileAutomationComposerControllerProvider
 }
 
 String _$mobileAutomationComposerControllerHash() =>
-    r'd2dfd6848bcde052f0129605d450a13bec8a397a';
+    r'bf3514eae94a1390ae9a6dd44a61b971d246875b';
 
 /// One composer screen, for creating and editing. Every edit is checked
 /// locally at once; a complete draft is also checked by the runtime

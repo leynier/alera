@@ -48,7 +48,7 @@ final class BackgroundOperationsProvider
 }
 
 String _$backgroundOperationsHash() =>
-    r'078b22d7793686f36254b36d46f437ff9f23d473';
+    r'82d43a3836f8d63cd769aae6d5e68940a8115c7d';
 
 /// Owns submissions after their form closes. Failed writes are never replayed
 /// automatically: the server may already have applied part of the operation.

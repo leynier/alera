@@ -86,7 +86,7 @@ final class SourceControlActionsControllerProvider
 }
 
 String _$sourceControlActionsControllerHash() =>
-    r'fd3fbb56d6196b7ab3e3804698adbc3beb52b843';
+    r'0c1070ad5e9dbb7eeb628dd9fba14320f24c5d0a';
 
 /// Runs source control writes for one workspace and holds the one in flight,
 /// so every control can disable itself while the runtime works.
