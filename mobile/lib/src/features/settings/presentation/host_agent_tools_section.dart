@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/settings/application/host_tools_controllers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,7 +32,7 @@ class const HostAgentToolsSection({super.key, required final String hostId})
                           Text(
                             cli.value?.detail ??
                                 (cli.hasError
-                                    ? cli.error.toString()
+                                    ? userFacingErrorMessage(cli.error)
                                     : 'Checking registration'),
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AleraTokens.foregroundMuted),

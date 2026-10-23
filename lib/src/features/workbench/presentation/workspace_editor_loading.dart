@@ -1,5 +1,7 @@
 part of 'workspace_editor_surface.dart';
 
+final Logger _editorSurfaceLogger = Logger('WorkspaceEditorSurface');
+
 extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
   Future<void> _load() async {
     _autosave.cancelPending();

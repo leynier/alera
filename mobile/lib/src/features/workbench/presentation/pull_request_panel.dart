@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_refresh_progress.dart';
@@ -8,6 +10,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_scope_controller.dart';
@@ -94,7 +97,7 @@ class const PullRequestPanel({
       return switch (state) {
         AsyncError(:final error) => AleraEmptyState(
           icon: AleraIcons.gitPullRequest,
-          message: error.toString(),
+          message: runtimeActionErrorMessage(error),
           action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
         _ => const Center(child: CircularProgressIndicator()),
@@ -108,7 +111,9 @@ class const PullRequestPanel({
             padding: AleraTokens.contentPadding,
             child: AleraNotice(
               icon: AleraIcons.warning,
-              message: 'Could not refresh the pull request. $error',
+              message:
+                  'Could not refresh the pull request: '
+                  '${runtimeActionErrorMessage(error)}',
               action: TextButton(onPressed: reload, child: const Text('Retry')),
             ),
           ),
@@ -218,14 +223,15 @@ class const _Body({
                               ).notifier,
                             )
                             .stop();
-                      } on Object catch (error) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Could not stop watching. $error'),
-                            ),
-                          );
-                        }
+                      } on Object catch (error, stackTrace) {
+                        showActionFailure(
+                          context.mounted
+                              ? ScaffoldMessenger.of(context)
+                              : null,
+                          action: 'stop watching',
+                          error: error,
+                          stackTrace: stackTrace,
+                        );
                       }
                     }
                   : null,
@@ -276,7 +282,9 @@ class const _Body({
               const SizedBox(height: AleraTokens.space8),
               AleraNotice(
                 icon: AleraIcons.info,
-                message: 'Merge methods are unavailable: $error',
+                message:
+                    'Merge methods are unavailable: '
+                    '${userFacingErrorMessage(error)}',
               ),
             ],
           ],

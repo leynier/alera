@@ -78,9 +78,15 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
           _discoveryErrors[adapter] = result.error!;
         }
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not discover models', error, stackTrace);
       if (mounted) {
-        _setDiscoveryState(() => _discoveryErrors[adapter] = error.toString());
+        _setDiscoveryState(
+          () => _discoveryErrors[adapter] = actionFailureMessage(
+            'discover models',
+            error,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -114,9 +120,15 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
           _discoveryErrors[adapter] = result.error!;
         }
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not discover personas', error, stackTrace);
       if (mounted) {
-        _setDiscoveryState(() => _discoveryErrors[adapter] = error.toString());
+        _setDiscoveryState(
+          () => _discoveryErrors[adapter] = actionFailureMessage(
+            'discover personas',
+            error,
+          ),
+        );
       }
     } finally {
       if (mounted) {

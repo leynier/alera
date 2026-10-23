@@ -5,4 +5,9 @@ class RuntimeRequestError extends StateError {
   RuntimeRequestError(super.message, {this.code});
 
   final String? code;
+
+  /// The runtime already words its errors for people, so interpolating one
+  /// must not prepend `Bad state: `.
+  @override
+  String toString() => message;
 }

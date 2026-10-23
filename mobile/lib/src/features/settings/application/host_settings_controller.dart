@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
@@ -55,6 +56,12 @@ class HostSettingsController extends _$HostSettingsController {
     final client = await ref.read(
       hostConnectionControllerProvider(hostId).future,
     );
-    state = await AsyncValue.guard(() => client.updatePortableSettings(patch));
+    final result = await AsyncValue.guard(
+      () => client.updatePortableSettings(patch),
+    );
+    if (result case AsyncError(:final error, :final stackTrace)) {
+      logActionFailure('save host settings', error, stackTrace);
+    }
+    state = result;
   }
 }

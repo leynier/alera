@@ -152,9 +152,13 @@ void main() {
       );
       expect(
         inboxErrorMessage(RuntimeRequestError('host text', code: 'other')),
-        'host text',
+        'Host text',
       );
-      expect(inboxErrorMessage(StateError('gone')), 'gone');
+      expect(inboxErrorMessage(StateError('gone')), 'Gone');
+      expect(
+        inboxErrorMessage(Exception('Bad state: inbox closed')),
+        'Inbox closed',
+      );
     });
 
     test('expiry choices map to what is sent', () {

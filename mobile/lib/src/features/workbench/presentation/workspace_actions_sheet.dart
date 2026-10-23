@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/section_picker_sheet.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
@@ -55,7 +56,34 @@ enum _WorkspaceAction {
   sleep,
   archive,
   unarchive,
-  delete,
+  delete;
+
+  /// The verb phrase a failure names: `Could not <failureAction>: <cause>`.
+  String get failureAction => switch (this) {
+    relocate => 'move the workspace',
+    recovery => 'recover the workspace',
+    rename => 'rename the workspace',
+    pin || pinTree => 'pin the workspace',
+    unpin || unpinTree => 'unpin the workspace',
+    tags => 'update tags',
+    configureParent => 'link the parent workspace',
+    unlinkParent => 'unlink the parent workspace',
+    setSection ||
+    setSectionTree ||
+    newSection ||
+    newSectionTree ||
+    clearSection ||
+    clearSectionTree => 'update the section',
+    openIssue => 'open the issue',
+    linkIssue || changeIssue => 'link the issue',
+    unlinkIssue => 'unlink the issue',
+    openRepository => 'open the repository',
+    copyPath => 'copy the path',
+    sleep => 'put the workspace to sleep',
+    archive => 'archive the workspace',
+    unarchive => 'unarchive the workspace',
+    delete => 'delete the workspace',
+  };
 }
 
 /// Long-press actions for one workspace row. Mutating entries only appear
@@ -227,12 +255,13 @@ Future<void> showWorkspaceActionsSheet(
       case _WorkspaceAction.delete:
         await confirmAndDeleteWorkspace(context, controller, workspace, data);
     }
-  } on Object catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Workspace action failed: $error')),
-      );
-    }
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      context.mounted ? ScaffoldMessenger.of(context) : null,
+      action: action.failureAction,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 

@@ -149,7 +149,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
       _log.warning('mobile dictation transcription failed', error, stackTrace);
       state = state.copyWith(
         stage: .recorded,
-        warning: 'Transcription failed: $error',
+        warning: 'Transcription failed: ${userFacingErrorMessage(error)}',
       );
     }
   }
@@ -201,7 +201,10 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
         stackTrace,
       );
       if (_isCurrentGeneration(generation)) {
-        state = state.copyWith(warning: 'Speech recognition stopped: $error');
+        state = state.copyWith(
+          warning:
+              'Speech recognition stopped: ${userFacingErrorMessage(error)}',
+        );
       }
     } finally {
       _systemRestarting = false;

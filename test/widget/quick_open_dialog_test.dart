@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
@@ -58,11 +59,13 @@ void main() {
       expect(location.runs.runId, 'run-1');
       expect(location.runs.taskId, 'task-1');
       expect(controller.openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
-      if (outcome == 'failure') {
-        expect(toasts.single.message, 'Could not open the selected file.');
-      } else {
-        expect(toasts, isEmpty);
-      }
+      // A failure is reported once, through state.error, which the shell
+      // turns into the toast; the launcher adds none of its own.
+      expect(toasts, isEmpty);
+      expect(
+        controller.state.error,
+        outcome == 'failure' ? 'Cannot open' : isNull,
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -431,7 +434,13 @@ class _QuickOpenTestController(final WorkbenchState _seed)
     bool oppositePanel = false,
   }) async {
     openedFiles.add(relativePath);
-    await openGate?.future;
+    try {
+      await openGate?.future;
+    } catch (error) {
+      // Mirrors production: a failed open is reported through state.error.
+      state = state.copyWith(error: userFacingErrorMessage(error));
+      rethrow;
+    }
     final now = DateTime.utc(2026);
     return WorkspaceTabRecord(
       id: 'tab-${openedFiles.length}',

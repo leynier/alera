@@ -50,7 +50,7 @@ impl ServerActor {
             .runtime_store
             .find_project(&project_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
         else {
             return Ok(false);
         };
@@ -111,7 +111,7 @@ pub(crate) async fn remote_effective_project_config<R: RemoteProjectFileReader>(
     reader: &R,
     project: &Project,
 ) -> HostResult<EffectiveProjectConfigPayload> {
-    let state = |error: anyhow::Error| HostError::state(error.to_string());
+    let state = |error: anyhow::Error| HostError::from_anyhow(&error);
     if let Some(config) = store
         .find_project_config(&project.id)
         .await
@@ -203,7 +203,7 @@ impl RemoteProjectFileReader for LinkedProjectFileReader<'_> {
             )
             .await
             .map(|entries| crate::remote_workspace_files::entries_to_json(&entries))
-            .map_err(|error| HostError::state(error.to_string()))?,
+            .map_err(|error| HostError::from_anyhow(&error))?,
         };
         let Some(size) = root_file_size(&listing, file_name) else {
             return Ok(None);
@@ -225,7 +225,7 @@ impl RemoteProjectFileReader for LinkedProjectFileReader<'_> {
                 &read_payload,
             )
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
             .ok_or_else(|| {
                 HostError::state(format!(
                     "Workspace {} is not on a remote host.",

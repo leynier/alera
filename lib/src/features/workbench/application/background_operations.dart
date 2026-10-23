@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -61,7 +62,7 @@ class BackgroundOperations extends _$BackgroundOperations {
       failure = await action();
     } on Object catch (error, stack) {
       Logger('BackgroundOperations').warning(title, error, stack);
-      failure = error.toString();
+      failure = userFacingErrorMessage(error);
     }
     if (!ref.mounted) return;
     if (failure == null) {

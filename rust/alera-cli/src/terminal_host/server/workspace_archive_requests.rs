@@ -23,7 +23,7 @@ impl ServerActor {
             .runtime_store
             .set_workspace_archived(&request.workspace_id, false)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         let project_id = workspace.project_id.clone();
         let value = serde_json::to_value(workspace)
             .map_err(|error| HostError::format(error.to_string()))?;

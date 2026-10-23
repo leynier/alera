@@ -27,12 +27,13 @@ List<Widget> _sectionActionTiles(
       if (context.mounted) {
         Navigator.pop(context);
       }
-    } on Object catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Workspace action failed: $error')),
-        );
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'update the section',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 

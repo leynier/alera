@@ -1,5 +1,6 @@
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:uuid/uuid.dart';
 
@@ -78,7 +79,7 @@ class HostRoutedAiAssistService implements AiAssistService {
       if (_canceled.contains(key)) {
         throw const AiAssistCanceledException();
       }
-      throw AiAssistException(error.toString());
+      throw AiAssistException(userFacingErrorMessage(error));
     } finally {
       _operations.remove(key);
       _canceled.remove(key);

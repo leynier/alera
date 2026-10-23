@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_provider_credentials.dart';
@@ -135,11 +136,18 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
           .saveToken(_controller.text, baseUrl: widget.baseUrl);
       _controller.clear();
       ref.invalidate(mobileAiDictationCredentialStatusProvider(widget.baseUrl));
-    } on Object catch (error) {
-      _credentialLog.warning('mobile dictation token save failed', error);
+    } on Object catch (error, stackTrace) {
+      _credentialLog.warning(
+        'mobile dictation token save failed',
+        error,
+        stackTrace,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(actionFailureMessage('save the token', error)),
+          ),
+        );
       }
     }
   }
@@ -148,11 +156,18 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
     try {
       await ref.read(mobileAiDictationCredentialStoreProvider).clearToken();
       ref.invalidate(mobileAiDictationCredentialStatusProvider(widget.baseUrl));
-    } on Object catch (error) {
-      _credentialLog.warning('mobile dictation token removal failed', error);
+    } on Object catch (error, stackTrace) {
+      _credentialLog.warning(
+        'mobile dictation token removal failed',
+        error,
+        stackTrace,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(actionFailureMessage('remove the token', error)),
+          ),
+        );
       }
     }
   }

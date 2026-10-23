@@ -42,4 +42,35 @@ void _registerSettingsDialogAiAssistTests() {
       findsOneWidget,
     );
   });
+
+  testWidgets('toggles Clarify Error Messages, off by default', (tester) async {
+    final container = await _pumpSettingsDialog(
+      tester,
+      initialSectionId: 'aiAssist',
+    );
+    expect(
+      container.read(settingsControllerProvider).aiAssist.clarifyErrorMessages,
+      isFalse,
+    );
+
+    final toggle = find.descendant(
+      of: find.ancestor(
+        of: find.text('Clarify Error Messages'),
+        matching: find.byType(SettingsSwitchRow),
+      ),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(settingsControllerProvider).aiAssist.clarifyErrorMessages,
+      isTrue,
+    );
+    expect(tester.widget<Switch>(toggle).value, isTrue);
+  });
 }

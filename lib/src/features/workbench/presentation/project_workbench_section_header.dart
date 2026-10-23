@@ -73,14 +73,12 @@ class _WorkspaceSectionHeader extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
     try {
       await controller.deleteWorkspaceSection(row.section!.id);
-    } catch (error) {
-      if (context.mounted) {
-        AleraToast.show(
-          context,
-          message: 'Could not delete section: $error',
-          tone: AleraToastTone.error,
-        );
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'delete section',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -115,15 +113,11 @@ Future<void> _saveWorkspaceSection(
     } else {
       await controller.saveWorkspaceSection(workspace.id, sectionId: sectionId);
     }
-  } catch (error) {
-    if (context.mounted) {
-      AleraToast.show(
-        context,
-        message: sectionId == null
-            ? 'Could not clear section: $error'
-            : 'Could not set section: $error',
-        tone: AleraToastTone.error,
-      );
-    }
+  } catch (error, stackTrace) {
+    showActionFailure(
+      action: sectionId == null ? 'clear section' : 'set section',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }

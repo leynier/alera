@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_providers.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_service.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -77,16 +78,20 @@ class const AiDictationControl({
       } else {
         await service.start(targetId);
       }
-    } on Object catch (error) {
-      AleraToast.publish(message: error.toString(), tone: .error);
+    } on Object catch (error, stackTrace) {
+      showErrorToast(error: error, stackTrace: stackTrace);
     }
   }
 
   Future<void> _cancel(AiDictationService service) async {
     try {
       await service.cancel();
-    } on Object catch (error) {
-      AleraToast.publish(message: error.toString(), tone: .error);
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'cancel dictation',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 }

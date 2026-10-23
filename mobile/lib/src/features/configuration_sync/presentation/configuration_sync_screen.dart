@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/configuration/alera_configuration_review.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
 import 'package:alera_mobile/src/features/configuration_sync/application/configuration_sync_service.dart';
@@ -83,7 +84,7 @@ class const _SyncTarget({
           loading: () => const LinearProgressIndicator(),
           error: (error, _) => Column(
             children: [
-              Text(error.toString()),
+              Text(userFacingErrorMessage(error)),
               TextButton(
                 onPressed: () => ref.invalidate(serviceProvider),
                 child: const Text('Retry'),
@@ -98,7 +99,7 @@ class const _SyncTarget({
                   loading: () => const LinearProgressIndicator(),
                   error: (error, _) => Column(
                     children: [
-                      Text(error.toString()),
+                      Text(userFacingErrorMessage(error)),
                       TextButton(
                         onPressed: () => ref.invalidate(provider),
                         child: const Text('Retry'),

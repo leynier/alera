@@ -148,7 +148,8 @@ extension _CreateWorkspaceLocation on _CreateWorkspaceScreenState {
         .value;
     return options.when(
       loading: () => const LinearProgressIndicator(),
-      error: (error, _) => Text('Could not load project locations: $error'),
+      error: (error, _) =>
+          Text(actionFailureMessage('load project locations', error)),
       data: (checkouts) {
         final selected = checkouts.any((checkout) => checkout.hostId == hostId)
             ? hostId

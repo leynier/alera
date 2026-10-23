@@ -5,6 +5,7 @@ import 'dart:ffi' as ffi;
 import 'dart:io' show File, Platform;
 import 'dart:isolate';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
@@ -29,6 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
+import 'package:logging/logging.dart';
 import 'package:portable_pty/portable_pty.dart';
 import 'package:xterm2/xterm.dart' as xterm;
 

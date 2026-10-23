@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/terminal/application/agent_presence_controller.dart';
@@ -105,7 +106,7 @@ class _WorkspaceAgentCommentQueueState
       _logger.warning('could not send workspace comments', error, stackTrace);
       if (messenger.mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not send comments: $error')),
+          SnackBar(content: Text(actionFailureMessage('send comments', error))),
         );
       }
     } finally {

@@ -71,3 +71,35 @@ WidgetBuilder aleraToastActionPreview() =>
         const AleraToastHost(),
       ],
     );
+
+Future<String?> _previewClarifier(String message) async {
+  await Future<void>.delayed(const Duration(seconds: 2));
+  return 'The push was rejected because the remote branch has commits you do '
+      'not have. Pull or rebase, then push again.';
+}
+
+// The host shows the original error with a caption while the fake clarifier
+// runs, then the rewrite with Copy Original, as Clarify Error Messages does.
+@AleraPreview(name: 'Clarified error', group: 'Toast', size: Size(440, 260))
+WidgetBuilder aleraToastClarifiedPreview() =>
+    (context) => Stack(
+      children: <Widget>[
+        Center(
+          child: FilledButton(
+            onPressed: () => AleraToast.show(
+              context,
+              message:
+                  'Could not push branch: rejected: non-fast-forward '
+                  '(fetch first)',
+              tone: .error,
+            ),
+            child: const Text('Show Error'),
+          ),
+        ),
+        const AleraToastHost(
+          clarifyError: _previewClarifier,
+          clarifyingCaption: 'Clarifying with AI Assist…',
+          clarifiedCaption: 'Clarified by AI Assist',
+        ),
+      ],
+    );

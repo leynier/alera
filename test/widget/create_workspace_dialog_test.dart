@@ -345,7 +345,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bad state: cannot load branches'), findsOneWidget);
+    expect(find.text('Cannot load branches'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();

@@ -46,7 +46,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Failed to open the local database'), findsOneWidget);
-    expect(find.textContaining('Bad state: boom'), findsOneWidget);
+    expect(find.textContaining('Boom'), findsOneWidget);
 
     String? copied;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -66,7 +66,7 @@ void main() {
     );
     await tester.tap(find.text('Copy Details'));
     await tester.pump();
-    expect(copied, 'Bad state: boom');
+    expect(copied, 'Boom');
     expect(find.text('Copied'), findsOneWidget);
   });
 

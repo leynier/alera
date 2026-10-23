@@ -5,6 +5,8 @@ mixin _WorkbenchControllerPullRequestDiffTabs
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerInternalLayout {
+  /// A failure is thrown, not stored in `state.error`: the pull request panel
+  /// reports it with context, and storing it too would toast it twice.
   Future<WorkspaceTabRecord> openGitPullRequestDiffTab({
     required Workspace workspace,
     String? gitDiffRoot,
@@ -85,7 +87,7 @@ mixin _WorkbenchControllerPullRequestDiffTabs
       await _applyLayout(persisted, persist: true);
       state = state.copyWith(error: null);
       return tab;
-    } catch (error) {
+    } catch (_) {
       final canceled =
           _isStaleWorkspaceOpen(workspace.id, sleepGeneration) ||
           (createdTab != null && _closedTabIds.contains(createdTab.id));
@@ -100,7 +102,6 @@ mixin _WorkbenchControllerPullRequestDiffTabs
           retentionId: retentionId,
         );
       }
-      state = state.copyWith(error: error.toString());
       rethrow;
     }
   }

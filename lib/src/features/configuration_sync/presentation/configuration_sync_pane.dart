@@ -1,5 +1,6 @@
 import 'package:alera/src/design_system/configuration/alera_configuration_review.dart';
 import 'package:alera/src/features/configuration_sync/application/configuration_sync_controller.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +11,7 @@ class const ConfigurationSyncPane({super.key}) extends ConsumerWidget {
         .watch(configurationSyncServiceProvider)
         .when(
           loading: () => const LinearProgressIndicator(),
-          error: (e, _) => Text(e.toString()),
+          error: (e, _) => Text(userFacingErrorMessage(e)),
           data: (service) {
             final provider = configurationSyncControllerProvider(service);
             return ref
@@ -19,7 +20,7 @@ class const ConfigurationSyncPane({super.key}) extends ConsumerWidget {
                   loading: () => const LinearProgressIndicator(),
                   error: (e, _) => Column(
                     children: [
-                      Text(e.toString()),
+                      Text(userFacingErrorMessage(e)),
                       TextButton(
                         onPressed: () => ref.invalidate(provider),
                         child: const Text('Retry'),

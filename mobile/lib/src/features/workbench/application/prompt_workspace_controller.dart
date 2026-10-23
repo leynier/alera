@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/projects/domain/preferred_source_branch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
@@ -144,13 +146,14 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         profileId: state.profileId ?? _preferredProfileId(profiles),
         loading: false,
       );
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('load prompt workspace options', error, stackTrace);
       if (ref.mounted &&
           state.projectId == projectId &&
           generation == _selectionGeneration) {
         state = state.copyWith(
           loading: false,
-          error: 'Could not load prompt workspace options: $error',
+          error: actionFailureMessage('load prompt workspace options', error),
         );
       }
     }
@@ -288,7 +291,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       state = state.copyWith(
         loading: false,
         clearPhase: true,
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
       );
       rethrow;
     } finally {
@@ -347,11 +350,12 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         agentTabId: launch.tabId,
         clearPhase: true,
       );
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('relaunch the agent', error, stackTrace);
       state = state.copyWith(
         loading: false,
         clearPhase: true,
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
       );
     }
   }

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -11,6 +11,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
@@ -325,12 +326,17 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       }
     } on AiAssistCanceledException {
       return;
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (_isCurrentGeneration(
         workspacePath: requestPath,
         generationId: generationId,
       )) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
+        showActionFailure(
+          action: 'generate pull request details',
+          error: error,
+          stackTrace: stackTrace,
+          context: context,
+        );
       }
     } finally {
       if (_isCurrentGeneration(

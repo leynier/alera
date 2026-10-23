@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,10 +39,11 @@ Future<void> showSleepWorkspaceFlow(
     // idempotent.
     runtime.closeWorkspace(workspace.id);
     AleraToast.publish(message: 'Workspace slept', tone: .success);
-  } catch (error) {
-    AleraToast.publish(
-      message: 'Could not sleep workspace: $error',
-      tone: .error,
+  } catch (error, stackTrace) {
+    showActionFailure(
+      action: 'sleep workspace',
+      error: error,
+      stackTrace: stackTrace,
     );
   }
 }
@@ -57,10 +59,11 @@ Future<void> showToggleWorkspaceArchivedFlow(
     try {
       await controller.unarchiveWorkspace(workspace);
       AleraToast.publish(message: 'Workspace unarchived', tone: .success);
-    } catch (error) {
-      AleraToast.publish(
-        message: 'Could not unarchive workspace: $error',
-        tone: .error,
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'unarchive workspace',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
     return;
@@ -83,10 +86,11 @@ Future<void> showToggleWorkspaceArchivedFlow(
   try {
     await controller.archiveWorkspace(workspace);
     AleraToast.publish(message: 'Workspace archived', tone: .success);
-  } catch (error) {
-    AleraToast.publish(
-      message: 'Could not archive workspace: $error',
-      tone: .error,
+  } catch (error, stackTrace) {
+    showActionFailure(
+      action: 'archive workspace',
+      error: error,
+      stackTrace: stackTrace,
     );
   }
 }

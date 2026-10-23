@@ -95,7 +95,7 @@ void _registerWorkbenchControllerPinningTests() {
     );
   });
 
-  test('surfaces workspace pin failures without changing state', () async {
+  test('rethrows workspace pin failures without changing state', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
     _harness.workbenchRepository.upsertWorkspaceError = StateError(
@@ -108,6 +108,7 @@ void _registerWorkbenchControllerPinningTests() {
     );
 
     expect(_controller.state.activeWorkspace?.isPinned, isFalse);
-    expect(_controller.state.error, contains('pin failed'));
+    // The sidebar reports the failure, so state.error stays clear.
+    expect(_controller.state.error, isNull);
   });
 }

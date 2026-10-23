@@ -137,7 +137,7 @@ fn stash_oid(repo: &mut Repository, stash_index: u32) -> Result<Oid, GitError> {
         true
     })
     .map_err(GitError::from_git2)?;
-    oid.ok_or_else(|| GitError::new(GitErrorKind::Internal, "stash not found"))
+    oid.ok_or_else(|| GitError::new(GitErrorKind::Internal, "The stash was not found."))
 }
 
 fn reject_tree_diff_out_of_scope(

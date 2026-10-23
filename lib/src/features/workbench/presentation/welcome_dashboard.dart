@@ -1,3 +1,5 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';

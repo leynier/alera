@@ -75,7 +75,7 @@ extension on _AiAssistSettingsPaneState {
       }
       _updateDiscoveryState(
         agent,
-        AiAssistModelDiscoveryState(error: error.toString()),
+        AiAssistModelDiscoveryState(error: userFacingErrorMessage(error)),
       );
       _autoDiscovered.remove(agent);
       return;

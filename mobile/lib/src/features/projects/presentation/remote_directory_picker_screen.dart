@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/projects/application/projects_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,7 +109,7 @@ class const RemoteDirectoryPickerScreen({
               child: Column(
                 mainAxisSize: .min,
                 children: <Widget>[
-                  Text(error.toString(), textAlign: .center),
+                  Text(userFacingErrorMessage(error), textAlign: .center),
                   const SizedBox(height: AleraTokens.spaceLg),
                   FilledButton(
                     onPressed: () => ref.invalidate(

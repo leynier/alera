@@ -390,9 +390,10 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         future.ignore();
         Navigator.of(context).pop(true);
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('create the workspace', error, stackTrace);
       if (mounted) {
-        _update(() => _retryError = error.toString());
+        _update(() => _retryError = userFacingErrorMessage(error));
       }
     } finally {
       if (mounted) {

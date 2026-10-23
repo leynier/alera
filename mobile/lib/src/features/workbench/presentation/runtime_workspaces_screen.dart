@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -268,7 +269,7 @@ class const _ConnectionError({
               ? 'Update Alera on this host to use mobile workspaces.'
               : 'Could not load workspaces from this host. Pull down or tap '
                     'Retry to try again.'),
-      detail: updateMessage == null ? error.toString() : null,
+      detail: updateMessage == null ? userFacingErrorMessage(error) : null,
       icon: updateRequired ? AleraIcons.systemUpdate : AleraIcons.cloudOff,
       action: FilledButton.icon(
         onPressed: onRetry,

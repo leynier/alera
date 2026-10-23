@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
@@ -188,12 +190,13 @@ class _WorkspaceTextSearchPanelState
       message =
           workspaceSearchReplaceConflictMessage(result) ??
           'Replaced ${_count(result.matchesReplaced, 'match', 'matches')}.';
-    } on StateError catch (error) {
-      message = error.message;
     } on UnsupportedError catch (error) {
       message = error.message ?? 'Replace is unavailable.';
-    } on Object catch (error) {
-      message = 'Replace failed: $error';
+    } on Object catch (error, stackTrace) {
+      logActionFailure('replace matches', error, stackTrace);
+      message = error is StateError
+          ? userFacingErrorMessage(error)
+          : actionFailureMessage('replace matches', error);
     }
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }

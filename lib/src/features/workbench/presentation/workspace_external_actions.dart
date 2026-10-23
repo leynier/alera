@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
@@ -78,13 +79,11 @@ Future<void> openWorkspaceInBrowser(
       },
       tone: .info,
     );
-  } catch (error) {
-    if (context.mounted) {
-      AleraToast.show(
-        context,
-        message: 'Could not open the repository: $error',
-        tone: .error,
-      );
-    }
+  } catch (error, stackTrace) {
+    showActionFailure(
+      action: 'open the repository',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }

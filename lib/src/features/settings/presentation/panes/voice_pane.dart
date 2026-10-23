@@ -7,11 +7,15 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/features/voice/application/voice_session_controller.dart';
 import 'package:alera/src/features/voice/domain/voice_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('VoicePane');
 
 class const VoiceSettingsPane({
   super.key,
@@ -74,13 +78,17 @@ class _VoiceSettingsPaneState extends ConsumerState<VoiceSettingsPane> {
         _loadingCredentials = false;
         _credentialError = null;
       });
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not load voice credentials', error, stackTrace);
       if (!mounted) {
         return;
       }
       setState(() {
         _loadingCredentials = false;
-        _credentialError = error.toString();
+        _credentialError = actionFailureMessage(
+          'load voice credentials',
+          error,
+        );
       });
     }
   }
@@ -107,12 +115,16 @@ class _VoiceSettingsPaneState extends ConsumerState<VoiceSettingsPane> {
         _openaiController.clear();
       }
       await _loadCredentials();
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not save the voice credential', error, stackTrace);
       if (!mounted) {
         return;
       }
       setState(() {
-        _credentialError = error.toString();
+        _credentialError = actionFailureMessage(
+          'save the voice credential',
+          error,
+        );
       });
     }
   }
@@ -128,12 +140,20 @@ class _VoiceSettingsPaneState extends ConsumerState<VoiceSettingsPane> {
           .read(runtimeVoiceClientProvider)
           .clearCredentials(provider: provider);
       await _loadCredentials();
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning(
+        'Could not clear the voice credential',
+        error,
+        stackTrace,
+      );
       if (!mounted) {
         return;
       }
       setState(() {
-        _credentialError = error.toString();
+        _credentialError = actionFailureMessage(
+          'clear the voice credential',
+          error,
+        );
       });
     }
   }

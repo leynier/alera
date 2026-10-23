@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
@@ -88,7 +90,7 @@ class _InboxThreadScreenState extends ConsumerState<InboxThreadScreen> {
               icon: AleraIcons.inbox,
               title: 'Conversation Unavailable',
               message: 'The host could not load this conversation.',
-              detail: '$error',
+              detail: inboxErrorMessage(error),
               action: TextButton(
                 onPressed: () => ref.invalidate(
                   mobileInboxThreadDetailProvider(hostId, threadId),
@@ -233,12 +235,15 @@ class const _ThreadHeader({
         mobileInboxRepositoryProvider(hostId).future,
       );
       await repository.cancel(questionId);
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not cancel the question: ${inboxErrorMessage(error)}',
-          ),
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'cancel the question',
+        error: error,
+        stackTrace: stackTrace,
+        message: actionFailureMessage(
+          'cancel the question',
+          inboxErrorMessage(error),
         ),
       );
     }

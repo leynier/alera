@@ -395,6 +395,19 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
     groupId: 'generation',
   ),
   SettingsSearchEntry(
+    title: 'Clarify Error Messages',
+    description: 'Rewrite error notifications with AI Assist, falling back to the original error.',
+    keywords: <String>[
+      'error',
+      'errors',
+      'explain',
+      'clarify',
+      'notification',
+      'toast',
+    ],
+    groupId: 'generation',
+  ),
+  SettingsSearchEntry(
     title: 'ChatGPT Account',
     description:
         'Connect, switch, or sign out of ChatGPT accounts for AI Assist.',

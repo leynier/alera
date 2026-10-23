@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/presentation/panes/chatgpt_account_rows.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
@@ -13,6 +14,9 @@ import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('ChatGptAccountSettings');
 
 enum _Availability { loading, unsupported, failed, ready }
 
@@ -101,11 +105,19 @@ class _ChatGptAccountSettingsState
       final status = await _request('status');
       if (!mounted || generation != _generation) return;
       _apply(status);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _logger.warning(
+        'Could not load ChatGPT account status',
+        error,
+        stackTrace,
+      );
       if (!mounted || generation != _generation) return;
       setState(() {
         if (_availability != .ready) _availability = .failed;
-        _runtimeError = 'ChatGPT account status couldn’t be loaded.';
+        _runtimeError = actionFailureMessage(
+          'load the ChatGPT account status',
+          error,
+        );
       });
     }
   }
@@ -163,11 +175,10 @@ class _ChatGptAccountSettingsState
     });
     try {
       await action();
-    } on StateError catch (error) {
-      if (mounted) setState(() => _actionError = error.message);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _logger.warning('ChatGPT account action $key failed', error, stackTrace);
       if (mounted) {
-        setState(() => _actionError = 'ChatGPT didn’t respond. Try again.');
+        setState(() => _actionError = userFacingErrorMessage(error));
       }
     } finally {
       if (mounted) setState(() => _busyKey = null);
@@ -213,11 +224,14 @@ class _ChatGptAccountSettingsState
     setState(() => _actionError = null);
     try {
       await _launcher.open(chatGptUsageUri);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not open ChatGPT settings', error, stackTrace);
       if (mounted) {
         setState(
-          () =>
-              _actionError = 'ChatGPT settings couldn’t be opened. Try again.',
+          () => _actionError = actionFailureMessage(
+            'open ChatGPT settings',
+            error,
+          ),
         );
       }
     }

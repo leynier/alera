@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/quotas/application/quota_host_visibility_controller.dart';
@@ -80,10 +81,13 @@ class const QuotaHostsSettingsScreen({super.key}) extends ConsumerWidget {
       await ref
           .read(quotaHostVisibilityControllerProvider.notifier)
           .setHostVisible(runtimeId, visible);
-    } on Object {
+    } on Object catch (error) {
+      // The controller already logged the failure with its stack trace.
       if (!messenger.mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Could not save quota hosts. Try again.')),
+        SnackBar(
+          content: Text(actionFailureMessage('save quota hosts', error)),
+        ),
       );
     }
   }

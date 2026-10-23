@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_hand_off_dialog.dart';
@@ -55,10 +56,8 @@ Future<void> showHandOffWorkspaceFlow(
     if (currentBranch == 'HEAD') {
       throw StateError('Check out a branch before handing off');
     }
-  } catch (error) {
-    if (context.mounted) {
-      AleraToast.show(context, message: error.toString(), tone: .error);
-    }
+  } catch (error, stackTrace) {
+    showErrorToast(error: error, stackTrace: stackTrace);
     return;
   }
   if (!context.mounted) {

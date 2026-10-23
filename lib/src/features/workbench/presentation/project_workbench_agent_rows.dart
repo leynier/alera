@@ -177,10 +177,11 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
     if (selected != 'generateTitle') return;
     try {
       await ref.read(agentTitleServiceProvider).generate(widget.tab);
-    } on Object catch (error) {
-      AleraToast.publish(
-        message: 'Could not generate title: $error',
-        tone: .error,
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'generate title',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }

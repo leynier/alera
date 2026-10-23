@@ -83,7 +83,7 @@ mixin _WorkbenchControllerInternalLayout
       await _applyLayout(layout, persist: false);
     } catch (error) {
       if (!_disposed) {
-        state = state.copyWith(error: error.toString());
+        state = state.copyWith(error: userFacingErrorMessage(error));
       }
     } finally {
       _loadingLayoutWorkspaceIds.remove(workspaceId);
@@ -167,7 +167,7 @@ mixin _WorkbenchControllerInternalLayout
   @override
   void _recordLayoutError(Object error) {
     if (!_disposed) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
     }
   }
 
@@ -337,7 +337,10 @@ mixin _WorkbenchControllerInternalLayout
     } catch (error) {
       if (!_disposed) {
         state = state.copyWith(
-          error: 'Failed to prepare workspace for "${project.name}": $error',
+          error: actionFailureMessage(
+            'prepare workspaces for "${project.name}"',
+            error,
+          ),
         );
       }
     } finally {

@@ -126,7 +126,7 @@ void main() {
         .read(workspacePullRequestControllerProvider(_scope))
         .value!;
     expect(state.comments, <ReviewComment>[existing]);
-    expect(state.errorMessage, contains('permission denied'));
+    expect(state.errorMessage, contains('Permission denied'));
   });
 
   test(
@@ -240,7 +240,7 @@ void main() {
           .value!;
       expect(state.comments.single.body, '- [ ] first');
       expect(state.savingCommentIds, isEmpty);
-      expect(state.errorMessage, contains('permission denied'));
+      expect(state.errorMessage, contains('Permission denied'));
     },
   );
 

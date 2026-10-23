@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_registration_service.dart';
 import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
@@ -68,7 +69,7 @@ class _AleraCliRegistrationControlState
       }
       setState(() {
         _status = null;
-        _error = 'Registration check failed: $error';
+        _error = actionFailureMessage('check the registration', error);
       });
     } finally {
       if (mounted) {
@@ -103,7 +104,7 @@ class _AleraCliRegistrationControlState
         return;
       }
       setState(() {
-        _error = 'Registration failed: $error';
+        _error = actionFailureMessage('register the Alera CLI', error);
       });
     } finally {
       if (mounted) {

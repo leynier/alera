@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/core/logging/mobile_logger.dart';
 import 'package:alera_mobile/src/features/diagnostics/application/diagnostics_settings.dart';
 import 'package:alera_mobile/src/features/diagnostics/infra/crash_reporting.dart';
@@ -41,12 +42,13 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           subject: 'Alera Mobile Logs',
         ),
       );
-    } on Object catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not export logs: $error')),
-        );
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'export logs',
+        error: error,
+        stackTrace: stackTrace,
+      );
     } finally {
       if (mounted) {
         setState(() => _exporting = false);

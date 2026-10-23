@@ -370,7 +370,14 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(events.last.message, 'Bad state: rename failed');
+    // The controller leaves this failure to the sidebar, so exactly one
+    // error toast appears.
+    expect(
+      events
+          .where((event) => event.tone == AleraToastTone.error)
+          .map((event) => event.message),
+      <String>['Could not rename project: Rename failed'],
+    );
   });
 
   testWidgets('workspace rename failures surface an error toast event', (
@@ -405,7 +412,10 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(events.last.message, 'Bad state: rename workspace failed');
+    expect(
+      events.last.message,
+      'Could not rename workspace: Rename workspace failed',
+    );
   });
 
   testWidgets('project removal failures surface an error toast event', (
@@ -436,7 +446,10 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(events.last.message, 'Bad state: remove project failed');
+    expect(
+      events.last.message,
+      'Could not remove project: Remove project failed',
+    );
   });
 
   testWidgets('sidebar agent close failures surface an error toast event', (
@@ -479,7 +492,12 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.runtime.closedTabIds, isEmpty);
-    expect(events.last.message, 'Bad state: close tab failed');
+    expect(
+      events
+          .where((event) => event.tone == AleraToastTone.error)
+          .map((event) => event.message),
+      <String>['Close tab failed'],
+    );
   });
 
   testWidgets('hovering sidebar rows updates their highlight state', (

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/process/process_output.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -134,10 +135,5 @@ class RemoteProcessRunner
     );
   }
 
-  static String _messageOf(Object error) {
-    if (error is TerminalHostConflictException) {
-      return error.message;
-    }
-    return error.toString();
-  }
+  static String _messageOf(Object error) => userFacingErrorMessage(error);
 }

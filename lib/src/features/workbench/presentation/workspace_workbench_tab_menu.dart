@@ -126,10 +126,11 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
       case _TabMenuAction.generateTitle:
         try {
           await ref.read(agentTitleServiceProvider).generate(tab);
-        } on Object catch (error) {
-          AleraToast.publish(
-            message: 'Could not generate title: $error',
-            tone: .error,
+        } on Object catch (error, stackTrace) {
+          showActionFailure(
+            action: 'generate title',
+            error: error,
+            stackTrace: stackTrace,
           );
         }
       case _TabMenuAction.changeTitle:

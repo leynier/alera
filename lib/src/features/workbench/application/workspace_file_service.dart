@@ -1,3 +1,5 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+
 import 'dart:io';
 
 import 'package:alera/src/features/workbench/application/workspace_service.dart';

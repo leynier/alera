@@ -1,4 +1,5 @@
 import 'package:alera/src/features/agent_status/application/agent_hook_reconciliation_service.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/infra/alera_orchestration_setup_service.dart';
@@ -70,8 +71,8 @@ class const AleraAllSkillsSetupService({
           AleraSkillSetupOutcome(
             skill: skill,
             succeeded: false,
-            summary: 'Install failed: $error',
-            detail: '$error',
+            summary: 'Install failed',
+            detail: userFacingErrorMessage(error),
             needsAttention: true,
           ),
         );

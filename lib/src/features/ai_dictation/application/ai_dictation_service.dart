@@ -12,6 +12,7 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dar
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_speech_processor.dart';
 import 'package:alera/src/features/ai_dictation/infra/system_ai_dictation_recognizer.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -180,7 +181,8 @@ class AiDictationService({
             AiDictationTranscriptionEngine.systemOnDevice,
         onFinal: (text) => unawaited(_finalizeSystem(targetId, text)),
         onError: (error) {
-          _lastWarning = 'System speech recognition failed: $error';
+          _lastWarning =
+              'System speech recognition failed: ${userFacingErrorMessage(error)}';
           if (_systemFinalization == null) _resetSession();
         },
       );
@@ -188,7 +190,7 @@ class AiDictationService({
       _activeTargetId = null;
       throw AiDictationException(
         .transcription,
-        'System speech recognition could not start: $error',
+        'System speech recognition could not start: ${userFacingErrorMessage(error)}',
         cause: error,
       );
     }
@@ -320,7 +322,7 @@ class AiDictationService({
           text = processed.text;
         } on Object catch (error) {
           _lastWarning =
-              'The transcript was inserted without speech processing: $error';
+              'The transcript was inserted without speech processing: ${userFacingErrorMessage(error)}';
         }
       }
       if (!_targets.insert(targetId, text)) {

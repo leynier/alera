@@ -134,7 +134,7 @@ mixin _VoiceSessionPlayback on _$VoiceSessionController, _VoiceSessionFields {
         );
         await refresh();
       } on Object {
-        state = state.copyWith(lastError: error.toString());
+        state = state.copyWith(lastError: userFacingErrorMessage(error));
       }
     }
   }
@@ -315,7 +315,7 @@ mixin _VoiceSessionPlayback on _$VoiceSessionController, _VoiceSessionFields {
       if (generation != _playbackGeneration || epoch != _captureEpoch) {
         return;
       }
-      state = state.copyWith(lastError: error.toString());
+      state = state.copyWith(lastError: userFacingErrorMessage(error));
     }
   }
 }

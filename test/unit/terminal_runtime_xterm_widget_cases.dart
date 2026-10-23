@@ -308,7 +308,7 @@ void _registerXtermRuntimeWidgetTests() {
 
       expect(launcher.openedUris, <Uri>[Uri.parse('https://example.com')]);
       expect(
-        find.text('Could not open link: https://example.com'),
+        find.text('Could not open https://example.com: Cannot launch'),
         findsOneWidget,
       );
 

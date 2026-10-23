@@ -17,12 +17,15 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
+import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 part 'background_setup_jobs.g.dart';
 part 'background_setup_jobs_clone.dart';
 part 'background_setup_jobs_prompt_service.dart';
+
+final Logger _backgroundSetupJobsLogger = Logger('BackgroundSetupJobs');
 
 @Riverpod(keepAlive: true)
 class BackgroundSetupJobs extends _$BackgroundSetupJobs
@@ -265,7 +268,15 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs
               ),
             ),
           );
-        } catch (_) {}
+        } catch (error, stackTrace) {
+          // The launch failure below is the one the job card reports; this
+          // one only explains why the new workspace may lack its Setup tab.
+          _backgroundSetupJobsLogger.warning(
+            'Could not finish workspace creation after the agent launch failed',
+            error,
+            stackTrace,
+          );
+        }
         rethrow;
       }
     }).whenComplete(() {

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/quotas/application/agent_quota_controller.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
@@ -185,10 +187,13 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(_codexResetMessage(result))));
-    } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Codex reset failed: $error')));
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'use the Codex reset',
+        error: error,
+        stackTrace: stackTrace,
+      );
     } finally {
       if (mounted) setState(() => _usingReset = false);
     }
@@ -423,7 +428,7 @@ class const _QuotaError({
         child: Column(
           mainAxisSize: .min,
           children: <Widget>[
-            Text(error.toString(), textAlign: .center),
+            Text(userFacingErrorMessage(error), textAlign: .center),
             const SizedBox(height: AleraTokens.spaceLg),
             FilledButton(
               onPressed: ref

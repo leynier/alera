@@ -41,11 +41,11 @@ pub(super) async fn load_mobile_pull_request_summaries(
     let projects = runtime_store
         .list_projects()
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let workspaces = runtime_store
         .list_all_workspaces()
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let git_project_ids = projects
         .iter()
         .filter(|project| project.kind == ProjectKind::GitRepository)
@@ -207,7 +207,7 @@ async fn pull_request_summaries_for_project(
         let linked = runtime_store
             .find_linked_review(&workspace.id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         let number = linked
             .as_ref()
             .filter(|review| !review.dismissed)

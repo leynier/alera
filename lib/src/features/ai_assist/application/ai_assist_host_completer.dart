@@ -2,6 +2,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 const String openCodeGoHostTooOldMessage =
@@ -243,13 +244,9 @@ String? _trimmedString(Object? value) {
 const int aiAssistHostModelsTimeoutSeconds = 60;
 
 AiAssistException _mapHostError(Object error) {
-  final message = error.toString();
-  if (message == 'Generation canceled.' ||
-      message == 'Bad state: Generation canceled.') {
+  final message = stripErrorTypePrefixes(error.toString());
+  if (message == 'Generation canceled.') {
     return const AiAssistCanceledException();
   }
-  final trimmed = message.startsWith('Bad state: ')
-      ? message.substring('Bad state: '.length)
-      : message;
-  return AiAssistException(trimmed);
+  return AiAssistException(userFacingErrorMessage(error));
 }

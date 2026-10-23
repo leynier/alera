@@ -44,7 +44,7 @@ impl ServerActor {
         self.runtime_store
             .remove_ssh_target(&id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         let links = self.host_links.clone();
         let host_id = id.clone();
         tokio::spawn(async move {

@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/agent_task_dispatch/application/agent_task_dispatch_service.dart';
 import 'package:alera_mobile/src/features/pull_requests/domain/mobile_pull_request_watch.dart';
 import 'package:alera_mobile/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
@@ -176,8 +177,13 @@ Future<void> startPullRequestAgentWatch({
           lastDispatch: dispatched,
           snapshot: snapshot,
         );
-  } on Object catch (error) {
-    if (context.mounted) _snack(context, 'Could not start watching. $error');
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      context.mounted ? ScaffoldMessenger.of(context) : null,
+      action: 'start watching',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 
@@ -278,11 +284,22 @@ Future<AgentTaskDispatchResult?> completeAgentTaskDispatch({
       ),
     );
     return result;
-  } on AgentTaskDispatchException catch (error) {
-    messenger?.showSnackBar(SnackBar(content: Text(error.message)));
+  } on AgentTaskDispatchException catch (error, stackTrace) {
+    showActionFailure(
+      messenger,
+      action: 'send the task to the agent',
+      error: error,
+      stackTrace: stackTrace,
+      message: error.message,
+    );
     return null;
-  } on Object catch (error) {
-    messenger?.showSnackBar(SnackBar(content: Text(error.toString())));
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      messenger,
+      action: 'send the task to the agent',
+      error: error,
+      stackTrace: stackTrace,
+    );
     return null;
   }
 }

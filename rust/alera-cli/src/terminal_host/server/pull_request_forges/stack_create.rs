@@ -139,7 +139,7 @@ async fn resolve_layers(
         let workspace = store
             .find_workspace(workspace_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
             .filter(|workspace| workspace.status == WorkspaceStatus::Active)
             .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))?;
         require_local_workspace(&workspace)?;

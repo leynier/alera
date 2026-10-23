@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_commit_draft.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -43,11 +45,12 @@ class SourceControlActionsController extends _$SourceControlActionsController {
         return null;
       }
       return 'Update the paired Alera runtime to change source control from mobile.';
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('run ${write.action.name}', error, stackTrace);
       if (ref.mounted) {
         unawaited(status().reload());
       }
-      return sourceControlErrorMessage(error);
+      return runtimeActionErrorMessage(error);
     } finally {
       if (ref.mounted) {
         state = null;
@@ -68,16 +71,3 @@ class SourceControlActionsController extends _$SourceControlActionsController {
         .clear();
   }
 }
-
-/// Git failures already arrive worded the way desktop words them, so their
-/// message is shown as-is. Everything else keeps its own text: a dropped
-/// socket reads as "Could not reach the host", not as a git failure.
-String sourceControlErrorMessage(Object error) => switch (error) {
-  StateError(:final message) => message,
-  UnsupportedError(:final message?) => message,
-  TimeoutException() => 'The runtime did not answer in time.',
-  _ => switch ('$error'.trim()) {
-    '' => 'Git operation failed.',
-    final message => message,
-  },
-};

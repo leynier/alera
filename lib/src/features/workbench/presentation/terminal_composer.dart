@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_submission.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_attachment_bar.dart';
@@ -94,10 +95,11 @@ class const TerminalComposer({
       composer.addPathAttachment(imagePath, kind: .image);
       composer.focusNode.requestFocus();
       return true;
-    } catch (_) {
-      AleraToast.publish(
-        message: 'Could not paste clipboard image.',
-        tone: .error,
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'paste the clipboard image',
+        error: error,
+        stackTrace: stackTrace,
       );
       return true;
     }
@@ -111,10 +113,11 @@ class const TerminalComposer({
       await (externalUriLauncher ?? UrlLauncherExternalUriLauncher()).open(
         .file(path),
       );
-    } on Object catch (error) {
-      AleraToast.publish(
-        message: 'Could not open attached file: $error',
-        tone: .error,
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'open attached file',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }
@@ -150,10 +153,11 @@ class const TerminalComposer({
       if (context.mounted) {
         composer.focusNode.requestFocus();
       }
-    } on Object catch (error) {
-      AleraToast.publish(
-        message: 'The terminal could not accept the prompt: $error',
-        tone: .error,
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'send the prompt to the terminal',
+        error: error,
+        stackTrace: stackTrace,
       );
     } finally {
       composer.setSubmitting(false);

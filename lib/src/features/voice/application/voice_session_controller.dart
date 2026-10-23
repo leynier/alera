@@ -6,6 +6,7 @@ import 'package:alera/src/features/ai_dictation/application/ai_dictation_provide
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_request.dart';
 import 'package:alera/src/features/ai_dictation/infra/native_ai_dictation_provider.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_provider.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/voice/domain/voice_activity_detector.dart';
 import 'package:alera/src/features/voice/domain/voice_session_status.dart';
@@ -151,7 +152,7 @@ class VoiceSessionController extends _$VoiceSessionController
       return;
     }
     state = (status ?? state).copyWith(
-      lastError: error.toString(),
+      lastError: userFacingErrorMessage(error),
       phase: VoiceSessionPhase.idle,
     );
   }

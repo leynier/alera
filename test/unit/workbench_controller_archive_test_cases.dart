@@ -69,7 +69,8 @@ void _registerWorkbenchControllerArchiveTests() {
     );
 
     expect(_controller.state.activeWorkspace?.isArchived, isFalse);
-    expect(_controller.state.error, contains('archive failed'));
+    // The caller reports the failure, so state.error stays clear.
+    expect(_controller.state.error, isNull);
   });
 
   test('archived workspaces hide unless the view option is enabled', () async {

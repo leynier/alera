@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/linked_issues/domain/mobile_linked_issue.dart';
 import 'package:flutter/material.dart';
 
@@ -78,12 +80,13 @@ class _MobileIssueUrlFieldState extends State<MobileIssueUrlField> {
         _resolving = false;
       });
       widget.onResolved?.call(issue);
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('read the issue', error, stackTrace);
       if (!mounted || url != _requestedUrl) {
         return;
       }
       setState(() {
-        _error = error.toString();
+        _error = userFacingErrorMessage(error);
         _resolving = false;
       });
     }
@@ -97,7 +100,7 @@ class _MobileIssueUrlFieldState extends State<MobileIssueUrlField> {
         : issue != null
         ? '#${issue.number} · ${issue.displayState} · ${issue.title}'
         : _error != null
-        ? 'Could not read the issue. The link will still be saved.'
+        ? 'The link will still be saved. Could not read the issue: $_error'
         : 'GitHub, GitLab, Azure DevOps, or any tracker URL';
     return TextField(
       key: const ValueKey<String>('mobile-issue-url-field'),

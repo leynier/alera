@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -202,7 +203,7 @@ class const HostListScreen({super.key}) extends ConsumerWidget {
                 icon: AleraIcons.loadFailed,
                 title: 'Could not load hosts',
                 message: 'Pull down or tap Retry to try again.',
-                detail: error.toString(),
+                detail: userFacingErrorMessage(error),
                 action: FilledButton.icon(
                   onPressed: () => ref.invalidate(availableHostsProvider),
                   icon: const Icon(AleraIcons.refresh),
