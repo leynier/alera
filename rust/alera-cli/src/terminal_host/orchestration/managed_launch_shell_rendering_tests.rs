@@ -2,7 +2,10 @@ use serde_json::json;
 
 use super::super::agent_registry::adapter_for;
 use super::super::agent_startup_command::append_initial_prompt_argument;
-use super::super::managed_agent_launch::build_managed_agent_launch;
+use super::super::managed_agent_launch::{
+    build_managed_agent_launch, build_managed_agent_launch_on,
+};
+use super::super::opencode_generation::OpenCodeGeneration;
 use super::*;
 
 #[test]
@@ -53,7 +56,10 @@ fn codex_managed_prompt_follows_the_option_terminator_on_every_shell() {
 
 #[test]
 fn a_long_option_managed_prompt_stays_one_argument_on_every_shell() {
-    let mut launch = build_managed_agent_launch("opencode", &json!({"agent": "build"})).unwrap();
+    let mut launch = build_managed_agent_launch_on("opencode", &json!({"agent": "build"}), || {
+        OpenCodeGeneration::V1
+    })
+    .unwrap();
     append_initial_prompt_argument(
         adapter_for("opencode").unwrap(),
         &mut launch.arguments,

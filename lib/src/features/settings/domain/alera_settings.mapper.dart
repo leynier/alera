@@ -936,278 +936,6 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
   ) => _TerminalSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
-class AgentStatusHookSettingsMapper
-    extends ClassMapperBase<AgentStatusHookSettings> {
-  AgentStatusHookSettingsMapper._();
-
-  static AgentStatusHookSettingsMapper? _instance;
-  static AgentStatusHookSettingsMapper ensureInitialized() {
-    if (_instance == null) {
-      MapperContainer.globals.use(
-        _instance = AgentStatusHookSettingsMapper._(),
-      );
-    }
-    return _instance!;
-  }
-
-  @override
-  final String id = 'AgentStatusHookSettings';
-
-  static bool _$codex(AgentStatusHookSettings v) => v.codex;
-  static const Field<AgentStatusHookSettings, bool> _f$codex = Field(
-    'codex',
-    _$codex,
-    opt: true,
-    def: false,
-  );
-  static bool _$claude(AgentStatusHookSettings v) => v.claude;
-  static const Field<AgentStatusHookSettings, bool> _f$claude = Field(
-    'claude',
-    _$claude,
-    opt: true,
-    def: false,
-  );
-  static bool _$copilot(AgentStatusHookSettings v) => v.copilot;
-  static const Field<AgentStatusHookSettings, bool> _f$copilot = Field(
-    'copilot',
-    _$copilot,
-    opt: true,
-    def: false,
-  );
-  static bool _$cursor(AgentStatusHookSettings v) => v.cursor;
-  static const Field<AgentStatusHookSettings, bool> _f$cursor = Field(
-    'cursor',
-    _$cursor,
-    opt: true,
-    def: false,
-  );
-  static bool _$agy(AgentStatusHookSettings v) => v.agy;
-  static const Field<AgentStatusHookSettings, bool> _f$agy = Field(
-    'agy',
-    _$agy,
-    opt: true,
-    def: false,
-  );
-  static bool _$opencode(AgentStatusHookSettings v) => v.opencode;
-  static const Field<AgentStatusHookSettings, bool> _f$opencode = Field(
-    'opencode',
-    _$opencode,
-    opt: true,
-    def: false,
-  );
-  static bool _$opencode2(AgentStatusHookSettings v) => v.opencode2;
-  static const Field<AgentStatusHookSettings, bool> _f$opencode2 = Field(
-    'opencode2',
-    _$opencode2,
-    opt: true,
-    def: false,
-  );
-  static bool _$pi(AgentStatusHookSettings v) => v.pi;
-  static const Field<AgentStatusHookSettings, bool> _f$pi = Field(
-    'pi',
-    _$pi,
-    opt: true,
-    def: false,
-  );
-  static bool _$amp(AgentStatusHookSettings v) => v.amp;
-  static const Field<AgentStatusHookSettings, bool> _f$amp = Field(
-    'amp',
-    _$amp,
-    opt: true,
-    def: false,
-  );
-  static bool _$grok(AgentStatusHookSettings v) => v.grok;
-  static const Field<AgentStatusHookSettings, bool> _f$grok = Field(
-    'grok',
-    _$grok,
-    opt: true,
-    def: false,
-  );
-  static bool _$fx(AgentStatusHookSettings v) => v.fx;
-  static const Field<AgentStatusHookSettings, bool> _f$fx = Field(
-    'fx',
-    _$fx,
-    opt: true,
-    def: false,
-  );
-
-  @override
-  final MappableFields<AgentStatusHookSettings> fields = const {
-    #codex: _f$codex,
-    #claude: _f$claude,
-    #copilot: _f$copilot,
-    #cursor: _f$cursor,
-    #agy: _f$agy,
-    #opencode: _f$opencode,
-    #opencode2: _f$opencode2,
-    #pi: _f$pi,
-    #amp: _f$amp,
-    #grok: _f$grok,
-    #fx: _f$fx,
-  };
-
-  static AgentStatusHookSettings _instantiate(DecodingData data) {
-    return AgentStatusHookSettings(
-      codex: data.dec(_f$codex),
-      claude: data.dec(_f$claude),
-      copilot: data.dec(_f$copilot),
-      cursor: data.dec(_f$cursor),
-      agy: data.dec(_f$agy),
-      opencode: data.dec(_f$opencode),
-      opencode2: data.dec(_f$opencode2),
-      pi: data.dec(_f$pi),
-      amp: data.dec(_f$amp),
-      grok: data.dec(_f$grok),
-      fx: data.dec(_f$fx),
-    );
-  }
-
-  @override
-  final Function instantiate = _instantiate;
-
-  static AgentStatusHookSettings fromMap(Map<String, dynamic> map) {
-    return ensureInitialized().decodeMap<AgentStatusHookSettings>(map);
-  }
-
-  static AgentStatusHookSettings fromJson(String json) {
-    return ensureInitialized().decodeJson<AgentStatusHookSettings>(json);
-  }
-}
-
-mixin AgentStatusHookSettingsMappable {
-  String toJson() {
-    return AgentStatusHookSettingsMapper.ensureInitialized()
-        .encodeJson<AgentStatusHookSettings>(this as AgentStatusHookSettings);
-  }
-
-  Map<String, dynamic> toMap() {
-    return AgentStatusHookSettingsMapper.ensureInitialized()
-        .encodeMap<AgentStatusHookSettings>(this as AgentStatusHookSettings);
-  }
-
-  AgentStatusHookSettingsCopyWith<
-    AgentStatusHookSettings,
-    AgentStatusHookSettings,
-    AgentStatusHookSettings
-  >
-  get copyWith =>
-      _AgentStatusHookSettingsCopyWithImpl<
-        AgentStatusHookSettings,
-        AgentStatusHookSettings
-      >(this as AgentStatusHookSettings, $identity, $identity);
-  @override
-  String toString() {
-    return AgentStatusHookSettingsMapper.ensureInitialized().stringifyValue(
-      this as AgentStatusHookSettings,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return AgentStatusHookSettingsMapper.ensureInitialized().equalsValue(
-      this as AgentStatusHookSettings,
-      other,
-    );
-  }
-
-  @override
-  int get hashCode {
-    return AgentStatusHookSettingsMapper.ensureInitialized().hashValue(
-      this as AgentStatusHookSettings,
-    );
-  }
-}
-
-extension AgentStatusHookSettingsValueCopy<$R, $Out>
-    on ObjectCopyWith<$R, AgentStatusHookSettings, $Out> {
-  AgentStatusHookSettingsCopyWith<$R, AgentStatusHookSettings, $Out>
-  get $asAgentStatusHookSettings => $base.as(
-    (v, t, t2) => _AgentStatusHookSettingsCopyWithImpl<$R, $Out>(v, t, t2),
-  );
-}
-
-abstract class AgentStatusHookSettingsCopyWith<
-  $R,
-  $In extends AgentStatusHookSettings,
-  $Out
->
-    implements ClassCopyWith<$R, $In, $Out> {
-  $R call({
-    bool? codex,
-    bool? claude,
-    bool? copilot,
-    bool? cursor,
-    bool? agy,
-    bool? opencode,
-    bool? opencode2,
-    bool? pi,
-    bool? amp,
-    bool? grok,
-    bool? fx,
-  });
-  AgentStatusHookSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
-    Then<$Out2, $R2> t,
-  );
-}
-
-class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
-    extends ClassCopyWithBase<$R, AgentStatusHookSettings, $Out>
-    implements
-        AgentStatusHookSettingsCopyWith<$R, AgentStatusHookSettings, $Out> {
-  _AgentStatusHookSettingsCopyWithImpl(super.value, super.then, super.then2);
-
-  @override
-  late final ClassMapperBase<AgentStatusHookSettings> $mapper =
-      AgentStatusHookSettingsMapper.ensureInitialized();
-  @override
-  $R call({
-    bool? codex,
-    bool? claude,
-    bool? copilot,
-    bool? cursor,
-    bool? agy,
-    bool? opencode,
-    bool? opencode2,
-    bool? pi,
-    bool? amp,
-    bool? grok,
-    bool? fx,
-  }) => $apply(
-    FieldCopyWithData({
-      if (codex != null) #codex: codex,
-      if (claude != null) #claude: claude,
-      if (copilot != null) #copilot: copilot,
-      if (cursor != null) #cursor: cursor,
-      if (agy != null) #agy: agy,
-      if (opencode != null) #opencode: opencode,
-      if (opencode2 != null) #opencode2: opencode2,
-      if (pi != null) #pi: pi,
-      if (amp != null) #amp: amp,
-      if (grok != null) #grok: grok,
-      if (fx != null) #fx: fx,
-    }),
-  );
-  @override
-  AgentStatusHookSettings $make(CopyWithData data) => AgentStatusHookSettings(
-    codex: data.get(#codex, or: $value.codex),
-    claude: data.get(#claude, or: $value.claude),
-    copilot: data.get(#copilot, or: $value.copilot),
-    cursor: data.get(#cursor, or: $value.cursor),
-    agy: data.get(#agy, or: $value.agy),
-    opencode: data.get(#opencode, or: $value.opencode),
-    opencode2: data.get(#opencode2, or: $value.opencode2),
-    pi: data.get(#pi, or: $value.pi),
-    amp: data.get(#amp, or: $value.amp),
-    grok: data.get(#grok, or: $value.grok),
-    fx: data.get(#fx, or: $value.fx),
-  );
-
-  @override
-  AgentStatusHookSettingsCopyWith<$R2, AgentStatusHookSettings, $Out2>
-  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
-      _AgentStatusHookSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
-}
-
 class EditorSettingsMapper extends ClassMapperBase<EditorSettings> {
   EditorSettingsMapper._();
 
@@ -1993,6 +1721,267 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
   AgentSettingsCopyWith<$R2, AgentSettings, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _AgentSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class AgentStatusHookSettingsMapper
+    extends ClassMapperBase<AgentStatusHookSettings> {
+  AgentStatusHookSettingsMapper._();
+
+  static AgentStatusHookSettingsMapper? _instance;
+  static AgentStatusHookSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = AgentStatusHookSettingsMapper._(),
+      );
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AgentStatusHookSettings';
+
+  static bool _$codex(AgentStatusHookSettings v) => v.codex;
+  static const Field<AgentStatusHookSettings, bool> _f$codex = Field(
+    'codex',
+    _$codex,
+    opt: true,
+    def: false,
+  );
+  static bool _$claude(AgentStatusHookSettings v) => v.claude;
+  static const Field<AgentStatusHookSettings, bool> _f$claude = Field(
+    'claude',
+    _$claude,
+    opt: true,
+    def: false,
+  );
+  static bool _$copilot(AgentStatusHookSettings v) => v.copilot;
+  static const Field<AgentStatusHookSettings, bool> _f$copilot = Field(
+    'copilot',
+    _$copilot,
+    opt: true,
+    def: false,
+  );
+  static bool _$cursor(AgentStatusHookSettings v) => v.cursor;
+  static const Field<AgentStatusHookSettings, bool> _f$cursor = Field(
+    'cursor',
+    _$cursor,
+    opt: true,
+    def: false,
+  );
+  static bool _$agy(AgentStatusHookSettings v) => v.agy;
+  static const Field<AgentStatusHookSettings, bool> _f$agy = Field(
+    'agy',
+    _$agy,
+    opt: true,
+    def: false,
+  );
+  static bool _$opencode(AgentStatusHookSettings v) => v.opencode;
+  static const Field<AgentStatusHookSettings, bool> _f$opencode = Field(
+    'opencode',
+    _$opencode,
+    opt: true,
+    def: false,
+  );
+  static bool _$pi(AgentStatusHookSettings v) => v.pi;
+  static const Field<AgentStatusHookSettings, bool> _f$pi = Field(
+    'pi',
+    _$pi,
+    opt: true,
+    def: false,
+  );
+  static bool _$amp(AgentStatusHookSettings v) => v.amp;
+  static const Field<AgentStatusHookSettings, bool> _f$amp = Field(
+    'amp',
+    _$amp,
+    opt: true,
+    def: false,
+  );
+  static bool _$grok(AgentStatusHookSettings v) => v.grok;
+  static const Field<AgentStatusHookSettings, bool> _f$grok = Field(
+    'grok',
+    _$grok,
+    opt: true,
+    def: false,
+  );
+  static bool _$fx(AgentStatusHookSettings v) => v.fx;
+  static const Field<AgentStatusHookSettings, bool> _f$fx = Field(
+    'fx',
+    _$fx,
+    opt: true,
+    def: false,
+  );
+
+  @override
+  final MappableFields<AgentStatusHookSettings> fields = const {
+    #codex: _f$codex,
+    #claude: _f$claude,
+    #copilot: _f$copilot,
+    #cursor: _f$cursor,
+    #agy: _f$agy,
+    #opencode: _f$opencode,
+    #pi: _f$pi,
+    #amp: _f$amp,
+    #grok: _f$grok,
+    #fx: _f$fx,
+  };
+
+  @override
+  final MappingHook hook = const _LegacyOpenCode2HookToggleHook();
+  static AgentStatusHookSettings _instantiate(DecodingData data) {
+    return AgentStatusHookSettings(
+      codex: data.dec(_f$codex),
+      claude: data.dec(_f$claude),
+      copilot: data.dec(_f$copilot),
+      cursor: data.dec(_f$cursor),
+      agy: data.dec(_f$agy),
+      opencode: data.dec(_f$opencode),
+      pi: data.dec(_f$pi),
+      amp: data.dec(_f$amp),
+      grok: data.dec(_f$grok),
+      fx: data.dec(_f$fx),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AgentStatusHookSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AgentStatusHookSettings>(map);
+  }
+
+  static AgentStatusHookSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AgentStatusHookSettings>(json);
+  }
+}
+
+mixin AgentStatusHookSettingsMappable {
+  String toJson() {
+    return AgentStatusHookSettingsMapper.ensureInitialized()
+        .encodeJson<AgentStatusHookSettings>(this as AgentStatusHookSettings);
+  }
+
+  Map<String, dynamic> toMap() {
+    return AgentStatusHookSettingsMapper.ensureInitialized()
+        .encodeMap<AgentStatusHookSettings>(this as AgentStatusHookSettings);
+  }
+
+  AgentStatusHookSettingsCopyWith<
+    AgentStatusHookSettings,
+    AgentStatusHookSettings,
+    AgentStatusHookSettings
+  >
+  get copyWith =>
+      _AgentStatusHookSettingsCopyWithImpl<
+        AgentStatusHookSettings,
+        AgentStatusHookSettings
+      >(this as AgentStatusHookSettings, $identity, $identity);
+  @override
+  String toString() {
+    return AgentStatusHookSettingsMapper.ensureInitialized().stringifyValue(
+      this as AgentStatusHookSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AgentStatusHookSettingsMapper.ensureInitialized().equalsValue(
+      this as AgentStatusHookSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AgentStatusHookSettingsMapper.ensureInitialized().hashValue(
+      this as AgentStatusHookSettings,
+    );
+  }
+}
+
+extension AgentStatusHookSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AgentStatusHookSettings, $Out> {
+  AgentStatusHookSettingsCopyWith<$R, AgentStatusHookSettings, $Out>
+  get $asAgentStatusHookSettings => $base.as(
+    (v, t, t2) => _AgentStatusHookSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class AgentStatusHookSettingsCopyWith<
+  $R,
+  $In extends AgentStatusHookSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    bool? codex,
+    bool? claude,
+    bool? copilot,
+    bool? cursor,
+    bool? agy,
+    bool? opencode,
+    bool? pi,
+    bool? amp,
+    bool? grok,
+    bool? fx,
+  });
+  AgentStatusHookSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AgentStatusHookSettings, $Out>
+    implements
+        AgentStatusHookSettingsCopyWith<$R, AgentStatusHookSettings, $Out> {
+  _AgentStatusHookSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<AgentStatusHookSettings> $mapper =
+      AgentStatusHookSettingsMapper.ensureInitialized();
+  @override
+  $R call({
+    bool? codex,
+    bool? claude,
+    bool? copilot,
+    bool? cursor,
+    bool? agy,
+    bool? opencode,
+    bool? pi,
+    bool? amp,
+    bool? grok,
+    bool? fx,
+  }) => $apply(
+    FieldCopyWithData({
+      if (codex != null) #codex: codex,
+      if (claude != null) #claude: claude,
+      if (copilot != null) #copilot: copilot,
+      if (cursor != null) #cursor: cursor,
+      if (agy != null) #agy: agy,
+      if (opencode != null) #opencode: opencode,
+      if (pi != null) #pi: pi,
+      if (amp != null) #amp: amp,
+      if (grok != null) #grok: grok,
+      if (fx != null) #fx: fx,
+    }),
+  );
+  @override
+  AgentStatusHookSettings $make(CopyWithData data) => AgentStatusHookSettings(
+    codex: data.get(#codex, or: $value.codex),
+    claude: data.get(#claude, or: $value.claude),
+    copilot: data.get(#copilot, or: $value.copilot),
+    cursor: data.get(#cursor, or: $value.cursor),
+    agy: data.get(#agy, or: $value.agy),
+    opencode: data.get(#opencode, or: $value.opencode),
+    pi: data.get(#pi, or: $value.pi),
+    amp: data.get(#amp, or: $value.amp),
+    grok: data.get(#grok, or: $value.grok),
+    fx: data.get(#fx, or: $value.fx),
+  );
+
+  @override
+  AgentStatusHookSettingsCopyWith<$R2, AgentStatusHookSettings, $Out2>
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _AgentStatusHookSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class AgentQuotaSettingsMapper extends ClassMapperBase<AgentQuotaSettings> {

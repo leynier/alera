@@ -6,6 +6,7 @@ use crate::terminal_host::orchestration::agent_profile_launch_snapshot::{
     AgentInitialDeliveryMechanismV1, AgentInitialDeliveryReplayV1, AgentProfileLaunchSnapshotV1,
     AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY,
 };
+use crate::terminal_host::orchestration::agent_registry::canonical_agent_type;
 
 pub(super) fn terminal_session_id(tab: &WorkspaceTabRecord) -> String {
     tab.payload
@@ -113,6 +114,10 @@ pub(super) fn pending_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
 /// inside the payload it was going to deliver later. The app attaches to
 /// whichever sidecar is already running, so both spellings have to resolve.
 pub(super) fn tab_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
+    stored_tab_agent_type(tab).map(canonical_agent_type)
+}
+
+fn stored_tab_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
     if let Some(agent_type) = tab
         .payload
         .pointer("/agentProfileLaunchV1/agentType")

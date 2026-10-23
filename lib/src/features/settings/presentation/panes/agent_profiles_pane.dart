@@ -15,6 +15,7 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
@@ -80,6 +81,9 @@ class _AgentProfilesSettingsPaneState
   @override
   Widget build(BuildContext context) {
     final profilesAsync = ref.watch(agentProfilesProvider);
+    final openCodeGeneration =
+        ref.watch(openCodeGenerationProvider).value ??
+        OpenCodeGeneration.fallback;
     final defaultAgentProfileId = ref
         .watch(settingsControllerProvider)
         .agents
@@ -167,6 +171,7 @@ class _AgentProfilesSettingsPaneState
               crossAxisAlignment: .stretch,
               children: <Widget>[
                 AgentProfileEditor(
+                  openCodeGeneration: openCodeGeneration,
                   nameController: _nameController,
                   commandController: _commandController,
                   customPromptController: _customPromptController,

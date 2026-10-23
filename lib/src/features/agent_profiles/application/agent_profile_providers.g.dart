@@ -59,6 +59,104 @@ final class AgentProfileRepositoryProvider
 String _$agentProfileRepositoryHash() =>
     r'b8d54c2d655f560e823b5be92c3e7f3888abb6ba';
 
+@ProviderFor(openCodeGenerationProbe)
+final openCodeGenerationProbeProvider = OpenCodeGenerationProbeProvider._();
+
+final class OpenCodeGenerationProbeProvider
+    extends
+        $FunctionalProvider<
+          OpenCodeGenerationProbe,
+          OpenCodeGenerationProbe,
+          OpenCodeGenerationProbe
+        >
+    with $Provider<OpenCodeGenerationProbe> {
+  OpenCodeGenerationProbeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'openCodeGenerationProbeProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$openCodeGenerationProbeHash();
+
+  @$internal
+  @override
+  $ProviderElement<OpenCodeGenerationProbe> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  OpenCodeGenerationProbe create(Ref ref) {
+    return openCodeGenerationProbe(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(OpenCodeGenerationProbe value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<OpenCodeGenerationProbe>(value),
+    );
+  }
+}
+
+String _$openCodeGenerationProbeHash() =>
+    r'bda5a6c1988efa667a8cc70ebd46c75314fab466';
+
+/// The installed OpenCode generation, for previews that must show the
+/// command line the runtime will actually launch.
+
+@ProviderFor(openCodeGeneration)
+final openCodeGenerationProvider = OpenCodeGenerationProvider._();
+
+/// The installed OpenCode generation, for previews that must show the
+/// command line the runtime will actually launch.
+
+final class OpenCodeGenerationProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<OpenCodeGeneration>,
+          OpenCodeGeneration,
+          FutureOr<OpenCodeGeneration>
+        >
+    with
+        $FutureModifier<OpenCodeGeneration>,
+        $FutureProvider<OpenCodeGeneration> {
+  /// The installed OpenCode generation, for previews that must show the
+  /// command line the runtime will actually launch.
+  OpenCodeGenerationProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'openCodeGenerationProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$openCodeGenerationHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<OpenCodeGeneration> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<OpenCodeGeneration> create(Ref ref) {
+    return openCodeGeneration(ref);
+  }
+}
+
+String _$openCodeGenerationHash() =>
+    r'b9c4423583dc6b1729de4e0a6828145f09dfc5fd';
+
 @ProviderFor(agentProfilePersonaDiscovery)
 final agentProfilePersonaDiscoveryProvider =
     AgentProfilePersonaDiscoveryProvider._();
@@ -106,7 +204,7 @@ final class AgentProfilePersonaDiscoveryProvider
 }
 
 String _$agentProfilePersonaDiscoveryHash() =>
-    r'df214d78c797c469176201da1dbb2dee4de4297b';
+    r'391e39f13335a0aaedc5b8f2062ac4a07ad181b9';
 
 @ProviderFor(AgentProfiles)
 final agentProfilesProvider = AgentProfilesProvider._();

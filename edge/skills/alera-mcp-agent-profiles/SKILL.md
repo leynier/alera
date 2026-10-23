@@ -2,7 +2,7 @@
 name: alera-mcp-agent-profiles
 description: Inspect, create, change, reorder, and remove Alera agent profiles through this MCP server. Use when the user asks to maintain the launch catalog of coding agents.
 metadata:
-  version: 1
+  version: 2
 ---
 
 # Alera Agent Profiles Through MCP

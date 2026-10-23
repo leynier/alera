@@ -37,8 +37,7 @@ These keys describe Alera's current adapter contract. Confirm the installed CLI 
 | `copilot` | `model`, `effort`, `agent`, `mode`, `context`, `allowAll`, `maxAiCredits`, `maxAutopilotContinues`, `noAskUser` |
 | `cursor` | `model`, `mode`, `permissionMode`, `sandbox`, `trustWorkspace` |
 | `agy` | `model`, `effort`, `agent`, `mode`, `skipPermissions`, `sandbox` |
-| `opencode` | `model`, `agent`, `autoApprove` |
-| `opencode2` | `model`, `agent`, `autoApprove`; the interactive TUI currently emits only `autoApprove` |
+| `opencode` | `model`, `agent`, `autoApprove`; on OpenCode 2 the interactive TUI emits only `autoApprove` |
 | `pi` | `model`, `thinking`, `projectTrust` |
 | `amp` | `mode`, `fast` |
 | `grok` | `model`, `effort`, `agent`, `permissionMode`, `sandbox`, `disableWebSearch` |
@@ -78,9 +77,9 @@ The model slug is illustrative. Discover the user's actual available models befo
 
 ### OpenCode
 
-Do not infer OpenCode behavior from the package name or a stale symlink. Inspect `type -a opencode opencode2`, versions, and both help surfaces.
+One adapter, `opencode`, covers OpenCode v1 and OpenCode 2: both install as `opencode`, and a v1 install stays on v1 until the user runs `opencode upgrade --major`. The runtime reads `opencode --version` (`1.x` is v1, `opencode v2.x` is OpenCode 2) and builds the launch that generation accepts. Do not create `opencode2` profiles; the runtime reads that retired key as `opencode`. Check the generation with `opencode --version` rather than the package name or a stale symlink.
 
-OpenCode v1 supports an interactive launch with pinned `--model`, `--agent`, and `--auto`. The currently supported OpenCode 2 default TUI does not emit the configured model or agent from an Alera Managed profile; its `mini` and `run` modes have different lifecycle and approval behavior. Use v1 when the profile must pin different models unless current CLI evidence proves v2 gained an equivalent interactive contract.
+On v1, a Managed launch pins `--model`, `--agent`, and `--auto`. On OpenCode 2 it is `opencode --standalone`, plus `--auto` when Auto Approve is on: the OpenCode 2 TUI rejects `--model` and `--agent`, so the configured model and agent are not applied there, and its `mini` and `run` modes have different lifecycle and approval behavior. Use a v1 install when the profile must pin different models unless current CLI evidence proves OpenCode 2 gained an equivalent interactive contract.
 
 ### Antigravity
 

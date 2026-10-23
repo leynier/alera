@@ -14,11 +14,13 @@ globalThis.fetch = async (_url, options) => {
   return {};
 };
 
+// One OpenCode plugin serves both generations: v1 calls `server`, v2 `setup`.
 for (const kind of ['opencode', 'opencode2', 'pi']) {
   for (const implementation of ['rust', 'dart']) {
+    const plugin = kind === 'pi' ? 'pi' : 'opencode';
     const file = implementation === 'rust'
-      ? `rust/alera-cli/src/agent_status/integration_plugins/${kind}.${kind === 'pi' ? 'ts' : 'js'}`
-      : `lib/src/features/agent_status/infra/managed_hooks/${kind}_managed_agent_hook.dart`;
+      ? `rust/alera-cli/src/agent_status/integration_plugins/${plugin}.${kind === 'pi' ? 'ts' : 'js'}`
+      : `lib/src/features/agent_status/infra/managed_hooks/${plugin}_managed_agent_hook.dart`;
     let source = await fs.readFile(file, 'utf8');
     if (implementation === 'dart') source = source.match(/r'''([\s\S]*?)'''/)[1];
     const module = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
@@ -45,7 +47,7 @@ for (const kind of ['opencode', 'opencode2', 'pi']) {
       };
       const sessions = ['one', 'child', 'unknown', 'failure', 'slow', 'retry', 'retry', 'one', 'two'];
       if (kind === 'opencode') {
-        const plugin = await module.AleraOpenCodeStatusPlugin({
+        const plugin = await module.default.server({
           client: { session: { get: async ({ path }) => ({ data: await get(path.id) }) } },
         });
         for (const id of sessions) {
@@ -62,6 +64,9 @@ for (const kind of ['opencode', 'opencode2', 'pi']) {
             yield { type: 'permission.asked', data: { sessionID: 'child' } };
           } },
         });
+        // `setup` returns at once and consumes the stream in the background;
+        // the slow lookup alone holds it for its 250ms timeout.
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
       assert(emitted.some(e => e.role === 'user' && e.sessionId === 'one' && !e.agentTitleIgnore));
       assert(emitted.some(e => e.hook_event_name === 'SessionBusy' && e.sessionId === 'two' && !e.agentTitleIgnore));

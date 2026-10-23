@@ -10,6 +10,7 @@ extension _AgentRuntimeOverlayPrepare on AgentRuntimeOverlayService {
     required String defaultSourcePath,
     required String managedSubdirectory,
     required Map<String, String> managedFiles,
+    Set<String> retiredManagedFileNames = const <String>{},
   }) async {
     final source = _resolveSource(
       publicEnvKey: publicEnvKey,
@@ -35,7 +36,10 @@ extension _AgentRuntimeOverlayPrepare on AgentRuntimeOverlayService {
           sourcePath: source.path,
           overlayPath: overlay.path,
           managedSubdirectory: managedSubdirectory,
-          managedFileNames: managedFiles.keys.toSet(),
+          managedFileNames: <String>{
+            ...managedFiles.keys,
+            ...retiredManagedFileNames,
+          },
         );
       }
       for (final entry in managedFiles.entries) {

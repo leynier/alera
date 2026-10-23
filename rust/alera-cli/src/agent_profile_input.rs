@@ -351,7 +351,7 @@ fn risk_markers(agent_type: &str, config: &Value) -> BTreeSet<&'static str> {
             markers.insert(marker);
         }
     };
-    match agent_type {
+    match alera_core::runtime::canonical_agent_type(agent_type) {
         "codex" => {
             mark(
                 config.get("bypassApprovalsAndSandbox") == Some(&Value::Bool(true)),
@@ -412,7 +412,7 @@ fn risk_markers(agent_type: &str, config: &Value) -> BTreeSet<&'static str> {
             config.get("skipPermissions") == Some(&Value::Bool(true)),
             "skipPermissions",
         ),
-        "opencode" | "opencode2" => mark(
+        "opencode" => mark(
             config.get("autoApprove") == Some(&Value::Bool(true)),
             "autoApprove",
         ),

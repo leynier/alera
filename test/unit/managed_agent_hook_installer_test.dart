@@ -347,6 +347,27 @@ void main() {
       expect(script, contains('\$attempt -lt 2'));
     });
 
+    test('installing OpenCode retires the separate OpenCode 2 plugin', () {
+      final plugins = p.join(home.path, '.config', 'opencode', 'plugins');
+      Directory(plugins).createSync(recursive: true);
+      final legacy = File(p.join(plugins, 'alera-agent-status-v2.js'))
+        ..writeAsStringSync('// ALERA_AGENT_STATUS_MANAGED_FILE\n');
+      final foreign = File(p.join(plugins, 'user-plugin.js'))
+        ..writeAsStringSync('export default {}\n');
+
+      expect(
+        service.install(.opencode).state,
+        ManagedAgentHookInstallState.installed,
+      );
+
+      expect(legacy.existsSync(), isFalse);
+      expect(foreign.existsSync(), isTrue);
+      expect(
+        File(p.join(plugins, 'alera-agent-status.js')).existsSync(),
+        isTrue,
+      );
+    });
+
     test('installs and removes the managed OpenCode status plugin', () {
       final pluginPath = p.join(
         home.path,
@@ -371,7 +392,7 @@ void main() {
 
       final source = File(pluginPath).readAsStringSync();
       expect(source, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
-      expect(source, contains('AleraOpenCodeStatusPlugin'));
+      expect(source, contains("id: 'alera-agent-status'"));
       expect(source, contains('/hook/opencode'));
       expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
 

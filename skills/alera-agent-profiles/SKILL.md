@@ -2,7 +2,7 @@
 name: alera-agent-profiles
 description: Maintain Alera Agent Profiles or research and validate a launch catalog.
 metadata:
-  version: 1
+  version: 2
 ---
 
 # Alera Agent Profiles

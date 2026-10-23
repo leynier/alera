@@ -1,4 +1,5 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/ai_assist/domain/legacy_opencode2_agent_hook.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 part 'ai_assist_settings.mapper.dart';
@@ -35,7 +36,6 @@ enum AiAssistAgent(this.key) {
   cursor('cursor'),
   agy('agy'),
   opencode('opencode'),
-  opencode2('opencode2'),
   @MappableValue('opencode-go')
   opencodeGo('opencode-go'),
   pi('pi'),
@@ -54,7 +54,6 @@ enum AiAssistAgent(this.key) {
     AiAssistAgent.cursor => 'Cursor',
     AiAssistAgent.agy => 'Antigravity',
     AiAssistAgent.opencode => 'OpenCode',
-    AiAssistAgent.opencode2 => 'OpenCode 2',
     AiAssistAgent.opencodeGo => 'OpenCode Go',
     AiAssistAgent.pi => 'Pi',
     AiAssistAgent.amp => 'Amp',
@@ -71,7 +70,6 @@ enum AiAssistAgent(this.key) {
     AiAssistAgent.cursor => AgentType.cursor,
     AiAssistAgent.agy => AgentType.agy,
     AiAssistAgent.opencode => AgentType.opencode,
-    AiAssistAgent.opencode2 => AgentType.opencode2,
     AiAssistAgent.opencodeGo => AgentType.opencode,
     AiAssistAgent.pi => AgentType.pi,
     AiAssistAgent.amp => AgentType.amp,
@@ -111,7 +109,7 @@ class const AiAssistDiscoveredModel({
   final String? defaultThinkingLevel;
 }
 
-@MappableClass()
+@MappableClass(hook: LegacyOpenCode2AgentHook(agentKeys: <String>['agent']))
 class const AiAssistPromptSettings({this.agent, this.model})
     with AiAssistPromptSettingsMappable {
   final AiAssistAgent? agent;
@@ -122,7 +120,16 @@ class const AiAssistPromptSettings({this.agent, this.model})
   bool get inheritsModel => model == null || model!.trim().isEmpty;
 }
 
-@MappableClass()
+@MappableClass(
+  hook: LegacyOpenCode2AgentHook(
+    agentKeys: <String>['agent'],
+    agentMapKeys: <String>[
+      'selectedModelByAgent',
+      'discoveredModelsByAgent',
+      'discoveredDefaultModelByAgent',
+    ],
+  ),
+)
 class const AiAssistSettings({
   this.enabled = true,
   this.autoGenerateAgentTitles = true,

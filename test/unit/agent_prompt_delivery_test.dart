@@ -17,7 +17,6 @@ void main() {
           AgentType.cursor: AgentPromptDelivery.positionalAfterTerminator,
           AgentType.agy: AgentPromptDelivery.longOption,
           AgentType.opencode: AgentPromptDelivery.longOption,
-          AgentType.opencode2: AgentPromptDelivery.longOption,
           AgentType.pi: AgentPromptDelivery.positional,
           AgentType.amp: AgentPromptDelivery.stdinScript,
           AgentType.grok: AgentPromptDelivery.positionalAfterTerminator,

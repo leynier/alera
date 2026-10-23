@@ -18,8 +18,7 @@ Alera-managed hook commands include `alera-runtime-agent-hook` in the command st
 | Cursor | `~/.cursor/hooks.json` | Merged command entries with a 5s timeout. `sessionStart` is not registered. |
 | Antigravity | `~/.gemini/config/hooks.json` | Top-level `alera-status` bundle. |
 | Grok Build | `~/.grok/hooks/alera-status.json` | Dedicated Alera file. `$GROK_HOME` is honored. |
-| OpenCode | `~/.config/opencode/plugins/alera-agent-status.js` | Dedicated plugin. `$OPENCODE_CONFIG_DIR` is honored. |
-| OpenCode 2 | `~/.config/opencode/plugins/alera-agent-status-v2.js` | Dedicated plugin. Same config dir as v1. It reports only from a private server (`opencode2 --standalone`, which Alera's launches use): the shared background service carries the environment of whichever tab started it. |
+| OpenCode | `~/.config/opencode/plugins/alera-agent-status.js` | Dedicated plugin for both OpenCode v1 (1.3.4 and later, through `server`) and OpenCode 2 (through `setup`). `$OPENCODE_CONFIG_DIR` is honored. On OpenCode 2 it reports only from a private server (`opencode --standalone`, which Alera's launches use): the shared background service carries the environment of whichever tab started it. Installing it deletes the separate `alera-agent-status-v2.js` older versions wrote. |
 | Pi | `~/.pi/agent/extensions/alera-agent-status.ts` | Dedicated extension. `$PI_CODING_AGENT_DIR` is honored. |
 | Amp | `~/.config/amp/plugins/alera-agent-status.ts` | Dedicated plugin. `$AMP_CONFIG_DIR` is honored. |
 | fx | none | Herdr socket and pane id in the terminal environment. fx reports its conversation id with `pane.report_agent_session` at startup, which binds the tab for `fx --resume`. |

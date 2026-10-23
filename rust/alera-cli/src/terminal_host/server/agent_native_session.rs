@@ -5,7 +5,7 @@ use crate::agent_status::{
     resolve_agent_status_identity, AgentHookEvent, AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
 };
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
-use crate::terminal_host::orchestration::agent_registry::adapter_for;
+use crate::terminal_host::orchestration::agent_registry::{adapter_for, canonical_agent_type};
 use crate::terminal_host::orchestration::agent_session_resume::{
     ccs_profile_from_config_dir, native_session_id, usable_native_session_id,
     AgentSessionResumeShape, AGENT_NATIVE_CCS_PROFILE_KEY, AGENT_NATIVE_SESSION_AGENT_KEY,
@@ -32,7 +32,8 @@ pub(super) fn native_session_resume(tab: &WorkspaceTabRecord) -> Option<NativeSe
         .payload
         .get(AGENT_NATIVE_SESSION_AGENT_KEY)
         .and_then(Value::as_str)
-        .filter(|agent| !agent.is_empty())?;
+        .filter(|agent| !agent.is_empty())
+        .map(canonical_agent_type)?;
     if let Some(tab_agent) = tab_agent_type(tab) {
         if stored_agent != tab_agent {
             return None;
@@ -382,7 +383,7 @@ mod tests {
             ("cursor", "conversation_id", "conv-cursor"),
             ("agy", "conversationId", "conv-agy"),
             ("opencode", "sessionId", "sess-opencode"),
-            ("opencode2", "sessionID", "sess-opencode2"),
+            ("opencode", "sessionID", "sess-opencode-v2"),
             ("pi", "sessionId", "sess-pi"),
             ("amp", "threadId", "thread-amp"),
             ("grok", "session_id", "sess-grok"),

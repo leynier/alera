@@ -1,6 +1,6 @@
-use super::RuntimeTextActionsSettings;
+use super::{canonical_agent_type, RuntimeTextActionsSettings};
 
-pub const AI_ASSIST_AGENTS: [&str; 14] = [
+pub const AI_ASSIST_AGENTS: [&str; 13] = [
     "chatgpt",
     "codex",
     "claude",
@@ -8,7 +8,6 @@ pub const AI_ASSIST_AGENTS: [&str; 14] = [
     "cursor",
     "agy",
     "opencode",
-    "opencode2",
     "opencode-go",
     "pi",
     "amp",
@@ -16,6 +15,12 @@ pub const AI_ASSIST_AGENTS: [&str; 14] = [
     "fx",
     "custom",
 ];
+
+/// Whether settings may name `agent` for AI Assist. The retired `opencode2` key
+/// of older settings is accepted and runs as `opencode`.
+pub fn is_ai_assist_agent(agent: &str) -> bool {
+    AI_ASSIST_AGENTS.contains(&canonical_agent_type(agent.trim()))
+}
 
 pub fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> anyhow::Result<()> {
     let mut ids = std::collections::HashSet::new();
@@ -38,7 +43,7 @@ pub fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> 
         if action
             .agent_override
             .as_deref()
-            .is_some_and(|agent| !AI_ASSIST_AGENTS.contains(&agent.trim()))
+            .is_some_and(|agent| !is_ai_assist_agent(agent))
         {
             return Err(anyhow::anyhow!(
                 "textActions contains an unsupported agent.",

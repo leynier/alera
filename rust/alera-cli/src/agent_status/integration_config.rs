@@ -6,8 +6,8 @@ use serde_json::{json, Map, Value};
 
 use super::integration_hook_scripts::write_managed_script;
 use super::integration_plugins::{
-    install_amp_plugin, install_opencode2_plugin, install_opencode_plugin, install_pi_plugin,
-    remove_amp_plugin, remove_opencode2_plugin, remove_opencode_plugin, remove_pi_plugin,
+    install_amp_plugin, install_opencode_plugin, install_pi_plugin, remove_amp_plugin,
+    remove_opencode_plugin, remove_pi_plugin,
 };
 
 #[path = "integration_config_ccs.rs"]
@@ -131,13 +131,6 @@ pub fn prepare_enabled_integrations(
         &mut warnings,
     );
     apply_plugin(
-        "OpenCode 2",
-        settings.opencode2,
-        install_opencode2_plugin,
-        remove_opencode2_plugin,
-        &mut warnings,
-    );
-    apply_plugin(
         "Pi",
         settings.pi,
         install_pi_plugin,
@@ -169,6 +162,9 @@ pub fn start_agent_integrations(
         Err(error) => vec![error.to_string()],
     };
     warnings.extend(reconcile_agent_integrations(runtime_dir, settings));
+    // Launches read the OpenCode generation from a cache; fill it before the
+    // first agent tab asks rather than defaulting that one launch.
+    crate::terminal_host::orchestration::opencode_generation::spawn_refresh();
     warnings
 }
 

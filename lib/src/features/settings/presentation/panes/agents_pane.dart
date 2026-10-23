@@ -126,17 +126,10 @@ class const AgentsSettingsPane({
               ),
               SettingsSwitchRow(
                 title: 'OpenCode Hooks',
-                description: 'Install the Alera OpenCode status plugin in the user OpenCode config. Disable to remove only the Alera plugin file.',
+                description: 'Install the Alera OpenCode status plugin in the user OpenCode config. It serves both OpenCode v1 and OpenCode 2. Disable to remove only the Alera plugin file.',
                 value: agents.agentStatusHooks.opencode,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(.opencode, value),
-              ),
-              SettingsSwitchRow(
-                title: 'OpenCode 2 Hooks',
-                description: 'Install the Alera OpenCode 2 status plugin in the user OpenCode config. Disable to remove only the Alera v2 plugin file.',
-                value: agents.agentStatusHooks.opencode2,
-                onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(.opencode2, value),
               ),
               SettingsSwitchRow(
                 title: 'Pi Hooks',

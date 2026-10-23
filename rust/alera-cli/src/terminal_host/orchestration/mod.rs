@@ -14,3 +14,4 @@ pub mod managed_launch_shell_rendering;
 pub mod message_delivery;
 pub mod message_formatter;
 pub mod message_waiters;
+pub mod opencode_generation;

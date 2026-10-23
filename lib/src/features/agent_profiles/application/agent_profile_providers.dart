@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera/src/features/agent_profiles/application/agent_profile_persona_discovery.dart';
+import 'package:alera/src/features/agent_profiles/application/opencode_generation_probe.dart';
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_removal_impact.dart';
 import 'package:alera/src/features/agent_profiles/infra/runtime_agent_profile_repository.dart';
@@ -19,10 +21,26 @@ RuntimeAgentProfileRepository agentProfileRepository(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+OpenCodeGenerationProbe openCodeGenerationProbe(Ref ref) {
+  return OpenCodeGenerationProbe(
+    processRunner: ref.read(processRunnerProvider),
+    commandEnvironmentResolver: ref.read(commandEnvironmentResolverProvider),
+  );
+}
+
+/// The installed OpenCode generation, for previews that must show the
+/// command line the runtime will actually launch.
+@riverpod
+Future<OpenCodeGeneration> openCodeGeneration(Ref ref) {
+  return ref.watch(openCodeGenerationProbeProvider).detect();
+}
+
+@Riverpod(keepAlive: true)
 AgentProfilePersonaDiscovery agentProfilePersonaDiscovery(Ref ref) {
   return AgentProfilePersonaDiscovery(
     processRunner: ref.read(processRunnerProvider),
     commandEnvironmentResolver: ref.read(commandEnvironmentResolverProvider),
+    openCodeGenerationProbe: ref.read(openCodeGenerationProbeProvider),
   );
 }
 

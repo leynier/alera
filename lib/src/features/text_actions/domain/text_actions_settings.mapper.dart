@@ -69,6 +69,10 @@ class TextActionMapper extends ClassMapperBase<TextAction> {
     #reasoningByModel: _f$reasoningByModel,
   };
 
+  @override
+  final MappingHook hook = const LegacyOpenCode2AgentHook(
+    agentKeys: <String>['agentOverride'],
+  );
   static TextAction _instantiate(DecodingData data) {
     return TextAction(
       id: data.dec(_f$id),

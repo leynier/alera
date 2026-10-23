@@ -152,7 +152,6 @@ void main() {
           'cursor',
           'agy',
           'opencode',
-          'opencode2',
           'pi',
           'amp',
           'grok',
@@ -160,6 +159,8 @@ void main() {
         ],
       );
       expect(agentProfileAdapterFromKey('fx'), AgentType.fx);
+      // OpenCode v1 and OpenCode 2 are one adapter now.
+      expect(agentProfileAdapterFromKey('opencode2'), AgentType.opencode);
       expect(agentProfileAdapterFromKey('codex'), isNotNull);
     });
 

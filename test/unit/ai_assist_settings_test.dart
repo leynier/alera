@@ -23,7 +23,6 @@ void main() {
     expect(AiAssistAgent.cursor.agentType, AgentType.cursor);
     expect(AiAssistAgent.agy.agentType, AgentType.agy);
     expect(AiAssistAgent.opencode.agentType, AgentType.opencode);
-    expect(AiAssistAgent.opencode2.agentType, AgentType.opencode2);
     expect(AiAssistAgent.opencodeGo.key, 'opencode-go');
     expect(AiAssistAgent.opencodeGo.label, 'OpenCode Go');
     expect(AiAssistAgent.opencodeGo.agentType, AgentType.opencode);
@@ -41,7 +40,6 @@ void main() {
         'Cursor',
         'Antigravity',
         'OpenCode',
-        'OpenCode 2',
         'OpenCode Go',
         'Pi',
         'Amp',

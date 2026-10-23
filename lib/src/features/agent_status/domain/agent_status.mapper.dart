@@ -93,8 +93,6 @@ class AgentTypeMapper extends EnumMapper<AgentType> {
         return AgentType.agy;
       case r'opencode':
         return AgentType.opencode;
-      case r'opencode2':
-        return AgentType.opencode2;
       case r'pi':
         return AgentType.pi;
       case r'amp':
@@ -123,8 +121,6 @@ class AgentTypeMapper extends EnumMapper<AgentType> {
         return r'agy';
       case AgentType.opencode:
         return r'opencode';
-      case AgentType.opencode2:
-        return r'opencode2';
       case AgentType.pi:
         return r'pi';
       case AgentType.amp:

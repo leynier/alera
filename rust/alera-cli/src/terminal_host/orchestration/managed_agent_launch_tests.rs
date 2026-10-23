@@ -63,16 +63,6 @@ fn every_adapter_builds_its_native_session_flags() {
             vec!["--dangerously-skip-permissions", "--sandbox"],
         ),
         (
-            "opencode",
-            json!({"agent": "build", "autoApprove": true}),
-            vec!["--agent", "build", "--auto"],
-        ),
-        (
-            "opencode2",
-            json!({"agent": "build", "model": "opencode/deepseek", "autoApprove": true}),
-            vec!["--standalone", "--auto"],
-        ),
-        (
             "pi",
             json!({"thinking": "xhigh", "projectTrust": "ignore"}),
             vec!["--thinking", "xhigh", "--no-approve"],
@@ -252,4 +242,37 @@ fn grok_builds_interactive_session_flags_and_rejects_unknown_options() {
         "an unsupported grok sandbox was accepted"
     );
     assert!(build_managed_agent_launch("grok", &json!({"webSearch": true})).is_err());
+}
+
+#[test]
+fn opencode_builds_the_launch_its_installed_generation_accepts() {
+    let config = json!({"agent": "build", "model": "opencode/deepseek", "autoApprove": true});
+    let v1 = build_managed_agent_launch_on("opencode", &config, || OpenCodeGeneration::V1).unwrap();
+    assert_eq!(v1.executable, "opencode");
+    assert_eq!(
+        v1.arguments,
+        ["--model", "opencode/deepseek", "--agent", "build", "--auto"]
+    );
+    let v2 = build_managed_agent_launch_on("opencode", &config, || OpenCodeGeneration::V2).unwrap();
+    assert_eq!(v2.executable, "opencode");
+    assert_eq!(v2.arguments, ["--standalone", "--auto"]);
+}
+
+#[test]
+fn a_retired_opencode2_profile_launches_opencode() {
+    let launch =
+        build_managed_agent_launch_on("opencode2", &json!({}), || OpenCodeGeneration::V2).unwrap();
+    assert_eq!(launch.executable, "opencode");
+    assert_eq!(launch.arguments, ["--standalone"]);
+}
+
+#[test]
+fn opencode_native_resume_keeps_the_private_server_only_on_v2() {
+    let v2 = ManagedAgentLaunch::for_native_resume_on("opencode2", None, || OpenCodeGeneration::V2)
+        .unwrap();
+    assert_eq!(v2.executable, "opencode");
+    assert_eq!(v2.arguments, ["--standalone"]);
+    let v1 = ManagedAgentLaunch::for_native_resume_on("opencode", None, || OpenCodeGeneration::V1)
+        .unwrap();
+    assert!(v1.arguments.is_empty());
 }

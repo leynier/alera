@@ -310,12 +310,5 @@ class RustAgentHookServer implements AgentHookServer {
     );
   }
 
-  AgentType? _agentTypeFromKey(String key) {
-    for (final type in AgentType.values) {
-      if (type.key == key) {
-        return type;
-      }
-    }
-    return null;
-  }
+  AgentType? _agentTypeFromKey(String key) => AgentType.tryParse(key);
 }

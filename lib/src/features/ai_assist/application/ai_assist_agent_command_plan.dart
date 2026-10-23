@@ -84,12 +84,18 @@ extension on CliAiAssistAgentRunner {
         rethrow;
       }
     }
-    var args = spec.buildArgs(
-      prompt: deliveredPrompt,
-      model: model.id,
-      thinkingLevel: thinking,
-      timeoutSeconds: settings.timeoutSeconds,
-    );
+    var args = agent == AiAssistAgent.opencode
+        ? openCodeRunArguments(
+            model: model.id,
+            thinkingLevel: thinking,
+            generation: await openCodeGenerationProbe.detect(),
+          )
+        : spec.buildArgs(
+            prompt: deliveredPrompt,
+            model: model.id,
+            thinkingLevel: thinking,
+            timeoutSeconds: settings.timeoutSeconds,
+          );
     if (request.outputContract != AgentTaskOutputContract.plainText) {
       final schema = request.outputSchema?.trim();
       if (schema == null || schema.isEmpty) {

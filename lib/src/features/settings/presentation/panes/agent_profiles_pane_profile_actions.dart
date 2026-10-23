@@ -1,6 +1,9 @@
 part of 'agent_profiles_pane.dart';
 
 extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
+  OpenCodeGeneration get _openCodeGeneration =>
+      ref.read(openCodeGenerationProvider).value ?? OpenCodeGeneration.fallback;
+
   Future<void> _reorderProfiles(
     List<AgentProfile> profiles,
     int oldIndex,
@@ -135,7 +138,11 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
   Future<void> _testCommand() async {
     final command =
         (_launchMode == AgentProfileLaunchMode.managed
-                ? managedAgentCommandPreview(_adapter, _managedConfig)
+                ? managedAgentCommandPreview(
+                    _adapter,
+                    _managedConfig,
+                    openCodeGeneration: _openCodeGeneration,
+                  )
                 : _commandController.text)
             .trim();
     if (command.isEmpty) {

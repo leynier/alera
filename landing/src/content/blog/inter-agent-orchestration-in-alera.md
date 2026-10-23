@@ -2,7 +2,7 @@
 title: "Inter-Agent Orchestration In Alera"
 description: "Tabs full of agents are useful until they need to coordinate. How orchestration protocol v2 adds ownership, gates, and a real coordinator."
 pubDate: 2026-07-28T17:00:00.000Z
-updatedDate: 2026-10-12
+updatedDate: 2026-10-23
 tags: ["Orchestration", "Agents"]
 relatedDocs: ["orchestration", "runs", "agent-profiles"]
 ---
@@ -12,6 +12,7 @@ relatedDocs: ["orchestration", "runs", "agent-profiles"]
 > - Workers no longer accept dispatches or send heartbeats. The first worker command (`context`, `ask`, `escalate`, or `complete`) accepts the task, terminal activity keeps it alive, and `complete` needs only `--summary`. `dispatch-accept`, `heartbeat`, and `worker-done` are gone.
 > - `delegate` replaces `task-create` and `agent-spawn`, and always starts a catalog profile. The minimal loop below is corrected.
 > - Execution policies became plans: `run new --approval` holds a run behind a plan gate you resolve, and the `run-policy-*` commands are gone. Runs, gates, and questions live in **Activity** (`Mod+Shift+A`), which replaces the Run Board. See [Runs And Activity](/docs/runs).
+> - OpenCode v1 and OpenCode 2 are one agent again, `opencode`: both install as `opencode`, and Alera detects which one you have and launches it accordingly. Profiles and settings that still say `opencode2` keep working as `opencode`.
 >
 > **Update, September 2026:**
 >

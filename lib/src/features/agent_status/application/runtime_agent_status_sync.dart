@@ -68,9 +68,7 @@ AgentStatusEntry? _entryFromRuntime(Map<String, Object?> json) {
   final sessionId = json['handle'];
   final workspaceId = json['workspaceId'];
   final tabId = json['tabId'];
-  final agentType = AgentType.values
-      .where((value) => value.key == json['agentType'])
-      .firstOrNull;
+  final agentType = AgentType.tryParse(json['agentType']);
   final state = AgentStatusState.values
       .where((value) => value.key == json['agentState'])
       .firstOrNull;

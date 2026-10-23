@@ -1,10 +1,13 @@
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/legacy_opencode2_agent_hook.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 part 'text_actions_settings.mapper.dart';
 
 /// A user-authored instruction that can replace the current text selection.
-@MappableClass()
+@MappableClass(
+  hook: LegacyOpenCode2AgentHook(agentKeys: <String>['agentOverride']),
+)
 class const TextAction({
   required this.id,
   required this.name,

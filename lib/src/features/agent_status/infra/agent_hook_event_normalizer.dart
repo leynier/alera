@@ -53,8 +53,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
       toolSnapshot.toolName,
       event.payload,
     ),
-    AgentType.opencode ||
-    AgentType.opencode2 => _normalizeOpenCodeState(eventName),
+    AgentType.opencode => _normalizeOpenCodeState(eventName),
     AgentType.pi => _normalizePiState(eventName),
     AgentType.amp => _normalizeAmpState(eventName),
     AgentType.grok => _normalizeGrokState(eventName, event.payload),
@@ -107,7 +106,6 @@ bool isAgentSessionCloseHookEvent(AgentHookEvent event) {
     AgentType.claude ||
     AgentType.agy ||
     AgentType.opencode ||
-    AgentType.opencode2 ||
     AgentType.amp => false,
     AgentType.grok => _normalizeGrokEventName(eventName) == 'SessionEnd',
     AgentType.fx => eventName == 'SessionEnd',
@@ -150,7 +148,7 @@ bool _isNewTurn(AgentType agentType, String eventName) {
     AgentType.copilot => _isCopilotNewTurn(eventName),
     AgentType.cursor => _isCursorNewTurn(eventName),
     AgentType.agy => _isAgyNewTurn(eventName),
-    AgentType.opencode || AgentType.opencode2 => _isOpenCodeNewTurn(eventName),
+    AgentType.opencode => _isOpenCodeNewTurn(eventName),
     AgentType.pi => _isPiNewTurn(eventName),
     AgentType.amp => _isAmpNewTurn(eventName),
     AgentType.grok => _isGrokNewTurn(eventName),
@@ -165,8 +163,7 @@ String _extractPromptForEvent(AgentHookEvent event, String eventName) {
   if (event.agentType == AgentType.grok && eventName == 'Notification') {
     return '';
   }
-  if (event.agentType == AgentType.opencode ||
-      event.agentType == AgentType.opencode2) {
+  if (event.agentType == AgentType.opencode) {
     final prompt = _openCodePromptForEvent(event, eventName);
     if (prompt != null) {
       return prompt;
