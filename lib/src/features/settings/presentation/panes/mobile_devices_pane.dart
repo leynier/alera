@@ -64,6 +64,13 @@ class _MobileDevicesSettingsPaneState
     _gatewaySignature = signature;
   }
 
+  void _reportFailure(String action, Object error, StackTrace stackTrace) {
+    _logger.warning('Could not $action', error, stackTrace);
+    if (mounted) {
+      setState(() => _error = actionFailureMessage(action, error));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(mobileAccessStatusProvider);
@@ -412,13 +419,7 @@ class _MobileDevicesSettingsPaneState
           .read(mobileAccessRepositoryProvider)
           .cancelPairingOffer(offerId);
     } catch (error, stackTrace) {
-      _logger.warning('Could not cancel the pairing offer', error, stackTrace);
-      if (mounted) {
-        setState(
-          () =>
-              _error = actionFailureMessage('cancel the pairing offer', error),
-        );
-      }
+      _reportFailure('cancel the pairing offer', error, stackTrace);
     }
   }
 
@@ -436,12 +437,7 @@ class _MobileDevicesSettingsPaneState
           .read(mobileAccessRepositoryProvider)
           .renameDevice(id: device.id, displayName: trimmed);
     } catch (error, stackTrace) {
-      _logger.warning('Could not rename the device', error, stackTrace);
-      if (mounted) {
-        setState(
-          () => _error = actionFailureMessage('rename the device', error),
-        );
-      }
+      _reportFailure('rename the device', error, stackTrace);
     }
   }
 
@@ -463,12 +459,7 @@ class _MobileDevicesSettingsPaneState
     try {
       await ref.read(mobileAccessRepositoryProvider).revokeDevice(device.id);
     } catch (error, stackTrace) {
-      _logger.warning('Could not revoke the device', error, stackTrace);
-      if (mounted) {
-        setState(
-          () => _error = actionFailureMessage('revoke the device', error),
-        );
-      }
+      _reportFailure('revoke the device', error, stackTrace);
     }
   }
 
@@ -490,12 +481,7 @@ class _MobileDevicesSettingsPaneState
     try {
       await ref.read(mobileAccessRepositoryProvider).deleteDevice(device.id);
     } catch (error, stackTrace) {
-      _logger.warning('Could not delete the device', error, stackTrace);
-      if (mounted) {
-        setState(
-          () => _error = actionFailureMessage('delete the device', error),
-        );
-      }
+      _reportFailure('delete the device', error, stackTrace);
     }
   }
 }

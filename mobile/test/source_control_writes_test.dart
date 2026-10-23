@@ -492,9 +492,7 @@ void main() {
       'Nothing to commit.',
     );
     expect(
-      runtimeActionErrorMessage(
-        TimeoutException('x', const Duration(seconds: 1)),
-      ),
+      runtimeActionErrorMessage(TimeoutException('x', Duration.zero)),
       'The runtime did not answer in time.',
     );
   });

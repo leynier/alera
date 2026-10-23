@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -295,11 +295,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
           headBranch: widget.headBranch,
         ),
       );
-      if (!mounted ||
-          !_isCurrentGeneration(
-            workspacePath: requestPath,
-            generationId: generationId,
-          )) {
+      if (!mounted || !_isCurrentGeneration(requestPath, generationId)) {
         return;
       }
       if (_titleController.text == initialTitle &&
@@ -327,31 +323,21 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     } on AiAssistCanceledException {
       return;
     } catch (error, stackTrace) {
-      if (_isCurrentGeneration(
-        workspacePath: requestPath,
-        generationId: generationId,
-      )) {
+      if (_isCurrentGeneration(requestPath, generationId)) {
         showActionFailure(
           action: 'generate pull request details',
           error: error,
           stackTrace: stackTrace,
-          context: context,
         );
       }
     } finally {
-      if (_isCurrentGeneration(
-        workspacePath: requestPath,
-        generationId: generationId,
-      )) {
+      if (_isCurrentGeneration(requestPath, generationId)) {
         setState(() => _generating = false);
       }
     }
   }
 
-  bool _isCurrentGeneration({
-    required String workspacePath,
-    required int generationId,
-  }) {
+  bool _isCurrentGeneration(String workspacePath, int generationId) {
     return mounted &&
         widget.repoPath == workspacePath &&
         _generationId == generationId;

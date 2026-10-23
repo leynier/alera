@@ -328,11 +328,8 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
       if (generation != _requestGeneration) {
         return;
       }
-      state = state.copyWith(
-        loading: false,
-        result: null,
-        error: _messageFor(error, action: 'search'),
-      );
+      final message = _messageFor(error, action: 'search');
+      state = state.copyWith(loading: false, result: null, error: message);
     } finally {
       if (_activeRequestId == requestId) {
         _activeRequestId = null;
@@ -393,10 +390,8 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
       await searchNow(workspacePath);
       return result;
     } catch (error) {
-      state = state.copyWith(
-        replacing: false,
-        error: _messageFor(error, action: 'replace'),
-      );
+      final message = _messageFor(error, action: 'replace');
+      state = state.copyWith(replacing: false, error: message);
       rethrow;
     }
   }
