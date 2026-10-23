@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -58,12 +60,15 @@ class _InboxFollowUpComposerState extends ConsumerState<InboxFollowUpComposer> {
             : null,
       );
       _controller.clear();
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not send the follow-up: ${inboxErrorMessage(error)}',
-          ),
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'send the follow-up',
+        error: error,
+        stackTrace: stackTrace,
+        message: actionFailureMessage(
+          'send the follow-up',
+          inboxErrorMessage(error),
         ),
       );
     } finally {

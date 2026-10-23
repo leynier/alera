@@ -30,7 +30,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      'b94020e6b92d6f952b9dd4022b630c9abcbeb8af5d51d3a2f635cc08fcc63a35',
+      '927efce6ce88be28782da038fc488c1e63d825eb0060d8541d395680ce957c77',
     );
   });
 
@@ -51,6 +51,16 @@ void main() {
     expect(entry.groupId, 'chatgpt');
     expect(entry.matches('openai'), isTrue);
     expect(entry.matches('sign out'), isTrue);
+  });
+
+  test('error clarification is searchable under AI Assist', () {
+    final entry = aiAssistSearchEntries.singleWhere(
+      (entry) => entry.title == 'Clarify Error Messages',
+    );
+    expect(entry.groupId, 'generation');
+    expect(entry.matches('error'), isTrue);
+    expect(entry.matches('toast'), isTrue);
+    expect(entry.matches('notification'), isTrue);
   });
 
   test('built search catalogs remain immutable', () {

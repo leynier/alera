@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -188,12 +189,11 @@ class _WorkspaceMermanViewerSurfaceState
           'Diagram path is invalid',
         merman_native.MermanViewerErrorKind.unsupported =>
           'Diagram cannot be opened',
-        merman_native.MermanViewerErrorKind.render =>
-          'Diagram cannot be rendered',
-        merman_native.MermanViewerErrorKind.io => 'Diagram cannot be opened',
+        merman_native.MermanViewerErrorKind.render ||
+        merman_native.MermanViewerErrorKind.io => userFacingErrorMessage(error),
       };
     }
-    return 'Diagram cannot be opened';
+    return userFacingErrorMessage(error);
   }
 }
 

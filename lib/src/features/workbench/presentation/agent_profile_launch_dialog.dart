@@ -1,3 +1,5 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -259,7 +261,9 @@ class _AgentProfileLaunchDialogState extends State<AgentProfileLaunchDialog> {
           .open(.file(path));
     } on Object catch (error) {
       if (mounted) {
-        _update(() => _error = 'Could not open attached file: $error');
+        _update(
+          () => _error = actionFailureMessage('open attached file', error),
+        );
       }
     }
   }

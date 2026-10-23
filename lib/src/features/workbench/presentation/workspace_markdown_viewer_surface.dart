@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -300,8 +301,8 @@ class _WorkspaceMarkdownViewerSurfaceState
     }
     try {
       await ref.read(externalUriLauncherProvider).open(uri!);
-    } catch (_) {
-      _showToast('Link cannot be opened', tone: .error);
+    } catch (error) {
+      _showToast(actionFailureMessage('open the link', error), tone: .error);
     }
   }
 
@@ -320,10 +321,10 @@ class _WorkspaceMarkdownViewerSurfaceState
         native.WorkspaceFileErrorKind.outsideWorkspace =>
           'File is outside the workspace',
         native.WorkspaceFileErrorKind.protectedPath => 'File is protected',
-        _ => 'File operation failed',
+        _ => userFacingErrorMessage(error),
       };
     }
-    return 'File operation failed';
+    return userFacingErrorMessage(error);
   }
 }
 

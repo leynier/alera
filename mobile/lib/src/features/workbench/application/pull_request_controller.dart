@@ -1,5 +1,5 @@
-import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -65,11 +65,11 @@ class PullRequestController extends _$PullRequestController {
     }
     if (result case AsyncError(:final error) when previous.hasValue) {
       state = previous;
-      return pullRequestActionErrorMessage(error);
+      return runtimeActionErrorMessage(error);
     }
     state = result;
     return switch (result) {
-      AsyncError(:final error) => pullRequestActionErrorMessage(error),
+      AsyncError(:final error) => runtimeActionErrorMessage(error),
       _ => null,
     };
   }

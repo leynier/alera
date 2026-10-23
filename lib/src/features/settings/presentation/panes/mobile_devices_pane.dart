@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/mobile_devices/application/mobile_access_providers.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_access_status.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_device.dart';
@@ -18,6 +19,9 @@ import 'package:alera/src/features/settings/presentation/panes/mobile_pairing_of
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('MobileDevicesPane');
 
 class const MobileDevicesSettingsPane({
   super.key,
@@ -60,6 +64,13 @@ class _MobileDevicesSettingsPaneState
     _gatewaySignature = signature;
   }
 
+  void _reportFailure(String action, Object error, StackTrace stackTrace) {
+    _logger.warning('Could not $action', error, stackTrace);
+    if (mounted) {
+      setState(() => _error = actionFailureMessage(action, error));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(mobileAccessStatusProvider);
@@ -68,7 +79,7 @@ class _MobileDevicesSettingsPaneState
       error: (error, _) => AleraEmptyState(
         icon: AleraIcons.mobileDevice,
         title: 'Mobile access unavailable',
-        message: error.toString(),
+        message: userFacingErrorMessage(error),
       ),
       data: (status) {
         _seedFromSettings(status.settings);
@@ -316,13 +327,18 @@ class _MobileDevicesSettingsPaneState
         _applying = false;
         _gatewaySignature = null;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning(
+        'Could not save mobile access settings',
+        error,
+        stackTrace,
+      );
       if (!mounted) {
         return;
       }
       setState(() {
         _applying = false;
-        _error = error.toString();
+        _error = actionFailureMessage('save mobile access settings', error);
       });
     }
   }
@@ -373,13 +389,14 @@ class _MobileDevicesSettingsPaneState
               .cancelPairingOffer(grant.pairingId),
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not create the pairing offer', error, stackTrace);
       if (!mounted) {
         return;
       }
       setState(() {
         _generating = false;
-        _error = error.toString();
+        _error = actionFailureMessage('create the pairing offer', error);
       });
     }
   }
@@ -401,10 +418,8 @@ class _MobileDevicesSettingsPaneState
       await ref
           .read(mobileAccessRepositoryProvider)
           .cancelPairingOffer(offerId);
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = error.toString());
-      }
+    } catch (error, stackTrace) {
+      _reportFailure('cancel the pairing offer', error, stackTrace);
     }
   }
 
@@ -421,10 +436,8 @@ class _MobileDevicesSettingsPaneState
       await ref
           .read(mobileAccessRepositoryProvider)
           .renameDevice(id: device.id, displayName: trimmed);
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = error.toString());
-      }
+    } catch (error, stackTrace) {
+      _reportFailure('rename the device', error, stackTrace);
     }
   }
 
@@ -445,10 +458,8 @@ class _MobileDevicesSettingsPaneState
     }
     try {
       await ref.read(mobileAccessRepositoryProvider).revokeDevice(device.id);
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = error.toString());
-      }
+    } catch (error, stackTrace) {
+      _reportFailure('revoke the device', error, stackTrace);
     }
   }
 
@@ -469,10 +480,8 @@ class _MobileDevicesSettingsPaneState
     }
     try {
       await ref.read(mobileAccessRepositoryProvider).deleteDevice(device.id);
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = error.toString());
-      }
+    } catch (error, stackTrace) {
+      _reportFailure('delete the device', error, stackTrace);
     }
   }
 }

@@ -1,6 +1,35 @@
 part of 'workspace_git_diff_panel.dart';
 
 extension on _WorkspaceGitDiffPanelState {
+  /// The workbench reports a failed tab open through `state.error`, which the
+  /// shell shows, so a toast here as well would show the failure twice.
+  void _logOpenTabFailure(Object error, StackTrace stackTrace) {
+    _gitDiffPanelLogger.warning(
+      'Could not open commit diff',
+      error,
+      stackTrace,
+    );
+  }
+
+  /// Loads the commit comparison, or shows why it failed and returns null.
+  Future<GitCommitCompareResult?> _commitCompareOrReport(
+    GitHistoryItem item,
+  ) async {
+    try {
+      return await _commitCompareFor(item);
+    } catch (error, stackTrace) {
+      _gitDiffPanelLogger.warning(
+        'Could not load commit comparison',
+        error,
+        stackTrace,
+      );
+      if (mounted) {
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
+      }
+      return null;
+    }
+  }
+
   Future<void> _openGitDiff({
     String? relativePath,
     GitChangeArea? area,
@@ -31,11 +60,11 @@ extension on _WorkspaceGitDiffPanelState {
     GitCommitChangeEntry entry,
   ) async {
     final oppositePanel = isModModifierPressed();
+    final compare = await _commitCompareOrReport(item);
+    if (compare == null || !mounted) {
+      return;
+    }
     try {
-      final compare = await _commitCompareFor(item);
-      if (!mounted) {
-        return;
-      }
       await _previewOpening.openCommitFile(
         onOpen: widget.onOpenGitCommitDiff,
         relativePath: widget.sourceControlScope.toWorkspaceRelativePath(
@@ -53,10 +82,8 @@ extension on _WorkspaceGitDiffPanelState {
         keepKey: 'commit:${item.id}:${entry.path}',
         oppositePanel: oppositePanel,
       );
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: _messageFor(error), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      _logOpenTabFailure(error, stackTrace);
     }
   }
 }

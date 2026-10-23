@@ -58,7 +58,11 @@ void main() {
       runErrorMessage(const TerminalHostConnectionClosedException()),
       'The Alera runtime is not reachable.',
     );
-    expect(runErrorMessage(StateError('boom')), 'Bad state: boom');
+    expect(runErrorMessage(StateError('boom')), 'Boom');
+    expect(
+      runErrorMessage(Exception('Bad state: run store locked')),
+      'Run store locked',
+    );
     for (final code in <String>[
       'gate_stale',
       'run_sequence_stale',

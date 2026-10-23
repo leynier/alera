@@ -16,9 +16,7 @@ class const _Results({
     if (state.error case final error?) {
       return AleraEmptyState(
         icon: AleraIcons.search,
-        message: error is UnsupportedError
-            ? error.message ?? '$error'
-            : error.toString(),
+        message: userFacingErrorMessage(error),
       );
     }
     if (!state.hasQuery) {

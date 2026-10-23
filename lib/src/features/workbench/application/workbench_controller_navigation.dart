@@ -41,7 +41,7 @@ mixin _WorkbenchControllerNavigation
       state = state.copyWith(error: null);
       return launch.tabId;
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }

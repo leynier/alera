@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
@@ -73,7 +74,7 @@ class const ProjectConfigEditorLoader({
           return ProjectConfigEditor(
             project: project,
             sourceLabel: 'Repo file error',
-            sourceError: snapshot.error.toString(),
+            sourceError: userFacingErrorMessage(snapshot.error),
             gitHostingProvider: editorState.gitHostingProvider,
             onGitHostingProviderChanged: onGitHostingProviderChanged,
             copyRules: editorState.copyRules,

@@ -236,7 +236,7 @@ mixin _WorkbenchControllerWorkspacePanelPanes
       _persistLayoutInBackground(persisted);
       return created;
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }

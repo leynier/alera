@@ -238,8 +238,10 @@ impl ServerActor {
         for job in jobs {
             let cleanup = remove_owned_clone_destination(&job.parent_path, &job.destination_path);
             let error = match cleanup {
-                Ok(()) => "Runtime Restarted During Clone".to_string(),
-                Err(error) => format!("Runtime Restarted During Clone; Cleanup Failed: {error}"),
+                Ok(()) => "The runtime restarted during the clone".to_string(),
+                Err(error) => {
+                    format!("The runtime restarted during the clone; cleanup failed: {error}")
+                }
             };
             let _ = self
                 .runtime_store
@@ -419,7 +421,7 @@ async fn run_clone_job(
                 )
                 .await;
         }
-        Err(error) => finish_failed_clone(&store, &job, &raw_url, &error.to_string()).await,
+        Err(error) => finish_failed_clone(&store, &job, &raw_url, &format!("{error:#}")).await,
     }
 }
 
@@ -434,7 +436,7 @@ async fn finish_failed_clone(
         .map(|error| error.to_string());
     let mut error = sanitize_error(error, raw_url, &job.source);
     if let Some(cleanup_error) = cleanup_error {
-        error.push_str(&format!("; Cleanup Failed: {cleanup_error}"));
+        error.push_str(&format!("; cleanup failed: {cleanup_error}"));
     }
     let _ = store
         .update_project_clone_job(
@@ -477,7 +479,7 @@ fn string_key(payload: &Value, key: &str) -> HostResult<String> {
 }
 
 fn state_error(error: impl std::fmt::Display) -> HostError {
-    HostError::state(error.to_string())
+    HostError::state(format!("{error:#}"))
 }
 
 #[allow(dead_code)]

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -98,7 +100,8 @@ class MobileAiDictationModelTransfers
       await refresh();
     } on MobileAiModelDownloadCancelled {
       await refresh();
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('download the dictation model', error, stackTrace);
       final received = await _store.partialBytes(id);
       _set(
         id,
@@ -108,7 +111,9 @@ class MobileAiDictationModelTransfers
               : MobileAiModelTransferStatus.failed,
           receivedBytes: received,
           totalBytes: _store.modelFor(id).totalBytes,
-          message: 'The model download could not finish: $error',
+          message:
+              'The model download could not finish: '
+              '${userFacingErrorMessage(error)}',
         ),
       );
     } finally {

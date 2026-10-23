@@ -66,10 +66,8 @@ extension on _WorkspaceDetailsOverlayState {
             workspaceSourceControlControllerProvider(_scope.repoPath).notifier,
           )
           .fetch();
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(action: 'fetch', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -293,10 +291,11 @@ extension on _WorkspaceDetailsOverlayState {
       await ref
           .read(workbenchControllerProvider.notifier)
           .renameWorkspace(workspaceId: workspace.id, name: name);
-    } catch (error) {
-      AleraToast.publish(
-        message: 'Could not rename workspace: $error',
-        tone: .error,
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'rename workspace',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }

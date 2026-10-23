@@ -71,6 +71,7 @@ void main() {
       await repository.save(
         AleraSettings.defaults.copyWith(
           aiAssist: const AiAssistSettings(
+            clarifyErrorMessages: true,
             selectedThinkingByOperation:
                 <AiAssistOperation, Map<String, String>>{
                   AiAssistOperation.commitMessage: <String, String>{
@@ -88,6 +89,7 @@ void main() {
       expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
       final aiAssist = payload['aiTextGeneration']! as Map<String, Object?>;
       expect(aiAssist['agent'], 'codex');
+      expect(aiAssist['clarifyErrorMessages'], isTrue);
       expect(aiAssist['chatGptServiceTier'], aiAssistChatGptDefaultServiceTier);
       expect(
         aiAssist['promptSettingsByOperation'],
@@ -201,6 +203,7 @@ void main() {
         'workspaceDirectory': '/tmp/workspaces',
         'aiTextGeneration': <String, Object?>{
           'enabled': true,
+          'clarifyErrorMessages': true,
           'agent': 'claude',
           'selectedModelByAgent': <String, String>{'claude': 'opus'},
           'selectedThinkingByOperation': <String, Object?>{
@@ -227,6 +230,7 @@ void main() {
       final loaded = await repository.load();
 
       expect(loaded.aiAssist.agent, AiAssistAgent.claude);
+      expect(loaded.aiAssist.clarifyErrorMessages, isTrue);
       expect(
         loaded.aiAssist.instructionsFor(.workspaceIdentity),
         'Use feature branches.',

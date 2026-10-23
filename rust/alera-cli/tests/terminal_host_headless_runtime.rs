@@ -426,12 +426,14 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         test_home.join(".gemini/config/hooks.json"),
         grok_hooks.clone(),
         test_home.join(".config/opencode/plugins/alera-agent-status.js"),
-        test_home.join(".config/opencode/plugins/alera-agent-status-v2.js"),
         test_home.join(".pi/agent/extensions/alera-agent-status.ts"),
         test_home.join(".config/amp/plugins/alera-agent-status.ts"),
     ] {
         wait_for_path(&integration);
     }
+    assert!(!test_home
+        .join(".config/opencode/plugins/alera-agent-status-v2.js")
+        .exists());
     for hooks in [&claude_settings, &grok_hooks, &cursor_hooks] {
         assert_no_null_matchers(hooks);
     }

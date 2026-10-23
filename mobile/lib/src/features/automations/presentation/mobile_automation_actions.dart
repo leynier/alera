@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_automation_repository.dart';
@@ -31,7 +32,8 @@ class MobileAutomationActions {
       await action();
       show(success);
       return true;
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('update the automation', error, stackTrace);
       show(automationErrorMessage(error), error: true);
       return false;
     }
@@ -53,7 +55,8 @@ class MobileAutomationActions {
       final (message, isError) = mobileRunNowFeedback(run);
       show(message, error: isError);
       return run;
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('run the automation', error, stackTrace);
       show(automationErrorMessage(error), error: true);
       return null;
     }

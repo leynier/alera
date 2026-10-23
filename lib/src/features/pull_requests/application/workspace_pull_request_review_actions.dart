@@ -146,8 +146,9 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     } on ForgeException catch (error) {
       _surfaceActionError(error.message);
       return false;
-    } catch (error) {
-      _surfaceActionError(error.toString());
+    } catch (error, stackTrace) {
+      _logger.warning('Pull request review action failed', error, stackTrace);
+      _surfaceActionError(userFacingErrorMessage(error));
       return false;
     } finally {
       controller._schedulePoll(controller.scope);
@@ -339,7 +340,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
   }
 
   String _commentErrorMessage(Object error) {
-    return error is ForgeException ? error.message : error.toString();
+    return userFacingErrorMessage(error);
   }
 
   Future<bool> _runReviewMutation({

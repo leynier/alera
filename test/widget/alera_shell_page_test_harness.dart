@@ -44,6 +44,11 @@ class _ShellTestWorkbenchController(
     state = _bootstrapState;
   }
 
+  /// Records a failure the way a background controller path does.
+  void reportError(String message) {
+    state = state.copyWith(error: message);
+  }
+
   @override
   Future<void> selectWorkspace({
     required Project project,
@@ -74,6 +79,8 @@ class _ShellTestWorkbenchController(
     required List<String> tabIds,
   }) async {
     if (closeWorkspaceTabFailure case final Object failure) {
+      // Mirrors production: closing tabs reports through `state.error`.
+      state = state.copyWith(error: userFacingErrorMessage(failure));
       throw failure;
     }
     final ids = tabIds.toSet();

@@ -40,13 +40,14 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       if (mounted) {
         _setPaneState(() => _saving = false);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not reorder agent profiles', error, stackTrace);
       if (!mounted) {
         return;
       }
       _setPaneState(() {
         _saving = false;
-        _error = error.toString();
+        _error = actionFailureMessage('reorder agent profiles', error);
       });
       AleraToast.show(
         context,
@@ -122,13 +123,14 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         _seededSignature = null;
       });
       AleraToast.show(context, message: 'Agent profile saved', tone: .success);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not save the agent profile', error, stackTrace);
       if (!mounted) {
         return;
       }
       _setPaneState(() {
         _saving = false;
-        _error = error.toString();
+        _error = actionFailureMessage('save the agent profile', error);
       });
     }
   }
@@ -200,13 +202,14 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         _creatingNew = false;
         _clearEditor();
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not remove the agent profile', error, stackTrace);
       if (!mounted) {
         return;
       }
       _setPaneState(() {
         _saving = false;
-        _error = error.toString();
+        _error = actionFailureMessage('remove the agent profile', error);
       });
     }
   }
@@ -229,11 +232,16 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         message: 'Default agent profile updated',
         tone: .success,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning(
+        'Could not set the default agent profile',
+        error,
+        stackTrace,
+      );
       if (mounted) {
         _setPaneState(() {
           _saving = false;
-          _error = error.toString();
+          _error = actionFailureMessage('set the default agent profile', error);
         });
       }
     }
@@ -261,13 +269,14 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         _seededSignature = null;
       });
       AleraToast.show(context, message: 'Agent profile cloned', tone: .success);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not clone the agent profile', error, stackTrace);
       if (!mounted) {
         return;
       }
       _setPaneState(() {
         _saving = false;
-        _error = error.toString();
+        _error = actionFailureMessage('clone the agent profile', error);
       });
     }
   }

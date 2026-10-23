@@ -8,12 +8,12 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/workbench/application/editor_autosave_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
-import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -28,6 +28,7 @@ import 'package:code_forge/code_forge.dart' as code_forge;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 import 'package:re_highlight/languages/all.dart';
@@ -321,6 +322,7 @@ class _WorkspaceEditorSurfaceState
       _showToast('No Git diff for this file');
       return;
     }
+    var openingTab = false;
     try {
       final status = await ref
           .read(gitBackendProvider)
@@ -336,6 +338,7 @@ class _WorkspaceEditorSurfaceState
         _showToast('No Git diff for this file');
         return;
       }
+      openingTab = true;
       if (entries.length == 1) {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -351,10 +354,12 @@ class _WorkspaceEditorSurfaceState
             );
         return;
       }
+      openingTab = false;
       final choice = await _showDiffChoiceMenu(entries);
       if (!mounted || choice == null) {
         return;
       }
+      openingTab = true;
       if (choice.allForFile) {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -381,9 +386,16 @@ class _WorkspaceEditorSurfaceState
             preview: true,
             oppositePanel: oppositePanel,
           );
-    } catch (_) {
-      if (mounted) {
-        _showToast('Could not open Git diff', tone: .error);
+    } catch (error, stackTrace) {
+      _editorSurfaceLogger.warning(
+        'Could not open Git diff',
+        error,
+        stackTrace,
+      );
+      // A failed tab open is reported through the workbench `state.error`,
+      // which the shell shows; only the status lookup needs a toast here.
+      if (!openingTab && mounted) {
+        _showToast(actionFailureMessage('open Git diff', error), tone: .error);
       }
     }
   }
@@ -487,10 +499,10 @@ class _WorkspaceEditorSurfaceState
           'File is outside the workspace',
         native.WorkspaceFileErrorKind.protectedPath => 'File is protected',
         native.WorkspaceFileErrorKind.conflict => 'File changed on disk',
-        _ => 'File operation failed',
+        _ => userFacingErrorMessage(error),
       };
     }
-    return remoteWorkspaceErrorMessage(error) ?? 'File operation failed';
+    return userFacingErrorMessage(error);
   }
 
   code_forge.ScrollbarDecoration _scrollbarDecoration() {

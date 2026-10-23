@@ -1,10 +1,14 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/skill_install_output_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('AleraSkillInstallControl');
 
 class const AleraSkillInstallStatus(
   final String summary, {
@@ -55,12 +59,13 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
       if (mounted) {
         setState(() => _status = result);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not install the skill', error, stackTrace);
       if (mounted) {
         setState(() {
           _status = AleraSkillInstallStatus(
             'Install failed',
-            detail: '$error',
+            detail: userFacingErrorMessage(error),
             needsAttention: true,
           );
         });

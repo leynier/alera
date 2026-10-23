@@ -1,4 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:flutter/material.dart';
@@ -57,7 +59,8 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
           _refreshFailed = false;
         });
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logActionFailure('load the recovery history', error, stackTrace);
       if (mounted) {
         setState(() {
           _error = error;
@@ -105,7 +108,8 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
     });
     try {
       await callback(entry);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logActionFailure(title, error, stackTrace);
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) {
@@ -225,7 +229,7 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
                           vertical: AleraTokens.space12,
                         ),
                         child: Text(
-                          'Recovery request failed: $_error${snapshot == null || !_refreshFailed ? '' : '\nPreviously loaded history is shown below.'}',
+                          'Recovery request failed: ${userFacingErrorMessage(_error)}${snapshot == null || !_refreshFailed ? '' : '\nPreviously loaded history is shown below.'}',
                         ),
                       ),
                     if (snapshot?.ownerError case final String error)

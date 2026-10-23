@@ -23,6 +23,6 @@ pub(super) async fn list_mobile_workspace_explorer(
         hide_ignored,
     )
     .await
-    .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()))?;
+    .map_err(|error| crate::terminal_host::host_error::HostError::from_anyhow(&error))?;
     Ok(crate::remote_workspace_files::entries_to_json(&entries))
 }

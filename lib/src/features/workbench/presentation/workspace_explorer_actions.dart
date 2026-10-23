@@ -392,14 +392,12 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
       if (!focused) {
         _showInfo('Folder is not a Git repository');
       }
-    } catch (_) {
-      if (mounted) {
-        AleraToast.show(
-          context,
-          message: 'Could not use folder as source control root',
-          tone: .error,
-        );
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'use folder as source control root',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -464,10 +462,10 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
         native.WorkspaceFileErrorKind.unsupported => 'Operation is unsupported',
         native.WorkspaceFileErrorKind.notFound => 'Item not found',
         native.WorkspaceFileErrorKind.conflict => 'File changed on disk',
-        _ => 'File operation failed',
+        _ => userFacingErrorMessage(error),
       };
     }
-    return remoteWorkspaceErrorMessage(error) ?? 'File operation failed';
+    return userFacingErrorMessage(error);
   }
 
   String _parentPath(String relativePath) {

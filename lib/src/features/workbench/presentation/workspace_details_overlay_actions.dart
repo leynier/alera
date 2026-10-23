@@ -29,10 +29,12 @@ extension on _WorkspaceDetailsOverlayState {
           branch.isEmpty ? null : branch,
         );
       }
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'load branches',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -110,10 +112,14 @@ extension on _WorkspaceDetailsOverlayState {
           await source.createAndCheckoutBranch(branch);
       }
       await reviewController.refresh();
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: selection is WorkspaceCreateBranch
+            ? 'create branch'
+            : 'switch branch',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -178,10 +184,12 @@ extension on _WorkspaceDetailsOverlayState {
     if (_shipChoice(choice) case final followUp?) {
       try {
         await _ship(data, scope, followUp, chosenWatchScope);
-      } catch (error) {
-        if (mounted) {
-          AleraToast.show(context, message: error.toString(), tone: .error);
-        }
+      } catch (error, stackTrace) {
+        showActionFailure(
+          action: 'ship changes',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
       return;
     }
@@ -207,10 +215,12 @@ extension on _WorkspaceDetailsOverlayState {
   ) async {
     try {
       await _prepareAction(data, action, scope);
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'run ${action.label}',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 

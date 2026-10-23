@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alera/src/features/agent_profiles/application/opencode_generation_probe.dart';
 import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_process_failure.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
@@ -55,10 +56,14 @@ class AgentProfilePersonaDiscovery({
         command.arguments,
         environment: await commandEnvironmentResolver.environment(),
       );
-    } catch (_) {
+    } catch (error) {
       return AgentProfilePersonaDiscoveryResult(
         personas: const <String>[],
-        error: '${command.executable} persona discovery could not be started.',
+        error: aiAssistProcessStartFailureMessage(
+          subject: '${command.executable} persona discovery',
+          binary: command.executable,
+          error: error,
+        ),
       );
     }
 

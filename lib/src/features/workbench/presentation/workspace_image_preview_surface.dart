@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
@@ -214,10 +215,10 @@ class _WorkspaceImagePreviewSurfaceState
         native.WorkspaceFileErrorKind.outsideWorkspace =>
           'Image is outside the workspace',
         native.WorkspaceFileErrorKind.invalidPath => 'Image path is invalid',
-        _ => 'Image cannot be opened',
+        _ => userFacingErrorMessage(error),
       };
     }
-    return 'Image cannot be opened';
+    return userFacingErrorMessage(error);
   }
 }
 
@@ -273,8 +274,10 @@ class const _ImagePreviewCanvas({
                 ),
                 image: resolvedImage.provider,
                 fit: .contain,
-                errorBuilder: (_, _, _) => const _ImagePreviewMessage(
-                  message: 'Image cannot be opened',
+                errorBuilder: (_, error, _) => _ImagePreviewMessage(
+                  message:
+                      'Image cannot be opened: '
+                      '${userFacingErrorMessage(error)}',
                 ),
               ),
             ),

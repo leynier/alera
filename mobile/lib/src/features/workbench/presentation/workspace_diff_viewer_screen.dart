@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
@@ -71,7 +72,7 @@ class const WorkspaceDiffViewerScreen({
                     child: Padding(
                       padding: AleraTokens.contentPadding,
                       child: Text(
-                        snapshot.error.toString(),
+                        userFacingErrorMessage(snapshot.error),
                         textAlign: .center,
                       ),
                     ),

@@ -135,9 +135,13 @@ class CliAiAssistAgentRunner({
           },
           includeParentEnvironment: plan.exactEnvironment == null,
         );
-      } catch (_) {
+      } catch (error) {
         throw AiAssistException(
-          '${plan.label} could not be started. Check that ${plan.binary} is installed and on PATH.',
+          aiAssistProcessStartFailureMessage(
+            subject: plan.label,
+            binary: plan.binary,
+            error: error,
+          ),
         );
       }
       processExit = process.exitCode;

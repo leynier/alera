@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -89,7 +90,8 @@ class ExplorerController extends _$ExplorerController {
           hideIgnored: _hideIgnored,
         );
         state = AsyncData(_view());
-      } on Object catch (error) {
+      } on Object catch (error, stackTrace) {
+        logActionFailure('open the folder', error, stackTrace);
         _expanded.remove(entry.relativePath);
         state = AsyncData(_view(error: error));
       }

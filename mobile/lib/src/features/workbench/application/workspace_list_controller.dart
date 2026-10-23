@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
 
 import 'package:alera_mobile/src/features/runtime/domain/workspace_removal_dependency.dart';
@@ -292,7 +293,8 @@ class WorkspaceListController extends _$WorkspaceListController {
             parentWorkspaceId: parentId,
             childWorkspaceId: creation.workspace.id,
           );
-        } on Object catch (error) {
+        } on Object catch (error, stackTrace) {
+          logActionFailure('link the parent workspace', error, stackTrace);
           result = result.withParentLinkError(error);
         }
       }

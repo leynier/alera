@@ -177,7 +177,7 @@ void main() {
       tester,
     ) async {
       final controller = DialogLaunchersTestController(const WorkbenchState())
-        ..addLocalError = Exception('Could not add project');
+        ..addLocalError = Exception('path is not a directory');
 
       await pumpFlowHarness(
         tester,
@@ -195,7 +195,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Add Project'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Exception: Could not add project'), findsOneWidget);
+      expect(
+        find.text('Could not add project: Path is not a directory'),
+        findsOneWidget,
+      );
     });
 
     testWidgets(

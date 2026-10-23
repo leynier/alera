@@ -133,6 +133,7 @@ class const AiAssistPromptSettings({this.agent, this.model})
 class const AiAssistSettings({
   this.enabled = true,
   this.autoGenerateAgentTitles = true,
+  this.clarifyErrorMessages = false,
   this.agent = AiAssistAgent.codex,
   this.selectedModelByAgent = const <AiAssistAgent, String>{},
   this.selectedThinkingByModel = const <String, String>{},
@@ -150,6 +151,10 @@ class const AiAssistSettings({
 }) with AiAssistSettingsMappable {
   final bool enabled;
   final bool autoGenerateAgentTitles;
+
+  /// Rewrites error notifications through AI Assist. Off by default because
+  /// it sends the error text to the configured provider.
+  final bool clarifyErrorMessages;
   final AiAssistAgent agent;
   final Map<AiAssistAgent, String> selectedModelByAgent;
   final Map<String, String> selectedThinkingByModel;

@@ -232,5 +232,5 @@ fn last_dispatch(payload: &Value) -> HostResult<Option<PullRequestWatchDispatchM
 }
 
 fn state_error(error: impl std::fmt::Display) -> HostError {
-    HostError::state(error.to_string())
+    HostError::state(format!("{error:#}"))
 }

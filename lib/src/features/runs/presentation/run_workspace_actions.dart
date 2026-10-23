@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
@@ -98,14 +98,12 @@ VoidCallback? runWorkspaceAction(
               .requestFocus();
         }
       }
-    } on Object catch (error) {
-      if (context.mounted) {
-        AleraToast.show(
-          context,
-          message: 'Could not open workspace: $error',
-          tone: AleraToastTone.error,
-        );
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'open workspace',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }());
 }

@@ -1,3 +1,5 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -152,7 +154,7 @@ class _TerminalPulseDialogState extends State<TerminalPulseDialog> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _localError = error.toString();
+          _localError = userFacingErrorMessage(error);
         });
       }
     }

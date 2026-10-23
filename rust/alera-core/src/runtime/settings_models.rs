@@ -186,6 +186,8 @@ impl Default for RuntimeMobilePushSettings {
 pub struct RuntimeAiAssistSettings {
     #[serde(default = "default_true")]
     pub auto_generate_agent_titles: bool,
+    #[serde(default)]
+    pub clarify_error_messages: bool,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default = "default_ai_assist_agent")]
@@ -273,6 +275,7 @@ impl Default for RuntimeAiAssistSettings {
     fn default() -> Self {
         Self {
             auto_generate_agent_titles: true,
+            clarify_error_messages: false,
             enabled: true,
             agent: default_ai_assist_agent(),
             selected_model_by_agent: HashMap::new(),

@@ -844,7 +844,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    expect(find.text('index locked'), findsOneWidget);
+    expect(find.text('Index locked'), findsOneWidget);
 
     expect(find.byTooltip('Refresh'), findsOneWidget);
 

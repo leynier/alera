@@ -1,3 +1,5 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
@@ -355,7 +357,7 @@ class WorkspaceService._(
             kind: .config,
             label: 'alera.toml',
             succeeded: false,
-            message: error.toString(),
+            message: userFacingErrorMessage(error),
           ),
         ],
       );

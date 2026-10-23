@@ -8,9 +8,13 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/account/application/alera_account_providers.dart';
 import 'package:alera/src/features/account/domain/alera_account_status.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('AccountSettingsPane');
 
 class const AccountSettingsPane({
   super.key,
@@ -37,8 +41,9 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
       next.whenData((message) => _showError('Sign in failed: $message'));
     });
     ref.listen(aleraAccountActionsProvider, (_, next) {
-      if (next case AsyncError(:final error)) {
-        _showError(_cleanError(error));
+      if (next case AsyncError(:final error, :final stackTrace)) {
+        _logger.warning('Account action failed', error, stackTrace);
+        _showError(userFacingErrorMessage(error));
       }
     });
 
@@ -49,7 +54,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
       error: (error, _) => AleraEmptyState(
         icon: AleraIcons.account,
         title: 'Account unavailable',
-        message: _cleanError(error),
+        message: userFacingErrorMessage(error),
       ),
       data: (value) => SingleChildScrollView(
         child: Column(
@@ -295,11 +300,4 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
-}
-
-String _cleanError(Object error) {
-  return error.toString().replaceFirst(
-    RegExp(r'^(StateError|Exception):\s*'),
-    '',
-  );
 }

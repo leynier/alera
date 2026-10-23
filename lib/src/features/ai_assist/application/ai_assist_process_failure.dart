@@ -1,6 +1,25 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 
 const int _maxAiAssistFailureDetailLength = 1000;
+
+/// The message for a CLI that could not be spawned: it keeps the install
+/// guidance and names the actual cause, such as `Codex could not be started:
+/// No such file or directory. Check that codex is installed and on PATH.`
+String aiAssistProcessStartFailureMessage({
+  required String subject,
+  required String binary,
+  required Object error,
+}) {
+  final rawCause = error is ProcessException && error.message.trim().isNotEmpty
+      ? stripErrorTypePrefixes(error.message)
+      : userFacingErrorMessage(error);
+  final cause = RegExp(r'[.!?]$').hasMatch(rawCause) ? rawCause : '$rawCause.';
+  return '$subject could not be started: $cause Check that $binary is '
+      'installed and on PATH.';
+}
 
 String? aiAssistProcessFailureDetail(String stdout, String stderr) {
   for (final output in <String>[stderr, stdout]) {

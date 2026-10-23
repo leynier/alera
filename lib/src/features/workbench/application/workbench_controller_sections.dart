@@ -36,7 +36,9 @@ mixin _WorkbenchControllerSections
           },
           onError: (Object error) {
             if (!_disposed) {
-              state = state.copyWith(error: 'Could not load sections: $error');
+              state = state.copyWith(
+                error: actionFailureMessage('load sections', error),
+              );
             }
           },
         );

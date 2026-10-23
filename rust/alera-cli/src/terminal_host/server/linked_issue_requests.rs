@@ -146,7 +146,7 @@ fn finish_outcome(
 }
 
 fn state_error(error: impl std::fmt::Display) -> HostError {
-    HostError::state(error.to_string())
+    HostError::state(format!("{error:#}"))
 }
 
 /// Stores the local association before creation is acknowledged; fetching stays deferred.

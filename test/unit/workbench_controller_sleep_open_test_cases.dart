@@ -312,7 +312,7 @@ void _registerWorkbenchControllerSleepOpenTests() {
       _harness.workbenchRepository.upsertWorkspaceTabError = null;
 
       expect(afterCreates - beforeCreates, 1);
-      expect(_controller.state.error, contains('cannot create terminal'));
+      expect(_controller.state.error, contains('Cannot create terminal'));
       expect(
         _controller.state
             .tabsFor(workspace.id)

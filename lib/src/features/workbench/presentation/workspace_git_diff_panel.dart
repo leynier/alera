@@ -20,6 +20,7 @@ import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
@@ -41,6 +42,7 @@ import 'package:flutter/gestures.dart';
 import 'package:alera/src/features/workbench/presentation/git_change_status_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/services.dart';
 
 part 'workspace_git_diff_panel_types.dart';
@@ -834,11 +836,11 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   Future<void> _openCommitDiff(GitHistoryItem item) async {
     final oppositePanel = isModModifierPressed();
+    final compare = await _commitCompareOrReport(item);
+    if (compare == null || !mounted) {
+      return;
+    }
     try {
-      final compare = await _commitCompareFor(item);
-      if (!mounted) {
-        return;
-      }
       await widget.onOpenGitCommitDiff(
         scope: .all,
         gitDiffRoot: widget.sourceControlScope.relativeRoot,
@@ -849,10 +851,8 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         message: item.message,
         oppositePanel: oppositePanel,
       );
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: _messageFor(error), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      _logOpenTabFailure(error, stackTrace);
     }
   }
 
@@ -866,7 +866,12 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         .commitCompare(path: widget.sourceControlScope.path, commitId: item.id);
     if (result.summary.status != GitCommitCompareStatus.ready) {
       throw GitInternalException(
-        result.summary.errorMessage ?? 'Failed to load commit diff.',
+        result.summary.errorMessage ??
+            switch (result.summary.status) {
+              GitCommitCompareStatus.invalidCommit =>
+                'Commit ${item.id} is not a valid commit.',
+              _ => 'Git could not compare commit ${item.id} with its parent.',
+            },
       );
     }
     _commitCompareCache[item.id] = result;

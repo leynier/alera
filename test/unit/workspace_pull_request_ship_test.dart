@@ -322,7 +322,7 @@ void main() {
       expect(
         failure.message,
         'The changes were committed, but Ship could not finish: '
-        'Could not push the branch: network unavailable',
+        'Could not push the branch: Network unavailable',
       );
       expect(forge.createCalls, 0);
       expect(git.calls.where((call) => call.method == 'commit'), hasLength(1));

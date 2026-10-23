@@ -44,7 +44,7 @@ extension _PromptWorkspaceDialogAgentLaunch on _PromptWorkspaceDialogState {
         _update(() {
           _working = false;
           _phase = null;
-          _error = error.toString();
+          _error = userFacingErrorMessage(error);
         });
       }
     }

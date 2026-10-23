@@ -240,7 +240,7 @@ impl ServerActor {
             .runtime_store
             .find_ssh_target(target_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
         {
             if target.bootstrap_status == SshBootstrapStatus::Installing {
                 let target = self
@@ -291,7 +291,7 @@ impl ServerActor {
     ) -> HostResult<SshTarget> {
         let target = cancel_ssh_bootstrap(&self.runtime_store, target_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(|error| HostError::from_anyhow(&error))?;
         let progress = SshTargetBootstrapProgress {
             job_id,
             target_id: target_id.to_string(),

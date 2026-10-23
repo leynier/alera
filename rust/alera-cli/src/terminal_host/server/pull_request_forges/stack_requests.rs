@@ -83,7 +83,7 @@ pub(crate) async fn handle_stack_request(
     let linked = store
         .find_linked_review(&context.workspace.id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     result["linkedReview"] = linked.map_or(Value::Null, |review| {
         json!({
             "number": review.number,
@@ -119,7 +119,7 @@ async fn open(
     let linked = store
         .find_linked_review(&workspace.id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let requested = payload.get("number").and_then(Value::as_i64);
     let linked_number = linked
         .as_ref()

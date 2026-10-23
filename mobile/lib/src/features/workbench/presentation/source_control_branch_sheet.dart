@@ -5,7 +5,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
-import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_branches.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/source_control_commands.dart';
 import 'package:flutter/material.dart';
@@ -205,7 +205,7 @@ class _BranchSheetState extends ConsumerState<_BranchSheet> {
     if (branches case AsyncError(:final error)) {
       return AleraEmptyState(
         icon: AleraIcons.gitBranch,
-        message: sourceControlErrorMessage(error),
+        message: runtimeActionErrorMessage(error),
       );
     }
     if (!branches.hasValue) {

@@ -98,6 +98,26 @@ void main() {
       },
     );
 
+    test(
+      'a non-conflict host failure carries its cause without type prefixes',
+      () async {
+        final client = _FakeRuntimeHostClient()
+          ..error = StateError('No live Alera runtime host');
+        final runner = RemoteProcessRunner(client, workspaceId: 'workspace-1');
+
+        await expectLater(
+          runner.run('gh', const <String>['--version']),
+          throwsA(
+            isA<ProcessException>().having(
+              (error) => error.message,
+              'message',
+              'No live Alera runtime host',
+            ),
+          ),
+        );
+      },
+    );
+
     test('a malformed answer is a failure, not a successful run', () async {
       final client = _FakeRuntimeHostClient()..response = 'ok';
       final runner = RemoteProcessRunner(client, workspaceId: 'workspace-1');

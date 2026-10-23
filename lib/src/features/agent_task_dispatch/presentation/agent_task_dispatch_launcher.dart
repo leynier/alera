@@ -5,6 +5,7 @@ import 'package:alera/src/features/agent_task_dispatch/application/agent_task_di
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_service.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_dialog.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -162,8 +163,12 @@ Future<AgentTaskDispatchResult?> completeAgentTaskDispatch({
   } on AgentTaskDispatchException catch (error) {
     AleraToast.publish(message: error.message, tone: .error);
     return null;
-  } on Object catch (error) {
-    AleraToast.publish(message: error.toString(), tone: .error);
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      action: 'send to the agent',
+      error: error,
+      stackTrace: stackTrace,
+    );
     return null;
   }
 }

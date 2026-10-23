@@ -149,8 +149,9 @@ pub async fn hand_on_managed_workspace(
     if let Err(error) = core_git::checkout_branch(&main.path, &branch) {
         core_git::set_head_to_branch(&child.path, &branch).with_context(|| {
             format!(
-                "Checkout failed ({error}); child is retained at {}. Recovery stash: {stashed:?}",
-                child.path
+                "Checkout failed ({error}); child is retained at {}{}",
+                child.path,
+                retained_stash_clause(&stashed)
             )
         })?;
         restore_stashed_main(&child.path, &stashed)?;
@@ -220,7 +221,7 @@ async fn hand_off_new_branch(
     {
         Ok(created) => created,
         Err(error) => {
-            return Err(error).context(format!("Main is on its default branch. Created branch {branch} and recovery stash {stashed:?} retained; retry creating the child with that branch"));
+            return Err(error).context(format!("Main is on its default branch. Created branch {branch} retained{}; retry creating the child with that branch", retained_stash_clause(&stashed)));
         }
     };
     created.workspace.reuses_existing_branch = false;
@@ -266,7 +267,7 @@ async fn hand_off_current_branch(
     {
         Ok(created) => created,
         Err(error) => {
-            return Err(error).context(format!("Main is on {home}; branch {current} and recovery stash {stashed:?} retained. Retry creating the child with that branch"));
+            return Err(error).context(format!("Main is on {home}; branch {current} retained{}. Retry creating the child with that branch", retained_stash_clause(&stashed)));
         }
     };
     apply_stashed_changes(&created.workspace.path, &stashed)?;
@@ -370,6 +371,15 @@ fn report_recovery_stash(result: &mut WorkspaceCreationResult, stash: &Option<St
     }
 }
 
+/// Names the recovery stash in an error without leaking `Option` debug text.
+#[cfg(test)]
+fn retained_stash_clause(stash: &Option<String>) -> String {
+    stash
+        .as_deref()
+        .map(|oid| format!("; recovery stash {oid} retained"))
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 fn restore_stashed_main(path: &str, stashed: &Option<String>) -> Result<()> {
     apply_stashed_changes(path, stashed)
@@ -383,7 +393,10 @@ fn restore_created_branch(
     stashed: &Option<String>,
 ) -> Result<()> {
     core_git::checkout_branch(path, original).with_context(|| {
-        format!("Could not restore {original} at {path}; recovery stash {stashed:?} retained")
+        format!(
+            "Could not restore {original} at {path}{}",
+            retained_stash_clause(stashed)
+        )
     })?;
     restore_stashed_main(path, stashed)
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
@@ -43,7 +44,8 @@ class const MobileAiDictationSettingsScreen({super.key})
             child: Padding(
               padding: AleraTokens.pagePadding,
               child: Text(
-                'AI Dictation settings could not be loaded: $error',
+                'AI Dictation settings could not be loaded: '
+                '${userFacingErrorMessage(error)}',
                 textAlign: .center,
               ),
             ),

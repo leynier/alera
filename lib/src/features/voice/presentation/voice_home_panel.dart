@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/voice/application/voice_session_controller.dart';
 import 'package:alera/src/features/voice/domain/voice_session_status.dart';
 import 'package:flutter/material.dart';
@@ -37,11 +38,8 @@ class _VoiceHomePanelState extends ConsumerState<VoiceHomePanel> {
       if (error != null && error.isNotEmpty) {
         AleraToast.show(context, message: error, tone: .error);
       }
-    } on Object catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(context, message: error.toString(), tone: .error);
+    } on Object catch (error, stackTrace) {
+      showErrorToast(error: error, stackTrace: stackTrace, context: context);
     } finally {
       if (mounted) {
         setState(() => _busy = false);

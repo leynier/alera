@@ -81,7 +81,7 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
     await _controller.createTerminalTab(workspace);
     await _flushUntil(() => _controller.state.error != null);
 
-    expect(_controller.state.error, contains('layout connection closed'));
+    expect(_controller.state.error, contains('Layout connection closed'));
   });
 
   test('view-pref save failures are recorded on state', () async {
@@ -92,6 +92,6 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
     _controller.setRightSidebarWidth(360);
     await _flushUntil(() => _controller.state.error != null);
 
-    expect(_controller.state.error, contains('prefs write failed'));
+    expect(_controller.state.error, contains('Prefs write failed'));
   });
 }

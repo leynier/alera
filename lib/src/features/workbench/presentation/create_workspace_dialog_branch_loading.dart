@@ -131,7 +131,7 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
         return;
       }
       _update(() {
-        _branchesError = error.toString();
+        _branchesError = userFacingErrorMessage(error);
         _loadingBranches = false;
       });
     }
@@ -173,7 +173,7 @@ extension _CreateWorkspaceDialogBranchLoading on _CreateWorkspaceDialogState {
           _selectedHostId == hostId) {
         _update(() {
           _loadingLocalBranches = false;
-          _branchesError = error.toString();
+          _branchesError = userFacingErrorMessage(error);
         });
       }
       return;

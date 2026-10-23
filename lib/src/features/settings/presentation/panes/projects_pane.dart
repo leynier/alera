@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
@@ -14,6 +15,9 @@ import 'package:alera/src/features/settings/presentation/panes/project_config_ed
 import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('ProjectsPane');
 
 class const ProjectSettingsPane({super.key, final String? initialProjectId})
     extends ConsumerStatefulWidget {
@@ -49,7 +53,8 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
 
     return projectsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _ProjectSettingsError(message: error.toString()),
+      error: (error, _) =>
+          _ProjectSettingsError(message: userFacingErrorMessage(error)),
       data: (projects) {
         if (projects.isEmpty) {
           return const AleraEmptyState(
@@ -62,7 +67,8 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         final selected = _selectedProject(orderedProjects);
         return overridesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _ProjectSettingsError(message: error.toString()),
+          error: (error, _) =>
+              _ProjectSettingsError(message: userFacingErrorMessage(error)),
           data: (overrides) {
             return AleraMasterDetail(
               masterTitle: 'Projects',
@@ -254,13 +260,14 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         _saving = false;
         _seedSignature = projectConfigSignature(config);
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not save the project settings', error, stackTrace);
       if (!mounted) {
         return;
       }
       setState(() {
         _saving = false;
-        _saveError = error.toString();
+        _saveError = actionFailureMessage('save the project settings', error);
       });
     }
   }
@@ -285,13 +292,21 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         _sourceBranch = '';
         _repoConfigFutures.remove(project.id);
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning(
+        'Could not switch to the repository file',
+        error,
+        stackTrace,
+      );
       if (!mounted) {
         return;
       }
       setState(() {
         _saving = false;
-        _saveError = error.toString();
+        _saveError = actionFailureMessage(
+          'switch to the repository file',
+          error,
+        );
       });
     }
   }

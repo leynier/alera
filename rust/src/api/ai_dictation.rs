@@ -122,13 +122,13 @@ fn transcribe_inner(
             .map_err(|native_error| {
                 error(
                     AiDictationErrorKind::Model,
-                    format!("The Whisper model could not be loaded: {native_error:?}"),
+                    format!("The Whisper model could not be loaded: {native_error}"),
                 )
             })?;
     let mut state = context.create_state().map_err(|native_error| {
         error(
             AiDictationErrorKind::Model,
-            format!("The Whisper state could not be created: {native_error:?}"),
+            format!("The Whisper state could not be created: {native_error}"),
         )
     })?;
 
@@ -164,7 +164,7 @@ fn transcribe_inner(
         } else {
             error(
                 AiDictationErrorKind::Inference,
-                format!("Whisper could not transcribe the recording: {native_error:?}"),
+                format!("Whisper could not transcribe the recording: {native_error}"),
             )
         }
     })?;
@@ -177,7 +177,7 @@ fn transcribe_inner(
         text.push_str(&segment.to_str_lossy().map_err(|native_error| {
             error(
                 AiDictationErrorKind::Inference,
-                format!("Whisper returned an invalid segment: {native_error:?}"),
+                format!("Whisper returned an invalid segment: {native_error}"),
             )
         })?);
     }
@@ -259,7 +259,7 @@ fn read_audio(path: &str) -> Result<(Vec<f32>, i64), AiDictationError> {
     convert_integer_to_float_audio(&samples, &mut audio).map_err(|native_error| {
         error(
             AiDictationErrorKind::Audio,
-            format!("The recording could not be decoded: {native_error:?}"),
+            format!("The recording could not be decoded: {native_error}"),
         )
     })?;
     if spec.channels == 2 {
@@ -267,7 +267,7 @@ fn read_audio(path: &str) -> Result<(Vec<f32>, i64), AiDictationError> {
         convert_stereo_to_mono_audio(&audio, &mut mono).map_err(|native_error| {
             error(
                 AiDictationErrorKind::Audio,
-                format!("The stereo recording could not be mixed: {native_error:?}"),
+                format!("The stereo recording could not be mixed: {native_error}"),
             )
         })?;
         audio = mono;

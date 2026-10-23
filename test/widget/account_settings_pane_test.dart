@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/features/account/application/alera_account_providers.dart';
+import 'package:alera/src/features/account/domain/alera_account_status.dart';
 import 'package:alera/src/features/account/infra/runtime_alera_account_repository.dart';
 import 'package:alera/src/features/account/presentation/account_settings_pane.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -72,6 +73,32 @@ void main() {
     expect(find.text('user@example.com'), findsOneWidget);
     expect(find.text('Continue With Google'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('shows the status failure without a Dart type prefix', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        retry: (_, _) => null,
+        overrides: [
+          aleraAccountStatusProvider.overrideWith(
+            (ref) => Stream<AleraAccountStatus>.error(
+              StateError('Cloud sign-in is not configured.'),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: aleraDarkTheme,
+          home: const Scaffold(body: AccountSettingsPane()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account unavailable'), findsOneWidget);
+    expect(find.text('Cloud sign-in is not configured.'), findsOneWidget);
+    expect(find.textContaining('Bad state'), findsNothing);
   });
 }
 

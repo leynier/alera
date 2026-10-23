@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
@@ -119,7 +120,7 @@ class const HomeQuotasSection({
             ),
           ),
         _HomeQuotaErrorCard(
-          message: error.toString(),
+          message: userFacingErrorMessage(error),
           onRetry: () => ref
               .read(agentQuotaControllerProvider(host.id).notifier)
               .refresh(),

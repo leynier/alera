@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -161,8 +162,9 @@ class _WorkspacePdfViewerSurfaceState
           : <PdfViewerPagePaintCallback>[searcher.pageTextMatchPaintCallback],
       loadingBannerBuilder: (_, _, _) =>
           const Center(child: CircularProgressIndicator()),
-      errorBannerBuilder: (context, _, _, _) =>
-          const _PdfViewerMessage(message: 'PDF cannot be opened'),
+      errorBannerBuilder: (context, error, _, _) => _PdfViewerMessage(
+        message: 'PDF cannot be opened: ${userFacingErrorMessage(error)}',
+      ),
       onViewerReady: _handleViewerReady,
     );
   }
@@ -365,10 +367,10 @@ class _WorkspacePdfViewerSurfaceState
         native.WorkspaceFileErrorKind.outsideWorkspace =>
           'PDF is outside the workspace',
         native.WorkspaceFileErrorKind.invalidPath => 'PDF path is invalid',
-        _ => 'PDF cannot be opened',
+        _ => userFacingErrorMessage(error),
       };
     }
-    return 'PDF cannot be opened';
+    return userFacingErrorMessage(error);
   }
 }
 

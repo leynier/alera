@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
@@ -10,6 +11,7 @@ import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart'
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/explorer_preferences_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
@@ -69,7 +71,7 @@ class const SourceControlPanel({
       return switch (state) {
         AsyncError(:final error) => AleraEmptyState(
           icon: AleraIcons.gitCompare,
-          message: sourceControlErrorMessage(error),
+          message: runtimeActionErrorMessage(error),
           action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
         _ => const Center(child: CircularProgressIndicator()),
@@ -97,7 +99,8 @@ class const SourceControlPanel({
             child: AleraNotice(
               icon: AleraIcons.warning,
               message:
-                  'Could not refresh source control. ${sourceControlErrorMessage(error)}',
+                  'Could not refresh source control: '
+                  '${runtimeActionErrorMessage(error)}',
               action: TextButton(onPressed: reload, child: const Text('Retry')),
             ),
           ),
@@ -368,9 +371,12 @@ class const _Body({
         case null:
           break;
       }
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not change the view: $error')),
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'change the view',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }

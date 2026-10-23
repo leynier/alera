@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/quotas/application/agent_quota_controller.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
@@ -33,7 +34,7 @@ class const QuotaSettingsScreen({
                 icon: AleraIcons.loadFailed,
                 title: 'Could not load quota settings',
                 message: 'Check the connection to the host and try again.',
-                detail: hostSettings.error.toString(),
+                detail: userFacingErrorMessage(hostSettings.error),
                 action: FilledButton.icon(
                   onPressed: () =>
                       ref.invalidate(hostSettingsControllerProvider(host.id)),

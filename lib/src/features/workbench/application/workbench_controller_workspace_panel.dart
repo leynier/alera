@@ -124,7 +124,7 @@ mixin _WorkbenchControllerWorkspacePanel
           await _discardStalePrimaryTerminal(workspace, created);
         }
         if (!_disposed) {
-          state = state.copyWith(error: error.toString());
+          state = state.copyWith(error: userFacingErrorMessage(error));
         }
       } finally {
         if (identical(_primaryTerminalLoads[workspace.id], load)) {

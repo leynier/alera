@@ -58,10 +58,14 @@ mixin _WorkspacePullRequestPolling on _$WorkspacePullRequestController {
               !failed && visibleReload.pollSignature != current.pollSignature,
         );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.fine('Could not refresh the pull request', error, stackTrace);
       if (!_polling._disposed) {
         state = AsyncData(
-          current.copyWith(clearAction: true, errorMessage: error.toString()),
+          current.copyWith(
+            clearAction: true,
+            errorMessage: userFacingErrorMessage(error),
+          ),
         );
         if (origin == _RefreshOrigin.poll) {
           _advancePollInterval(changed: false);

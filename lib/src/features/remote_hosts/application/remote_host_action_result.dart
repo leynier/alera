@@ -1,8 +1,8 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/remote_hosts/domain/remote_host_check_result.dart';
 import 'package:alera/src/features/remote_hosts/domain/remote_host_form_values.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target_in_use_exception.dart';
-import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 
 /// Outcome of a Remote Hosts action. A failure carries the sentence to show
 /// and, for typed conflicts the UI answers differently (a busy host asks to
@@ -57,5 +57,5 @@ String remoteHostErrorMessage(Object error) {
   if (raw.toLowerCase().contains('password ssh targets are not supported')) {
     return remoteHostPasswordUnsupportedMessage;
   }
-  return userFacingExceptionMessage(error);
+  return userFacingErrorMessage(error);
 }

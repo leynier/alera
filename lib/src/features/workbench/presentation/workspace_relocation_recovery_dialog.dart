@@ -1,9 +1,13 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 
 import '../domain/workspace_relocation_recovery.dart';
+
+final Logger _logger = Logger('WorkspaceRelocationRecovery');
 
 Future<void> showWorkspaceRelocationRecoveryDialog({
   required BuildContext context,
@@ -105,7 +109,8 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
     });
     try {
       await callback(entry);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Workspace recovery request failed', error, stackTrace);
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) {
@@ -225,7 +230,7 @@ class _RecoveryDialogState extends State<_RecoveryDialog> {
                           vertical: AleraTokens.space12,
                         ),
                         child: Text(
-                          'Recovery request failed: $_error${snapshot == null || !_refreshFailed ? '' : '\nPreviously loaded history is shown below.'}',
+                          'Recovery request failed: ${userFacingErrorMessage(_error)}${snapshot == null || !_refreshFailed ? '' : '\nPreviously loaded history is shown below.'}',
                         ),
                       ),
                     if (snapshot?.ownerError case final String error)

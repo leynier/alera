@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/features/runs/application/recipe_catalog_draft.dart';
 import 'package:alera/src/features/runs/application/run_providers.dart';
+import 'package:alera/src/features/runs/domain/run_error_messages.dart';
 import 'package:alera/src/features/runs/infra/recipe_repository.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -16,12 +17,15 @@ import 'package:alera/src/features/workbench/domain/remote_workspace.dart';
 import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 
 import 'recipe_detail.dart';
 import 'run_remote_workspaces_notice.dart';
 
 part 'recipe_catalog_actions.dart';
 part 'recipe_catalog_recovery.dart';
+
+final Logger _logger = Logger('RecipeCatalogPane');
 
 class RecipeCatalogPane extends ConsumerStatefulWidget {
   const RecipeCatalogPane({super.key});
@@ -130,8 +134,9 @@ class _RecipeCatalogPaneState extends ConsumerState<RecipeCatalogPane> {
     });
     try {
       await action();
-    } on Object catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Recipe action failed', error, stackTrace);
+      if (mounted) setState(() => _error = runErrorMessage(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

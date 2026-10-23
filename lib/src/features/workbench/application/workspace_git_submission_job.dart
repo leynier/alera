@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -60,7 +61,7 @@ Future<String?> runWorkspaceGitSubmissionJob(
     );
     return null;
   } catch (error) {
-    return '${submission.completedSummary}$error';
+    return '${submission.completedSummary}${userFacingErrorMessage(error)}';
   } finally {
     subscription.close();
   }

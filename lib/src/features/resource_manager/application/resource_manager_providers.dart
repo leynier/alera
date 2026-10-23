@@ -3,6 +3,7 @@ import 'dart:io' show pid;
 
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/app_window/domain/foreground_parked_refresh.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/resource_manager/application/resource_snapshot_projection.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_snapshot.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_tree.dart';
@@ -93,7 +94,7 @@ Future<ResourceSnapshot> fetchResourceSnapshot({
     }
     return ResourceSnapshot.fromJson(Map<String, Object?>.from(payload));
   } catch (error) {
-    return ResourceSnapshot.unavailable(error: error.toString());
+    return ResourceSnapshot.unavailable(error: userFacingErrorMessage(error));
   }
 }
 

@@ -1,9 +1,9 @@
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/alera_workspace_details_card.dart';
@@ -342,10 +342,8 @@ class _WorkspaceDetailsReviewRowsState
   Future<void> _safe(Future<void> Function() action) async {
     try {
       await action();
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
-      }
+    } catch (error, stackTrace) {
+      showErrorToast(error: error, stackTrace: stackTrace);
     }
   }
 }

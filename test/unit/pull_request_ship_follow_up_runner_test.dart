@@ -130,6 +130,6 @@ void main() {
     final run = _Run();
     await run(.watchAndFix, startError: StateError('host down'));
     expect(run.events, <String>['choose', 'ship', 'reload', 'watch']);
-    expect(run.failures.single, contains('host down'));
+    expect(run.failures.single, contains('Host down'));
   });
 }

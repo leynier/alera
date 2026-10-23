@@ -73,12 +73,14 @@ class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
   Future<void> _openLink(Uri uri) async {
     try {
       await widget.session._openLink(uri);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _terminalRuntimeLogger.warning('Could not open link', error, stackTrace);
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not open link: $uri')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(actionFailureMessage('open $uri', error))),
+      );
     }
   }
 

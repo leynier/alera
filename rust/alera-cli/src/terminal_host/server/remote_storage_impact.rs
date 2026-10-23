@@ -25,7 +25,7 @@ pub(super) async fn measure_on_owner(
     let Some(workspace) = store
         .find_workspace(workspace_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
     else {
         return Ok(None);
     };

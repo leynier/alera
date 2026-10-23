@@ -83,12 +83,12 @@ class _CodexResetCreditsPanelState
       final (message, tone) = _codexResetOutcomeMessage(result);
       AleraToast.show(context, message: message, tone: tone);
       ref.invalidate(agentQuotaStateProvider);
-    } on Object catch (error) {
-      if (!mounted) return;
-      AleraToast.show(
-        context,
-        message: 'Codex reset failed: $error',
-        tone: .error,
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'reset Codex usage',
+        error: error,
+        stackTrace: stackTrace,
+        context: context,
       );
     } finally {
       if (mounted) setState(() => _loading = false);

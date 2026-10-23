@@ -19,6 +19,7 @@ import 'package:alera/src/features/agent_status/presentation/agent_identity_icon
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/features/automations/domain/automation_authoring_request.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/linked_issues/application/linked_issue_providers.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_indicator.dart';
 import 'package:alera/src/features/linked_issues/presentation/workspace_linked_issue_menu.dart';
@@ -65,6 +66,7 @@ import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_lifecycle_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';

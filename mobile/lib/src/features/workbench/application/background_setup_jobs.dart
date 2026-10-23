@@ -1,4 +1,6 @@
 import 'package:alera_mobile/src/app/app_navigation.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:flutter/material.dart';
@@ -228,7 +230,8 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
     try {
       await action();
       state = state.withoutJob(jobId);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logActionFailure('finish the background setup job', error, stackTrace);
       final job = state.jobById(jobId);
       if (job != null) {
         state = state.withJob(
@@ -238,7 +241,7 @@ class BackgroundSetupJobs extends _$BackgroundSetupJobs {
             status: .failed,
             title: job.title,
             snapshot: job.snapshot,
-            error: error.toString(),
+            error: userFacingErrorMessage(error),
           ),
         );
       }

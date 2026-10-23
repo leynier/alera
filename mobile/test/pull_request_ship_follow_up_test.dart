@@ -97,6 +97,6 @@ void main() {
       start: (_, _, _, _) async => throw StateError('runtime down'),
     );
     expect(message, contains('#42 was created'));
-    expect(message, contains('runtime down'));
+    expect(message, endsWith('could not start: Runtime down'));
   });
 }

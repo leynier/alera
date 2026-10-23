@@ -29,7 +29,7 @@ void main() {
       final failed = await service.setEnabled(true);
 
       expect(failed.active, isFalse);
-      expect(failed.error, contains('not supported'));
+      expect(failed.error, contains('Not supported'));
       expect(backend.enabled, isFalse);
     });
 

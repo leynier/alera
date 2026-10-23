@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -159,8 +160,14 @@ Future<void> performRunAction(
           expectedSequence: detail.controlSequence,
         );
     }
-  } on Object catch (error) {
-    messenger.showSnackBar(SnackBar(content: Text(runErrorMessage(error))));
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      messenger,
+      action: 'change the run',
+      error: error,
+      stackTrace: stackTrace,
+      message: runErrorMessage(error),
+    );
   }
 }
 

@@ -220,11 +220,12 @@ mixin _MobileVoiceSessionCapture
         return;
       }
       await refresh();
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('send the voice turn', error, stackTrace);
       if (epoch != _captureEpoch) {
         return;
       }
-      state = state.copyWith(lastError: error.toString());
+      state = state.copyWith(lastError: userFacingErrorMessage(error));
     }
   }
 }

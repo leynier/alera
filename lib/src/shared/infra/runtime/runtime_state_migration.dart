@@ -176,6 +176,7 @@ final class RuntimeStateMigration({
     return <String, Object?>{
       'enabled': settings.enabled,
       'autoGenerateAgentTitles': settings.autoGenerateAgentTitles,
+      'clarifyErrorMessages': settings.clarifyErrorMessages,
       'agent': settings.agent.key,
       'selectedModelByAgent': <String, String>{
         for (final entry in settings.selectedModelByAgent.entries)

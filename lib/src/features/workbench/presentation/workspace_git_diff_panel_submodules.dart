@@ -27,7 +27,7 @@ class const _SubmoduleChanges({
       error: (error, _) => _SubmoduleFeedbackRow(
         depth: depth,
         message: 'Could not load submodule changes',
-        tooltip: error.toString(),
+        tooltip: userFacingErrorMessage(error),
       ),
       data: (result) {
         if (result.entries.isEmpty) {

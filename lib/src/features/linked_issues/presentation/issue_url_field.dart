@@ -148,7 +148,7 @@ class _IssueUrlFieldState extends State<IssueUrlField> {
                         ? 'Resolving issue'
                         : issue != null
                         ? '#${issue.number} · ${issue.displayState} · ${issue.title}'
-                        : 'Could not read the issue: $error The link will still be saved.',
+                        : 'Could not read the issue: ${_withPeriod(error)} The link will still be saved.',
                     key: const ValueKey<String>('issue-url-field-status'),
                     maxLines: 2,
                     overflow: .ellipsis,
@@ -165,4 +165,12 @@ class _IssueUrlFieldState extends State<IssueUrlField> {
       ],
     );
   }
+}
+
+String _withPeriod(String? message) {
+  final text = message?.trim() ?? '';
+  if (text.isEmpty || RegExp(r'[.!?]$').hasMatch(text)) {
+    return text;
+  }
+  return '$text.';
 }

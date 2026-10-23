@@ -475,9 +475,12 @@ extension _WelcomeDashboardClipboard on _WelcomeDashboardState {
       );
       _update(() => _error = null);
       return true;
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        _update(() => _error = 'Could not paste clipboard image.');
+        _update(
+          () =>
+              _error = actionFailureMessage('paste the clipboard image', error),
+        );
       }
       return true;
     }

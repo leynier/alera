@@ -313,7 +313,7 @@ mixin _WorkbenchControllerFileTabs
       state = state.copyWith(error: null);
       return tab;
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }
@@ -421,7 +421,7 @@ mixin _WorkbenchControllerFileTabs
       _persistLayoutInBackground(persisted);
       return tab;
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }

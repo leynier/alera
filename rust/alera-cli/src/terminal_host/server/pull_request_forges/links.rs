@@ -29,7 +29,7 @@ pub(crate) async fn save_link(
         })
         .await
         .map(|_| ())
-        .map_err(|error| HostError::state(error.to_string()))
+        .map_err(|error| HostError::from_anyhow(&error))
 }
 
 /// Creates the review and links it to [workspace], like the desktop does

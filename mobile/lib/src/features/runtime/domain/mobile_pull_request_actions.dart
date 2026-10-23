@@ -291,14 +291,3 @@ MobilePullRequestActionConfirmation pullRequestActionConfirmation(
     ),
   };
 }
-
-/// The sentence a failed write shows. The runtime already words its errors
-/// for people, so only transport failures need translating.
-String pullRequestActionErrorMessage(Object error) {
-  return switch (error) {
-    StateError(:final message) => message,
-    UnsupportedError(:final message?) => message,
-    TimeoutException() => 'The paired computer did not answer in time.',
-    _ => error.toString(),
-  };
-}

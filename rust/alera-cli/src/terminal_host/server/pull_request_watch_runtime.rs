@@ -264,7 +264,7 @@ impl ServerActor {
                 .runtime_store
                 .find_workspace_tab(tab_id)
                 .await
-                .map_err(|e| HostError::state(e.to_string()))?;
+                .map_err(|error| HostError::from_anyhow(&error))?;
             if let Some(tab) = tab.filter(|tab| tab.workspace_id == watch.workspace_id) {
                 if let Some(session_id) = terminal_session_id_from_tab(&tab)
                     .filter(|id| self.sessions.get(id).is_some_and(|s| s.running()))
@@ -327,7 +327,7 @@ async fn merge(
     let workspace = store
         .find_workspace(&watch.workspace_id)
         .await
-        .map_err(|e| HostError::state(e.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
         .ok_or_else(|| HostError::state("Workspace disappeared."))?;
     let method = MergeMethod::parse(method)
         .ok_or_else(|| HostError::state(format!("Unknown merge method: {method}")))?;

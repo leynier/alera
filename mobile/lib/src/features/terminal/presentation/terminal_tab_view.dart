@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_floating_pill_button.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -249,7 +250,9 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
           .warning('terminal clipboard paste failed', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not paste clipboard')),
+          SnackBar(
+            content: Text(actionFailureMessage('paste clipboard', error)),
+          ),
         );
       }
     }

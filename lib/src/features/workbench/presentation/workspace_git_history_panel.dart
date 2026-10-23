@@ -245,7 +245,7 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
             }
             setState(() {
               _filesByCommit[item.id] = _CommitFilesState.error(
-                error: error.toString(),
+                error: userFacingErrorMessage(error),
               );
             });
           },

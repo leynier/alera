@@ -77,7 +77,7 @@ impl ServerActor {
             .runtime_store
             .find_workspace(&workspace_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
             .ok_or_else(|| HostError::format("Workspace not found."))?;
         let number = match payload.get("number").and_then(Value::as_i64) {
             Some(number) if number > 0 => Some(number),
@@ -86,7 +86,7 @@ impl ServerActor {
                 .runtime_store
                 .find_linked_review(&workspace.id)
                 .await
-                .map_err(|error| HostError::state(error.to_string()))?
+                .map_err(|error| HostError::from_anyhow(&error))?
                 .filter(|review| !review.dismissed)
                 .and_then(|review| review.number),
         };
@@ -158,7 +158,7 @@ impl ServerActor {
                     .runtime_store
                     .find_workspace_tab(tab_id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?
+                    .map_err(|error| HostError::from_anyhow(&error))?
                     .ok_or_else(|| HostError::format("Terminal tab not found."))?;
                 if tab.workspace_id != workspace_id {
                     return Err(HostError::format(

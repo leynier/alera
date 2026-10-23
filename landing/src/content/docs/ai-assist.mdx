@@ -1,7 +1,7 @@
 ---
 title: AI Assist And Dictation
 description: Use an agent CLI or your ChatGPT plan to draft commit messages, pull request details, and workspace names, and dictate prompts with local or remote speech-to-text.
-updatedDate: 2026-10-01
+updatedDate: 2026-10-23
 ---
 
 AI Assist hands short writing jobs to your selected provider, including connected ChatGPT accounts and agent CLIs. Dictation turns speech into text in the fields where you write prompts. Neither needs an Alera account.
@@ -14,6 +14,7 @@ AI Assist hands short writing jobs to your selected provider, including connecte
 - **Agent titles**: new agent tabs are named from their first prompt while **Auto-Generate Agent Titles** is on. Right-click a tab for **Generate Title** or **Regenerate Title**.
 - **Reading diffs**: **Generate Reading Diff** in a diff tab writes a behavioral overview and a condensed diff. It asks first, because it spends quota, and it is not a code review.
 - **Speech messages**: optional cleanup or summary of dictated text.
+- **Clearer error messages**: error notifications rewritten to say what went wrong, when **Clarify Error Messages** is on (see [Clarifying Error Messages](#clarifying-error-messages)).
 
 Commit messages and pull request details land in the form for you to edit, and are dropped if you change the field while the job runs.
 
@@ -27,6 +28,10 @@ A **Custom Command** receives the prompt on stdin, or as an argument wherever yo
 
 CLI providers must be on your `PATH` and signed in. If one is missing, the job names the command it looked for. Jobs use the configured timeout, two minutes by default.
 
+## Clarifying Error Messages
+
+**Clarify Error Messages** in **Settings → AI Assist** is off by default. When it is on, an error notification without a button of its own is sent to your global AI Assist agent, with known secrets such as tokens redacted, and rewritten to say what went wrong and, where the error supports it, what to do next. The notification shows the original error with **Clarifying with AI Assist…** while the agent runs, then the rewrite marked **Clarified by AI Assist** with a **Copy Original** button that copies the exact original error. If the agent fails, gives an unusable answer, or takes longer than 30 seconds, the original error stays. One error is clarified at a time: errors that arrive meanwhile keep their original text, and a repeated error reuses its earlier rewrite. Turning off **Enable AI Assist** also stops clarification. The Android app does not clarify errors.
+
 ## Using Your ChatGPT Plan
 
 Under **Settings → AI Assist → ChatGPT Account**, choose **Continue with ChatGPT** and authorize Alera in your browser. Then choose **ChatGPT** as the global agent or for specific job types. No API key or Codex installation is required. Available models come from the selected ChatGPT account. **Saved Accounts** keeps account and workspace registrations separate; **Use Account** switches between connected registrations, and **Sign Out** clears the selected account's tokens.
@@ -36,7 +41,7 @@ Eligible requests use your ChatGPT plan or credits you authorize in ChatGPT. **M
 This integration generates text, including cleanup of an existing transcript. OpenAI's Sign in with ChatGPT preview does not support audio input or transcription, so choose a separate transcription engine for dictation.
 
 <Callout type="note" title="What Leaves Your Machine">
-The prompt, which holds a diff and commit list, your From Prompt text, a tab's first prompt or recent terminal output, or a transcript, goes to your selected provider. ChatGPT sends this context directly to OpenAI's Responses API using the connected account; it does not give Alera access to your ChatGPT conversations. OpenCode Go calls its API directly with the key OpenCode saved on this machine. Other providers run their CLI under your account. Alera adds no inference service of its own in between. For a workspace on a [remote host](/docs/remote-hosts), the job runs on that host, with its CLI and credentials.
+The prompt, which holds a diff and commit list, your From Prompt text, a tab's first prompt or recent terminal output, a transcript, or an error message, goes to your selected provider. ChatGPT sends this context directly to OpenAI's Responses API using the connected account; it does not give Alera access to your ChatGPT conversations. OpenCode Go calls its API directly with the key OpenCode saved on this machine. Other providers run their CLI under your account. Alera adds no inference service of its own in between. For a workspace on a [remote host](/docs/remote-hosts), the job runs on that host, with its CLI and credentials.
 </Callout>
 
 **Settings → Text Actions** uses the same agents: save an instruction with **New Action**, then apply it to selected text from the **Text Actions** entry of the right-click menu.

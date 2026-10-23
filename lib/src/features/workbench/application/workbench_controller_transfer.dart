@@ -1,5 +1,8 @@
 part of 'workbench_controller.dart';
 
+/// Hand Off, Hand On, and relocation resume throw rather than store the
+/// failure in `state.error`: their retry and recovery dialogs show it, and
+/// storing it too would toast it twice.
 mixin _WorkbenchControllerTransfer
     on
         _$WorkbenchController,
@@ -39,9 +42,6 @@ mixin _WorkbenchControllerTransfer
         _setActiveTabInternal(workspaceId: result.workspace.id, tabId: active);
       }
       state = state.copyWith(error: null);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
     } finally {
       await _finishWorkspaceTransfer(workspace.projectId);
     }
@@ -88,9 +88,6 @@ mixin _WorkbenchControllerTransfer
       }
       state = state.copyWith(error: null);
       return result;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
     } finally {
       await _finishWorkspaceTransfer(workspace.projectId);
     }
@@ -139,9 +136,6 @@ mixin _WorkbenchControllerTransfer
       );
       state = state.copyWith(error: null);
       return result.workspace;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
     } finally {
       await _finishWorkspaceTransfer(workspace.projectId);
     }

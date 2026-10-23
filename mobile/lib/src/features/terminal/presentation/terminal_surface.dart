@@ -257,7 +257,9 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       Logger('TerminalTabView')
           .warning('terminal clipboard copy failed', error, stackTrace);
       messenger?.showSnackBar(
-        const SnackBar(content: Text('Could not copy to clipboard')),
+        SnackBar(
+          content: Text(actionFailureMessage('copy to clipboard', error)),
+        ),
       );
       return;
     }

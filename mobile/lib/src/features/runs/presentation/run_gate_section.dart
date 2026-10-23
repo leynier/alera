@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/runs/application/mobile_run_actions.dart';
@@ -68,8 +69,14 @@ class const RunGateSection({
           }),
         ),
       );
-    } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(runErrorMessage(error))));
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'decide the run gate',
+        error: error,
+        stackTrace: stackTrace,
+        message: runErrorMessage(error),
+      );
     }
   }
 }
