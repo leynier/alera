@@ -246,7 +246,7 @@ class const AgentProfileManagedEditor({
           keyName: 'sandbox',
         ),
       ],
-      AgentType.opencode || AgentType.opencode2 => <Widget>[
+      AgentType.opencode => <Widget>[
         _boolRow(
           title: 'Auto Approve',
           description: 'Approve OpenCode actions automatically.',

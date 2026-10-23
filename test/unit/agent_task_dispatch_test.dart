@@ -272,7 +272,7 @@ void main() {
   group('AgentType.tryParse', () {
     test('parses known adapters and ignores unknown keys', () {
       expect(AgentType.tryParse('codex'), AgentType.codex);
-      expect(AgentType.tryParse('opencode2'), AgentType.opencode2);
+      expect(AgentType.tryParse('opencode2'), AgentType.opencode);
       expect(AgentType.tryParse('unknown'), isNull);
       expect(AgentType.tryParse(null), isNull);
     });

@@ -6,6 +6,8 @@ use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::orchestration::agent_registry::canonical_agent_type;
+use crate::terminal_host::orchestration::opencode_generation;
 use crate::terminal_host::protocol::{error_response, ok_response};
 
 pub(super) use super::ai_assist_command_execution::run_command;
@@ -28,6 +30,7 @@ pub(super) const SUPPORTED_AGENTS: [&str; 14] = [
     "cursor",
     "agy",
     "opencode",
+    // Retired OpenCode 2 key from older settings; it runs as `opencode`.
     "opencode2",
     "opencode-go",
     "pi",
@@ -207,7 +210,8 @@ pub(super) fn resolved_agent<'a>(
         .get(operation)
         .and_then(|value| value.agent.as_deref())
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or(settings.agent.as_str())
+        .map(canonical_agent_type)
+        .unwrap_or_else(|| canonical_agent_type(&settings.agent))
 }
 
 pub(super) fn resolved_model(settings: &RuntimeAiAssistSettings, operation: &str) -> String {
@@ -369,15 +373,11 @@ pub(super) fn plan_command(
             }
             ("agy", arguments, Some(prompt.to_string()), "Antigravity")
         }
-        "opencode" | "opencode2" => (
-            agent,
-            open_code_run_arguments(model, thinking),
+        "opencode" => (
+            "opencode",
+            open_code_run_arguments(model, thinking, opencode_generation::current()),
             Some(prompt.to_string()),
-            if agent == "opencode2" {
-                "OpenCode 2"
-            } else {
-                "OpenCode"
-            },
+            "OpenCode",
         ),
         "pi" => (
             "pi",

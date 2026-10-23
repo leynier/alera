@@ -35,17 +35,7 @@ const SETTING_PROPERTIES: &[(&str, &str)] = &[
 
 /// Agent integration keys `runtime agents enable` accepts.
 const INTEGRATION_AGENTS: &[&str] = &[
-    "codex",
-    "claude",
-    "copilot",
-    "cursor",
-    "agy",
-    "opencode",
-    "opencode2",
-    "pi",
-    "amp",
-    "grok",
-    "fx",
+    "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "fx",
 ];
 
 /// `runtime agents enable` prints every runtime setting when a host is

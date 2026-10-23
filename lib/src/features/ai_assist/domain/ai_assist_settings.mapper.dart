@@ -107,8 +107,6 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
         return AiAssistAgent.agy;
       case r'opencode':
         return AiAssistAgent.opencode;
-      case r'opencode2':
-        return AiAssistAgent.opencode2;
       case 'opencode-go':
         return AiAssistAgent.opencodeGo;
       case r'pi':
@@ -143,8 +141,6 @@ class AiAssistAgentMapper extends EnumMapper<AiAssistAgent> {
         return r'agy';
       case AiAssistAgent.opencode:
         return r'opencode';
-      case AiAssistAgent.opencode2:
-        return r'opencode2';
       case AiAssistAgent.opencodeGo:
         return 'opencode-go';
       case AiAssistAgent.pi:
@@ -580,6 +576,10 @@ class AiAssistPromptSettingsMapper
     #model: _f$model,
   };
 
+  @override
+  final MappingHook hook = const LegacyOpenCode2AgentHook(
+    agentKeys: <String>['agent'],
+  );
   static AiAssistPromptSettings _instantiate(DecodingData data) {
     return AiAssistPromptSettings(
       agent: data.dec(_f$agent),
@@ -848,6 +848,15 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
     #chatGptServiceTier: _f$chatGptServiceTier,
   };
 
+  @override
+  final MappingHook hook = const LegacyOpenCode2AgentHook(
+    agentKeys: <String>['agent'],
+    agentMapKeys: <String>[
+      'selectedModelByAgent',
+      'discoveredModelsByAgent',
+      'discoveredDefaultModelByAgent',
+    ],
+  );
   static AiAssistSettings _instantiate(DecodingData data) {
     return AiAssistSettings(
       enabled: data.dec(_f$enabled),

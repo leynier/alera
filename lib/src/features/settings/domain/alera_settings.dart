@@ -208,7 +208,38 @@ class const _LegacyKeepRuntimeOpenHook() extends MappingHook {
   }
 }
 
-@MappableClass()
+/// OpenCode v1 and OpenCode 2 used to have separate toggles; both install as
+/// `opencode` now. Either stored toggle enables OpenCode, and the encoded form
+/// keeps an `opencode2` copy because the app can attach to an older runtime,
+/// which still installs its OpenCode 2 plugin from that key.
+class const _LegacyOpenCode2HookToggleHook() extends MappingHook {
+  static const String _legacyKey = 'opencode2';
+
+  @override
+  Object? beforeDecode(Object? value) {
+    if (value is! Map || !value.containsKey(_legacyKey)) {
+      return value;
+    }
+    return <String, dynamic>{
+      for (final entry in value.entries)
+        if (entry.key != _legacyKey) entry.key.toString(): entry.value,
+      'opencode': value['opencode'] == true || value[_legacyKey] == true,
+    };
+  }
+
+  @override
+  Object? afterEncode(Object? value) {
+    if (value is! Map) {
+      return value;
+    }
+    return <String, dynamic>{
+      for (final entry in value.entries) entry.key.toString(): entry.value,
+      _legacyKey: value['opencode'] == true,
+    };
+  }
+}
+
+@MappableClass(hook: _LegacyOpenCode2HookToggleHook())
 class const AgentStatusHookSettings({
   this.codex = false,
   this.claude = false,
@@ -216,7 +247,6 @@ class const AgentStatusHookSettings({
   this.cursor = false,
   this.agy = false,
   this.opencode = false,
-  this.opencode2 = false,
   this.pi = false,
   this.amp = false,
   this.grok = false,
@@ -228,7 +258,6 @@ class const AgentStatusHookSettings({
   final bool cursor;
   final bool agy;
   final bool opencode;
-  final bool opencode2;
   final bool pi;
   final bool amp;
   final bool grok;
@@ -241,7 +270,6 @@ class const AgentStatusHookSettings({
       cursor ||
       agy ||
       opencode ||
-      opencode2 ||
       pi ||
       amp ||
       grok ||

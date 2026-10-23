@@ -68,7 +68,7 @@ void main() {
       final plugin = File(p.join(overlay!, 'plugins', 'alera-agent-status.js'))
           .readAsStringSync();
       expect(plugin, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
-      expect(plugin, contains('AleraOpenCodeStatusPlugin'));
+      expect(plugin, contains("id: 'alera-agent-status'"));
     });
 
     test(
@@ -102,7 +102,7 @@ void main() {
         final overlayPlugin = File(
           p.join(overlay, 'plugins', 'alera-agent-status.js'),
         ).readAsStringSync();
-        expect(overlayPlugin, contains('AleraOpenCodeStatusPlugin'));
+        expect(overlayPlugin, contains("id: 'alera-agent-status'"));
         expect(overlayPlugin, isNot('USER OWNED PLUGIN\n'));
         expect(
           File(p.join(plugins.path, 'alera-agent-status.js'))
@@ -553,7 +553,7 @@ void main() {
               'alera-agent-status.js',
             ),
           ).readAsStringSync(),
-          contains('AleraOpenCodeStatusPlugin'),
+          contains("id: 'alera-agent-status'"),
         );
       },
     );

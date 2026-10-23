@@ -1,4 +1,5 @@
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 
 class const ManagedAgentOption(final String value, final String label);
@@ -157,7 +158,6 @@ bool agentProfileSupportsPersona(AgentType adapter) {
     AgentType.copilot ||
     AgentType.agy ||
     AgentType.opencode ||
-    AgentType.opencode2 ||
     AgentType.grok => true,
     _ => false,
   };
@@ -191,7 +191,6 @@ int managedAgentRiskScore(AgentType adapter, Map<String, Object?> config) {
     case AgentType.agy:
       addWhen(config['skipPermissions'] == true, 100);
     case AgentType.opencode:
-    case AgentType.opencode2:
       addWhen(config['autoApprove'] == true, 60);
     case AgentType.pi:
       addWhen(config['projectTrust'] == 'approve', 30);
@@ -242,7 +241,6 @@ Set<String> managedAgentRiskMarkers(
     case AgentType.agy:
       markWhen(config['skipPermissions'] == true, 'skipPermissions');
     case AgentType.opencode:
-    case AgentType.opencode2:
       markWhen(config['autoApprove'] == true, 'autoApprove');
     case AgentType.pi:
       markWhen(config['projectTrust'] == 'approve', 'projectTrust');
@@ -272,7 +270,7 @@ String managedAgentRiskWarning(AgentType adapter, Map<String, Object?> config) {
     AgentType.cursor =>
       'This profile reduces Cursor review, sandbox, or trust protections.',
     AgentType.agy => 'This profile lets Antigravity skip permission checks.',
-    AgentType.opencode || AgentType.opencode2 =>
+    AgentType.opencode =>
       'This profile lets OpenCode approve actions automatically.',
     AgentType.pi => 'This profile pre-approves project trust for Pi.',
     AgentType.grok =>
@@ -282,10 +280,13 @@ String managedAgentRiskWarning(AgentType adapter, Map<String, Object?> config) {
   };
 }
 
+/// [openCodeGeneration] picks the OpenCode launch line, which differs between
+/// OpenCode v1 and OpenCode 2 (see [OpenCodeGeneration]).
 String managedAgentCommandPreview(
   AgentType adapter,
-  Map<String, Object?> config,
-) {
+  Map<String, Object?> config, {
+  OpenCodeGeneration openCodeGeneration = OpenCodeGeneration.fallback,
+}) {
   var executable = agentProfileDefaultCommands[adapter] ?? adapter.key;
   final arguments = <String>[];
   void stringOption(String key, String flag) {
@@ -371,14 +372,16 @@ String managedAgentCommandPreview(
       flag('skipPermissions', '--dangerously-skip-permissions');
       flag('sandbox', '--sandbox');
     case AgentType.opencode:
-      stringOption('model', '--model');
-      stringOption('agent', '--agent');
-      flag('autoApprove', '--auto');
-    case AgentType.opencode2:
-      // A private server: the shared background service carries the
-      // environment of whichever tab started it, so status could not tell
-      // tabs apart. Interactive opencode2 only accepts --auto besides it.
-      arguments.add('--standalone');
+      switch (openCodeGeneration) {
+        case OpenCodeGeneration.v1:
+          stringOption('model', '--model');
+          stringOption('agent', '--agent');
+        case OpenCodeGeneration.v2:
+          // A private server: the shared background service carries the
+          // environment of whichever tab started it, so status could not
+          // tell tabs apart. The OpenCode 2 TUI rejects --model and --agent.
+          arguments.add('--standalone');
+      }
       flag('autoApprove', '--auto');
     case AgentType.pi:
       stringOption('model', '--model');

@@ -14,7 +14,7 @@ These agents ship with icons, launch adapters, and status integrations in the wo
 - Codex
 - Amp
 - Antigravity
-- OpenCode and OpenCode 2
+- OpenCode (v1 and OpenCode 2)
 - Cursor
 - GitHub Copilot
 - Pi
@@ -55,7 +55,7 @@ When a supported agent reports its native conversation id, Alera remembers it on
 
 ## Orchestration Adapters
 
-If you coordinate agents through [orchestration](/docs/orchestration), profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, `fx`, and related defaults). The adapter decides how the host detects readiness and delivers the starting prompt. It is not a second product; it is how a coordinator launches the same CLIs you already use.
+If you coordinate agents through [orchestration](/docs/orchestration), profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, `grok`, `fx`, and related defaults). The adapter decides how the host detects readiness and delivers the starting prompt. It is not a second product; it is how a coordinator launches the same CLIs you already use.
 
 <Callout type="tip">
 Give each long-running agent task its own [worktree](/docs/worktrees). Parallel agents sharing one checkout end in stash fights.

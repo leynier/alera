@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::agent_quota_settings_models::RuntimeAgentQuotaSettings;
+use super::agent_status_hook_settings_models::RuntimeAgentStatusHookSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -355,91 +356,6 @@ pub const CHAT_GPT_SERVICE_TIER_FAST: &str = "fast";
 
 fn default_chat_gpt_service_tier() -> String {
     CHAT_GPT_SERVICE_TIER_DEFAULT.to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeAgentStatusHookSettings {
-    #[serde(default)]
-    pub codex: bool,
-    #[serde(default)]
-    pub claude: bool,
-    #[serde(default)]
-    pub copilot: bool,
-    #[serde(default)]
-    pub cursor: bool,
-    #[serde(default)]
-    pub agy: bool,
-    #[serde(default)]
-    pub opencode: bool,
-    #[serde(default)]
-    pub opencode2: bool,
-    #[serde(default)]
-    pub pi: bool,
-    #[serde(default)]
-    pub amp: bool,
-    #[serde(default)]
-    pub grok: bool,
-    #[serde(default)]
-    pub fx: bool,
-}
-
-impl RuntimeAgentStatusHookSettings {
-    pub fn is_enabled(&self, agent: &str) -> bool {
-        match agent {
-            "codex" => self.codex,
-            "claude" => self.claude,
-            "copilot" => self.copilot,
-            "cursor" => self.cursor,
-            "agy" => self.agy,
-            "opencode" => self.opencode,
-            "opencode2" => self.opencode2,
-            "pi" => self.pi,
-            "amp" => self.amp,
-            "grok" => self.grok,
-            "fx" => self.fx,
-            _ => false,
-        }
-    }
-
-    pub fn set_enabled(&mut self, agent: &str, enabled: bool) -> bool {
-        let target = match agent {
-            "codex" => &mut self.codex,
-            "claude" => &mut self.claude,
-            "copilot" => &mut self.copilot,
-            "cursor" => &mut self.cursor,
-            "agy" => &mut self.agy,
-            "opencode" => &mut self.opencode,
-            "opencode2" => &mut self.opencode2,
-            "pi" => &mut self.pi,
-            "amp" => &mut self.amp,
-            "grok" => &mut self.grok,
-            "fx" => &mut self.fx,
-            _ => return false,
-        };
-        *target = enabled;
-        true
-    }
-
-    pub fn enabled_agents(&self) -> Vec<&'static str> {
-        const AGENTS: [&str; 11] = [
-            "codex",
-            "claude",
-            "copilot",
-            "cursor",
-            "agy",
-            "opencode",
-            "opencode2",
-            "pi",
-            "amp",
-            "grok",
-            "fx",
-        ];
-        AGENTS
-            .into_iter()
-            .filter(|agent| self.is_enabled(agent))
-            .collect()
-    }
 }
 
 fn default_true() -> bool {

@@ -14,6 +14,18 @@ void main() {
     expect(settings.agentStatusHooks['fx'], isTrue);
   });
 
+  test('one OpenCode toggle covers the retired OpenCode 2 one', () {
+    expect(supportedAgentHooks, isNot(contains('opencode2')));
+    final settings = PortableHostSettings.fromJson(<String, Object?>{
+      'agentStatusHooks': <String, Object?>{
+        'opencode': false,
+        'opencode2': true,
+      },
+    });
+    expect(settings.agentStatusHooks['opencode'], isTrue);
+    expect(settings.agentStatusHooks.containsKey('opencode2'), isFalse);
+  });
+
   test('parses voice settings with defaults when omitted', () {
     final settings = PortableHostSettings.fromJson(const <String, Object?>{});
     expect(settings.voice.pipeline, MobileVoicePipeline.chained);

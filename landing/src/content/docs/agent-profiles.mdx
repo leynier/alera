@@ -35,7 +35,7 @@ All adapters but Amp and fx have a **Model** option, listed from the installed C
 - **GitHub Copilot:** Persona, Reasoning Effort, Mode, Context, Allow All, Maximum AI Credits, Maximum Autopilot Continues, Do Not Ask User.
 - **Cursor:** Effort, Thinking, and Fast model variants, Mode, Review Mode, Sandbox, Trust Workspace.
 - **Antigravity:** Persona, Reasoning Effort, Mode, Skip Permissions, Sandbox.
-- **OpenCode and OpenCode 2:** Persona, Auto Approve. OpenCode 2 launches with `--standalone` and passes only Auto Approve to its interactive TUI.
+- **OpenCode:** Persona, Auto Approve. One adapter covers OpenCode v1 and OpenCode 2, which both install as `opencode`; Alera checks `opencode --version` and builds the launch the installed one accepts. OpenCode 2 launches with `--standalone` and passes only Auto Approve to its interactive TUI.
 - **Pi:** Thinking, Project Trust.
 - **Amp:** Mode, Fast Mode.
 - **Grok Build:** Persona, Reasoning Effort, Permission Mode, Sandbox, Disable Web Search.
@@ -65,7 +65,7 @@ Alera passes the prompt in the shape each CLI accepts, at launch for every agent
 - **Pi:** one bare argument, with a space before a leading dash, because Pi rejects `--`.
 - **GitHub Copilot:** one `--interactive=` argument.
 - **Antigravity:** one `--prompt-interactive=` argument.
-- **OpenCode and OpenCode 2:** one `--prompt=` argument.
+- **OpenCode:** one `--prompt=` argument.
 - **Amp:** standard input, through a generated script.
 - **fx:** pasted once fx reports that it is ready, which needs **fx Status** (macOS and Linux).
 

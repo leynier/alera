@@ -54,22 +54,12 @@ final class AgentRuntimeOverlayService({
 
   Future<AgentRuntimeOverlayPreparation> prepareOpenCodeForTerminalLaunch({
     required String terminalSessionId,
-    bool includeV1Plugin = true,
-    bool includeV2Plugin = false,
   }) {
-    // v1 and v2 share OPENCODE_CONFIG_DIR. Write only the plugins the user
-    // enabled so auto-discovery in either binary does not load the other API.
+    // One plugin serves OpenCode v1 and OpenCode 2, which both run as
+    // `opencode`.
     final managedFiles = <String, String>{
-      if (includeV1Plugin)
-        'alera-agent-status.js': aleraOpenCodeStatusPluginSource(),
-      if (includeV2Plugin)
-        'alera-agent-status-v2.js': aleraOpenCode2StatusPluginSource(),
+      'alera-agent-status.js': aleraOpenCodeStatusPluginSource(),
     };
-    if (managedFiles.isEmpty) {
-      return Future<AgentRuntimeOverlayPreparation>.value(
-        const AgentRuntimeOverlayPreparation(environment: <String, String>{}),
-      );
-    }
     return _prepareOverlay(
       agentKey: 'opencode',
       terminalSessionId: terminalSessionId,
@@ -79,6 +69,9 @@ final class AgentRuntimeOverlayService({
       defaultSourcePath: _defaultOpenCodeConfigDir(),
       managedSubdirectory: 'plugins',
       managedFiles: managedFiles,
+      // Older versions wrote a separate OpenCode 2 plugin, which OpenCode 2
+      // would load beside this one under the same id.
+      retiredManagedFileNames: const <String>{'alera-agent-status-v2.js'},
     );
   }
 

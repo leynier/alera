@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use super::agent_registry::adapter_for;
+use super::agent_registry::{adapter_for, canonical_agent_type};
+use super::opencode_generation::{self, OpenCodeGeneration};
 
 #[path = "managed_agent_launch_args.rs"]
 mod managed_agent_launch_args;
@@ -37,13 +38,21 @@ impl ManagedAgentLaunch {
     /// snapshot or `initialCommand`. `ccs_profile` is the CCS instance name
     /// captured from Claude's `CLAUDE_CONFIG_DIR`.
     pub fn for_native_resume(agent_type: &str, ccs_profile: Option<&str>) -> Option<Self> {
+        Self::for_native_resume_on(agent_type, ccs_profile, opencode_generation::current)
+    }
+
+    fn for_native_resume_on(
+        agent_type: &str,
+        ccs_profile: Option<&str>,
+        opencode: impl FnOnce() -> OpenCodeGeneration,
+    ) -> Option<Self> {
         let adapter = adapter_for(agent_type)?;
-        match (agent_type, ccs_profile) {
+        match (canonical_agent_type(agent_type), ccs_profile) {
             ("claude", Some(profile)) => Some(Self {
                 executable: CCS_EXECUTABLE.to_string(),
                 arguments: vec![profile.to_string()],
             }),
-            ("opencode2", _) => Some(Self {
+            ("opencode", _) if opencode() == OpenCodeGeneration::V2 => Some(Self {
                 executable: adapter.default_command.to_string(),
                 arguments: vec![OPENCODE2_PRIVATE_SERVER.to_string()],
             }),
@@ -68,6 +77,17 @@ pub fn build_managed_agent_launch(
     agent_type: &str,
     config: &Value,
 ) -> Result<ManagedAgentLaunch, String> {
+    build_managed_agent_launch_on(agent_type, config, opencode_generation::current)
+}
+
+/// [build_managed_agent_launch] with the OpenCode generation supplied, so a
+/// caller (or a test) does not depend on what this machine has installed.
+pub fn build_managed_agent_launch_on(
+    agent_type: &str,
+    config: &Value,
+    opencode: impl FnOnce() -> OpenCodeGeneration,
+) -> Result<ManagedAgentLaunch, String> {
+    let agent_type = canonical_agent_type(agent_type);
     let adapter =
         adapter_for(agent_type).ok_or_else(|| format!("unsupported agent type: {agent_type}"))?;
     let values = config
@@ -85,8 +105,7 @@ pub fn build_managed_agent_launch(
         "copilot" => build_copilot(values, &mut arguments)?,
         "cursor" => build_cursor(values, &mut arguments)?,
         "agy" => build_agy(values, &mut arguments)?,
-        "opencode" => build_opencode(values, &mut arguments)?,
-        "opencode2" => build_opencode2(values, &mut arguments)?,
+        "opencode" => build_opencode(values, opencode(), &mut arguments)?,
         "pi" => build_pi(values, &mut arguments)?,
         "amp" => build_amp(values, &mut arguments)?,
         "grok" => build_grok(values, &mut arguments)?,
@@ -341,25 +360,27 @@ fn build_agy(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result
     push_flag(values, "sandbox", "--sandbox", arguments)
 }
 
-fn build_opencode(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+fn build_opencode(
+    values: &Map<String, Value>,
+    generation: OpenCodeGeneration,
+    arguments: &mut Vec<String>,
+) -> Result<(), String> {
     require_known_keys(values, &["model", "agent", "autoApprove"])?;
-    push_string(values, "model", "--model", arguments)?;
-    push_string(values, "agent", "--agent", arguments)?;
+    match generation {
+        OpenCodeGeneration::V1 => {
+            push_string(values, "model", "--model", arguments)?;
+            push_string(values, "agent", "--agent", arguments)?;
+        }
+        // The OpenCode 2 TUI rejects --model and --agent, so they stay in
+        // the profile for run-mode consumers and a later v1 launch.
+        OpenCodeGeneration::V2 => arguments.push(OPENCODE2_PRIVATE_SERVER.to_string()),
+    }
     push_flag(values, "autoApprove", "--auto", arguments)
 }
 
-// Interactive opencode2 only accepts --auto on the default TUI command.
-// Model/agent remain accepted in profile config for UI parity and run-mode
-// consumers, but they are not emitted on the interactive launch line.
-fn build_opencode2(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
-    require_known_keys(values, &["model", "agent", "autoApprove"])?;
-    arguments.push(OPENCODE2_PRIVATE_SERVER.to_string());
-    push_flag(values, "autoApprove", "--auto", arguments)
-}
-
-/// opencode2 otherwise attaches to one background service shared by every
+/// OpenCode 2 otherwise attaches to one background service shared by every
 /// terminal, whose environment names whichever tab started it, so Alera's
-/// status plugin could not tell the tabs apart.
+/// status plugin could not tell the tabs apart. v1 rejects the flag.
 const OPENCODE2_PRIVATE_SERVER: &str = "--standalone";
 
 fn build_pi(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {

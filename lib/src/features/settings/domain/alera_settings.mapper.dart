@@ -995,13 +995,6 @@ class AgentStatusHookSettingsMapper
     opt: true,
     def: false,
   );
-  static bool _$opencode2(AgentStatusHookSettings v) => v.opencode2;
-  static const Field<AgentStatusHookSettings, bool> _f$opencode2 = Field(
-    'opencode2',
-    _$opencode2,
-    opt: true,
-    def: false,
-  );
   static bool _$pi(AgentStatusHookSettings v) => v.pi;
   static const Field<AgentStatusHookSettings, bool> _f$pi = Field(
     'pi',
@@ -1039,13 +1032,14 @@ class AgentStatusHookSettingsMapper
     #cursor: _f$cursor,
     #agy: _f$agy,
     #opencode: _f$opencode,
-    #opencode2: _f$opencode2,
     #pi: _f$pi,
     #amp: _f$amp,
     #grok: _f$grok,
     #fx: _f$fx,
   };
 
+  @override
+  final MappingHook hook = const _LegacyOpenCode2HookToggleHook();
   static AgentStatusHookSettings _instantiate(DecodingData data) {
     return AgentStatusHookSettings(
       codex: data.dec(_f$codex),
@@ -1054,7 +1048,6 @@ class AgentStatusHookSettingsMapper
       cursor: data.dec(_f$cursor),
       agy: data.dec(_f$agy),
       opencode: data.dec(_f$opencode),
-      opencode2: data.dec(_f$opencode2),
       pi: data.dec(_f$pi),
       amp: data.dec(_f$amp),
       grok: data.dec(_f$grok),
@@ -1139,7 +1132,6 @@ abstract class AgentStatusHookSettingsCopyWith<
     bool? cursor,
     bool? agy,
     bool? opencode,
-    bool? opencode2,
     bool? pi,
     bool? amp,
     bool? grok,
@@ -1167,7 +1159,6 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     bool? cursor,
     bool? agy,
     bool? opencode,
-    bool? opencode2,
     bool? pi,
     bool? amp,
     bool? grok,
@@ -1180,7 +1171,6 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
       if (cursor != null) #cursor: cursor,
       if (agy != null) #agy: agy,
       if (opencode != null) #opencode: opencode,
-      if (opencode2 != null) #opencode2: opencode2,
       if (pi != null) #pi: pi,
       if (amp != null) #amp: amp,
       if (grok != null) #grok: grok,
@@ -1195,7 +1185,6 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     cursor: data.get(#cursor, or: $value.cursor),
     agy: data.get(#agy, or: $value.agy),
     opencode: data.get(#opencode, or: $value.opencode),
-    opencode2: data.get(#opencode2, or: $value.opencode2),
     pi: data.get(#pi, or: $value.pi),
     amp: data.get(#amp, or: $value.amp),
     grok: data.get(#grok, or: $value.grok),

@@ -36,6 +36,7 @@ pub(super) fn parse_agent_link_request(payload: &Value) -> HostResult<AgentLinkR
             "Unsupported agent type: {agent_type}."
         )));
     }
+    let agent_type = alera_core::runtime::canonical_agent_type(&agent_type).to_string();
     let native_session_id = match optional_string(payload, "nativeSessionId") {
         Some(id) => Some(
             usable_native_session_id(&id)

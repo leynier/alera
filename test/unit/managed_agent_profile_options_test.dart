@@ -51,7 +51,6 @@ void main() {
           AgentType.cursor: true,
           AgentType.agy: true,
           AgentType.opencode: true,
-          AgentType.opencode2: true,
           AgentType.pi: true,
           AgentType.amp: false,
           AgentType.grok: true,
@@ -70,7 +69,6 @@ void main() {
           AgentType.cursor: false,
           AgentType.agy: true,
           AgentType.opencode: true,
-          AgentType.opencode2: true,
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: true,
@@ -264,8 +262,6 @@ void main() {
               'This profile lets Antigravity skip permission checks.',
           AgentType.opencode:
               'This profile lets OpenCode approve actions automatically.',
-          AgentType.opencode2:
-              'This profile lets OpenCode approve actions automatically.',
           AgentType.pi: 'This profile pre-approves project trust for Pi.',
           AgentType.amp: '',
           AgentType.grok: 'This profile lets Grok Build continue with reduced permission prompts.',
@@ -369,7 +365,6 @@ void main() {
           AgentType.cursor: false,
           AgentType.agy: false,
           AgentType.opencode: false,
-          AgentType.opencode2: false,
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: false,
@@ -422,17 +417,18 @@ void main() {
           'model': 'gpt',
           'agent': 'build',
           'autoApprove': true,
-        }),
+        }, openCodeGeneration: .v1),
         'opencode --model gpt --agent build --auto',
       );
       expect(
-        managedAgentCommandPreview(.opencode2, const <String, Object?>{
+        managedAgentCommandPreview(.opencode, const <String, Object?>{
           'model': 'gpt',
           'agent': 'build',
           'autoApprove': true,
         }),
-        // A private server, then the only interactive TUI option.
-        'opencode2 --standalone --auto',
+        // OpenCode 2 by default: a private server, then the only
+        // interactive TUI option.
+        'opencode --standalone --auto',
       );
       expect(
         managedAgentCommandPreview(.pi, const <String, Object?>{

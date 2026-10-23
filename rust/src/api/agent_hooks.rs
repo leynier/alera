@@ -199,7 +199,9 @@ async fn handle_opencode2(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> impl IntoResponse {
-    handle_hook_request(state, request, "opencode2").await
+    // The OpenCode 2 plugin of older Alera versions; both generations are
+    // `opencode` now.
+    handle_hook_request(state, request, "opencode").await
 }
 
 async fn handle_pi(State(state): State<AppState>, request: Request<Body>) -> impl IntoResponse {

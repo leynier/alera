@@ -9,7 +9,6 @@ const List<String> supportedAgentHooks = <String>[
   'cursor',
   'agy',
   'opencode',
-  'opencode2',
   'pi',
   'amp',
   'grok',
@@ -23,7 +22,6 @@ const Map<String, String> agentHookLabels = <String, String>{
   'cursor': 'Cursor',
   'agy': 'Antigravity',
   'opencode': 'OpenCode',
-  'opencode2': 'OpenCode 2',
   'pi': 'Pi',
   'amp': 'Amp',
   'grok': 'Grok Build',
@@ -45,7 +43,12 @@ class const PortableHostSettings({
       confirmProjectRemoval: json['confirmProjectRemoval'] != false,
       confirmWorkspaceRemoval: json['confirmWorkspaceRemoval'] != false,
       agentStatusHooks: <String, bool>{
-        for (final agent in supportedAgentHooks) agent: hooks[agent] == true,
+        for (final agent in supportedAgentHooks)
+          agent:
+              hooks[agent] == true ||
+              // OpenCode v1 and OpenCode 2 share one toggle now; a runtime
+              // may still report the retired `opencode2` one.
+              (agent == 'opencode' && hooks['opencode2'] == true),
       },
       agentQuotas: .fromJson(json.mapValue('agentQuotas')),
       voice: MobileVoiceSettings.fromJson(json.mapValue('voice')),

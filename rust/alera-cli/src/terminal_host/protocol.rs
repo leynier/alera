@@ -16,7 +16,7 @@ pub const ORCHESTRATION_SKILL_VERSION: i64 = 5;
 /// installed copy matches this runtime.
 pub const CLI_SKILL_VERSION: i64 = 5;
 pub const AUTOMATIONS_SKILL_VERSION: i64 = 5;
-pub const AGENT_PROFILES_SKILL_VERSION: i64 = 1;
+pub const AGENT_PROFILES_SKILL_VERSION: i64 = 2;
 /// `agentSkill.install` takes a `skills` list, runs as a runtime job that one
 /// request at a time may start, and `agentSkill.state` reports it.
 pub const RUNTIME_HOST_AGENT_SKILL_INSTALL_JOBS_CAPABILITY: &str = "agentSkillInstallJobsV1";

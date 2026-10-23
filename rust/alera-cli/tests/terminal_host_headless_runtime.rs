@@ -403,7 +403,6 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
                 cursor: true,
                 agy: true,
                 opencode: true,
-                opencode2: true,
                 pi: true,
                 amp: true,
                 grok: true,
@@ -456,6 +455,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         ("cursor", "beforeSubmitPrompt", "stop"),
         ("agy", "PreInvocation", "Stop"),
         ("opencode", "SessionBusy", "SessionIdle"),
+        // The route older OpenCode 2 plugins still post to.
         ("opencode2", "SessionBusy", "SessionIdle"),
         ("pi", "agent_start", "agent_end"),
         ("amp", "agent.start", "agent.end"),
@@ -465,6 +465,11 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     .enumerate()
     {
         post_hook(dir.path(), agent, event_name);
+        let reported = if agent == "opencode2" {
+            "opencode"
+        } else {
+            agent
+        };
         let request_id = index as i64 + 2;
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {
@@ -476,7 +481,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
             let detected = response["payload"].as_array().is_some_and(|items| {
                 items
                     .iter()
-                    .any(|item| item["agentType"] == agent && item["agentState"] == "working")
+                    .any(|item| item["agentType"] == reported && item["agentState"] == "working")
             });
             if detected {
                 break;

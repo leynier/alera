@@ -31,6 +31,19 @@ impl std::str::FromStr for AgentProfileLaunchMode {
     }
 }
 
+/// Agent type key that OpenCode 2 used while it was a separate agent. OpenCode
+/// v1 and OpenCode 2 both install as `opencode` now, so stored profiles, tabs,
+/// settings and hook routes that still carry it read as `opencode`.
+pub const LEGACY_OPENCODE2_AGENT_TYPE: &str = "opencode2";
+
+/// The agent type a stored or received key stands for.
+pub fn canonical_agent_type(agent_type: &str) -> &str {
+    match agent_type {
+        LEGACY_OPENCODE2_AGENT_TYPE => "opencode",
+        other => other,
+    }
+}
+
 /// A user-declared launch configuration for an orchestration worker agent.
 ///
 /// Profiles are user configuration, not run state: they live in the runtime

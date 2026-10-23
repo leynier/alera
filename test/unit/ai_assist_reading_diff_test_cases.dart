@@ -365,7 +365,6 @@ ERROR: {
       AiAssistAgent.cursor,
       AiAssistAgent.agy,
       AiAssistAgent.opencode,
-      AiAssistAgent.opencode2,
       AiAssistAgent.amp,
     ]) {
       final process = _FakeProcessRunner(stdout: 'unused');
