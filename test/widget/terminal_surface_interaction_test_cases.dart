@@ -60,7 +60,7 @@ void _registerTerminalSurfaceInteractionTests() {
       await tester.sendKeyUpEvent(.metaLeft);
 
       expect(
-        find.text('Could not open link: https://example.com'),
+        find.text('Could not open https://example.com: Boom'),
         findsOneWidget,
       );
     } finally {

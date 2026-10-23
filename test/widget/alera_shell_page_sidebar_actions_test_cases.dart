@@ -447,6 +447,34 @@ void _registerAleraShellSidebarActionTests() {
     },
   );
 
+  testWidgets('shell toasts a repeated workbench error each time it happens', (
+    tester,
+  ) async {
+    final events = <AleraToastData>[];
+    final subscription = AleraToast.stream.listen(events.add);
+    addTearDown(subscription.cancel);
+
+    final harness = await _pumpShell(
+      tester,
+      state: _populatedWorkbenchState().copyWith(error: 'Workspace failed'),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.controller.state.error, isNull);
+
+    harness.controller.reportError('Workspace failed');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      events
+          .where((event) => event.tone == AleraToastTone.error)
+          .map((event) => event.message),
+      <String>['Workspace failed', 'Workspace failed'],
+    );
+  });
+
   testWidgets('clicking a tab activates it in the shell state bridge', (
     tester,
   ) async {

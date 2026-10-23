@@ -112,7 +112,7 @@ void main() {
 
     hang.completeError(Exception('branch catalog failed'));
     await tester.pumpAndSettle();
-    expect(find.text('branch catalog failed'), findsNothing);
+    expect(find.text('Branch catalog failed'), findsNothing);
     expect(find.text('Loading Branches'), findsNothing);
     branches.hang = null;
     await tester.tap(
@@ -153,7 +153,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('This Device').last);
     await tester.pumpAndSettle();
-    expect(find.text('branch catalog failed'), findsOneWidget);
+    expect(find.text('Branch catalog failed'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('home-composer-project')),
@@ -161,7 +161,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Other').last);
     await tester.pumpAndSettle();
-    expect(find.text('branch catalog failed'), findsNothing);
+    expect(find.text('Branch catalog failed'), findsNothing);
   });
 
   testWidgets('a successful branch reload clears the catalog error', (
@@ -192,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('This Device').last);
     await tester.pumpAndSettle();
-    expect(find.text('branch catalog failed'), findsOneWidget);
+    expect(find.text('Branch catalog failed'), findsOneWidget);
     expect(
       tester
           .widget<AleraIconButton>(
@@ -207,7 +207,7 @@ void main() {
       find.byKey(const ValueKey<String>('home-composer-source')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('branch catalog failed'), findsNothing);
+    expect(find.text('Branch catalog failed'), findsNothing);
     expect(find.text('From main'), findsOneWidget);
     expect(
       tester

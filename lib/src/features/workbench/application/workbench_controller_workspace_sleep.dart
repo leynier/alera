@@ -46,24 +46,22 @@ mixin _WorkbenchControllerWorkspaceSleep
   /// Sleeps a workspace: live terminal sessions stop, but tab records, layout,
   /// branch, and files are preserved so agent sessions resume on wake through
   /// their stored native session ids.
+  ///
+  /// A failure is thrown, not stored in `state.error`: the caller reports it
+  /// with the action's context, and storing it too would toast it twice.
   Future<void> sleepWorkspace(Workspace workspace) async {
-    try {
-      final settlementsBefore = _remoteSleepSettlements[workspace.id] ?? 0;
-      await _repository.sleepWorkspace(workspace.id);
-      // The host's removals, which arrive before its answer, already settled
-      // this sleep, and the user may have reopened the workspace since.
-      if ((_remoteSleepSettlements[workspace.id] ?? 0) != settlementsBefore) {
-        return;
-      }
-      ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
-      _settleSleptWorkspace(workspace.id, <String>[
-        for (final tab in state.tabsFor(workspace.id))
-          if (tab.kind == WorkspaceTabKind.terminal) tab.id,
-      ], clearError: true);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
+    final settlementsBefore = _remoteSleepSettlements[workspace.id] ?? 0;
+    await _repository.sleepWorkspace(workspace.id);
+    // The host's removals, which arrive before its answer, already settled
+    // this sleep, and the user may have reopened the workspace since.
+    if ((_remoteSleepSettlements[workspace.id] ?? 0) != settlementsBefore) {
+      return;
     }
+    ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
+    _settleSleptWorkspace(workspace.id, <String>[
+      for (final tab in state.tabsFor(workspace.id))
+        if (tab.kind == WorkspaceTabKind.terminal) tab.id,
+    ], clearError: true);
   }
 
   /// The terminals of [workspaceId] the host stopped by sleeping it.

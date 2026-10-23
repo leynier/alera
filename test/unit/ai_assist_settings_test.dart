@@ -185,6 +185,20 @@ void main() {
     expect(overridden.inheritsModel, isFalse);
   });
 
+  test('error clarification defaults off and round-trips', () {
+    expect(AiAssistSettings.defaults.clarifyErrorMessages, isFalse);
+    expect(
+      AiAssistSettings.fromJson(<String, Object?>{}).clarifyErrorMessages,
+      isFalse,
+    );
+
+    const settings = AiAssistSettings(clarifyErrorMessages: true);
+    final encoded = settings.toMap();
+    expect(encoded['clarifyErrorMessages'], isTrue);
+    expect(AiAssistSettings.fromJson(encoded).clarifyErrorMessages, isTrue);
+    expect(AiAssistSettings.fromJson(encoded), settings);
+  });
+
   test('OpenCode Go host capability is additive', () {
     expect(aleraTerminalHostProtocolVersion, 5);
     expect(

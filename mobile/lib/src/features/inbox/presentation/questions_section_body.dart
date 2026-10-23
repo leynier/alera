@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/inbox/application/mobile_inbox_providers.dart';
+import 'package:alera_mobile/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera_mobile/src/features/inbox/domain/inbox_models.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_labels.dart';
 import 'package:alera_mobile/src/features/inbox/presentation/inbox_thread_screen.dart';
@@ -59,7 +62,7 @@ class const QuestionsSectionBody({super.key, required final String hostId})
         icon: AleraIcons.inbox,
         title: 'Inbox Unavailable',
         message: 'The host could not load the inbox.',
-        detail: '$error',
+        detail: inboxErrorMessage(error),
         action: TextButton(
           onPressed: () => ref.invalidate(_threadsProvider(filters)),
           child: const Text('Retry'),
@@ -182,9 +185,13 @@ class const InboxPurgeMenu({super.key, required final String hostId})
       await repository.purge(inbox);
       ref.read(mobileInboxListControllerProvider(hostId).notifier).clear();
       messenger.showSnackBar(SnackBar(content: Text('Purged $inbox')));
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not purge $inbox: $error')),
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'purge $inbox',
+        error: error,
+        stackTrace: stackTrace,
+        message: actionFailureMessage('purge $inbox', inboxErrorMessage(error)),
       );
     }
   }

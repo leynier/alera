@@ -16,6 +16,31 @@ fn ai_assist_settings_keep_historical_json_key() {
     assert!(value.get("aiAssist").is_none());
 }
 
+#[test]
+fn clarify_error_messages_defaults_off_for_settings_stored_before_it_existed() {
+    let stored = serde_json::json!({
+        "autoGenerateAgentTitles": true,
+        "enabled": true,
+        "agent": "codex",
+    });
+    let settings: RuntimeAiAssistSettings = serde_json::from_value(stored).unwrap();
+    assert!(!settings.clarify_error_messages);
+    assert!(!RuntimeAiAssistSettings::default().clarify_error_messages);
+}
+
+#[test]
+fn clarify_error_messages_round_trips_as_camel_case() {
+    let settings = RuntimeAiAssistSettings {
+        clarify_error_messages: true,
+        ..RuntimeAiAssistSettings::default()
+    };
+    let value = serde_json::to_value(&settings).unwrap();
+    assert_eq!(value["clarifyErrorMessages"], true);
+    assert!(value.get("clarify_error_messages").is_none());
+    let decoded: RuntimeAiAssistSettings = serde_json::from_value(value).unwrap();
+    assert!(decoded.clarify_error_messages);
+}
+
 #[tokio::test]
 async fn text_actions_are_optional_and_round_trip_through_runtime_metadata() {
     let directory = tempfile::tempdir().unwrap();

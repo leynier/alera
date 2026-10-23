@@ -724,6 +724,14 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
     opt: true,
     def: true,
   );
+  static bool _$clarifyErrorMessages(AiAssistSettings v) =>
+      v.clarifyErrorMessages;
+  static const Field<AiAssistSettings, bool> _f$clarifyErrorMessages = Field(
+    'clarifyErrorMessages',
+    _$clarifyErrorMessages,
+    opt: true,
+    def: false,
+  );
   static AiAssistAgent _$agent(AiAssistSettings v) => v.agent;
   static const Field<AiAssistSettings, AiAssistAgent> _f$agent = Field(
     'agent',
@@ -835,6 +843,7 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
   final MappableFields<AiAssistSettings> fields = const {
     #enabled: _f$enabled,
     #autoGenerateAgentTitles: _f$autoGenerateAgentTitles,
+    #clarifyErrorMessages: _f$clarifyErrorMessages,
     #agent: _f$agent,
     #selectedModelByAgent: _f$selectedModelByAgent,
     #selectedThinkingByModel: _f$selectedThinkingByModel,
@@ -852,6 +861,7 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
     return AiAssistSettings(
       enabled: data.dec(_f$enabled),
       autoGenerateAgentTitles: data.dec(_f$autoGenerateAgentTitles),
+      clarifyErrorMessages: data.dec(_f$clarifyErrorMessages),
       agent: data.dec(_f$agent),
       selectedModelByAgent: data.dec(_f$selectedModelByAgent),
       selectedThinkingByModel: data.dec(_f$selectedThinkingByModel),
@@ -968,6 +978,7 @@ abstract class AiAssistSettingsCopyWith<$R, $In extends AiAssistSettings, $Out>
   $R call({
     bool? enabled,
     bool? autoGenerateAgentTitles,
+    bool? clarifyErrorMessages,
     AiAssistAgent? agent,
     Map<AiAssistAgent, String>? selectedModelByAgent,
     Map<String, String>? selectedThinkingByModel,
@@ -1069,6 +1080,7 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
   $R call({
     bool? enabled,
     bool? autoGenerateAgentTitles,
+    bool? clarifyErrorMessages,
     AiAssistAgent? agent,
     Map<AiAssistAgent, String>? selectedModelByAgent,
     Map<String, String>? selectedThinkingByModel,
@@ -1085,6 +1097,8 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
       if (enabled != null) #enabled: enabled,
       if (autoGenerateAgentTitles != null)
         #autoGenerateAgentTitles: autoGenerateAgentTitles,
+      if (clarifyErrorMessages != null)
+        #clarifyErrorMessages: clarifyErrorMessages,
       if (agent != null) #agent: agent,
       if (selectedModelByAgent != null)
         #selectedModelByAgent: selectedModelByAgent,
@@ -1111,6 +1125,10 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
     autoGenerateAgentTitles: data.get(
       #autoGenerateAgentTitles,
       or: $value.autoGenerateAgentTitles,
+    ),
+    clarifyErrorMessages: data.get(
+      #clarifyErrorMessages,
+      or: $value.clarifyErrorMessages,
     ),
     agent: data.get(#agent, or: $value.agent),
     selectedModelByAgent: data.get(

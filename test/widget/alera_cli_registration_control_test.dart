@@ -33,8 +33,11 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Registration check failed'), findsOneWidget);
-    expect(find.textContaining('missing'), findsOneWidget);
+    expect(
+      find.textContaining('Could not check the registration'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Missing'), findsOneWidget);
   });
 
   testWidgets('registration control surfaces install failures', (tester) async {
@@ -65,8 +68,11 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Registration failed'), findsOneWidget);
-    expect(find.textContaining('permission denied'), findsOneWidget);
+    expect(
+      find.textContaining('Could not register the Alera CLI'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Permission denied'), findsOneWidget);
   });
 }
 

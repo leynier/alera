@@ -114,7 +114,7 @@ void _registerWorkspaceGitDiffPanelBranchTests() {
 
     expect(
       toasts.last.message,
-      'commit or stash local changes before switching branches',
+      'Commit or stash local changes before switching branches',
     );
     expect(toasts.last.tone, AleraToastTone.error);
   });

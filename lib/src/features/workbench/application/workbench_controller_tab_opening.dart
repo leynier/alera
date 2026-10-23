@@ -60,7 +60,7 @@ mixin _WorkbenchControllerTabOpening
       state = state.copyWith(error: null);
       return tab;
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }
@@ -87,7 +87,7 @@ mixin _WorkbenchControllerTabOpening
         autoCloseOnSuccess: true,
       );
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
     }
   }
 
@@ -154,7 +154,7 @@ mixin _WorkbenchControllerTabOpening
       _persistLayoutInBackground(persisted);
       return tab;
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }

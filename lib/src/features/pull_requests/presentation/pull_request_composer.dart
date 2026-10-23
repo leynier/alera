@@ -11,6 +11,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
@@ -294,11 +295,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
           headBranch: widget.headBranch,
         ),
       );
-      if (!mounted ||
-          !_isCurrentGeneration(
-            workspacePath: requestPath,
-            generationId: generationId,
-          )) {
+      if (!mounted || !_isCurrentGeneration(requestPath, generationId)) {
         return;
       }
       if (_titleController.text == initialTitle &&
@@ -325,27 +322,22 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       }
     } on AiAssistCanceledException {
       return;
-    } catch (error) {
-      if (_isCurrentGeneration(
-        workspacePath: requestPath,
-        generationId: generationId,
-      )) {
-        AleraToast.show(context, message: error.toString(), tone: .error);
+    } catch (error, stackTrace) {
+      if (_isCurrentGeneration(requestPath, generationId)) {
+        showActionFailure(
+          action: 'generate pull request details',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     } finally {
-      if (_isCurrentGeneration(
-        workspacePath: requestPath,
-        generationId: generationId,
-      )) {
+      if (_isCurrentGeneration(requestPath, generationId)) {
         setState(() => _generating = false);
       }
     }
   }
 
-  bool _isCurrentGeneration({
-    required String workspacePath,
-    required int generationId,
-  }) {
+  bool _isCurrentGeneration(String workspacePath, int generationId) {
     return mounted &&
         widget.repoPath == workspacePath &&
         _generationId == generationId;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -211,13 +212,10 @@ void main() {
   });
 
   test('runtime errors keep their wording', () {
+    expect(runtimeActionErrorMessage(StateError('Push first.')), 'Push first.');
     expect(
-      pullRequestActionErrorMessage(StateError('Push first.')),
-      'Push first.',
-    );
-    expect(
-      pullRequestActionErrorMessage(TimeoutException('slow')),
-      'The paired computer did not answer in time.',
+      runtimeActionErrorMessage(TimeoutException('slow')),
+      'The runtime did not answer in time.',
     );
   });
 

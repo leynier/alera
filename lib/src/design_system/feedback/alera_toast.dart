@@ -65,10 +65,20 @@ abstract final class AleraToast {
       AleraToastData(
         message: trimmedMessage,
         tone: tone,
-        duration: duration ?? AleraTokens.toastDuration,
+        duration: duration ?? defaultDurationFor(tone),
         actionLabel: actionLabel?.trim(),
         onAction: onAction,
       ),
     );
+  }
+
+  /// Errors and warnings stay up long enough to be read; a four second error
+  /// is one the user often never sees.
+  static Duration defaultDurationFor(AleraToastTone tone) {
+    return switch (tone) {
+      AleraToastTone.error || AleraToastTone.warning => longDuration,
+      AleraToastTone.success ||
+      AleraToastTone.info => AleraTokens.toastDuration,
+    };
   }
 }

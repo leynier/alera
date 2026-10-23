@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_providers.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
@@ -106,7 +107,7 @@ class _RuntimeHostStatusBarControlState
     if (error is StateError && error.message.contains('did not stop in time')) {
       return 'The runtime host did not stop in time. Try again.';
     }
-    return 'Runtime host action failed. Try again.';
+    return actionFailureMessage('complete the runtime host action', error);
   }
 
   Future<bool> _confirmForce({

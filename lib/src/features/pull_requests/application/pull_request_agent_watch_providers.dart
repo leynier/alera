@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/application/agent_task_dispatch_providers.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
@@ -141,10 +142,11 @@ class PullRequestAgentWatchController extends _$PullRequestAgentWatchController
       try {
         await repository.remove(workspaceId);
         await _hydrateFromHost();
-      } on Object catch (error) {
-        AleraToast.publish(
-          message: 'Could not stop watching. $error',
-          tone: .error,
+      } on Object catch (error, stackTrace) {
+        showActionFailure(
+          action: 'stop watching',
+          error: error,
+          stackTrace: stackTrace,
         );
       }
       return;

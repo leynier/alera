@@ -1,7 +1,8 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
-import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_commit_draft.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -65,11 +66,12 @@ class CommitMessageGenerationController
         return null;
       }
       return 'Update the paired Alera runtime to generate commit messages.';
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
       if (!ref.mounted || _cancelled == operationId) {
         return null;
       }
-      return sourceControlErrorMessage(error);
+      logActionFailure('generate commit message', error, stackTrace);
+      return runtimeActionErrorMessage(error);
     } finally {
       if (_running == operationId) {
         _running = null;

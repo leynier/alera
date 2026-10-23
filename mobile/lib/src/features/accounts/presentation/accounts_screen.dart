@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
@@ -44,10 +46,13 @@ class const AccountsScreen({super.key}) extends ConsumerWidget {
       if (context.mounted) {
         _showMessage(context, 'Account added');
       }
-    } on Object catch (error) {
-      if (context.mounted) {
-        _showMessage(context, error.toString());
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'add the account',
+        error: error,
+        stackTrace: stackTrace,
+      );
     } finally {
       connection.close();
     }
@@ -64,10 +69,13 @@ class const AccountsScreen({super.key}) extends ConsumerWidget {
       if (context.mounted) {
         _showMessage(context, 'Account added');
       }
-    } on Object catch (error) {
-      if (context.mounted) {
-        _showMessage(context, error.toString());
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'add the account',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -117,10 +125,13 @@ class const AccountsScreen({super.key}) extends ConsumerWidget {
       await ref
           .read(cloudAccountsControllerProvider.notifier)
           .removeFromThisPhone(session.account.id);
-    } on Object catch (error) {
-      if (context.mounted) {
-        _showMessage(context, error.toString());
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'remove the account',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return;
     }
     for (final runtimeId in session.subscriptions.keys) {
@@ -140,10 +151,13 @@ class const AccountsScreen({super.key}) extends ConsumerWidget {
       if (context.mounted) {
         _showMessage(context, 'Account refreshed');
       }
-    } on Object catch (error) {
-      if (context.mounted) {
-        _showMessage(context, error.toString());
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        action: 'refresh the account',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -255,8 +269,8 @@ class const AccountsScreen({super.key}) extends ConsumerWidget {
             ],
           ),
           AsyncError(:final error) => AleraEmptyState(
-            title: 'Accounts unavailable',
-            message: error.toString(),
+            title: 'Accounts Unavailable',
+            message: userFacingErrorMessage(error),
             icon: Icons.cloud_off_outlined,
             action: FilledButton(
               onPressed: () {

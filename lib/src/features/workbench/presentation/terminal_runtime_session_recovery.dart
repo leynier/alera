@@ -1,11 +1,14 @@
 part of 'terminal_runtime.dart';
 
+final Logger _terminalRuntimeLogger = Logger('TerminalRuntime');
+
 extension _TerminalRecoveryState on _XtermTerminalSessionHandle {
   void _setTerminalHostError(Object error) {
     if (_disposed) {
       return;
     }
-    final message = 'Terminal host unavailable: $error';
+    final message =
+        'Terminal host unavailable: ${userFacingErrorMessage(error)}';
     if (_errorMessage == message) {
       return;
     }
@@ -35,9 +38,14 @@ Future<void> _ensureTerminalSessionStarted(
     if (!handle._disposed && attempt == handle._startAttempt && started) {
       handle._started = true;
     }
-  } catch (error) {
+  } catch (error, stackTrace) {
+    _terminalRuntimeLogger.warning(
+      'Could not start terminal session',
+      error,
+      stackTrace,
+    );
     if (!handle._disposed && attempt == handle._startAttempt) {
-      handle._errorMessage = error.toString();
+      handle._errorMessage = userFacingErrorMessage(error);
     }
   } finally {
     if (!handle._disposed && attempt == handle._startAttempt) {
@@ -142,7 +150,8 @@ Future<void> _recoverTerminalSession(
           handle._activePtyGeneration == generationBeforeRecovery) {
         handle._exitedPtyGenerations.add(generationBeforeRecovery);
       }
-      handle._errorMessage = 'Terminal host unavailable: $error';
+      handle._errorMessage =
+          'Terminal host unavailable: ${userFacingErrorMessage(error)}';
     }
   } finally {
     if (!handle._disposed) {

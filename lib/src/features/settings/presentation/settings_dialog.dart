@@ -6,6 +6,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/account/presentation/account_settings_pane.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
@@ -33,6 +34,9 @@ import 'package:alera/src/features/settings/presentation/settings_sections.dart'
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('SettingsDialog');
 
 // The dialog fills most of the screen so the settings surface feels like a
 // full window while still leaving a small breathing margin on large displays.
@@ -115,12 +119,17 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not reload shell environment', error, stackTrace);
       if (!mounted) {
         return;
       }
       messenger.showSnackBar(
-        const SnackBar(content: Text('Could not reload shell environment')),
+        SnackBar(
+          content: Text(
+            actionFailureMessage('reload the shell environment', error),
+          ),
+        ),
       );
     }
   }

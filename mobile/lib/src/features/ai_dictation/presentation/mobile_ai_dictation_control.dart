@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
@@ -71,11 +72,15 @@ class const MobileAiDictationControl({
           onText: _insert,
         );
       }
-    } on Object catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
-      }
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        action: stage == MobileAiDictationStage.recording
+            ? 'stop dictation'
+            : 'start dictation',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/features/runs/domain/run_cleanup.dart';
+import 'package:alera/src/features/runs/domain/run_error_messages.dart';
 import 'package:flutter/material.dart';
 
 class RunCleanupReviewPanel extends StatefulWidget {
@@ -132,7 +133,7 @@ class _RunCleanupReviewPanelState extends State<RunCleanupReviewPanel> {
                   ),
                 if (widget.error != null)
                   SelectableText(
-                    widget.error.toString(),
+                    runErrorMessage(widget.error!),
                     style: const TextStyle(color: AleraTokens.error),
                   ),
                 const SizedBox(height: AleraTokens.space16),

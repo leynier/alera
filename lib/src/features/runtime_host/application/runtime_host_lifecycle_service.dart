@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_quit_decision.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
@@ -55,7 +56,7 @@ final class RuntimeHostLifecycleService({
       return RuntimeHostStatusSnapshot(
         running: false,
         bundledVersion: 'unknown',
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
       );
     }
     try {
@@ -89,7 +90,7 @@ final class RuntimeHostLifecycleService({
         running: false,
         bundledVersion: bundled.version,
         bundledCommit: bundled.commit,
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
       );
     }
   }

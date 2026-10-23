@@ -188,7 +188,7 @@ mixin _VoiceSessionCapture
       if (epoch != _captureEpoch) {
         return;
       }
-      state = state.copyWith(lastError: error.toString());
+      state = state.copyWith(lastError: userFacingErrorMessage(error));
     }
   }
 

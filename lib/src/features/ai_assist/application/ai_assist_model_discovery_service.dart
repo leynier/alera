@@ -5,6 +5,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_host_complete
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_process_failure.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
@@ -63,14 +64,17 @@ class CliAiAssistModelDiscoveryService({
         spec.modelsCommand!,
         environment: await commandEnvironmentResolver.environment(),
       );
-    } catch (_) {
+    } catch (error) {
       return AiAssistModelDiscoveryResult(
         success: false,
         agent: agent,
         models: spec.models,
         defaultModelId: spec.defaultModelId,
-        error:
-            '${spec.label} model discovery could not be started. Check that ${spec.binary} is installed and on PATH.',
+        error: aiAssistProcessStartFailureMessage(
+          subject: '${spec.label} model discovery',
+          binary: spec.binary,
+          error: error,
+        ),
       );
     }
 
@@ -140,7 +144,7 @@ class CliAiAssistModelDiscoveryService({
         agent: spec.agent,
         models: spec.models,
         defaultModelId: spec.defaultModelId,
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
       );
     }
   }

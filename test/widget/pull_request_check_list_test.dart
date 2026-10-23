@@ -155,6 +155,6 @@ void main() {
 
     await tester.tap(find.text('build'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('network down'), findsOneWidget);
+    expect(find.text('Network down'), findsOneWidget);
   });
 }

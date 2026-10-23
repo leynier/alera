@@ -223,6 +223,10 @@ void main() {
       'Bad payload.',
     );
     expect(mcpAccessErrorMessage(42), '42');
+    expect(
+      mcpAccessErrorMessage(Exception('Bad state: relay offline.')),
+      'Relay offline.',
+    );
   });
 
   test('reads every relay state and treats others as unknown', () {

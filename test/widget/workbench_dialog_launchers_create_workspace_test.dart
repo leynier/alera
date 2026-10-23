@@ -94,7 +94,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Workspace created, but parent link failed'),
+        find.text(
+          'Workspace created, but could not link it to its parent: '
+          'Parent workspace not found',
+        ),
         findsOneWidget,
       );
       expect(find.text('Workspace created'), findsNothing);

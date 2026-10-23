@@ -9,6 +9,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/app_navigation.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/projects/domain/project_clone_job.dart';
 import 'package:alera/src/features/workbench/application/background_setup_jobs.dart';
 import 'package:alera/src/features/workbench/domain/background_setup_job.dart';
@@ -355,7 +356,7 @@ class DialogLaunchersBackgroundSetupJobs extends BackgroundSetupJobs {
             status: .failed,
             title: 'Creating workspace "${request.displayName}"',
             snapshot: request,
-            error: error.toString().replaceFirst('Exception: ', ''),
+            error: userFacingErrorMessage(error),
           ),
         );
         rethrow;
@@ -426,7 +427,9 @@ class DialogLaunchersBackgroundSetupJobs extends BackgroundSetupJobs {
     }
     if (result.hasParentLinkError) {
       AleraToast.publish(
-        message: 'Workspace created, but parent link failed',
+        message:
+            'Workspace created, but could not link it to its parent: '
+            '${result.parentLinkError}',
         tone: .error,
         duration: const Duration(seconds: 6),
       );

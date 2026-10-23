@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
@@ -82,8 +84,9 @@ Future<String?> startShippedPullRequestWatch({
   try {
     await start(review.number, mode, binding, shipped);
     return null;
-  } on Object catch (error) {
+  } on Object catch (error, stackTrace) {
+    logActionFailure('start watching', error, stackTrace);
     return 'Pull request #${review.number} was created, but watching could '
-        'not start. $error';
+        'not start: ${userFacingErrorMessage(error)}';
   }
 }

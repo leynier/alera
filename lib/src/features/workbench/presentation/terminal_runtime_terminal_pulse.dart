@@ -102,7 +102,7 @@ mixin _TerminalSessionCapabilitiesSupport on TerminalSessionHandle {
           configuration: current.configuration,
           armed: current.armed,
           statusKnown: false,
-          error: 'Terminal Pulse status could not be refreshed: $error',
+          error: actionFailureMessage('refresh Terminal Pulse status', error),
         ),
       );
     }

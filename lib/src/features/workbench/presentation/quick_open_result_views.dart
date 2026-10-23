@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -97,7 +98,7 @@ class const QuickOpenLoadError({super.key, required final Object error})
             ),
             const SizedBox(height: AleraTokens.space4),
             Text(
-              error.toString(),
+              userFacingErrorMessage(error),
               maxLines: 3,
               overflow: .ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(

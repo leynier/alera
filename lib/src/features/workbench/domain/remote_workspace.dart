@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 
 const String localWorkspaceHostId = 'local';
@@ -38,16 +39,13 @@ String workspaceHostLabel(List<SshTarget> targets, String? hostId) {
   return remoteId;
 }
 
+/// Kept for existing callers; new code uses [userFacingErrorMessage] directly.
 String userFacingExceptionMessage(Object error) {
-  final mapped = remoteWorkspaceErrorMessage(error);
-  if (mapped != null) {
-    return mapped;
-  }
-  return _stripExceptionPrefix(error.toString());
+  return userFacingErrorMessage(error);
 }
 
 String? remoteWorkspaceErrorMessage(Object error) {
-  final message = _stripExceptionPrefix(error.toString());
+  final message = stripErrorTypePrefixes(error.toString());
   final lower = message.toLowerCase();
   if (lower.contains('not bootstrapped') ||
       lower.contains('unreachable') ||
@@ -64,20 +62,4 @@ String? remoteWorkspaceErrorMessage(Object error) {
     return remoteWorkspaceFilesMissingCapabilityMessage();
   }
   return null;
-}
-
-String _stripExceptionPrefix(String raw) {
-  var message = raw.trim();
-  const prefixes = <String>[
-    'Exception: ',
-    'Bad state: ',
-    'StateError: ',
-    'FormatException: ',
-  ];
-  for (final prefix in prefixes) {
-    if (message.startsWith(prefix)) {
-      return message.substring(prefix.length);
-    }
-  }
-  return message;
 }

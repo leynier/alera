@@ -260,7 +260,7 @@ final class SkillInstallControllerProvider
 }
 
 String _$skillInstallControllerHash() =>
-    r'b135f90d2ddbc8ed8b0eb0235374523acb9e0480';
+    r'4f30f32d6d4d1fef514c71fddc2e80f1df5d9382';
 
 final class SkillInstallControllerFamily extends $Family
     with

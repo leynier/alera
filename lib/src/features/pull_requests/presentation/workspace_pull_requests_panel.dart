@@ -1,40 +1,41 @@
-import 'package:alera/src/features/pull_requests/application/workspace_review_reveal.dart';
-import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
-
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
-import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
-import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
-import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
-import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_review_reveal.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_agent_dispatch.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_stack_candidates.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
-import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
-import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
-import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_removal_launcher.dart';
 import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolver.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -97,8 +98,10 @@ class const WorkspacePullRequestsPanel({
     );
     return overrideAsync.when(
       loading: _loading,
-      error: (error, _) =>
-          _MessageBody(icon: AleraIcons.error, message: error.toString()),
+      error: (error, _) => _MessageBody(
+        icon: AleraIcons.error,
+        message: userFacingErrorMessage(error),
+      ),
       data: (override) {
         final scope = WorkspacePullRequestScope(
           workspaceId: workspace.id,
@@ -215,8 +218,10 @@ class _VisiblePullRequestsPanelState
     });
     return async.when(
       loading: WorkspacePullRequestsPanel._loading,
-      error: (error, _) =>
-          _MessageBody(icon: AleraIcons.error, message: error.toString()),
+      error: (error, _) => _MessageBody(
+        icon: AleraIcons.error,
+        message: userFacingErrorMessage(error),
+      ),
       data: (state) {
         final candidates = applyLiveReviewStackWorkspaceBranch(
           candidates: widget.stackWorkspaceCandidates,
@@ -281,14 +286,11 @@ class _VisiblePullRequestsPanelState
       await ref
           .read(workbenchControllerProvider.notifier)
           .archiveWorkspace(workspace);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Could not archive workspace: $error',
-        tone: .error,
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'archive workspace',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }
@@ -362,14 +364,12 @@ class _VisiblePullRequestsPanelState
             subject: review.title,
             oppositePanel: oppositePanel,
           );
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(
-          context,
-          message: 'Could not open the pull request diff: $error',
-          tone: .error,
-        );
-      }
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'open the pull request diff',
+        error: error,
+        stackTrace: stackTrace,
+      );
     } finally {
       if (!handedToWorkbench && retainedRange != null) {
         try {

@@ -63,7 +63,7 @@ mixin _WorkbenchControllerTabs
       if (_isStaleWorkspaceOpen(workspace.id, sleepGeneration)) {
         _pruneExplorerSessions();
         if (closeError != null) {
-          state = state.copyWith(error: closeError.toString());
+          state = state.copyWith(error: userFacingErrorMessage(closeError));
           Error.throwWithStackTrace(
             closeError,
             closeStack ?? StackTrace.current,
@@ -81,11 +81,11 @@ mixin _WorkbenchControllerTabs
         );
       }
       if (closeError != null) {
-        state = state.copyWith(error: closeError.toString());
+        state = state.copyWith(error: userFacingErrorMessage(closeError));
         Error.throwWithStackTrace(closeError, closeStack ?? StackTrace.current);
       }
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     } finally {
       _closingTabWorkspaceIds.remove(workspace.id);
@@ -176,7 +176,7 @@ mixin _WorkbenchControllerTabs
       _setTabsForWorkspace(tab.workspaceId, tabs);
       state = state.copyWith(error: null);
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }
@@ -227,7 +227,7 @@ mixin _WorkbenchControllerTabs
         error: null,
       );
     } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(error: userFacingErrorMessage(error));
       rethrow;
     }
   }

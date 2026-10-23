@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
@@ -327,11 +328,8 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
       if (generation != _requestGeneration) {
         return;
       }
-      state = state.copyWith(
-        loading: false,
-        result: null,
-        error: _messageFor(error),
-      );
+      final message = _messageFor(error, action: 'search');
+      state = state.copyWith(loading: false, result: null, error: message);
     } finally {
       if (_activeRequestId == requestId) {
         _activeRequestId = null;
@@ -392,7 +390,8 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
       await searchNow(workspacePath);
       return result;
     } catch (error) {
-      state = state.copyWith(replacing: false, error: _messageFor(error));
+      final message = _messageFor(error, action: 'replace');
+      state = state.copyWith(replacing: false, error: message);
       rethrow;
     }
   }
@@ -476,8 +475,9 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     ];
   }
 
-  String _messageFor(Object error) {
-    if (error is native.WorkspaceSearchError) {
+  String _messageFor(Object error, {required String action}) {
+    if (error is native.WorkspaceSearchError &&
+        error.context.trim().isNotEmpty) {
       return error.context;
     }
     if (error is WorkspaceSearchDirtyFilesException) {
@@ -486,7 +486,7 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     if (error is WorkspaceException) {
       return error.message;
     }
-    return 'Search failed: $error';
+    return actionFailureMessage(action, error);
   }
 
   String _dirtyMessage(List<String> paths) {

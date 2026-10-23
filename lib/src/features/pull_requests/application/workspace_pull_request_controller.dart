@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_review_action.dart';
 
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
@@ -41,6 +42,7 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
@@ -51,6 +53,8 @@ part 'workspace_pull_request_review_editing.dart';
 part 'workspace_pull_request_ship_actions.dart';
 part 'workspace_pull_request_stack_actions.dart';
 part 'workspace_pull_request_stack_validation.dart';
+
+final Logger _logger = Logger('WorkspacePullRequest');
 
 @Riverpod(keepAlive: true)
 class WorkspacePullRequestController extends _$WorkspacePullRequestController
@@ -158,12 +162,13 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         return null;
       }
       return fresh;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not revalidate the PR', error, stackTrace);
       if (!_disposed) {
         state = AsyncData(
           (state.value ?? const WorkspacePullRequestState()).copyWith(
             clearAction: true,
-            errorMessage: 'Could not revalidate the PR. $error',
+            errorMessage: actionFailureMessage('revalidate the PR', error),
           ),
         );
       }
@@ -410,14 +415,15 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       await _recordActionFailure(
         scope: scope,
         previous: current,
-        message: error.context,
+        message: userFacingErrorMessage(error),
         reload: reloadAfterFailure,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Pull request action $action failed', error, stackTrace);
       await _recordActionFailure(
         scope: scope,
         previous: current,
-        message: error.toString(),
+        message: userFacingErrorMessage(error),
         reload: reloadAfterFailure,
       );
     }

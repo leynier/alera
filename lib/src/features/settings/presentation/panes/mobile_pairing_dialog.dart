@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/feedback/alera_qr_code.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_pairing_offer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -68,7 +69,12 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'cancel the pairing offer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         setState(() => _cancelling = false);
       }

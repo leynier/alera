@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_request_error.dart';
 
 /// The host was paired before runs existed. The phone never guesses at an
@@ -22,7 +23,7 @@ bool isStaleRunError(Object error) =>
     error is RuntimeRequestError && error.code == 'run_sequence_stale';
 
 /// Sentence-case text for a run failure, keyed by the runtime's error code.
-String runErrorMessage(Object error) {
+String runErrorMessage(Object? error) {
   if (error is RunsUpdateRequired) return RunsUpdateRequired.message;
   if (error is RuntimeRequestError) {
     return switch (error.code) {
@@ -47,9 +48,8 @@ String runErrorMessage(Object error) {
       'run_retry_unavailable' ||
       'run_nothing_to_retry' => 'There is nothing to retry right now.',
       'run_not_paused' => 'Pause the run first.',
-      _ => error.message,
+      _ => userFacingErrorMessage(error),
     };
   }
-  if (error is StateError) return error.message;
-  return '$error';
+  return userFacingErrorMessage(error);
 }

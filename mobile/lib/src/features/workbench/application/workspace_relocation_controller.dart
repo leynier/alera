@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_relocation_client.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -156,7 +157,8 @@ class WorkspaceRelocationController extends _$WorkspaceRelocationController {
             if (ref.mounted) {
               state = state.copyWith(
                 warning:
-                    'The transfer completed, but setup could not be opened: $error',
+                    'The transfer completed, but setup could not be opened: '
+                    '${userFacingErrorMessage(error)}',
               );
             }
           }
@@ -172,7 +174,9 @@ class WorkspaceRelocationController extends _$WorkspaceRelocationController {
     } on Object catch (error, stack) {
       Logger('WorkspaceRelocationController')
           .warning('Workspace transfer failed', error, stack);
-      if (ref.mounted) state = state.copyWith(error: error.toString());
+      if (ref.mounted) {
+        state = state.copyWith(error: userFacingErrorMessage(error));
+      }
       return false;
     } finally {
       if (ref.mounted) {

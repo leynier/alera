@@ -41,7 +41,7 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
     } on GitException catch (error) {
       final result = CreateReviewFailure(
         code: .pushFailed,
-        message: 'Could not push the branch: ${error.context}',
+        message: actionFailureMessage('push the branch', error),
       );
       controller._applyActionOutcome(failureMessage: result.message);
       return result;
@@ -62,10 +62,11 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       );
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not create the pull request', error, stackTrace);
       final failure = CreateReviewFailure(
         code: .unknown,
-        message: error.toString(),
+        message: userFacingErrorMessage(error),
       );
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;
@@ -93,11 +94,12 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
             url: result.review.url,
           ),
         );
-      } catch (error) {
+      } catch (error, stackTrace) {
         // The provider has already created the PR. A local linking failure
         // must never turn into another Create PR request on continuation.
+        _logger.warning('Could not save the PR link', error, stackTrace);
         persistenceWarning =
-            'PR #${result.review.number} was created, but its workspace link could not be saved. $error';
+            'PR #${result.review.number} was created, but its workspace link could not be saved: ${userFacingErrorMessage(error)}';
       }
       controller._refreshWorkspacePullRequestMonitor();
     }
@@ -178,10 +180,11 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       );
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not update the pull request', error, stackTrace);
       final failure = UpdateReviewFailure(
         code: .unknown,
-        message: error.toString(),
+        message: userFacingErrorMessage(error),
       );
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;

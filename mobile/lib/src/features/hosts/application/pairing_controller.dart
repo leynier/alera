@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/pairing_flow_state.dart';
@@ -41,8 +43,9 @@ class PairingController extends _$PairingController {
       state = PairingOfferReady(PairingOffer.parse(rawOffer));
     } on FormatException catch (error) {
       state = PairingFailure(_parseFailureReason(error), error.message);
-    } on Object catch (error) {
-      state = PairingFailure(.invalidOffer, error.toString());
+    } on Object catch (error, stackTrace) {
+      logActionFailure('read the pairing offer', error, stackTrace);
+      state = PairingFailure(.invalidOffer, userFacingErrorMessage(error));
     }
   }
 
@@ -75,8 +78,9 @@ class PairingController extends _$PairingController {
             : PairingFailureReason.invalidOffer,
         error.message,
       );
-    } on Object catch (error) {
-      state = PairingFailure(.unreachable, error.toString());
+    } on Object catch (error, stackTrace) {
+      logActionFailure('pair with the runtime', error, stackTrace);
+      state = PairingFailure(.unreachable, userFacingErrorMessage(error));
     }
   }
 

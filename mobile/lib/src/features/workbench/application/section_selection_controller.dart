@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -162,7 +163,7 @@ class SectionSelectionController extends _$SectionSelectionController {
           current.copyWith(
             sections: refreshed,
             saving: false,
-            error: '$error',
+            error: userFacingErrorMessage(error),
             selected:
                 creating ||
                     refreshed.any((section) => section.id == current.selected)

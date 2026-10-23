@@ -12,6 +12,6 @@ Widget aleraNoticePreview() => const AleraNotice(
 @AleraPreview(name: 'Notice With Action', group: 'Feedback')
 Widget aleraNoticeActionPreview() => AleraNotice(
   icon: AleraIcons.warning,
-  message: 'Could not refresh source control. Runtime connection lost.',
+  message: 'Could not refresh source control: Runtime connection lost.',
   action: TextButton(onPressed: () {}, child: const Text('Retry')),
 );

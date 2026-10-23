@@ -1,4 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
@@ -25,8 +27,9 @@ class const HostSettingsScreen({
     final settingsValue = settings.value;
     ref.listen(hostSettingsControllerProvider(host.id), (previous, next) {
       if (next.hasError && previous?.error != next.error) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(next.error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(userFacingErrorMessage(next.error))),
+        );
       }
     });
     return Scaffold(
@@ -252,16 +255,20 @@ Future<void> _restartRuntime(
     }
     try {
       await controller.restartRuntime(force: true);
-    } on Object {
-      if (context.mounted) {
-        _showRestartFailure(context);
-      }
+    } on Object catch (error, stackTrace) {
+      _showRestartFailure(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        error,
+        stackTrace,
+      );
       return;
     }
-  } on Object {
-    if (context.mounted) {
-      _showRestartFailure(context);
-    }
+  } on Object catch (error, stackTrace) {
+    _showRestartFailure(
+      context.mounted ? ScaffoldMessenger.of(context) : null,
+      error,
+      stackTrace,
+    );
     return;
   }
   if (context.mounted) {
@@ -270,9 +277,17 @@ Future<void> _restartRuntime(
   }
 }
 
-void _showRestartFailure(BuildContext context) {
-  ScaffoldMessenger.of(context)
-      .showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
+void _showRestartFailure(
+  ScaffoldMessengerState? messenger,
+  Object error,
+  StackTrace stackTrace,
+) {
+  showActionFailure(
+    messenger,
+    action: 'restart runtime',
+    error: error,
+    stackTrace: stackTrace,
+  );
 }
 
 class const _ScopeBanner() extends StatelessWidget {
@@ -336,7 +351,7 @@ class const _UnsupportedSettings({
         icon: AleraIcons.loadFailed,
         title: 'Could not load host settings',
         message: 'Check the connection to the host and try again.',
-        detail: error.toString(),
+        detail: userFacingErrorMessage(error),
         action: FilledButton.icon(
           onPressed: onRetry,
           icon: const Icon(AleraIcons.refresh),

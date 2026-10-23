@@ -52,13 +52,18 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
           if (tab.kind == WorkspaceTabKind.terminal) tab.terminalSessionId,
     });
     final error = shell.error;
-    if (error != null && error != _lastErrorMessage) {
+    if (error == null) {
+      _lastErrorMessage = null;
+    } else if (error != _lastErrorMessage) {
       _lastErrorMessage = error;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
         }
         _showError(error);
+        // Clearing the shown error lets the same failure toast again the
+        // next time it happens; otherwise the state would never change.
+        ref.read(workbenchControllerProvider.notifier).acknowledgeError(error);
       });
     }
 

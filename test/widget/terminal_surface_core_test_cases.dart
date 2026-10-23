@@ -183,7 +183,7 @@ void _registerTerminalSurfaceRuntimeTests() {
         isTrue,
         reason: 'a transport error does not prove that the PTY exited',
       );
-      expect(session.errorMessage, contains('writer disconnected'));
+      expect(session.errorMessage, contains('Writer disconnected'));
       expect(
         terminalBufferTextForTesting(session),
         isNot(contains('terminal error')),

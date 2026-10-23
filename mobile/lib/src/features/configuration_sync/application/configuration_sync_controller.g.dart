@@ -57,7 +57,7 @@ final class ConfigurationSyncControllerProvider
 }
 
 String _$configurationSyncControllerHash() =>
-    r'806bd0e1c2a1a69dc1541b412f492e462c6f9491';
+    r'a2129cc8d983dc4b25700ec7914733ad5ba21c7a';
 
 final class ConfigurationSyncControllerFamily extends $Family
     with

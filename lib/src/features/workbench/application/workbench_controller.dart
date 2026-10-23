@@ -9,6 +9,7 @@ import 'package:alera/src/features/projects/infra/runtime_project_branch_client.
 import 'dart:io';
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project_clone_job.dart';
@@ -162,8 +163,16 @@ class WorkbenchController extends _$WorkbenchController
     } catch (error) {
       state = state.copyWith(
         bootstrapped: true,
-        error: 'Failed to bootstrap workbench: $error',
+        error: actionFailureMessage('load the workbench', error),
       );
+    }
+  }
+
+  /// Clears [message] once the shell has shown it, so the same failure
+  /// happening again is reported again instead of matching the stale value.
+  void acknowledgeError(String message) {
+    if (state.error == message) {
+      state = state.copyWith(error: null);
     }
   }
 }

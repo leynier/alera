@@ -47,7 +47,7 @@ final class MobileAiDictationModelTransfersProvider
 }
 
 String _$mobileAiDictationModelTransfersHash() =>
-    r'6b454648de01c6fc232c153ba6946bdd99d28a1a';
+    r'c9502836bc1c9e705dccf9868df81281ff777479';
 
 abstract class _$MobileAiDictationModelTransfers
     extends $Notifier<MobileAiModelTransfersState> {

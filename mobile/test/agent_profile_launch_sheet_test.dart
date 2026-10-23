@@ -134,7 +134,7 @@ void main() {
     await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
-    expect(find.text('host refused the launch'), findsOneWidget);
+    expect(find.text('Host refused the launch'), findsOneWidget);
     expect(find.byType(AgentProfileLaunchSheet), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
   });

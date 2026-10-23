@@ -1,4 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/projects/domain/project_management_models.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
@@ -64,10 +66,11 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
         _loadError = effective.error;
         _loading = false;
       });
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('load project setup', error, stackTrace);
       if (!mounted) return;
       setState(() {
-        _loadError = error.toString();
+        _loadError = userFacingErrorMessage(error);
         _loading = false;
       });
     }
@@ -89,10 +92,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Project setup saved')));
-    } on Object catch (error) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      _showError(error.toString());
+    } on Object catch (error, stackTrace) {
+      _showFailure('save project setup', error, stackTrace);
     }
   }
 
@@ -109,10 +110,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
         _loading = true;
       });
       await _load();
-    } on Object catch (error) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      _showError(error.toString());
+    } on Object catch (error, stackTrace) {
+      _showFailure('use the repository file', error, stackTrace);
     }
   }
 
@@ -158,6 +157,16 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showFailure(String action, Object error, StackTrace stackTrace) {
+    if (mounted) setState(() => _saving = false);
+    showActionFailure(
+      mounted ? ScaffoldMessenger.of(context) : null,
+      action: action,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   @override

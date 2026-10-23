@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/application/background_operations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
@@ -248,12 +249,12 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
               });
               return null;
             } catch (error) {
-              if (!mounted) return _userFacingMessage(error);
+              if (!mounted) return userFacingErrorMessage(error);
               setState(() {
                 _creating = false;
-                _error = _userFacingMessage(error);
+                _error = userFacingErrorMessage(error);
               });
-              return _userFacingMessage(error);
+              return userFacingErrorMessage(error);
             }
           },
         );
@@ -297,12 +298,12 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
               });
               return null;
             } catch (error) {
-              if (!mounted) return _userFacingMessage(error);
+              if (!mounted) return userFacingErrorMessage(error);
               setState(() {
                 _deletingTagId = null;
-                _error = _userFacingMessage(error);
+                _error = userFacingErrorMessage(error);
               });
-              return _userFacingMessage(error);
+              return userFacingErrorMessage(error);
             }
           },
         );
@@ -439,14 +440,4 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
 List<WorkspaceTag> _sortedTags(List<WorkspaceTag> tags) {
   return <WorkspaceTag>[...tags]
     ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-}
-
-/// Strips the `Exception:` runtime prefix so raw errors read as UI copy.
-String _userFacingMessage(Object error) {
-  final message = error.toString();
-  const prefix = 'Exception: ';
-  if (message.startsWith(prefix)) {
-    return message.substring(prefix.length);
-  }
-  return message;
 }

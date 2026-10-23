@@ -21,7 +21,7 @@ pub(crate) async fn load_snapshot(
     let linked = store
         .find_linked_review(&workspace.id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let remote = read_workspace_remote(store, workspace).await?;
     let linked_json = linked.as_ref().map(|review| {
         json!({

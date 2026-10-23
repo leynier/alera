@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
@@ -138,9 +139,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     } on Object catch (error, stackTrace) {
       _logger.warning('Could not create terminal tab.', error, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not create tab: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(actionFailureMessage('create tab', error))),
+        );
       }
     } finally {
       if (mounted) {
@@ -359,7 +360,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         icon: AleraIcons.loadFailed,
         title: 'Could not load tabs',
         message: 'Check the connection to the host and try again.',
-        detail: error.toString(),
+        detail: userFacingErrorMessage(error),
         action: FilledButton.icon(
           onPressed: () => ref.invalidate(
             tabsControllerProvider(widget.hostId, widget.workspace.id),

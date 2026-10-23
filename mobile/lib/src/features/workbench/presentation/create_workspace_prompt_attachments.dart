@@ -86,10 +86,14 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
       _update(() {
         _promptAttachmentError = null;
       });
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('add the attachment', error, stackTrace);
       if (mounted) {
         _update(() {
-          _promptAttachmentError = _promptAttachmentErrorMessage(error);
+          _promptAttachmentError = actionFailureMessage(
+            'add the attachment',
+            error,
+          );
         });
       }
     } finally {
@@ -138,10 +142,14 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
       _update(() {
         _promptAttachmentError = null;
       });
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('add the attachment', error, stackTrace);
       if (mounted) {
         _update(() {
-          _promptAttachmentError = _promptAttachmentErrorMessage(error);
+          _promptAttachmentError = actionFailureMessage(
+            'add the attachment',
+            error,
+          );
         });
       }
     }
@@ -188,10 +196,14 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
           _promptAttachmentError = null;
         });
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('add the attachment', error, stackTrace);
       if (mounted) {
         _update(() {
-          _promptAttachmentError = _promptAttachmentErrorMessage(error);
+          _promptAttachmentError = actionFailureMessage(
+            'add the attachment',
+            error,
+          );
         });
       }
     } finally {
@@ -201,13 +213,5 @@ extension _CreateWorkspacePromptAttachments on _CreateWorkspaceScreenState {
         });
       }
     }
-  }
-
-  String _promptAttachmentErrorMessage(Object error) {
-    final message = error.toString().replaceFirst('Exception: ', '').trim();
-    if (message.isEmpty) {
-      return 'Could not add the attachment. Try again.';
-    }
-    return 'Could not add the attachment: $message';
   }
 }

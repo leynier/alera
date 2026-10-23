@@ -5,8 +5,23 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-class const AleraToastHost({super.key}) extends StatefulWidget {
+/// Returns a clearer wording for an error message, or null to keep the
+/// original. It must not throw; a throw is treated as null.
+typedef AleraToastErrorClarifier = Future<String?> Function(String message);
+
+/// [clarifyError] rewrites error toasts that have no action of their own. The
+/// original text is shown while the rewrite runs and stays shown when it
+/// fails; a rewritten toast offers [copyOriginalLabel] so the exact original
+/// error is never lost.
+class const AleraToastHost({
+  super.key,
+  final AleraToastErrorClarifier? clarifyError,
+  final String clarifyingCaption = 'Clarifying error…',
+  final String clarifiedCaption = 'Clarified message',
+  final String copyOriginalLabel = 'Copy Original',
+}) extends StatefulWidget {
   @override
   State<AleraToastHost> createState() => _AleraToastHostState();
 }
@@ -50,15 +65,75 @@ class _AleraToastHostState extends State<AleraToastHost> {
   }
 
   void _showToast(AleraToastData toast) {
-    final entry = _ToastEntry(id: UniqueKey().toString(), data: toast);
+    final clarify = widget.clarifyError;
+    final clarifying =
+        clarify != null &&
+        toast.tone == AleraToastTone.error &&
+        !toast.hasAction;
+    final entry = _ToastEntry(
+      id: UniqueKey().toString(),
+      data: toast,
+      caption: clarifying ? widget.clarifyingCaption : null,
+    );
 
     setState(() {
       _visible.add(entry);
     });
 
-    _dismissTimers[entry.id] = Timer(toast.duration, () {
-      _startExit(entry.id);
+    if (clarifying) {
+      unawaited(_clarify(entry.id, toast, clarify));
+      return;
+    }
+    _scheduleDismiss(entry.id, toast.duration);
+  }
+
+  void _scheduleDismiss(String id, Duration duration) {
+    _dismissTimers.remove(id)?.cancel();
+    _dismissTimers[id] = Timer(duration, () {
+      _startExit(id);
     });
+  }
+
+  /// The toast stays up while the rewrite runs, so the dismiss timer only
+  /// starts once the final text is on screen.
+  Future<void> _clarify(
+    String id,
+    AleraToastData toast,
+    AleraToastErrorClarifier clarify,
+  ) async {
+    String? clarified;
+    try {
+      clarified = (await clarify(toast.message))?.trim();
+    } on Object {
+      clarified = null;
+    }
+    if (!mounted) {
+      return;
+    }
+    final index = _visible.indexWhere((entry) => entry.id == id);
+    if (index < 0) {
+      return;
+    }
+    final current = _visible[index];
+    final original = toast.message;
+    final rewritten =
+        clarified != null && clarified.isNotEmpty && clarified != original;
+    setState(() {
+      _visible[index] = rewritten
+          ? current.copyWith(
+              data: AleraToastData(
+                message: clarified!,
+                tone: toast.tone,
+                duration: toast.duration,
+                actionLabel: widget.copyOriginalLabel,
+                onAction: () =>
+                    unawaited(Clipboard.setData(ClipboardData(text: original))),
+              ),
+              caption: widget.clarifiedCaption,
+            )
+          : current.copyWith(clearCaption: true);
+    });
+    _scheduleDismiss(id, toast.duration);
   }
 
   void _startExit(String id) {
@@ -153,6 +228,8 @@ class const _ToastCard({
     final iconColor = _colorForTone(entry.data.tone);
     final textStyle = Theme.of(context).textTheme.bodyMedium
         ?.copyWith(color: AleraTokens.foreground);
+    final captionStyle = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: AleraTokens.foregroundMuted);
 
     return AnimatedOpacity(
       opacity: entry.exiting ? 0 : 1,
@@ -188,10 +265,20 @@ class const _ToastCard({
                   Icon(icon, size: 16, color: iconColor),
                   const SizedBox(width: AleraTokens.space8),
                   Flexible(
-                    child: Text(
-                      entry.data.message,
-                      style: textStyle,
-                      softWrap: true,
+                    child: Column(
+                      mainAxisSize: .min,
+                      crossAxisAlignment: .start,
+                      children: <Widget>[
+                        Text(
+                          entry.data.message,
+                          style: textStyle,
+                          softWrap: true,
+                        ),
+                        if (entry.caption case final caption?) ...<Widget>[
+                          const SizedBox(height: AleraTokens.space2),
+                          Text(caption, style: captionStyle),
+                        ],
+                      ],
                     ),
                   ),
                   if (entry.data.hasAction) ...<Widget>[
@@ -247,8 +334,19 @@ class const _ToastEntry({
   required final String id,
   required final AleraToastData data,
   final bool exiting = false,
+  final String? caption,
 }) {
-  _ToastEntry copyWith({bool? exiting}) {
-    return _ToastEntry(id: id, data: data, exiting: exiting ?? this.exiting);
+  _ToastEntry copyWith({
+    bool? exiting,
+    AleraToastData? data,
+    String? caption,
+    bool clearCaption = false,
+  }) {
+    return _ToastEntry(
+      id: id,
+      data: data ?? this.data,
+      exiting: exiting ?? this.exiting,
+      caption: clearCaption ? null : caption ?? this.caption,
+    );
   }
 }

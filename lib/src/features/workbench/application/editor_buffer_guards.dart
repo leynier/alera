@@ -144,9 +144,10 @@ extension EditorBufferGuards on EditorSessionRegistry {
           EditorBufferGuardBlocker(
             tabId: tabId,
             path: path,
-            reason: discard
-                ? 'Could not discard the changes: $error'
-                : 'Could not save the changes: $error',
+            reason: actionFailureMessage(
+              discard ? 'discard the changes' : 'save the changes',
+              error,
+            ),
           ),
         );
       }

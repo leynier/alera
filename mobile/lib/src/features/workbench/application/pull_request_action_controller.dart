@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:logging/logging.dart';
@@ -88,7 +89,7 @@ class PullRequestActionController extends _$PullRequestActionController {
       );
     } on Object catch (error, stackTrace) {
       _logger.warning('Pull request ${kind.name} failed.', error, stackTrace);
-      return pullRequestActionErrorMessage(error);
+      return runtimeActionErrorMessage(error);
     } finally {
       keepClient.close();
       if (ref.mounted) state = null;

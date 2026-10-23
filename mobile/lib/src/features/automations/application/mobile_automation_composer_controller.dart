@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_composer_defaults.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_composer_state.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_destinations.dart';
@@ -168,7 +169,8 @@ class MobileAutomationComposerController
       });
       if (!ref.mounted || !identical(state.draft, draft)) return;
       state = state.copyWith(readiness: () => readiness, checking: false);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logActionFailure('check automation readiness', error, stackTrace);
       if (!ref.mounted || !identical(state.draft, draft)) return;
       state = state.copyWith(
         checking: false,
@@ -235,7 +237,8 @@ class MobileAutomationComposerController
         );
       }
       return null;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logActionFailure('save the automation', error, stackTrace);
       if (ref.mounted) {
         state = state.copyWith(
           submitting: false,
@@ -257,7 +260,8 @@ class MobileAutomationComposerController
       final detail = await repository.show(editing.id);
       if (ref.mounted) state = state.copyWith(editing: detail.automation);
       return true;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      logActionFailure('unbind the automation', error, stackTrace);
       if (ref.mounted) {
         state = state.copyWith(error: () => automationErrorMessage(error));
       }

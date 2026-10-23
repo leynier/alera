@@ -38,9 +38,12 @@ fn repo_relative_path_from_workspace(
         .ok_or_else(|| GitError::new(GitErrorKind::NotARepository, workspace_path))?;
     let workdir = std::fs::canonicalize(workdir).map_err(GitError::from_io)?;
     let target = workspace.join(relative_path(workspace_relative_path)?);
-    let relative = target
-        .strip_prefix(&workdir)
-        .map_err(|_| GitError::new(GitErrorKind::Internal, "path outside repository"))?;
+    let relative = target.strip_prefix(&workdir).map_err(|_| {
+        GitError::new(
+            GitErrorKind::Internal,
+            "The path is outside the repository.",
+        )
+    })?;
     Ok(pathspec_string(relative))
 }
 
@@ -58,9 +61,12 @@ pub(super) fn scoped_pathspecs(
         Some(file_path) => workspace.join(relative_path(file_path)?),
         None => workspace,
     };
-    let relative = target
-        .strip_prefix(&workdir)
-        .map_err(|_| GitError::new(GitErrorKind::Internal, "path outside repository"))?;
+    let relative = target.strip_prefix(&workdir).map_err(|_| {
+        GitError::new(
+            GitErrorKind::Internal,
+            "The path is outside the repository.",
+        )
+    })?;
     let pathspec = pathspec_string(relative);
     Ok(vec![pathspec])
 }

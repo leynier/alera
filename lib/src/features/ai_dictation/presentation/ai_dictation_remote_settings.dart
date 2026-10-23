@@ -6,9 +6,13 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_providers.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('AiDictationRemoteSettings');
 
 const aiDictationRemoteConsentVersion = 1;
 
@@ -74,11 +78,12 @@ class _AiDictationRemoteSettingsState
           _tokenError = null;
         });
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not load the API key status', error, stackTrace);
       if (mounted) {
         setState(() {
           _loadingToken = false;
-          _tokenError = error.toString();
+          _tokenError = actionFailureMessage('load the API key status', error);
         });
       }
     }
@@ -106,11 +111,12 @@ class _AiDictationRemoteSettingsState
           _tokenMatchesBaseUrl = true;
         });
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not save the API key', error, stackTrace);
       if (mounted) {
         setState(() {
           _savingToken = false;
-          _tokenError = error.toString();
+          _tokenError = actionFailureMessage('save the API key', error);
         });
       }
     }
@@ -131,11 +137,12 @@ class _AiDictationRemoteSettingsState
           _tokenMatchesBaseUrl = false;
         });
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not clear the API key', error, stackTrace);
       if (mounted) {
         setState(() {
           _savingToken = false;
-          _tokenError = error.toString();
+          _tokenError = actionFailureMessage('clear the API key', error);
         });
       }
     }

@@ -69,7 +69,7 @@ final class CommitMessageGenerationControllerProvider
 }
 
 String _$commitMessageGenerationControllerHash() =>
-    r'2b7b598dea84f502503efcc6c839de38cafaff57';
+    r'53469666f78fa6d822ddc5864da4420f3af854c2';
 
 /// Generates a commit message on the runtime for one workspace. The state is
 /// the operation id of the run in flight, which is also what cancels it.

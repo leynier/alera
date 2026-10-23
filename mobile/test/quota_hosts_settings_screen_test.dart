@@ -194,7 +194,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.widget<SwitchListTile>(_switch('Work Laptop')).value, isTrue);
-    expect(find.text('Could not save quota hosts. Try again.'), findsOneWidget);
+    expect(
+      find.text('Could not save quota hosts: Storage unavailable'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

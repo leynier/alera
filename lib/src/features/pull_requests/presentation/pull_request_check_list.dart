@@ -1,10 +1,14 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('PullRequestCheckList');
 
 /// Presentational list of review checks with expandable rows. Expanding a row
 /// lazily fetches that check's details through [onLoadDetails]. Pure: data and
@@ -126,12 +130,15 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
               _detailsByKey[key] = _CheckDetailsState.ready(details);
             });
           },
-          onError: (Object error) {
+          onError: (Object error, StackTrace stackTrace) {
+            _logger.warning('Could not load check details', error, stackTrace);
             if (!mounted || !_expandedKeys.contains(key)) {
               return;
             }
             setState(() {
-              _detailsByKey[key] = _CheckDetailsState.error(error.toString());
+              _detailsByKey[key] = _CheckDetailsState.error(
+                userFacingErrorMessage(error),
+              );
             });
           },
         );

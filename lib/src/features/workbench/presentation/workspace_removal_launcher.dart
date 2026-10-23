@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/resource_manager/presentation/resource_value_format.dart';
 import 'package:alera/src/features/workbench/application/workspace_removal_dependencies.dart';
@@ -33,14 +34,12 @@ Future<void> showWorkspaceRemovalFlow({
   try {
     dependencies =
         await dependencyRuntime?.removalDependencies(workspace.id) ?? const [];
-  } catch (error) {
-    if (context.mounted) {
-      AleraToast.show(
-        context,
-        message: 'Could not verify automation dependencies: $error',
-        tone: .error,
-      );
-    }
+  } catch (error, stackTrace) {
+    showActionFailure(
+      action: 'verify automation dependencies',
+      error: error,
+      stackTrace: stackTrace,
+    );
     return;
   }
   if (!context.mounted) {
@@ -82,14 +81,11 @@ Future<void> showWorkspaceRemovalFlow({
         );
         return;
       }
-    } catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Could not inspect workspace storage: $error',
-        tone: .error,
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'inspect workspace storage',
+        error: error,
+        stackTrace: stackTrace,
       );
       return;
     }
@@ -138,10 +134,12 @@ Future<void> showWorkspaceRemovalFlow({
         if (dirtyTabs.any((tab) => registry.isDirty(tab.id))) {
           throw StateError('Some documents still have unsaved changes.');
         }
-      } catch (error) {
-        if (context.mounted) {
-          AleraToast.show(context, message: error.toString(), tone: .error);
-        }
+      } catch (error, stackTrace) {
+        showActionFailure(
+          action: 'save the open files',
+          error: error,
+          stackTrace: stackTrace,
+        );
         return;
       }
     } else {
@@ -188,10 +186,14 @@ Future<void> showWorkspaceRemovalFlow({
     if (context.mounted) {
       AleraToast.show(context, message: 'Workspace removed', tone: .success);
     }
-  } catch (error) {
-    if (context.mounted) {
-      AleraToast.show(context, message: error.toString(), tone: .error);
-    }
+  } catch (error, stackTrace) {
+    // Published without the context: the row that asked may be gone by now,
+    // and the controller leaves reporting this failure to its caller.
+    showActionFailure(
+      action: 'remove workspace',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 

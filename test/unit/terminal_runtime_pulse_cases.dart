@@ -99,7 +99,7 @@ void _registerTerminalRuntimePulseTests() {
       await session.restart();
 
       expect(session.terminalPulseState.value.armed, isTrue);
-      expect(session.errorMessage, contains('restart failed'));
+      expect(session.errorMessage, contains('Restart failed'));
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }

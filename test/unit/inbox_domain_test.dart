@@ -132,7 +132,11 @@ void main() {
       inboxErrorMessage(const TerminalHostConnectionClosedException()),
       'The Alera runtime is not reachable.',
     );
-    expect(inboxErrorMessage(StateError('Boom')), contains('Boom'));
+    expect(inboxErrorMessage(StateError('Boom')), 'Boom');
+    expect(
+      inboxErrorMessage(Exception('Bad state: queue closed')),
+      'Queue closed',
+    );
     // A runtime const instance, so the constructor line is covered.
     // ignore: prefer_const_constructors
     expect(

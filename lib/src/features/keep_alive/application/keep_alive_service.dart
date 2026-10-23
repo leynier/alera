@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/keep_alive/domain/keep_alive_snapshot.dart';
 import 'package:alera/src/features/keep_alive/infra/keep_alive_backend.dart';
 import 'package:logging/logging.dart';
@@ -46,7 +47,9 @@ class KeepAliveService({
       _snapshot = await backend.status();
     } catch (error, stackTrace) {
       _logger.warning('[keep-alive] failed to read status', error, stackTrace);
-      _snapshot = KeepAliveSnapshot.inactive(error: error.toString());
+      _snapshot = KeepAliveSnapshot.inactive(
+        error: userFacingErrorMessage(error),
+      );
     }
     return _snapshot;
   }
@@ -60,7 +63,7 @@ class KeepAliveService({
         error,
         stackTrace,
       );
-      return KeepAliveSnapshot.inactive(error: error.toString());
+      return KeepAliveSnapshot.inactive(error: userFacingErrorMessage(error));
     }
   }
 

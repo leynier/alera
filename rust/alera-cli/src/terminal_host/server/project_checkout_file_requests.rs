@@ -18,7 +18,7 @@ pub(super) async fn start_project_checkout_quick_open(
         &crate::ssh_remote::LiveSshRemoteHost,
     )
     .await
-    .map_err(|error| HostError::state(error.to_string()))?;
+    .map_err(|error| HostError::from_anyhow(&error))?;
     Ok(json!({"sessionId": session.id, "indexedFileCount": session.indexed_file_count}))
 }
 

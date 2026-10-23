@@ -108,10 +108,10 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", request.project_id))?;
     if project.kind != ProjectKind::GitRepository {
-        bail!("Linked Workspaces Require a Git Repository Project");
+        bail!("Linked workspaces require a Git repository project");
     }
     let requested_id = match request.id.as_deref().map(str::trim) {
-        Some("") => bail!("Workspace Id Is Required"),
+        Some("") => bail!("Workspace id is required"),
         Some(id) => {
             if store.find_workspace(id).await?.is_some() {
                 bail!("A workspace with id \"{id}\" already exists");
@@ -129,7 +129,7 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
         }
     }
 
-    let branch = require_trimmed(&request.branch, "New Branch Name Is Required")?;
+    let branch = require_trimmed(&request.branch, "New branch name is required")?;
     let mut source_branch = request
         .source_branch
         .as_deref()
@@ -141,7 +141,7 @@ pub(crate) async fn create_managed_workspace_with<E: RemoteHostExecutor>(
         request.source_branch.clone_from(&source_branch);
     }
     if !request.reuse_existing_branch && source_branch.is_none() {
-        bail!("Source Branch Is Required");
+        bail!("Source branch is required");
     }
 
     if !core_git::is_valid_branch_name(&branch)? {

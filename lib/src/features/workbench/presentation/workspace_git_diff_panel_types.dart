@@ -1,39 +1,10 @@
 part of 'workspace_git_diff_panel.dart';
 
-String _messageFor(Object? error) {
-  if (error is NotARepositoryException) {
-    return 'This workspace is not a Git repository.';
-  }
-  if (error is DetachedHeadException) {
-    return 'Cannot push from detached HEAD.';
-  }
-  if (error is BranchAlreadyExistsException) {
-    return 'A branch named "${error.context}" already exists.';
-  }
-  if (error is BranchNotFoundException) {
-    return 'Branch "${error.context}" was not found.';
-  }
-  if (error is InvalidBranchNameException) {
-    return 'Enter a valid branch name.';
-  }
-  if (error is RemoteNotFoundException) {
-    return 'Remote origin was not found.';
-  }
-  if (error is NothingToCommitException) {
-    return 'Nothing to commit.';
-  }
-  if (error is GitConflictException) {
-    final context = error.context.trim();
-    return context.isEmpty ? 'Resolve conflicts before continuing.' : context;
-  }
-  if (error is AiAssistException) {
-    return error.message;
-  }
-  if (error is GitException && error.context.trim().isNotEmpty) {
-    return error.context;
-  }
-  return 'Git operation failed.';
-}
+final Logger _gitDiffPanelLogger = Logger('WorkspaceGitDiffPanel');
+
+/// Git failures read the same here as on the phone (`gitErrorMessage`); any
+/// other failure shows its own cause rather than a generic sentence.
+String _messageFor(Object? error) => userFacingErrorMessage(error);
 
 typedef OpenGitDiffTabCallback = Future<void> Function({
   String? relativePath,

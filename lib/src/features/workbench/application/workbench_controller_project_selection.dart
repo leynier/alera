@@ -1,5 +1,8 @@
 part of 'workbench_controller.dart';
 
+/// Tag and parent edits throw rather than store the failure in `state.error`:
+/// their dialogs and menus report it with context, and storing it too would
+/// toast it twice.
 mixin _WorkbenchControllerProjectSelection
     on
         _$WorkbenchController,
@@ -9,25 +12,15 @@ mixin _WorkbenchControllerProjectSelection
         _WorkbenchControllerProjects,
         _WorkbenchControllerInternalLayout {
   Future<List<WorkspaceTag>> listWorkspaceTags() async {
-    try {
-      final tags = await _workspaceGraphRepository.listTags();
-      state = state.copyWith(error: null);
-      return tags;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
+    final tags = await _workspaceGraphRepository.listTags();
+    state = state.copyWith(error: null);
+    return tags;
   }
 
   Future<List<WorkspaceRelation>> listWorkspaceRelations() async {
-    try {
-      final relations = await _workspaceGraphRepository.listRelations();
-      state = state.copyWith(error: null);
-      return relations;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
+    final relations = await _workspaceGraphRepository.listRelations();
+    state = state.copyWith(error: null);
+    return relations;
   }
 
   Future<WorkspaceTag> createWorkspaceTag(String name) async {
@@ -35,36 +28,26 @@ mixin _WorkbenchControllerProjectSelection
     if (trimmed.isEmpty) {
       throw WorkspaceException('Tag name is required.');
     }
-    try {
-      // Tag names are unique case-insensitively in the runtime store, so a
-      // duplicate name reuses the existing tag instead of minting a new id.
-      final lowered = trimmed.toLowerCase();
-      final existing = (await _workspaceGraphRepository.listTags())
-          .where((tag) => tag.name.toLowerCase() == lowered)
-          .firstOrNull;
-      if (existing != null) {
-        state = state.copyWith(error: null);
-        return existing;
-      }
-      final tag = await _workspaceGraphRepository.upsertTag(
-        .create(name: trimmed),
-      );
+    // Tag names are unique case-insensitively in the runtime store, so a
+    // duplicate name reuses the existing tag instead of minting a new id.
+    final lowered = trimmed.toLowerCase();
+    final existing = (await _workspaceGraphRepository.listTags())
+        .where((tag) => tag.name.toLowerCase() == lowered)
+        .firstOrNull;
+    if (existing != null) {
       state = state.copyWith(error: null);
-      return tag;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
+      return existing;
     }
+    final tag = await _workspaceGraphRepository.upsertTag(
+      .create(name: trimmed),
+    );
+    state = state.copyWith(error: null);
+    return tag;
   }
 
   Future<void> deleteWorkspaceTag(String tagId) async {
-    try {
-      await _workspaceGraphRepository.removeTag(tagId);
-      state = state.copyWith(error: null);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
+    await _workspaceGraphRepository.removeTag(tagId);
+    state = state.copyWith(error: null);
   }
 
   Future<void> updateWorkspaceTags({
@@ -82,24 +65,19 @@ mixin _WorkbenchControllerProjectSelection
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
         .toSet();
-    try {
-      for (final tagId in current.difference(next)) {
-        await _workspaceGraphRepository.unassignTag(
-          workspaceId: workspace.id,
-          tagId: tagId,
-        );
-      }
-      for (final tagId in next.difference(current)) {
-        await _workspaceGraphRepository.assignTag(
-          workspaceId: workspace.id,
-          tagId: tagId,
-        );
-      }
-      state = state.copyWith(error: null);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
+    for (final tagId in current.difference(next)) {
+      await _workspaceGraphRepository.unassignTag(
+        workspaceId: workspace.id,
+        tagId: tagId,
+      );
     }
+    for (final tagId in next.difference(current)) {
+      await _workspaceGraphRepository.assignTag(
+        workspaceId: workspace.id,
+        tagId: tagId,
+      );
+    }
+    state = state.copyWith(error: null);
   }
 
   Future<void> setWorkspaceParent({
@@ -116,60 +94,55 @@ mixin _WorkbenchControllerProjectSelection
       return;
     }
     var removedCurrentParent = false;
-    try {
-      if (nextParentId != null && nextParentId.isNotEmpty) {
-        // The dialog disables descendant options, but its relations snapshot
-        // can be stale; re-validate against fresh relations before linking.
-        if (nextParentId == workspace.id) {
-          throw WorkspaceException('A workspace cannot be its own parent');
-        }
-        final relations = await _workspaceGraphRepository.listRelations();
-        if (workspaceDescendantIds(
-          workspace.id,
-          relations,
-        ).contains(nextParentId)) {
-          throw WorkspaceException(
-            'Cannot set a descendant workspace as parent',
-          );
-        }
+    if (nextParentId != null && nextParentId.isNotEmpty) {
+      // The dialog disables descendant options, but its relations snapshot
+      // can be stale; re-validate against fresh relations before linking.
+      if (nextParentId == workspace.id) {
+        throw WorkspaceException('A workspace cannot be its own parent');
       }
-      if (currentParentId != null && currentParentId.isNotEmpty) {
-        await _workspaceGraphRepository.unlinkWorkspaces(
-          parentWorkspaceId: currentParentId,
+      final relations = await _workspaceGraphRepository.listRelations();
+      if (workspaceDescendantIds(
+        workspace.id,
+        relations,
+      ).contains(nextParentId)) {
+        throw WorkspaceException('Cannot set a descendant workspace as parent');
+      }
+    }
+    if (currentParentId != null && currentParentId.isNotEmpty) {
+      await _workspaceGraphRepository.unlinkWorkspaces(
+        parentWorkspaceId: currentParentId,
+        childWorkspaceId: workspace.id,
+      );
+      removedCurrentParent = true;
+    }
+    if (nextParentId != null && nextParentId.isNotEmpty) {
+      try {
+        await _workspaceGraphRepository.linkWorkspaces(
+          parentWorkspaceId: nextParentId,
           childWorkspaceId: workspace.id,
         );
-        removedCurrentParent = true;
-      }
-      if (nextParentId != null && nextParentId.isNotEmpty) {
-        try {
-          await _workspaceGraphRepository.linkWorkspaces(
-            parentWorkspaceId: nextParentId,
-            childWorkspaceId: workspace.id,
-          );
-        } catch (error) {
-          if (removedCurrentParent &&
-              currentParentId != null &&
-              currentParentId.isNotEmpty) {
-            try {
-              await _workspaceGraphRepository.linkWorkspaces(
-                parentWorkspaceId: currentParentId,
-                childWorkspaceId: workspace.id,
-              );
-            } catch (restoreError) {
-              throw WorkspaceException(
-                'Workspace parent update failed: $error. '
-                'Previous parent restore failed: $restoreError',
-              );
-            }
+      } catch (error) {
+        if (removedCurrentParent &&
+            currentParentId != null &&
+            currentParentId.isNotEmpty) {
+          try {
+            await _workspaceGraphRepository.linkWorkspaces(
+              parentWorkspaceId: currentParentId,
+              childWorkspaceId: workspace.id,
+            );
+          } catch (restoreError) {
+            throw WorkspaceException(
+              'Workspace parent update failed: '
+              '${userFacingErrorMessage(error)} '
+              'Previous parent restore failed: '
+              '${userFacingErrorMessage(restoreError)}',
+            );
           }
-          rethrow;
         }
+        rethrow;
       }
-      state = state.copyWith(error: null);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
     }
+    state = state.copyWith(error: null);
   }
 
   Future<void> selectWorkspace({

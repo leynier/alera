@@ -140,7 +140,7 @@ extension on _WorkspaceDetailsOverlayState {
               leading: icon(AleraIcons.gitBranch),
               trailing: data == null ? null : _branchSync(data),
               hint: details?.hasError == true
-                  ? details!.error.toString()
+                  ? userFacingErrorMessage(details!.error)
                   : data == null
                   ? null
                   : _branchSyncHint(data),
@@ -190,7 +190,7 @@ extension on _WorkspaceDetailsOverlayState {
                   progress?.error ??
                   progress?.output ??
                   (details?.hasError == true
-                      ? details!.error.toString()
+                      ? userFacingErrorMessage(details!.error)
                       : data?.quickAction.hint),
               onPressed: busy
                   ? null
@@ -213,7 +213,7 @@ extension on _WorkspaceDetailsOverlayState {
                   : 'Changes',
               leading: icon(AleraIcons.diff),
               hint: details?.hasError == true
-                  ? details!.error.toString()
+                  ? userFacingErrorMessage(details!.error)
                   : data == null
                   ? null
                   : _uncommittedHint(data),

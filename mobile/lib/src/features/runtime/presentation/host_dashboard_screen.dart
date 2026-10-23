@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
@@ -328,7 +329,7 @@ class const _ErrorState({
             ),
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
-              error.toString(),
+              userFacingErrorMessage(error),
               textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

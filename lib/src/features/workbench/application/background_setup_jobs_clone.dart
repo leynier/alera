@@ -68,7 +68,9 @@ mixin _BackgroundSetupJobsInternals on _$BackgroundSetupJobs {
     }
     if (result.hasParentLinkError) {
       AleraToast.publish(
-        message: 'Workspace created, but parent link failed',
+        message:
+            'Workspace created, but could not link it to its parent: '
+            '${result.parentLinkError}',
         tone: .error,
         duration: AleraToast.longDuration,
       );
