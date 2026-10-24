@@ -21,7 +21,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock", "s
 ed25519-dalek = "3.0.0"
 hex = "0.4.3"
 hmac = "0.13.0"
-jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
 rand = "0.10.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["form", "json", "rustls"] }
 serde = { version = "1.0.229", features = ["derive"] }
@@ -38,7 +38,6 @@ url = "2.5.8"
 uuid = { version = "1.26.0", features = ["serde", "v4", "v7"] }
 
 [dev-dependencies]
-rsa = "0.9.10"
 tower = { version = "0.5.3", features = ["util"] }
 
 [lints.clippy]

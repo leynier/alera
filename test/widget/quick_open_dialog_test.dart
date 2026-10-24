@@ -25,7 +25,7 @@ void main() {
     ) async {
       final controller = _QuickOpenTestController(
         _state(_workspace('workspace-1', 'Main', '/repo/main')),
-      )..openGate = Completer<void>();
+      ).._openGate = Completer<void>();
       final container = await _pumpQuickOpen(
         tester,
         controller: controller,
@@ -49,9 +49,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(activityNavigationProvider).visible, isTrue);
       if (outcome == 'success') {
-        controller.openGate!.complete();
+        controller._openGate!.complete();
       } else if (outcome == 'failure') {
-        controller.openGate!.completeError(StateError('cannot open'));
+        controller._openGate!.completeError(StateError('cannot open'));
       }
       await tester.pumpAndSettle();
       final location = container.read(activityNavigationProvider);
@@ -416,7 +416,7 @@ class _QuickOpenFileService({
 class _QuickOpenTestController(final WorkbenchState _seed)
     extends WorkbenchController {
   final List<String> openedFiles = <String>[];
-  Completer<void>? openGate;
+  Completer<void>? _openGate;
 
   @override
   WorkbenchState build() => _seed;
@@ -435,7 +435,7 @@ class _QuickOpenTestController(final WorkbenchState _seed)
   }) async {
     openedFiles.add(relativePath);
     try {
-      await openGate?.future;
+      await _openGate?.future;
     } catch (error) {
       // Mirrors production: a failed open is reported through state.error.
       state = state.copyWith(error: userFacingErrorMessage(error));
