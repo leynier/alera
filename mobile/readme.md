@@ -2,7 +2,7 @@
 
 Alera is the Android/iOS companion app for remote Alera work. It is a separate Flutter app so mobile plugins and platform manifests do not leak into the desktop app package.
 
-Build with Flutter 3.47.8 / Dart 3.13.7 using Dart language 3.13. The minimum iOS version is 15.0, as required by the new Flutter toolchain; iOS dependencies continue to use CocoaPods rather than Swift Package Manager. See the [Dart modernization conventions](../docs/dart-3.13-modernization.md) for source and generator guidance.
+Build with Flutter 3.47.8 / Dart 3.13.7 or newer using Dart language 3.13; CI tracks the Flutter 3.47 stable release line. The minimum iOS version is 15.0, as required by the new Flutter toolchain; iOS dependencies continue to use CocoaPods rather than Swift Package Manager. See the [Dart modernization conventions](../docs/dart-3.13-modernization.md) for source and generator guidance.
 
 ## Current Surface
 

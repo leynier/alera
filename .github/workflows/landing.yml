@@ -10,6 +10,7 @@ on:
       - 'landing/**'
       - 'edge/skills/**'
       - 'edge/tool/skill_catalog.ts'
+      - 'tool/ci/verify_js_toolchain.ts'
       - 'assets/logo/alera-logo.png'
       - 'LICENSE'
       - '.github/workflows/landing.yml'
@@ -38,12 +39,16 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24.22.1'
+          node-version: '24'
+          check-latest: true
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: latest
+
+      - name: Verify JavaScript Toolchain
+        run: bun ../tool/ci/verify_js_toolchain.ts
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

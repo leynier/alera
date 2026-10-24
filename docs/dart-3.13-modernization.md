@@ -1,6 +1,6 @@
 # Dart 3.13 modernization
 
-Alera's own Dart packages require Dart 3.13.7. Flutter remains pinned to 3.47.8, including the Linux Skia setting and iOS 15 deployment target established in the Flutter upgrade. This is a source modernization, not a change to runtime protocols, storage schemas, platform toolchains or distribution.
+Alera's own Dart packages require Dart 3.13.7 and Flutter 3.47.8 or newer. CI tracks Dart 3.13 patches and the Flutter 3.47 stable release line, retaining the Linux Skia setting and iOS 15 deployment target established in the Flutter upgrade. This is a source modernization, not a change to runtime protocols, storage schemas, platform toolchains or distribution.
 
 ## Package and generator compatibility
 

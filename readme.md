@@ -213,7 +213,7 @@ Current status: Linux packages are distributed through a repository whose metada
 
 ### Run From Source
 
-Alera is a Flutter desktop app. Use Flutter 3.47.8 or newer with Dart 3.13.7 or newer; CI is pinned to Flutter 3.47.8. You also need a working Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler toolchain for your desktop platform. The Rust workspace under `rust/` provides both the terminal-host sidecar (`alera-cli`) and the native layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine from its submodule.
+Alera is a Flutter desktop app. Use Flutter 3.47.8 or newer with Dart 3.13.7 or newer; CI tracks the Flutter 3.47 stable release line. You also need a working Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler toolchain for your desktop platform. The Rust workspace under `rust/` provides both the terminal-host sidecar (`alera-cli`) and the native layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine from its submodule.
 
 Linux source builds also need system development packages: install the [Ubuntu and Debian prerequisites](.github/CONTRIBUTING.md#local-setup) first.
 

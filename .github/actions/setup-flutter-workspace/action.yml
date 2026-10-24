@@ -57,13 +57,12 @@ runs:
       with:
         paths: ${{ inputs.submodules }}
 
-    # Pinned rather than `channel: stable`, so a Flutter release does not
-    # invalidate the SDK cache for every job on every platform at once,
-    # including the warm cache on main.
+    # Track patches within the compatible release line without moving every
+    # platform's SDK cache when a new Flutter minor release ships.
     - name: Setup Flutter
       uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
       with:
-        flutter-version: 3.47.8
+        flutter-version: '3.47.x'
         channel: stable
         cache: true
 

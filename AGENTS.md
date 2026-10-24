@@ -34,7 +34,7 @@ This document defines contributor and agent governance only. It does not change 
 
 ## Dart Language
 
-- Own packages use Dart 3.13.7 with Flutter 3.47.8. Follow the source conventions and generator exceptions in `docs/dart-3.13-modernization.md`; do not modernize vendored sources or manually rewrite generated bindings.
+- Own packages require Dart 3.13.7 and Flutter 3.47.8 or newer; CI tracks the Dart 3.13 and Flutter 3.47 stable release lines. Follow the source conventions and generator exceptions in `docs/dart-3.13-modernization.md`; do not modernize vendored sources or manually rewrite generated bindings.
 - Prefer primary or concise constructors when their argument names, annotations, defaults, initialization order and constant behavior remain unchanged. Keep explicit mapped fields when moving them would reorder serialized keys.
 - Use `Future.pause` for callback-free waits and typed `List.unmodifiableOf` / `Map.unmodifiableOf` for compatible inputs. Preserve event-loop scheduling, copying and immutability.
 - Keep CPU-heavy work behind the existing asynchronous isolate and native boundaries. Synchronous isolate APIs are not a replacement for background UI work.
