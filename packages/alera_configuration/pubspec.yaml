@@ -3,7 +3,7 @@ description: Portable Alera configuration and explicit three-way reconciliation.
 publish_to: none
 version: 0.1.0
 environment:
-  sdk: ^3.13.2
+  sdk: ^3.13.7
 dependencies:
   crypto: ^3.0.7
 dev_dependencies:

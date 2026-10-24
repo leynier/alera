@@ -5,8 +5,12 @@ use super::*;
 use alera_cloud::mcp_oauth::{
     cimd::ClientMetadataFetcher, client_assertion::JWT_BEARER_ASSERTION_TYPE,
 };
+use aws_lc_rs::{
+    encoding::{AsDer, Pkcs8V1Der},
+    rsa::{KeyPair, KeySize},
+    signature::KeyPair as _,
+};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use rsa::{pkcs1::EncodeRsaPrivateKey, rand_core::OsRng, traits::PublicKeyParts, RsaPrivateKey};
 
 const PRIVATE_KEY_JWT_CLIENT: &str = "https://pkjwt.example/oauth/client.json";
 const PRIVATE_KEY_JWT_JWKS: &str = "https://pkjwt.example/oauth/jwks.json";
@@ -45,17 +49,26 @@ impl ClientMetadataFetcher for ClientAuthFetcher {
 }
 
 fn client_key() -> anyhow::Result<(EncodingKey, Value)> {
-    let private = RsaPrivateKey::new(&mut OsRng, 2048)?;
-    let der = private.to_pkcs1_der()?;
+    let private = KeyPair::generate(KeySize::Rsa2048)?;
+    let der: Pkcs8V1Der<'_> = private.as_der()?;
     let jwks = json!({"keys": [{
         "kty": "RSA",
         "kid": "client-key",
         "use": "sig",
         "alg": "RS256",
-        "n": URL_SAFE_NO_PAD.encode(private.n().to_bytes_be()),
-        "e": URL_SAFE_NO_PAD.encode(private.e().to_bytes_be()),
+        "n": URL_SAFE_NO_PAD.encode(private.public_key().modulus().big_endian_without_leading_zero()),
+        "e": URL_SAFE_NO_PAD.encode(private.public_key().exponent().big_endian_without_leading_zero()),
     }]});
-    Ok((EncodingKey::from_rsa_der(der.as_bytes()), jwks))
+    Ok((
+        EncodingKey::from_rsa_pem(
+            format!(
+                "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----",
+                base64::engine::general_purpose::STANDARD.encode(der.as_ref())
+            )
+            .as_bytes(),
+        )?,
+        jwks,
+    ))
 }
 
 fn assertion(key: &EncodingKey, client_id: &str) -> anyhow::Result<String> {

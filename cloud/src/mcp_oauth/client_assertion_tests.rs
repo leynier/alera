@@ -1,11 +1,14 @@
 use std::sync::OnceLock;
 
 use async_trait::async_trait;
+use aws_lc_rs::{
+    encoding::{AsDer, Pkcs8V1Der},
+    rsa::{KeyPair, KeySize},
+    signature::KeyPair as _,
+};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::Utc;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use rsa::rand_core::OsRng;
-use rsa::{pkcs1::EncodeRsaPrivateKey, traits::PublicKeyParts, RsaPrivateKey};
 use serde_json::{json, Value};
 use url::Url;
 
@@ -40,20 +43,25 @@ struct Fixture {
 fn test_key() -> &'static (EncodingKey, Value) {
     static KEY: OnceLock<(EncodingKey, Value)> = OnceLock::new();
     KEY.get_or_init(|| {
-        let private = RsaPrivateKey::new(&mut OsRng, 2048)
+        let private = KeyPair::generate(KeySize::Rsa2048)
             .unwrap_or_else(|error| panic!("generate ephemeral test RSA key: {error}"));
-        let der = private
-            .to_pkcs1_der()
+        let der: Pkcs8V1Der<'_> = private
+            .as_der()
             .unwrap_or_else(|error| panic!("encode ephemeral test RSA key: {error}"));
         let jwks = json!({"keys": [{
             "kty": "RSA",
             "kid": "client-key",
             "use": "sig",
             "alg": "RS256",
-            "n": URL_SAFE_NO_PAD.encode(private.n().to_bytes_be()),
-            "e": URL_SAFE_NO_PAD.encode(private.e().to_bytes_be()),
+            "n": URL_SAFE_NO_PAD.encode(private.public_key().modulus().big_endian_without_leading_zero()),
+            "e": URL_SAFE_NO_PAD.encode(private.public_key().exponent().big_endian_without_leading_zero()),
         }]});
-        (EncodingKey::from_rsa_der(der.as_bytes()), jwks)
+        (EncodingKey::from_rsa_pem(
+            format!(
+                "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----",
+                base64::engine::general_purpose::STANDARD.encode(der.as_ref())
+            ).as_bytes()
+        ).unwrap_or_else(|error| panic!("parse ephemeral test RSA key: {error}")), jwks)
     })
 }
 

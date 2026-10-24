@@ -58,7 +58,7 @@ void main() {
     ) async {
       debugDefaultTargetPlatformOverride = platform;
       final workbench = _FileOpenWorkbench()
-        ..pendingSelection = Completer<void>();
+        .._pendingSelection = Completer<void>();
       await _pumpProjectRecipe(tester, workbench);
       final key = platform == TargetPlatform.macOS
           ? LogicalKeyboardKey.metaLeft
@@ -68,7 +68,7 @@ void main() {
       await tester.pump();
       expect(workbench.opens, isEmpty);
       await tester.sendKeyUpEvent(key);
-      workbench.pendingSelection!.complete();
+      workbench._pendingSelection!.complete();
       await tester.pumpAndSettle();
       expect(workbench.opens, [(true, true)]);
       expect(tester.takeException(), isNull);
@@ -344,7 +344,7 @@ class _ProjectCatalogTestRepository extends CatalogTestRepository {
 }
 
 class _FileOpenWorkbench extends BoardTestWorkbench {
-  Completer<void>? pendingSelection;
+  Completer<void>? _pendingSelection;
   final opens = <(bool, bool)>[];
 
   void setWorkspaceAvailable(bool available) {
@@ -362,7 +362,7 @@ class _FileOpenWorkbench extends BoardTestWorkbench {
     required Project project,
     required Workspace workspace,
   }) async {
-    if (pendingSelection != null) await pendingSelection!.future;
+    if (_pendingSelection != null) await _pendingSelection!.future;
     await super.selectWorkspace(project: project, workspace: workspace);
   }
 

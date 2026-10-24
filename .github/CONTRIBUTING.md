@@ -11,9 +11,11 @@ Thanks for contributing to Alera.
 
 ## Local Setup
 
-All platforms require Flutter 3.47.2 or newer with Dart 3.13.2 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.47.2. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
+All platforms require Flutter 3.47.8 or newer with Dart 3.13.7 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.47.8. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
 
-Owned packages use Dart language version 3.13 through their Dart 3.13.2 SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version. Follow the [Dart modernization conventions](../docs/dart-3.13-modernization.md) when using primary constructors and typed collection APIs.
+Edge and landing tooling use Node 24.22.1 and Bun 1.4.4, pinned in CI. These SDK minima include the eMudhra certificate distrust updates. Edge keeps its Miniflare/workerd versions together and overrides only Sharp and Undici to their patched compatible releases.
+
+Owned packages use Dart language version 3.13 through their Dart 3.13.7 SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version. Follow the [Dart modernization conventions](../docs/dart-3.13-modernization.md) when using primary constructors and typed collection APIs.
 
 ### Windows
 
