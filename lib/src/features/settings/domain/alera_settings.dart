@@ -252,6 +252,7 @@ class const GeneralSettings({
   this.starClicked = false,
   this.confirmProjectRemoval = true,
   this.confirmWorkspaceRemoval = true,
+  this.deleteAgentSessionsOnWorkspaceRemoval = false,
   this.keepAliveEnabled = false,
   this.showTrayIcon = true,
   this.showDockBadge = true,
@@ -274,6 +275,9 @@ class const GeneralSettings({
 
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
+
+  /// Delete the local agent conversations of a workspace when it is removed.
+  final bool deleteAgentSessionsOnWorkspaceRemoval;
 
   /// Prevent idle and display sleep while Alera is running.
   final bool keepAliveEnabled;

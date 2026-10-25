@@ -528,6 +528,19 @@ void _registerSettingsDialogCoreTests() {
     expect(workspaceConfirmation.value, isTrue);
     expect(workspaceConfirmation.onChanged, isNull);
 
+    expect(find.text('Delete Agent Sessions With Workspace'), findsOneWidget);
+    await tester.ensureVisible(find.byType(Switch).at(2));
+    await tester.pump();
+    await tester.tap(find.byType(Switch).at(2));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .deleteAgentSessionsOnWorkspaceRemoval,
+      isTrue,
+    );
+
     await tester.enterText(find.byType(TextField).first, 'destructive');
     await tester.pump();
 

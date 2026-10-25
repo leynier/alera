@@ -43,6 +43,7 @@ void main() {
 
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
+      expect(general.deleteAgentSessionsOnWorkspaceRemoval, isFalse);
       expect(general.keepAliveEnabled, isFalse);
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);

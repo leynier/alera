@@ -2,7 +2,7 @@
 name: alera-cli
 description: Operate Alera workspaces and runtime resources through the alera CLI.
 metadata:
-  version: 5
+  version: 6
 ---
 
 # Alera CLI

@@ -9,6 +9,10 @@ mod owner_automation_precheck_store;
 pub use owner_automation_precheck_store::{
     OwnerAutomationPrecheck, OwnerAutomationPrecheckOutcome, OwnerAutomationPrecheckRequest,
 };
+mod agent_native_session_store;
+pub use agent_native_session_store::AgentNativeSessionRecord;
+#[cfg(test)]
+mod agent_native_session_store_tests;
 mod agent_profile_launch_receipt_store;
 #[cfg(test)]
 mod agent_profile_launch_receipt_store_tests;

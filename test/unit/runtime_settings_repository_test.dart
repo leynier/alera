@@ -181,6 +181,36 @@ void main() {
     );
   });
 
+  test('agent session deletion on workspace removal round-trips', () async {
+    final legacy = _MemorySettingsRepository();
+    final client = _RecordingRuntimeHostClient();
+    client.responses['runtimeSettings.get'] = <String, Object?>{
+      'workspaceDirectory': null,
+      'deleteAgentSessionsOnWorkspaceRemoval': true,
+    };
+    final repository = RuntimeSettingsRepository(
+      client: client,
+      legacyRepository: legacy,
+    );
+
+    final loaded = await repository.load();
+    expect(loaded.general.deleteAgentSessionsOnWorkspaceRemoval, isTrue);
+
+    await repository.save(
+      loaded.copyWith(
+        general: loaded.general.copyWith(
+          deleteAgentSessionsOnWorkspaceRemoval: false,
+        ),
+      ),
+    );
+    expect(
+      client
+          .payloads['runtimeSettings.update']!
+          .single['deleteAgentSessionsOnWorkspaceRemoval'],
+      isFalse,
+    );
+  });
+
   test(
     'load combines shared AI Assist execution settings with local discovery',
     () async {

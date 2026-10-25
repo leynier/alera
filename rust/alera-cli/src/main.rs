@@ -42,6 +42,7 @@ mod mcp_commands;
 mod mcp_settings;
 mod mcp_tools;
 mod mobile_access;
+mod native_agent_sessions;
 mod native_credential_entry;
 mod netbird;
 mod opencode_auth;

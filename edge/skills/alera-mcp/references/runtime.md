@@ -8,7 +8,7 @@
 
 ## Settings
 
-`get_runtime_settings` shows the settings open to MCP clients. They include the default agent profile, the worktree folder, removal confirmations, AI Assist, and automation retention. `update_runtime_settings` changes them. It needs administrative access, and fields left out keep their values. Change settings only when the user asks.
+`get_runtime_settings` shows the settings open to MCP clients. They include the default agent profile, the worktree folder, removal confirmations, whether removing a workspace also deletes its agent conversations, AI Assist, and automation retention. `update_runtime_settings` changes them. It needs administrative access, and fields left out keep their values. Change settings only when the user asks.
 
 Status hooks let agents report their state to Alera. `get_agent_integrations` shows them, and `set_agent_integrations` turns them on or off.
 

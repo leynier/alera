@@ -32,6 +32,9 @@ class const PortableHostSettings({
   required final String? workspaceDirectory,
   required final bool confirmProjectRemoval,
   required final bool confirmWorkspaceRemoval,
+
+  /// Null when the host predates the setting and would reject an update.
+  final bool? deleteAgentSessionsOnWorkspaceRemoval,
   required final Map<String, bool> agentStatusHooks,
   required final QuotaSettings agentQuotas,
   required final MobileVoiceSettings voice,
@@ -42,6 +45,8 @@ class const PortableHostSettings({
       workspaceDirectory: json['workspaceDirectory'] as String?,
       confirmProjectRemoval: json['confirmProjectRemoval'] != false,
       confirmWorkspaceRemoval: json['confirmWorkspaceRemoval'] != false,
+      deleteAgentSessionsOnWorkspaceRemoval:
+          json['deleteAgentSessionsOnWorkspaceRemoval'] as bool?,
       agentStatusHooks: <String, bool>{
         for (final agent in supportedAgentHooks)
           agent:
@@ -60,6 +65,7 @@ class const PortableHostSettings({
     bool clearWorkspaceDirectory = false,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? deleteAgentSessionsOnWorkspaceRemoval,
     Map<String, bool>? agentStatusHooks,
     QuotaSettings? agentQuotas,
     MobileVoiceSettings? voice,
@@ -72,6 +78,9 @@ class const PortableHostSettings({
           confirmProjectRemoval ?? this.confirmProjectRemoval,
       confirmWorkspaceRemoval:
           confirmWorkspaceRemoval ?? this.confirmWorkspaceRemoval,
+      deleteAgentSessionsOnWorkspaceRemoval:
+          deleteAgentSessionsOnWorkspaceRemoval ??
+          this.deleteAgentSessionsOnWorkspaceRemoval,
       agentStatusHooks: agentStatusHooks ?? this.agentStatusHooks,
       agentQuotas: agentQuotas ?? this.agentQuotas,
       voice: voice ?? this.voice,

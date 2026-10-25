@@ -126,6 +126,17 @@ class const _SettingsBody({
                   'Ask before removing a managed workspace.',
                 ),
               ),
+              if (settings.deleteAgentSessionsOnWorkspaceRemoval
+                  case final deleteAgentSessions?)
+                SwitchListTile(
+                  value: deleteAgentSessions,
+                  onChanged:
+                      controller.setDeleteAgentSessionsOnWorkspaceRemoval,
+                  title: const Text('Delete Agent Sessions With Workspace'),
+                  subtitle: const Text(
+                    'Also delete the local agent conversations of a removed workspace. This cannot be undone.',
+                  ),
+                ),
             ],
           ),
         ),

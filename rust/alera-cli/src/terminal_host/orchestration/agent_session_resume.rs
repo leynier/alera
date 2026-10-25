@@ -168,6 +168,21 @@ pub fn apply_resume_to_command(
     }
 }
 
+/// Appends already-decided arguments to an opaque command line, quoted for
+/// the interactive shell that will read it.
+pub fn append_arguments_to_command(command: String, arguments: &[String], shell: &str) -> String {
+    if arguments.is_empty() {
+        return command;
+    }
+    let family = shell_family(shell);
+    let quoted = arguments
+        .iter()
+        .map(|token| quote_argument(token, family))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!("{command} {quoted}")
+}
+
 fn splice_after_executable(command: &str, quoted_resume: &str) -> Option<String> {
     let command = command.trim();
     if command.is_empty() || has_shell_operator(command) {

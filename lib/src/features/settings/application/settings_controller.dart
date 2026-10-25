@@ -165,6 +165,20 @@ class SettingsController extends _$SettingsController
     );
   });
 
+  Future<void> setDeleteAgentSessionsOnWorkspaceRemoval(bool value) =>
+      _serialize(() async {
+        if (state.general.deleteAgentSessionsOnWorkspaceRemoval == value) {
+          return;
+        }
+        await _save(
+          state.copyWith(
+            general: state.general.copyWith(
+              deleteAgentSessionsOnWorkspaceRemoval: value,
+            ),
+          ),
+        );
+      });
+
   Future<void> setKeepAliveEnabled(bool value) => _serialize(() async {
     if (state.general.keepAliveEnabled == value) {
       return;

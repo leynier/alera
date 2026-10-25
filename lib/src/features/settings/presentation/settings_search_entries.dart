@@ -20,6 +20,21 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
       description: 'Ask before removing a workspace worktree.',
       keywords: <String>['safety', 'destructive', 'remove', 'delete'],
     ),
+    'Delete Agent Sessions With Workspace': SettingsSearchEntryDetails(
+      description:
+          'Delete local agent conversations when a workspace is removed.',
+      keywords: <String>[
+        'safety',
+        'destructive',
+        'remove',
+        'delete',
+        'sessions',
+        'conversations',
+        'history',
+        'claude',
+        'codex',
+      ],
+    ),
   },
   'desktop': {
     'New Workspace Tools': SettingsSearchEntryDetails(

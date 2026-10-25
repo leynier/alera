@@ -150,6 +150,10 @@
             "minLength": 1,
             "type": "string"
           },
+          "deleteAgentSessionsOnWorkspaceRemoval": {
+            "description": "Also delete the local agent conversations of a removed workspace. Cannot be undone.",
+            "type": "boolean"
+          },
           "workspaceDirectory": {
             "description": "Folder where new worktrees are created.",
             "minLength": 1,

@@ -255,6 +255,25 @@ impl ServerActor {
                 }
                 Err(error) => Err(error),
             };
+            let removes_workspaces = matches!(
+                &request.mutation,
+                RuntimeMutationRequest::RemoveManagedWorkspace { .. }
+                    | RuntimeMutationRequest::RemoveSharedWorkspace { .. }
+                    | RuntimeMutationRequest::RemoveWorkspace { .. }
+                    | RuntimeMutationRequest::RemoveProject { .. }
+                    | RuntimeMutationRequest::RemoveProjectWorkspaces { .. }
+            );
+            let agent_session_cleanup = match &prepared {
+                Ok(()) => {
+                    super::workspace_agent_session_cleanup::capture_agent_session_cleanup(
+                        &runtime_store,
+                        &request.mutation,
+                    )
+                    .await
+                }
+                Err(_) => None,
+            };
+            let cleanup_store = runtime_store.clone();
             let mut outcome = match prepared {
                 Ok(()) => run_runtime_mutation(runtime_store, request.mutation).await,
                 Err(error) => RuntimeMutationOutcome {
@@ -268,6 +287,12 @@ impl ServerActor {
                     pending_workspace_shutdown: None,
                 },
             };
+            if removes_workspaces && outcome.result.is_ok() {
+                super::workspace_agent_session_cleanup::spawn_agent_session_cleanup(
+                    cleanup_store,
+                    agent_session_cleanup,
+                );
+            }
             outcome.stopped_workspace_tab_ids = stopped_workspace_tab_ids;
             outcome.pending_workspace_shutdown = pending_workspace_shutdown;
             let _ = inbox

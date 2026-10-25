@@ -208,6 +208,7 @@ impl RuntimeStore {
         self.migrate_relocation_setup_processes().await?;
         self.migrate_relocation_setup_cancellations().await?;
         self.migrate_setup_descendants().await?;
+        self.migrate_agent_native_sessions().await?;
         Ok(())
     }
 

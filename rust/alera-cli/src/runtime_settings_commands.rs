@@ -60,6 +60,12 @@ const SETTINGS: &[Setting] = &[
         Kind::Flag,
     ),
     setting(
+        "deleteAgentSessionsOnWorkspaceRemoval",
+        None,
+        "deleteAgentSessionsOnWorkspaceRemoval",
+        Kind::Flag,
+    ),
+    setting(
         "defaultAgentProfileId",
         None,
         "defaultAgentProfileId",

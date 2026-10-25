@@ -110,6 +110,12 @@ impl RuntimeStore {
             .await?;
         sqlx::query("INSERT INTO runtimeMetadata (key, value) SELECT ?, value FROM runtimeMetadata WHERE key = ? ON CONFLICT(key) DO UPDATE SET value = MAX(value, excluded.value)")
             .bind(format!("workspace.activity.{}", destination.id)).bind(format!("workspace.activity.{}", source.id)).execute(&mut *tx).await?;
+        super::agent_native_session_store::transfer_agent_native_sessions_in(
+            &mut tx,
+            &source.id,
+            &destination.id,
+        )
+        .await?;
         tx.commit().await?;
         Ok(())
     }

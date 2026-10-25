@@ -371,10 +371,11 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 9] = [
+                const ALLOWED: [&str; 10] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
+                    "deleteAgentSessionsOnWorkspaceRemoval",
                     "defaultAgentProfileId",
                     "agentStatusHooks",
                     "agentQuotas",
@@ -752,6 +753,7 @@ impl ServerActor {
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
+                        crate::terminal_host::orchestration::agent_session_settings::AGENT_NATIVE_SESSION_SETTINGS_KEY,
                         super::tab_compatibility::RUN_ID_TAB_PAYLOAD_KEY,
                         super::tab_compatibility::RUN_TASK_ID_TAB_PAYLOAD_KEY,
                     ] {
@@ -1373,6 +1375,10 @@ fn host_shutdown_busy_message(
 #[cfg(test)]
 #[path = "requests/access_cases.rs"]
 mod access_cases;
+
+#[cfg(test)]
+#[path = "requests/runtime_settings_cases.rs"]
+mod runtime_settings_cases;
 
 #[cfg(test)]
 mod tests;
