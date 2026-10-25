@@ -160,6 +160,18 @@ void main() {
       expect(result['aiTextGeneration'], isEmpty);
     },
   );
+  test('portable general settings carry agent session deletion', () {
+    final result = portableDesktopSettings({
+      'general': {
+        'confirmWorkspaceRemoval': false,
+        'deleteAgentSessionsOnWorkspaceRemoval': true,
+      },
+    });
+    expect(result['general'], {
+      'confirmWorkspaceRemoval': false,
+      'deleteAgentSessionsOnWorkspaceRemoval': true,
+    });
+  });
   test('portable AI Assist settings carry the error clarification switch', () {
     final result = portableDesktopSettings({
       'aiTextGeneration': {

@@ -31,6 +31,7 @@ fn the_view_holds_only_allowlisted_settings() {
             "workspaceDirectory": "/work",
             "confirmProjectRemoval": true,
             "confirmWorkspaceRemoval": true,
+            "deleteAgentSessionsOnWorkspaceRemoval": false,
             "defaultAgentProfileId": "prof_1",
             "aiAssist": {
                 "enabled": true,
@@ -68,7 +69,11 @@ fn the_view_fills_ai_assist_defaults_when_it_was_never_configured() {
 fn top_level_settings_are_sent_alone() {
     let payload = settings_update_payload(
         &configured(),
-        &strings(&["confirmWorkspaceRemoval=false", "workspaceDirectory= /new "]),
+        &strings(&[
+            "confirmWorkspaceRemoval=false",
+            "deleteAgentSessionsOnWorkspaceRemoval=true",
+            "workspaceDirectory= /new ",
+        ]),
         &strings(&["defaultAgentProfileId"]),
     )
     .unwrap();
@@ -76,6 +81,7 @@ fn top_level_settings_are_sent_alone() {
         payload,
         json!({
             "confirmWorkspaceRemoval": false,
+            "deleteAgentSessionsOnWorkspaceRemoval": true,
             "workspaceDirectory": "/new",
             "defaultAgentProfileId": null,
         })

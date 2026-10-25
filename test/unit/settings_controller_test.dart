@@ -230,6 +230,7 @@ void main() {
 
         await controller.setConfirmProjectRemoval(false);
         await controller.setConfirmWorkspaceRemoval(false);
+        await controller.setDeleteAgentSessionsOnWorkspaceRemoval(true);
         await controller.setAgentStatusHookEnabled(.codex, true);
         await controller.setAgentStatusHookEnabled(.cursor, true);
         await controller.setAgentStatusHookEnabled(.agy, true);
@@ -269,6 +270,7 @@ void main() {
         );
         expect(restored.general.confirmProjectRemoval, isFalse);
         expect(restored.general.confirmWorkspaceRemoval, isFalse);
+        expect(restored.general.deleteAgentSessionsOnWorkspaceRemoval, isTrue);
         expect(restored.agents.agentStatusHooks.codex, isTrue);
         expect(restored.agents.agentStatusHooks.claude, isFalse);
         expect(restored.agents.agentStatusHooks.copilot, isFalse);

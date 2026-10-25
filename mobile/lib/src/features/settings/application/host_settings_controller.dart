@@ -38,6 +38,12 @@ class HostSettingsController extends _$HostSettingsController {
     return _update(<String, Object?>{'confirmWorkspaceRemoval': value});
   }
 
+  Future<void> setDeleteAgentSessionsOnWorkspaceRemoval(bool value) {
+    return _update(<String, Object?>{
+      'deleteAgentSessionsOnWorkspaceRemoval': value,
+    });
+  }
+
   Future<void> setAgentHook(String agent, bool value) async {
     final current = state.requireValue;
     final hooks = <String, bool>{...current.agentStatusHooks, agent: value};

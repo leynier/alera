@@ -120,16 +120,9 @@ class SettingsController extends _$SettingsController
     );
   });
 
-  Future<void> setConfirmProjectRemoval(bool value) => _serialize(() async {
-    if (state.general.confirmProjectRemoval == value) {
-      return;
-    }
-    await _save(
-      state.copyWith(
-        general: state.general.copyWith(confirmProjectRemoval: value),
-      ),
-    );
-  });
+  Future<void> setConfirmProjectRemoval(bool value) => _serialize(
+    () => _saveGeneral(state.general.copyWith(confirmProjectRemoval: value)),
+  );
 
   Future<void> setDiagnosticsLogLevel(DiagnosticsLogLevel value) =>
       _serialize(() async {
@@ -154,52 +147,32 @@ class SettingsController extends _$SettingsController
     );
   });
 
-  Future<void> setConfirmWorkspaceRemoval(bool value) => _serialize(() async {
-    if (state.general.confirmWorkspaceRemoval == value) {
-      return;
-    }
-    await _save(
-      state.copyWith(
-        general: state.general.copyWith(confirmWorkspaceRemoval: value),
-      ),
-    );
-  });
+  Future<void> setConfirmWorkspaceRemoval(bool value) => _serialize(
+    () => _saveGeneral(state.general.copyWith(confirmWorkspaceRemoval: value)),
+  );
 
-  Future<void> setKeepAliveEnabled(bool value) => _serialize(() async {
-    if (state.general.keepAliveEnabled == value) {
-      return;
-    }
-    await _save(
-      state.copyWith(general: state.general.copyWith(keepAliveEnabled: value)),
-    );
-  });
+  Future<void> setDeleteAgentSessionsOnWorkspaceRemoval(bool value) =>
+      _serialize(
+        () => _saveGeneral(
+          state.general.copyWith(deleteAgentSessionsOnWorkspaceRemoval: value),
+        ),
+      );
 
-  Future<void> setShowTrayIcon(bool value) => _serialize(() async {
-    if (state.general.showTrayIcon == value) {
-      return;
-    }
-    await _save(
-      state.copyWith(general: state.general.copyWith(showTrayIcon: value)),
-    );
-  });
+  Future<void> setKeepAliveEnabled(bool value) => _serialize(
+    () => _saveGeneral(state.general.copyWith(keepAliveEnabled: value)),
+  );
 
-  Future<void> setShowDockBadge(bool value) => _serialize(() async {
-    if (state.general.showDockBadge == value) {
-      return;
-    }
-    await _save(
-      state.copyWith(general: state.general.copyWith(showDockBadge: value)),
-    );
-  });
+  Future<void> setShowTrayIcon(bool value) => _serialize(
+    () => _saveGeneral(state.general.copyWith(showTrayIcon: value)),
+  );
 
-  Future<void> setShowTrayBadge(bool value) => _serialize(() async {
-    if (state.general.showTrayBadge == value) {
-      return;
-    }
-    await _save(
-      state.copyWith(general: state.general.copyWith(showTrayBadge: value)),
-    );
-  });
+  Future<void> setShowDockBadge(bool value) => _serialize(
+    () => _saveGeneral(state.general.copyWith(showDockBadge: value)),
+  );
+
+  Future<void> setShowTrayBadge(bool value) => _serialize(
+    () => _saveGeneral(state.general.copyWith(showTrayBadge: value)),
+  );
 
   Future<void> setAgentStatusHookEnabled(AgentType agentType, bool value) =>
       _serialize(() async {
@@ -483,6 +456,11 @@ class SettingsController extends _$SettingsController
       }),
     );
     return next;
+  }
+
+  Future<void> _saveGeneral(GeneralSettings general) async {
+    if (general == state.general) return;
+    await _save(state.copyWith(general: general));
   }
 
   Future<void> _save(AleraSettings settings) async {

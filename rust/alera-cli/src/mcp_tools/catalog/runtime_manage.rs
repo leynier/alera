@@ -13,6 +13,10 @@ const SETTING_PROPERTIES: &[(&str, &str)] = &[
     ("workspaceDirectory", "workspaceDirectory"),
     ("confirmProjectRemoval", "confirmProjectRemoval"),
     ("confirmWorkspaceRemoval", "confirmWorkspaceRemoval"),
+    (
+        "deleteAgentSessionsOnWorkspaceRemoval",
+        "deleteAgentSessionsOnWorkspaceRemoval",
+    ),
     ("defaultAgentProfileId", "defaultAgentProfileId"),
     ("aiAssistEnabled", "aiAssist.enabled"),
     (
@@ -44,6 +48,7 @@ const SETTINGS_OUTSIDE_INTEGRATIONS: &[&str] = &[
     "workspaceDirectory",
     "confirmProjectRemoval",
     "confirmWorkspaceRemoval",
+    "deleteAgentSessionsOnWorkspaceRemoval",
     "defaultAgentProfileId",
     "agentQuotas",
     "mobilePushNotifications",
@@ -69,6 +74,10 @@ fn settings_schema() -> Value {
             (
                 "confirmWorkspaceRemoval",
                 boolean("Ask before removing a workspace in the app."),
+            ),
+            (
+                "deleteAgentSessionsOnWorkspaceRemoval",
+                boolean("Also delete the local agent conversations of a removed workspace. Cannot be undone."),
             ),
             (
                 "defaultAgentProfileId",

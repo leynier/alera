@@ -12,6 +12,9 @@ impl RuntimeStore {
             workspace_directory: self.get_workspace_directory().await?,
             confirm_project_removal: self.confirm_project_removal().await?,
             confirm_workspace_removal: self.confirm_workspace_removal().await?,
+            delete_agent_sessions_on_workspace_removal: self
+                .delete_agent_sessions_on_workspace_removal()
+                .await?,
             default_agent_profile_id: self.default_agent_profile_id().await?,
             agent_status_hooks: self.agent_status_hook_settings().await?,
             agent_quotas: self.agent_quota_settings().await?,
@@ -174,6 +177,14 @@ impl RuntimeStore {
             .unwrap_or(true))
     }
 
+    pub async fn delete_agent_sessions_on_workspace_removal(&self) -> Result<bool> {
+        Ok(self
+            .get_metadata("settings.general.deleteAgentSessionsOnWorkspaceRemoval")
+            .await?
+            .and_then(|value| value.parse::<bool>().ok())
+            .unwrap_or(false))
+    }
+
     pub async fn default_agent_profile_id(&self) -> Result<Option<String>> {
         Ok(self
             .get_metadata("settings.agents.defaultAgentProfileId")
@@ -221,6 +232,18 @@ impl RuntimeStore {
     pub async fn set_confirm_workspace_removal(&self, value: bool) -> Result<RuntimeSettings> {
         self.set_metadata(
             "settings.general.confirmWorkspaceRemoval",
+            if value { "true" } else { "false" },
+        )
+        .await?;
+        self.runtime_settings().await
+    }
+
+    pub async fn set_delete_agent_sessions_on_workspace_removal(
+        &self,
+        value: bool,
+    ) -> Result<RuntimeSettings> {
+        self.set_metadata(
+            "settings.general.deleteAgentSessionsOnWorkspaceRemoval",
             if value { "true" } else { "false" },
         )
         .await?;

@@ -1155,6 +1155,15 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
+  static bool _$deleteAgentSessionsOnWorkspaceRemoval(GeneralSettings v) =>
+      v.deleteAgentSessionsOnWorkspaceRemoval;
+  static const Field<GeneralSettings, bool>
+  _f$deleteAgentSessionsOnWorkspaceRemoval = Field(
+    'deleteAgentSessionsOnWorkspaceRemoval',
+    _$deleteAgentSessionsOnWorkspaceRemoval,
+    opt: true,
+    def: false,
+  );
   static bool _$keepAliveEnabled(GeneralSettings v) => v.keepAliveEnabled;
   static const Field<GeneralSettings, bool> _f$keepAliveEnabled = Field(
     'keepAliveEnabled',
@@ -1234,6 +1243,8 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #starClicked: _f$starClicked,
     #confirmProjectRemoval: _f$confirmProjectRemoval,
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
+    #deleteAgentSessionsOnWorkspaceRemoval:
+        _f$deleteAgentSessionsOnWorkspaceRemoval,
     #keepAliveEnabled: _f$keepAliveEnabled,
     #showTrayIcon: _f$showTrayIcon,
     #showDockBadge: _f$showDockBadge,
@@ -1252,6 +1263,9 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       starClicked: data.dec(_f$starClicked),
       confirmProjectRemoval: data.dec(_f$confirmProjectRemoval),
       confirmWorkspaceRemoval: data.dec(_f$confirmWorkspaceRemoval),
+      deleteAgentSessionsOnWorkspaceRemoval: data.dec(
+        _f$deleteAgentSessionsOnWorkspaceRemoval,
+      ),
       keepAliveEnabled: data.dec(_f$keepAliveEnabled),
       showTrayIcon: data.dec(_f$showTrayIcon),
       showDockBadge: data.dec(_f$showDockBadge),
@@ -1341,6 +1355,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? deleteAgentSessionsOnWorkspaceRemoval,
     bool? keepAliveEnabled,
     bool? showTrayIcon,
     bool? showDockBadge,
@@ -1378,6 +1393,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? deleteAgentSessionsOnWorkspaceRemoval,
     bool? keepAliveEnabled,
     bool? showTrayIcon,
     bool? showDockBadge,
@@ -1395,6 +1411,9 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
         #confirmProjectRemoval: confirmProjectRemoval,
       if (confirmWorkspaceRemoval != null)
         #confirmWorkspaceRemoval: confirmWorkspaceRemoval,
+      if (deleteAgentSessionsOnWorkspaceRemoval != null)
+        #deleteAgentSessionsOnWorkspaceRemoval:
+            deleteAgentSessionsOnWorkspaceRemoval,
       if (keepAliveEnabled != null) #keepAliveEnabled: keepAliveEnabled,
       if (showTrayIcon != null) #showTrayIcon: showTrayIcon,
       if (showDockBadge != null) #showDockBadge: showDockBadge,
@@ -1426,6 +1445,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     confirmWorkspaceRemoval: data.get(
       #confirmWorkspaceRemoval,
       or: $value.confirmWorkspaceRemoval,
+    ),
+    deleteAgentSessionsOnWorkspaceRemoval: data.get(
+      #deleteAgentSessionsOnWorkspaceRemoval,
+      or: $value.deleteAgentSessionsOnWorkspaceRemoval,
     ),
     keepAliveEnabled: data.get(#keepAliveEnabled, or: $value.keepAliveEnabled),
     showTrayIcon: data.get(#showTrayIcon, or: $value.showTrayIcon),

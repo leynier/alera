@@ -117,8 +117,8 @@ test('archive boundaries reject traversal and preserve original ChatGPT and Clau
   for (const path of ['/absolute', '../escape', './dot', 'a//b', 'a\\b']) expect(() => buildPluginArchive({ [path]: new Uint8Array() }, 'alera-test', 'test.zip')).toThrow('Unsafe plugin path');
   expect(CURSOR_PLUGIN_LABEL).toBe('GrokBot Cursor');
   expect(AGENT_PLUGIN_LABEL).toBe('Agent Plugin');
-  expect(buildPluginBundle(root).sha256).toBe('2664cc0b9fe80cf6498b55be58c5c8a7d534d29384e14fc0cf446f56a4f0a66a');
-  expect(buildClaudePluginBundle(root).sha256).toBe('8d14c3a88ecbef19d568cba87b564dba0d6b79f426c9ace7e7ee897b9862c725');
+  expect(buildPluginBundle(root).sha256).toBe('a5edfa4b897f629c148ce8ce06e9f362bacb57039a48151a0e277303d7dfdf0b');
+  expect(buildClaudePluginBundle(root).sha256).toBe('f226d844f235755f577cb4b7b60e270198494d9939b917c1f8ac0f9bdfd76cc4');
   const names = [buildPluginBundle(root), buildClaudePluginBundle(root), ...clientPluginDistributions.map(({ build }) => build(root))].map(({ sha256 }) => sha256);
   expect(new Set(names).size).toBe(5);
 });

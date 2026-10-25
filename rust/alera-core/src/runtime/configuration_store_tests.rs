@@ -217,12 +217,25 @@ async fn configuration_restoration_removes_stale_native_values() {
     let (_dir, store) = fixture().await;
     store.set_confirm_project_removal(false).await.unwrap();
     store.set_confirm_workspace_removal(false).await.unwrap();
+    store
+        .set_delete_agent_sessions_on_workspace_removal(true)
+        .await
+        .unwrap();
     let before = store.configuration_snapshot("a").await.unwrap();
+    assert_eq!(
+        before["document"]
+            .pointer("/desktop/settings/general/deleteAgentSessionsOnWorkspaceRemoval"),
+        Some(&json!(true))
+    );
     let mut next = before["document"].clone();
     next["desktop"]["settings"] = json!({});
     apply(&store, &before, &next).await.unwrap();
     assert!(store.confirm_project_removal().await.unwrap());
     assert!(store.confirm_workspace_removal().await.unwrap());
+    assert!(!store
+        .delete_agent_sessions_on_workspace_removal()
+        .await
+        .unwrap());
     assert!(store
         .configuration_settings()
         .await

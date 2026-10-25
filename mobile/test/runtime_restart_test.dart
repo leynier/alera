@@ -115,6 +115,54 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('Host Settings toggles agent session deletion', (tester) async {
+    final channel = _RuntimeRestartChannel();
+    final client = MobileRuntimeClient.forTesting(channel);
+    addTearDown(() async {
+      await client.dispose();
+      await channel.dispose();
+    });
+    await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+    final host = PairedHostProfile(
+      id: 'runtime-1',
+      displayName: 'Alera Host',
+      endpoint: 'ws://127.0.0.1:6768',
+      runtimeId: 'runtime-1',
+      deviceId: 'device-1',
+      pairedAt: DateTime.now().toUtc(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          hostConnectionControllerProvider.overrideWith2(
+            (_) => _TestHostConnection(client),
+          ),
+        ],
+        child: MaterialApp(home: HostSettingsScreen(host: host)),
+      ),
+    );
+    const title = 'Delete Agent Sessions With Workspace';
+    await _pumpUntil(tester, find.text(title));
+    final toggle = find.widgetWithText(SwitchListTile, title);
+    await tester.ensureVisible(toggle);
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final update = channel.requests.singleWhere(
+      (request) => request['type'] == 'mobile.runtimeSettings.update',
+    );
+    expect(update['payload'], <String, Object?>{
+      'deleteAgentSessionsOnWorkspaceRemoval': true,
+    });
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }
 
 Future<void> _pumpUntil(
@@ -240,6 +288,14 @@ final class _RuntimeRestartChannel() implements WebSocketChannel {
   final StreamController<Object?> _outgoing =
       StreamController<Object?>.broadcast(sync: true);
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
+  final Map<String, Object?> settings = <String, Object?>{
+    'workspaceDirectory': null,
+    'confirmProjectRemoval': true,
+    'confirmWorkspaceRemoval': true,
+    'deleteAgentSessionsOnWorkspaceRemoval': false,
+    'agentStatusHooks': <String, bool>{},
+    'agentQuotas': <String, Object?>{},
+  };
 
   void _handle(Object? raw) {
     final request = jsonDecode(raw! as String) as Map<String, Object?>;
@@ -267,13 +323,8 @@ final class _RuntimeRestartChannel() implements WebSocketChannel {
               runtimeHostRestartCapability,
             ],
           },
-          'mobile.runtimeSettings.get' => <String, Object?>{
-            'workspaceDirectory': null,
-            'confirmProjectRemoval': true,
-            'confirmWorkspaceRemoval': true,
-            'agentStatusHooks': <String, bool>{},
-            'agentQuotas': <String, Object?>{},
-          },
+          'mobile.runtimeSettings.get' => settings,
+          'mobile.runtimeSettings.update' => settings..addAll(payload),
           'host.restart' => <String, Object?>{
             'restarting': true,
             'forced': true,

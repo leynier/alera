@@ -138,9 +138,13 @@ impl ServerActor {
         if let Some(session_id) = request.native_session_id.as_deref() {
             self.store_tab_native_session(
                 &request.tab_id,
-                &request.agent_type,
-                session_id,
-                request.ccs_profile.as_deref(),
+                super::agent_native_session::ObservedNativeSession {
+                    agent_type: &request.agent_type,
+                    session_id,
+                    ccs_profile: request.ccs_profile.as_deref(),
+                    cwd: None,
+                    settings: serde_json::Map::new(),
+                },
             )
             .await;
         }

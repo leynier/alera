@@ -4,14 +4,19 @@ use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::orchestration::agent_profile_launch_snapshot::AgentInitialDeliveryMechanismV1;
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::agent_session_resume::{
-    apply_resume_to_command, apply_resume_to_managed_launch,
+    append_arguments_to_command, apply_resume_to_command, apply_resume_to_managed_launch,
+};
+use crate::terminal_host::orchestration::agent_session_settings::{
+    apply_session_settings, session_settings_for_command,
 };
 use crate::terminal_host::orchestration::agent_startup_command::{
     append_initial_prompt_argument_for, command_with_initial_prompt_for,
 };
 use crate::terminal_host::orchestration::managed_agent_launch::ManagedAgentLaunch;
 
-use super::agent_native_session::{native_ccs_profile, native_session_resume};
+use super::agent_native_session::{
+    native_ccs_profile, native_session_resume, native_session_settings,
+};
 use super::terminal_startup_commands::{
     auto_close_setup_command, auto_closes_on_success, initial_command, initial_delivery_mechanism,
     initial_managed_agent_launch, initial_prompt, tab_agent_type,
@@ -97,7 +102,9 @@ fn resume_spawn_command(
     let Some(resume) = native_session_resume(tab) else {
         return Ok(None);
     };
+    let settings = native_session_settings(tab);
     if let Some(mut launch) = initial_managed_agent_launch(tab)? {
+        apply_session_settings(resume.agent_type, &mut launch.arguments, settings);
         if apply_resume_to_managed_launch(&mut launch, resume.shape, resume.session_id) {
             return Ok(Some(SpawnCommand::Line(
                 crate::terminal_host::orchestration::managed_launch_shell_rendering::render_managed_launch(
@@ -109,12 +116,14 @@ fn resume_spawn_command(
         return Ok(None);
     }
     if let Some(command) = initial_command(tab)? {
+        let appended = session_settings_for_command(resume.agent_type, &command, settings);
         return Ok(apply_resume_to_command(
             &command,
             resume.shape,
             resume.session_id,
             interactive_shell,
         )
+        .map(|command| append_arguments_to_command(command, &appended, interactive_shell))
         .map(|command| SpawnCommand::Line(wrap_auto_close(tab, command, interactive_shell))));
     }
     Ok(synthesized_resume_command(tab, resume, interactive_shell).map(SpawnCommand::Line))
@@ -129,6 +138,11 @@ fn synthesized_resume_command(
         .then(|| native_ccs_profile(tab))
         .flatten();
     let mut launch = ManagedAgentLaunch::for_native_resume(resume.agent_type, ccs_profile)?;
+    apply_session_settings(
+        resume.agent_type,
+        &mut launch.arguments,
+        native_session_settings(tab),
+    );
     if !apply_resume_to_managed_launch(&mut launch, resume.shape, resume.session_id) {
         return None;
     }
@@ -155,6 +169,7 @@ mod tests {
     use crate::terminal_host::orchestration::agent_session_resume::{
         AGENT_NATIVE_CCS_PROFILE_KEY, AGENT_NATIVE_SESSION_AGENT_KEY, AGENT_NATIVE_SESSION_ID_KEY,
     };
+    use crate::terminal_host::orchestration::agent_session_settings::AGENT_NATIVE_SESSION_SETTINGS_KEY;
     use chrono::Utc;
     use serde_json::json;
 
@@ -277,6 +292,58 @@ mod tests {
         assert_eq!(
             line(&command),
             "ccs work --permission-mode auto '--resume' 'sess-1'"
+        );
+    }
+
+    #[test]
+    fn resume_path_restores_the_settings_the_conversation_last_reported() {
+        let codex = tab(json!({
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "codex",
+            AGENT_NATIVE_SESSION_SETTINGS_KEY: {"model": "gpt-5", "effort": "high"},
+        }));
+        assert_eq!(
+            line(&codex),
+            "'codex' 'resume' 'sess-1' '--model' 'gpt-5' '--config' 'model_reasoning_effort=high'"
+        );
+
+        let snapshot = json!({
+            "version": 1,
+            "profile": {"id": "p1", "name": "Claude Work", "revision": 0},
+            "agentType": "claude",
+            "launchMode": "managed",
+            "launch": {
+                "kind": "managed",
+                "executable": "ccs",
+                "argv": ["work", "--model", "opus", "--permission-mode", "auto"]
+            },
+            "target": {"target": "localTerminal", "platform": "linux"},
+            "initialDelivery": {
+                "mechanism": {"kind": "positionalAfterTerminator"},
+                "replay": "once"
+            }
+        });
+        let profile = tab(json!({
+            AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY: snapshot,
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+            AGENT_NATIVE_SESSION_SETTINGS_KEY: {"model": "sonnet", "permissionMode": "plan"},
+        }));
+        assert_eq!(
+            line(&profile),
+            "'ccs' 'work' '--resume' 'sess-1' '--permission-mode' 'plan'"
+        );
+
+        let command = tab(json!({
+            "agentType": "claude",
+            "initialCommand": "claude --permission-mode auto",
+            AGENT_NATIVE_SESSION_ID_KEY: "sess-1",
+            AGENT_NATIVE_SESSION_AGENT_KEY: "claude",
+            AGENT_NATIVE_SESSION_SETTINGS_KEY: {"permissionMode": "plan", "effort": "max"},
+        }));
+        assert_eq!(
+            line(&command),
+            "claude --permission-mode auto '--resume' 'sess-1' '--effort' 'max'"
         );
     }
 

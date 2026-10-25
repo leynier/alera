@@ -48,6 +48,7 @@ mod account_status_requests;
 mod actor_test_harness;
 mod agent_hook_events;
 mod agent_native_session;
+mod agent_native_session_ledger;
 mod agent_presence_link;
 mod agent_presence_reconciliation;
 mod agent_profile_launch_requests;
@@ -152,6 +153,7 @@ mod remote_resource_relay;
 mod remote_setup_requests;
 mod remote_terminal_lifecycle;
 pub(crate) mod shared_checkout_compatibility;
+mod workspace_agent_session_cleanup;
 use mobile_gateway_replacement::MobileGatewayReplacement;
 mod conversation_requests;
 #[cfg(test)]
