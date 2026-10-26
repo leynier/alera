@@ -5,6 +5,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+#[cfg(not(unix))]
 use alera_core::captured_process::ProcessTreeGuard;
 use alera_core::child_process::windowless_async_command;
 use alera_core::login_shell_environment::apply_login_shell_environment;
@@ -14,6 +15,8 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
+#[cfg(unix)]
+use crate::process_group::ProcessGroup;
 use crate::{ProcessConfig, TransportError};
 
 const READ_CHUNK_BYTES: usize = 8 * 1024;
@@ -197,8 +200,14 @@ async fn drain_stderr(
 
 /// A bounded line-oriented child process used by providers that expose HTTP,
 /// SSE, or RPC endpoints on a local port.
+///
+/// On Unix the child runs in its own process group, which is stopped as a
+/// whole on close, on drop, and when this process dies.
 pub struct ManagedProcess {
     child: Option<Child>,
+    #[cfg(unix)]
+    group: Option<ProcessGroup>,
+    #[cfg(not(unix))]
     tree: Option<ProcessTreeGuard>,
     lines: Receiver<Option<String>>,
     stderr_lines: Arc<LineQueue>,
@@ -250,16 +259,30 @@ impl ManagedProcess {
             .envs(&config.env)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
+            .stderr(Stdio::piped());
         if let Some(cwd) = &config.cwd {
             command.current_dir(cwd);
         }
-        ProcessTreeGuard::prepare_command(&mut command);
+        #[cfg(unix)]
+        let mut group = ProcessGroup::start(config.shutdown_timeout)
+            .map_err(|source| TransportError::io("start process group", source))?;
+        #[cfg(unix)]
+        group.join(&mut command);
+        #[cfg(not(unix))]
+        {
+            command.kill_on_drop(true);
+            ProcessTreeGuard::prepare_command(&mut command);
+        }
 
-        let mut child = command
-            .spawn()
-            .map_err(|source| TransportError::Spawn { executable, source })?;
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(source) => {
+                #[cfg(unix)]
+                group.kill();
+                return Err(TransportError::Spawn { executable, source });
+            }
+        };
+        #[cfg(not(unix))]
         let tree = match ProcessTreeGuard::attach(&child) {
             Ok(tree) => tree,
             Err(reason) => {
@@ -275,6 +298,9 @@ impl ManagedProcess {
         let stdout = match child.stdout.take() {
             Some(stdout) => stdout,
             None => {
+                #[cfg(unix)]
+                group.kill();
+                #[cfg(not(unix))]
                 tree.terminate();
                 let _ = child.start_kill();
                 let _ = child.wait().await;
@@ -287,6 +313,9 @@ impl ManagedProcess {
         let stderr = match child.stderr.take() {
             Some(stderr) => stderr,
             None => {
+                #[cfg(unix)]
+                group.kill();
+                #[cfg(not(unix))]
                 tree.terminate();
                 let _ = child.start_kill();
                 let _ = child.wait().await;
@@ -307,6 +336,9 @@ impl ManagedProcess {
         ));
         Ok(Self {
             child: Some(child),
+            #[cfg(unix)]
+            group: Some(group),
+            #[cfg(not(unix))]
             tree: Some(tree),
             lines,
             stderr_lines,
@@ -345,7 +377,9 @@ impl ManagedProcess {
         self.pid
     }
 
-    /// Stop and reap the child, waiting at most the configured shutdown timeout.
+    /// Stop and reap the child. On Unix its whole group gets SIGTERM and,
+    /// after the configured shutdown timeout, SIGKILL; elsewhere the child is
+    /// killed at once and reaped within that timeout.
     pub async fn close(&mut self) -> Result<(), TransportError> {
         if self.closed {
             return Ok(());
@@ -359,12 +393,30 @@ impl ManagedProcess {
         }
 
         let mut first_error = None;
+        #[cfg(unix)]
+        if let Some(group) = self.group.as_mut() {
+            group.terminate();
+        }
+        #[cfg(not(unix))]
         if let Some(tree) = self.tree.take() {
             tree.terminate();
         }
         if let Some(mut child) = self.child.take() {
+            #[cfg(not(unix))]
             let _ = child.kill().await;
-            match tokio::time::timeout(self.shutdown_timeout, child.wait()).await {
+            let status = tokio::time::timeout(self.shutdown_timeout, child.wait()).await;
+            #[cfg(unix)]
+            let status = match status {
+                // The child ignored SIGTERM for the whole shutdown timeout.
+                Err(_) => {
+                    if let Some(group) = self.group.as_mut() {
+                        group.kill();
+                    }
+                    tokio::time::timeout(self.shutdown_timeout, child.wait()).await
+                }
+                status => status,
+            };
+            match status {
                 Ok(Ok(_)) => {}
                 Ok(Err(source)) => {
                     first_error = Some(TransportError::io("wait child", source));
@@ -376,6 +428,10 @@ impl ManagedProcess {
                 }
             }
         }
+        // Whatever the child left running gets SIGTERM and then SIGKILL, which
+        // also ends the stderr pipes such descendants inherited.
+        #[cfg(unix)]
+        self.group.take();
         if let Some(mut task) = self.stderr_task.take() {
             if tokio::time::timeout(self.shutdown_timeout, &mut task)
                 .await
@@ -399,9 +455,16 @@ impl Drop for ManagedProcess {
         if let Some(task) = self.stderr_task.take() {
             task.abort();
         }
+        // Dropping the group sends SIGTERM to the child and everything it
+        // started, then SIGKILL, with or without a runtime. Tokio reaps the
+        // dropped child.
+        #[cfg(unix)]
+        self.group.take();
+        #[cfg(not(unix))]
         if let Some(tree) = self.tree.take() {
             tree.terminate();
         }
+        #[cfg(not(unix))]
         if let Some(mut child) = self.child.take() {
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 handle.spawn(async move {

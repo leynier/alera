@@ -14,6 +14,8 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio::task::JoinHandle;
 
 use crate::framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT, STDERR_TAIL_BYTES};
+#[cfg(unix)]
+use crate::process_group::ProcessGroup;
 use crate::{JsonTransport, TransportError};
 
 mod read;
@@ -38,8 +40,9 @@ pub struct ProcessConfig {
     pub env: BTreeMap<OsString, OsString>,
     /// Maximum encoded JSON frame size, excluding its trailing newline.
     pub max_frame_bytes: usize,
-    /// Deadline for writes and output backpressure, and the grace period
-    /// before a still-running child is force-killed on close.
+    /// Deadline for writes and output backpressure, and the grace period a
+    /// still-running child gets on close before each harder stop: SIGTERM to
+    /// its process group on Unix, then SIGKILL.
     pub shutdown_timeout: Duration,
 }
 
@@ -101,8 +104,13 @@ async fn drain_stderr(mut stderr: ChildStderr, tail: Arc<Mutex<StderrTail>>) {
 ///
 /// Cancelled sends retain their frame and original deadline. Sending that same
 /// encoded frame resumes it once; a different frame follows it in FIFO order.
+///
+/// On Unix the child runs in its own process group, which is stopped as a
+/// whole on close, on drop, and when this process dies.
 pub struct JsonLineProcess {
     child: Option<Child>,
+    #[cfg(unix)]
+    group: Option<ProcessGroup>,
     stdin: Option<ChildStdin>,
     pending_frame: Option<PendingFrame>,
     pending_error: Option<TransportError>,
@@ -150,15 +158,28 @@ impl JsonLineProcess {
             .envs(&config.env)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
+            .stderr(Stdio::piped());
         if let Some(cwd) = &config.cwd {
             command.current_dir(cwd);
         }
+        // The group replaces kill_on_drop on Unix, which would skip SIGTERM
+        // and reach only the direct child.
+        #[cfg(unix)]
+        let mut group = ProcessGroup::start(config.shutdown_timeout)
+            .map_err(|source| TransportError::io("start process group", source))?;
+        #[cfg(unix)]
+        group.join(&mut command);
+        #[cfg(not(unix))]
+        command.kill_on_drop(true);
 
-        let mut child = command
-            .spawn()
-            .map_err(|source| TransportError::Spawn { executable, source })?;
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(source) => {
+                #[cfg(unix)]
+                group.kill();
+                return Err(TransportError::Spawn { executable, source });
+            }
+        };
         let stdin = child.stdin.take().ok_or_else(|| {
             TransportError::io("spawn", std::io::Error::other("child stdin was not piped"))
         })?;
@@ -181,6 +202,8 @@ impl JsonLineProcess {
 
         Ok(Self {
             child: Some(child),
+            #[cfg(unix)]
+            group: Some(group),
             stdin: Some(stdin),
             pending_frame: None,
             pending_error: None,
@@ -222,6 +245,33 @@ impl JsonLineProcess {
         }
     }
 
+    /// Kill the child at once and, on Unix, everything left in its group.
+    fn kill_child(&mut self) {
+        #[cfg(unix)]
+        if let Some(group) = self.group.as_mut() {
+            group.kill();
+        }
+        if let Some(child) = self.child.as_mut() {
+            let _ = child.start_kill();
+        }
+    }
+
+    /// Stop a child that outlived its closed stdin. On Unix its whole group
+    /// gets SIGTERM and, after the shutdown timeout, SIGKILL; elsewhere the
+    /// child is killed at once.
+    async fn stop_child(&mut self) -> Option<std::process::ExitStatus> {
+        #[cfg(unix)]
+        if let Some(group) = self.group.as_mut() {
+            group.terminate();
+            let wait = self.child.as_mut()?.wait();
+            if let Ok(Ok(status)) = tokio::time::timeout(self.shutdown_timeout, wait).await {
+                return Some(status);
+            }
+        }
+        self.kill_child();
+        self.child.as_mut()?.wait().await.ok()
+    }
+
     async fn close_child(&mut self) -> Result<(), TransportError> {
         let mut first_error = None;
         if let Some(stdin) = self.stdin.as_mut() {
@@ -239,16 +289,17 @@ impl JsonLineProcess {
                 Ok(Ok(status)) => Some(status),
                 Ok(Err(source)) => {
                     first_error.get_or_insert_with(|| TransportError::io("wait child", source));
-                    let _ = child.start_kill();
-                    child.wait().await.ok()
+                    self.kill_child();
+                    match self.child.as_mut() {
+                        Some(child) => child.wait().await.ok(),
+                        None => None,
+                    }
                 }
                 Err(_) => {
-                    let _ = child.start_kill();
-                    let status = child.wait().await.ok();
                     first_error.get_or_insert(TransportError::ShutdownTimeout {
                         timeout: self.shutdown_timeout,
                     });
-                    status
+                    self.stop_child().await
                 }
             };
             if let Some(status) = status {
@@ -256,6 +307,11 @@ impl JsonLineProcess {
             }
         }
         self.child.take();
+        // Whatever the child left running, such as an MCP server's own child,
+        // gets SIGTERM and then SIGKILL. That also ends the stderr pipes such
+        // descendants inherited, so the drain below can finish.
+        #[cfg(unix)]
+        self.group.take();
 
         self.messages.close();
         if let Some(task) = self.stdout_task.take() {
@@ -284,9 +340,7 @@ impl JsonLineProcess {
         self.closed = true;
         self.pending_frame.take();
         self.stdin.take();
-        if let Some(child) = self.child.as_mut() {
-            let _ = child.start_kill();
-        }
+        self.kill_child();
         // Keep the original failure owned by the transport until it is
         // returned, because a command can cancel receive during cleanup.
         self.pending_error = Some(error);
@@ -402,6 +456,12 @@ impl Drop for JsonLineProcess {
             task.abort();
         }
         drop(self.stdin.take());
+        // Dropping the group sends SIGTERM to the child and everything it
+        // started, then SIGKILL, with or without a runtime. Tokio reaps the
+        // dropped child.
+        #[cfg(unix)]
+        self.group.take();
+        #[cfg(not(unix))]
         if let Some(mut child) = self.child.take() {
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 handle.spawn(async move {

@@ -12,6 +12,9 @@ serde_json = "1.0.151"
 thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["io-std", "io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.189"
+
 [[bin]]
 name = "json-echo-fixture"
 path = "tests/support/json_echo_fixture.rs"

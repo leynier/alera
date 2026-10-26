@@ -10,6 +10,8 @@ mod framing;
 mod managed_process;
 mod mock;
 mod process;
+#[cfg(unix)]
+mod process_group;
 
 pub use error::TransportError;
 pub use framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};

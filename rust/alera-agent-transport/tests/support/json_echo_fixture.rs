@@ -15,6 +15,10 @@ async fn main() {
         gated_input(Path::new(&args[1]), Path::new(&args[2]));
         return;
     }
+    if args.first().is_some_and(|arg| arg == "--own-agent") {
+        own_agent(args[1..].to_vec()).await;
+        return;
+    }
     let stdin = tokio::io::stdin();
     let mut lines = BufReader::new(stdin).lines();
     let mut stdout = tokio::io::stdout();
@@ -129,6 +133,20 @@ async fn main() {
             _ => write_json(&mut stdout, json!({"unknown": true}), true).await,
         }
     }
+}
+
+/// Stand in for the runtime host: hold an agent transport until killed.
+async fn own_agent(args: Vec<std::ffi::OsString>) {
+    let _agent =
+        alera_agent_transport::JsonLineProcess::spawn(alera_agent_transport::ProcessConfig {
+            executable: "/bin/sh".into(),
+            args,
+            shutdown_timeout: Duration::from_secs(1),
+            ..alera_agent_transport::ProcessConfig::default()
+        })
+        .await
+        .unwrap();
+    std::future::pending::<()>().await;
 }
 
 fn gated_input(prefix_received: &Path, resume: &Path) {

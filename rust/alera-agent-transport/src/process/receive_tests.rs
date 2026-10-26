@@ -19,6 +19,8 @@ async fn cancelled_failure_cleanup_retains_the_original_receive_error() {
         .unwrap();
     let mut transport = JsonLineProcess {
         child: None,
+        #[cfg(unix)]
+        group: None,
         stdin: None,
         pending_frame: None,
         pending_error: None,
