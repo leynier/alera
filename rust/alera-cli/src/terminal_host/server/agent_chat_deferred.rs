@@ -262,6 +262,18 @@ pub(super) async fn dispatch(
                 _ => runtime.delete(&chat_id, ctx, key).await,
             }
         }
+        "agentChat.skills" => {
+            runtime
+                .skills(
+                    &required_string(payload, "chatId")?,
+                    payload
+                        .get("refresh")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    ctx,
+                )
+                .await
+        }
         "agentChat.markRead" => {
             let request_id = required_string(payload, "requestId")?;
             let cursor = payload

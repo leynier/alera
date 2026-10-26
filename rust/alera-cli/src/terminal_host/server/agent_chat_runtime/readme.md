@@ -44,6 +44,7 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 | `agentChat.delete` | `{requestId, chatId}` | `{deleted: true}` (archived chats only) |
 | `agentChat.approvalHistory` | `{chatId, before?, limit?}` | `{items, historyBefore?, scanLimited}` |
 | `agentChat.turnDiff` | `{chatId, turnId}` | `{turnId, source: provider, available, items, truncated, reason?}` |
+| `agentChat.skills` | `{chatId, workspaceId?, refresh?}` | `{provider, providerInstanceId, skills: [Skill], source?: session\|discovery, status: ready\|pending\|failed, error?}` (`agentChatSkillsV1`) |
 | `agentChat.markRead` | `{requestId, chatId, cursor}` | `{cursor, readCursor}` (no snapshot cursor change) |
 
 `send` with `delivery: auto` starts a turn when idle and queues behind a running turn; `steer` is accepted only when the session capability `steer` is true (`errorCode: "unsupported"` otherwise). `clientMessageId` is idempotent on its own: resending it returns the original result.
@@ -51,6 +52,10 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 `respond.response` is one of `{type: "approval", decision}`, `{type: "userInput", answers: {questionId: value}}`, `{type: "elicitation", action, content?}`, `{type: "native", result}`. `runtimeRequestId` is the runtime's id; the provider's native id never leaves the host. The first writer wins: a later answer gets `request_resolved`. A decision outside the request's `decisions` gets `unsupported`.
 
 `configure` changing `provider`/`providerInstanceId` is accepted only while idle with no open requests and no queued or background work (`errorCode: "turnActive"` otherwise). It keeps every earlier turn and item (each carries its generation's provider) and closes the old process. The next send starts a native session and carries a bounded quoted transcript of prior user and assistant text (no reasoning, no tool payloads). Creation and provider changes spawn no process. `configure.model: null` explicitly resets to the instance or provider default; omitting `model` preserves the current selection. The empty string is accepted only for older clients. A change the provider cannot honor returns `unsupported`.
+
+## Skills
+
+`agentChatSkillsV1` adds `agentChat.skills`, what the composer's `$` menu offers, in the shape of T3 Code's `ServerProviderSkill` (`name`, `path`, `enabled`, optional `description`, `scope`, `displayName`, `shortDescription`, `userInvocationOnly`, `userInvocable`). Skills a live provider reported through `session.skills.updated` (Codex `skills/list` and `skills/changed`, ACP registry `$` commands, Pi `get_commands`) win and are kept in the session actor's memory only, never in the snapshot, until a provider switch. Otherwise the factory discovers them for the chat's instance and cwd: Claude Code, Cursor and Antigravity scan their skill folders, Grok runs `grok inspect --json`, Codex starts a short-lived app-server for `skills/list` and OpenCode asks its server. Answers are cached per instance and cwd for five minutes; `refresh` bypasses the cache and a failed probe drops the cached entry. Agents that only report skills from a session answer `status: pending` before one starts. Mentions stay `$name` text on the wire; each adapter rewrites them into its provider's native form when it sends the prompt. See [docs/agent-chat-harness-parity.md](../../../../../../docs/agent-chat-harness-parity.md).
 
 ## Additive lifecycle contract
 

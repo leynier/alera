@@ -3,7 +3,7 @@
 
 use alera_core::runtime::AgentChatNativeIdInput;
 use alera_provider_protocol::{
-    ContentDeltaPayload, EventKind, ItemLifecyclePayload, ProviderEvent,
+    ContentDeltaPayload, EventKind, ItemLifecyclePayload, ProviderEvent, ProviderSkillsUpdate,
     ProviderSlashCommandsUpdate, StreamKind,
 };
 use serde_json::{json, Value};
@@ -130,6 +130,13 @@ impl ChatSession {
                         self.header.session.commands = commands;
                         self.pending.session();
                     }
+                }
+            }
+            EventKind::SessionSkillsUpdated => {
+                if let Ok(update) =
+                    serde_json::from_value::<ProviderSkillsUpdate>(event.payload.clone())
+                {
+                    self.provider_skills = Some(ProviderSkillsUpdate::new(update.skills).skills);
                 }
             }
             EventKind::ThreadTokenUsageUpdated => self.apply_token_usage(&event.payload),

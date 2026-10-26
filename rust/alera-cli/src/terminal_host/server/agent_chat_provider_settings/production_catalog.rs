@@ -197,7 +197,7 @@ pub(super) async fn validate_effort(
         Err("The selected model does not support this reasoning effort.".into())
     }
 }
-fn probe_launch(
+pub(super) fn probe_launch(
     provider: &str,
     instance: Option<&ProviderInstanceConfig>,
     cwd: Option<PathBuf>,

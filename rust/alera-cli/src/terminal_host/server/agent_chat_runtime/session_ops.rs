@@ -195,6 +195,7 @@ impl ChatSession {
                 | ChatOp::History { .. }
                 | ChatOp::ApprovalHistory { .. }
                 | ChatOp::TurnDiff { .. }
+                | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
                 | ChatOp::Rename { .. }
                 | ChatOp::Reopen { .. }
@@ -217,6 +218,7 @@ impl ChatSession {
                 self.approval_history(before.as_deref(), limit).await
             }
             ChatOp::TurnDiff { turn_id } => self.turn_diff(&turn_id).await,
+            ChatOp::SkillSource => Ok(self.skill_source()),
             ChatOp::NativeHistoryOperation { operation_id } => {
                 self.native_history_operation_status(operation_id.as_deref())
                     .await

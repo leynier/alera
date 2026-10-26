@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use alera_provider_protocol::{McpServerSpec, Provider, ProviderError, RuntimeMode};
+use alera_provider_protocol::{McpServerSpec, Provider, ProviderError, ProviderSkill, RuntimeMode};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -147,6 +147,19 @@ pub(crate) trait ProviderFactory: Send + Sync + 'static {
             unavailable_reason: availability.err(),
             setup: Value::Null,
         }
+    }
+
+    /// The skills an agent offers before it has a session, for the composer's
+    /// `$` menu. `None` means the provider only reports them from a live
+    /// session (ACP agents, Pi), or offers none.
+    async fn discover_skills(
+        &self,
+        _provider: &str,
+        _instance: Option<&ProviderInstanceConfig>,
+        _cwd: Option<PathBuf>,
+        _refresh: bool,
+    ) -> Option<Result<Vec<ProviderSkill>, String>> {
+        None
     }
 
     async fn discover_model_metadata(

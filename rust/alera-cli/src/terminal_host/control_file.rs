@@ -263,6 +263,7 @@ mod tests {
     "agentChatDeleteV1",
     "agentChatApprovalHistoryV1",
     "agentChatTurnDiffV1",
+    "agentChatSkillsV1",
     "agentChatReadCursorV1",
                 "chatOrchestrationV1",
                 "workspaceDetailsV1",

@@ -36,6 +36,8 @@ pub(super) struct Recorded {
     pub(super) reject_steer: AtomicBool,
     pub(super) reject_send: AtomicBool,
     pub(super) send_gate: Mutex<Option<Arc<SendGate>>>,
+    /// `(provider, cwd, refresh)` of each skill discovery.
+    pub(super) skill_discoveries: Mutex<Vec<(String, Option<PathBuf>, bool)>>,
 }
 
 #[derive(Default)]
@@ -59,6 +61,30 @@ impl ProviderFactory for RecordingFactory {
         instance: Option<&ProviderInstanceConfig>,
     ) -> Result<(), String> {
         self.inner.availability(provider, instance).await
+    }
+    async fn discover_skills(
+        &self,
+        provider: &str,
+        _: Option<&ProviderInstanceConfig>,
+        cwd: Option<PathBuf>,
+        refresh: bool,
+    ) -> Option<Result<Vec<ProviderSkill>, String>> {
+        self.recorded
+            .skill_discoveries
+            .lock()
+            .unwrap()
+            .push((provider.to_owned(), cwd, refresh));
+        match provider {
+            "claudeAgent" => Some(Ok(vec![ProviderSkill::from_native(
+                "review",
+                "/skills/review/SKILL.md",
+                true,
+            )
+            .unwrap()
+            .with_scope(Some("user"))])),
+            "cursor" => Some(Err("Cursor skill discovery was incomplete.".into())),
+            _ => None,
+        }
     }
     async fn validate_reasoning_effort(
         &self,

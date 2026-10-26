@@ -39,6 +39,7 @@ impl ChatSession {
                 | ChatOp::History { .. }
                 | ChatOp::ApprovalHistory { .. }
                 | ChatOp::TurnDiff { .. }
+                | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
                 | ChatOp::NativeHistoryReconcile { .. }
                 | ChatOp::Stop

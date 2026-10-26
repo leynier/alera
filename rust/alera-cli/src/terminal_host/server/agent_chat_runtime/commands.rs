@@ -144,6 +144,9 @@ pub(crate) enum ChatOp {
     TurnDiff {
         turn_id: String,
     },
+    /// What `agentChat.skills` needs from the actor: the chat's agent, its
+    /// working directory and the skills a live session reported.
+    SkillSource,
     Fork {
         turn_id: String,
         new_chat_id: String,
@@ -225,6 +228,7 @@ impl ChatOp {
                 | ChatOp::History { .. }
                 | ChatOp::ApprovalHistory { .. }
                 | ChatOp::TurnDiff { .. }
+                | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
         )
     }

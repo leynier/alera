@@ -26,6 +26,8 @@ use launch_config::{build_config, ProductionConfig};
 use owned_provider::OwnedProvider;
 #[path = "../agent_chat_provider_settings/production_catalog.rs"]
 mod inspection;
+#[path = "../agent_chat_provider_settings/production_skills.rs"]
+mod skill_inspection;
 use inspection::resolve_instance;
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -155,6 +157,15 @@ impl ProviderFactory for ProductionProviderFactory {
         instance: Option<&ProviderInstanceConfig>,
     ) -> ProviderStatus {
         inspection::status(self, provider, instance).await
+    }
+    async fn discover_skills(
+        &self,
+        provider: &str,
+        instance: Option<&ProviderInstanceConfig>,
+        cwd: Option<PathBuf>,
+        refresh: bool,
+    ) -> Option<Result<Vec<alera_provider_protocol::ProviderSkill>, String>> {
+        skill_inspection::skills(provider, instance, cwd, refresh).await
     }
     async fn discover_model_metadata(
         &self,

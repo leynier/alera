@@ -68,6 +68,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatDeleteV1",
     "agentChatApprovalHistoryV1",
     "agentChatTurnDiffV1",
+    "agentChatSkillsV1",
     "agentChatReadCursorV1",
     "agentChatProviderSetupV1",
     "agentChatAttachmentUploadV1",
@@ -198,6 +199,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.delete"
             | "agentChat.approvalHistory"
             | "agentChat.turnDiff"
+            | "agentChat.skills"
             | "agentChat.markRead"
             | "agentChat.rewindFiles"
             | "agentChat.fileCheckpoints.configure"

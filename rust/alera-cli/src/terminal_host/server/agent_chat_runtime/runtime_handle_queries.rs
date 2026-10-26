@@ -5,6 +5,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use super::super::catalog::provider_catalog;
 use super::super::commands::{CallerCtx, ChatOp};
 use super::super::restart_recovery;
+use super::super::session_skills::{skill_source_cwd, skills_response};
 use super::{chat_summary, AgentChatRuntime};
 
 impl AgentChatRuntime {
@@ -86,6 +87,38 @@ impl AgentChatRuntime {
             refresh,
         )
         .await)
+    }
+
+    /// `agentChat.skills`: what the composer's `$` menu offers for a chat.
+    pub(crate) async fn skills(
+        &self,
+        chat_id: &str,
+        refresh: bool,
+        ctx: CallerCtx,
+    ) -> HostResult<Value> {
+        let source = self
+            .command(chat_id, ChatOp::SkillSource, ctx, None)
+            .await?;
+        let provider = source["provider"].as_str().unwrap_or_default().to_owned();
+        let instance_id = source["providerInstanceId"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        let discovered = if source["sessionSkills"].is_array() || provider.is_empty() {
+            None
+        } else {
+            self.inner
+                .deps
+                .factory
+                .discover_skills(
+                    &provider,
+                    self.inner.deps.instances.find(&instance_id).as_ref(),
+                    skill_source_cwd(&source),
+                    refresh,
+                )
+                .await
+        };
+        Ok(skills_response(&source, || discovered))
     }
 
     pub(crate) async fn for_workspace(&self, workspace_id: &str, op: ChatOp) {

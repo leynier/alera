@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use alera_core::runtime::{AgentChatCommitOutcome, AgentChatReceipt, RuntimeStore};
 use alera_provider_protocol::{
-    ProviderCapabilities, ProviderError, ProviderEvent, ProviderSession, RequestId,
+    ProviderCapabilities, ProviderError, ProviderEvent, ProviderSession, ProviderSkill, RequestId,
 };
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
@@ -81,6 +81,10 @@ pub(crate) struct ChatSession {
     pub(super) has_items: bool,
     pub(super) provider: Option<BoxedProvider>,
     pub(super) live_caps: Option<ProviderCapabilities>,
+    /// The skills the live provider last reported (`session.skills.updated`).
+    /// Kept out of the header: lists can be large and clients fetch them
+    /// through `agentChat.skills` only when the composer asks.
+    pub(super) provider_skills: Option<Vec<ProviderSkill>>,
     /// Native ids of this provider process are mapped under kinds suffixed
     /// with it, because JSON-RPC and local ids restart with every process.
     pub(super) process_epoch: String,
@@ -204,6 +208,7 @@ impl ChatSession {
             has_items: !page_items.is_empty(),
             provider: None,
             live_caps: None,
+            provider_skills: None,
             process_epoch: super::ids::process_epoch(),
             events_armed: false,
             startup: None,

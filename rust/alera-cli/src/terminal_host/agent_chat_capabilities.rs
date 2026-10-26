@@ -14,6 +14,7 @@ pub(crate) const AGENT_CHAT_EXPERIENCE_CAPABILITIES: &[&str] = &[
     "agentChatDeleteV1",
     "agentChatApprovalHistoryV1",
     "agentChatTurnDiffV1",
+    "agentChatSkillsV1",
     "agentChatReadCursorV1",
     "agentChatProviderSetupV1",
     "agentChatRemoteProviderSetupV1",
