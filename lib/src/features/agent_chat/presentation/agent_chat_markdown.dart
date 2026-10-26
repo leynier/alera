@@ -4,6 +4,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/markdown/alera_code_block.dart';
 import 'package:alera/src/design_system/markdown/alera_markdown_view.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown_math.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:re_highlight/languages/all.dart';
@@ -17,9 +18,9 @@ const int _highlightCacheLimit = 64;
 final LinkedHashMap<(String, String), TextSpan?> _highlightCache =
     LinkedHashMap<(String, String), TextSpan?>();
 
-/// Agent output rendered as Markdown with highlighted code blocks. Images are
-/// not fetched: agent text is untrusted and a remote image would leak that
-/// the chat was read.
+/// Agent output rendered as Markdown with highlighted code blocks and TeX
+/// math, typeset in Flutter. Images are not fetched: agent text is untrusted
+/// and a remote image would leak that the chat was read.
 class const AgentChatMarkdown({
   super.key,
   required final String data,
@@ -33,7 +34,7 @@ class const AgentChatMarkdown({
       height: 1.45,
     );
     return AleraMarkdownView(
-      data: data,
+      data: agentChatDollarMath(data),
       style: style,
       onLinkTap: onOpenLink,
       imageBuilder: (context, source, width, height) => Tooltip(
