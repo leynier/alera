@@ -8,10 +8,9 @@ import { mcpHarness } from './mcp_fixture';
 
 const EDGE_TOOLS = ['list_runtimes', LIST_SKILLS_TOOL, READ_SKILL_TOOL];
 // Chat tools belong to the injected credential-bound server, not the edge.
-const CHAT_TOOL_SOURCE = readFileSync(
-  new NodeURL('../../rust/alera-cli/src/mcp_tools/catalog/chat_orchestration.rs', import.meta.url),
-  'utf8',
-);
+const CHAT_TOOL_SOURCE = ['chat_orchestration.rs', 'chat_transfers.rs']
+  .map((name) => readFileSync(new NodeURL(`../../rust/alera-cli/src/mcp_tools/catalog/${name}`, import.meta.url), 'utf8'))
+  .join('\n');
 const CHAT_TOOLS = [...CHAT_TOOL_SOURCE.matchAll(/\b(?:read|execute|admin)\(\s*"(chat_[a-z_]+)"/g)].map((match) => match[1]);
 // Snake case error codes and enum values in the skills, not tools.
 const NON_TOOL_TERMS = new Set([
