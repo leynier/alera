@@ -55,26 +55,27 @@ final class _FeedbackLifecycle extends AgentChatLifecycleRepository {
   }
 }
 
-FakeAgentChatRepository _chat({bool sent = true}) => FakeAgentChatRepository()
-  ..snapshots.add(
-    () => agentChatSnapshotFixture(
-      commands: _codexCommands,
-      items: sent
-          ? <Map<String, Object?>>[
-              agentChatItemFixture('u1', 'user_message', text: 'Fix it'),
-            ]
-          : const <Map<String, Object?>>[],
-      turns: sent
-          ? <Map<String, Object?>>[
-              <String, Object?>{
-                'turnId': 'turn-1',
-                'status': 'completed',
-                'startedAt': '2026-10-12T10:00:00Z',
-              },
-            ]
-          : const <Map<String, Object?>>[],
-    ),
-  );
+FakeAgentChatRepository _chat({bool sent = true}) =>
+    FakeAgentChatRepository()
+      ..snapshots.add(
+        () => agentChatSnapshotFixture(
+          commands: _codexCommands,
+          items: sent
+              ? <Map<String, Object?>>[
+                  agentChatItemFixture('u1', 'user_message', text: 'Fix it'),
+                ]
+              : const <Map<String, Object?>>[],
+          turns: sent
+              ? <Map<String, Object?>>[
+                  <String, Object?>{
+                    'turnId': 'turn-1',
+                    'status': 'completed',
+                    'startedAt': '2026-10-12T10:00:00Z',
+                  },
+                ]
+              : const <Map<String, Object?>>[],
+        ),
+      );
 
 Future<void> _pump(
   WidgetTester tester,
