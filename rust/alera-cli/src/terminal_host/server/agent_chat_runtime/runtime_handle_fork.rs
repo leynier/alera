@@ -60,6 +60,35 @@ impl AgentChatRuntime {
         .await
     }
 
+    /// `agentChat.mergeBack`: hands a fork's work since the fork point to
+    /// the chat it was forked from, for that chat's next turn.
+    pub(crate) async fn merge_back(
+        &self,
+        chat_id: &str,
+        ctx: CallerCtx,
+        key: Option<ReceiptKey>,
+    ) -> HostResult<Value> {
+        if let Some(response) = self.history_receipt_replay(&ctx, key.as_ref()).await? {
+            return Ok(response);
+        }
+        let source = self
+            .command(chat_id, ChatOp::MergeBackSource, ctx.clone(), None)
+            .await?;
+        let field = |key: &str| source[key].as_str().unwrap_or_default().to_owned();
+        let target = field("sourceChatId");
+        self.command(
+            &target,
+            ChatOp::ReceiveMergeBack(super::session_merge_back::MergeBackInput {
+                from_chat_id: chat_id.to_owned(),
+                from_title: field("title"),
+                text: field("text"),
+            }),
+            ctx,
+            key,
+        )
+        .await
+    }
+
     pub(crate) async fn rewind(
         &self,
         chat_id: &str,

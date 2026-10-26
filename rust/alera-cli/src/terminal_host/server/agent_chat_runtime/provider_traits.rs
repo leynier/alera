@@ -186,6 +186,8 @@ pub(crate) fn capabilities_json(provider: &str, live: Option<&ProviderCapabiliti
         "snapshot": caps.snapshot,
         "nativeTurnIds": caps.native_turn_ids,
         "multipleThreads": caps.multiple_threads,
+        // Codex interrupts a child thread's turn; Claude stops a task.
+        "stopSubagent": matches!(provider, "claude" | "codex"),
         "attachments": traits.as_ref().is_some_and(|t| t.images || t.files),
         "images": traits.as_ref().is_some_and(|t| t.images),
         "plan": traits.as_ref().is_some_and(|t| t.interaction_modes.contains(&"plan")),

@@ -197,6 +197,7 @@ impl ChatSession {
                 | ChatOp::TurnDiff { .. }
                 | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
+                | ChatOp::SubagentTranscript { .. }
                 | ChatOp::Rename { .. }
                 | ChatOp::Reopen { .. }
                 | ChatOp::Close
@@ -282,6 +283,10 @@ impl ChatSession {
             ChatOp::AwaitBackgroundTasks { task_ids, awaited } => {
                 self.await_background_tasks(task_ids, awaited).await
             }
+            ChatOp::SubagentTranscript { item_id } => self.subagent_transcript(&item_id).await,
+            ChatOp::StopSubagent { item_id } => self.stop_subagent(&item_id).await,
+            ChatOp::MergeBackSource => self.merge_back_source().await,
+            ChatOp::ReceiveMergeBack(input) => self.receive_merge_back(input).await,
             ChatOp::Respond {
                 runtime_request_id,
                 response,

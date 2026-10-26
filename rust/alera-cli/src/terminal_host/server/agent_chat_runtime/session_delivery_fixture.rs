@@ -218,6 +218,10 @@ impl Provider for RecordingProvider {
             feedback_id: format!("feedback-{}", uploads.len()),
         })
     }
+
+    async fn stop_subagent(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        self.inner.stop_subagent(task_id).await
+    }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         self.inner.interrupt(input).await
     }

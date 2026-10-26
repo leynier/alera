@@ -78,6 +78,8 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatNativeHistoryV1",
     "agentChatApprovalRedirectV1",
     "agentChatFeedbackV1",
+    "agentChatSubagentThreadsV1",
+    "agentChatMergeBackV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
@@ -207,6 +209,9 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.fileCheckpoints.configure"
             | "agentChat.nativeHistory.operation"
             | "agentChat.nativeHistory.reconcile"
+            | "agentChat.subagent"
+            | "agentChat.stopSubagent"
+            | "agentChat.mergeBack"
             | "agentChat.preferences.get"
             | "agentChat.preferences.update"
             | "agentChat.providerInstances.get"

@@ -24,6 +24,8 @@ mod queue_reorder;
 mod redirect;
 #[path = "session_skills_tests.rs"]
 mod skills;
+#[path = "session_subagent_tests.rs"]
+mod subagents;
 
 #[tokio::test]
 async fn supported_effort_reaches_session_and_turn_and_remembering_waits_for_native_acceptance() {

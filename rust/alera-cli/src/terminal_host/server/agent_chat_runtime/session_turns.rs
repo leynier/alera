@@ -190,8 +190,13 @@ impl ChatSession {
     /// of a fresh provider session in a chat with history, and whether the
     /// transcript was prepended.
     async fn turn_text(&mut self, text: &str, current_item_id: &str) -> HostResult<(String, bool)> {
+        // Work merged back from a fork rides ahead of the next prompt.
+        let text = match self.take_merge_back_context().await {
+            Some(merged) => format!("{merged}{text}"),
+            None => text.to_string(),
+        };
         if !self.handoff_pending {
-            return Ok((text.to_string(), false));
+            return Ok((text, false));
         }
         let store = self.deps.store.clone();
         let chat_id = self.header.chat_id.clone();
@@ -200,7 +205,7 @@ impl ChatSession {
             .map_err(HostError::state)?;
         Ok(match prefix {
             Some(prefix) => (format!("{prefix}{text}"), true),
-            None => (text.to_string(), false),
+            None => (text, false),
         })
     }
 

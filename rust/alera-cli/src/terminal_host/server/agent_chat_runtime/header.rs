@@ -129,6 +129,15 @@ impl Header {
 /// Header fields of the delta from `old` to `new`.
 pub(crate) fn header_delta(old: &Header, new: &Header) -> Map<String, Value> {
     let mut delta = Map::new();
+    if old.extra.get("pendingMergeBacks") != new.extra.get("pendingMergeBacks") {
+        delta.insert(
+            "pendingMergeBacks".into(),
+            new.extra
+                .get("pendingMergeBacks")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+    }
     if old.extra.get("pendingNativeOperation") != new.extra.get("pendingNativeOperation") {
         delta.insert(
             "pendingNativeOperation".into(),
@@ -202,6 +211,8 @@ pub(crate) fn lineage_from_metadata(metadata: Option<&Value>) -> Option<Value> {
         "runId",
         "taskId",
         "createdByChatId",
+        "forkedFromChatId",
+        "forkedFromTurnId",
     ] {
         if let Some(Value::String(value)) = metadata.get(key) {
             lineage.insert(key.into(), Value::String(value.chars().take(256).collect()));

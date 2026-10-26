@@ -248,7 +248,12 @@ impl AgentChatRuntime {
 
 pub(crate) fn chat_summary(chat: &AgentChatRecord) -> Value {
     let snapshot = &chat.snapshot;
-    json!({
+    let forked_from = chat
+        .metadata
+        .as_ref()
+        .and_then(|metadata| metadata.get("forkedFromChatId"))
+        .and_then(Value::as_str);
+    let mut summary = json!({
         "chatId": chat.chat_id,
         "workspaceId": chat.workspace_id,
         "tabId": chat.tab_id,
@@ -260,5 +265,9 @@ pub(crate) fn chat_summary(chat: &AgentChatRecord) -> Value {
         "archived": chat.archived,
         "cursor": chat.cursor,
         "updatedAt": chat.updated_at,
-    })
+    });
+    if let Some(forked_from) = forked_from {
+        summary["forkedFromChatId"] = json!(forked_from);
+    }
+    summary
 }

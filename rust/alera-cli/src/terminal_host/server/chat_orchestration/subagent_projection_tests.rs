@@ -80,8 +80,13 @@ async fn native_subagents_hang_under_the_call_that_started_them() {
     .await
     .unwrap();
     let task = item(&snapshot, |item| item["title"] == "Task").unwrap();
+    let mut subagent = task["normalized"]["subagent"].clone();
+    for clock in ["startedAt", "completedAt"] {
+        assert!(subagent[clock].is_string(), "{clock}");
+        subagent.as_object_mut().unwrap().remove(clock);
+    }
     assert_eq!(
-        task["normalized"]["subagent"],
+        subagent,
         json!({"status": "completed", "taskId": "claude-task",
             "description": "Explore the parser", "summary": "Found the parser"})
     );

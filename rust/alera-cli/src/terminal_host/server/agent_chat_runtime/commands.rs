@@ -191,6 +191,18 @@ pub(crate) enum ChatOp {
     Interrupt {
         turn_id: Option<String>,
     },
+    /// The transcript of the provider-native sub-agent a call started.
+    SubagentTranscript {
+        item_id: String,
+    },
+    /// Stop the running provider-native sub-agent a call started.
+    StopSubagent {
+        item_id: String,
+    },
+    /// A fork's source chat and the work it did since the fork point.
+    MergeBackSource,
+    /// Hold a fork's work for this chat's next turn (`agentChat.mergeBack`).
+    ReceiveMergeBack(super::session_merge_back::MergeBackInput),
     /// Mark (`awaited`) or unmark background tasks the chat's own agent waits
     /// on, by the task ids it saw.
     AwaitBackgroundTasks {
@@ -235,6 +247,8 @@ impl ChatOp {
                 | ChatOp::TurnDiff { .. }
                 | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
+                | ChatOp::SubagentTranscript { .. }
+                | ChatOp::MergeBackSource
         )
     }
 }

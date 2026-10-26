@@ -443,13 +443,14 @@ pub(super) async fn dispatch(
                 )
                 .await
         }
-        _ => Err(HostError::format(format!(
-            "Unknown agent chat request: {request_type}"
-        ))),
+        _ => {
+            super::agent_chat_relationship_requests::dispatch(runtime, request_type, payload, ctx)
+                .await
+        }
     }
 }
 
-fn receipt(request_id: &str, verb: &str, payload: &Value) -> ReceiptKey {
+pub(super) fn receipt(request_id: &str, verb: &str, payload: &Value) -> ReceiptKey {
     ReceiptKey {
         verb: verb.to_string(),
         request_id: request_id.to_string(),

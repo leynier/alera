@@ -26,6 +26,8 @@ pub(crate) struct MockProviderControl {
     /// Running background commands the agent may wait on; `None` answers
     /// like a provider without background waits.
     pub background_tasks: Mutex<Option<Vec<String>>>,
+    /// Sub-agent task ids the runtime asked to stop.
+    pub stopped_subagents: Mutex<Vec<String>>,
     pub changed: Notify,
 }
 
@@ -213,6 +215,7 @@ impl ProviderFactory for MockProviderFactory {
             turns: Mutex::new(Vec::new()),
             interrupts: Mutex::new(Vec::new()),
             background_tasks: Mutex::new(None),
+            stopped_subagents: Mutex::new(Vec::new()),
             responses: Mutex::new(Vec::new()),
             changed: Notify::new(),
         });
@@ -350,6 +353,20 @@ impl Provider for MockProvider {
             .filter(|id| running.contains(id))
             .cloned()
             .collect())
+    }
+    async fn stop_subagent(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        let native_turn = self.control.turns.lock().unwrap().len();
+        self.control
+            .stopped_subagents
+            .lock()
+            .unwrap()
+            .push(task_id.to_owned());
+        self.control.event(
+            EventKind::TaskCompleted,
+            native_turn,
+            json!({"taskId": task_id, "status": "stopped"}),
+        );
+        Ok(())
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         let native_turn = self.control.turns.lock().unwrap().len();

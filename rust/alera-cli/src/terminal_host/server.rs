@@ -51,6 +51,7 @@ mod agent_chat_attachment_store;
 mod agent_chat_deferred;
 pub(crate) mod agent_chat_provider_settings;
 mod agent_chat_provider_settings_requests;
+mod agent_chat_relationship_requests;
 mod agent_chat_remote;
 mod agent_chat_requests;
 mod agent_chat_runtime;

@@ -25,6 +25,8 @@ pub(crate) const AGENT_CHAT_EXPERIENCE_CAPABILITIES: &[&str] = &[
     "agentChatNativeHistoryV1",
     "agentChatApprovalRedirectV1",
     "agentChatFeedbackV1",
+    "agentChatSubagentThreadsV1",
+    "agentChatMergeBackV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
 ];

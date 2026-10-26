@@ -48,20 +48,36 @@ impl ChatSession {
         if parent == item_id {
             return;
         }
+        self.load_item(&parent).await;
+        // A sub-agent that outlives its parent's turn (Codex background
+        // children) still belongs to the turn that started it.
+        let call_turn = self
+            .items
+            .get(&parent)
+            .and_then(|call| call.turn_id.clone());
         if let Some(item) = self.items.get_mut(item_id) {
+            let mut changed = false;
             if item.normalized.get("parentItemId") != Some(&json!(parent)) {
                 item.normalized
                     .insert("parentItemId".into(), json!(parent.clone()));
+                changed = true;
+            }
+            if call_turn.is_some() && item.turn_id != call_turn {
+                item.turn_id = call_turn;
+                changed = true;
+            }
+            if changed {
                 self.pending.item(item_id);
             }
         }
         // A call with work under it is a sub-agent even before the provider
         // reports the task itself.
-        self.load_item(&parent).await;
         if let Some(call) = self.items.get_mut(&parent) {
             if !call.normalized.contains_key("subagent") {
-                call.normalized
-                    .insert("subagent".into(), json!({"status": "running"}));
+                call.normalized.insert(
+                    "subagent".into(),
+                    json!({"status": "running", "startedAt": now()}),
+                );
                 call.updated_at = now();
                 self.pending.item(&parent);
             }
@@ -87,6 +103,15 @@ impl ChatSession {
             .map(str::to_owned)
             .collect();
         for child in children {
+            // The spawning call keeps the child; later calls that name it
+            // (`wait`, completion activity) only report on it.
+            let key = native_key(
+                &self.epoch_kind("subagentThread"),
+                &Value::String(child.clone()),
+            );
+            if self.native_ids.contains_key(&key) {
+                continue;
+            }
             self.map_native("subagentThread", Value::String(child), item_id)
                 .await;
         }
@@ -114,9 +139,28 @@ impl ChatSession {
                             .cloned()
                     })
             };
+        // A later event may name only the task (a stop's outcome).
+        let task_id = nonempty(event.payload.get("taskId")).map(str::to_owned);
+        let task_key = task_id.as_ref().map(|task| {
+            native_key(
+                &self.epoch_kind("subagentTask"),
+                &Value::String(task.clone()),
+            )
+        });
+        let parent = parent.or_else(|| {
+            task_key
+                .as_ref()
+                .and_then(|key| self.native_ids.get(key).cloned())
+        });
         let Some(parent) = parent else {
             return;
         };
+        if let (Some(task), Some(key)) = (task_id, task_key) {
+            if !self.native_ids.contains_key(&key) {
+                self.map_native("subagentTask", Value::String(task), &parent)
+                    .await;
+            }
+        }
         self.load_item(&parent).await;
         let status = subagent_status(event);
         let Some(call) = self.items.get_mut(&parent) else {
@@ -128,8 +172,38 @@ impl ChatSession {
             .filter(|value| value.is_object())
             .cloned()
             .unwrap_or_else(|| json!({}));
+        let previous = subagent
+            .get("status")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        if status == "running" {
+            // A settled sub-agent that runs again (a Codex child's next
+            // turn) restarts its clock.
+            if previous
+                .as_deref()
+                .is_some_and(|previous| previous != "running")
+                || subagent.get("startedAt").is_none()
+            {
+                subagent["startedAt"] = json!(now());
+            }
+            if let Some(object) = subagent.as_object_mut() {
+                object.remove("completedAt");
+            }
+        } else if previous.as_deref() != Some(status) || subagent.get("completedAt").is_none() {
+            if subagent.get("startedAt").is_none() {
+                subagent["startedAt"] = json!(call.created_at.clone());
+            }
+            subagent["completedAt"] = json!(now());
+        }
         subagent["status"] = json!(status);
-        for key in ["taskId", "description", "summary", "taskType"] {
+        for key in [
+            "taskId",
+            "description",
+            "summary",
+            "taskType",
+            "model",
+            "reasoningEffort",
+        ] {
             if let Some(text) = nonempty(event.payload.get(key)) {
                 subagent[key] = json!(bounded(text));
             }
