@@ -181,6 +181,11 @@ final class AgentChatTurnSection {
   final AgentChatItem? handoff;
   final List<AgentChatItem> prompts;
 
+  /// A turn the provider started toward its goal, with no prompt to show;
+  /// both apps draw a quiet marker in the prompt's place.
+  bool get goalContinuation =>
+      prompts.isEmpty && (turn?.goalContinuation ?? false);
+
   /// The turn's work split at steering prompts, oldest first. There is
   /// always at least one; a turn nobody steered has exactly one.
   final List<AgentChatTurnSegment> segments;

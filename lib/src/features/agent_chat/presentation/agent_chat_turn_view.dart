@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_find.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_goal_continuation_marker.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_handoff_divider.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
@@ -56,6 +57,10 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
             AgentChatHandoffDivider(
               key: ValueKey<String>('agent-chat-handoff-${section.turnId}'),
               handoff: handoff,
+            ),
+          if (section.goalContinuation)
+            AgentChatGoalContinuationMarker(
+              key: ValueKey<String>('agent-chat-goal-turn-${section.turnId}'),
             ),
           for (final prompt in section.prompts)
             _target(

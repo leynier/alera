@@ -16,6 +16,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_com
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer_menu_host.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_feedback_banner.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_footer.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_goal_banner.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_native_history_banner.dart';
@@ -173,6 +174,15 @@ class const AgentChatTabBody({
                 .isNotEmpty ??
             false);
     final plan = agentChatRunningPlan(view.timeline);
+    final goalOffered = runtimeOffers(AgentChatWire.goalCapability);
+    void sendGoal(String command) => unawaited(
+      handlers.run(
+        'Could not update the goal.',
+        () => controller.send(
+          AgentChatComposerDraft.fromMessage(command, const []),
+        ),
+      ),
+    );
     final recovery = view.thread.recovery;
     final controls = AgentChatComposerControls(
       hostId: hostId,
@@ -311,6 +321,15 @@ class const AgentChatTabBody({
                     onOpenProviderSettings: handlers.openProviderSettings,
                   ),
                 if (plan != null) AgentChatPlanDock(plan: plan),
+                if (view.session.goal case final goal?
+                    when goalOffered && !view.thread.archived)
+                  AgentChatGoalBanner(
+                    goal: goal,
+                    busy: view.turnActive,
+                    enabled: canAct && !view.nativeOperationPending,
+                    onResume: () => sendGoal(agentChatGoalResumeCommand),
+                    onClear: () => sendGoal(agentChatGoalClearCommand),
+                  ),
               ],
               requests: requests,
               queue: view.thread.queue,

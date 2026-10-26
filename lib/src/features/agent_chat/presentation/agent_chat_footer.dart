@@ -13,6 +13,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_f
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_feedback_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_actions.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_queue.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_goal_banner.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_native_history_notice.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
@@ -97,6 +98,11 @@ class const AgentChatFooter({
         );
       }
     });
+    final goalOffered =
+        ref
+            .watch(agentChatCapabilityProvider(AgentChatWire.goalCapability))
+            .value ??
+        false;
     final catalogProvider = agentChatProviderCatalogProvider(workspace.id);
     final catalog = ref.watch(catalogProvider);
     final feedbackSupported =
@@ -207,6 +213,15 @@ class const AgentChatFooter({
         ),
       if (view.planSteps case final AgentChatItem steps when view.busy)
         AgentChatPlanProgressDock(item: steps),
+      if (view.session?.goal case final AgentChatGoal goal
+          when goalOffered && !view.archived)
+        AgentChatGoalBanner(
+          goal: goal,
+          busy: view.busy,
+          enabled: view.canSend && view.nativeOperation == null,
+          onResume: () => controller.send(agentChatGoalResumeCommand),
+          onClear: () => controller.send(agentChatGoalClearCommand),
+        ),
       if (view.archived)
         AleraInlineNotice(
           message:

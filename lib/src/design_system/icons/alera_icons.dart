@@ -218,6 +218,8 @@ abstract final class const AleraIcons._() {
   static const IconData ai = LucideIcons.sparkles;
   static const IconData plan = LucideIcons.lightbulb;
   static const IconData planActive = LucideIcons.lightbulb600;
+  // The objective an agent keeps working toward (Codex `/goal`).
+  static const IconData goal = LucideIcons.goal;
   static const IconData package = LucideIcons.package;
   static const IconData public = LucideIcons.globe;
   static const IconData theme = LucideIcons.moon;

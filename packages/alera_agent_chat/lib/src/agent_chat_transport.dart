@@ -38,6 +38,9 @@ abstract final class AgentChatWire {
 
   /// `agentChat.mergeBack` hands a fork's work to the chat it came from.
   static const String mergeBackCapability = 'agentChatMergeBackV1';
+
+  /// Sessions carry the provider's `goal` and turns their `origin`.
+  static const String goalCapability = 'agentChatGoalV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.

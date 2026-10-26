@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_goal.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_native_history_capabilities.dart';
@@ -67,6 +68,9 @@ class const AgentChatSession({
   /// The slash commands the agent advertises, for the composer's `/` menu.
   final List<AgentChatProviderCommand> commands =
       const <AgentChatProviderCommand>[],
+
+  /// The objective the provider keeps working toward, when one is set.
+  final AgentChatGoal? goal,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -87,6 +91,7 @@ class const AgentChatSession({
       errorMessage: agentChatJsonString(json['errorMessage']),
       generation: agentChatJsonInt(json['generation']) ?? 0,
       commands: agentChatProviderCommandsFromJson(json['commands']),
+      goal: AgentChatGoal.tryParse(json['goal']),
     );
   }
 
@@ -105,6 +110,10 @@ class const AgentChatTurn({
   final String? provider,
   final String? providerInstanceId,
   final int generation = 0,
+
+  /// Who started the turn when it was not the person: `goalContinuation`
+  /// for a turn the provider started on its own toward an active goal.
+  final String? origin,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -124,8 +133,13 @@ class const AgentChatTurn({
       provider: agentChatJsonString(json['provider']),
       providerInstanceId: agentChatJsonString(json['providerInstanceId']),
       generation: agentChatJsonInt(json['generation']) ?? 0,
+      origin: agentChatJsonString(json['origin']),
     );
   }
+
+  /// A turn the provider started by itself to keep working toward its goal,
+  /// so it has no prompt of its own.
+  bool get goalContinuation => origin == 'goalContinuation';
 
   /// A turn the runtime cut short when it restarted, rather than one the
   /// user or the provider stopped.

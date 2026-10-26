@@ -101,6 +101,8 @@ abstract final class const AleraIcons._() {
   // A skill the chat agent offers, as on the desktop.
   static const IconData skill = LucideIcons.box;
   static const IconData plan = LucideIcons.lightbulb;
+  // The objective an agent keeps working toward (Codex `/goal`).
+  static const IconData goal = LucideIcons.goal;
   static const IconData quota = LucideIcons.gauge;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;

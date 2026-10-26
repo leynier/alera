@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_goal_continuation_marker.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_handoff_divider.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_live_work_row.dart';
@@ -54,6 +55,7 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
       crossAxisAlignment: .stretch,
       children: <Widget>[
         if (handoff != null) AgentChatHandoffDivider(handoff: handoff),
+        if (section.goalContinuation) const AgentChatGoalContinuationMarker(),
         for (final prompt in section.prompts)
           AgentChatUserMessage(item: prompt),
         for (final segment in section.segments) ..._segment(segment),

@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_goal_continuation_marker.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_turn_view.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -347,5 +348,30 @@ void main() {
     expect(find.text('Context Handoff Failed'), findsOneWidget);
     final label = tester.widget<Text>(find.text('Context Handoff Failed'));
     expect(label.style?.color, AleraTokens.error);
+  });
+
+  testWidgets('a goal continuation turn shows a marker for its prompt', (
+    tester,
+  ) async {
+    Map<String, Object?> turn({String? origin}) => <String, Object?>{
+      'turnId': 'turn-1',
+      'status': 'completed',
+      'origin': ?origin,
+    };
+    await _pump(
+      tester,
+      _section(<Map<String, Object?>>[
+        _item('a1', 'assistant_message', text: 'Next step done.'),
+      ], turn: turn(origin: 'goalContinuation')),
+    );
+    expect(find.text(AgentChatGoalContinuationMarker.label), findsOneWidget);
+
+    await _pump(
+      tester,
+      _section(<Map<String, Object?>>[
+        _item('a1', 'assistant_message', text: 'Next step done.'),
+      ], turn: turn()),
+    );
+    expect(find.text(AgentChatGoalContinuationMarker.label), findsNothing);
   });
 }
