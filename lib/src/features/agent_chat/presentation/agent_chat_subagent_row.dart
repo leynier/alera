@@ -1,8 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_scope.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +37,10 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
     final color = failed ? AleraTokens.error : AleraTokens.foregroundMuted;
     final style = theme.textTheme.bodySmall?.copyWith(color: color);
     final label = 'Sub-agent: ${row.label}';
+    final scope = AgentChatSubagentScope.maybeOf(context);
+    final onOpen = scope?.onOpen;
+    final onStop = row.streaming ? scope?.onStop : null;
+    final stopping = scope?.stopping.contains(row.call.id) ?? false;
     return Column(
       key: ValueKey<String>('agent-chat-subagent-${row.call.id}'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,6 +89,33 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
                   expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
                   size: AleraTokens.iconMd,
                   color: AleraTokens.foregroundFaint,
+                ),
+              ],
+              if (onStop != null) ...<Widget>[
+                const SizedBox(width: AleraTokens.space4),
+                AleraIconButton(
+                  key: ValueKey<String>(
+                    'agent-chat-subagent-stop-${row.call.id}',
+                  ),
+                  tooltip: 'Stop Sub-agent',
+                  icon: AleraIcons.square,
+                  iconSize: AleraTokens.iconSm,
+                  minSize: AleraTokens.iconButtonXs,
+                  iconColor: AleraTokens.error,
+                  onPressed: stopping ? null : () => onStop(row.call.id),
+                ),
+              ],
+              if (onOpen != null) ...<Widget>[
+                const SizedBox(width: AleraTokens.space4),
+                AleraIconButton(
+                  key: ValueKey<String>(
+                    'agent-chat-subagent-open-${row.call.id}',
+                  ),
+                  tooltip: 'Open Sub-agent',
+                  icon: AleraIcons.forward,
+                  iconSize: AleraTokens.iconSm,
+                  minSize: AleraTokens.iconButtonXs,
+                  onPressed: () => onOpen(row.call.id),
                 ),
               ],
             ],
