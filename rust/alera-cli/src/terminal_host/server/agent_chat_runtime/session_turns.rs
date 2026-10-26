@@ -1,7 +1,7 @@
 //! Sending, queueing, interrupting and finishing turns.
 
 use alera_core::runtime::{AgentChatReceipt, AgentChatReceiptCheck};
-use alera_provider_protocol::{InteractionMode, InterruptInput, TurnInput};
+use alera_provider_protocol::{FailureClass, InteractionMode, InterruptInput, TurnInput};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -14,7 +14,30 @@ use super::session::{ChatSession, DeferredTurn, FLUSH_TEXT_BYTES};
 use super::session_turn_admission::{client_message_digest, provider_attachments};
 use super::wire::{ChatItem, ChatTurn, STREAM_TEXT};
 
+#[cfg(test)]
+#[path = "session_turn_end_tests.rs"]
+mod tests;
+
 const CLIENT_MESSAGE_VERB: &str = "clientMessage";
+
+/// How a turn ended.
+pub(super) struct TurnEnd {
+    pub status: String,
+    pub error_message: Option<String>,
+    pub reason: Option<String>,
+    pub failure_class: FailureClass,
+}
+
+impl TurnEnd {
+    pub(super) fn new(status: &str, error_message: Option<String>, reason: Option<String>) -> Self {
+        Self {
+            status: status.into(),
+            error_message,
+            reason,
+            failure_class: FailureClass::Unknown,
+        }
+    }
+}
 
 impl ChatSession {
     fn client_message_scope(&self) -> String {
@@ -162,6 +185,7 @@ impl ChatSession {
             started_at: stamp.clone(),
             completed_at: None,
             error_message: None,
+            failure_class: None,
             reason: None,
             model: input
                 .model
@@ -292,8 +316,11 @@ impl ChatSession {
                     alera_provider_protocol::ProviderError::Closed
                         | alera_provider_protocol::ProviderError::Transport(_)
                 );
-                self.finish_turn("failed", Some(message.clone()), Some("sendFailed".into()))
-                    .await;
+                self.end_turn(TurnEnd {
+                    failure_class: error.failure_class(),
+                    ..TurnEnd::new("failed", Some(message.clone()), Some("sendFailed".into()))
+                })
+                .await;
                 if dead {
                     self.provider_failed(message).await;
                 }
@@ -327,13 +354,25 @@ impl ChatSession {
         Ok(json!({"acknowledged": true, "interrupted": true}))
     }
 
-    /// Ends the running turn and everything that belonged to it.
     pub(super) async fn finish_turn(
         &mut self,
         status: &str,
         error_message: Option<String>,
         reason: Option<String>,
     ) {
+        self.end_turn(TurnEnd::new(status, error_message, reason))
+            .await;
+    }
+
+    /// Ends the running turn and everything that belonged to it.
+    pub(super) async fn end_turn(&mut self, end: TurnEnd) {
+        let TurnEnd {
+            status,
+            error_message,
+            reason,
+            failure_class,
+        } = end;
+        let status = status.as_str();
         let Some(turn_id) = self.header.session.active_turn_id.take() else {
             return;
         };
@@ -341,6 +380,8 @@ impl ChatSession {
             turn.status = status.into();
             turn.completed_at = Some(now());
             turn.error_message = error_message.clone();
+            turn.failure_class =
+                (status == "failed" && !failure_class.is_unknown()).then_some(failure_class);
             turn.reason = reason;
         }
         self.provider_turn_id = None;

@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use super::ids::{native_key, new_id, now};
 use super::item_normalization::{bounded_data, final_output, final_text, project_item_data};
 use super::session::ChatSession;
+use super::session_turns::TurnEnd;
 use super::wire::{json, ChatItem, STREAM_OUTPUT, STREAM_REASONING, STREAM_TEXT};
 
 impl ChatSession {
@@ -54,7 +55,11 @@ impl ChatSession {
                     .unwrap_or("completed")
                     .to_string();
                 let error = event.payload["errorMessage"].as_str().map(str::to_string);
-                self.finish_turn(&state, error, None).await;
+                self.end_turn(TurnEnd {
+                    failure_class: event.failure_class(),
+                    ..TurnEnd::new(&state, error, None)
+                })
+                .await;
                 self.drain_queue().await;
                 return;
             }

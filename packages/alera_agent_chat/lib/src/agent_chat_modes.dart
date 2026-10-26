@@ -83,6 +83,22 @@ enum AgentChatTurnStatus {
   bool get isTerminal => this != AgentChatTurnStatus.running;
 }
 
+/// Why a failed turn failed, when the provider said so (`turn.failureClass`).
+enum AgentChatFailureClass {
+  usageLimit,
+  contextWindowFull,
+  auth,
+  previousTurnActive,
+  attachmentUnreadable,
+  unknown;
+
+  static AgentChatFailureClass fromJson(Object? value) => agentChatWireEnum(
+    value,
+    AgentChatFailureClass.values,
+    AgentChatFailureClass.unknown,
+  );
+}
+
 enum AgentChatRequestKind {
   commandExecutionApproval,
   fileReadApproval,

@@ -2,6 +2,7 @@
 //! `agentChat.snapshot` and `agentChatChanged` carry; native provider ids never
 //! appear in them.
 
+use alera_provider_protocol::FailureClass;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -102,6 +103,10 @@ pub(crate) struct ChatTurn {
     pub completed_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    /// Why a failed turn failed, when the provider said so; `errorMessage`
+    /// keeps the provider's own text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure_class: Option<FailureClass>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

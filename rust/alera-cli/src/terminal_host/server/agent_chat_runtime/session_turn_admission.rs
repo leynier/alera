@@ -84,6 +84,7 @@ impl ChatSession {
             started_at: stamp.clone(),
             completed_at: Some(stamp.clone()),
             error_message: Some(error_message),
+            failure_class: None,
             reason: Some("admissionFailed".into()),
             model: input
                 .model

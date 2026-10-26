@@ -137,7 +137,7 @@ String? _turnErrorMessage(AgentChatTurnSection section) {
   if (section.answers.any((item) => item.type == AgentChatItemType.error)) {
     return null;
   }
-  return turn.errorMessage ?? 'The turn failed.';
+  return agentChatTurnFailureMessage(turn);
 }
 
 class const _AnswerView({
