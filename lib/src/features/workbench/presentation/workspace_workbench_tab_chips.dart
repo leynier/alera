@@ -111,7 +111,7 @@ class const _WorkspaceTabChip({
   }
 
   Widget _buildChip(BuildContext context, String title, WidgetRef ref) {
-    return GestureDetector(
+    final chip = GestureDetector(
       onSecondaryTapDown: (details) =>
           unawaited(_openContextMenu(context, details.globalPosition, ref)),
       child: Material(
@@ -203,6 +203,11 @@ class const _WorkspaceTabChip({
         ),
       ),
     );
+    return switch (tab.agentChatId) {
+      final chatId? when tab.kind == WorkspaceTabKind.agentChat =>
+        AgentChatTabHover(chatId: chatId, child: chip),
+      _ => chip,
+    };
   }
 }
 

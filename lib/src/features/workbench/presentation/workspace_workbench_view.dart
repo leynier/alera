@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_tab_hover.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';

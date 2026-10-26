@@ -247,6 +247,7 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
   Object _tokenFor(AgentChatTimelineEntry entry) => switch (entry) {
     AgentChatTurnEntry(:final section) => section,
     AgentChatStandaloneEntry(:final item) => item,
+    AgentChatTransferEntry(:final transfer) => transfer,
     AgentChatOutgoingEntry(:final message)
         when widget.preparingAttachmentIds.contains(message.clientMessageId) =>
       _uploadingTokens[message] ??= Object(),

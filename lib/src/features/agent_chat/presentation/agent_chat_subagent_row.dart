@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_preview_card.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_scope.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_panel.dart';
@@ -50,90 +51,93 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
       key: ValueKey<String>('agent-chat-subagent-${row.call.id}'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        AgentChatDisclosure(
-          expanded: expanded,
-          onToggle: hasBody
-              ? () => setState(
-                  () => widget.expansion.set(key, expanded: !expanded),
-                )
-              : null,
-          child: Row(
-            children: <Widget>[
-              Icon(
-                workflow == null ? AleraIcons.agent : AleraIcons.workflow,
-                size: AleraTokens.iconMd,
-                color: color,
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Flexible(
-                child: row.streaming
-                    ? AleraShimmerText(
-                        text: label,
-                        style: style,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      )
-                    : Text(
-                        label,
-                        style: style,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Text(
-                workflow != null
-                    ? workflow.summary
-                    : row.childCount == 0
-                    ? row.status.label
-                    : '${row.status.label} · ${row.childCount} '
-                          '${row.childCount == 1 ? 'step' : 'steps'}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: failed
-                      ? AleraTokens.error
-                      : AleraTokens.foregroundFaint,
-                ),
-              ),
-              if (hasBody) ...<Widget>[
-                const SizedBox(width: AleraTokens.space4),
+        AgentChatPreviewHover(
+          preview: AgentChatPreview.subagent(row.call),
+          child: AgentChatDisclosure(
+            expanded: expanded,
+            onToggle: hasBody
+                ? () => setState(
+                    () => widget.expansion.set(key, expanded: !expanded),
+                  )
+                : null,
+            child: Row(
+              children: <Widget>[
                 Icon(
-                  expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+                  workflow == null ? AleraIcons.agent : AleraIcons.workflow,
                   size: AleraTokens.iconMd,
-                  color: AleraTokens.foregroundFaint,
+                  color: color,
                 ),
-              ],
-              if (onStop != null) ...<Widget>[
-                const SizedBox(width: AleraTokens.space4),
-                AleraIconButton(
-                  key: ValueKey<String>(
-                    'agent-chat-subagent-stop-${row.call.id}',
+                const SizedBox(width: AleraTokens.space8),
+                Flexible(
+                  child: row.streaming
+                      ? AleraShimmerText(
+                          text: label,
+                          style: style,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      : Text(
+                          label,
+                          style: style,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                Text(
+                  workflow != null
+                      ? workflow.summary
+                      : row.childCount == 0
+                      ? row.status.label
+                      : '${row.status.label} · ${row.childCount} '
+                            '${row.childCount == 1 ? 'step' : 'steps'}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: failed
+                        ? AleraTokens.error
+                        : AleraTokens.foregroundFaint,
                   ),
-                  tooltip: workflow == null
-                      ? 'Stop Sub-agent'
-                      : 'Stop Workflow',
-                  icon: AleraIcons.square,
-                  iconSize: AleraTokens.iconSm,
-                  minSize: AleraTokens.iconButtonXs,
-                  iconColor: AleraTokens.error,
-                  onPressed: stopping ? null : () => onStop(row.call.id),
                 ),
-              ],
-              if (onOpen != null) ...<Widget>[
-                const SizedBox(width: AleraTokens.space4),
-                AleraIconButton(
-                  key: ValueKey<String>(
-                    'agent-chat-subagent-open-${row.call.id}',
+                if (hasBody) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  Icon(
+                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+                    size: AleraTokens.iconMd,
+                    color: AleraTokens.foregroundFaint,
                   ),
-                  tooltip: workflow == null
-                      ? 'Open Sub-agent'
-                      : 'Open Workflow',
-                  icon: AleraIcons.forward,
-                  iconSize: AleraTokens.iconSm,
-                  minSize: AleraTokens.iconButtonXs,
-                  onPressed: () => onOpen(row.call.id),
-                ),
+                ],
+                if (onStop != null) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  AleraIconButton(
+                    key: ValueKey<String>(
+                      'agent-chat-subagent-stop-${row.call.id}',
+                    ),
+                    tooltip: workflow == null
+                        ? 'Stop Sub-agent'
+                        : 'Stop Workflow',
+                    icon: AleraIcons.square,
+                    iconSize: AleraTokens.iconSm,
+                    minSize: AleraTokens.iconButtonXs,
+                    iconColor: AleraTokens.error,
+                    onPressed: stopping ? null : () => onStop(row.call.id),
+                  ),
+                ],
+                if (onOpen != null) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  AleraIconButton(
+                    key: ValueKey<String>(
+                      'agent-chat-subagent-open-${row.call.id}',
+                    ),
+                    tooltip: workflow == null
+                        ? 'Open Sub-agent'
+                        : 'Open Workflow',
+                    icon: AleraIcons.forward,
+                    iconSize: AleraTokens.iconSm,
+                    minSize: AleraTokens.iconButtonXs,
+                    onPressed: () => onOpen(row.call.id),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         if (expanded)

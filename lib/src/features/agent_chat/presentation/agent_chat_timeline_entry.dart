@@ -3,6 +3,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_r
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_find.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_transfer_row.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_turn_view.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,12 @@ class const AgentChatTimelineEntryView({
             workspacePath: workspacePath,
           ),
         ),
+      ),
+      final AgentChatTransferEntry transfer => AgentChatTransferRowView(
+        entry: transfer,
+        expansion: expansion,
+        actions: actions,
+        workspacePath: workspacePath,
       ),
       AgentChatOutgoingEntry(:final message) => AgentChatFindTarget(
         targetKey: agentChatFindOutgoingTargetKey(message.clientMessageId),

@@ -1,6 +1,9 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_lineage_transfers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_preview_card.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_phases.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +30,16 @@ class const AgentChatRelationshipsPanel({
   super.key,
   required final AgentChatRelationships relationships,
   required final AgentChatRelationshipActions actions,
+
+  /// Context moved into the chat (`agentChatTransfersV1`), listed after
+  /// the lineage.
+  final List<AgentChatTransferRelation> transfers =
+      const <AgentChatTransferRelation>[],
+
+  /// Every chat the runtime knows and the chat's own provider, for the hover
+  /// cards of the rows.
+  final List<AgentChatSummary> chats = const <AgentChatSummary>[],
+  final String provider = '',
 }) extends StatefulWidget {
   @override
   State<AgentChatRelationshipsPanel> createState() =>
@@ -106,6 +119,10 @@ class _AgentChatRelationshipsPanelState
             ),
             if (_previousExpanded) ..._group('previous', previous),
           ],
+          AgentChatLineageTransfers(
+            transfers: widget.transfers,
+            onOpenChat: widget.actions.onOpenChat,
+          ),
         ],
       ),
     );
@@ -122,6 +139,7 @@ class _AgentChatRelationshipsPanelState
           relation: relation,
           actions: widget.actions,
           mergeTarget: relation.kind == AgentChatRelationKind.forkSource,
+          preview: _preview(relation),
         ),
       if (hidden > 0)
         TextButton.icon(
@@ -132,6 +150,23 @@ class _AgentChatRelationshipsPanelState
         ),
     ];
   }
+
+  AgentChatPreview _preview(AgentChatRelation relation) {
+    final call = relation.call;
+    if (call != null) {
+      return AgentChatPreview.subagent(
+        call,
+        provider: widget.provider,
+        providerLabel: agentChatProviderFallbackLabel,
+      );
+    }
+    return AgentChatPreview.chat(
+      widget.chats.where((chat) => chat.chatId == relation.chatId).firstOrNull,
+      fallbackTitle: relation.title,
+      relation: relation.kind.label,
+      providerLabel: agentChatProviderFallbackLabel,
+    );
+  }
 }
 
 class const _RelationRow({
@@ -139,6 +174,7 @@ class const _RelationRow({
   required final AgentChatRelation relation,
   required final AgentChatRelationshipActions actions,
   required final bool mergeTarget,
+  required final AgentChatPreview preview,
 }) extends StatefulWidget {
   @override
   State<_RelationRow> createState() => _RelationRowState();
@@ -176,10 +212,8 @@ class _RelationRowState extends State<_RelationRow> {
     final row = Row(
       children: <Widget>[
         Expanded(
-          child: Tooltip(
-            message: relation.missing
-                ? 'This related chat is unavailable'
-                : 'Open ${relation.kindLabel.toLowerCase()}',
+          child: AgentChatPreviewHover(
+            preview: widget.preview,
             child: InkWell(
               borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
               onTap: onOpen,

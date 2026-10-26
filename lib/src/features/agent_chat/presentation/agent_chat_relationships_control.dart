@@ -9,7 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The chat's lineage behind one button: parent, fork source, forks,
-/// delegated chats and native sub-agents. Hidden while the chat has none.
+/// delegated chats, native sub-agents and the context moved into the chat.
+/// Hidden while the chat has none.
 class const AgentChatRelationshipsControl({
   super.key,
   required final String chatId,
@@ -44,6 +45,17 @@ class _AgentChatRelationshipsControlState
         ),
       ),
     );
+    final chat = agentChatControllerProvider(widget.chatId, widget.workspaceId);
+    final transferRecords = ref.watch(
+      chat.select(
+        (state) =>
+            state.thread?.contextTransfers ??
+            const <AgentChatContextTransfer>[],
+      ),
+    );
+    final provider = ref.watch(
+      chat.select((state) => state.thread?.provider ?? ''),
+    );
     final chats =
         ref.watch(agentChatRelatedChatsProvider).value ??
         const <AgentChatSummary>[];
@@ -52,7 +64,14 @@ class _AgentChatRelationshipsControlState
       chats: chats,
       items: calls,
     );
-    if (relationships.isEmpty) return const SizedBox.shrink();
+    final transfers = agentChatTransferRelations(
+      chatId: widget.chatId,
+      transfers: transferRecords,
+      chats: chats,
+    );
+    if (relationships.isEmpty && transfers.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final running = relationships.runningCount;
     return AleraPopover(
       controller: _popover,
@@ -61,6 +80,9 @@ class _AgentChatRelationshipsControlState
       builder: (context, close) => AgentChatRelationshipsPanel(
         relationships: relationships,
         actions: widget.actions(relationships, close),
+        transfers: transfers,
+        chats: chats,
+        provider: provider,
       ),
       child: Material(
         color: AleraTokens.surface,
