@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_message_view.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_transfer_row.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_turn_view.dart';
 import 'package:flutter/material.dart';
 
@@ -168,6 +169,9 @@ class _AgentChatTimelineViewState extends State<AgentChatTimelineView> {
       ),
       _ => AgentChatItemRowView(item: item),
     },
+    final AgentChatTransferEntry transfer => AgentChatTransferRowView(
+      entry: transfer,
+    ),
     AgentChatOutgoingEntry(:final message) => AgentChatOutgoingMessageView(
       message: message,
       onRetry: widget.canRespond

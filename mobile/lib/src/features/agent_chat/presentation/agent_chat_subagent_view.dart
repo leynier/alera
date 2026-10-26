@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_action_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_preview_sheet.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_workflow_view.dart';
@@ -77,6 +78,13 @@ class _AgentChatSubagentViewState extends State<AgentChatSubagentView> {
           child: InkWell(
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             onTap: hasBody ? _toggle : null,
+            onLongPress: () => showAgentChatPreviewSheet(
+              context,
+              AgentChatPreview.subagent(
+                row.call,
+                providerLabel: agentChatPreviewProviderLabel,
+              ),
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 minHeight: AleraTokens.minTapTarget,
