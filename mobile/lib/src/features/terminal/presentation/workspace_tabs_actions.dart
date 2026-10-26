@@ -100,6 +100,12 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
             label: 'Approval History',
             leading: Icon(AleraIcons.restore),
           ),
+        if (tab.isAgentChat && chatId != null)
+          const AleraActionSheetEntry<_TabAction>(
+            value: .lineage,
+            label: 'Lineage',
+            leading: Icon(AleraIcons.gitFork),
+          ),
         if (chatTasks) ...const <AleraActionSheetEntry<_TabAction>>[
           AleraActionSheetEntry<_TabAction>(
             value: .delegateTask,
@@ -147,6 +153,15 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
           fromChatId: chatId,
           workspaceId: tab.workspaceId,
         );
+      case _TabAction.lineage when chatId != null:
+        await showAgentChatLineageSheet(
+          context,
+          AgentChatSubagentChat(
+            hostId: widget.hostId,
+            workspaceId: tab.workspaceId,
+            chatId: chatId,
+          ),
+        );
       case _TabAction.approvalHistory when chatId != null:
         await showAgentChatApprovalHistorySheet(
           context,
@@ -159,6 +174,7 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
         );
       case _TabAction.delegateTask ||
           _TabAction.sendToChat ||
+          _TabAction.lineage ||
           _TabAction.approvalHistory:
         break;
       case null:
@@ -196,6 +212,7 @@ enum _TabAction {
   rename,
   generateTitle,
   approvalHistory,
+  lineage,
   delegateTask,
   sendToChat,
   close,

@@ -92,6 +92,10 @@ abstract final class const AleraIcons._() {
   static const IconData fileGeneric = LucideIcons.file;
   static const IconData attach = LucideIcons.paperclip;
   static const IconData agent = LucideIcons.bot;
+  // Back from a native sub-agent to the chat or sub-agent that started it.
+  static const IconData openParent = LucideIcons.cornerLeftUp;
+  // Stops one running sub-agent, as the desktop's square stop glyph.
+  static const IconData stopSubagent = LucideIcons.square;
   // A slash command the chat agent advertises, in the composer `/` menu.
   static const IconData agentCommand = LucideIcons.squareSlash;
   // A skill the chat agent offers, as on the desktop.

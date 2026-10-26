@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_act
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_actions.dart';
 import 'package:flutter/material.dart';
 
 /// One activity row of a turn, a sub-agent's included.
@@ -104,6 +105,10 @@ class _AgentChatSubagentViewState extends State<AgentChatSubagentView> {
                       size: AleraTokens.space16,
                       color: AleraTokens.foregroundFaint,
                     ),
+                  AgentChatSubagentRowActions(
+                    call: row.call,
+                    running: row.streaming,
+                  ),
                 ],
               ),
             ),

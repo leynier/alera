@@ -16,6 +16,8 @@ import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_tab_
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_archived_chats_sheet.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_sheets.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_lineage_sheet.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_provider_identity.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_view.dart';
 import 'package:alera_mobile/src/features/agent_provider_settings/presentation/agent_providers_screen.dart';
