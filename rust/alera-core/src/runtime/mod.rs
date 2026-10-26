@@ -6,9 +6,97 @@ mod automation_precheck_process_store;
 mod remote_automation_precheck_result_store;
 pub use automation_precheck_process_store::AutomationPrecheckProcess;
 mod owner_automation_precheck_store;
+mod owner_workspace_registration_store;
 pub use owner_automation_precheck_store::{
     OwnerAutomationPrecheck, OwnerAutomationPrecheckOutcome, OwnerAutomationPrecheckRequest,
 };
+mod agent_chat_admission;
+#[cfg(test)]
+mod agent_chat_admission_tests;
+mod agent_chat_attention;
+mod agent_chat_commit;
+#[cfg(test)]
+mod agent_chat_commit_tests;
+mod agent_chat_deletion;
+mod agent_chat_history_mutations;
+#[cfg(test)]
+mod agent_chat_history_tests;
+mod agent_chat_identity;
+#[cfg(test)]
+mod agent_chat_identity_tests;
+mod agent_chat_lifecycle;
+#[cfg(test)]
+mod agent_chat_lifecycle_receipt_tests;
+mod agent_chat_models;
+mod agent_chat_native_operations;
+pub use agent_chat_native_operations::*;
+mod agent_chat_selection;
+mod agent_chat_settings_models;
+mod agent_chat_settings_schema;
+mod agent_chat_settings_store;
+#[cfg(test)]
+mod agent_chat_settings_tests;
+pub use agent_chat_selection::AGENT_CHAT_UNSELECTED_PROVIDER;
+mod agent_chat_preferences;
+mod agent_chat_provider_store;
+mod agent_chat_provider_validation;
+pub use agent_chat_provider_store::agent_chat_provider_instances_response;
+pub use agent_chat_settings_models::*;
+#[cfg(test)]
+mod agent_chat_payload_tests;
+mod agent_chat_payloads;
+pub use agent_chat_payloads::{AgentChatPayloadChunk, AgentChatPayloadPage};
+mod agent_chat_projection;
+mod agent_chat_receipts;
+mod agent_chat_recovery;
+mod agent_chat_schema;
+#[cfg(test)]
+mod agent_chat_secret_schema_tests;
+mod agent_chat_secrets;
+mod agent_chat_store;
+#[cfg(test)]
+mod agent_chat_test_support;
+#[cfg(test)]
+mod agent_chat_turn_history_tests;
+#[cfg(test)]
+mod agent_chat_turn_migration_tests;
+mod agent_chat_turns;
+mod agent_chat_validation;
+#[cfg(test)]
+mod agent_chat_wire_tests;
+#[cfg(test)]
+mod agent_chat_write_concurrency_tests;
+pub use agent_chat_models::*;
+pub use agent_chat_validation::agent_chat_command_digest;
+mod chat_orchestration_cancellation;
+#[cfg(test)]
+mod chat_orchestration_cancellation_tests;
+mod chat_orchestration_credentials;
+mod chat_orchestration_delivery;
+mod chat_orchestration_lineage;
+mod chat_orchestration_models;
+mod chat_orchestration_preparation;
+#[cfg(test)]
+mod chat_orchestration_preparation_tests;
+mod chat_orchestration_receipts;
+mod chat_orchestration_recovery;
+mod chat_orchestration_rows;
+mod chat_orchestration_schema;
+mod chat_orchestration_store;
+#[cfg(test)]
+mod chat_orchestration_store_tests;
+#[cfg(test)]
+mod chat_orchestration_wait_recovery_tests;
+#[cfg(test)]
+mod chat_orchestration_wake_recovery_tests;
+mod chat_orchestration_wakes;
+pub use chat_orchestration_credentials::{
+    hash_chat_orchestration_credential, new_chat_orchestration_credential_secret,
+};
+pub use chat_orchestration_delivery::*;
+pub use chat_orchestration_models::*;
+pub use chat_orchestration_receipts::chat_orchestration_request_digest;
+pub use chat_orchestration_store::new_chat_orchestration_task_id;
 mod agent_native_session_store;
 pub use agent_native_session_store::AgentNativeSessionRecord;
 #[cfg(test)]

@@ -251,17 +251,26 @@ pub(crate) fn grouped_event(events: Vec<PushEvent>) -> PushEvent {
 /// category boundary. A terminal exit must not be delivered to an attention
 /// subscription merely because it arrived in the same three-second window.
 pub(crate) fn grouped_events_by_category(events: Vec<PushEvent>) -> Vec<PushEvent> {
-    let mut groups = BTreeMap::<String, Vec<PushEvent>>::new();
+    let mut groups = BTreeMap::<(String, String), Vec<PushEvent>>::new();
     for event in events {
+        let target = match event.data["kind"].as_str() {
+            Some("agentChat") => {
+                format!("chat:{}", event.data["chatId"].as_str().unwrap_or_default())
+            }
+            Some("chatTask") => {
+                format!("task:{}", event.data["taskId"].as_str().unwrap_or_default())
+            }
+            _ => String::new(),
+        };
         groups
-            .entry(event.category.clone())
+            .entry((event.category.clone(), target))
             .or_default()
             .push(event);
     }
     groups.into_values().map(grouped_event).collect()
 }
 
-fn location_body(location: &PushLocation) -> String {
+pub(super) fn location_body(location: &PushLocation) -> String {
     let project = location.project_name.as_deref().unwrap_or_default().trim();
     let workspace = location
         .workspace_name

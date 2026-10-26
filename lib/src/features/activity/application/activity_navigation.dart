@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/activity/domain/activity_location.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
@@ -168,4 +169,42 @@ class ActivityNavigation extends _$ActivityNavigation {
 
   void consumeAuthoring() =>
       state = state.copyWith.automations(authoring: null);
+
+  // Chat tasks.
+
+  /// Selects a task in Chat Tasks. Never selects a workspace or a chat.
+  void selectChatTask(String? id) =>
+      state = state.copyWith.chatTasks(taskId: id);
+
+  /// Opens Activity on Chat Tasks with [taskId] selected.
+  void openChatTask(String taskId) {
+    open(ActivitySection.chatTasks);
+    selectChatTask(taskId);
+  }
+
+  void filterChatTaskBucket(AgentChatTaskBucket? bucket) => state = state
+      .copyWith
+      .chatTasks(bucket: bucket, limit: chatTasksPageSize);
+
+  void filterChatTaskProject(String? id) => state = state.copyWith.chatTasks(
+    projectId: id,
+    workspaceId: null,
+    limit: chatTasksPageSize,
+  );
+
+  void filterChatTaskWorkspace(String? id) => state = state.copyWith.chatTasks(
+    workspaceId: id,
+    limit: chatTasksPageSize,
+  );
+
+  void clearChatTaskFilters() => state = state.copyWith.chatTasks(
+    projectId: null,
+    workspaceId: null,
+    bucket: null,
+    limit: chatTasksPageSize,
+  );
+
+  void showMoreChatTasks() => state = state.copyWith.chatTasks(
+    limit: state.chatTasks.limit + chatTasksPageSize,
+  );
 }

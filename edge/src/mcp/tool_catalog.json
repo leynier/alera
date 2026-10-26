@@ -7,6 +7,1862 @@
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
+        "title": "Read Agent Chat"
+      },
+      "description": "Read the provider catalog, chats, transcript, approval history, or turn diff. History reads are bounded and capability gated.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "providers"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "list"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "snapshot"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "history"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "payload"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "approval-history"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "turn-diff"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "native-history-operation"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "hostId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "operationId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "operation": {
+            "description": "Named agent-chat CLI operation.",
+            "enum": [
+              "providers",
+              "list",
+              "snapshot",
+              "history",
+              "payload",
+              "approval-history",
+              "turn-diff",
+              "native-history-operation"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Canonical agentChat request fields, including explicit chatId/workspaceId/hostId as applicable. Configure accepts model:null and reasoningEffort:null. Settings edits require expectedRevision. Receipt ids are supplied through clientRequestId.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "agent_chat_query",
+      "timeoutSeconds": 30,
+      "title": "Read Agent Chat"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Control Agent Chat"
+      },
+      "description": "Create, send, configure, answer, close, steer, fork, rewind, rewind files, configure file checkpoints, reconcile native history, delete, or mark read. Rewind defaults to transcript; mode:native is explicit and independently gated. Read native-history-operation before resolving native ambiguity, never repeat an uncertain provider action.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "create"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "send"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "configure"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "rename"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "interrupt"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "respond"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "recover"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "close"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "reopen"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "queue-cancel"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "queue-edit"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "queue-steer"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "fork"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "rewind"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "hostId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "mode": {
+                    "default": "transcript",
+                    "enum": [
+                      "transcript",
+                      "native"
+                    ],
+                    "type": "string"
+                  },
+                  "turnId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId",
+                  "turnId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "rewind-files"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "hostId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "turnId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId",
+                  "turnId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "file-checkpoints-configure"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "hostId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId",
+                  "enabled"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "native-history-reconcile"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "finishAcknowledged",
+                      "restartFromTranscript",
+                      "cancelUnstarted",
+                      "continueFromCurrentFiles"
+                    ],
+                    "type": "string"
+                  },
+                  "chatId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "expectedRevision": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "hostId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "operationId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId",
+                  "operationId",
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "delete"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "mark-read"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "operation": {
+            "description": "Named agent-chat CLI operation.",
+            "enum": [
+              "create",
+              "send",
+              "configure",
+              "rename",
+              "interrupt",
+              "respond",
+              "recover",
+              "close",
+              "reopen",
+              "queue-cancel",
+              "queue-edit",
+              "queue-steer",
+              "fork",
+              "rewind",
+              "rewind-files",
+              "file-checkpoints-configure",
+              "native-history-reconcile",
+              "delete",
+              "mark-read"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Canonical agentChat request fields, including explicit chatId/workspaceId/hostId as applicable. Configure accepts model:null and reasoningEffort:null. Settings edits require expectedRevision. Receipt ids are supplied through clientRequestId.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "agent_chat_control",
+      "timeoutSeconds": 30,
+      "title": "Control Agent Chat"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Read Agent Chat Settings"
+      },
+      "description": "Read host-shared preferences, provider launch definitions without secret values, or instance removal impact. Requires admin access.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "preferences-get"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "provider-instances-get"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "provider-instances-removal-impact"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "operation": {
+            "description": "Named agent-chat CLI operation.",
+            "enum": [
+              "preferences-get",
+              "provider-instances-get",
+              "provider-instances-removal-impact"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Canonical agentChat request fields, including explicit chatId/workspaceId/hostId as applicable. Configure accepts model:null and reasoningEffort:null. Settings edits require expectedRevision. Receipt ids are supplied through clientRequestId.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "agent_chat_settings_read",
+      "timeoutSeconds": 30,
+      "title": "Read Agent Chat Settings"
+    },
+    {
+      "access": "admin",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Update Agent Chat Settings"
+      },
+      "description": "Apply preference operations, edit or remove provider instances, or set/clear write-only secrets. Requires admin access and expectedRevision; inspect removal impact first. Secret payloads travel on stdin.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "preferences-update"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "provider-instances-upsert"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "provider-instances-remove"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "secrets-set"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "secrets-clear"
+                ]
+              },
+              "payload": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "operation": {
+            "description": "Named agent-chat CLI operation.",
+            "enum": [
+              "preferences-update",
+              "provider-instances-upsert",
+              "provider-instances-remove",
+              "secrets-set",
+              "secrets-clear"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Canonical agentChat request fields, including explicit chatId/workspaceId/hostId as applicable. Configure accepts model:null and reasoningEffort:null. Settings edits require expectedRevision. Receipt ids are supplied through clientRequestId.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "agent_chat_settings_update",
+      "timeoutSeconds": 30,
+      "title": "Update Agent Chat Settings"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Read Chat Tasks"
+      },
+      "description": "Read human-visible chat capabilities, chats, bounded transcript, task status, task pages, open requests, or wait up to 50 seconds. This tool never acknowledges results.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "capabilities"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "hostId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "list"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "hostId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "includeArchived": {
+                    "type": "boolean"
+                  },
+                  "projectId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "read"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "limit": {
+                    "maximum": 200,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "chatId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "task"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "taskId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "taskId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "task-list"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "attention": {
+                    "type": "boolean"
+                  },
+                  "childChatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "cursor": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "hostId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "limit": {
+                    "maximum": 200,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "parentChatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "rootTaskId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "statuses": {
+                    "items": {
+                      "enum": [
+                        "preparing",
+                        "running",
+                        "needs_input",
+                        "completed",
+                        "failed",
+                        "interrupted",
+                        "cancel_requested",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "minItems": 0,
+                    "type": "array"
+                  },
+                  "workspaceId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "wait"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "taskIds": {
+                    "items": {
+                      "maxLength": 4096,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "until": {
+                    "enum": [
+                      "any",
+                      "all"
+                    ],
+                    "type": "string"
+                  },
+                  "waitSeconds": {
+                    "maximum": 50,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "taskIds"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "requests"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "required": [
+                      "chatId"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "taskId"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "chatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "operation": {
+            "enum": [
+              "capabilities",
+              "list",
+              "read",
+              "task",
+              "task-list",
+              "wait",
+              "requests"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Exact canonical chatOrchestration fields for the selected operation; caller identity is host-derived. Request ids use clientRequestId outside this payload.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "chat_task_query",
+      "timeoutSeconds": 58,
+      "title": "Read Chat Tasks"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Delegate Chat Task"
+      },
+      "description": "Delegate a brief as an authenticated human to a chat, workspace, or new managed/shared workspace. Optional parentChatId binds its task dock and idle-only wake without impersonating an agent. Effort uses agent.options.reasoningEffort and requires verified support. Retain returned task/chat/workspace ids.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "delegate"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "model": {
+                        "maxLength": 4096,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "options": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "reasoningEffort": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [],
+                        "type": "object"
+                      },
+                      "providerInstanceId": {
+                        "maxLength": 4096,
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "type": "object"
+                  },
+                  "interactionMode": {
+                    "enum": [
+                      "default",
+                      "plan"
+                    ],
+                    "type": "string"
+                  },
+                  "mode": {
+                    "enum": [
+                      "async",
+                      "wait"
+                    ],
+                    "type": "string"
+                  },
+                  "notify": {
+                    "enum": [
+                      "always",
+                      "settled_only",
+                      "never"
+                    ],
+                    "type": "string"
+                  },
+                  "parentChatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "role": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "runtimeMode": {
+                    "enum": [
+                      "approval-required",
+                      "auto-accept-edits",
+                      "auto",
+                      "full-access"
+                    ],
+                    "type": "string"
+                  },
+                  "target": {
+                    "additionalProperties": false,
+                    "maxProperties": 1,
+                    "minProperties": 1,
+                    "properties": {
+                      "chat": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "chatId": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "chatId"
+                        ],
+                        "type": "object"
+                      },
+                      "newWorkspace": {
+                        "additionalProperties": false,
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "mode": {
+                                "enum": [
+                                  "worktree"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "branch"
+                            ]
+                          },
+                          {
+                            "properties": {
+                              "mode": {
+                                "enum": [
+                                  "shared"
+                                ]
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "branch": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "hostId": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "mode": {
+                            "enum": [
+                              "worktree",
+                              "shared"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "parentWorkspaceId": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "projectId": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "reuseExistingBranch": {
+                            "type": "boolean"
+                          },
+                          "setup": {
+                            "enum": [
+                              "inline",
+                              "deferred"
+                            ],
+                            "type": "string"
+                          },
+                          "sourceBranch": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "projectId",
+                          "hostId",
+                          "mode"
+                        ],
+                        "type": "object"
+                      },
+                      "workspace": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "workspaceId": {
+                            "maxLength": 4096,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "workspaceId"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [],
+                    "type": "object"
+                  },
+                  "task": {
+                    "maxLength": 65536,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "title": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "waitSeconds": {
+                    "maximum": 50,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "task",
+                  "target"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "delegate"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Exact canonical chatOrchestration fields for the selected operation; caller identity is host-derived. Request ids use clientRequestId outside this payload.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "chat_task_delegate",
+      "timeoutSeconds": 58,
+      "title": "Delegate Chat Task"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Send Chat Task Message"
+      },
+      "description": "Send a message as an authenticated human to an existing chat, optionally creating a completion task with expectReply. Optional parentChatId applies only to expectReply and requires person-parent capability. Delivery is auto or queue; no workspace navigation occurs.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "send"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "delivery": {
+                    "enum": [
+                      "auto",
+                      "queue"
+                    ],
+                    "type": "string"
+                  },
+                  "expectReply": {
+                    "type": "boolean"
+                  },
+                  "message": {
+                    "maxLength": 65536,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "parentChatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId",
+                  "message"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "send"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Exact canonical chatOrchestration fields for the selected operation; caller identity is host-derived. Request ids use clientRequestId outside this payload.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "chat_task_send",
+      "timeoutSeconds": 30,
+      "title": "Send Chat Task Message"
+    },
+    {
+      "access": "execute",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Control Chat Task"
+      },
+      "description": "Acknowledge a result, cancel a task and descendants, interrupt a turn, answer an exact offered request, or configure a chat. Per-chat execution permissions apply; provider/global Settings require separate admin tools. Mutable requests, including acknowledgement on updated hosts, replay the supplied request receipt; legacy no-id acknowledgement remains compatible.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "acknowledge"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "taskId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "taskId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "cancel"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "taskId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "interrupt"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "turnId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "respond"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "chatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "response": {
+                    "type": "object"
+                  },
+                  "runtimeRequestId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId",
+                  "runtimeRequestId",
+                  "response"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "configure"
+                ]
+              },
+              "payload": {
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "required": [
+                      "provider"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "providerInstanceId"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "model"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "reasoningEffort"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "runtimeMode"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "interactionMode"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "chatId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "interactionMode": {
+                    "enum": [
+                      "default",
+                      "plan"
+                    ],
+                    "type": "string"
+                  },
+                  "model": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "provider": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "providerInstanceId": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "reasoningEffort": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "runtimeMode": {
+                    "enum": [
+                      "approval-required",
+                      "auto-accept-edits",
+                      "auto",
+                      "full-access"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chatId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "operation",
+              "payload"
+            ]
+          }
+        ],
+        "properties": {
+          "clientRequestId": {
+            "description": "Optional retry key. Reuse it when retrying this call so the change happens once.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "acknowledge",
+              "cancel",
+              "interrupt",
+              "respond",
+              "configure"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "description": "Exact canonical chatOrchestration fields for the selected operation; caller identity is host-derived. Request ids use clientRequestId outside this payload.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "name": "chat_task_control",
+      "timeoutSeconds": 30,
+      "title": "Control Chat Task"
+    },
+    {
+      "access": "read",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
         "title": "Runtime Status"
       },
       "description": "Show whether the Alera runtime host is running, its database, and its active sessions.",

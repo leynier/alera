@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -7,19 +9,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// One choice of an [AleraSectionedPicker]. A non-empty [disabledReason]
-/// disables the row and is shown in place of [subtitle].
+/// disables the row and is shown in place of [subtitle]. [keywords] are
+/// searched like the title without being shown, such as the name of the
+/// section a row belongs to.
 class const AleraPickerRow<T>({
   required final T value,
   required final String title,
   final String? subtitle,
   final Widget? leading,
   final String? disabledReason,
+  final List<String> keywords = const <String>[],
 }) {
   bool get enabled => disabledReason == null || disabledReason!.isEmpty;
 
   bool matches(String query) =>
       title.toLowerCase().contains(query) ||
-      (subtitle?.toLowerCase().contains(query) ?? false);
+      (subtitle?.toLowerCase().contains(query) ?? false) ||
+      keywords.any((keyword) => keyword.toLowerCase().contains(query));
 }
 
 /// Titled group of [AleraPickerRow]s. [emptyMessage], when set, is shown
@@ -36,7 +42,8 @@ class const AleraPickerSection<T>({
 ///
 /// Typing filters rows by title and subtitle. Arrow keys move the highlight
 /// across sections and skip disabled rows, Enter picks the highlighted row,
-/// and the row matching [selectedValue] carries the [AleraActiveRail].
+/// and the row matching [selectedValue] carries the [AleraActiveRail] and is
+/// scrolled into view when the picker opens.
 class const AleraSectionedPicker<T>({
   super.key,
   required final List<AleraPickerSection<T>> sections,
@@ -56,6 +63,7 @@ class const AleraSectionedPicker<T>({
 class _AleraSectionedPickerState<T> extends State<AleraSectionedPicker<T>> {
   final TextEditingController _query = TextEditingController();
   final FocusNode _focusNode = FocusNode(debugLabel: 'AleraSectionedPicker');
+  final ScrollController _scroll = ScrollController();
   final Map<int, GlobalKey> _rowKeys = <int, GlobalKey>{};
   int _highlighted = -1;
 
@@ -64,16 +72,22 @@ class _AleraSectionedPickerState<T> extends State<AleraSectionedPicker<T>> {
   @override
   void initState() {
     super.initState();
-    _highlighted = _initialHighlight(_visibleRows());
-    if (widget.autofocus) {
+    final rows = _visibleRows();
+    _highlighted = _initialHighlight(rows);
+    final selected = rows.indexWhere(
+      (row) => row.value == widget.selectedValue,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
       // Inside a popover the overlay is attached a frame after the anchor
       // asked for it, so autofocus alone loses to the popover's own scope.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _focusNode.requestFocus();
-        }
-      });
-    }
+      if (widget.autofocus) {
+        _focusNode.requestFocus();
+      }
+      _revealRow(selected);
+    });
   }
 
   @override
@@ -89,6 +103,7 @@ class _AleraSectionedPickerState<T> extends State<AleraSectionedPicker<T>> {
   @override
   void dispose() {
     _focusNode.dispose();
+    _scroll.dispose();
     _query.dispose();
     super.dispose();
   }
@@ -147,19 +162,40 @@ class _AleraSectionedPickerState<T> extends State<AleraSectionedPicker<T>> {
       return;
     }
     setState(() => _highlighted = _nextEnabled(rows, _highlighted, step));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final rowContext = _rowKeys[_highlighted]?.currentContext;
-      if (mounted && rowContext != null) {
-        Scrollable.ensureVisible(
-          rowContext,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        );
-        Scrollable.ensureVisible(
-          rowContext,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
-        );
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _revealRow(_highlighted),
+    );
+  }
+
+  /// Scrolls the row at [index] into view, moving the list only when the
+  /// row is not already fully visible.
+  void _revealRow(int index, {bool jumped = false}) {
+    if (!mounted || index < 0) {
+      return;
+    }
+    final rowContext = _rowKeys[index]?.currentContext;
+    if (rowContext != null) {
+      Scrollable.ensureVisible(
+        rowContext,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+      Scrollable.ensureVisible(
+        rowContext,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+      return;
+    }
+    // The list builds rows lazily, so a row far below the fold has no
+    // context yet: jump to its share of the list, then align it.
+    if (jumped || !_scroll.hasClients) {
+      return;
+    }
+    final position = _scroll.position;
+    final last = math.max(1, _visibleRows().length - 1);
+    position.jumpTo(position.maxScrollExtent * index / last);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _revealRow(index, jumped: true),
+    );
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
@@ -254,6 +290,7 @@ class _AleraSectionedPickerState<T> extends State<AleraSectionedPicker<T>> {
               child: children.isEmpty
                   ? _PickerMessage(message: widget.emptyMessage, theme: theme)
                   : ListView(
+                      controller: _scroll,
                       shrinkWrap: true,
                       padding: const EdgeInsets.only(
                         left: AleraTokens.space4,

@@ -52,6 +52,7 @@ class const SettingsDialog({
   final String initialSectionId = 'application',
   final String? initialProjectId,
   final String? initialHostId,
+  final String? initialProviderInstanceId,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
@@ -397,6 +398,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         paneKeys: _paneKeys,
         initialProjectId: widget.initialProjectId,
         initialHostId: widget.initialHostId,
+        initialProviderInstanceId: widget.initialProviderInstanceId,
       ),
     ];
 

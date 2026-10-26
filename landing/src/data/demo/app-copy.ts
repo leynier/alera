@@ -103,7 +103,7 @@ export const APP_COPY = {
   pullRequest: { text: 'Pull Request', source: `${WORKBENCH}/domain/workspace_panel.dart` },
   explorer: { text: 'Explorer', source: `${WORKBENCH}/domain/workspace_panel.dart` },
   search: { text: 'Search', source: `${WORKBENCH}/domain/workspace_panel.dart` },
-  terminal: { text: 'Terminal', source: `${WORKBENCH}/presentation/workspace_panel_menus.dart` },
+  terminal: { text: 'Terminal', source: `${WORKBENCH}/presentation/workspace_panel_add_tab_menu.dart` },
   staged: { text: 'Staged', source: 'lib/src/shared/infra/git/git_diff_models.dart' },
   unstaged: { text: 'Unstaged', source: 'lib/src/shared/infra/git/git_diff_models.dart' },
   noChanges: { text: 'No changes', source: `${WORKBENCH}/presentation/workspace_git_diff_panel_layout.dart` },

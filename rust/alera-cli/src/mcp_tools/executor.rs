@@ -1,16 +1,17 @@
 //! Runs one catalog tool as a child `alera` process.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
 use alera_core::child_process::windowless_async_command;
+use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
 
 use super::origin::ORIGIN_VARIABLE;
-use super::{CallOrigin, ToolSpec};
+use super::{CallOrigin, ToolSpec, CHAT_CREDENTIAL_FILE_ENV};
 
 /// One relay frame is capped at 1 MiB, and the result travels inside JSON.
 pub(crate) const MAX_STDOUT_BYTES: usize = 768 * 1024;
@@ -36,6 +37,7 @@ const CONTEXT_VARIABLES: &[&str] = &[
 pub(crate) struct ToolExecution {
     pub(crate) executable: PathBuf,
     pub(crate) runtime_dir: PathBuf,
+    pub(crate) chat_credential_file: Option<PathBuf>,
 }
 
 impl ToolExecution {
@@ -43,8 +45,27 @@ impl ToolExecution {
         Ok(Self {
             executable: std::env::current_exe()?,
             runtime_dir,
+            chat_credential_file: None,
         })
     }
+
+    pub(crate) fn chat_bound(mut self, path: PathBuf) -> Self {
+        self.chat_credential_file = Some(path);
+        self
+    }
+
+    pub(crate) fn is_chat_bound(&self) -> bool {
+        self.chat_credential_file.is_some()
+    }
+}
+
+pub(crate) fn validate_chat_credential_file(path: &Path) -> Result<()> {
+    let value = std::fs::read_to_string(path)
+        .with_context(|| format!("could not read chat credential file {}", path.display()))?;
+    if value.trim().is_empty() {
+        anyhow::bail!("chat credential file is empty");
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -131,6 +152,45 @@ pub(crate) async fn run_tool(
     origin: &CallOrigin,
     cancelled: Option<oneshot::Receiver<()>>,
 ) -> ToolResult {
+    let result = run_tool_inner(execution, tool, arguments, origin, cancelled).await;
+    guard_native_history_failure(tool.name, arguments, result)
+}
+
+pub(super) fn guard_native_history_failure(
+    tool_name: &str,
+    arguments: &Value,
+    mut result: ToolResult,
+) -> ToolResult {
+    let sensitive = tool_name == "agent_chat_control"
+        && match arguments["operation"].as_str() {
+            Some("rewind") => arguments["payload"]["mode"] == "native",
+            Some("rewind-files" | "native-history-reconcile") => true,
+            _ => false,
+        };
+    if sensitive && result.is_error {
+        let notice = "Read native-history-operation before any retry; resolve an ambiguous native result through an offered reconciliation action.";
+        result.text.push('\n');
+        result.text.push_str(notice);
+        if let Some(error) = result
+            .structured
+            .as_mut()
+            .and_then(|value| value.get_mut("error"))
+            .and_then(Value::as_object_mut)
+        {
+            error.insert("retryable".into(), json!(false));
+            error.insert("message".into(), json!(result.text));
+        }
+    }
+    result
+}
+
+async fn run_tool_inner(
+    execution: &ToolExecution,
+    tool: &ToolSpec,
+    arguments: &Value,
+    origin: &CallOrigin,
+    cancelled: Option<oneshot::Receiver<()>>,
+) -> ToolResult {
     let invocation = match tool.invocation(arguments) {
         Ok(invocation) => invocation,
         Err(error) => return ToolResult::error(error.0),
@@ -149,6 +209,11 @@ pub(crate) async fn run_tool(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
+    if let Some(path) = execution.chat_credential_file.as_ref() {
+        command.env(CHAT_CREDENTIAL_FILE_ENV, path);
+    } else {
+        command.env_remove(CHAT_CREDENTIAL_FILE_ENV);
+    }
     for variable in CONTEXT_VARIABLES {
         command.env_remove(variable);
     }

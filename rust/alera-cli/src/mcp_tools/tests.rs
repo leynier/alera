@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
-use super::{catalog, catalog_json, find_tool, run_tool, CallOrigin, ToolAccess, ToolExecution};
+use super::{
+    catalog, catalog_json, find_tool, run_tool, validate_chat_credential_file, CallOrigin,
+    ToolAccess, ToolExecution,
+};
 
 fn invocation_args(tool: &str, arguments: Value) -> (Vec<String>, Option<String>) {
     let tool = find_tool(tool).expect("tool exists");
@@ -154,6 +157,7 @@ async fn reports_invalid_arguments_without_spawning() {
     let execution = ToolExecution {
         executable: PathBuf::from("/nonexistent/alera"),
         runtime_dir: PathBuf::from("/nonexistent"),
+        chat_credential_file: None,
     };
     let tool = find_tool("show_task").unwrap();
     let result = run_tool(&execution, &tool, &json!({}), &CallOrigin::default(), None).await;
@@ -217,6 +221,207 @@ fn messages_name_their_sender() {
         .unwrap()
         .invocation(&json!({ "to": "@all", "subject": "hi" }))
         .is_err());
+}
+
+#[test]
+fn chat_bound_catalog_contains_only_chat_and_workspace_discovery_tools() {
+    let tools = super::catalog::chat_tools();
+    assert!(tools.iter().any(|tool| tool.name == "chat_delegate"));
+    assert!(tools.iter().any(|tool| tool.name == "list_projects"));
+    assert!(tools.iter().any(|tool| tool.name == "list_workspaces"));
+    assert!(!tools.iter().any(|tool| tool.name == "send_message"));
+    assert!(tools
+        .iter()
+        .filter(|tool| tool.name.starts_with("chat_") && tool.access != ToolAccess::Read)
+        .all(|tool| tool.client_request_flag == Some("--request-id")));
+}
+
+#[test]
+fn chat_catalog_uses_the_chat_wire_verbs_and_bounded_wait() {
+    let names = super::catalog::chat_tools()
+        .into_iter()
+        .filter(|tool| tool.name.starts_with("chat_"))
+        .map(|tool| tool.name)
+        .collect::<HashSet<_>>();
+    let expected = [
+        "chat_capabilities",
+        "chat_list",
+        "chat_read",
+        "chat_transfers",
+        "chat_delegate",
+        "chat_send",
+        "chat_task_status",
+        "chat_task_wait",
+        "chat_task_list",
+        "chat_task_cancel",
+        "chat_interrupt",
+        "chat_background_wait",
+        "chat_requests",
+        "chat_respond",
+        "chat_configure",
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
+    assert_eq!(names, expected);
+
+    let wait = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_task_wait")
+        .unwrap();
+    let invocation = wait
+        .invocation(&json!({
+            "taskIds": ["task-1"],
+            "timeoutSeconds": 50,
+            "until": "all",
+        }))
+        .unwrap();
+    assert!(invocation.args.contains(&"--task-id=task-1".to_owned()));
+    assert!(invocation.args.contains(&"--timeout-seconds=50".to_owned()));
+    assert!(invocation.args.contains(&"--until=all".to_owned()));
+
+    let requests = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_requests")
+        .unwrap();
+    let invocation = requests.invocation(&json!({ "taskId": "task-1" })).unwrap();
+    assert!(invocation.args.contains(&"--task-id=task-1".to_owned()));
+}
+
+#[test]
+fn background_waits_name_the_tasks_and_refuse_out_of_range_lists() {
+    let tool = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_background_wait")
+        .unwrap();
+    assert_eq!(tool.access, ToolAccess::Execute);
+    let invocation = tool
+        .invocation(&json!({"taskIds": ["bash-1", "bash-2"], "clientRequestId": "wait-0001"}))
+        .unwrap();
+    assert_eq!(invocation.group, "chat");
+    assert_eq!(invocation.args[0], "background-wait");
+    assert!(invocation
+        .args
+        .contains(&"--task-id=bash-1,bash-2".to_owned()));
+    assert!(invocation
+        .args
+        .contains(&"--request-id=wait-0001".to_owned()));
+    assert!(!invocation.args.contains(&"--stop-waiting".to_owned()));
+    let unmark = tool
+        .invocation(&json!({"taskIds": ["bash-1"], "waiting": false}))
+        .unwrap();
+    assert!(unmark.args.contains(&"--stop-waiting".to_owned()));
+    let too_many: Vec<String> = (0..21).map(|index| format!("bash-{index}")).collect();
+    for task_ids in [json!([]), json!(too_many), json!([" "])] {
+        assert!(tool.invocation(&json!({"taskIds": task_ids})).is_err());
+    }
+    // An unsupported provider is an invalid request, not a failure.
+    assert_eq!(
+        super::executor::error_code(
+            "Invalid request: this chat's provider cannot mark background work as awaited."
+        ),
+        ("invalid_argument", false)
+    );
+}
+
+#[test]
+fn chat_delegate_mcp_request_uses_client_request_id_and_task_stdin() {
+    let tool = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_delegate")
+        .unwrap();
+    let arguments = json!({
+        "task": "inspect the child",
+        "target": {"chat": {"chatId": "chat-1"}},
+        "clientRequestId": "retry-01",
+    });
+    let invocation = tool.invocation(&arguments).unwrap();
+    assert!(invocation
+        .args
+        .contains(&"--request-id=retry-01".to_owned()));
+    assert!(invocation.args.contains(&"--task-stdin".to_owned()));
+    assert_eq!(invocation.stdin.as_deref(), Some("inspect the child"));
+}
+
+#[test]
+fn injected_task_acknowledgement_maps_optional_request_id_without_changing_legacy_calls() {
+    let tool = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_task_status")
+        .unwrap();
+    let keyed = tool
+        .invocation(&json!({"taskId":"t","acknowledge":true,"clientRequestId":"ack-retry-1"}))
+        .unwrap();
+    assert!(keyed.args.contains(&"--request-id=ack-retry-1".into()));
+    let legacy = tool
+        .invocation(&json!({"taskId":"t","acknowledge":true}))
+        .unwrap();
+    assert!(!legacy
+        .args
+        .iter()
+        .any(|arg| arg.starts_with("--request-id=")));
+    assert!(tool
+        .invocation(&json!({"taskId":"t","clientRequestId":"read-only-1"}))
+        .is_err());
+}
+
+#[test]
+fn native_history_failures_require_observation_instead_of_automatic_retry() {
+    for arguments in [
+        json!({"operation":"rewind","payload":{"mode":"native"}}),
+        json!({"operation":"rewind-files","payload":{}}),
+        json!({"operation":"native-history-reconcile","payload":{}}),
+    ] {
+        let result = super::executor::guard_native_history_failure(
+            "agent_chat_control",
+            &arguments,
+            super::ToolResult::error("request did not finish within 30 seconds"),
+        );
+        assert_eq!(result.structured.unwrap()["error"]["retryable"], false);
+        assert!(result.text.contains("Read native-history-operation"));
+    }
+    let transcript = super::executor::guard_native_history_failure(
+        "agent_chat_control",
+        &json!({"operation":"rewind","payload":{"mode":"transcript"}}),
+        super::ToolResult::error("request did not finish within 30 seconds"),
+    );
+    assert_eq!(transcript.structured.unwrap()["error"]["retryable"], true);
+}
+
+#[test]
+fn chat_credential_file_validation_rejects_missing_and_empty_files() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("chat.token");
+    assert!(validate_chat_credential_file(&path).is_err());
+    std::fs::write(&path, "  secret\n").unwrap();
+    assert!(validate_chat_credential_file(&path).is_ok());
+    std::fs::write(&path, "\n").unwrap();
+    assert!(validate_chat_credential_file(&path).is_err());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn chat_credential_path_is_forwarded_to_tool_children() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let executable = directory.path().join("print-chat-credential");
+    std::fs::write(
+        &executable,
+        "#!/bin/sh\nprintf '%s' \"$ALERA_CHAT_CREDENTIAL_FILE\"\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let credential = directory.path().join("chat.token");
+    std::fs::write(&credential, "secret").unwrap();
+    let execution = ToolExecution {
+        executable,
+        runtime_dir: directory.path().to_path_buf(),
+        chat_credential_file: Some(credential.clone()),
+    };
+    let tool = find_tool("runtime_status").unwrap();
+    let result = run_tool(&execution, &tool, &json!({}), &CallOrigin::default(), None).await;
+    assert!(!result.is_error, "{}", result.text);
+    assert_eq!(result.text, credential.display().to_string());
 }
 
 #[test]

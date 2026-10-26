@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_tab_hover.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
@@ -13,6 +14,10 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_provider_icon.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_tab_status_dot.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_tab_surface.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';

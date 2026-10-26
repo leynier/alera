@@ -15,8 +15,25 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        let handshake = matches!(
+            request_type,
+            "hello" | "mobile.hello" | "mobile.relayAuthorization.renew"
+        ) || (request_type == "mobile.device.pair"
+            && self.is_mobile_client(client_id));
+        if !handshake || self.chat_orchestration_binding(client_id).is_some() {
+            self.require_request_allowed(client_id, request_type)?;
+        }
+        if handshake {
+            return Ok(false);
+        }
         self.require_shared_checkout_support(client_id, request_type)?;
         self.refuse_hub_only_payload_fields(client_id, payload)?;
+        if self
+            .try_handle_remote_provider_setup(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         // The reverse channel runs before every local handler: on a satellite,
         // a hub-owned verb such as `project.hosts.add` must reach the hub
         // instead of the handler below that would act on this runtime's copies.
@@ -33,6 +50,29 @@ impl ServerActor {
         }
         if self
             .try_forward_to_hub(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_agent_chat_remote_request(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_local_agent_chat_request(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
+            .try_start_local_chat_orchestration_request(
+                client_id,
+                request_id,
+                request_type,
+                payload,
+            )
             .await?
         {
             return Ok(true);

@@ -7,6 +7,9 @@ import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/presentation/automations_section.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_task_providers.dart';
+import 'package:alera/src/features/chat_tasks/presentation/chat_tasks_section.dart';
+import 'package:alera/src/features/chat_tasks/presentation/delegate_chat_task_dialog.dart';
 import 'package:alera/src/features/inbox/application/inbox_providers.dart';
 import 'package:alera/src/features/inbox/domain/inbox_error_messages.dart';
 import 'package:alera/src/features/inbox/presentation/ask_agent_dialog.dart';
@@ -56,6 +59,8 @@ class const ActivityHeader({super.key}) extends ConsumerWidget {
         refreshQuestions(ref);
       case ActivitySection.automations:
         ref.invalidate(automationCatalogProvider);
+      case ActivitySection.chatTasks:
+        refreshChatTasks(ref, ref.read(activityNavigationProvider).chatTasks);
     }
   }
 }
@@ -92,6 +97,14 @@ class const _PrimaryAction({required final ActivitySection section})
             unawaited(startAutomationAuthoringFromSection(context, ref)),
         icon: icon,
         label: const Text('New Automation'),
+      ),
+      ActivitySection.chatTasks => FilledButton.icon(
+        key: key,
+        onPressed: ref.watch(chatTasksSupportedProvider).value ?? false
+            ? () => unawaited(showDelegateChatTaskDialog(context))
+            : null,
+        icon: icon,
+        label: const Text('Delegate Task'),
       ),
     };
   }

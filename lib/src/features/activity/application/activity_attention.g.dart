@@ -54,4 +54,4 @@ final class ActivityAttentionProvider
   }
 }
 
-String _$activityAttentionHash() => r'70025c63e7ad4e8b6fd31362ab2934c60c78b569';
+String _$activityAttentionHash() => r'd4fd5d4b4b8bad8b31f9527a900f3f47a0f89650';

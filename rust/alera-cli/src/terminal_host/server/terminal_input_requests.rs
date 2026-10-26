@@ -39,6 +39,19 @@ impl ServerActor {
         request_id: i64,
         payload: &Value,
     ) -> HostResult<bool> {
+        self.queue_terminal_input_with_setup_authority(client_id, request_id, payload, false)
+    }
+
+    pub(super) fn queue_terminal_input_with_setup_authority(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+        forwarded: bool,
+    ) -> HostResult<bool> {
+        if !forwarded {
+            self.require_provider_setup_session_access(client_id, payload)?;
+        }
         let session_id = self.require_session(payload)?;
         self.require_terminal_writer(client_id, &session_id)?;
         let mut bytes = decode_bytes(payload.get("dataBase64"))?;

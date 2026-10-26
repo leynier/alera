@@ -1,4 +1,5 @@
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_provider_settings/presentation/agent_provider_settings_section.dart';
 import 'package:alera/src/features/remote_hosts/presentation/remote_hosts_settings_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pane.dart';
@@ -15,13 +16,15 @@ const List<SettingsGroupSpec> mobileDeviceGroups = <SettingsGroupSpec>[
 ];
 
 /// The master-detail panes that manage declared entities: projects, mobile
-/// devices, remote hosts and agent profiles. [initialProjectId] and
-/// [initialHostId] open their pane on that entry.
+/// devices, remote hosts, agent profiles and Agent Chat providers.
+/// [initialProjectId], [initialHostId] and [initialProviderInstanceId] open
+/// their pane on that entry; Providers also opens on [initialHostId].
 List<SettingsSectionData> settingsResourceSections({
   required Map<String, GlobalKey> Function(String, List<SettingsGroupSpec>)
   paneKeys,
   String? initialProjectId,
   String? initialHostId,
+  String? initialProviderInstanceId,
 }) {
   return <SettingsSectionData>[
     SettingsSectionData(
@@ -62,6 +65,10 @@ List<SettingsSectionData> settingsResourceSections({
       entries: agentProfileSearchEntries,
       navGroup: .resources,
       builder: (_) => const AgentProfilesSettingsPane(),
+    ),
+    agentProviderSettingsSection(
+      initialHostId: initialHostId,
+      initialProviderInstanceId: initialProviderInstanceId,
     ),
   ];
 }

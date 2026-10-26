@@ -2,11 +2,15 @@
 //! access class and its default timeout; every domain module lists its tools
 //! in the order clients see them.
 
+mod agent_chat;
 mod agent_skills;
 mod agents;
 mod agents_manage;
 mod automations;
 mod automations_manage;
+mod chat_orchestration;
+mod chat_tasks;
+mod chat_transfers;
 mod events;
 mod inbox;
 mod inbox_manage;
@@ -125,7 +129,9 @@ pub(super) fn admin(
 }
 
 pub(super) fn tools() -> Vec<ToolSpec> {
-    let groups: [fn() -> Vec<ToolSpec>; 23] = [
+    let groups: [fn() -> Vec<ToolSpec>; 25] = [
+        agent_chat::tools,
+        chat_tasks::tools,
         runtime::tools,
         runtime_manage::tools,
         projects::tools,
@@ -151,6 +157,30 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         agent_skills::tools,
     ];
     groups.iter().flat_map(|group| group()).collect()
+}
+
+/// The reduced catalog injected into a live agent chat. It contains only
+/// chat orchestration and the two workspace discovery tools needed to choose
+/// a target.
+pub(super) fn chat_tools() -> Vec<ToolSpec> {
+    let mut tools = chat_orchestration::tools();
+    tools.extend(chat_transfers::tools());
+    tools.extend(
+        projects::tools()
+            .into_iter()
+            .filter(|tool| tool.name == "list_projects"),
+    );
+    tools.extend(
+        workspaces::tools()
+            .into_iter()
+            .filter(|tool| tool.name == "list_workspaces"),
+    );
+    for tool in &mut tools {
+        if tool.name.starts_with("chat_") && tool.access != ToolAccess::Read {
+            tool.client_request_flag = Some("--request-id");
+        }
+    }
+    tools
 }
 
 pub(super) fn no_arguments() -> Value {

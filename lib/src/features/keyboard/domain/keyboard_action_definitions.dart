@@ -234,6 +234,85 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     searchKeywords: <String>['terminal', 'shell'],
   ),
   KeybindingDefinition(
+    id: .newAgentChatTab,
+    label: 'New Agent Chat',
+    group: .tabs,
+    description: 'Start an agent chat tab in the active workspace.',
+    defaultBindings: .uniform(<String>['Mod+Shift+T']),
+    searchKeywords: <String>['agent', 'chat', 'assistant'],
+  ),
+  KeybindingDefinition(
+    id: .chooseAgentChatModel,
+    label: 'Choose Model',
+    group: .tabs,
+    description: 'Choose the agent and model of the active agent chat.',
+    defaultBindings: .uniform(<String>['Mod+Shift+M']),
+    searchKeywords: <String>['agent', 'chat', 'model', 'provider'],
+  ),
+  // The chat actions below act on the agent chat that holds the keyboard
+  // focus and let the key through when they cannot act, so Alt+Up still
+  // moves the caret outside a chat.
+  KeybindingDefinition(
+    id: .increaseAgentChatEffort,
+    label: 'Increase Reasoning Effort',
+    group: .tabs,
+    description:
+        'Raise the reasoning effort of the focused agent chat by one step.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['agent', 'chat', 'effort', 'thinking'],
+  ),
+  KeybindingDefinition(
+    id: .decreaseAgentChatEffort,
+    label: 'Decrease Reasoning Effort',
+    group: .tabs,
+    description:
+        'Lower the reasoning effort of the focused agent chat by one step.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['agent', 'chat', 'effort', 'thinking'],
+  ),
+  KeybindingDefinition(
+    id: .cycleAgentChatMode,
+    label: 'Toggle Plan Mode',
+    group: .tabs,
+    description:
+        'Switch the focused agent chat between plan mode and acting directly.',
+    defaultBindings: .uniform(<String>['Mod+Alt+P']),
+    searchKeywords: <String>['agent', 'chat', 'plan', 'mode'],
+  ),
+  KeybindingDefinition(
+    id: .stopAgentChatTurn,
+    label: 'Stop Agent Turn',
+    group: .tabs,
+    description: 'Stop the running turn of the focused agent chat.',
+    defaultBindings: .uniform(<String>[]),
+    searchKeywords: <String>['agent', 'chat', 'interrupt', 'cancel'],
+  ),
+  KeybindingDefinition(
+    id: .editLastQueuedMessage,
+    label: 'Edit Last Queued Message',
+    group: .tabs,
+    description: 'Edit the newest queued message of the focused agent chat in its composer, from the start of the composer.',
+    defaultBindings: .uniform(<String>['Alt+ArrowUp']),
+    searchKeywords: <String>['agent', 'chat', 'queue', 'edit'],
+  ),
+  KeybindingDefinition(
+    id: .steerNextQueuedMessage,
+    label: 'Steer Next Queued Message',
+    group: .tabs,
+    description: 'Move the first queued message of the focused agent chat into its running turn.',
+    defaultBindings: .uniform(<String>['Mod+Alt+Enter']),
+    searchKeywords: <String>['agent', 'chat', 'queue', 'steer'],
+  ),
+  KeybindingDefinition(
+    id: .findInAgentChat,
+    label: 'Find in Chat',
+    group: .tabs,
+    description: 'Search the loaded messages of the focused agent chat.',
+    defaultBindings: .uniform(<String>['Mod+F']),
+    searchKeywords: <String>['search', 'agent', 'chat', 'messages'],
+    scope: .agentChat,
+  ),
+  KeybindingDefinition(
     id: .closeTab,
     label: 'Close Tab',
     group: .tabs,

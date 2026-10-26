@@ -1,3 +1,4 @@
+use crate::chat_orchestration_commands_args::ChatCommand;
 use crate::cli_orchestration::OrchestrationCommand;
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
@@ -14,6 +15,8 @@ mod pull_request;
 mod runtime_manage;
 mod skill;
 mod ssh_target;
+#[path = "cli_tab.rs"]
+mod tab;
 mod terminal_lifecycle;
 mod text_source;
 mod voice;
@@ -32,6 +35,7 @@ pub use pull_request::*;
 pub use runtime_manage::*;
 pub use skill::*;
 pub use ssh_target::*;
+pub use tab::*;
 pub use terminal_lifecycle::*;
 pub use text_source::*;
 pub use voice::*;
@@ -115,6 +119,13 @@ pub enum Command {
 
     /// Runs, delegated tasks, the worker protocol, messages between agents, gates, and recipes.
     Orchestration(OrchestrationCommand),
+
+    /// Delegate work and exchange messages between agent chats.
+    Chat(ChatCommand),
+
+    /// Control persistent agent chats and administer their host settings.
+    #[command(name = "agent-chat")]
+    AgentChat(crate::agent_chat_commands_args::AgentChatCommand),
 
     /// Ask agents questions from outside a terminal and read their replies.
     Inbox(crate::cli_inbox::InboxCommand),
@@ -411,71 +422,6 @@ pub struct TagUpsertArgs {
     pub name: String,
     #[arg(long)]
     pub color: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct TabCommand {
-    #[command(flatten)]
-    pub runtime: RuntimeDirArgs,
-    #[command(flatten)]
-    pub output: OutputArgs,
-    #[command(subcommand)]
-    pub action: TabAction,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum TabAction {
-    List(WorkspaceIdArgs),
-    Create(TabCreateArgs),
-    Remove(TabRemoveArgs),
-    /// Rename a tab.
-    Rename(TabRenameArgs),
-    /// Name an agent tab from its conversation with AI Assist.
-    GenerateTitle(TabGenerateTitleArgs),
-    /// Bind a running agent to a tab again so its hooks update that tab's
-    /// status. Inside Claude Code or Codex every option is detected.
-    LinkAgent(TabLinkAgentArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct TabLinkAgentArgs {
-    /// Tab to link the agent to. Defaults to ALERA_TAB_ID.
-    #[arg(long, value_name = "tab-id")]
-    pub tab: Option<String>,
-    /// Agent type, such as claude or codex. Detected inside Claude Code and Codex.
-    #[arg(long)]
-    pub agent: Option<String>,
-    /// The agent's conversation id. Detected inside Claude Code and Codex.
-    #[arg(long = "session-id", value_name = "id")]
-    pub session_id: Option<String>,
-    /// The agent's process id. Detected inside Claude Code.
-    #[arg(long)]
-    pub pid: Option<u32>,
-    /// Terminal session named in the agent's environment, whose hooks are
-    /// routed to the tab. Defaults to ALERA_TERMINAL_SESSION_ID.
-    #[arg(long = "source-terminal", value_name = "terminal-id")]
-    pub source_terminal: Option<String>,
-    /// Status shown until the agent's next hook.
-    #[arg(long, default_value = "working", value_parser = ["working", "waiting", "blocked", "done"])]
-    pub state: String,
-}
-
-#[derive(Debug, Args)]
-pub struct TabCreateArgs {
-    #[arg(long = "workspace-id")]
-    pub workspace_id: String,
-    #[arg(long)]
-    pub title: String,
-    #[arg(long, default_value = "terminal")]
-    pub kind: String,
-    /// Initial command executed in the terminal after the shell starts
-    /// (terminal tabs only), e.g. an agent CLI like "claude".
-    #[arg(long, value_name = "text")]
-    pub command: Option<String>,
-    /// Start the terminal session as soon as the tab is created, even
-    /// before it becomes visible in the app.
-    #[arg(long)]
-    pub spawn: bool,
 }
 
 #[derive(Debug, Args)]

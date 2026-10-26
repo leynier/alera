@@ -36,6 +36,8 @@ const EXCLUDED: &[(&str, Option<&str>)] = &[
 
 /// Tools that need the `admin` class (F1 option B and F2).
 const ADMIN_TOOLS: &[&str] = &[
+    "agent_chat_settings_read",
+    "agent_chat_settings_update",
     "install_agent_skills",
     "update_runtime_settings",
     "set_agent_integrations",
@@ -103,6 +105,17 @@ fn sample_arguments(tool: &ToolSpec, all: bool) -> Value {
         };
         arguments.insert(name.clone(), value);
     }
+    let payload = match tool.name {
+        "chat_task_delegate" => {
+            Some(json!({"task":"inspect", "target":{"workspace":{"workspaceId":"w"}}}))
+        }
+        "chat_task_send" => Some(json!({"chatId":"c", "message":"hello"})),
+        "chat_task_control" => Some(json!({"taskId":"t"})),
+        _ => None,
+    };
+    if let Some(payload) = payload {
+        arguments.insert("payload".into(), payload);
+    }
     Value::Object(arguments)
 }
 
@@ -163,6 +176,37 @@ fn every_tool_builds_a_command_the_cli_accepts() {
             tool.name
         );
     }
+}
+
+/// The injected chat catalog runs the same CLI. Its samples cannot satisfy
+/// every tool (a configure needs one selection without its reset), so only
+/// the commands they do build are checked here.
+#[test]
+fn injected_chat_tools_build_commands_the_cli_accepts() {
+    for tool in catalog::chat_tools() {
+        for arguments in sample_variants(&tool) {
+            let Ok(invocation) = tool.invocation(&arguments) else {
+                continue;
+            };
+            let argv = cli_argv(invocation);
+            if let Err(error) = Cli::try_parse_from(&argv) {
+                panic!(
+                    "{} builds {:?}, which the CLI rejects: {error}",
+                    tool.name, argv
+                );
+            }
+        }
+    }
+    let wait = catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_background_wait")
+        .unwrap();
+    let invocation = wait
+        .invocation(
+            &json!({"taskIds": ["bash-1"], "waiting": false, CLIENT_REQUEST_ID: "retry-01"}),
+        )
+        .unwrap();
+    Cli::try_parse_from(cli_argv(invocation)).unwrap();
 }
 
 #[test]

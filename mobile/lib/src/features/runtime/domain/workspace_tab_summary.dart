@@ -12,6 +12,15 @@ class const WorkspaceTabSummary({
 
   bool get isMarkdownViewer => kind == 'markdownViewer';
 
+  /// A runtime-owned agent chat. The tab only names the chat; the transcript
+  /// and the provider process live on the runtime.
+  bool get isAgentChat => kind == 'agentChat';
+
+  String? get agentChatId => payload.optionalString('chatId');
+
+  /// Provider kind of an agent chat tab (`codex`, `claudeAgent`, ...).
+  String? get agentChatProvider => payload.optionalString('provider');
+
   /// Workspace-relative file shown by a file-backed desktop tab (editor,
   /// Markdown viewer); null for terminals.
   String? get filePath => payload.optionalString('filePath');

@@ -34,7 +34,40 @@ class const AgentPresenceSummary({
 
   /// Workspace tab title. Additive: an older host omits it.
   final String title = '',
+
+  /// Set when the row is an agent chat rather than a terminal agent; the
+  /// phone builds these from `agentChat.list`, never from the snapshot.
+  final String? chatId,
+
+  /// The chat that delegated work to this one, when both are listed.
+  final String? parentChatId,
+
+  /// How many delegations deep this chat sits under a listed chat.
+  final int depth = 0,
 }) {
+  bool get isChat => chatId != null;
+
+  AgentPresenceSummary atDepth(int depth) => depth == this.depth
+      ? this
+      : AgentPresenceSummary(
+          terminalSessionId: terminalSessionId,
+          workspaceId: workspaceId,
+          tabId: tabId,
+          agentType: agentType,
+          state: state,
+          stateStartedAt: stateStartedAt,
+          updatedAt: updatedAt,
+          prompt: prompt,
+          toolName: toolName,
+          toolInput: toolInput,
+          lastAssistantMessage: lastAssistantMessage,
+          interrupted: interrupted,
+          title: title,
+          chatId: chatId,
+          parentChatId: parentChatId,
+          depth: depth,
+        );
+
   factory fromJson(Map<String, Object?> json) {
     return AgentPresenceSummary(
       terminalSessionId: json.requiredString('handle'),

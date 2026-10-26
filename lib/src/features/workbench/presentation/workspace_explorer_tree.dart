@@ -47,6 +47,7 @@ extension _WorkspaceExplorerTree on _WorkspaceExplorerState {
           unawaited(_moveEntry(details.data.relativePath, entry.relativePath)),
       builder: (context, _, _) => TerminalPathDraggable<_ExplorerDragData>(
         data: _ExplorerDragData(
+          workspaceId: widget.workspace.id,
           relativePath: entry.relativePath,
           absolutePath: _absolutePath(entry.relativePath),
         ),

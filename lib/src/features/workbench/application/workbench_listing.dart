@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing_tree.dart';
@@ -20,18 +21,24 @@ part 'workbench_listing_sort.dart';
 /// [state]. Pure function - easy to unit test.
 ///
 /// [lastActivityByWorkspaceId] supplies the persisted recency fallback for the
-/// Agent Activity sort.
+/// Agent Activity sort; [chatAttention] adds each workspace's agent chats to
+/// it, and [chats] lists every chat tab among the workspace's agent rows.
 List<WorkbenchSidebarRow> buildSidebarRows(
   WorkbenchState state, {
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
   Map<String, DateTime> lastActivityByWorkspaceId = const <String, DateTime>{},
+  Map<String, ChatWorkspaceAttention> chatAttention =
+      const <String, ChatWorkspaceAttention>{},
+  Map<String, ChatAttentionEntry> chats = const <String, ChatAttentionEntry>{},
   DateTime? now,
 }) {
   return _WorkbenchSidebarRowBuilder(
     state,
     agentStatuses: agentStatuses,
     lastActivityByWorkspaceId: lastActivityByWorkspaceId,
+    chatAttention: chatAttention,
+    chats: chats,
     now: now ?? DateTime.now().toUtc(),
   ).build();
 }

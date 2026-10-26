@@ -22,7 +22,7 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 pub(crate) use arguments::{ToolArguments, ToolInputError};
-pub(crate) use executor::{run_tool, ToolExecution, ToolResult};
+pub(crate) use executor::{run_tool, validate_chat_credential_file, ToolExecution, ToolResult};
 pub(crate) use origin::{CallOrigin, ORIGIN_VARIABLE};
 pub(crate) use stdio_server::serve_stdio;
 
@@ -34,6 +34,7 @@ pub(crate) const MAX_WAIT_SECONDS: u64 = 50;
 /// Optional retry key of every tool that changes state through a CLI flag
 /// that deduplicates repeated requests.
 pub(crate) const CLIENT_REQUEST_ID: &str = "clientRequestId";
+pub(crate) const CHAT_CREDENTIAL_FILE_ENV: &str = "ALERA_CHAT_CREDENTIAL_FILE";
 
 /// The class of a tool, ordered from least to most privileged. A grant or a
 /// runtime level that allows one class also allows every class below it.
@@ -182,6 +183,12 @@ pub(crate) fn catalog() -> Vec<ToolSpec> {
 
 pub(crate) fn find_tool(name: &str) -> Option<ToolSpec> {
     catalog().into_iter().find(|tool| tool.name == name)
+}
+
+pub(crate) fn find_chat_tool(name: &str) -> Option<ToolSpec> {
+    catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == name)
 }
 
 /// The catalog as the edge serves it. Stable key order keeps the generated

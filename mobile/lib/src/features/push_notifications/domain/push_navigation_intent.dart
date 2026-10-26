@@ -3,6 +3,8 @@ enum PushEventKind {
   done,
   terminalExit,
   automation,
+  agentChat,
+  chatTask,
 
   /// An agent replied to a question asked from an inbox.
   inboxReply,
@@ -14,6 +16,10 @@ enum PushEventKind {
   static PushEventKind parse(String? value) {
     return switch (value) {
       'automation' => automation,
+      'agentChat' || 'agent_chat_request' => agentChat,
+      'chatTask' ||
+      'chat_task_attention' ||
+      'chat_task_needs_input' => chatTask,
       'inboxReply' || 'inbox_reply' => inboxReply,
       'decisionGate' ||
       'decision_gate' ||
@@ -40,6 +46,8 @@ class const PushNavigationIntent({
   final String? threadId,
   final String? gateId,
   final String? gateKind,
+  final String? chatId,
+  final String? taskId,
 }) {
   /// A gate of a run opens the run; a gate on a task outside any run still
   /// goes to the agent's terminal.
@@ -49,8 +57,13 @@ class const PushNavigationIntent({
       eventKind != PushEventKind.terminalExit &&
       eventKind != PushEventKind.automation &&
       eventKind != PushEventKind.inboxReply &&
+      eventKind != PushEventKind.agentChat &&
+      eventKind != PushEventKind.chatTask &&
       !opensRun &&
       tabId != null;
+
+  bool get shouldOpenAgentChat =>
+      eventKind == PushEventKind.agentChat && chatId != null;
 
   factory fromData(Map<String, Object?> data) {
     final runtimeId = _nonEmpty(data['runtimeId']);
@@ -62,16 +75,14 @@ class const PushNavigationIntent({
       runtimeId: runtimeId,
       workspaceId: _nonEmpty(data['workspaceId']),
       tabId: _nonEmpty(data['tabId']),
-      eventKind: PushEventKind.parse(
-        _nonEmpty(data['kind']) ??
-            _nonEmpty(data['category']) ??
-            _nonEmpty(data['eventType']),
-      ),
+      eventKind: _eventKind(data),
       automationId: _nonEmpty(data['automationId']),
       runId: _nonEmpty(data['runId']),
       threadId: _nonEmpty(data['threadId']),
       gateId: _nonEmpty(data['gateId']),
       gateKind: _nonEmpty(data['gateKind']),
+      chatId: _nonEmpty(data['chatId']),
+      taskId: _nonEmpty(data['taskId']),
     );
   }
 
@@ -86,9 +97,19 @@ class const PushNavigationIntent({
       if (threadId != null) 'threadId': threadId,
       if (gateId != null) 'gateId': gateId,
       if (gateKind != null) 'gateKind': gateKind,
+      if (chatId != null) 'chatId': chatId,
+      if (taskId != null) 'taskId': taskId,
       'eventType': eventKind.name,
     };
   }
+}
+
+PushEventKind _eventKind(Map<String, Object?> data) {
+  for (final key in <String>['kind', 'eventType', 'category']) {
+    final kind = PushEventKind.parse(_nonEmpty(data[key]));
+    if (kind != PushEventKind.unknown) return kind;
+  }
+  return PushEventKind.unknown;
 }
 
 String? _nonEmpty(Object? value) {

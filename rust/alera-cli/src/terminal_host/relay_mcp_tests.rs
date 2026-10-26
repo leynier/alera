@@ -68,6 +68,7 @@ fn link(access: McpAccess, verifier: GrantVerifier) -> McpLink {
         ToolExecution {
             executable: PathBuf::from("echo"),
             runtime_dir: PathBuf::from("/tmp/runtime"),
+            chat_credential_file: None,
         },
         verifier,
     )

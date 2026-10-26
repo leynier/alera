@@ -8,6 +8,35 @@ pub(super) enum LocalClientRole {
 }
 
 impl ServerActor {
+    pub(super) async fn handle_hello_request(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        self.require_unbound_hello(client_id)?;
+        let binding = match payload.get("chatCredential").and_then(Value::as_str) {
+            Some(token) => {
+                let service = self.chat_orchestration.clone().ok_or_else(|| {
+                    HostError::conflict(
+                        "chat_credential_invalid",
+                        "Chat credentials are unavailable.",
+                        json!({}),
+                    )
+                })?;
+                Some(service.bind_credential(token).await?)
+            }
+            None => None,
+        };
+        let mut response = self.handle_hello(client_id, payload)?;
+        if let Some(binding) = binding {
+            if let Some(client) = self.clients.get_mut(&client_id) {
+                client.chat_orchestration_binding = Some(binding.clone());
+            }
+            response["chatBinding"] = json!({"chatId": binding.chat_id});
+        }
+        Ok(response)
+    }
+
     pub(super) fn require_auth(&self, client_id: u64) -> HostResult<()> {
         match self.clients.get(&client_id) {
             Some(client) if client.authenticated => Ok(()),
@@ -46,6 +75,7 @@ impl ServerActor {
 
     /// Authenticates a client and negotiates the wire format for it.
     pub(super) fn handle_hello(&mut self, client_id: u64, payload: &Value) -> HostResult<Value> {
+        self.require_unbound_hello(client_id)?;
         let version_ok = payload.get("protocolVersion") == Some(&json!(PROTOCOL_VERSION));
         let token_ok = payload.get("token").and_then(Value::as_str) == Some(self.token.as_str());
         if !version_ok || !token_ok {
@@ -56,6 +86,19 @@ impl ServerActor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let local_role = requested_local_role(payload);
+        let agent_chat_supported = payload
+            .get("supportedTabKinds")
+            .and_then(Value::as_array)
+            .is_some_and(|kinds| kinds.iter().any(|kind| kind == "agentChat"));
+        let agent_chat_capability = payload
+            .get("capabilities")
+            .or_else(|| payload.get("runtimeCapabilities"))
+            .and_then(Value::as_array)
+            .is_some_and(|capabilities| {
+                capabilities
+                    .iter()
+                    .any(|capability| capability == "agentChatV1")
+            });
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.shared_checkout_workspaces = payload
@@ -71,6 +114,9 @@ impl ServerActor {
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             client.binary_frames = binary_frames;
+            client.agent_chat_supported = agent_chat_supported;
+            client.agent_chat_capability = agent_chat_capability;
+            client.chat_orchestration_binding = None;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
                 client.workspace_focus = local_role == LocalClientRole::App
@@ -98,6 +144,17 @@ impl ServerActor {
                 LocalClientRole::Cli => "cli",
             }
         }))
+    }
+
+    fn require_unbound_hello(&self, client_id: u64) -> HostResult<()> {
+        if self.chat_orchestration_binding(client_id).is_some() {
+            return Err(HostError::conflict(
+                "chat_scope_denied",
+                "A chat-bound connection cannot change its authenticated identity.",
+                json!({}),
+            ));
+        }
+        Ok(())
     }
 
     /// Queues the in-band switch to binary frames for one client.
@@ -196,6 +253,19 @@ impl ServerActor {
         }
     }
 
+    pub(super) fn broadcast_agent_chat(&self, message: Value) {
+        for (client_id, client) in &self.clients {
+            if client.authenticated
+                && client.agent_chat_supported
+                && client.agent_chat_capability
+                && client.chat_orchestration_binding.is_none()
+                && client.handle.send_control(message.clone().into()).is_err()
+            {
+                self.disconnect_client_soon(*client_id);
+            }
+        }
+    }
+
     pub(super) fn disconnect_client_soon(&self, client_id: u64) {
         let _ = self
             .inbox
@@ -211,6 +281,7 @@ impl ServerActor {
         self.cancel_queued_runtime_mutations(client_id);
         self.release_mobile_driver_for_client(client_id);
         self.cancel_mobile_prompt_file_uploads(client_id);
+        self.cleanup_remote_provider_setup_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
             self.flush_all_output(&session_id).await;
@@ -323,6 +394,7 @@ mod tests {
                 runtime_store.clone(),
                 inbox.clone(),
             ),
+            remote_agent_chats: Default::default(),
             project_clone_jobs: HashMap::new(),
             prompt_workspace_operations: HashMap::new(),
             agent_title_jobs: HashMap::new(),
@@ -355,6 +427,9 @@ mod tests {
                     mobile_device_name: None,
                     cloud_device_id: None,
                     relay_client_id: None,
+                    agent_chat_supported: true,
+                    agent_chat_capability: true,
+                    chat_orchestration_binding: None,
                 },
             )]),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -374,6 +449,9 @@ mod tests {
             voice: Default::default(),
             codex: None,
             codex_starting: None,
+            agent_chat_runtime: None,
+            agent_chat_provider_settings: None,
+            chat_orchestration: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

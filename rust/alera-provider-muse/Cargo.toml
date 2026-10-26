@@ -1,0 +1,19 @@
+[package]
+name = "alera-provider-muse"
+version = "0.1.0"
+edition = "2021"
+description = "Muse MSP provider adapter for Alera."
+publish = false
+
+[dependencies]
+alera-agent-transport = { path = "../alera-agent-transport" }
+alera-provider-protocol = { path = "../alera-provider-protocol" }
+async-trait = "0.1.92"
+muse-agent-sdk = { path = "../muse-agent-sdk" }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+uuid = { version = "1.26.0", features = ["v4"] }
+
+[[bin]]
+name = "muse-msp-fixture"
+path = "tests/support/muse_msp_fixture.rs"

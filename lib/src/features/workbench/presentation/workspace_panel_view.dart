@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
@@ -23,6 +24,7 @@ import 'package:flutter/material.dart';
 part 'workspace_panel_pane.dart';
 part 'workspace_panel_split.dart';
 part 'workspace_panel_menus.dart';
+part 'workspace_panel_add_tab_menu.dart';
 part 'workspace_panel_empty.dart';
 
 class const WorkspaceMainDropSurface({

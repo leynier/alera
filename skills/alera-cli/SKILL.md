@@ -2,7 +2,7 @@
 name: alera-cli
 description: Operate Alera workspaces and runtime resources through the alera CLI.
 metadata:
-  version: 6
+  version: 12
 ---
 
 # Alera CLI
@@ -18,6 +18,8 @@ Use the managed `alera` CLI for Alera resources. Inside Alera terminals, its shi
 - Agent Profile inspection, launch, or maintenance: use the `alera-agent-profiles` skill. Its simple-maintenance route does not require catalog research.
 - Asking a running agent a question from outside its terminal, or reading an inbox: read [inbox](references/inbox.md).
 - Agent dispatch, worker tasks, or coordinator lifecycle: use the `alera-orchestration` skill.
+- Delegating work between live agent chats, including cross-project targets: read [chat orchestration](references/chat-orchestration.md).
+- Direct Agent Chat lifecycle, queue/history controls, host preferences, provider instances, and write-only secrets: read [agent chats](references/agent-chats.md).
 - Signing the runtime in to an Alera account, naming it, or letting MCP clients drive it (MCP Control, `alera mcp serve`): read [mcp](references/mcp.md).
 - Checking or updating the Alera skills installed for coding agents on this machine: `alera skill status` compares each one with this runtime, and `alera skill install [--skill <name>]` installs them at this runtime's own commit.
 

@@ -6,7 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 class TerminalComposerController extends ChangeNotifier {
-  final textController = TextEditingController();
+  /// [textController] lets a chat paint tokens such as skill mentions.
+  TerminalComposerController({TextEditingController? textController})
+    : textController = textController ?? TextEditingController();
+
+  final TextEditingController textController;
   final focusNode = FocusNode(debugLabel: 'TerminalComposer');
   final dropTargetKey = GlobalKey(debugLabel: 'TerminalComposerDropTarget');
 
@@ -26,6 +30,9 @@ class TerminalComposerController extends ChangeNotifier {
     required TerminalComposerAttachmentKind kind,
     required String path,
     required String displayName,
+    String? localSourcePath,
+    String? attachmentId,
+    int? sizeBytes,
   }) {
     if (_disposed) {
       return;
@@ -36,29 +43,40 @@ class TerminalComposerController extends ChangeNotifier {
         kind: kind,
         path: path,
         displayName: displayName,
+        localSourcePath: localSourcePath,
+        attachmentId: attachmentId,
+        sizeBytes: sizeBytes,
       ),
     );
     notifyListeners();
   }
 
-  void addPathAttachment(String path, {TerminalComposerAttachmentKind? kind}) {
+  void addPathAttachment(
+    String path, {
+    TerminalComposerAttachmentKind? kind,
+    bool localSource = false,
+  }) {
     if (_disposed) {
       return;
     }
-    final attachment = _pathAttachment(path, kind: kind);
+    final attachment = _pathAttachment(
+      path,
+      kind: kind,
+      localSource: localSource,
+    );
     if (attachment != null) {
       _attachments.add(attachment);
       notifyListeners();
     }
   }
 
-  void addPathAttachments(Iterable<String> paths) {
+  void addPathAttachments(Iterable<String> paths, {bool localSource = false}) {
     if (_disposed) {
       return;
     }
     var changed = false;
     for (final path in paths) {
-      final attachment = _pathAttachment(path);
+      final attachment = _pathAttachment(path, localSource: localSource);
       if (attachment != null) {
         _attachments.add(attachment);
         changed = true;
@@ -72,6 +90,7 @@ class TerminalComposerController extends ChangeNotifier {
   TerminalComposerAttachment? _pathAttachment(
     String path, {
     TerminalComposerAttachmentKind? kind,
+    bool localSource = false,
   }) {
     if (path.isEmpty) {
       return null;
@@ -82,6 +101,7 @@ class TerminalComposerController extends ChangeNotifier {
       id: 'attachment-${_nextAttachmentId++}',
       kind: resolvedKind,
       path: path,
+      localSourcePath: localSource ? path : null,
       displayName: displayName.isEmpty
           ? resolvedKind == TerminalComposerAttachmentKind.image
                 ? 'Pasted Image'

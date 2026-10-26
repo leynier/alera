@@ -19,6 +19,7 @@ class ActivityLocationMapper extends ClassMapperBase<ActivityLocation> {
       RunsLocationMapper.ensureInitialized();
       QuestionsLocationMapper.ensureInitialized();
       AutomationsLocationMapper.ensureInitialized();
+      ChatTasksLocationMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -62,6 +63,13 @@ class ActivityLocationMapper extends ClassMapperBase<ActivityLocation> {
         opt: true,
         def: const AutomationsLocation(),
       );
+  static ChatTasksLocation _$chatTasks(ActivityLocation v) => v.chatTasks;
+  static const Field<ActivityLocation, ChatTasksLocation> _f$chatTasks = Field(
+    'chatTasks',
+    _$chatTasks,
+    opt: true,
+    def: const ChatTasksLocation(),
+  );
 
   @override
   final MappableFields<ActivityLocation> fields = const {
@@ -70,6 +78,7 @@ class ActivityLocationMapper extends ClassMapperBase<ActivityLocation> {
     #runs: _f$runs,
     #questions: _f$questions,
     #automations: _f$automations,
+    #chatTasks: _f$chatTasks,
   };
 
   static ActivityLocation _instantiate(DecodingData data) {
@@ -79,6 +88,7 @@ class ActivityLocationMapper extends ClassMapperBase<ActivityLocation> {
       runs: data.dec(_f$runs),
       questions: data.dec(_f$questions),
       automations: data.dec(_f$automations),
+      chatTasks: data.dec(_f$chatTasks),
     );
   }
 
@@ -149,12 +159,15 @@ abstract class ActivityLocationCopyWith<$R, $In extends ActivityLocation, $Out>
   get questions;
   AutomationsLocationCopyWith<$R, AutomationsLocation, AutomationsLocation>
   get automations;
+  ChatTasksLocationCopyWith<$R, ChatTasksLocation, ChatTasksLocation>
+  get chatTasks;
   $R call({
     bool? visible,
     ActivitySection? section,
     RunsLocation? runs,
     QuestionsLocation? questions,
     AutomationsLocation? automations,
+    ChatTasksLocation? chatTasks,
   });
   ActivityLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -180,12 +193,16 @@ class _ActivityLocationCopyWithImpl<$R, $Out>
   get automations =>
       $value.automations.copyWith.$chain((v) => call(automations: v));
   @override
+  ChatTasksLocationCopyWith<$R, ChatTasksLocation, ChatTasksLocation>
+  get chatTasks => $value.chatTasks.copyWith.$chain((v) => call(chatTasks: v));
+  @override
   $R call({
     bool? visible,
     ActivitySection? section,
     RunsLocation? runs,
     QuestionsLocation? questions,
     AutomationsLocation? automations,
+    ChatTasksLocation? chatTasks,
   }) => $apply(
     FieldCopyWithData({
       if (visible != null) #visible: visible,
@@ -193,6 +210,7 @@ class _ActivityLocationCopyWithImpl<$R, $Out>
       if (runs != null) #runs: runs,
       if (questions != null) #questions: questions,
       if (automations != null) #automations: automations,
+      if (chatTasks != null) #chatTasks: chatTasks,
     }),
   );
   @override
@@ -202,6 +220,7 @@ class _ActivityLocationCopyWithImpl<$R, $Out>
     runs: data.get(#runs, or: $value.runs),
     questions: data.get(#questions, or: $value.questions),
     automations: data.get(#automations, or: $value.automations),
+    chatTasks: data.get(#chatTasks, or: $value.chatTasks),
   );
 
   @override
@@ -855,4 +874,191 @@ class _AutomationsLocationCopyWithImpl<$R, $Out>
   AutomationsLocationCopyWith<$R2, AutomationsLocation, $Out2>
   $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
       _AutomationsLocationCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class ChatTasksLocationMapper extends ClassMapperBase<ChatTasksLocation> {
+  ChatTasksLocationMapper._();
+
+  static ChatTasksLocationMapper? _instance;
+  static ChatTasksLocationMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = ChatTasksLocationMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'ChatTasksLocation';
+
+  static String? _$projectId(ChatTasksLocation v) => v.projectId;
+  static const Field<ChatTasksLocation, String> _f$projectId = Field(
+    'projectId',
+    _$projectId,
+    opt: true,
+  );
+  static String? _$workspaceId(ChatTasksLocation v) => v.workspaceId;
+  static const Field<ChatTasksLocation, String> _f$workspaceId = Field(
+    'workspaceId',
+    _$workspaceId,
+    opt: true,
+  );
+  static AgentChatTaskBucket? _$bucket(ChatTasksLocation v) => v.bucket;
+  static const Field<ChatTasksLocation, AgentChatTaskBucket> _f$bucket = Field(
+    'bucket',
+    _$bucket,
+    opt: true,
+  );
+  static int _$limit(ChatTasksLocation v) => v.limit;
+  static const Field<ChatTasksLocation, int> _f$limit = Field(
+    'limit',
+    _$limit,
+    opt: true,
+    def: chatTasksPageSize,
+  );
+  static String? _$taskId(ChatTasksLocation v) => v.taskId;
+  static const Field<ChatTasksLocation, String> _f$taskId = Field(
+    'taskId',
+    _$taskId,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<ChatTasksLocation> fields = const {
+    #projectId: _f$projectId,
+    #workspaceId: _f$workspaceId,
+    #bucket: _f$bucket,
+    #limit: _f$limit,
+    #taskId: _f$taskId,
+  };
+
+  static ChatTasksLocation _instantiate(DecodingData data) {
+    return ChatTasksLocation(
+      projectId: data.dec(_f$projectId),
+      workspaceId: data.dec(_f$workspaceId),
+      bucket: data.dec(_f$bucket),
+      limit: data.dec(_f$limit),
+      taskId: data.dec(_f$taskId),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static ChatTasksLocation fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<ChatTasksLocation>(map);
+  }
+
+  static ChatTasksLocation fromJson(String json) {
+    return ensureInitialized().decodeJson<ChatTasksLocation>(json);
+  }
+}
+
+mixin ChatTasksLocationMappable {
+  String toJson() {
+    return ChatTasksLocationMapper.ensureInitialized()
+        .encodeJson<ChatTasksLocation>(this as ChatTasksLocation);
+  }
+
+  Map<String, dynamic> toMap() {
+    return ChatTasksLocationMapper.ensureInitialized()
+        .encodeMap<ChatTasksLocation>(this as ChatTasksLocation);
+  }
+
+  ChatTasksLocationCopyWith<
+    ChatTasksLocation,
+    ChatTasksLocation,
+    ChatTasksLocation
+  >
+  get copyWith =>
+      _ChatTasksLocationCopyWithImpl<ChatTasksLocation, ChatTasksLocation>(
+        this as ChatTasksLocation,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return ChatTasksLocationMapper.ensureInitialized().stringifyValue(
+      this as ChatTasksLocation,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return ChatTasksLocationMapper.ensureInitialized().equalsValue(
+      this as ChatTasksLocation,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return ChatTasksLocationMapper.ensureInitialized().hashValue(
+      this as ChatTasksLocation,
+    );
+  }
+}
+
+extension ChatTasksLocationValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, ChatTasksLocation, $Out> {
+  ChatTasksLocationCopyWith<$R, ChatTasksLocation, $Out>
+  get $asChatTasksLocation => $base.as(
+    (v, t, t2) => _ChatTasksLocationCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class ChatTasksLocationCopyWith<
+  $R,
+  $In extends ChatTasksLocation,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    String? projectId,
+    String? workspaceId,
+    AgentChatTaskBucket? bucket,
+    int? limit,
+    String? taskId,
+  });
+  ChatTasksLocationCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _ChatTasksLocationCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, ChatTasksLocation, $Out>
+    implements ChatTasksLocationCopyWith<$R, ChatTasksLocation, $Out> {
+  _ChatTasksLocationCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<ChatTasksLocation> $mapper =
+      ChatTasksLocationMapper.ensureInitialized();
+  @override
+  $R call({
+    Object? projectId = $none,
+    Object? workspaceId = $none,
+    Object? bucket = $none,
+    int? limit,
+    Object? taskId = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (projectId != $none) #projectId: projectId,
+      if (workspaceId != $none) #workspaceId: workspaceId,
+      if (bucket != $none) #bucket: bucket,
+      if (limit != null) #limit: limit,
+      if (taskId != $none) #taskId: taskId,
+    }),
+  );
+  @override
+  ChatTasksLocation $make(CopyWithData data) => ChatTasksLocation(
+    projectId: data.get(#projectId, or: $value.projectId),
+    workspaceId: data.get(#workspaceId, or: $value.workspaceId),
+    bucket: data.get(#bucket, or: $value.bucket),
+    limit: data.get(#limit, or: $value.limit),
+    taskId: data.get(#taskId, or: $value.taskId),
+  );
+
+  @override
+  ChatTasksLocationCopyWith<$R2, ChatTasksLocation, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _ChatTasksLocationCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }

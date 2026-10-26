@@ -5,6 +5,7 @@ import 'dart:ffi' as ffi;
 import 'dart:io' show File, Platform;
 import 'dart:isolate';
 
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
@@ -38,6 +39,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_session_launch.dart';
 part 'terminal_runtime_emulator_fake_resize.dart';
 part 'terminal_runtime_terminal_pulse.dart';
 part 'terminal_runtime_search.dart';
@@ -359,6 +361,15 @@ abstract interface class TerminalPtySession {
   void dispose();
 
   void terminate();
+}
+
+/// Only the runtime-host adapter may execute provider setup recipes.
+abstract interface class ProviderSetupTerminalPtySession
+    implements TerminalPtySession {
+  void configureProviderSetup(
+    CommandTerminalProviderSetup setup, {
+    String? hostId,
+  });
 }
 
 /// A session that may be attached read-only to an automation-owned tab.

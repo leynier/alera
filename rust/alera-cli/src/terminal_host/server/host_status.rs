@@ -61,7 +61,7 @@ impl ServerActor {
     /// with every additive feature and was pushing that file past its size
     /// limit on its own.
     pub(super) fn host_status_payload(&self) -> Value {
-        json!({
+        let mut payload = json!({
                     "runtimeHostVersion": runtime_build_info::version(),
                     "runtimeHostCommit": runtime_build_info::build().unwrap_or("unknown"),
                     "protocolVersion": PROTOCOL_VERSION,
@@ -70,6 +70,8 @@ impl ServerActor {
                     "skillVersion": crate::terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
                     "runtime": "alera",
                     "runtimeCapabilities": [
+                        "agentChatV1",
+                        "chatOrchestrationV1",
                         "workspaceDetailsV1",
                         "gitOperationsProgressV1",
                         crate::terminal_host::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
@@ -174,6 +176,8 @@ impl ServerActor {
                     "activeAgents": self.agent_presence_items().as_array().map_or(0, Vec::len),
                     "activePushSubscriptions": self.account_push.active_subscriptions,
                     "mobileGatewayEnabled": self.mobile_gateway.is_some(),
-                })
+                });
+        crate::terminal_host::agent_chat_capabilities::append_agent_chat_capabilities(&mut payload);
+        payload
     }
 }

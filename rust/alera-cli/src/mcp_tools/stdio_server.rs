@@ -11,11 +11,12 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
 use super::subscriptions::{listed_resources, resolve, Subscriptions};
-use super::{catalog, find_tool, run_tool, CallOrigin, ToolExecution, ToolSpec};
+use super::{catalog, find_chat_tool, find_tool, run_tool, CallOrigin, ToolExecution, ToolSpec};
 use crate::mcp_settings::McpAccess;
 
 pub(crate) const PROTOCOL_VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
 pub(crate) const INSTRUCTIONS: &str = "Alera runs coding agents in workspaces (Git worktrees) and orchestrates them. Start with list_projects, list_workspaces, and list_agent_profiles. Use start_agent_workspace or delegate_task to start work, then wait_for_task, read_terminal, or ask_agent with wait_for_reply to follow it. Waits return after at most 50 seconds; call them again to keep waiting.";
+const CHAT_INSTRUCTIONS: &str = "You are bound to one live agent chat. Use list_projects and list_workspaces to choose a target, then chat_delegate with a brief-only task. Reuse clientRequestId on retries, use chat_task_wait for at most 50 seconds, and read results with chat_task_status. You may read, message and delegate across known projects and hosts within your runtime mode ceiling. Interrupting, responding, configuring and cancelling are limited to your descendant lineage.";
 const MAX_CONCURRENT_CALLS: usize = 4;
 
 type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
@@ -23,6 +24,7 @@ type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 /// Serves the catalog up to `access`: `read` lists only reading tools, `full`
 /// adds execution tools, and `admin` adds administrative ones.
 pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> anyhow::Result<()> {
+    let chat_bound = execution.is_chat_bound();
     let mut origin = CallOrigin::local(&Value::Null);
     let (output, mut outgoing) = mpsc::channel::<Value>(64);
     let pending: Pending = Arc::default();
@@ -71,19 +73,37 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
         match method.as_str() {
             "initialize" => {
                 origin = CallOrigin::local(&params["clientInfo"]);
-                let _ = output.send(success(id, initialize_result(&params))).await;
+                let _ = output
+                    .send(success(id, initialize_result(&params, chat_bound)))
+                    .await;
             }
             "ping" => {
                 let _ = output.send(success(id, json!({}))).await;
             }
             "resources/list" => {
-                let resources = json!({ "resources": listed_resources() });
+                let resources = json!({
+                    "resources": if chat_bound {
+                        Vec::<Value>::new()
+                    } else {
+                        listed_resources()
+                    }
+                });
                 let _ = output.send(success(id, resources)).await;
             }
             "resources/read" => {
+                if chat_bound {
+                    let _ = output
+                        .send(error(
+                            id,
+                            -32601,
+                            "Resources are unavailable to a chat-bound server",
+                        ))
+                        .await;
+                    continue;
+                }
                 let uri = params["uri"].as_str().unwrap_or_default().to_owned();
                 let response = match resolve(&uri) {
-                    Some((resource, arguments)) => match find_tool(resource.tool) {
+                    Some((resource, arguments)) => match find_tool_for(resource.tool, chat_bound) {
                         Some(tool) => {
                             let result =
                                 run_tool(&execution, &tool, &arguments, &origin, None).await;
@@ -107,6 +127,16 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
                 let _ = output.send(response).await;
             }
             "resources/subscribe" => {
+                if chat_bound {
+                    let _ = output
+                        .send(error(
+                            id,
+                            -32601,
+                            "Resources are unavailable to a chat-bound server",
+                        ))
+                        .await;
+                    continue;
+                }
                 let uri = params["uri"].as_str().unwrap_or_default();
                 let response = if subscriptions.subscribe(uri) {
                     success(id, json!({}))
@@ -120,7 +150,7 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
                 let _ = output.send(success(id, json!({}))).await;
             }
             "tools/list" => {
-                let tools = visible_tools(access)
+                let tools = visible_tools(access, chat_bound)
                     .iter()
                     .map(listed_tool)
                     .collect::<Vec<_>>();
@@ -128,7 +158,9 @@ pub(crate) async fn serve_stdio(execution: ToolExecution, access: McpAccess) -> 
             }
             "tools/call" => {
                 let name = params["name"].as_str().unwrap_or_default().to_owned();
-                let Some(tool) = find_tool(&name).filter(|tool| access.allows(tool.access)) else {
+                let Some(tool) =
+                    find_tool_for(&name, chat_bound).filter(|tool| access.allows(tool.access))
+                else {
                     let _ = output
                         .send(error(id, -32602, &format!("Unknown tool: {name}")))
                         .await;
@@ -192,11 +224,24 @@ fn cancel_all(pending: &Pending) {
     }
 }
 
-fn visible_tools(access: McpAccess) -> Vec<ToolSpec> {
-    catalog()
+fn visible_tools(access: McpAccess, chat_bound: bool) -> Vec<ToolSpec> {
+    let tools = if chat_bound {
+        super::catalog::chat_tools()
+    } else {
+        catalog()
+    };
+    tools
         .into_iter()
         .filter(|tool| access.allows(tool.access))
         .collect()
+}
+
+fn find_tool_for(name: &str, chat_bound: bool) -> Option<ToolSpec> {
+    if chat_bound {
+        find_chat_tool(name)
+    } else {
+        find_tool(name)
+    }
 }
 
 pub(crate) fn negotiate_version(requested: Option<&str>) -> &'static str {
@@ -210,19 +255,23 @@ pub(crate) fn negotiate_version(requested: Option<&str>) -> &'static str {
         .unwrap_or(PROTOCOL_VERSIONS[0])
 }
 
-fn initialize_result(params: &Value) -> Value {
+fn initialize_result(params: &Value, chat_bound: bool) -> Value {
     json!({
         "protocolVersion": negotiate_version(params["protocolVersion"].as_str()),
         "capabilities": {
             "tools": { "listChanged": false },
-            "resources": { "subscribe": true, "listChanged": false },
+            "resources": if chat_bound {
+                json!({ "subscribe": false, "listChanged": false })
+            } else {
+                json!({ "subscribe": true, "listChanged": false })
+            },
         },
         "serverInfo": {
             "name": "alera",
             "title": "Alera",
             "version": crate::terminal_host::runtime_build_info::version(),
         },
-        "instructions": INSTRUCTIONS,
+        "instructions": if chat_bound { CHAT_INSTRUCTIONS } else { INSTRUCTIONS },
     })
 }
 

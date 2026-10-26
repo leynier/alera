@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_clipboard_paste_action.dart';
+import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -15,6 +16,10 @@ class const AleraComposer({
   required final List<AleraTextActionMenuItem> textActions,
   required final ValueChanged<String> onTextActionSelected,
   this.onPaste,
+
+  /// A strip above the attachments and the field, such as an
+  /// `AleraComposerBanner` naming an edit in progress.
+  final Widget? header,
   final Widget? attachmentBar,
   final Widget? footer,
   final Widget? trailingAction,
@@ -149,6 +154,7 @@ class _AleraComposerState extends State<AleraComposer> {
         child: Column(
           mainAxisSize: .min,
           children: <Widget>[
+            ?widget.header,
             ?widget.attachmentBar,
             CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
@@ -166,7 +172,10 @@ class _AleraComposerState extends State<AleraComposer> {
                 ): _send,
                 const SingleActivator(.escape): widget.onClose,
               },
-              child: _buildTextField(context),
+              child: AleraImeCompositionKeyGuard(
+                controller: widget.controller,
+                child: _buildTextField(context),
+              ),
             ),
             if (widget.footer case final Widget footer)
               footer

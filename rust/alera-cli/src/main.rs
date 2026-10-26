@@ -1,3 +1,7 @@
+mod agent_chat_command_contract;
+mod agent_chat_commands;
+mod agent_chat_commands_args;
+mod agent_chat_native_history_contract;
 mod agent_profile_commands;
 mod agent_profile_input;
 mod agent_profile_launch;
@@ -9,6 +13,13 @@ mod agent_status;
 mod automation_autostart;
 mod automation_commands;
 mod automation_ssh_precheck;
+mod chat_orchestration_commands;
+mod chat_orchestration_commands_args;
+mod chat_orchestration_request;
+mod chat_task_command_contract;
+mod chat_task_commands;
+mod chat_task_payload_validation;
+mod chat_transfers;
 mod cli;
 mod cli_async_runtime;
 #[cfg(test)]
@@ -234,6 +245,8 @@ async fn run(cli: Cli) -> i32 {
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
+        Command::Chat(command) => chat_orchestration_commands::run(command).await,
+        Command::AgentChat(command) => agent_chat_commands::run(command).await,
         Command::Voice(command) => voice_commands::run(command).await,
         Command::Inbox(command) => inbox_commands::run(command).await,
         Command::Events(command) => events_commands::run(command).await,

@@ -42,6 +42,12 @@ enum KeyboardActionGroup(this.label) {
   final String label;
 }
 
+/// Where a binding applies. A scoped binding matches only while the focus is
+/// inside a surface of that kind, and is tried before the global ones, so it
+/// may reuse a chord that means something else elsewhere: Mod+F finds in a
+/// focused chat and in the terminal everywhere else.
+enum KeyboardActionScope { global, agentChat }
+
 /// Every shortcut-able action. The string [name] is the stable persistence key.
 @MappableEnum()
 enum KeyboardActionId {
@@ -69,6 +75,15 @@ enum KeyboardActionId {
   replaceInFiles,
   saveFile,
   newTerminalTab,
+  newAgentChatTab,
+  chooseAgentChatModel,
+  findInAgentChat,
+  increaseAgentChatEffort,
+  decreaseAgentChatEffort,
+  cycleAgentChatMode,
+  stopAgentChatTurn,
+  editLastQueuedMessage,
+  steerNextQueuedMessage,
   closeTab,
   nextTab,
   previousTab,
@@ -136,6 +151,7 @@ class const KeybindingDefinition({
   required this.defaultBindings,
   this.searchKeywords = const <String>[],
   this.allowInTerminal = false,
+  this.scope = KeyboardActionScope.global,
 }) {
   final KeyboardActionId id;
   final String label;
@@ -146,6 +162,9 @@ class const KeybindingDefinition({
 
   /// Whether this binding still intercepts under [TerminalShortcutPolicy.terminalFirst].
   final bool allowInTerminal;
+
+  /// The surface the binding is limited to; see [KeyboardActionScope].
+  final KeyboardActionScope scope;
 }
 
 /// Definition lookup by id.

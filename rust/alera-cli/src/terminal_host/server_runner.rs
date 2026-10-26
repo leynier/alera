@@ -39,6 +39,83 @@ pub async fn run_terminal_host_server(
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
 
     let (inbox, mut rx) = ServerInbox::channel();
+    let agent_chat_instances =
+        Arc::new(super::agent_chat_runtime::InstanceDirectory::from_runtime_dir(&runtime_dir));
+    let settings_inbox = inbox.clone();
+    let agent_chat_provider_settings =
+        super::agent_chat_provider_settings::ProviderSettingsService::new(
+            runtime_store.clone(),
+            agent_chat_instances.clone(),
+            &runtime_dir,
+            account_push.service.runtime_id(),
+            Arc::new(move |name, payload| {
+                let _ = settings_inbox.send(ServerCommand::AgentChatSettingsChanged {
+                    name: name.to_owned(),
+                    payload,
+                });
+            }),
+        );
+    if let Err(error) = agent_chat_provider_settings.initialize().await {
+        tracing::warn!(
+            "agent chat provider settings initialization unavailable: {}",
+            error.wire_message()
+        );
+    }
+    let agent_chat_tabs: Arc<dyn super::agent_chat_runtime::tab_directory::TabDirectory> =
+        Arc::new(runtime_store.clone());
+    let agent_chat_runtime = super::agent_chat_runtime::AgentChatRuntime::new(
+        runtime_store.clone(),
+        Arc::new(super::agent_chat_runtime::ProductionProviderFactory),
+        agent_chat_tabs,
+        Box::new(super::agent_chat_runtime::events::HostEventSink::new(
+            inbox.clone(),
+        )),
+        agent_chat_instances,
+    );
+    let chat_credentials = super::chat_orchestration::ChatCredentialLaunchHook::new(
+        runtime_store.clone(),
+        runtime_dir.clone(),
+    )?;
+    agent_chat_runtime.register_launch_hook(chat_credentials.clone());
+    let host_links = crate::terminal_host::host_link_registry::HostLinkRegistry::new(
+        runtime_store.clone(),
+        inbox.clone(),
+    );
+    let remote_agent_chats = super::agent_chat_remote::RemoteChatDirectory::default();
+    let remote_router = super::agent_chat_remote::RemoteChatRouter::new(
+        runtime_store.clone(),
+        host_links.clone(),
+        remote_agent_chats.clone(),
+    );
+    let routed_chat_runtime = super::chat_orchestration_remote::RoutedChatRuntime::new(
+        agent_chat_runtime.clone(),
+        remote_router,
+    );
+    let chat_orchestration = super::chat_orchestration::ChatOrchestrationService::new(
+        runtime_store.clone(),
+        agent_chat_runtime.clone(),
+        Arc::new(
+            super::chat_orchestration::RuntimeTargetResolver::new(runtime_store.clone())
+                .with_setup_script_directory(runtime_dir.clone()),
+        ),
+        chat_credentials,
+    )
+    .with_runtime(routed_chat_runtime)
+    .with_events(Arc::new(
+        super::chat_orchestration_events::HostOrchestrationEventSink::new(inbox.clone()),
+    ));
+    if let Err(error) = agent_chat_runtime.recover_after_restart().await {
+        tracing::warn!("agent chat startup recovery unavailable: {error}");
+    }
+    match runtime_store.recover_chat_orchestration().await {
+        Ok(recovery) => {
+            seed_remote_chat_routes(&remote_agent_chats, &recovery.remote);
+            chat_orchestration.resume_task_monitors(&recovery.remote);
+        }
+        Err(error) => {
+            tracing::warn!("chat orchestration startup recovery unavailable: {error}");
+        }
+    }
     let shutdown_signal = spawn_termination_listener(inbox.clone());
     let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
     let event_forwarder =
@@ -77,10 +154,8 @@ pub async fn run_terminal_host_server(
         pull_request_watches: Default::default(),
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
-        host_links: crate::terminal_host::host_link_registry::HostLinkRegistry::new(
-            runtime_store.clone(),
-            inbox.clone(),
-        ),
+        host_links,
+        remote_agent_chats,
         project_clone_jobs: HashMap::new(),
         prompt_workspace_operations: HashMap::new(),
         agent_title_jobs: HashMap::new(),
@@ -115,6 +190,9 @@ pub async fn run_terminal_host_server(
         voice: Default::default(),
         codex: None,
         codex_starting: None,
+        agent_chat_runtime: Some(agent_chat_runtime),
+        agent_chat_provider_settings: Some(agent_chat_provider_settings),
+        chat_orchestration: Some(chat_orchestration),
         inbox: inbox.clone(),
         next_client_id,
         mobile_gateway: None,
@@ -230,6 +308,35 @@ fn record_exit_intent(
     };
 }
 
+fn seed_remote_chat_routes(
+    directory: &super::agent_chat_remote::RemoteChatDirectory,
+    tasks: &[alera_core::runtime::ChatOrchestrationTask],
+) {
+    for task in tasks {
+        seed_remote_chat_route(
+            directory,
+            task.child_chat_id.as_deref(),
+            task.workspace_id.as_deref(),
+            task.host_id.as_deref(),
+        );
+    }
+}
+
+fn seed_remote_chat_route(
+    directory: &super::agent_chat_remote::RemoteChatDirectory,
+    child_chat_id: Option<&str>,
+    workspace_id: Option<&str>,
+    host_id: Option<&str>,
+) {
+    if let (Some(chat_id), Some(workspace_id), Some(host_id)) =
+        (child_chat_id, workspace_id, host_id)
+    {
+        if host_id != "local" && !chat_id.is_empty() && !workspace_id.is_empty() {
+            directory.remember(chat_id, workspace_id, host_id);
+        }
+    }
+}
+
 #[cfg(unix)]
 fn spawn_termination_listener(inbox: ServerInbox) -> Option<tokio::task::JoinHandle<()>> {
     use tokio::signal::unix::{signal, SignalKind};
@@ -272,5 +379,27 @@ mod tests {
         record_exit_intent(&mut exit, &ServerCommand::RequestedRestart, config);
         record_exit_intent(&mut exit, &ServerCommand::RequestedShutdown, config);
         assert!(matches!(exit, Some(TerminalHostExit::Restart(_))));
+    }
+
+    #[test]
+    fn startup_route_seed_keeps_remote_chat_identity() {
+        let directory = super::super::agent_chat_remote::RemoteChatDirectory::default();
+        super::seed_remote_chat_route(
+            &directory,
+            Some("chat-remote"),
+            Some("workspace-local-mirror"),
+            Some("ssh-host"),
+        );
+        assert_eq!(
+            directory.route("chat-remote"),
+            Some(("workspace-local-mirror".into(), "ssh-host".into()))
+        );
+        super::seed_remote_chat_route(
+            &directory,
+            Some("chat-local"),
+            Some("workspace-local"),
+            Some("local"),
+        );
+        assert_eq!(directory.route("chat-local"), None);
     }
 }

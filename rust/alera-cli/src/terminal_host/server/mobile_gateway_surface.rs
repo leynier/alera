@@ -54,6 +54,39 @@ use crate::terminal_host::protocol::{
 /// match, so an omission here is invisible and silently leaves every phone on
 /// the older code path with no version to blame.
 pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
+    "agentChatV1",
+    "agentChatDeferredStartV1",
+    "agentChatUnselectedDraftV1",
+    "agentChatPreferencesV1",
+    "agentChatProviderSettingsV1",
+    "agentChatEffortV1",
+    "agentChatQueueSteerV1",
+    "agentChatQueueEditV1",
+    "agentChatQueueReorderV1",
+    "agentChatForkV1",
+    "agentChatRewindV1",
+    "agentChatDeleteV1",
+    "agentChatApprovalHistoryV1",
+    "agentChatTurnDiffV1",
+    "agentChatSkillsV1",
+    "agentChatReadCursorV1",
+    "agentChatProviderSetupV1",
+    "agentChatAttachmentUploadV1",
+    "agentChatNativeRewindV1",
+    "agentChatRewindFilesV1",
+    "agentChatFileCheckpointsV1",
+    "agentChatNativeHistoryV1",
+    "agentChatApprovalRedirectV1",
+    "agentChatFeedbackV1",
+    "agentChatSubagentThreadsV1",
+    "agentChatMergeBackV1",
+    "agentChatGoalV1",
+    "agentChatAcpChildSessionsV1",
+    "agentChatWorkflowsV1",
+    "agentChatTransfersV1",
+    "chatOrchestrationV1",
+    "chatOrchestrationPersonParentV1",
+    "chatOrchestrationEffortV1",
     "configurationSyncV1",
     "relayAuthorizationRenewalV1",
     RUNTIME_HOST_CAPABILITY,
@@ -146,6 +179,67 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.status.get"
             | "mobile.relayAuthorization.renew"
             | "project.list"
+            | "agentChat.providers"
+            | "agentChat.list"
+            | "agentChat.create"
+            | "agentChat.snapshot"
+            | "agentChat.payload"
+            | "agentChat.history"
+            | "agentChat.send"
+            | "agentChat.attachment.start"
+            | "agentChat.attachment.chunk"
+            | "agentChat.attachment.complete"
+            | "agentChat.attachment.cancel"
+            | "agentChat.interrupt"
+            | "agentChat.feedback"
+            | "agentChat.respond"
+            | "agentChat.configure"
+            | "agentChat.rename"
+            | "agentChat.recover"
+            | "agentChat.close"
+            | "agentChat.reopen"
+            | "agentChat.queueCancel"
+            | "agentChat.queueSteer"
+            | "agentChat.queueEdit"
+            | "agentChat.queueReorder"
+            | "agentChat.fork"
+            | "agentChat.rewind"
+            | "agentChat.delete"
+            | "agentChat.approvalHistory"
+            | "agentChat.turnDiff"
+            | "agentChat.skills"
+            | "agentChat.markRead"
+            | "agentChat.rewindFiles"
+            | "agentChat.fileCheckpoints.configure"
+            | "agentChat.nativeHistory.operation"
+            | "agentChat.nativeHistory.reconcile"
+            | "agentChat.subagent"
+            | "agentChat.stopSubagent"
+            | "agentChat.workflowScript"
+            | "agentChat.workflowAgent"
+            | "agentChat.mergeBack"
+            | "agentChat.preferences.get"
+            | "agentChat.preferences.update"
+            | "agentChat.providerInstances.get"
+            | "agentChat.providerInstances.upsert"
+            | "agentChat.providerInstances.remove"
+            | "agentChat.providerInstances.removalImpact"
+            | "agentChat.secrets.set"
+            | "agentChat.secrets.clear"
+            | "chatOrchestration.capabilities"
+            | "chatOrchestration.delegate"
+            | "chatOrchestration.send"
+            | "chatOrchestration.task"
+            | "chatOrchestration.tasks.list"
+            | "chatOrchestration.wait"
+            | "chatOrchestration.cancel"
+            | "chatOrchestration.interrupt"
+            | "chatOrchestration.requests"
+            | "chatOrchestration.respond"
+            | "chatOrchestration.configure"
+            | "chatOrchestration.read"
+            | "chatOrchestration.transfers"
+            | "chatOrchestration.list"
             | "mobile.hosts.list"
             | "hostDirectory.roots"
             | "hostDirectory.list"
@@ -361,41 +455,13 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
     ) || MOBILE_RUN_VERBS.contains(&request_type)
 }
 
-/// Every `runs.*` verb and the read-only recipe verbs. Recipe writes, every
-/// `orchestration.*` verb, `host.process.run`, `inbox.wait` and the agent
-/// conversation reads (`inbox.conversations`, `inbox.conversation`, replaced on
-/// the phone by run timelines) stay local-only.
-pub(super) const MOBILE_RUN_VERBS: &[&str] = &[
-    "runs.board",
-    "runs.snapshot",
-    "runs.task",
-    "runs.timeline",
-    "runs.source",
-    "runs.create",
-    "runs.plan",
-    "runs.gates",
-    "runs.gate",
-    "runs.resolveGate",
-    "runs.control",
-    "runs.retryTask",
-    "runs.retryIntegration",
-    "runs.retryCancellation",
-    "runs.resources",
-    "runs.cleanups",
-    "runs.previewCleanup",
-    "runs.cleanup",
-    "runs.applyCleanup",
-    "runs.retryCleanup",
-    "runs.abandonCleanup",
-    "runs.integrations",
-    "runs.integration",
-    "recipes.catalog",
-    "recipes.recipe",
-];
+#[path = "mobile_gateway_run_verbs.rs"]
+mod run_verbs;
+pub(super) use run_verbs::MOBILE_RUN_VERBS;
 
 #[cfg(test)]
-#[path = "mobile_gateway_surface_runs_tests.rs"]
-mod runs_mobile_tests;
+#[path = "mobile_gateway_surface_tests.rs"]
+mod tests;
 
 #[cfg(test)]
 #[path = "mobile_gateway_surface_codex_tests.rs"]
@@ -404,32 +470,5 @@ mod mobile_codex_file_surface_tests;
 #[path = "mobile_gateway_surface_setup_tests.rs"]
 mod mobile_setup_surface_tests;
 #[cfg(test)]
-mod prompt_workspace_surface_tests {
-    /// The phone's New Workspace from Prompt delegates to the runtime service
-    /// once the hello list names it.
-    #[test]
-    fn mobile_may_run_new_workspace_from_prompt_on_the_runtime() {
-        assert!(super::MOBILE_HELLO_CAPABILITIES.contains(&"promptWorkspaceServiceV1"));
-        for request in [
-            "workspace.promptStart.start",
-            "workspace.promptStart.get",
-            "workspace.promptStart.list",
-            "workspace.promptStart.cancel",
-            "workspace.promptStart.retryLaunch",
-        ] {
-            assert!(super::mobile_request_allowed(request), "{request}");
-        }
-    }
-}
-
-#[cfg(test)]
-mod relay_renewal_tests {
-    #[test]
-    fn disabling_renewal_preserves_all_other_mobile_capabilities() {
-        let enabled = super::mobile_hello_capabilities(true);
-        let disabled = super::mobile_hello_capabilities(false);
-        assert!(enabled.contains(&"relayAuthorizationRenewalV1"));
-        assert!(!disabled.contains(&"relayAuthorizationRenewalV1"));
-        assert_eq!(enabled.len(), disabled.len() + 1);
-    }
-}
+#[path = "mobile_gateway_surface_runs_tests.rs"]
+mod runs_mobile_tests;

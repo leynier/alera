@@ -23,6 +23,7 @@ pub(super) struct SpawnedPty {
 pub(super) fn spawn_pty(
     launch: TerminalHostLaunch,
     terminal_handle: String,
+    working_directory: String,
     cols: u16,
     rows: u16,
 ) -> HostResult<SpawnedPty> {
@@ -45,6 +46,9 @@ pub(super) fn spawn_pty(
         command.args(&launch.arguments);
         command
     };
+    if launch.provider_setup.is_some() {
+        command.cwd(working_directory);
+    }
     // Session launch environments are explicit so terminals do not inherit
     // stale variables from the long-running host process.
     #[cfg(not(windows))]
