@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_phases.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
@@ -138,9 +139,21 @@ class const _RelationRow({
   required final AgentChatRelation relation,
   required final AgentChatRelationshipActions actions,
   required final bool mergeTarget,
-}) extends StatelessWidget {
+}) extends StatefulWidget {
+  @override
+  State<_RelationRow> createState() => _RelationRowState();
+}
+
+class _RelationRowState extends State<_RelationRow> {
+  /// A workflow row unfolds its phases and members, as T3 Code's does.
+  bool _expanded = false;
+
   @override
   Widget build(BuildContext context) {
+    final relation = widget.relation;
+    final actions = widget.actions;
+    final mergeTarget = widget.mergeTarget;
+    final workflow = relation.workflow;
     final theme = Theme.of(context);
     final call = relation.call;
     final onOpen = call == null
@@ -157,16 +170,16 @@ class const _RelationRow({
       AgentChatRelationKind.parentChat ||
       AgentChatRelationKind.forkSource => AleraIcons.back,
       AgentChatRelationKind.fork => AleraIcons.gitFork,
-      AgentChatRelationKind.delegatedChat ||
-      AgentChatRelationKind.subagent => AleraIcons.agent,
+      AgentChatRelationKind.delegatedChat || AgentChatRelationKind.subagent =>
+        workflow == null ? AleraIcons.agent : AleraIcons.workflow,
     };
-    return Row(
+    final row = Row(
       children: <Widget>[
         Expanded(
           child: Tooltip(
             message: relation.missing
                 ? 'This related chat is unavailable'
-                : 'Open ${relation.kind.label.toLowerCase()}',
+                : 'Open ${relation.kindLabel.toLowerCase()}',
             child: InkWell(
               borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
               onTap: onOpen,
@@ -196,7 +209,7 @@ class const _RelationRow({
                     ),
                     const SizedBox(width: AleraTokens.space6),
                     Text(
-                      '${relation.kind.label} · ${relation.statusLabel}',
+                      '${relation.kindLabel} · ${relation.statusLabel}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: relation.failed
                             ? AleraTokens.error
@@ -221,7 +234,7 @@ class const _RelationRow({
         if (stop != null)
           AleraIconButton(
             key: ValueKey<String>('agent-chat-lineage-stop-${call!.id}'),
-            tooltip: 'Stop Sub-agent',
+            tooltip: workflow == null ? 'Stop Sub-agent' : 'Stop Workflow',
             icon: AleraIcons.square,
             iconSize: AleraTokens.iconSm,
             minSize: AleraTokens.iconButtonSm,
@@ -230,6 +243,30 @@ class const _RelationRow({
                 ? null
                 : () => stop(call.id),
           ),
+        if (workflow != null)
+          AleraIconButton(
+            key: ValueKey<String>('agent-chat-lineage-expand-${call!.id}'),
+            tooltip: '${_expanded ? 'Collapse' : 'Expand'} ${relation.title}',
+            icon: _expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+            iconSize: AleraTokens.iconSm,
+            minSize: AleraTokens.iconButtonSm,
+            onPressed: () => setState(() => _expanded = !_expanded),
+          ),
+      ],
+    );
+    if (workflow == null || !_expanded) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        row,
+        Padding(
+          padding: const EdgeInsets.only(left: AleraTokens.space20),
+          // A member opens with its workflow, where its answer is.
+          child: AgentChatWorkflowPhases(
+            group: workflow,
+            onOpenMember: onOpen == null ? null : (_) => onOpen(),
+          ),
+        ),
       ],
     );
   }

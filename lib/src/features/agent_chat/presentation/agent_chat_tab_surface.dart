@@ -15,6 +15,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface.da
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_open_actions.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_action_scope_region.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -138,75 +139,83 @@ class _AgentChatTabSurfaceState extends ConsumerState<AgentChatTabSurface> {
         onOpen: onOpen,
         onStop: onStop,
         stopping: _stopping,
-        child: Stack(
-          children: <Widget>[
-            // The chat stays mounted under an open sub-agent, so its scroll
-            // position and composer survive the visit.
-            Positioned.fill(
-              child: ExcludeFocus(
-                excluding: openCall != null,
-                child: Offstage(
-                  offstage: openCall != null,
-                  child: TickerMode(
-                    enabled: openCall == null,
-                    child: AgentChatSurface(
-                      key: ValueKey<String>('agent-chat-surface-$chatId'),
-                      chatId: chatId,
-                      workspace: widget.workspace,
-                      fallbackTitle: widget.tab.title,
-                      fallbackProvider: widget.tab.agentChatProvider ?? '',
-                      autofocus: widget.autofocus,
+        child: AgentChatWorkflowScope(
+          chatId: chatId,
+          workspaceId: widget.workspace.id,
+          readable: capability(AgentChatWire.workflowsCapability),
+          child: Stack(
+            children: <Widget>[
+              // The chat stays mounted under an open sub-agent, so its scroll
+              // position and composer survive the visit.
+              Positioned.fill(
+                child: ExcludeFocus(
+                  excluding: openCall != null,
+                  child: Offstage(
+                    offstage: openCall != null,
+                    child: TickerMode(
+                      enabled: openCall == null,
+                      child: AgentChatSurface(
+                        key: ValueKey<String>('agent-chat-surface-$chatId'),
+                        chatId: chatId,
+                        workspace: widget.workspace,
+                        fallbackTitle: widget.tab.title,
+                        fallbackProvider: widget.tab.agentChatProvider ?? '',
+                        autofocus: widget.autofocus,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            if (openCall != null)
-              Positioned.fill(
-                child: AgentChatSubagentSurface(
-                  key: ValueKey<String>(
-                    'agent-chat-subagent-surface-$openCall',
+              if (openCall != null)
+                Positioned.fill(
+                  child: AgentChatSubagentSurface(
+                    key: ValueKey<String>(
+                      'agent-chat-subagent-surface-$openCall',
+                    ),
+                    chatId: chatId,
+                    workspace: widget.workspace,
+                    callId: openCall,
                   ),
-                  chatId: chatId,
-                  workspace: widget.workspace,
-                  callId: openCall,
+                )
+              else
+                // Top-left: Find in Chat opens at the top-right.
+                Positioned(
+                  top: AleraTokens.space8,
+                  left: AleraTokens.space12,
+                  child: AgentChatRelationshipsControl(
+                    chatId: chatId,
+                    workspaceId: widget.workspace.id,
+                    actions: (relationships, close) =>
+                        AgentChatRelationshipActions(
+                          onOpenChat: (id) {
+                            close();
+                            _openChat(id);
+                          },
+                          onOpenSubagent: onOpen == null
+                              ? null
+                              : (callId) {
+                                  close();
+                                  onOpen(callId);
+                                },
+                          onStopSubagent: onStop,
+                          stopping: _stopping,
+                          merging: _merging,
+                          onMergeBack:
+                              mergeBack &&
+                                  idle &&
+                                  relationships.mergeTarget != null
+                              ? () => unawaited(
+                                  _mergeBack(
+                                    chatId,
+                                    relationships.mergeTarget!,
+                                  ),
+                                )
+                              : null,
+                        ),
+                  ),
                 ),
-              )
-            else
-              // Top-left: Find in Chat opens at the top-right.
-              Positioned(
-                top: AleraTokens.space8,
-                left: AleraTokens.space12,
-                child: AgentChatRelationshipsControl(
-                  chatId: chatId,
-                  workspaceId: widget.workspace.id,
-                  actions: (relationships, close) =>
-                      AgentChatRelationshipActions(
-                        onOpenChat: (id) {
-                          close();
-                          _openChat(id);
-                        },
-                        onOpenSubagent: onOpen == null
-                            ? null
-                            : (callId) {
-                                close();
-                                onOpen(callId);
-                              },
-                        onStopSubagent: onStop,
-                        stopping: _stopping,
-                        merging: _merging,
-                        onMergeBack:
-                            mergeBack &&
-                                idle &&
-                                relationships.mergeTarget != null
-                            ? () => unawaited(
-                                _mergeBack(chatId, relationships.mergeTarget!),
-                              )
-                            : null,
-                      ),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

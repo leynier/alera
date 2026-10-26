@@ -193,6 +193,9 @@ abstract final class const AleraIcons._() {
   static const IconData settings = LucideIcons.settings;
   static const IconData tune = LucideIcons.slidersHorizontal;
   static const IconData agent = LucideIcons.bot;
+
+  /// A provider-native workflow: a script running sub-agents in phases.
+  static const IconData workflow = LucideIcons.workflow;
   static const IconData quota = LucideIcons.gauge;
   static const IconData resources = LucideIcons.activity;
   static const IconData keepAlive = LucideIcons.coffee;

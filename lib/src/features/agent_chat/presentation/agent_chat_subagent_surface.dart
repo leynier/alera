@@ -13,6 +13,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.d
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_bar.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_scope.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_panel.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
@@ -152,7 +153,11 @@ class _AgentChatSubagentSurfaceState
                     'runtime reads at once.',
                   ),
                 if (timeline.prompt case final prompt?) _Prompt(prompt),
-                if (timeline.rows.isEmpty && timeline.running)
+                if (call.workflowGroup case final workflow?)
+                  AgentChatWorkflowPanel(callId: call.id, group: workflow),
+                if (timeline.rows.isEmpty &&
+                    timeline.running &&
+                    call.subagent?.workflow == null)
                   const _Notice('The sub-agent has not reported work yet.'),
                 for (final row in timeline.rows)
                   AgentChatActivityRowView(
@@ -250,7 +255,11 @@ class const _Header({
               key: const ValueKey<String>('agent-chat-subagent-stop'),
               onPressed: stopping ? null : () => stop(timeline.call.id),
               icon: const Icon(AleraIcons.stop, size: AleraTokens.iconMd),
-              label: const Text('Stop Sub-agent'),
+              label: Text(
+                timeline.call.subagent?.workflow == null
+                    ? 'Stop Sub-agent'
+                    : 'Stop Workflow',
+              ),
             ),
         ],
       ),

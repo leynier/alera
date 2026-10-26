@@ -6,6 +6,8 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_r
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_scope.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_panel.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_phases.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
@@ -30,13 +32,16 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
     final row = widget.row;
     final key = row.key;
     final summary = row.summary?.trim() ?? '';
-    final hasBody = row.rows.isNotEmpty || summary.isNotEmpty;
+    final workflow = row.call.workflowGroup;
+    final hasBody =
+        row.rows.isNotEmpty || summary.isNotEmpty || workflow != null;
     final expanded =
         hasBody && widget.expansion.isExpanded(key, byDefault: false);
     final failed = row.status == AgentChatSubagentStatus.failed;
     final color = failed ? AleraTokens.error : AleraTokens.foregroundMuted;
     final style = theme.textTheme.bodySmall?.copyWith(color: color);
-    final label = 'Sub-agent: ${row.label}';
+    final label =
+        '${workflow == null ? 'Sub-agent' : 'Workflow'}: ${row.label}';
     final scope = AgentChatSubagentScope.maybeOf(context);
     final onOpen = scope?.onOpen;
     final onStop = row.streaming ? scope?.onStop : null;
@@ -54,7 +59,11 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
               : null,
           child: Row(
             children: <Widget>[
-              Icon(AleraIcons.agent, size: AleraTokens.iconMd, color: color),
+              Icon(
+                workflow == null ? AleraIcons.agent : AleraIcons.workflow,
+                size: AleraTokens.iconMd,
+                color: color,
+              ),
               const SizedBox(width: AleraTokens.space8),
               Flexible(
                 child: row.streaming
@@ -73,7 +82,9 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
               ),
               const SizedBox(width: AleraTokens.space8),
               Text(
-                row.childCount == 0
+                workflow != null
+                    ? workflow.summary
+                    : row.childCount == 0
                     ? row.status.label
                     : '${row.status.label} · ${row.childCount} '
                           '${row.childCount == 1 ? 'step' : 'steps'}',
@@ -97,7 +108,9 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
                   key: ValueKey<String>(
                     'agent-chat-subagent-stop-${row.call.id}',
                   ),
-                  tooltip: 'Stop Sub-agent',
+                  tooltip: workflow == null
+                      ? 'Stop Sub-agent'
+                      : 'Stop Workflow',
                   icon: AleraIcons.square,
                   iconSize: AleraTokens.iconSm,
                   minSize: AleraTokens.iconButtonXs,
@@ -111,7 +124,9 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
                   key: ValueKey<String>(
                     'agent-chat-subagent-open-${row.call.id}',
                   ),
-                  tooltip: 'Open Sub-agent',
+                  tooltip: workflow == null
+                      ? 'Open Sub-agent'
+                      : 'Open Workflow',
                   icon: AleraIcons.forward,
                   iconSize: AleraTokens.iconSm,
                   minSize: AleraTokens.iconButtonXs,
@@ -136,6 +151,14 @@ class _AgentChatSubagentRowViewState extends State<AgentChatSubagentRowView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                if (workflow != null)
+                  AgentChatWorkflowPhases(
+                    group: workflow,
+                    onOpenMember: agentChatWorkflowMemberOpener(
+                      context,
+                      row.call.id,
+                    ),
+                  ),
                 for (final child in row.rows)
                   AgentChatActivityRowView(
                     key: ValueKey<String>(child.key),
