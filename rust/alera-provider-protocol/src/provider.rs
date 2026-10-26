@@ -49,6 +49,18 @@ pub trait Provider: Send {
             "native filesystem rewind".into(),
         ))
     }
+    /// Marks (`awaited`) or unmarks background tasks the agent will resume
+    /// from, by the task ids the agent saw, and returns the ids it matched.
+    /// Ids not running in this session are not returned and change nothing.
+    async fn await_background_tasks(
+        &mut self,
+        _task_ids: &[String],
+        _awaited: bool,
+    ) -> Result<Vec<String>, ProviderError> {
+        Err(ProviderError::Unsupported(
+            "awaiting background tasks".into(),
+        ))
+    }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError>;
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError>;
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError>;

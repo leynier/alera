@@ -2,7 +2,7 @@ use super::*;
 use alera_provider_protocol::NativeTask;
 
 impl ClaudeProvider {
-    pub(super) fn map_native_task(&self, subtype: &str, payload: &Value) -> Vec<ProviderEvent> {
+    pub(super) fn map_native_task(&mut self, subtype: &str, payload: &Value) -> Vec<ProviderEvent> {
         let raw = self.raw(subtype, payload.clone());
         let Some(task_id) = canonical_payload::task_id(payload).filter(|id| !id.trim().is_empty())
         else {
@@ -58,9 +58,13 @@ impl ClaudeProvider {
         let task_type = canonical_payload::text_field(payload, &["task_type", "taskType"]);
         // Claude runs background Bash as a local_bash task the agent need not
         // wait on. Every other task is a sub-agent whose result returns to it.
-        let awaited = (kind == EventKind::TaskStarted
-            && task_type.as_deref() != Some("local_bash"))
-        .then_some(true);
+        let background_command = task_type.as_deref() == Some("local_bash");
+        let awaited = (kind == EventKind::TaskStarted && !background_command).then_some(true);
+        self.background_tasks.observe(
+            &kind,
+            &task_id,
+            background_command && payload.get("is_backgrounded") != Some(&Value::Bool(false)),
+        );
         let mut normalized = canonical_payload::compact_nulls(json!({
             "taskId":task_id,
             "awaited":awaited,

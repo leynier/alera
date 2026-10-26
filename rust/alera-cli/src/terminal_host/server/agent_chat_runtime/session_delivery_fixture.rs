@@ -169,6 +169,13 @@ impl Provider for RecordingProvider {
             boundary: input.boundary,
         })
     }
+    async fn await_background_tasks(
+        &mut self,
+        task_ids: &[String],
+        awaited: bool,
+    ) -> Result<Vec<String>, ProviderError> {
+        self.inner.await_background_tasks(task_ids, awaited).await
+    }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         self.inner.interrupt(input).await
     }

@@ -301,6 +301,48 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option_if("--turn-id", arguments.string("turnId")))
             },
         ),
+        ToolSpec {
+            // Marking the same tasks twice leaves the same marks.
+            idempotent: true,
+            ..execute(
+            "chat_background_wait",
+            "Wait On Background Work",
+            "Keep this chat working while you wait for a background command or Monitor you started. Call this before you end your turn if you will act on its result when it wakes you. In taskIds, give the IDs shown when the tasks started. The chat stays working until the task ends. Do not mark work you leave running, such as a dev server or watcher; unmarked commands never keep the chat working. Pass waiting=false to remove the mark; this does not stop the task. IDs that are not running return in unmatched and change nothing. Only Claude chats support this tool; other providers return an invalid request error.",
+            || {
+                object(
+                    &[
+                        (
+                            "taskIds",
+                            json!({
+                                "type": "array",
+                                "items": {"type": "string", "minLength": 1},
+                                "minItems": 1,
+                                "maxItems": 20,
+                                "description": "Background task ids to mark."
+                            }),
+                        ),
+                        ("waiting", boolean("Mark (default true) or remove the mark.")),
+                    ],
+                    &["taskIds"],
+                )
+            },
+            |arguments| {
+                let task_ids = arguments
+                    .list("taskIds")
+                    .ok_or_else(|| ToolInputError("Missing array argument taskIds.".into()))?;
+                if task_ids.is_empty()
+                    || task_ids.len() > 20
+                    || task_ids.iter().any(|id| id.trim().is_empty())
+                {
+                    return Err(ToolInputError(
+                        "taskIds must hold 1 to 20 nonempty task ids.".into(),
+                    ));
+                }
+                Ok(Invocation::new("chat", &["background-wait"])
+                    .option("--task-id", task_ids.join(","))
+                    .flag_if("--stop-waiting", arguments.optional_flag("waiting") == Some(false)))
+            },
+        )},
         read(
             "chat_requests",
             "List Chat Requests",

@@ -28,8 +28,35 @@ fn optional_string(payload: &Value, key: &str) -> HostResult<Option<String>> {
     }
 }
 
+/// The most background tasks one `backgroundWait` names.
+pub(crate) const MAX_BACKGROUND_TASK_IDS: usize = 20;
+
 fn request_id(payload: &Value) -> HostResult<String> {
     required_string(payload, "requestId")
+}
+
+/// The ids of background tasks the agent saw: 1 to 20 nonempty strings.
+fn parse_background_task_ids(payload: &Value) -> HostResult<Vec<String>> {
+    let values = payload
+        .get("taskIds")
+        .and_then(Value::as_array)
+        .ok_or_else(|| HostError::format("taskIds must be an array"))?;
+    if values.is_empty() || values.len() > MAX_BACKGROUND_TASK_IDS {
+        return Err(HostError::format(format!(
+            "taskIds must hold 1 to {MAX_BACKGROUND_TASK_IDS} task ids"
+        )));
+    }
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(str::trim)
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned)
+                .ok_or_else(|| HostError::format("taskIds entries must be nonempty strings"))
+        })
+        .collect()
 }
 
 fn parse_notify(payload: &Value, mode: DelegateMode) -> HostResult<ChatOrchestrationNotify> {
@@ -285,6 +312,15 @@ impl OrchestrationRequest {
                 task_id: required_string(payload, "taskId")?,
                 request_id: request_id(payload)?,
                 reason: optional_string(payload, "reason")?,
+            }),
+            "backgroundWait" => Ok(Self::BackgroundWait {
+                task_ids: parse_background_task_ids(payload)?,
+                waiting: match payload.get("waiting") {
+                    None | Some(Value::Null) => true,
+                    Some(Value::Bool(waiting)) => *waiting,
+                    Some(_) => return Err(HostError::format("waiting must be a boolean")),
+                },
+                request_id: request_id(payload)?,
             }),
             "interrupt" => Ok(Self::Interrupt {
                 chat_id: required_string(payload, "chatId")?,

@@ -28,6 +28,12 @@ Optional delegation fields are `title`, `role`, `agent` (`providerInstanceId`, o
 - `chat_task_list` filters by `parentChatId`, `childChatId`, `rootTaskId`, `projectId`, `workspaceId`, `hostId`, `statuses`, or `attention`. Without `parentChatId`, `childChatId` or `rootTaskId` it lists only the tasks your own chat delegated, because several chats in one workspace each own their delegations; name another lineage to read it, marked `readOnly`. `limit` defaults to 100 and accepts 1 to 200; pass `nextCursor` back as `cursor` for the next page.
 - `chat_send` sends `message` to `chatId`. `delivery` is `auto` (default) or `queue`, which waits behind an active turn. `expectReply` creates a message task whose settled result can notify the sender.
 
+## Wait On Your Own Background Work
+
+- `chat_background_wait` takes `taskIds` (1 to 20, as shown when the tasks started) and optional `waiting` (default `true`). It marks background commands or Monitors your own chat started, so the chat stays working until they end; the chat comes from the credential, never from the arguments. Call it before you end your turn when you will act on the result, such as tests or a build, and never for a dev server or watcher. `waiting:false` removes the mark without stopping the task. It returns `matched` and `unmatched`; ids that are not running change nothing. Only Claude chats support it; other providers return an invalid request. Claude Code defers MCP tools, so load it with ToolSearch first.
+
+A Codex chat whose turn already completed is resumed by the runtime when one of its direct sub-agents finishes, with an automated message carrying the sub-agent's outcome and final answer. A running or queued turn reads the result natively instead.
+
 Follow-up delegation creates a new task even when it reuses a chat. Completion notifications queue behind a parent's active turn and identify task ids; read results separately. Open child requests set a task to `needs_input`.
 
 ## Control Owned Work

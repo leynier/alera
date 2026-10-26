@@ -43,6 +43,8 @@ pub(crate) const MAX_WAIT_SECONDS: u64 = 50;
 #[cfg(test)]
 mod authorization_tests;
 #[cfg(test)]
+mod background_wait_tests;
+#[cfg(test)]
 mod cancel_admission_tests;
 #[cfg(test)]
 mod cancellation_tests;

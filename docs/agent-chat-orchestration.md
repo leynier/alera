@@ -8,7 +8,7 @@ Delegation always names its target: an existing chat, a new chat in an existing 
 
 ## Contract
 
-The additive capability is `chatOrchestrationV1`. Host verbs use `chatOrchestration.*`; MCP tools use the `chat_` prefix so they cannot collide with terminal tools. The verbs are `capabilities`, `delegate`, `send`, `task`, `tasks.list`, `wait`, `cancel`, `interrupt`, `requests`, `respond`, `configure`, `read` and `list`. The CLI group is `alera chat`. Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond` and `configure`) carry `requestId`; MCP exposes `clientRequestId` and maps it to that field. A task acknowledgement with an explicit request ID also uses a durable receipt; legacy no-ID acknowledgement remains compatible. Pure task reads never acknowledge.
+The additive capability is `chatOrchestrationV1`. Host verbs use `chatOrchestration.*`; MCP tools use the `chat_` prefix so they cannot collide with terminal tools. The verbs are `capabilities`, `delegate`, `send`, `task`, `tasks.list`, `wait`, `cancel`, `interrupt`, `backgroundWait`, `requests`, `respond`, `configure`, `read` and `list`. The CLI group is `alera chat`. Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond` and `configure`) carry `requestId`; MCP exposes `clientRequestId` and maps it to that field. A task acknowledgement with an explicit request ID also uses a durable receipt; legacy no-ID acknowledgement remains compatible. Pure task reads never acknowledge.
 
 `delegate` accepts `{task, title?, role?, notify?, mode: async|wait, waitSeconds?, requestId, agent?: {providerInstanceId?, model?, options?}, runtimeMode?, interactionMode?, target}`. A target is exactly one of `{chat:{chatId}}`, `{workspace:{workspaceId}}` or `{newWorkspace:{projectId,hostId,mode:worktree|shared,branch?,sourceBranch?,reuseExistingBranch?,name?,parentWorkspaceId?,setup:inline|deferred}}`. Worktree targets require `branch`; setup defaults to `inline`. Its response includes `{taskId,chatId?,workspaceId?,status,result?}`.
 
@@ -37,6 +37,12 @@ Read/task-list pages default to 100 and accept limits from 1 to 200; task-list u
 
 Human parent binding requires `chatOrchestrationPersonParentV1` on delegate/send; task-list parent filtering is just a query. Delegation effort belongs only in `agent.options.reasoningEffort`, a nonempty string of at most 128 bytes. It and configure effort selection/reset require the independent `chatOrchestrationEffortV1` plus verified destination-model support. Default selection omits model/effort; configure alone accepts explicit null resets. Unknown provider options and credentials are rejected. The ordinary `alera chat` commands share these additive capability checks while retaining their bound lineage route.
 
+## Background work
+
+A chat stays working after its turn while native work the agent resumes from is open: native sub-agents, and background commands the agent marked. `backgroundWait {taskIds, waiting?}` (MCP `chat_background_wait`, CLI `alera chat background-wait`) marks or unmarks the bound caller's own background commands, resolved from its credential, and answers `{matched, unmatched}`; only Claude supports it, and other providers answer an invalid request. When the injected server is present, the Claude system prompt tells the agent when to call it, because Claude Code defers MCP tools behind ToolSearch.
+
+Codex does not resume a parent whose turn already completed when one of its direct sub-agents finishes. The runtime then starts a parent turn itself, an automated message with `origin {kind: subagentWake}` that carries the sub-agent's outcome and final answer, but only while nothing runs, waits or is queued; otherwise the next turn reads the result natively. Claude resumes its own agent and needs no wake.
+
 ## Notifications and cancellation
 
 `notify` is `always|settled_only|never`. Async defaults to `always`; bounded waits avoid duplicate notifications and enable a later wake after timeout. Parent wakes are durable, idempotent queued messages with a stable client message ID and an increasing delivery generation. Concurrent completions merge into a cohort. Wakes identify completed tasks; the parent reads their results separately. A wake never interrupts a running parent turn.
@@ -51,7 +57,7 @@ Bound agents may read and message chats across known projects and hosts. They ma
 
 ## Runtime and storage boundaries
 
-`AgentChatRuntime` supplies create/list/command/send/interrupt/snapshot/subscribe and `ProviderLaunchHook` runs before each native spawn. Host-only metadata records lineage; only explicit safe lineage fields are projected to clients. `SendInput.origin` records a chat message or orchestration wake so clients can distinguish it from user input. Store tasks, wakes, receipts and credential hashes separately from terminal orchestration. Receipt identity is `(scope,verb,requestId)` plus a canonical payload digest; same payload replays, a different payload conflicts. Journal/task changes commit before broadcast.
+`AgentChatRuntime` supplies create/list/command/send/interrupt/snapshot/subscribe and `ProviderLaunchHook` runs before each native spawn. Host-only metadata records lineage; only explicit safe lineage fields are projected to clients. `SendInput.origin` records a chat message, orchestration wake or sub-agent wake so clients can distinguish it from user input. Store tasks, wakes, receipts and credential hashes separately from terminal orchestration. Receipt identity is `(scope,verb,requestId)` plus a canonical payload digest; same payload replays, a different payload conflicts. Journal/task changes commit before broadcast.
 
 The hub owns cross-host task routing. Each satellite owns its provider processes and chat transcript. Workspace creation uses `HubSelfClientPool` and the existing `workspace.createManaged` or `workspace.createShared` flow, including setup and mutation barriers. No additional git implementation is introduced.
 

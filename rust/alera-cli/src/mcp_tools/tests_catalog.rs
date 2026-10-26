@@ -178,6 +178,37 @@ fn every_tool_builds_a_command_the_cli_accepts() {
     }
 }
 
+/// The injected chat catalog runs the same CLI. Its samples cannot satisfy
+/// every tool (a configure needs one selection without its reset), so only
+/// the commands they do build are checked here.
+#[test]
+fn injected_chat_tools_build_commands_the_cli_accepts() {
+    for tool in catalog::chat_tools() {
+        for arguments in sample_variants(&tool) {
+            let Ok(invocation) = tool.invocation(&arguments) else {
+                continue;
+            };
+            let argv = cli_argv(invocation);
+            if let Err(error) = Cli::try_parse_from(&argv) {
+                panic!(
+                    "{} builds {:?}, which the CLI rejects: {error}",
+                    tool.name, argv
+                );
+            }
+        }
+    }
+    let wait = catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_background_wait")
+        .unwrap();
+    let invocation = wait
+        .invocation(
+            &json!({"taskIds": ["bash-1"], "waiting": false, CLIENT_REQUEST_ID: "retry-01"}),
+        )
+        .unwrap();
+    Cli::try_parse_from(cli_argv(invocation)).unwrap();
+}
+
 #[test]
 fn no_tool_reaches_an_excluded_command() {
     for tool in catalog() {

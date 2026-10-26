@@ -11,15 +11,16 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::chat_orchestration_commands_args::{
-    ChatAction, ChatCancelArgs, ChatCommand, ChatConfigureArgs, ChatDelegateArgs,
-    ChatInterruptArgs, ChatListArgs, ChatReadArgs, ChatRequestsArgs, ChatRespondArgs, ChatSendArgs,
-    ChatTaskArgs, ChatTaskListArgs, ChatWaitArgs,
+    ChatAction, ChatBackgroundWaitArgs, ChatCancelArgs, ChatCommand, ChatConfigureArgs,
+    ChatDelegateArgs, ChatInterruptArgs, ChatListArgs, ChatReadArgs, ChatRequestsArgs,
+    ChatRespondArgs, ChatSendArgs, ChatTaskArgs, ChatTaskListArgs, ChatWaitArgs,
 };
 use crate::cli::RuntimeDirArgs;
 use crate::orchestration_commands::WAIT_CLIENT_GRACE_MS;
 
 pub(crate) const CHAT_ORCHESTRATION_CAPABILITY: &str = "chatOrchestrationV1";
 const MAX_WAIT_SECONDS: u64 = 50;
+const MAX_BACKGROUND_TASK_IDS: usize = 20;
 
 pub(crate) async fn run(command: ChatCommand) -> i32 {
     let runtime = command.runtime;
@@ -39,6 +40,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
         ChatAction::Wait(args) => wait(&runtime, args).await,
         ChatAction::Cancel(args) => cancel(&runtime, args).await,
         ChatAction::Interrupt(args) => interrupt(&runtime, args).await,
+        ChatAction::BackgroundWait(args) => background_wait(&runtime, args).await,
         ChatAction::Requests(args) => requests(&runtime, args).await,
         ChatAction::Respond(args) => respond(&runtime, args).await,
         ChatAction::Configure(args) => configure(&runtime, args).await,
@@ -259,6 +261,27 @@ async fn interrupt(runtime: &RuntimeDirArgs, args: ChatInterruptArgs) -> Result<
             "requestId": request_id(args.request_id)?,
             "chatId": require_text(&args.chat_id, "chat-id")?,
             "turnId": optional_text(args.turn_id, "turn-id")?,
+        }),
+    )
+    .await
+}
+
+async fn background_wait(runtime: &RuntimeDirArgs, args: ChatBackgroundWaitArgs) -> Result<Value> {
+    let task_ids = args
+        .task_ids
+        .iter()
+        .map(|task_id| require_text(task_id, "task-id"))
+        .collect::<Result<Vec<_>>>()?;
+    if task_ids.len() > MAX_BACKGROUND_TASK_IDS {
+        bail!("task-id accepts at most {MAX_BACKGROUND_TASK_IDS} task ids");
+    }
+    request(
+        runtime,
+        "chatOrchestration.backgroundWait",
+        json!({
+            "requestId": request_id(args.request_id)?,
+            "taskIds": task_ids,
+            "waiting": !args.stop_waiting,
         }),
     )
     .await

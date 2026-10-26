@@ -37,6 +37,9 @@ pub enum ChatAction {
     Cancel(ChatCancelArgs),
     /// Interrupt the active turn of a child chat.
     Interrupt(ChatInterruptArgs),
+    /// Mark background tasks of the bound chat that its agent waits on.
+    #[command(name = "background-wait")]
+    BackgroundWait(ChatBackgroundWaitArgs),
     /// List open runtime requests for a child chat.
     Requests(ChatRequestsArgs),
     /// Answer an open runtime request.
@@ -228,6 +231,23 @@ pub struct ChatCancelArgs {
     pub task_id: String,
     #[arg(long)]
     pub reason: Option<String>,
+    #[arg(long = "request-id")]
+    pub request_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ChatBackgroundWaitArgs {
+    /// Task ids as the agent saw them when the work started (1 to 20).
+    #[arg(
+        long = "task-id",
+        required = true,
+        action = ArgAction::Append,
+        value_delimiter = ','
+    )]
+    pub task_ids: Vec<String>,
+    /// Remove the mark instead. This does not stop the task.
+    #[arg(long = "stop-waiting")]
+    pub stop_waiting: bool,
     #[arg(long = "request-id")]
     pub request_id: Option<String>,
 }

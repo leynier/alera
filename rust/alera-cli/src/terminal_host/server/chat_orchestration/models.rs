@@ -137,6 +137,13 @@ pub(crate) enum OrchestrationRequest {
         turn_id: Option<String>,
         request_id: String,
     },
+    /// The bound caller marks (`waiting`) or unmarks background tasks of its
+    /// own chat that it waits on.
+    BackgroundWait {
+        task_ids: Vec<String>,
+        waiting: bool,
+        request_id: String,
+    },
     Requests {
         task_id: Option<String>,
         chat_id: Option<String>,

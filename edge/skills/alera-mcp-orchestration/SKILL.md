@@ -2,7 +2,7 @@
 name: alera-mcp-orchestration
 description: Delegate tasks to Alera agents and start, follow, and steer runs, their gates, and run recipes through this MCP server. Use when work should be split among agents or tracked as a run.
 metadata:
-  version: 6
+  version: 7
 ---
 
 # Alera Orchestration Through MCP

@@ -1,18 +1,26 @@
 //! Native background work the agent resumes from: what keeps a chat working
-//! after its turn ends, and the parent turn that resumes when a native child
-//! finishes after the turn that started it.
+//! after its turn ends, the background commands the agent says it waits on
+//! (`chat_background_wait`), and the parent turn that resumes when a native
+//! child finishes after the turn that started it.
 
-use alera_provider_protocol::{EventKind, ProviderEvent};
+use std::time::Duration;
+
+use alera_provider_protocol::{EventKind, ProviderError, ProviderEvent};
 use serde_json::{json, Value};
 
-use super::commands::{CallerCtx, SendInput};
+use crate::terminal_host::host_error::{HostError, HostResult};
+
+use super::commands::{conflict, CallerCtx, SendInput};
 use super::ids::new_id;
 use super::session::ChatSession;
 
+/// A provider that does not answer in time must not hold the chat actor.
+pub(super) const BACKGROUND_WAIT_TIMEOUT: Duration = Duration::from_secs(15);
 /// The most of a child's result its parent's resume message carries.
 const MAX_WAKE_RESULT_BYTES: usize = 64 * 1024;
 
-/// One piece of awaited work (`task.*.awaited`).
+/// One piece of awaited work (`task.*.awaited`, or a background command the
+/// agent marked).
 pub(crate) struct AwaitedTask {
     /// The app turn that started it. A failed or stopped turn ends its work
     /// unless the provider says the children continue.
@@ -31,6 +39,20 @@ fn task_id(event: &ProviderEvent) -> Option<String> {
         .map(str::trim)
         .filter(|id| !id.is_empty())
         .map(str::to_owned)
+}
+
+fn background_wait_unavailable() -> HostError {
+    conflict(
+        "provider_unavailable",
+        "This chat has no live provider session.",
+    )
+}
+
+fn background_wait_failed() -> HostError {
+    conflict(
+        "background_wait_failed",
+        "Failed to update the awaited background work.",
+    )
 }
 
 impl ChatSession {
@@ -94,6 +116,74 @@ impl ChatSession {
         } else {
             self.awaited_tasks.retain(|_, task| !of_turn(task));
         }
+    }
+
+    /// Marks or unmarks background tasks the agent waits on, by the ids it
+    /// saw. The provider says which ids name running background work; the
+    /// rest come back unmatched and change nothing.
+    pub(super) async fn await_background_tasks(
+        &mut self,
+        task_ids: Vec<String>,
+        awaited: bool,
+    ) -> HostResult<Value> {
+        let provider = self
+            .provider
+            .as_mut()
+            .ok_or_else(background_wait_unavailable)?;
+        let matched = match tokio::time::timeout(
+            BACKGROUND_WAIT_TIMEOUT,
+            provider.await_background_tasks(&task_ids, awaited),
+        )
+        .await
+        {
+            Ok(Ok(matched)) => matched,
+            Ok(Err(ProviderError::Unsupported(_))) => {
+                // Worded so MCP clients classify it as an invalid request.
+                return Err(conflict(
+                    "unsupported",
+                    "Invalid request: this chat's provider cannot mark background work as awaited.",
+                ));
+            }
+            Ok(Err(ProviderError::InvalidState(_) | ProviderError::Closed)) => {
+                return Err(background_wait_unavailable());
+            }
+            Ok(Err(error)) => {
+                tracing::warn!(chat_id = %self.header.chat_id, error = %error, "awaiting background tasks failed");
+                return Err(background_wait_failed());
+            }
+            Err(_) => return Err(background_wait_failed()),
+        };
+        // An adapter can only confirm ids the agent named, once each.
+        let mut confirmed: Vec<String> = Vec::new();
+        for task_id in matched {
+            if task_ids.contains(&task_id) && !confirmed.contains(&task_id) {
+                confirmed.push(task_id);
+            }
+        }
+        for task_id in &confirmed {
+            if awaited {
+                // A background command outlives a failed turn, and the agent
+                // resumes from its own notification, so it never wakes it.
+                self.awaited_tasks
+                    .entry(task_id.clone())
+                    .or_insert(AwaitedTask {
+                        started_in: None,
+                        resumes_parent: false,
+                    });
+            } else {
+                self.awaited_tasks.remove(task_id);
+            }
+        }
+        if self.header.session.active_turn_id.is_none()
+            && matches!(self.header.session.status.as_str(), "ready" | "running")
+        {
+            self.set_status(self.idle_status());
+        }
+        let unmatched: Vec<&String> = task_ids
+            .iter()
+            .filter(|task_id| !confirmed.contains(task_id))
+            .collect();
+        Ok(json!({"matched": confirmed, "unmatched": unmatched}))
     }
 
     /// Starts a parent turn when a native child the provider does not report

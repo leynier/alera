@@ -61,6 +61,7 @@ impl ClaudeProvider {
             pending_user_prompt: None,
             turn_failure: Default::default(),
             described_commands: false,
+            background_tasks: Default::default(),
         })
     }
 
@@ -134,6 +135,14 @@ impl ClaudeProvider {
                 .any(|tool| tool == "mcp__alera__*")
         {
             options.allowed_tools.push("mcp__alera__*".into());
+        }
+        if has_injected_mcp
+            && input
+                .mcp_servers
+                .iter()
+                .any(|server| server.name == "alera")
+        {
+            background_wait::append_background_wait_instructions(&mut options);
         }
         let interaction_plan =
             input.options.get("interactionMode").and_then(Value::as_str) == Some("plan");

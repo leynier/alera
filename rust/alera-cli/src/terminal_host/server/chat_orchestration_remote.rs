@@ -316,6 +316,7 @@ pub(super) fn is_chat_orchestration_verb(verb: &str) -> bool {
                 | "wait"
                 | "cancel"
                 | "interrupt"
+                | "backgroundWait"
                 | "requests"
                 | "respond"
                 | "configure"

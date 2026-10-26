@@ -23,6 +23,9 @@ pub(crate) struct MockProviderControl {
     pub turns: Mutex<Vec<TurnInput>>,
     pub interrupts: Mutex<Vec<InterruptInput>>,
     pub responses: Mutex<Vec<RuntimeResponse>>,
+    /// Running background commands the agent may wait on; `None` answers
+    /// like a provider without background waits.
+    pub background_tasks: Mutex<Option<Vec<String>>>,
     pub changed: Notify,
 }
 
@@ -209,6 +212,7 @@ impl ProviderFactory for MockProviderFactory {
             events,
             turns: Mutex::new(Vec::new()),
             interrupts: Mutex::new(Vec::new()),
+            background_tasks: Mutex::new(None),
             responses: Mutex::new(Vec::new()),
             changed: Notify::new(),
         });
@@ -332,6 +336,20 @@ impl Provider for MockProvider {
             native_turn_id: Some(turn_id.clone()),
             turn_id,
         })
+    }
+    async fn await_background_tasks(
+        &mut self,
+        task_ids: &[String],
+        _awaited: bool,
+    ) -> Result<Vec<String>, ProviderError> {
+        let running = self.control.background_tasks.lock().unwrap().clone();
+        let running =
+            running.ok_or_else(|| ProviderError::Unsupported("background waits".into()))?;
+        Ok(task_ids
+            .iter()
+            .filter(|id| running.contains(id))
+            .cloned()
+            .collect())
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         let native_turn = self.control.turns.lock().unwrap().len();

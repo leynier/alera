@@ -52,6 +52,56 @@ impl ChatOrchestrationService {
         Ok(response)
     }
 
+    /// Marks the caller's own background tasks. The chat is always the
+    /// credentialed caller's; a person has no background work to wait on.
+    pub(super) async fn background_wait(
+        &self,
+        task_ids: Vec<String>,
+        waiting: bool,
+        request_id: String,
+        payload: &Value,
+        caller: &OrchestrationCaller,
+    ) -> HostResult<Value> {
+        let Some(bound) = &caller.bound else {
+            return Err(HostError::conflict(
+                "unsupported",
+                "Invalid request: only an agent bound to a chat can wait on its background work.",
+                json!({}),
+            ));
+        };
+        if let Some(response) = self
+            .check_receipt(caller, "backgroundWait", &request_id, payload)
+            .await?
+        {
+            return Ok(response);
+        }
+        let chat_id = bound.chat_id.clone();
+        let operation = ChatOp::AwaitBackgroundTasks {
+            task_ids,
+            awaited: waiting,
+        };
+        let key = runtime_receipt_key(
+            &caller.ctx.scope,
+            "backgroundWait",
+            &request_id,
+            &chat_id,
+            &operation,
+        );
+        let response = self
+            .runtime
+            .command(&chat_id, operation, caller.ctx.clone(), Some(key))
+            .await?;
+        self.record_receipt(
+            caller,
+            "backgroundWait",
+            &request_id,
+            payload,
+            response.clone(),
+        )
+        .await?;
+        Ok(response)
+    }
+
     pub(super) async fn requests(
         &self,
         task_id: Option<String>,

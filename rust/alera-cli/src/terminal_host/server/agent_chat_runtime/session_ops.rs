@@ -277,6 +277,9 @@ impl ChatSession {
                 self.cancel_message(&client_message_id).await
             }
             ChatOp::Interrupt { turn_id } => self.interrupt(turn_id.as_deref()).await,
+            ChatOp::AwaitBackgroundTasks { task_ids, awaited } => {
+                self.await_background_tasks(task_ids, awaited).await
+            }
             ChatOp::Respond {
                 runtime_request_id,
                 response,

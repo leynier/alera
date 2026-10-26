@@ -188,6 +188,12 @@ pub(crate) enum ChatOp {
     Interrupt {
         turn_id: Option<String>,
     },
+    /// Mark (`awaited`) or unmark background tasks the chat's own agent waits
+    /// on, by the task ids it saw.
+    AwaitBackgroundTasks {
+        task_ids: Vec<String>,
+        awaited: bool,
+    },
     Respond {
         runtime_request_id: String,
         response: Value,

@@ -210,6 +210,14 @@ impl ChatOrchestrationService {
                 self.interrupt(chat_id, turn_id, request_id, payload, caller)
                     .await
             }
+            OrchestrationRequest::BackgroundWait {
+                task_ids,
+                waiting,
+                request_id,
+            } => {
+                self.background_wait(task_ids, waiting, request_id, payload, caller)
+                    .await
+            }
             OrchestrationRequest::Requests { task_id, chat_id } => {
                 self.requests(task_id, chat_id, caller).await
             }

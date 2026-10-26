@@ -254,6 +254,7 @@ fn chat_catalog_uses_the_chat_wire_verbs_and_bounded_wait() {
         "chat_task_list",
         "chat_task_cancel",
         "chat_interrupt",
+        "chat_background_wait",
         "chat_requests",
         "chat_respond",
         "chat_configure",
@@ -283,6 +284,42 @@ fn chat_catalog_uses_the_chat_wire_verbs_and_bounded_wait() {
         .unwrap();
     let invocation = requests.invocation(&json!({ "taskId": "task-1" })).unwrap();
     assert!(invocation.args.contains(&"--task-id=task-1".to_owned()));
+}
+
+#[test]
+fn background_waits_name_the_tasks_and_refuse_out_of_range_lists() {
+    let tool = super::catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_background_wait")
+        .unwrap();
+    assert_eq!(tool.access, ToolAccess::Execute);
+    let invocation = tool
+        .invocation(&json!({"taskIds": ["bash-1", "bash-2"], "clientRequestId": "wait-0001"}))
+        .unwrap();
+    assert_eq!(invocation.group, "chat");
+    assert_eq!(invocation.args[0], "background-wait");
+    assert!(invocation
+        .args
+        .contains(&"--task-id=bash-1,bash-2".to_owned()));
+    assert!(invocation
+        .args
+        .contains(&"--request-id=wait-0001".to_owned()));
+    assert!(!invocation.args.contains(&"--stop-waiting".to_owned()));
+    let unmark = tool
+        .invocation(&json!({"taskIds": ["bash-1"], "waiting": false}))
+        .unwrap();
+    assert!(unmark.args.contains(&"--stop-waiting".to_owned()));
+    let too_many: Vec<String> = (0..21).map(|index| format!("bash-{index}")).collect();
+    for task_ids in [json!([]), json!(too_many), json!([" "])] {
+        assert!(tool.invocation(&json!({"taskIds": task_ids})).is_err());
+    }
+    // An unsupported provider is an invalid request, not a failure.
+    assert_eq!(
+        super::executor::error_code(
+            "Invalid request: this chat's provider cannot mark background work as awaited."
+        ),
+        ("invalid_argument", false)
+    );
 }
 
 #[test]

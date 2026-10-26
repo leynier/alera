@@ -1,3 +1,5 @@
+#[path = "background_wait.rs"]
+mod background_wait;
 #[path = "callbacks.rs"]
 mod callbacks;
 #[path = "canonical_payload.rs"]
@@ -115,6 +117,7 @@ pub struct ClaudeProvider {
     turn_failure: failure::TurnFailureEvidence,
     // `initialize` described the commands, so `system/init` names are ignored.
     described_commands: bool,
+    background_tasks: background_wait::BackgroundTasks,
 }
 
 fn sdk_error(error: ClaudeSdkError) -> ProviderError {
@@ -257,6 +260,20 @@ impl Provider for ClaudeProvider {
 
     async fn send_turn(&mut self, input: TurnInput) -> Result<TurnStartResult, ProviderError> {
         self.send_native_turn(input).await
+    }
+
+    async fn await_background_tasks(
+        &mut self,
+        task_ids: &[String],
+        _awaited: bool,
+    ) -> Result<Vec<String>, ProviderError> {
+        if self.session.is_none() || self.closed {
+            return Err(ProviderError::InvalidState(
+                "session has not started".into(),
+            ));
+        }
+        // The runtime holds the marks; Claude itself never needs them.
+        Ok(self.background_tasks.matching(task_ids))
     }
 
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
@@ -433,6 +450,7 @@ impl Provider for ClaudeProvider {
         }
         self.pending.lock().await.clear();
         self.pending_user_prompt = None;
+        self.background_tasks.clear();
         if let Some(client) = &self.client {
             client.close().await.map_err(sdk_error)?;
         } else if let Some(mut transport) = self.transport.take() {

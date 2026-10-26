@@ -47,11 +47,14 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, 
 | `chatOrchestration.wait` | `{taskIds, waitSeconds?, until?: all\|any}` (default `all`) | `{tasks, timedOut}` |
 | `chatOrchestration.cancel` | `{requestId, taskId, reason?}` | `{task, cancelledTaskIds}` |
 | `chatOrchestration.interrupt` | `{requestId, chatId}` | `{acknowledged: true}` |
+| `chatOrchestration.backgroundWait` | `{requestId, taskIds: 1..20 nonempty strings, waiting?: bool = true}` | `{matched, unmatched}` |
 | `chatOrchestration.requests` | `{taskId?, chatId?}` | `{requests: [{chatId, taskId?, request}]}` |
 | `chatOrchestration.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |
 | `chatOrchestration.configure` | `{requestId, chatId, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` (as `agentChat.configure`) |
 | `chatOrchestration.read` | `{chatId, limit?}` | `{chat, messages, plans, truncated}` |
 | `chatOrchestration.list` | `{workspaceId?, projectId?, hostId?, includeArchived?}` | `{chats}` |
+
+`backgroundWait` is for bound agents only and always acts on the credentialed caller's own chat; a payload `chatId` is ignored and a person's call fails with `unsupported`. It marks (`waiting: true`) or unmarks background commands the agent waits on so the chat stays working until they end, and ids that name no running background command come back in `unmatched`. A provider without background waits answers `unsupported` with an `Invalid request` message; a chat with no live provider answers `provider_unavailable`; a provider error or a call that takes longer than 15 seconds answers `background_wait_failed`. It is forwarded from a satellite like the other verbs.
 
 `target` is exactly one of `{chat: {chatId}}`, `{workspace: {workspaceId}}` or `{newWorkspace: {projectId, hostId, mode: worktree|shared, branch?, sourceBranch?, reuseExistingBranch?, name?, parentWorkspaceId?, setup?: inline|deferred}}`. `hostId` is `local` or an SSH target id and is never implied. New workspaces are created through `workspace.createManaged` (worktree) or `workspace.createShared` (shared) on the host's own client, so setup, barriers, remote routing and broadcasts are the ordinary ones. Nothing selects a workspace or tab.
 
@@ -87,7 +90,7 @@ A wake is a message into the parent chat with `origin {kind: orchestrationWake, 
 
 ## Errors
 
-`errorCode` (snake_case) next to `error`: `request_conflict`, `chat_not_found`, `task_not_found`, `not_in_lineage`, `mode_ceiling`, `caller_turn_inactive`, `chat_credential_invalid`, `chat_scope_denied`, `chat_archived`, `invalid_target`, `unsupported`, `host_unavailable`, `chat_orchestration_shutdown`.
+`errorCode` (snake_case) next to `error`: `provider_unavailable`, `background_wait_failed`, `request_conflict`, `chat_not_found`, `task_not_found`, `not_in_lineage`, `mode_ceiling`, `caller_turn_inactive`, `chat_credential_invalid`, `chat_scope_denied`, `chat_archived`, `invalid_target`, `unsupported`, `host_unavailable`, `chat_orchestration_shutdown`.
 
 ## Host shutdown
 
