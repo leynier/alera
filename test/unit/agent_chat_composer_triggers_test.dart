@@ -54,7 +54,7 @@ void main() {
   });
 
   group('commands', () {
-    test('a slash opens only as the first character of the prompt', () {
+    test('a slash opens at a word start that is not a path, as in T3 Code', () {
       expect(
         detectAgentChatComposerTrigger(_at('/pl|')),
         const AgentChatComposerTrigger(
@@ -65,10 +65,13 @@ void main() {
         ),
       );
       expect(detectAgentChatComposerTrigger(_at('/|'))?.query, isEmpty);
-      expect(detectAgentChatComposerTrigger(_at('run /plan|')), isNull);
-      expect(detectAgentChatComposerTrigger(_at(' /plan|')), isNull);
-      expect(detectAgentChatComposerTrigger(_at('line\n/plan|')), isNull);
+      // Later words open it too; agent commands are then left out because
+      // the trigger does not start the prompt.
+      expect(detectAgentChatComposerTrigger(_at('run /plan|'))?.start, 4);
+      expect(detectAgentChatComposerTrigger(_at(' /plan|'))?.start, 1);
+      expect(detectAgentChatComposerTrigger(_at('line\n/plan|'))?.start, 5);
       expect(detectAgentChatComposerTrigger(_at('src/main.dart|')), isNull);
+      expect(detectAgentChatComposerTrigger(_at('open /src/main|')), isNull);
     });
 
     test('the menu closes once the command is followed by a space', () {
