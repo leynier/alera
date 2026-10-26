@@ -25,6 +25,8 @@ pub(crate) mod reasoning_effort;
 mod recovery;
 #[path = "session_options.rs"]
 mod session_options;
+#[path = "skill_invocation.rs"]
+pub(crate) mod skill_invocation;
 
 pub struct CursorProvider {
     client: CursorClient,
@@ -44,6 +46,7 @@ pub struct CursorProvider {
     mcp_servers: Vec<alera_provider_protocol::McpServerSpec>,
     effort_models: Vec<cursor_agent_sdk::SdkModel>,
     session_effort: Option<String>,
+    skill_names: Option<std::collections::HashSet<String>>,
 }
 
 impl CursorProvider {
@@ -72,6 +75,7 @@ impl CursorProvider {
             mcp_servers: Vec::new(),
             effort_models: Vec::new(),
             session_effort: None,
+            skill_names: None,
         }
     }
 
@@ -298,14 +302,14 @@ impl Provider for CursorProvider {
             mode: (input.interaction_mode == InteractionMode::Plan).then_some(AgentMode::Plan),
             mcp_servers: native_mcp_servers(&self.mcp_servers)?,
         };
+        let text = self
+            .skill_invocation_text(input.input, session.cwd.as_deref())
+            .await;
         let stream = self
             .client
             .send(
                 &session.native_thread_id,
-                UserMessage {
-                    text: input.input,
-                    images,
-                },
+                UserMessage { text, images },
                 options,
                 None,
             )

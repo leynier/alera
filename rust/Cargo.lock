@@ -295,6 +295,7 @@ name = "alera-provider-grok"
 version = "0.1.0"
 dependencies = [
  "alera-agent-transport",
+ "alera-core",
  "alera-provider-acp",
  "alera-provider-protocol",
  "async-trait",

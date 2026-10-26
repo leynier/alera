@@ -91,3 +91,46 @@ async fn full_access_session_maps_to_yolo_mode() {
     assert_eq!(writes[3]["params"]["configId"], "mode");
     assert_eq!(writes[3]["params"]["value"], "yolo");
 }
+
+#[tokio::test]
+async fn skill_mentions_reach_antigravity_unchanged() {
+    let transport = MockTransport::new([
+        json!({
+            "jsonrpc":"2.0","id":1,"result":{
+                "protocolVersion":2,
+                "agentCapabilities":{"sessionCapabilities":{"resume":true}},
+                "capabilities":{},
+                "authMethods":[{"id":"oauth-personal","name":"Personal OAuth"}]
+            }
+        }),
+        json!({"jsonrpc":"2.0","id":2,"result":{}}),
+        json!({
+            "jsonrpc":"2.0",
+            "id":3,
+            "result":{
+                "sessionId":"agy-session",
+                "configOptions":[{"id":"mode","type":"select","currentValue":"default","options":[]}]
+            }
+        }),
+    ]);
+    let mut provider =
+        AntigravityProvider::with_transport(transport, AntigravityProviderConfig::default())
+            .unwrap();
+    provider
+        .start_session(SessionStartInput::new("app-thread"))
+        .await
+        .unwrap();
+    provider
+        .send_turn(alera_provider_protocol::TurnInput::text(
+            "app-thread",
+            "$review fix it",
+        ))
+        .await
+        .unwrap();
+    let writes = provider.inner().client().transport().writes();
+    let prompt = writes
+        .iter()
+        .find(|write| write["method"] == "session/prompt")
+        .expect("prompt request");
+    assert_eq!(prompt["params"]["prompt"][0]["text"], "$review fix it");
+}

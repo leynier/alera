@@ -1,3 +1,4 @@
+use crate::skill_invocation::rewrite_leading_skill_mention;
 use crate::GrokProviderConfig;
 use alera_agent_transport::{JsonLineProcess, JsonTransport, ProcessConfig};
 use alera_provider_acp::{AcpFlavor, AcpProvider, AcpProviderConfig};
@@ -9,6 +10,7 @@ pub struct GrokProvider<T> {
     inner: AcpProvider<T>,
     configured_model: Option<String>,
     launch_runtime_mode: RuntimeMode,
+    skill_catalog_config: GrokProviderConfig,
 }
 
 impl<T: JsonTransport> GrokProvider<T> {
@@ -16,8 +18,9 @@ impl<T: JsonTransport> GrokProvider<T> {
         config.validate()?;
         Ok(Self {
             inner: AcpProvider::with_transport(transport, acp_config(&config)),
-            configured_model: config.model,
+            configured_model: config.model.clone(),
             launch_runtime_mode: config.runtime_mode,
+            skill_catalog_config: config,
         })
     }
 
@@ -81,8 +84,13 @@ impl<T: JsonTransport> Provider for GrokProvider<T> {
 
     async fn send_turn(
         &mut self,
-        input: alera_provider_protocol::TurnInput,
+        mut input: alera_provider_protocol::TurnInput,
     ) -> Result<alera_provider_protocol::TurnStartResult, ProviderError> {
+        let mut catalog = self.skill_catalog_config.clone();
+        if let Some(cwd) = self.inner.session().and_then(|session| session.cwd.clone()) {
+            catalog.cwd = Some(cwd);
+        }
+        input.input = rewrite_leading_skill_mention(input.input, &catalog).await;
         self.inner.send_turn(input).await
     }
 

@@ -6,6 +6,7 @@
 
 mod config;
 mod provider;
+mod skills;
 
 pub use alera_provider_protocol;
 pub use config::{
@@ -13,3 +14,4 @@ pub use config::{
     FORCE_FILE_STORAGE_ENV, GEMINI_HOME_ENV,
 };
 pub use provider::AntigravityProvider;
+pub use skills::{antigravity_user_home, discover_skills, discover_skills_at};

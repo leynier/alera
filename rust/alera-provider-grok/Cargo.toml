@@ -6,12 +6,14 @@ publish = false
 
 [dependencies]
 alera-agent-transport = { path = "../alera-agent-transport" }
+alera-core = { path = "../alera-core", default-features = false, features = ["async-process"] }
 alera-provider-protocol = { path = "../alera-provider-protocol" }
 alera-provider-acp = { path = "../alera-provider-acp" }
 async-trait = "0.1.92"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["io-util", "process", "time"] }
 
 [dev-dependencies]
 tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "time"] }
