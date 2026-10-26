@@ -34,6 +34,13 @@ extension _AgentChatTabDrafts on _AgentChatTabViewState {
       attachments: _attachments,
     );
     if (!draft.canSubmit) return;
+    final plan = switch (ref.read(_provider).value) {
+      final AgentChatViewState view => agentChatApprovalSend(
+        view.timeline.requests,
+      ),
+      null => null,
+    };
+    if (plan != null) return _sendOverApprovals(plan, draft, steer: steer);
     final clientMessageId = _store
         .submissionIds(
           widget.hostId,
@@ -69,6 +76,52 @@ extension _AgentChatTabDrafts on _AgentChatTabViewState {
         draft,
         workspaceId: widget.workspaceId,
       );
+      _report('Could not send the message.', error, stackTrace);
+    }
+  }
+
+  /// The draft stays in the composer until the approvals are answered and
+  /// the message is taken, and clears only if it is still what was sent.
+  Future<void> _sendOverApprovals(
+    AgentChatApprovalSend plan,
+    AgentChatComposerDraft draft, {
+    required bool steer,
+  }) async {
+    bool draftChanged() =>
+        !mounted ||
+        AgentChatComposerDraft(
+              value: _composer.value,
+              attachments: _attachments,
+            ).signature !=
+            draft.signature;
+    typing.settle();
+    try {
+      final outcome = await ref
+          .read(_provider.notifier)
+          .sendOverApprovals(
+            plan,
+            draft,
+            steer: steer,
+            draftChanged: draftChanged,
+          );
+      if (!mounted) return;
+      if (outcome.error ?? outcome.notice case final String message) {
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text(message)));
+      }
+      if (!outcome.sent || draftChanged()) return;
+      _restoring = true;
+      _composer.clear();
+      _restoring = false;
+      setState(() => _attachments = const <AgentChatDraftAttachment>[]);
+      _store.write(
+        widget.hostId,
+        widget.chatId,
+        const AgentChatComposerDraft(),
+        workspaceId: widget.workspaceId,
+      );
+      scrollToEnd.value += 1;
+    } on Object catch (error, stackTrace) {
       _report('Could not send the message.', error, stackTrace);
     }
   }

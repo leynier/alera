@@ -18,6 +18,9 @@ abstract final class AgentChatErrorCodes {
   static const String nativeOperationPending = 'nativeOperationPending';
   static const String nativeOperationRevisionConflict =
       'nativeOperationRevisionConflict';
+
+  /// A redirecting send named approvals that are no longer the pending ones.
+  static const String approvalsChanged = 'approvalsChanged';
 }
 
 /// One sentence both apps show for a failed chat action. Unknown failures

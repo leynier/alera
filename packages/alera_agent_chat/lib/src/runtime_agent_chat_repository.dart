@@ -198,6 +198,8 @@ final class RuntimeAgentChatRepository
   Future<AgentChatSendResult> send(AgentChatSendInput input) async {
     if (agentChatJsonString(input.reasoningEffort) != null)
       await _require(AgentChatWire.effortCapability);
+    if (input.declineRequestIds.isNotEmpty)
+      await _require(AgentChatWire.approvalRedirectCapability);
     return AgentChatSendResult.fromJson(
       await _request(AgentChatWire.send, input.toJson()),
     );

@@ -49,7 +49,10 @@ class const AgentChatOpenResult({
 
 /// `agentChat.send`. [clientMessageId] is the idempotency key and the id the
 /// runtime stamps on the resulting user message or queue entry, so the client
-/// can replace its optimistic copy with the real one.
+/// can replace its optimistic copy with the real one. [declineRequestIds] are
+/// the pending approvals the sender saw; the runtime declines them before it
+/// admits the message, or refuses both when they are no longer the pending
+/// ones.
 class const AgentChatSendInput({
   required final String chatId,
   required final String workspaceId,
@@ -60,6 +63,7 @@ class const AgentChatSendInput({
   final String? reasoningEffort,
   final AgentChatInteractionMode? interactionMode,
   final AgentChatDelivery delivery = AgentChatDelivery.auto,
+  final List<String> declineRequestIds = const <String>[],
 }) {
   AgentChatJson toJson() => <String, Object?>{
     'requestId': clientMessageId,
@@ -75,6 +79,8 @@ class const AgentChatSendInput({
     'reasoningEffort': ?agentChatJsonString(reasoningEffort),
     'interactionMode': ?interactionMode?.wire,
     'delivery': delivery.wire,
+    if (declineRequestIds.isNotEmpty)
+      'declineRequests': <String, Object?>{'requestIds': declineRequestIds},
   };
 }
 

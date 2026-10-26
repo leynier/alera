@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 part 'agent_chat_controller.g.dart';
+part 'agent_chat_controller_approvals.dart';
 part 'agent_chat_controller_history.dart';
 
 const Uuid _uuid = Uuid();
@@ -75,6 +76,16 @@ class AgentChatController extends _$AgentChatController {
       }
     });
   }
+
+  /// Whether [sync] still serves this live controller.
+  bool _current(AgentChatSync sync) => ref.mounted && identical(_sync, sync);
+
+  Future<bool> _offers(String capability) =>
+      ref.read(agentChatCapabilityProvider(hostId, capability).future);
+
+  AgentChatSubmissionIds _submissionIds() => ref
+      .read(agentChatDraftStoreProvider)
+      .submissionIds(hostId, chatId, workspaceId: workspaceId);
 
   AgentChatSync _ready() {
     final sync = _sync;
@@ -304,14 +315,15 @@ class AgentChatController extends _$AgentChatController {
     }
   }
 
-  /// Answers an approval, questions or a form. Another device answering
-  /// first is not a failure: the runtime already resolved the request.
-  Future<void> respond(
+  /// Answers an approval, questions or a form, and says whether this answer
+  /// was taken. Another device answering first is not a failure: the runtime
+  /// already resolved the request.
+  Future<bool> respond(
     AgentChatRequest request,
     AgentChatResponse response,
   ) async {
     final sync = _ready();
-    if (sync.view!.respondingRequestIds.contains(request.id)) return;
+    if (sync.view!.respondingRequestIds.contains(request.id)) return false;
     sync.update(
       (view) => view.copyWith(
         respondingRequestIds: <String>{
@@ -328,10 +340,12 @@ class AgentChatController extends _$AgentChatController {
         response: response,
       );
       _responseIds.remove(request.id);
+      return true;
     } on AgentChatRequestException catch (error) {
       _responseIds.remove(request.id);
       if (error.code != AgentChatErrorCodes.requestResolved) rethrow;
       unawaited(sync.resync());
+      return false;
     } finally {
       sync.update(
         (view) => view.copyWith(

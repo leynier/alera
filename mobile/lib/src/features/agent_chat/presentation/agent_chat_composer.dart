@@ -59,6 +59,10 @@ class const AgentChatComposer({
   required final VoidCallback onStop,
   final VoidCallback? onSteer,
   final Widget? settings,
+
+  /// What Send does instead of sending or queueing, such as declining a
+  /// pending approval.
+  final String? sendLabel,
 }) extends StatelessWidget {
   String get _dictationTarget => 'agent-chat-$chatId';
 
@@ -223,9 +227,8 @@ class const AgentChatComposer({
                               // needs, so the hint moves to semantics.
                               tooltip: steer != null
                                   ? null
-                                  : turnActive
-                                  ? 'Queue Message'
-                                  : 'Send',
+                                  : sendLabel ??
+                                        (turnActive ? 'Queue Message' : 'Send'),
                               onPressed: ready ? onSend : null,
                               icon: Icon(
                                 turnActive
@@ -235,7 +238,7 @@ class const AgentChatComposer({
                             );
                             if (steer == null) return button;
                             return Semantics(
-                              label: 'Queue Message',
+                              label: sendLabel ?? 'Queue Message',
                               onLongPressHint: 'Steer the running turn',
                               child: GestureDetector(
                                 onLongPress: ready ? steer : null,

@@ -62,6 +62,10 @@ class const AgentChatComposer({
   required final ValueChanged<String> onOpenFile,
   final bool canSubmit = true,
   final bool canSteer = false,
+
+  /// What Send does instead of sending or queueing, such as declining a
+  /// pending approval.
+  final String? sendLabel,
   final AleraPopoverController? pickerController,
   final VoidCallback? onRetryCatalog,
   final VoidCallback? onOpenProviderSettings,
@@ -407,6 +411,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           canSteer: widget.canSteer,
           canInterrupt: widget.canInterrupt,
           interrupting: widget.interrupting,
+          sendLabel: widget.sendLabel,
           onSend: _send,
           onInterrupt: widget.onInterrupt,
         ),
@@ -424,6 +429,7 @@ class const _SendOrStopButton({
   required final bool interrupting,
   required final VoidCallback onSend,
   required final VoidCallback onInterrupt,
+  final String? sendLabel,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -444,11 +450,13 @@ class const _SendOrStopButton({
     final enabled = canSend && hasDraft;
     return AleraIconButton(
       key: const ValueKey<String>('agent-chat-send'),
-      tooltip: !busy
-          ? 'Send Message'
-          : canSteer
-          ? 'Queue Message, ${_modEnterLabel()} Steers Into This Turn'
-          : 'Queue Message',
+      tooltip:
+          sendLabel ??
+          (!busy
+              ? 'Send Message'
+              : canSteer
+              ? 'Queue Message, ${_modEnterLabel()} Steers Into This Turn'
+              : 'Queue Message'),
       icon: AleraIcons.arrowUp,
       iconColor: enabled ? AleraTokens.onAccent : AleraTokens.foregroundFaint,
       backgroundColor: enabled ? AleraTokens.accent : AleraTokens.surface,

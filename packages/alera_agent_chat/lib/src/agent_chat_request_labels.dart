@@ -14,6 +14,45 @@ String agentChatDecisionLabel(AgentChatApprovalDecision decision) =>
 
 const String agentChatDeclineWithFeedbackLabel = 'Decline With Feedback';
 
+/// The composer while the shown approval takes feedback: sending declines it
+/// and tells the agent why.
+const String agentChatApprovalFeedbackHint =
+    'Send feedback to decline this request';
+const String agentChatApprovalFeedbackSendLabel = 'Send Feedback';
+
+/// The composer while approvals wait without feedback: sending declines them
+/// all and sends the message to redirect the agent.
+const String agentChatApprovalRedirectHint =
+    'Send a message to decline and redirect the agent';
+const String agentChatApprovalRedirectSendLabel = 'Decline And Send';
+
+/// Feedback reaches the agent as text only.
+const String agentChatApprovalFeedbackAttachmentsError =
+    'Send approval feedback without attachments.';
+
+/// Why a message sent over pending approvals did not go out, or null to stop
+/// quietly (a failed decline reports itself).
+String? agentChatApprovalRedirectNotice({
+  required bool draftChanged,
+  required bool declined,
+  required bool approvalResponding,
+  required bool approvalArrived,
+}) {
+  if (draftChanged) {
+    return declined
+        ? "Approval declined. Your message changed, so it wasn't sent."
+        : "Your message changed, so it wasn't sent.";
+  }
+  if (approvalResponding) {
+    return "An approval is already being answered, so your message wasn't "
+        'sent.';
+  }
+  if (declined && approvalArrived) {
+    return "Another approval arrived, so your message wasn't sent.";
+  }
+  return null;
+}
+
 /// Why an approval arrived although the session has full access.
 String agentChatFullAccessOverrideMessage(
   AgentChatFullAccessOverride override,

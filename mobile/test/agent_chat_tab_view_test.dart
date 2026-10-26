@@ -129,7 +129,7 @@ void main() {
     expect(find.byTooltip('More Decisions'), findsOneWidget);
     expect(find.text('Cancel Turn'), findsNothing);
     expect(
-      find.text('The agent is waiting for your decision.'),
+      find.text('Send a message to decline and redirect the agent'),
       findsOneWidget,
     );
 

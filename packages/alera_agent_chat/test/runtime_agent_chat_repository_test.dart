@@ -115,6 +115,24 @@ void main() {
     expect(transport.requests[2].$2['queueId'], 'q-1');
   });
 
+  test('a redirecting send needs the runtime to decline atomically', () async {
+    final transport = _FakeTransport();
+    final repository = RuntimeAgentChatRepository(transport);
+    await expectLater(
+      repository.send(
+        const AgentChatSendInput(
+          chatId: 'chat-1',
+          workspaceId: 'ws-1',
+          clientMessageId: 'msg-1',
+          text: 'Redirect',
+          declineRequestIds: <String>['request-1'],
+        ),
+      ),
+      throwsA(isA<AgentChatCapabilityRequired>()),
+    );
+    expect(transport.requests, isEmpty);
+  });
+
   test('send uses the client message id as its idempotency key', () async {
     final transport = _FakeTransport()
       ..responses[AgentChatWire.send] = <String, Object?>{

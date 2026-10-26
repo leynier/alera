@@ -99,6 +99,8 @@ class const AgentChatTabBody({
           view.thread.provider.isEmpty ? provider : view.thread.provider,
         );
     final requests = view.timeline.requests;
+    // A pending approval does not hold the message back: sending answers it.
+    final approvalSend = agentChatApprovalSend(requests);
     final problem = _providerProblem(instance, agentLabel);
     final queueSteer =
         ref
@@ -308,12 +310,12 @@ class const AgentChatTabBody({
                   AgentChatAvailability.readOnly => 'This chat is archived',
                   AgentChatAvailability.live when view.nativeOperationPending =>
                     agentChatNativeOperationSendBlockedHint,
-                  AgentChatAvailability.live
-                      when requests.any((request) => request.isApproval) =>
-                    agentChatWaitingForDecisionHint,
+                  AgentChatAvailability.live when approvalSend != null =>
+                    approvalSend.hint,
                   AgentChatAvailability.live => 'Ask $agentLabel anything',
                   _ => 'Waiting for the host',
                 },
+                sendLabel: approvalSend?.sendLabel,
                 turnActive: view.turnActive,
                 canInterrupt: view.session.capabilities.interrupt,
                 interrupting: view.interrupting,

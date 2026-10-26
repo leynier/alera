@@ -15,6 +15,11 @@ abstract final class AgentChatWire {
   static const String rewindFilesCapability = 'agentChatRewindFilesV1';
   static const String fileCheckpointsCapability = 'agentChatFileCheckpointsV1';
   static const String nativeHistoryCapability = 'agentChatNativeHistoryV1';
+
+  /// `agentChat.send` takes `declineRequests`, declining those approvals and
+  /// admitting the message in one runtime step.
+  static const String approvalRedirectCapability =
+      'agentChatApprovalRedirectV1';
   static const String deleteCapability = 'agentChatDeleteV1';
   static const String approvalHistoryCapability = 'agentChatApprovalHistoryV1';
   static const String turnDiffCapability = 'agentChatTurnDiffV1';

@@ -271,22 +271,28 @@ class AgentChatController extends _$AgentChatController
     );
   }
 
-  Future<void> respond(
+  /// Whether the runtime took the answer.
+  @override
+  Future<bool> respond(
     AgentChatRequest request,
     AgentChatResponse response,
   ) async {
-    if (state.respondingRequestIds.contains(request.id)) return;
+    if (state.respondingRequestIds.contains(request.id)) return false;
     state = state.copyWith(
       respondingRequestIds: <String>{...state.respondingRequestIds, request.id},
       actionError: null,
     );
+    var answered = false;
     await _guard(
-      () => _repository.respond(
-        _chat,
-        requestId: _nextId(),
-        runtimeRequestId: request.id,
-        response: response,
-      ),
+      () async {
+        await _repository.respond(
+          _chat,
+          requestId: _nextId(),
+          runtimeRequestId: request.id,
+          response: response,
+        );
+        answered = true;
+      },
       // Another client answered first; the change removing it is on its way.
       ignoreCode: AgentChatErrorCodes.requestResolved,
       onError: () => state = state.copyWith(
@@ -296,6 +302,7 @@ class AgentChatController extends _$AgentChatController
         },
       ),
     );
+    return answered;
   }
 
   Future<void> recover([AgentChatRecoverMode? mode]) async {

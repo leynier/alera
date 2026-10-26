@@ -1,3 +1,4 @@
+export 'src/agent_chat_approval_send.dart';
 export 'src/agent_chat_attention_entry.dart';
 export 'src/agent_chat_attention_tracker.dart';
 export 'src/agent_chat_change.dart';

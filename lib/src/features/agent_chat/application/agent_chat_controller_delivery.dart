@@ -6,7 +6,9 @@ mixin _AgentChatDelivery on _$AgentChatController {
   String Function() get _nextId;
   DateTime Function() get _now;
   AgentChatRef get _chat;
+  AgentChatLifecycleRepository get _lifecycle;
   void _setOutgoing(List<AgentChatOutgoingMessage> outgoing);
+  Future<bool> respond(AgentChatRequest request, AgentChatResponse response);
 
   /// Keeps this session's stand-in for the runtime's remembered selection,
   /// for runtimes without chat preferences.
@@ -145,6 +147,135 @@ mixin _AgentChatDelivery on _$AgentChatController {
       ),
     );
     return true;
+  }
+
+  /// Sends composer text while the approvals in [plan] wait: as feedback
+  /// that declines the shown one, or as a message that declines them all and
+  /// redirects the agent. The composer keeps its draft until the outcome
+  /// says it was sent; [draftChanged] tells whether it no longer holds what
+  /// was sent, which stops the message.
+  Future<AgentChatApprovalSendOutcome> sendOverApprovals(
+    AgentChatApprovalSend plan,
+    String text, {
+    List<AgentChatAttachment> attachments = const <AgentChatAttachment>[],
+    AgentChatDelivery delivery = AgentChatDelivery.auto,
+    required bool Function() draftChanged,
+  }) async {
+    final trimmed = text.trim();
+    if (!state.canSend ||
+        state.nativeOperationPending ||
+        (trimmed.isEmpty && attachments.isEmpty)) {
+      return const AgentChatApprovalSendOutcome();
+    }
+    final keepAlive = ref.keepAlive();
+    final lifecycle = _lifecycle;
+    try {
+      final outcome = await agentChatSendOverApprovals(
+        plan,
+        text: trimmed,
+        hasAttachments: attachments.isNotEmpty,
+        port: AgentChatApprovalSendPort(
+          draftChanged: draftChanged,
+          current: () => ref.mounted,
+          pendingRequests: () =>
+              state.projection?.requests ?? const <AgentChatRequest>[],
+          respondingRequestIds: () => state.respondingRequestIds,
+          respond: respond,
+          atomic: () async {
+            try {
+              return await lifecycle.supports(
+                AgentChatWire.approvalRedirectCapability,
+              );
+            } on Object {
+              return false;
+            }
+          },
+          sendDeclining: (ids) =>
+              _sendDeclining(trimmed, attachments, delivery, ids),
+          send: () async =>
+              send(trimmed, attachments: attachments, delivery: delivery),
+        ),
+      );
+      if (outcome.error case final String error when ref.mounted) {
+        state = state.copyWith(actionError: error);
+      }
+      return outcome;
+    } on Object catch (error) {
+      if (ref.mounted) {
+        state = state.copyWith(actionError: agentChatErrorMessage(error));
+      }
+      return const AgentChatApprovalSendOutcome();
+    } finally {
+      keepAlive.close();
+    }
+  }
+
+  /// One request that declines [declineRequestIds] and admits the message.
+  /// The draft stays in the composer until it returns, so a refusal leaves
+  /// nothing to retry from the timeline.
+  Future<void> _sendDeclining(
+    String text,
+    List<AgentChatAttachment> attachments,
+    AgentChatDelivery delivery,
+    List<String> declineRequestIds,
+  ) async {
+    final drafts = ref.read(agentChatComposerDraftsProvider);
+    final hostId = _draftHostId;
+    final repository = _repository;
+    final clientMessageId = drafts.claimSubmissionId(
+      chatId,
+      AgentChatComposerDraft.fromMessage(text, attachments),
+      _nextId,
+      hostId: hostId,
+      workspaceId: workspaceId,
+    );
+    final prepared =
+        attachments.any(
+          (attachment) =>
+              attachment.localSourcePath != null &&
+              attachment.attachmentId == null,
+        )
+        ? await ref.read(agentChatPrepareAttachmentsProvider)(
+            _chat,
+            attachments,
+            clientMessageId,
+          )
+        : attachments;
+    final createdAt = _now().toUtc();
+    await repository.send(
+      AgentChatSendInput(
+        chatId: chatId,
+        workspaceId: workspaceId,
+        clientMessageId: clientMessageId,
+        text: text,
+        attachments: prepared,
+        delivery: delivery == AgentChatDelivery.steer && !state.canSteer
+            ? AgentChatDelivery.auto
+            : delivery,
+        declineRequestIds: declineRequestIds,
+      ),
+    );
+    drafts.settleSubmission(
+      chatId,
+      clientMessageId,
+      hostId: hostId,
+      workspaceId: workspaceId,
+    );
+    if (!ref.mounted ||
+        (state.thread?.containsClientMessage(clientMessageId) ?? false)) {
+      return;
+    }
+    _setOutgoing(<AgentChatOutgoingMessage>[
+      for (final current in state.outgoing)
+        if (current.clientMessageId != clientMessageId) current,
+      AgentChatOutgoingMessage(
+        clientMessageId: clientMessageId,
+        text: text,
+        createdAt: createdAt,
+        attachments: List<AgentChatAttachment>.unmodifiable(prepared),
+        status: AgentChatOutgoingStatus.accepted,
+      ),
+    ]);
   }
 
   Future<void> retrySend(String clientMessageId) async {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
@@ -18,6 +19,7 @@ import 'package:alera/src/features/chat_tasks/presentation/chat_task_dock.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -107,6 +109,8 @@ class const AgentChatFooter({
             : view.providerInstanceId,
       ),
     );
+    // A pending approval does not hold the message back: sending answers it.
+    final approvalSend = agentChatApprovalSend(view.requests);
     final canSubmit =
         view.nativeOperation == null &&
         settings.hasSelection &&
@@ -225,18 +229,39 @@ class const AgentChatFooter({
                 interrupting: view.interrupting,
                 hintText: view.nativeOperation != null
                     ? agentChatNativeOperationSendBlockedHint
-                    : _hint(view.live, view.busy, view.requests, settings),
+                    : _hint(
+                        view.live,
+                        view.busy,
+                        view.requests,
+                        settings,
+                        approvalSend,
+                      ),
+                sendLabel: approvalSend?.sendLabel,
                 promptHistory: () =>
                     ref.read(provider).projection?.promptHistory ??
                     const <String>[],
                 pickerController: pickerController,
-                onSend: (text, attachments, {steer = false}) => controller.send(
-                  text,
-                  attachments: attachments,
-                  delivery: steer
+                onSend: (text, attachments, {steer = false}) {
+                  final delivery = steer
                       ? AgentChatDelivery.steer
-                      : AgentChatDelivery.auto,
-                ),
+                      : AgentChatDelivery.auto;
+                  if (approvalSend == null) {
+                    return controller.send(
+                      text,
+                      attachments: attachments,
+                      delivery: delivery,
+                    );
+                  }
+                  _sendOverApprovals(
+                    controller,
+                    approvalSend,
+                    composer,
+                    text,
+                    attachments,
+                    delivery,
+                  );
+                  return false;
+                },
                 onInterrupt: () => unawaited(controller.interrupt()),
                 onConfigure: (configuration) =>
                     unawaited(controller.configure(configuration)),
@@ -257,13 +282,53 @@ class const AgentChatFooter({
   }
 }
 
+/// The composer keeps its draft until the approvals are answered and the
+/// message is taken, and clears only if the draft is still what was sent.
+void _sendOverApprovals(
+  AgentChatController controller,
+  AgentChatApprovalSend plan,
+  TerminalComposerController composer,
+  String text,
+  List<AgentChatAttachment> attachments,
+  AgentChatDelivery delivery,
+) {
+  final sentText = composer.textController.text;
+  List<String> attachmentIds() => <String>[
+    for (final attachment in composer.attachments) attachment.id,
+  ];
+  final sentAttachments = attachmentIds();
+  bool draftChanged() =>
+      composer.textController.text != sentText ||
+      !listEquals(attachmentIds(), sentAttachments);
+  unawaited(
+    controller
+        .sendOverApprovals(
+          plan,
+          text,
+          attachments: attachments,
+          delivery: delivery,
+          draftChanged: draftChanged,
+        )
+        .then((outcome) {
+          if (outcome.notice case final String notice) {
+            AleraToast.publish(message: notice);
+          }
+          if (!outcome.sent || draftChanged()) return;
+          composer.textController.clear();
+          composer.removeAttachments(sentAttachments);
+        }),
+  );
+}
+
 String _hint(
   bool live,
   bool busy,
   List<AgentChatRequest> requests,
   AgentChatComposerSettings settings,
+  AgentChatApprovalSend? approvalSend,
 ) {
   if (!live) return 'Reconnecting to the Alera runtime';
+  if (approvalSend != null) return approvalSend.hint;
   if (requests.isNotEmpty) return agentChatRequestPendingHint;
   if (!settings.hasSelection) return 'Choose an agent to start this chat';
   if (settings.catalog == AgentChatCatalogState.ready &&
