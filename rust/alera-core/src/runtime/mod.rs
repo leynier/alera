@@ -47,19 +47,13 @@ mod agent_chat_payload_tests;
 mod agent_chat_payloads;
 pub use agent_chat_payloads::{AgentChatPayloadChunk, AgentChatPayloadPage};
 mod agent_chat_projection;
-#[cfg(test)]
-mod agent_chat_projection_tests;
 mod agent_chat_receipts;
 mod agent_chat_recovery;
-#[cfg(test)]
-mod agent_chat_recovery_tests;
 mod agent_chat_schema;
 #[cfg(test)]
 mod agent_chat_secret_schema_tests;
 mod agent_chat_secrets;
 mod agent_chat_store;
-#[cfg(test)]
-mod agent_chat_store_tests;
 #[cfg(test)]
 mod agent_chat_test_support;
 #[cfg(test)]

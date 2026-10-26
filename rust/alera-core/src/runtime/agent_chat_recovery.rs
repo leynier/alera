@@ -6,6 +6,10 @@
 //! (user messages and any host field outside the canonical ones) stays for
 //! an explicit resume or send.
 
+#[cfg(test)]
+#[path = "agent_chat_recovery_tests.rs"]
+mod tests;
+
 use anyhow::Result;
 use chrono::Utc;
 use serde_json::{json, Value};

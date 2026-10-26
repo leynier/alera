@@ -1,7 +1,7 @@
 use serde_json::json;
 
-use super::agent_chat_test_support::*;
-use super::*;
+use super::super::agent_chat_test_support::*;
+use super::super::*;
 
 /// Leaves a chat mid-turn: a running turn, an open request, a streaming
 /// reply, a queued user message, and a host-owned queue field.

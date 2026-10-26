@@ -1,5 +1,9 @@
 //! Bounded transcript views over durable item and turn rows.
 
+#[cfg(test)]
+#[path = "agent_chat_projection_tests.rs"]
+mod tests;
+
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
 use anyhow::Result;

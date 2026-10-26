@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 
 use serde_json::json;
 
-use super::agent_chat_test_support::*;
-use super::*;
+use super::super::agent_chat_test_support::*;
+use super::super::*;
 
 #[tokio::test]
 async fn large_turn_metadata_reduces_item_windows_without_losing_page_metadata() {

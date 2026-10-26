@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "agent_chat_store_tests.rs"]
+mod tests;
+
 use anyhow::Result;
 use chrono::Utc;
 use serde_json::Value;
