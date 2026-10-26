@@ -52,7 +52,7 @@ fn a_goal_runs_through_the_turn_codex_starts_until_it_is_complete() {
         .iter()
         .filter_map(|command| command["name"].as_str())
         .collect();
-    assert_eq!(commands, ["compact", "goal"]);
+    assert_eq!(commands, ["compact", "goal", "feedback"]);
     let turns = snapshot["turns"].as_array().unwrap();
     assert_eq!(turns.len(), 2, "{snapshot}");
     assert_eq!(turns[0]["status"], "completed");
