@@ -64,7 +64,36 @@ T3 Code (`6958838214` in `provider-acp`, enabled for Claude Agent by `b1167b6ca2
 - Result: a notice above the composer shows uploading, then `Feedback sent to OpenAI` with the thread id and Copy ID, or `Could not send feedback to OpenAI` with the reason; sent and failed notices can be dismissed. T3 Code keeps submissions on the client and so does Alera, in a per-chat store that outlives the tab for the app session: the upload does not change the conversation, so writing it into the runtime transcript would put it into every later snapshot, handoff and fork of the chat for no agent-facing reason.
 - Differences: the runtime refuses an upload while a turn runs (`turnActive`), because the provider call holds the chat's actor as `/compact` does and a running turn's events would wait behind it; T3 Code uploads during a turn. A chat whose provider is not running (after a runtime restart) answers T3 Code's `Send a message first.` T3 Code's web client also anchors the command and the result as local rows in the timeline; Alera shows the notice only, as T3 Code's phone does. The Codex adapter refuses a turn whose whole text is `/feedback`, so an older client that sends the command as text never reaches the model.
 
+## Hover Cards And Context Transfers
+
+T3 Code previews threads in hover cards and records context moved between threads as `contextTransfers`. Alera ports both behind `agentChatTransfersV1`; the runtime contract is in the runtime [readme](../rust/alera-cli/src/terminal_host/server/agent_chat_runtime/readme.md#context-transfers).
+
+### Hover cards
+
+| T3 surface | T3 card | Alera desktop (hover, `AleraHoverCard`) | Alera phone (long press, preview sheet) |
+| --- | --- | --- | --- |
+| Sidebar thread row (`Sidebar.tsx`, `ThreadHoverCard`) | Title, project, environment, branch, branch mismatch, provider and model, "Handed off from", terminal processes, last error, pull requests | Agent chat workbench tab (`AgentChatTabHover`): title, "Forked from" or "Delegated by" the source chat, provider and model, status (Working, Needs Input, Idle, Failed, Archived), last activity. The workbench already names the project, workspace and branch around the tab, and terminals are separate tabs, so those lines are not repeated. | No equivalent row: the phone shows one chat per tab screen, without T3's thread sidebar. Related chats preview from the lineage sheet (row below). |
+| Timeline sub-agent row (`V2LifecycleRow`, `SubagentTooltipContent`) | Title, provider icon, model, effort and speed, status with elapsed time, workspace, latest progress or result | Sub-agent row: title, model and effort, status with its timing ("Working 1m 5s", "Completed in 42s"), latest summary or prompt | Long press on the sub-agent row |
+| Lineage rows (`ThreadRelationshipsControl`, `ThreadLineageWorkflowRow`) | `SubagentTooltipContent` for agent rows, a plain "Open fork in this chat" hint for chat rows | Every row: chats show relation, provider and model, status and last activity; sub-agents show the sub-agent card | Long press on every row of the lineage sheet |
+| Transfer rows | Status in the inspector | Timeline and lineage transfer rows: kind and status, the agent it came from (or the provider switch), delivery time, an unavailable source | Long press on the timeline and lineage transfer rows |
+| Pull request links (`PullRequestLinkPreview`) | Repository, number, state, title, author, opened time, fetched by URL | Not implemented, see below | Not implemented |
+
+Both apps build the card from `AgentChatPreview` in `alera_agent_chat`, so they show the same lines.
+
+### Context transfers
+
+| `kind` (T3 type) | Recorded in | Timeline row | Lineage row | `chat_transfers` |
+| --- | --- | --- | --- | --- |
+| `fork` (`fork`) | The fork, at `agentChat.fork` | "Forked From" the source, after the turn it was taken through | Yes | Yes |
+| `mergeBack` (`merge_back`) | The source chat, at `agentChat.mergeBack`; `pending` until the next turn carries it, then `consumed` | "Merged Back From" the fork, in place of the merge-back notice; the merged work folds under it | Yes | Yes |
+| `providerHandoff` (`provider_handoff`) | The chat itself, at a turn that carries the transcript into a fresh provider session; settles with the handoff marker | The existing Context Handoff divider; no second row | No: T3 skips transfers within one thread | Yes |
+| `subagentSpawn` (`subagent_spawn`) | A delegated chat, when the brief's turn starts | "Delegated By" the parent, before that turn | Yes | Yes |
+| `subagentResult` (`subagent_result`) | The parent chat, when a wake delivers a settled task (`error` for a failed, interrupted or cancelled one) | "Result From" the delegated chat, before the wake's turn | Yes | Yes |
+
+Each row opens its source chat on click and previews it on hover or long press. The records ride in the snapshot and in deltas as `contextTransfers`, so a runtime restart keeps them. `chatOrchestration.transfers {chatId?}`, the injected `chat_transfers` tool and `alera chat transfers` list them, as T3's `t3_thread_transfers` does, with `{transferId, kind, sourceChatId, targetChatId, status}` plus title, task and timing. T3's `resolution` (native fork versus portable context), `basePoint` and `superseded` status have no counterpart: Alera forks by copying the transcript and delivers every pending merge-back instead of superseding older ones.
+
 ## Not Implemented
 
 - **MCP Apps.** They render a provider-supplied HTML resource in a sandboxed frame (`sandbox="allow-scripts allow-forms"`, opaque origin, document CSP from the app's `_meta.ui.csp`) and run a JSON-RPC bridge (`ui/initialize`, `tools/call`, `resources/read`, `ui/message`, `ui/open-link`, display modes). Alera ships no web view on desktop (Linux, Windows, macOS) or on the phone, so there is no sandbox to host untrusted HTML; drawing it any other way would execute nothing or bypass the sandbox. Porting needs a vetted web view dependency on every platform first.
 - **The Show Skills In Slash Menu toggle** and **Find in Chat over chip labels**, as listed above.
+- **Pull request link previews.** T3 fetches a pull request's detail by URL through its server (`pullRequestEnvironment.preview`) and wraps each Markdown link in a preview card. Alera's forge clients look reviews up per workspace checkout and remote identity, not by an arbitrary URL, and the chat Markdown renders links as text spans with no per-link widget, so a card needs both a URL lookup in the runtime and a link widget hook in the renderer. Links keep opening in the browser.
