@@ -1,4 +1,9 @@
 use super::*;
+use crate::skills::{
+    claude_user_message_content, discover, user_invocable_skills, SkillEnvironment,
+};
+use alera_provider_protocol::skill_mentions;
+use claude_agent_sdk::UserPrompt;
 
 impl ClaudeProvider {
     pub(super) async fn send_native_turn(
@@ -66,10 +71,14 @@ impl ClaudeProvider {
                 "session client is unavailable".into(),
             ));
         }
+        let environment = SkillEnvironment::new(&self.config.options, session.cwd.as_deref());
+        let content = user_message_content(&input.input, environment).await;
+        // Claude echoes the blocks it received, so correlation uses their text.
+        let submitted_prompt =
+            user_messages::prompt_text(&content).unwrap_or_else(|| input.input.clone());
         self.apply_interaction_mode(input.interaction_mode).await?;
         let next_turn = self.next_turn + 1;
         let turn_id = format!("turn:claude:{next_turn}");
-        let submitted_prompt = input.input.clone();
         let previous_streamed_text_message_ids = self.streamed_text_message_ids.clone();
         let previous_streamed_thinking_message_ids = self.streamed_thinking_message_ids.clone();
         let previous_streamed_text_unscoped = self.streamed_text_unscoped;
@@ -95,7 +104,10 @@ impl ClaudeProvider {
             .client
             .as_ref()
             .expect("client checked before turn state setup")
-            .send_prompt(input.input)
+            .send_user_message(UserPrompt {
+                content,
+                ..UserPrompt::text(String::new())
+            })
             .await;
         if let Err(error) = send_result {
             *self.active_turn_id.lock().await = previous_active_turn_id.clone();
@@ -157,4 +169,17 @@ impl ClaudeProvider {
         self.plan_interaction.store(plan, Ordering::SeqCst);
         Ok(())
     }
+}
+
+/// The prompt with a `$name` mention dispatched as Claude's `/name` command.
+/// Skills are discovered again for every send, as T3 Code does, so a skill
+/// added or switched off mid-session takes effect.
+async fn user_message_content(text: &str, environment: SkillEnvironment) -> Value {
+    if skill_mentions(text).is_empty() {
+        return Value::String(text.to_string());
+    }
+    let skills = tokio::task::spawn_blocking(move || discover(&environment))
+        .await
+        .unwrap_or_default();
+    claude_user_message_content(text, None, &user_invocable_skills(skills))
 }

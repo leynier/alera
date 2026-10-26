@@ -79,7 +79,7 @@ impl ClaudeProvider {
     }
 }
 
-fn prompt_text(content: &Value) -> Option<String> {
+pub(super) fn prompt_text(content: &Value) -> Option<String> {
     if let Some(text) = content.as_str() {
         return Some(text.into());
     }
