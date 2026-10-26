@@ -63,6 +63,10 @@ class const AgentChatComposer({
   /// What Send does instead of sending or queueing, such as declining a
   /// pending approval.
   final String? sendLabel,
+
+  /// A strip above the field, such as the banner of a queued message being
+  /// edited.
+  final Widget? header,
 }) extends StatelessWidget {
   String get _dictationTarget => 'agent-chat-$chatId';
 
@@ -105,6 +109,7 @@ class const AgentChatComposer({
               child: Column(
                 mainAxisSize: .min,
                 children: <Widget>[
+                  ?header,
                   Flexible(
                     fit: .loose,
                     child: LayoutBuilder(

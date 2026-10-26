@@ -24,6 +24,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shi
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_status_banner.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_timeline_view.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +38,10 @@ abstract interface class AgentChatTabHandlers {
   Future<void> run(String what, Future<void> Function() action);
   Future<void> editQueued(AgentChatQueueEntry entry);
   Future<void> editQueuedInPlace(AgentChatQueueEntry entry);
+
+  /// The queued message open in the composer, if any.
+  AgentChatQueuedEdit get queuedEdit;
+  void cancelQueuedEdit();
   Future<void> reopen();
   void openProviderSettings();
   VoidCallback? attachHandler(AgentChatViewState view);
@@ -282,6 +287,15 @@ class const AgentChatTabBody({
               onEditQueued: editsInPlace
                   ? handlers.editQueuedInPlace
                   : handlers.editQueued,
+              editingQueueId: handlers.queuedEdit.queueId,
+              onCancelQueuedEdit: handlers.cancelQueuedEdit,
+              onReorderQueued:
+                  canAct && runtimeOffers(AgentChatWire.queueReorderCapability)
+                  ? (entry, index) => handlers.run(
+                      'Could not reorder the queued message.',
+                      () => controller.reorderQueued(entry, index),
+                    )
+                  : null,
               onSteerQueued: queueSteer && steerable && canAct
                   ? (entry) => handlers.run(
                       'Could not steer the queued message.',
@@ -315,11 +329,21 @@ class const AgentChatTabBody({
                   AgentChatAvailability.live => 'Ask $agentLabel anything',
                   _ => 'Waiting for the host',
                 },
-                sendLabel: approvalSend?.sendLabel,
+                sendLabel: handlers.queuedEdit.isEditing
+                    ? 'Save Queued Message'
+                    : approvalSend?.sendLabel,
+                header: agentChatQueuedEditBanner(
+                  handlers.queuedEdit,
+                  onCancel: handlers.cancelQueuedEdit,
+                ),
                 turnActive: view.turnActive,
                 canInterrupt: view.session.capabilities.interrupt,
                 interrupting: view.interrupting,
-                onAttach: handlers.attachHandler(view),
+                // An upload lands in the stored draft, which would end the
+                // edit; the queued message keeps its own attachments anyway.
+                onAttach: handlers.queuedEdit.isEditing
+                    ? null
+                    : handlers.attachHandler(view),
                 upload: handlers.upload,
                 onDismissUpload: handlers.dismissUpload,
                 onRemoveAttachment: handlers.removeAttachment,

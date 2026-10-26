@@ -373,6 +373,15 @@ class AgentChatController extends _$AgentChatController {
         text: text,
       );
 
+  /// Moves a queued message to the zero-based [index] in the queue.
+  Future<void> reorderQueued(AgentChatQueueEntry entry, int index) =>
+      _ready().repository.lifecycle.queueReorder(
+        _chat,
+        requestId: _uuid.v4(),
+        queueId: entry.queueId,
+        index: index,
+      );
+
   /// Moves a queued message into the running turn. The runtime does it in
   /// one step against that exact turn, so it cannot half fail.
   Future<void> steerQueued(AgentChatQueueEntry entry) async {

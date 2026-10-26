@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
-import 'package:alera_mobile/src/design_system/chat/alera_message_editor.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
@@ -18,6 +17,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_att
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_native_history_rewind_sheet.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_sheets.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_dock.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_body.dart';
 import 'package:alera_mobile/src/features/agent_provider_settings/presentation/agent_providers_screen.dart';
@@ -62,6 +62,8 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
   late final AgentChatViewMemory _memory;
   late final TextEditingController _composer;
   final FocusNode _focus = FocusNode();
+  @override
+  final AgentChatQueuedEdit queuedEdit = AgentChatQueuedEdit();
   @override
   final AgentChatTypingClock typing = AgentChatTypingClock();
   @override
@@ -136,6 +138,7 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       ..removeListener(_persist)
       ..dispose();
     _focus.dispose();
+    queuedEdit.dispose();
     scrollToEnd.dispose();
     upload.dispose();
     super.dispose();
@@ -211,20 +214,13 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
         );
       });
 
+  /// Opens the message in the composer; Send saves it in place.
   @override
-  Future<void> editQueuedInPlace(AgentChatQueueEntry entry) => showDialog<void>(
-    context: context,
-    builder: (_) => AleraMessageEditor(
-      text: entry.text,
-      attachmentCount: entry.attachments.length,
-      onSave: (text) async {
-        final edited = await ref
-            .read(_provider.notifier)
-            .editQueued(entry, text);
-        return edited ? null : 'This message already left the queue.';
-      },
-    ),
-  );
+  Future<void> editQueuedInPlace(AgentChatQueueEntry entry) async =>
+      _beginQueuedEdit(entry);
+
+  @override
+  void cancelQueuedEdit() => _endQueuedEdit();
 
   @override
   Future<void> reopen() => run('Could not reopen the chat.', () async {
@@ -408,6 +404,9 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
   Widget build(BuildContext context) {
     ref.listen(appLifecycleControllerProvider, (_, next) {
       if (next != AppLifecycleState.resumed) unawaited(_store.flush());
+    });
+    ref.listen(_provider.select((async) => async.value?.thread.queue), (_, q) {
+      if (q != null) _reconcileQueuedEdit(q);
     });
     final async = ref.watch(_provider);
     final view = async.value;

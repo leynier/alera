@@ -40,6 +40,7 @@ abstract final class const AleraIcons._() {
   static const IconData settings = LucideIcons.settings;
   static const IconData add = LucideIcons.plus;
   static const IconData edit = LucideIcons.pencil;
+  static const IconData dragHandle = LucideIcons.gripVertical;
   static const IconData delete = LucideIcons.trash2;
   static const IconData copy = LucideIcons.copy;
   static const IconData paste = LucideIcons.clipboard;

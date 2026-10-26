@@ -22,6 +22,12 @@ class const AgentChatFooter({
   onRemoveQueued,
   required final Future<void> Function(AgentChatQueueEntry entry) onEditQueued,
   final Future<void> Function(AgentChatQueueEntry entry)? onSteerQueued,
+
+  /// Moves a queued message to a zero-based position; `null` hides reorder.
+  final Future<void> Function(AgentChatQueueEntry entry, int index)?
+  onReorderQueued,
+  final String? editingQueueId,
+  final VoidCallback? onCancelQueuedEdit,
   required final Widget composer,
   required final double minimumComposerHeight,
   final List<Widget> notices = const <Widget>[],
@@ -58,6 +64,12 @@ class const AgentChatFooter({
           onSteer: (id) => _withEntry(id, onSteerQueued ?? (_) async {}),
           onRemove: (id) => _withEntry(id, onRemoveQueued),
           onEdit: (id) => _withEntry(id, onEditQueued),
+          editingId: editingQueueId,
+          onCancelEdit: onCancelQueuedEdit,
+          onReorder: onReorderQueued == null
+              ? null
+              : (id, index) =>
+                    _withEntry(id, (entry) => onReorderQueued!(entry, index)),
         ),
     ];
     return LayoutBuilder(

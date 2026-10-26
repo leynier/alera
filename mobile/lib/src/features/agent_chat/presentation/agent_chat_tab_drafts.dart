@@ -9,14 +9,113 @@ extension _AgentChatTabDrafts on _AgentChatTabViewState {
     _store.write(
       widget.hostId,
       widget.chatId,
-      AgentChatComposerDraft(value: _composer.value, attachments: _attachments),
+      _keptDraft,
       workspaceId: widget.workspaceId,
     );
   }
 
+  /// The chat's draft: while a queued message is edited, the one set aside
+  /// plus any files added since.
+  AgentChatComposerDraft get _keptDraft => switch (queuedEdit.held) {
+    final held? => AgentChatComposerDraft(
+      value: held.value,
+      attachments: <AgentChatDraftAttachment>[
+        ...held.attachments,
+        ..._attachments,
+      ],
+    ),
+    null => AgentChatComposerDraft(
+      value: _composer.value,
+      attachments: _attachments,
+    ),
+  };
+
+  void _showDraft(AgentChatComposerDraft draft) {
+    _restoring = true;
+    _composer.value = draft.value;
+    _restoring = false;
+    setState(() => _attachments = draft.attachments);
+    _store.write(
+      widget.hostId,
+      widget.chatId,
+      _keptDraft,
+      workspaceId: widget.workspaceId,
+    );
+  }
+
+  void _beginQueuedEdit(AgentChatQueueEntry entry) {
+    if (queuedEdit.saving) return;
+    queuedEdit.begin(entry, _keptDraft);
+    _showDraft(
+      AgentChatComposerDraft(
+        value: TextEditingValue(
+          text: entry.text,
+          selection: TextSelection.collapsed(offset: entry.text.length),
+        ),
+      ),
+    );
+    _focus.requestFocus();
+  }
+
+  void _endQueuedEdit() {
+    final kept = _keptDraft;
+    queuedEdit.end();
+    _showDraft(kept);
+  }
+
+  Future<void> _saveQueuedEdit() async {
+    final entry = queuedEdit.entry!;
+    final text = _composer.text.trim();
+    if (queuedEdit.saving || (text.isEmpty && entry.attachments.isEmpty)) {
+      return;
+    }
+    queuedEdit.saving = true;
+    try {
+      final edited = await ref.read(_provider.notifier).editQueued(entry, text);
+      if (!mounted) return;
+      if (!edited) {
+        _notify('This message already left the queue.');
+      } else if (queuedEdit.queueId == entry.queueId) {
+        queuedEdit.saving = false;
+        _endQueuedEdit();
+      }
+    } on Object catch (error, stackTrace) {
+      _report('Could not save the queued message.', error, stackTrace);
+    } finally {
+      queuedEdit.saving = false;
+    }
+  }
+
+  /// The edited message ran, was steered or was removed elsewhere. A changed
+  /// edit becomes the draft when the person had none; otherwise theirs wins.
+  void _reconcileQueuedEdit(List<AgentChatQueueEntry> queue) {
+    final entry = queuedEdit.entry;
+    if (entry == null ||
+        queuedEdit.saving ||
+        queue.any((queued) => queued.queueId == entry.queueId)) {
+      return;
+    }
+    final changed = _composer.text != entry.text;
+    if (changed && (queuedEdit.held?.isEmpty ?? true)) {
+      queuedEdit.end();
+      _persistDraft();
+      _notify('The message left the queue; your edit is now the draft.');
+      return;
+    }
+    _endQueuedEdit();
+    if (changed) {
+      _notify('The message left the queue before your edit was saved.');
+    }
+  }
+
+  void _notify(String message) =>
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(message)));
+
   /// An upload finished or a refused prompt came back while this was shown.
   void _restoreStoredDraft() {
     if (!mounted) return;
+    queuedEdit.end();
     final draft = _store.read(
       widget.hostId,
       widget.chatId,
@@ -29,6 +128,7 @@ extension _AgentChatTabDrafts on _AgentChatTabViewState {
   }
 
   Future<void> _sendDraft({bool steer = false}) async {
+    if (queuedEdit.isEditing) return _saveQueuedEdit();
     final draft = AgentChatComposerDraft(
       value: _composer.value,
       attachments: _attachments,
