@@ -2,6 +2,8 @@
 
 This page inventories what T3 Code (`reference_projects/t3code`, read at `origin/main`) offers around agent harnesses: skills, slash commands, plugins, apps and connectors, MCP server status and the surfaces next to them. For each item it records the providers, the native source, how the item is listed and invoked, how the composer and timeline draw it, management actions, refresh, mobile parity and what Alera does. Items Alera does not implement say exactly why.
 
+Sub-agent threads, the relationships control and merge-back are inventoried in [Sub-agent Threads And Chat Relationships](agent-chat-subagent-threads.md).
+
 ## Inventory
 
 | Item | T3 providers | Native source | Listed | Invoked (on the wire) | Composer and timeline | Management | Refresh | Mobile | Alera |
