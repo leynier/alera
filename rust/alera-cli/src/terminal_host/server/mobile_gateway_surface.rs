@@ -455,37 +455,9 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
     ) || MOBILE_RUN_VERBS.contains(&request_type)
 }
 
-/// Every `runs.*` verb and the read-only recipe verbs. Recipe writes, every
-/// `orchestration.*` verb, `host.process.run`, `inbox.wait` and the agent
-/// conversation reads (`inbox.conversations`, `inbox.conversation`, replaced on
-/// the phone by run timelines) stay local-only.
-pub(super) const MOBILE_RUN_VERBS: &[&str] = &[
-    "runs.board",
-    "runs.snapshot",
-    "runs.task",
-    "runs.timeline",
-    "runs.source",
-    "runs.create",
-    "runs.plan",
-    "runs.gates",
-    "runs.gate",
-    "runs.resolveGate",
-    "runs.control",
-    "runs.retryTask",
-    "runs.retryIntegration",
-    "runs.retryCancellation",
-    "runs.resources",
-    "runs.cleanups",
-    "runs.previewCleanup",
-    "runs.cleanup",
-    "runs.applyCleanup",
-    "runs.retryCleanup",
-    "runs.abandonCleanup",
-    "runs.integrations",
-    "runs.integration",
-    "recipes.catalog",
-    "recipes.recipe",
-];
+#[path = "mobile_gateway_run_verbs.rs"]
+mod run_verbs;
+pub(super) use run_verbs::MOBILE_RUN_VERBS;
 
 #[cfg(test)]
 #[path = "mobile_gateway_surface_tests.rs"]
