@@ -79,6 +79,10 @@ impl ProviderEvent {
                     self.payload["taskId"].as_str().unwrap_or_default(),
                     "taskId",
                 )?;
+                if let Some(parent) = self.payload.get("parentTaskId") {
+                    nonempty(parent.as_str().unwrap_or_default(), "parentTaskId")?;
+                }
+                only_true(&self.payload, "awaited")?;
             }
             EventKind::SessionConfigured => {
                 if !self.payload["config"].is_object() {
@@ -114,9 +118,12 @@ impl ProviderEvent {
                         ProviderError::Validation("turn.completed requires a terminal state".into())
                     })?;
                 validate_failure_class(&self.payload)?;
-                if state != TurnStatus::Failed && self.payload.get("failureClass").is_some() {
+                only_true(&self.payload, "childTurnsContinue")?;
+                if state != TurnStatus::Failed
+                    && (self.payload.get("failureClass").is_some() || self.child_turns_continue())
+                {
                     return Err(ProviderError::Validation(
-                        "failureClass describes a failed turn".into(),
+                        "failureClass and childTurnsContinue describe a failed turn".into(),
                     ));
                 }
                 if let Some(usage) = self.payload.get("tokenUsage") {
@@ -158,6 +165,16 @@ fn validate_failure_class(payload: &serde_json::Value) -> Result<(), ProviderErr
     match payload.get("failureClass") {
         Some(class) if !class.is_string() => Err(ProviderError::Validation(
             "failureClass must be a string".into(),
+        )),
+        _ => Ok(()),
+    }
+}
+
+/// Optional flags are present only when true, so absence keeps its meaning.
+fn only_true(payload: &serde_json::Value, field: &str) -> Result<(), ProviderError> {
+    match payload.get(field) {
+        Some(value) if value != &serde_json::Value::Bool(true) => Err(ProviderError::Validation(
+            format!("{field} is either true or absent"),
         )),
         _ => Ok(()),
     }

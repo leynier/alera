@@ -5,6 +5,7 @@
 
 use crate::{ProviderError, ProviderEvent};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -51,5 +52,20 @@ impl ProviderEvent {
             .cloned()
             .and_then(|value| serde_json::from_value(value).ok())
             .unwrap_or_default()
+    }
+
+    /// A failed `turn.completed` whose native child turns keep running and
+    /// will report their own `task.completed`, as after a completed turn.
+    /// Without it, the turn's open child work ends with the turn.
+    pub fn child_turns_continue(&self) -> bool {
+        self.payload.get("childTurnsContinue") == Some(&Value::Bool(true))
+    }
+
+    /// A `task.*` the agent resumes from when it ends, so it holds the chat
+    /// as working after the turn that started it. Native sub-agents are
+    /// awaited; a background command or monitor is only when the agent said
+    /// it waits on it.
+    pub fn task_awaited(&self) -> bool {
+        self.payload.get("awaited") == Some(&Value::Bool(true))
     }
 }

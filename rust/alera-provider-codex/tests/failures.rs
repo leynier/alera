@@ -46,6 +46,23 @@ fn error_notification(error_info: Value, will_retry: bool) -> Value {
     })
 }
 
+fn child_notification(method: &str) -> Value {
+    json!({
+        "method": method,
+        "params": {
+            "threadId": "child",
+            "turn": { "id": "child-turn", "status": "completed" },
+        }
+    })
+}
+
+fn child_spawned() -> Value {
+    json!({
+        "method": "thread/started",
+        "params": { "thread": { "id": "child", "parentThreadId": "native" } }
+    })
+}
+
 async fn observe(frames: Vec<Value>) -> Vec<ProviderEvent> {
     let count = frames.len();
     let mut transport = vec![initialize_response(), thread_response()];
@@ -96,6 +113,7 @@ async fn failed_turns_are_classified_from_codex_error_info() {
         assert_eq!(terminal.kind, EventKind::TurnCompleted);
         assert_eq!(terminal.failure_class(), class, "{info}");
         assert_eq!(terminal.payload["errorMessage"], "turn failed");
+        assert!(!terminal.child_turns_continue());
     }
 }
 
@@ -122,6 +140,53 @@ async fn a_completion_without_error_info_keeps_the_final_error_notification_clas
     ])
     .await;
     assert_eq!(explicit[1].failure_class(), FailureClass::Auth);
+}
+
+#[tokio::test]
+async fn a_failed_root_turn_leaves_running_native_children_to_report_their_own_ends() {
+    let events = observe(vec![
+        child_spawned(),
+        child_notification("turn/started"),
+        failed_turn(Some(json!("other"))),
+        child_notification("turn/completed"),
+        failed_turn(None),
+    ])
+    .await;
+    let kinds: Vec<_> = events.iter().map(|event| event.kind.clone()).collect();
+    assert_eq!(
+        kinds,
+        [
+            EventKind::TaskStarted,
+            EventKind::TaskStarted,
+            EventKind::TurnCompleted,
+            EventKind::TaskCompleted,
+            EventKind::TurnCompleted,
+        ]
+    );
+    for task in [&events[0], &events[1], &events[3]] {
+        assert!(task.task_awaited());
+        assert_eq!(task.payload["taskId"], "child");
+    }
+    assert!(events[2].child_turns_continue());
+    assert_eq!(events[2].failure_class(), FailureClass::Unknown);
+    // Once the child ends, a later failure has nothing that continues.
+    assert!(!events[4].child_turns_continue());
+}
+
+#[tokio::test]
+async fn a_completed_root_turn_never_claims_continuing_children() {
+    let events = observe(vec![
+        child_spawned(),
+        child_notification("turn/started"),
+        json!({
+            "method": "turn/completed",
+            "params": { "threadId": "native", "turn": { "id": "root-turn", "status": "completed" } }
+        }),
+    ])
+    .await;
+    assert_eq!(events[2].kind, EventKind::TurnCompleted);
+    assert!(events[2].payload.get("childTurnsContinue").is_none());
+    assert!(events[2].payload.get("failureClass").is_none());
 }
 
 #[tokio::test]

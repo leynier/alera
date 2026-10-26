@@ -8,7 +8,7 @@ use alera_provider_protocol::{
 };
 use async_trait::async_trait;
 use serde_json::{json, Value};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 pub(crate) struct PendingRequest {
     pub rpc_id: alera_provider_protocol::RequestId,
@@ -34,6 +34,9 @@ pub struct CodexProvider<T> {
     pub(crate) history_mode: Option<String>,
     pub(crate) session_effort: Option<String>,
     pub(crate) native_child_parents: HashMap<String, String>,
+    /// Native child threads with a running turn. A root turn that fails
+    /// while any runs leaves them working; they report their own ends.
+    pub(crate) active_child_turns: HashSet<String>,
     /// The class of the root turn's last final `error` notification, for a
     /// failed `turn/completed` that does not repeat its `codexErrorInfo`.
     pub(crate) turn_failure_class: Option<alera_provider_protocol::FailureClass>,
@@ -83,6 +86,7 @@ impl<T> CodexProvider<T> {
             history_mode: None,
             session_effort: None,
             native_child_parents: HashMap::new(),
+            active_child_turns: HashSet::new(),
             turn_failure_class: None,
             session_approvals: Default::default(),
         }
@@ -401,6 +405,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.queued_events.clear();
         self.session_approvals.clear();
         self.terminal_event_pending = false;
+        self.active_child_turns.clear();
         self.turn_failure_class = None;
         if let Some(session) = self.session.as_mut() {
             session.status = SessionStatus::Stopped;

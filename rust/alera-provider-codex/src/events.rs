@@ -73,6 +73,15 @@ fn map_notification<T: JsonTransport>(
     }
     if let (Some(child), Some(parent)) = (native_thread_id.as_ref(), child_parent.as_ref()) {
         let terminal = matches!(method, "turn/completed" | "turn/aborted" | "thread/closed");
+        match method {
+            "turn/started" => {
+                provider.active_child_turns.insert(child.clone());
+            }
+            _ if terminal => {
+                provider.active_child_turns.remove(child);
+            }
+            _ => {}
+        }
         kind = if terminal {
             EventKind::TaskCompleted
         } else if matches!(method, "thread/started" | "turn/started") {
@@ -80,9 +89,11 @@ fn map_notification<T: JsonTransport>(
         } else {
             EventKind::TaskProgress
         };
+        // A native sub-agent's result goes back to its parent agent.
         payload = serde_json::json!({
             "taskId":child,
             "status":if terminal { "completed" } else { "running" },
+            "awaited":true,
             "nativeTask":alera_provider_protocol::NativeTask {
                 parent_native_thread_id:Some(parent.clone()), child_native_thread_ids:vec![child.clone()],
                 status:Some(method.into()), ..Default::default()
@@ -120,7 +131,8 @@ fn map_notification<T: JsonTransport>(
     Ok(event)
 }
 
-/// Gives a failed root turn its class. A `codexErrorInfo` on the completion decides the class; a
+/// Gives a failed root turn its class, and says whether native child turns
+/// outlive it. A `codexErrorInfo` on the completion decides the class; a
 /// missing one falls back to the turn's last final `error` notification.
 fn classify_root_failure<T>(
     provider: &mut CodexProvider<T>,
@@ -144,6 +156,9 @@ fn classify_root_failure<T>(
                     .or(provider.turn_failure_class)
                     .unwrap_or_default();
                 payload["failureClass"] = serde_json::json!(class);
+                if !provider.active_child_turns.is_empty() {
+                    payload["childTurnsContinue"] = Value::Bool(true);
+                }
             }
             provider.turn_failure_class = None;
         }

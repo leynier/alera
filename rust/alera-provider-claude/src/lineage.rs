@@ -55,11 +55,20 @@ impl ClaudeProvider {
         } else {
             status
         };
+        let task_type = canonical_payload::text_field(payload, &["task_type", "taskType"]);
+        // Claude runs background Bash as a local_bash task the agent need not
+        // wait on. Every other task is a sub-agent whose result returns to it.
+        let awaited = (kind == EventKind::TaskStarted
+            && task_type.as_deref() != Some("local_bash"))
+        .then_some(true);
         let mut normalized = canonical_payload::compact_nulls(json!({
             "taskId":task_id,
+            "awaited":awaited,
+            // Undeclared SDK field: the sub-agent whose own background work this is.
+            "parentTaskId":canonical_payload::text_field(payload, &["parent_task_id", "parentTaskId"]),
             "description":canonical_payload::text_field(payload, &["description", "title", "command"]),
             "summary":canonical_payload::text_field(payload, &["summary", "output", "message"]),
-            "taskType":canonical_payload::text_field(payload, &["task_type", "taskType"]),
+            "taskType":task_type,
             "status":display_status,
             "nativeTask":task,
             "detail":payload,

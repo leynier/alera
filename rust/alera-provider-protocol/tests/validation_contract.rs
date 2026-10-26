@@ -206,18 +206,21 @@ fn event_validation_rejects_blank_provider_refs_and_raw_metadata() {
 }
 
 #[test]
-fn failed_turn_carries_a_failure_class() {
+fn failed_turn_carries_failure_class_and_continuing_child_turns() {
     let failed = valid_completed_event(json!({
         "state": "failed",
         "errorMessage": "You've hit your usage limit.",
         "failureClass": "usage_limit",
+        "childTurnsContinue": true,
     }));
     failed.validate().unwrap();
     assert_eq!(failed.failure_class(), FailureClass::UsageLimit);
+    assert!(failed.child_turns_continue());
 
     let plain = valid_completed_event(json!({ "state": "failed" }));
     plain.validate().unwrap();
     assert_eq!(plain.failure_class(), FailureClass::Unknown);
+    assert!(!plain.child_turns_continue());
 
     // A class from a newer adapter still reads, as unknown.
     let newer = valid_completed_event(json!({ "state": "failed", "failureClass": "billing" }));
@@ -226,10 +229,30 @@ fn failed_turn_carries_a_failure_class() {
 
     for payload in [
         json!({ "state": "completed", "failureClass": "auth" }),
+        json!({ "state": "interrupted", "childTurnsContinue": true }),
+        json!({ "state": "failed", "childTurnsContinue": false }),
         json!({ "state": "failed", "failureClass": 7 }),
     ] {
         expect_validation_error(valid_completed_event(payload).validate());
     }
+}
+
+#[test]
+fn task_events_accept_only_true_awaited_and_a_named_parent_task() {
+    let task = |payload: serde_json::Value| {
+        let mut event = valid_completed_event(payload);
+        event.kind = EventKind::TaskStarted;
+        event
+    };
+    let awaited = task(json!({ "taskId": "agent-1", "awaited": true, "parentTaskId": "agent-0" }));
+    awaited.validate().unwrap();
+    assert!(awaited.task_awaited());
+    let command = task(json!({ "taskId": "bash-1" }));
+    command.validate().unwrap();
+    assert!(!command.task_awaited());
+
+    expect_validation_error(task(json!({ "taskId": "bash-1", "awaited": false })).validate());
+    expect_validation_error(task(json!({ "taskId": "bash-1", "parentTaskId": " " })).validate());
 }
 
 #[test]

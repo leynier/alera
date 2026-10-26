@@ -137,3 +137,31 @@ async fn a_completed_result_carries_no_failure_class() {
     assert_eq!(event.payload["state"], "completed");
     assert!(event.payload.get("failureClass").is_none());
 }
+
+#[tokio::test]
+async fn sub_agent_tasks_are_awaited_and_background_commands_are_not() {
+    let (mut provider, _handle) = started_provider([
+        initialize_response(),
+        json!({"type":"system","subtype":"task_started","task_id":"agent","session_id":"native-session","tool_use_id":"tool","task_type":"local_agent","description":"Explore"}),
+        json!({"type":"system","subtype":"task_started","task_id":"bash","session_id":"native-session","task_type":"local_bash","parent_task_id":"agent","description":"npm test"}),
+        json!({"type":"system","subtype":"task_notification","task_id":"agent","session_id":"native-session","status":"completed"}),
+    ])
+    .await;
+    let mut tasks = Vec::new();
+    while tasks.len() < 3 {
+        let event = provider.next_event().await.unwrap().unwrap();
+        if matches!(
+            event.kind,
+            EventKind::TaskStarted | EventKind::TaskCompleted
+        ) {
+            event.validate().unwrap();
+            tasks.push(event);
+        }
+    }
+    assert!(tasks[0].task_awaited());
+    assert!(tasks[0].payload.get("parentTaskId").is_none());
+    assert!(!tasks[1].task_awaited());
+    assert_eq!(tasks[1].payload["parentTaskId"], "agent");
+    assert_eq!(tasks[2].kind, EventKind::TaskCompleted);
+    assert!(tasks[2].payload.get("awaited").is_none());
+}
