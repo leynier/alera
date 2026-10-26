@@ -33,9 +33,22 @@ void main() {
     );
   });
 
-  test('a slash after the start, an email and a selection do not', () {
+  test('a / at a later word start opens commands, as in T3 Code', () {
+    expect(
+      _at('fix /mod|'),
+      const AgentChatComposerTrigger(
+        kind: AgentChatComposerTriggerKind.command,
+        query: 'mod',
+        start: 4,
+        end: 8,
+      ),
+    );
+  });
+
+  test('a path, a slash mid-word, an email and a selection do not', () {
     expect(_at('open src/ma|'), isNull);
-    expect(_at('fix /mod|'), isNull);
+    expect(_at('open /src/ma|'), isNull);
+    expect(_at('open /sr|c/main.dart'), isNull);
     expect(_at('mail me@ho|st'), isNull);
     expect(
       agentChatComposerTriggerAt('/mo', selectionStart: 0, selectionEnd: 3),
@@ -70,5 +83,33 @@ void main() {
     );
     expect(alone.text, '/review ');
     expect(alone.caret, 8);
+  });
+
+  test('a currency sigil at a word start opens skills', () {
+    expect(
+      _at('use \$rev|iew now'),
+      const AgentChatComposerTrigger(
+        kind: AgentChatComposerTriggerKind.skill,
+        query: 'rev',
+        start: 4,
+        end: 11,
+      ),
+    );
+    expect(_at('€|')?.kind, AgentChatComposerTriggerKind.skill);
+    expect(_at('€|')?.query, '');
+    expect(_at('£dep|')?.query, 'dep');
+  });
+
+  test('amounts and mid-word sigils do not open skills', () {
+    for (final text in <String>[
+      r'costs $5|',
+      r'costs $10k|',
+      r'costs $9.99|',
+      r'costs $1e6|',
+      r'($5)|',
+      r'price$ta|g',
+    ]) {
+      expect(_at(text), isNull, reason: text);
+    }
   });
 }

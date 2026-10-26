@@ -24,6 +24,7 @@ abstract final class AgentChatWire {
   static const String deleteCapability = 'agentChatDeleteV1';
   static const String approvalHistoryCapability = 'agentChatApprovalHistoryV1';
   static const String turnDiffCapability = 'agentChatTurnDiffV1';
+  static const String skillsCapability = 'agentChatSkillsV1';
   static const String readCursorCapability = 'agentChatReadCursorV1';
   static const String attachmentUploadCapability =
       'agentChatAttachmentUploadV1';
@@ -82,6 +83,7 @@ abstract final class AgentChatWire {
   static const String delete = 'agentChat.delete';
   static const String approvalHistory = 'agentChat.approvalHistory';
   static const String turnDiff = 'agentChat.turnDiff';
+  static const String skills = 'agentChat.skills';
   static const String interrupt = 'agentChat.interrupt';
   static const String respond = 'agentChat.respond';
   static const String configure = 'agentChat.configure';

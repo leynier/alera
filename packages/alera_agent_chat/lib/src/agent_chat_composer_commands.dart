@@ -1,5 +1,8 @@
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_provider_command.dart';
+import 'package:alera_agent_chat/src/agent_chat_provider_skill.dart';
+import 'package:alera_agent_chat/src/agent_chat_search_ranking.dart';
+import 'package:alera_agent_chat/src/agent_chat_skill_search.dart';
 
 /// A local `/` command of the chat composer: it changes the composer or
 /// opens one of its controls instead of being sent to the agent. Desktop and
@@ -38,6 +41,13 @@ final class const AgentChatSlashCommandState({
   /// What the agent advertises, listed after the local commands.
   final List<AgentChatProviderCommand> providerCommands =
       const <AgentChatProviderCommand>[],
+
+  /// The agent's skills, listed last as `/skill:name` while [showSkills].
+  final List<AgentChatProviderSkill> providerSkills =
+      const <AgentChatProviderSkill>[],
+
+  /// T3 Code's Show Skills In Slash Menu setting, on by default.
+  final bool showSkills = true,
 });
 
 /// A command the composer menu lists, with why it cannot run when it is
@@ -167,6 +177,20 @@ final class const AgentChatSlashMenuProviderCommand(
   int get hashCode => command.hashCode;
 }
 
+/// A skill of the agent, picked from the `/` menu as `/skill:name`.
+final class const AgentChatSlashMenuSkill(final AgentChatProviderSkill skill)
+    extends AgentChatSlashMenuEntry {
+  @override
+  String get name => 'skill:${skill.name}';
+
+  @override
+  bool operator ==(Object other) =>
+      other is AgentChatSlashMenuSkill && other.skill == skill;
+
+  @override
+  int get hashCode => skill.hashCode;
+}
+
 /// Names the local table owns. They stay the composer's even while one of
 /// them is hidden, so typing `/plan` never means one thing in one chat and
 /// another in the next.
@@ -174,30 +198,106 @@ final Set<String> _localCommandNames = <String>{
   for (final command in AgentChatSlashCommand.values) command.name,
 };
 
-/// The `/` menu for [state] whose names match [query]: the local commands
-/// of [agentChatSlashCommandOptions], then the agent's own. A local command
-/// wins over an agent command of the same name, compared without case.
-/// Names that start with [query] come before names that only contain it.
+final RegExp _leadingSlashes = RegExp(r'^/+');
+
+/// The `/` menu for [state] whose entries match [query], best first, as
+/// T3 Code's `searchSlashCommandItems` ranks them: the local commands of
+/// [agentChatSlashCommandOptions], the agent's own commands, then its skills
+/// as `/skill:name`. A local command wins over an agent command of the same
+/// name, and a skill over an agent command of its name, both compared
+/// without case. Agent commands only expand at the start of the prompt, so
+/// they are left out unless [atPromptStart].
 List<AgentChatSlashMenuEntry> agentChatSlashMenuEntries(
   AgentChatSlashCommandState state, {
   String query = '',
+  bool atPromptStart = true,
 }) {
-  final seen = <String>{..._localCommandNames};
+  final skills = state.showSkills
+      ? agentChatDedupeSkillsByName(<AgentChatProviderSkill>[
+          for (final skill in state.providerSkills)
+            if (skill.isUserInvocable) skill,
+        ])
+      : const <AgentChatProviderSkill>[];
+  final seen = <String>{
+    ..._localCommandNames,
+    for (final skill in skills) skill.name.trim().toLowerCase(),
+  };
   final entries = <AgentChatSlashMenuEntry>[
     for (final option in agentChatSlashCommandOptions(state))
       AgentChatSlashMenuLocalCommand(option),
-    for (final command in state.providerCommands)
-      if (seen.add(command.name.toLowerCase()))
-        AgentChatSlashMenuProviderCommand(command),
+    if (atPromptStart)
+      for (final command in state.providerCommands)
+        if (seen.add(command.name.toLowerCase()))
+          AgentChatSlashMenuProviderCommand(command),
+    for (final skill in skills) AgentChatSlashMenuSkill(skill),
   ];
-  final needle = query.trim().toLowerCase();
+  final needle = agentChatNormalizeSearchQuery(
+    query,
+    trimLeading: _leadingSlashes,
+  );
   if (needle.isEmpty) return entries;
-  return <AgentChatSlashMenuEntry>[
-    for (final entry in entries)
-      if (entry.name.toLowerCase().startsWith(needle)) entry,
-    for (final entry in entries)
-      if (!entry.name.toLowerCase().startsWith(needle) &&
-          entry.name.toLowerCase().contains(needle))
-        entry,
-  ];
+  final ranked = <AgentChatRankedResult<AgentChatSlashMenuEntry>>[];
+  for (final entry in entries) {
+    final score = _slashEntryScore(entry, needle);
+    if (score == null) continue;
+    agentChatInsertRanked(
+      ranked,
+      AgentChatRankedResult<AgentChatSlashMenuEntry>(
+        item: entry,
+        score: score,
+        tieBreaker: switch (entry) {
+          AgentChatSlashMenuLocalCommand() => '0\u0000${entry.name}',
+          AgentChatSlashMenuProviderCommand() => '1\u0000${entry.name}',
+          AgentChatSlashMenuSkill(:final skill) => '2\u0000${skill.name}',
+        },
+      ),
+    );
+  }
+  return <AgentChatSlashMenuEntry>[for (final entry in ranked) entry.item];
+}
+
+// T3 Code's skills match `skill`, `skill:` plus a skill query, or the skill
+// query alone; anything else still lists them last while it could become
+// `skill`.
+const int _lastScore = 0x1fffffffffffff;
+
+int? _slashEntryScore(AgentChatSlashMenuEntry entry, String query) {
+  if (entry case AgentChatSlashMenuSkill(:final skill)) {
+    if (query == 'skill') return 0;
+    final skillQuery = query.startsWith('skill:')
+        ? query.substring('skill:'.length)
+        : query;
+    final score = skillQuery.isEmpty
+        ? 0
+        : agentChatScoreProviderSkill(skill, skillQuery);
+    if (score != null) return score;
+    return 'skill'.startsWith(query) ? _lastScore : null;
+  }
+  final description = switch (entry) {
+    AgentChatSlashMenuLocalCommand(:final option) => option.command.description,
+    AgentChatSlashMenuProviderCommand(:final command) => command.detail,
+    AgentChatSlashMenuSkill() => '',
+  };
+  final scores = <int?>[
+    agentChatScoreQueryMatch(
+      value: entry.name.toLowerCase(),
+      query: query,
+      exactBase: 0,
+      prefixBase: 2,
+      boundaryBase: 4,
+      includesBase: 6,
+      fuzzyBase: 100,
+      boundaryMarkers: const <String>['-', '_', '/'],
+    ),
+    agentChatScoreQueryMatch(
+      value: description.toLowerCase(),
+      query: query,
+      exactBase: 20,
+      prefixBase: 22,
+      boundaryBase: 24,
+      includesBase: 26,
+    ),
+  ].nonNulls;
+  if (scores.isEmpty) return null;
+  return scores.reduce((best, score) => score < best ? score : best);
 }

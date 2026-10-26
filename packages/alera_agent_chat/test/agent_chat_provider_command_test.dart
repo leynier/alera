@@ -10,6 +10,7 @@ List<String> _names(
       AgentChatSlashMenuLocalCommand(:final option) => 'local:${option.name}',
       AgentChatSlashMenuProviderCommand(:final command) =>
         'agent:${command.name}',
+      AgentChatSlashMenuSkill(:final skill) => 'skill:${skill.name}',
     },
 ];
 
@@ -66,7 +67,9 @@ void main() {
     ]);
   });
 
-  test('the query ranks prefixes first across both kinds', () {
+  // T3 Code's ranking: a shorter prefix match beats a longer one, then
+  // substrings, then descriptions (`usage` mentions limits).
+  test('the query ranks matches like T3 Code across both kinds', () {
     const state = AgentChatSlashCommandState(
       providerCommands: <AgentChatProviderCommand>[
         AgentChatProviderCommand(name: 'Mcp'),
@@ -74,9 +77,10 @@ void main() {
       ],
     );
     expect(_names(state, query: 'M'), <String>[
-      'local:model',
       'agent:Mcp',
+      'local:model',
       'agent:summary',
+      'local:usage',
     ]);
     expect(_names(state, query: 'sum'), <String>['agent:summary']);
     expect(_names(state, query: 'zzz'), isEmpty);

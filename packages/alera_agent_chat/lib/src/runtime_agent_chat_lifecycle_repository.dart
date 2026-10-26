@@ -3,6 +3,7 @@ import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_native_history_repository.dart';
+import 'package:alera_agent_chat/src/agent_chat_provider_skill.dart';
 import 'package:alera_agent_chat/src/runtime_agent_chat_native_history_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_transport.dart';
@@ -190,6 +191,18 @@ final class RuntimeAgentChatLifecycleRepository
       AgentChatWire.turnDiffCapability,
       AgentChatWire.turnDiff,
       _scoped(chat, <String, Object?>{'turnId': turnId}),
+    ),
+  );
+
+  @override
+  Future<AgentChatSkillList> skills(
+    AgentChatRef chat, {
+    bool refresh = false,
+  }) async => AgentChatSkillList.fromJson(
+    await _request(
+      AgentChatWire.skillsCapability,
+      AgentChatWire.skills,
+      _scoped(chat, <String, Object?>{if (refresh) 'refresh': true}),
     ),
   );
 }

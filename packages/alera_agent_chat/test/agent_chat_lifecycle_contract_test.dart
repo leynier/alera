@@ -178,9 +178,38 @@ void main() {
         repository.lifecycle.turnDiff(_chat, turnId: 't'),
         throwsA(isA<AgentChatCapabilityRequired>()),
       );
+      await expectLater(
+        repository.lifecycle.skills(_chat),
+        throwsA(isA<AgentChatCapabilityRequired>()),
+      );
       expect(transport.requests, isEmpty);
     },
   );
+
+  test('skills read the agent list for the chat and can refresh it', () async {
+    transport.capabilities.add(AgentChatWire.skillsCapability);
+    transport.responses[AgentChatWire.skills] = <String, Object?>{
+      'provider': 'codex',
+      'providerInstanceId': 'codex',
+      'status': 'ready',
+      'source': 'discovery',
+      'skills': <Object?>[
+        <String, Object?>{
+          'name': 'review',
+          'path': '/s/SKILL.md',
+          'enabled': true,
+        },
+      ],
+    };
+    final list = await repository.lifecycle.skills(_chat);
+    expect(list.status, AgentChatSkillsStatus.ready);
+    expect(list.skills.single.name, 'review');
+    expect(transport.requests.single.$1, AgentChatWire.skills);
+    expect(transport.requests.single.$2['chatId'], _chat.chatId);
+    expect(transport.requests.single.$2.containsKey('refresh'), isFalse);
+    await repository.lifecycle.skills(_chat, refresh: true);
+    expect(transport.requests.last.$2['refresh'], isTrue);
+  });
 
   test('rewind returns the prompt and attachments without promising filesystem reversal', () async {
     transport.capabilities.add(AgentChatWire.rewindCapability);

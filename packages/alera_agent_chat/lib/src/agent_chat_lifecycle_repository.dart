@@ -1,5 +1,6 @@
 import 'package:alera_agent_chat/src/agent_chat_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
+import 'package:alera_agent_chat/src/agent_chat_provider_skill.dart';
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
 
 abstract class AgentChatLifecycleRepository {
@@ -68,6 +69,13 @@ abstract class AgentChatLifecycleRepository {
     AgentChatRef chat, {
     required String turnId,
   }) => Future.error(UnsupportedError('Turn diffs are unavailable.'));
+
+  /// What the composer's `$` menu offers for [chat]. [refresh] asks the
+  /// runtime to discover them again instead of answering from its cache.
+  Future<AgentChatSkillList> skills(
+    AgentChatRef chat, {
+    bool refresh = false,
+  }) => Future.error(UnsupportedError('Agent skills are unavailable.'));
 }
 
 final class UnsupportedAgentChatLifecycleRepository
