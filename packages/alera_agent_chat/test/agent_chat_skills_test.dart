@@ -238,4 +238,78 @@ void main() {
       ..sort(agentChatLocaleCompare);
     expect(names, <String>['2spec', 'a', 'A', 'a_b', 'a-b', 'a:b', 'ab', 'b']);
   });
+
+  group('loader', () {
+    test(
+      'keeps the list while it refreshes and reuses a fresh answer',
+      () async {
+        var now = DateTime(2026);
+        final calls = <bool>[];
+        var answer = const AgentChatSkillList(
+          skills: <AgentChatProviderSkill>[
+            AgentChatProviderSkill(name: 'a', path: '/a'),
+          ],
+        );
+        final loader = AgentChatSkillsLoader(({required refresh}) async {
+          calls.add(refresh);
+          return answer;
+        }, clock: () => now);
+        var notified = 0;
+        loader.addListener(() => notified++);
+        final first = loader.request();
+        expect(loader.loading, isTrue);
+        await first;
+        expect(loader.skills.single.name, 'a');
+        await loader.request();
+        expect(calls, <bool>[false], reason: 'a fresh answer is reused');
+        now = now.add(agentChatSkillsFreshness);
+        answer = const AgentChatSkillList(
+          skills: <AgentChatProviderSkill>[
+            AgentChatProviderSkill(name: 'b', path: '/b'),
+          ],
+        );
+        final second = loader.request();
+        expect(loader.skills.single.name, 'a', reason: 'kept while loading');
+        await second;
+        expect(loader.skills.single.name, 'b');
+        await loader.refresh();
+        expect(calls, <bool>[false, false, true]);
+        expect(notified, greaterThanOrEqualTo(6));
+        loader.reset();
+        expect(loader.list, isNull);
+      },
+    );
+
+    test(
+      'an older runtime marks skills unsupported and stops asking',
+      () async {
+        var calls = 0;
+        final loader = AgentChatSkillsLoader(({required refresh}) async {
+          calls++;
+          throw const AgentChatCapabilityRequired(
+            AgentChatWire.skillsCapability,
+          );
+        });
+        await loader.request();
+        expect(loader.unsupported, isTrue);
+        await loader.request();
+        await loader.refresh();
+        expect(calls, 1);
+      },
+    );
+
+    test('a failure is reported and retried on the next request', () async {
+      var fail = true;
+      final loader = AgentChatSkillsLoader(({required refresh}) async {
+        if (fail) throw StateError('offline');
+        return AgentChatSkillList.empty;
+      });
+      await loader.request();
+      expect(loader.error, isA<StateError>());
+      fail = false;
+      await loader.request();
+      expect(loader.error, isNull);
+      expect(loader.list, isNotNull);
+    });
+  });
 }

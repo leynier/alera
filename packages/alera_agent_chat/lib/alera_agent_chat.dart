@@ -52,6 +52,7 @@ export 'src/agent_chat_search_ranking.dart';
 export 'src/agent_chat_session.dart';
 export 'src/agent_chat_skill_mentions.dart';
 export 'src/agent_chat_skill_search.dart';
+export 'src/agent_chat_skills_loader.dart';
 export 'src/agent_chat_snapshot.dart';
 export 'src/agent_chat_subagent.dart';
 export 'src/agent_chat_summary.dart';
