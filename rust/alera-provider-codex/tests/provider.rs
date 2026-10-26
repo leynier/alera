@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::transport::JsonTransport;
 use alera_provider_protocol::{
@@ -146,7 +148,7 @@ async fn notifications_are_normalized_and_approval_response_keeps_integer_id() {
         .await
         .unwrap();
 
-    let request = provider.next_event().await.unwrap().unwrap();
+    let request = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(request.kind, EventKind::RequestOpened);
     assert_eq!(request.thread_id, "app-thread-3");
     assert_eq!(request.request_id.as_deref(), Some("item-1"));
@@ -169,7 +171,7 @@ async fn notifications_are_normalized_and_approval_response_keeps_integer_id() {
         })
         .await
         .unwrap();
-    let delta = provider.next_event().await.unwrap().unwrap();
+    let delta = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(delta.kind, EventKind::ContentDelta);
     assert_eq!(
         delta.payload,
@@ -214,7 +216,7 @@ async fn user_input_response_uses_codex_question_map_shape() {
         .start_session(SessionStartInput::new("app-thread-4"))
         .await
         .unwrap();
-    let request = provider.next_event().await.unwrap().unwrap();
+    let request = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(request.kind, EventKind::UserInputRequested);
     assert_eq!(request.runtime_request.unwrap().questions[0].id, "choice");
 
@@ -246,7 +248,7 @@ async fn fake_subprocess_exercises_the_real_json_lines_boundary() {
         .start_session(SessionStartInput::new("app-process-thread"))
         .await
         .unwrap();
-    let originator = provider.next_event().await.unwrap().unwrap();
+    let originator = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(
         originator.raw.unwrap().payload["params"]["originator"],
         "alera"
@@ -279,7 +281,7 @@ async fn explicit_originator_environment_override_wins() {
         .start_session(SessionStartInput::new("app-process-custom-originator"))
         .await
         .unwrap();
-    let originator = provider.next_event().await.unwrap().unwrap();
+    let originator = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(
         originator.raw.unwrap().payload["params"]["originator"],
         "custom-codex-client"

@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{probe_skills, CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::{
     EventKind, Provider, ProviderError, ProviderEvent, ProviderSkill, SessionStartInput, TurnInput,
@@ -81,13 +83,13 @@ async fn session_start_lists_skills_for_the_session_cwd() {
         provider.transport().writes()[3],
         json!({ "id": 3, "method": "skills/list", "params": { "cwds": [CWD] } })
     );
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(skills_of(&event), vec![review_skill()]);
     assert_eq!(
         event.raw.as_ref().unwrap().method.as_deref(),
         Some("skills/list")
     );
-    assert!(provider.next_event().await.unwrap().is_none());
+    assert!(support::next_event(&mut provider).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -100,13 +102,15 @@ async fn a_failing_skills_list_does_not_break_session_start() {
     ]);
     let mut provider = CodexProvider::new(transport, config());
     provider.start_session(session_input()).await.unwrap();
-    assert_eq!(provider.queued_event_count(), 0);
+    // Only the commands update is queued.
+    assert_eq!(provider.queued_event_count(), 1);
 
     let turn = provider
         .send_turn(TurnInput::text("app-thread", "hello"))
         .await
         .unwrap();
     assert_eq!(turn.turn_id, "native-turn");
+    assert!(support::next_event(&mut provider).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -118,7 +122,7 @@ async fn a_session_without_a_cwd_does_not_list_skills() {
         .await
         .unwrap();
     assert_eq!(provider.transport().writes().len(), 3);
-    assert!(provider.next_event().await.unwrap().is_none());
+    assert!(support::next_event(&mut provider).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -133,15 +137,15 @@ async fn skills_changed_lists_the_skills_again() {
     let mut provider = CodexProvider::new(transport, config());
     provider.start_session(session_input()).await.unwrap();
 
-    let first = provider.next_event().await.unwrap().unwrap();
+    let first = support::next_event(&mut provider).await.unwrap().unwrap();
     assert!(skills_of(&first).is_empty());
-    let refreshed = provider.next_event().await.unwrap().unwrap();
+    let refreshed = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(skills_of(&refreshed), vec![review_skill()]);
     assert_eq!(
         provider.transport().writes()[4],
         json!({ "id": 4, "method": "skills/list", "params": { "cwds": [CWD] } })
     );
-    assert!(provider.next_event().await.unwrap().is_none());
+    assert!(support::next_event(&mut provider).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -161,9 +165,9 @@ async fn skills_changed_during_a_request_lists_on_the_next_event() {
         .await
         .unwrap();
 
-    let first = provider.next_event().await.unwrap().unwrap();
+    let first = support::next_event(&mut provider).await.unwrap().unwrap();
     assert!(skills_of(&first).is_empty());
-    let refreshed = provider.next_event().await.unwrap().unwrap();
+    let refreshed = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(skills_of(&refreshed), vec![review_skill()]);
     assert_eq!(provider.transport().writes()[5]["method"], "skills/list");
 }

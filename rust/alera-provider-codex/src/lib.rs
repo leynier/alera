@@ -6,6 +6,7 @@
 //! production construction uses the bounded windowless child-process transport.
 
 mod children;
+mod compact;
 mod config;
 mod events;
 mod failure;

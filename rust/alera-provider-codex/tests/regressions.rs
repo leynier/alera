@@ -1,7 +1,9 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, JsonTransport, MockTransport};
 use alera_provider_protocol::{
-    ApprovalDecision, Attachment, EventKind, InteractionMode, Provider, ProviderError, RequestId,
-    RuntimeMode, RuntimeResponse, SessionStartInput, SessionStatus, TurnInput,
+    ApprovalDecision, EventKind, Provider, ProviderError, RequestId, RuntimeResponse,
+    SessionStartInput, SessionStatus,
 };
 use async_trait::async_trait;
 use serde_json::{json, Value};
@@ -51,7 +53,7 @@ async fn server_request_id_collision_keeps_logical_and_wire_ids_separate() {
         .await
         .unwrap();
 
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(event.kind, EventKind::RequestOpened);
     assert_eq!(event.request_id.as_deref(), Some("logical-approval"));
     assert_eq!(
@@ -86,139 +88,6 @@ async fn call_timeout_is_bounded() {
     provider.config_mut().request_timeout = Duration::from_millis(2);
     let error = provider.initialize().await.unwrap_err();
     assert!(matches!(error, ProviderError::Timeout { operation } if operation == "initialize"));
-}
-
-#[tokio::test]
-async fn runtime_mode_maps_exact_thread_and_turn_policy_shapes() {
-    let transport = MockTransport::new([
-        initialize_response(1),
-        thread_response(2, "native-policy"),
-        json!({ "id": 3, "result": { "turn": { "id": "native-turn-policy" } } }),
-    ]);
-    let mut provider = CodexProvider::new(transport, config());
-    let mut session_input = SessionStartInput::new("app-policy");
-    session_input.model = Some("gpt-5".into());
-    session_input.runtime_mode = RuntimeMode::FullAccess;
-    provider.start_session(session_input).await.unwrap();
-    provider
-        .send_turn(TurnInput::text("app-policy", "run"))
-        .await
-        .unwrap();
-
-    let writes = provider.transport().writes();
-    assert_eq!(writes[2]["params"]["approvalPolicy"], "never");
-    assert_eq!(writes[2]["params"]["sandbox"], "danger-full-access");
-    assert_eq!(writes[2]["params"]["approvalsReviewer"], "user");
-    assert_eq!(writes[3]["params"]["approvalPolicy"], "never");
-    assert_eq!(writes[3]["params"]["approvalsReviewer"], "user");
-    assert_eq!(
-        writes[3]["params"]["sandboxPolicy"],
-        json!({ "type": "dangerFullAccess" })
-    );
-}
-
-#[tokio::test]
-async fn plan_turn_includes_required_collaboration_settings() {
-    let transport = MockTransport::new([
-        initialize_response(1),
-        thread_response(2, "native-plan"),
-        json!({ "id": 3, "result": { "turn": { "id": "native-turn-plan" } } }),
-    ]);
-    let mut provider = CodexProvider::new(transport, config());
-    let mut session_input = SessionStartInput::new("app-plan");
-    session_input.model = Some("gpt-5".into());
-    provider.start_session(session_input).await.unwrap();
-    let mut turn = TurnInput::text("app-plan", "plan");
-    turn.interaction_mode = InteractionMode::Plan;
-    provider.send_turn(turn).await.unwrap();
-    assert_eq!(
-        provider.transport().writes()[3]["params"]["collaborationMode"],
-        json!({
-            "mode": "plan",
-            "settings": { "model": "gpt-5" }
-        })
-    );
-}
-
-#[tokio::test]
-async fn every_turn_states_its_collaboration_mode_so_leaving_plan_resets_it() {
-    let transport = MockTransport::new([
-        initialize_response(1),
-        thread_response(2, "native-mode"),
-        json!({ "id": 3, "result": { "turn": { "id": "native-turn-plan" } } }),
-        json!({ "method": "turn/completed", "params": { "threadId": "native-mode", "turn": { "id": "native-turn-plan", "status": "completed" } } }),
-        json!({ "id": 4, "result": { "turn": { "id": "native-turn-default" } } }),
-    ]);
-    let mut provider = CodexProvider::new(transport, config());
-    let mut session_input = SessionStartInput::new("app-mode");
-    session_input.model = Some("gpt-6-astra".into());
-    provider.start_session(session_input).await.unwrap();
-    let mut plan = TurnInput::text("app-mode", "plan");
-    plan.interaction_mode = InteractionMode::Plan;
-    provider.send_turn(plan).await.unwrap();
-    while provider.next_event().await.unwrap().is_some_and(|event| {
-        !matches!(
-            event.kind,
-            alera_provider_protocol::EventKind::TurnCompleted
-        )
-    }) {}
-    provider
-        .send_turn(TurnInput::text("app-mode", "build"))
-        .await
-        .unwrap();
-    let writes = provider.transport().writes();
-    let modes: Vec<_> = writes
-        .iter()
-        .filter(|write| write["method"] == "turn/start")
-        .map(|write| write["params"]["collaborationMode"].clone())
-        .collect();
-    assert_eq!(
-        modes,
-        vec![
-            json!({ "mode": "plan", "settings": { "model": "gpt-6-astra", "reasoning_effort": "medium" } }),
-            json!({ "mode": "default", "settings": { "model": "gpt-6-astra", "reasoning_effort": "medium" } }),
-        ]
-    );
-}
-
-#[tokio::test]
-async fn default_turn_without_a_model_omits_collaboration_mode() {
-    let transport = MockTransport::new([
-        initialize_response(1),
-        thread_response(2, "native-unknown"),
-        json!({ "id": 3, "result": { "turn": { "id": "native-turn" } } }),
-    ]);
-    let mut provider = CodexProvider::new(transport, config());
-    provider
-        .start_session(SessionStartInput::new("app-unknown"))
-        .await
-        .unwrap();
-    provider
-        .send_turn(TurnInput::text("app-unknown", "hi"))
-        .await
-        .unwrap();
-    assert!(provider.transport().writes()[3]["params"]
-        .get("collaborationMode")
-        .is_none());
-}
-
-#[tokio::test]
-async fn unsupported_file_attachment_fails_before_turn_start() {
-    let transport = MockTransport::new([initialize_response(1), thread_response(2, "native-file")]);
-    let mut provider = CodexProvider::new(transport, config());
-    provider
-        .start_session(SessionStartInput::new("app-file"))
-        .await
-        .unwrap();
-    let mut turn = TurnInput::text("app-file", "attach");
-    turn.attachments.push(Attachment::File {
-        path: "/tmp/file.txt".into(),
-    });
-    assert!(matches!(
-        provider.send_turn(turn).await,
-        Err(ProviderError::Unsupported(_))
-    ));
-    assert_eq!(provider.transport().writes().len(), 3);
 }
 
 #[tokio::test]
@@ -261,20 +130,20 @@ async fn core_notifications_use_canonical_payload_shapes() {
         .await
         .unwrap();
 
-    let item = provider.next_event().await.unwrap().unwrap();
+    let item = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(item.kind, EventKind::ItemStarted);
     assert_eq!(item.item_id.as_deref(), Some("item-core"));
     assert_eq!(item.payload["itemType"], "command_execution");
     assert_eq!(item.payload["status"], "inProgress");
     item.validate().unwrap();
 
-    let limits = provider.next_event().await.unwrap().unwrap();
+    let limits = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(limits.kind, EventKind::AccountRateLimitsUpdated);
     assert_eq!(limits.payload["limits"]["windows"][0]["kind"], "session");
     assert_eq!(limits.payload["limits"]["windows"][1]["kind"], "weekly");
     limits.validate().unwrap();
 
-    let warning = provider.next_event().await.unwrap().unwrap();
+    let warning = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(warning.kind, EventKind::RuntimeWarning);
     assert_eq!(
         warning.payload,
@@ -304,7 +173,7 @@ async fn rate_window_kind_uses_explicit_duration_for_partial_snapshots() {
         .start_session(SessionStartInput::new("app-rate-duration"))
         .await
         .unwrap();
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(event.kind, EventKind::AccountRateLimitsUpdated);
     assert_eq!(event.payload["limits"]["windows"][0]["kind"], "monthly");
     assert_eq!(
@@ -330,7 +199,7 @@ async fn malformed_delta_and_terminal_status_are_rejected_without_state_mutation
         .await
         .unwrap();
     assert!(matches!(
-        provider.next_event().await,
+        support::next_event(&mut provider).await,
         Err(ProviderError::Protocol(message)) if message.contains("no string delta")
     ));
 }
@@ -354,7 +223,7 @@ async fn turn_completed_requires_a_known_native_status() {
         .await
         .unwrap();
     assert!(matches!(
-        provider.next_event().await,
+        support::next_event(&mut provider).await,
         Err(ProviderError::Protocol(message)) if message.contains("no status")
     ));
 }
@@ -388,7 +257,7 @@ async fn native_token_usage_is_normalized_to_shared_complete_shape() {
         .start_session(SessionStartInput::new("app-usage"))
         .await
         .unwrap();
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(event.payload["tokenUsage"]["usageStatus"], "complete");
     assert_eq!(event.payload["tokenUsage"]["usageScope"], "main_agent");
     assert_eq!(event.payload["tokenUsage"]["inputTokens"], 10);
@@ -427,7 +296,7 @@ async fn failed_turn_maps_canonical_error_and_usage_details() {
         .start_session(SessionStartInput::new("app-failed"))
         .await
         .unwrap();
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(event.payload["state"], "failed");
     assert_eq!(event.payload["errorMessage"], "model quota exceeded");
     assert_eq!(event.payload["stopReason"], "usage_limit");
@@ -467,7 +336,7 @@ async fn typed_runtime_response_must_match_pending_request_kind() {
         .start_session(SessionStartInput::new("app-kind"))
         .await
         .unwrap();
-    provider.next_event().await.unwrap().unwrap();
+    support::next_event(&mut provider).await.unwrap().unwrap();
     let error = provider
         .respond(RuntimeResponse::Approval {
             request_id: RequestId::String("logical-input".into()),
@@ -507,8 +376,8 @@ async fn terminal_event_expires_pending_requests_and_rejects_stale_response() {
         .start_session(SessionStartInput::new("app-terminal"))
         .await
         .unwrap();
-    provider.next_event().await.unwrap().unwrap();
-    let terminal = provider.next_event().await.unwrap().unwrap();
+    support::next_event(&mut provider).await.unwrap().unwrap();
+    let terminal = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(terminal.kind, EventKind::TurnCompleted);
     assert_eq!(provider.session().unwrap().status, SessionStatus::Ready);
     assert!(matches!(

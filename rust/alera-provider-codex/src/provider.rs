@@ -50,6 +50,8 @@ pub struct CodexProvider<T> {
     pub(crate) skills_stale: bool,
     /// Requests given up on after a timeout whose answers may still arrive.
     pub(crate) abandoned_responses: HashSet<i64>,
+    /// The native turn the last `/compact` runs in, which cannot be steered.
+    pub(crate) compaction_turn_id: Option<String>,
 }
 
 impl<T: JsonTransport> CodexProvider<T> {
@@ -102,6 +104,7 @@ impl<T> CodexProvider<T> {
             session_approvals: Default::default(),
             skills_stale: false,
             abandoned_responses: HashSet::new(),
+            compaction_turn_id: None,
         }
     }
 
@@ -256,6 +259,9 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                     "cannot start a Codex turn while another turn is active or awaiting an event"
                         .into(),
             });
+        }
+        if crate::compact::is_compact_turn(&input) {
+            return self.start_compaction(&session).await;
         }
         let params = self.turn_params(&input, &session)?;
         let response = self.call("turn/start", Value::Object(params)).await?;
@@ -426,6 +432,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.session_approvals.clear();
         self.skills_stale = false;
         self.abandoned_responses.clear();
+        self.compaction_turn_id = None;
         self.terminal_event_pending = false;
         self.clear_children();
         self.turn_failure_class = None;

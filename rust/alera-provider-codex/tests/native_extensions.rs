@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::*;
 use serde_json::{json, Value};
@@ -78,7 +80,7 @@ async fn steer_request_id_collision_retains_callback_and_correlates_response() {
         .steer_turn(TurnInput::text("app", "follow up"), "native-turn")
         .await
         .unwrap();
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(event.kind, EventKind::RequestOpened);
     let request = event.runtime_request.unwrap();
     provider
@@ -255,13 +257,13 @@ async fn child_thread_completion_is_task_lineage_and_does_not_complete_parent() 
         json!({"method":"thread/started","params":{"thread":{"id":"child-native","source":{"subAgent":{"thread_spawn":{"parent_thread_id":"native","depth":1}}}}}}),
         json!({"method":"turn/completed","params":{"threadId":"child-native","turn":{"id":"child-turn","status":"completed"}}}),
     ]).await;
-    let started = provider.next_event().await.unwrap().unwrap();
+    let started = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(started.kind, EventKind::TaskStarted);
     assert_eq!(started.thread_id, "app");
     let task = started.native_task().unwrap().unwrap();
     assert_eq!(task.child_native_thread_ids, vec!["child-native"]);
     assert!(task.native_task_id.is_none());
-    let completed = provider.next_event().await.unwrap().unwrap();
+    let completed = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(completed.kind, EventKind::TaskCompleted);
     assert_eq!(
         completed.provider_refs.unwrap().provider_turn_id.as_deref(),

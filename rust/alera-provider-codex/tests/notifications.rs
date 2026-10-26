@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::{
     EventKind, Provider, ProviderError, SessionStartInput, SessionStatus, TurnInput,
@@ -56,7 +58,7 @@ async fn observed_mcp_startup_notifications_preserve_context_and_allow_first_tur
     assert_eq!(session.status, SessionStatus::Ready);
 
     for frame in frames {
-        let event = provider.next_event().await.unwrap().unwrap();
+        let event = support::next_event(&mut provider).await.unwrap().unwrap();
         assert_eq!(event.kind, EventKind::McpStatusUpdated);
         assert_eq!(event.thread_id, "app");
         assert_eq!(event.payload, frame["params"]);
@@ -91,7 +93,7 @@ async fn failed_mcp_startup_preserves_server_status_and_failure_details() {
         .await
         .unwrap();
 
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(event.kind, EventKind::McpStatusUpdated);
     assert_eq!(event.payload, frame["params"]);
     assert_eq!(event.raw.as_ref().unwrap().payload, frame);
@@ -117,7 +119,7 @@ async fn unknown_notification_with_null_error_survives_without_runtime_error_cla
         .await
         .unwrap();
 
-    let event = provider.next_event().await.unwrap().unwrap();
+    let event = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(
         event.kind,
         EventKind::Unknown("future/status/updated".into())
@@ -160,7 +162,7 @@ async fn explicit_and_unknown_nonnull_runtime_errors_remain_canonical() {
         .into_iter()
         .zip(["model unavailable", "provider unavailable"])
     {
-        let event = provider.next_event().await.unwrap().unwrap();
+        let event = support::next_event(&mut provider).await.unwrap().unwrap();
         assert_eq!(event.kind, EventKind::RuntimeError);
         assert_eq!(event.payload["message"], expected_message);
         assert_eq!(event.payload["detail"], frame["params"]["error"]);
@@ -184,7 +186,7 @@ async fn malformed_core_runtime_messages_with_null_errors_are_still_rejected() {
             .unwrap();
 
         assert!(matches!(
-            provider.next_event().await,
+            support::next_event(&mut provider).await,
             Err(ProviderError::Protocol(message)) if message == "Codex runtime message has no message"
         ));
     }

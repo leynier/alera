@@ -86,6 +86,7 @@ impl<T: JsonTransport> CodexProvider<T> {
             active_turn_id: None,
         };
         self.session = Some(session);
+        self.queue_session_commands();
         self.queue_session_skills().await;
         Ok(self.session.clone().expect("the session was just started"))
     }
@@ -215,6 +216,7 @@ impl<T: JsonTransport> CodexProvider<T> {
                 "Codex steering cannot change active turn settings".into(),
             ));
         }
+        self.ensure_steerable(&input, expected_turn_id)?;
         let values = crate::rpc::native_input(&input)?;
         let mut params = json!({"threadId":session.native_thread_id,"expectedTurnId":expected_turn_id,"input":values});
         if let Some(id) = input.options.get("clientUserMessageId") {

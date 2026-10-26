@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::{
     ApprovalDecision, EventKind, Provider, RequestId, RuntimeResponse, SessionStartInput,
@@ -70,15 +72,15 @@ async fn allowing_commands_for_the_session_answers_later_commands_only() {
         .await
         .unwrap();
 
-    let first = provider.next_event().await.unwrap().unwrap();
+    let first = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(first.kind, EventKind::RequestOpened);
     answer(&mut provider, "first", ApprovalDecision::AcceptForSession).await;
 
     // The second command is answered for the session without surfacing.
-    let next = provider.next_event().await.unwrap().unwrap();
+    let next = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(next.kind, EventKind::ContentDelta);
     // A different kind still asks.
-    let patch = provider.next_event().await.unwrap().unwrap();
+    let patch = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(patch.kind, EventKind::RequestOpened);
     assert_eq!(patch.request_id.as_deref(), Some("patch"));
 
@@ -113,9 +115,9 @@ async fn a_one_time_accept_does_not_allow_the_session() {
         .start_session(SessionStartInput::new("app"))
         .await
         .unwrap();
-    provider.next_event().await.unwrap().unwrap();
+    support::next_event(&mut provider).await.unwrap().unwrap();
     answer(&mut provider, "first", ApprovalDecision::Accept).await;
-    let second = provider.next_event().await.unwrap().unwrap();
+    let second = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(second.kind, EventKind::RequestOpened);
     assert_eq!(second.request_id.as_deref(), Some("second"));
 }
@@ -137,11 +139,11 @@ async fn legacy_approvals_answer_with_review_decisions() {
         .start_session(SessionStartInput::new("app"))
         .await
         .unwrap();
-    provider.next_event().await.unwrap().unwrap();
+    support::next_event(&mut provider).await.unwrap().unwrap();
     answer(&mut provider, "exec", ApprovalDecision::AcceptForSession).await;
-    provider.next_event().await.unwrap().unwrap();
+    support::next_event(&mut provider).await.unwrap().unwrap();
     answer(&mut provider, "patch", ApprovalDecision::Decline).await;
-    let done = provider.next_event().await.unwrap().unwrap();
+    let done = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(done.kind, EventKind::ContentDelta);
 
     let decisions: Vec<_> = provider

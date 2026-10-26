@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::{
     ElicitationAction, EventKind, Provider, ProviderError, RequestId, RuntimeResponse,
@@ -62,7 +64,7 @@ async fn form_elicitations_use_typed_rpc_ids_when_native_id_is_missing() {
         .await
         .unwrap();
 
-    let first = provider.next_event().await.unwrap().unwrap();
+    let first = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(first.request_id.as_deref(), Some("10"));
     assert_eq!(
         first.runtime_request.as_ref().unwrap().request_id,
@@ -77,7 +79,7 @@ async fn form_elicitations_use_typed_rpc_ids_when_native_id_is_missing() {
         .await
         .unwrap();
 
-    let second = provider.next_event().await.unwrap().unwrap();
+    let second = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(second.request_id.as_deref(), Some("10"));
     assert_eq!(
         second.runtime_request.as_ref().unwrap().request_id,
@@ -161,24 +163,24 @@ async fn lifecycle_notifications_use_canonical_payloads() {
         .await
         .unwrap();
 
-    let thread = provider.next_event().await.unwrap().unwrap();
+    let thread = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(thread.kind, EventKind::ThreadStarted);
     assert_eq!(
         thread.payload,
         json!({ "providerThreadId": "native-lifecycle" })
     );
 
-    let turn = provider.next_event().await.unwrap().unwrap();
+    let turn = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(turn.kind, EventKind::TurnStarted);
     assert_eq!(turn.payload, json!({ "model": "gpt-5", "effort": "high" }));
 
-    let status = provider.next_event().await.unwrap().unwrap();
+    let status = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(status.kind, EventKind::ThreadStateChanged);
     assert_eq!(
         status.payload,
         json!({ "state": "active", "detail": { "activeFlags": ["waitingOnApproval"] } })
     );
 
-    let deprecation = provider.next_event().await.unwrap().unwrap();
+    let deprecation = support::next_event(&mut provider).await.unwrap().unwrap();
     assert_eq!(deprecation.kind, EventKind::DeprecationNotice);
 }
