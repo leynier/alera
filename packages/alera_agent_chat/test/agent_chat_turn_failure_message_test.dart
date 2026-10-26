@@ -6,18 +6,21 @@ AgentChatTurn _failed(Map<String, Object?> fields) => AgentChatTurn.fromJson(
 );
 
 void main() {
-  test('a classified failure leads with guidance and keeps the provider text', () {
-    final turn = _failed(<String, Object?>{
-      'failureClass': 'usage_limit',
-      'errorMessage': 'You hit your limit. Try again at 3pm.',
-    });
-    expect(turn.failureClass, AgentChatFailureClass.usageLimit);
-    expect(
-      agentChatTurnFailureMessage(turn),
-      "The provider's usage limit was reached. Send the message again once "
-      'the limit resets.\nYou hit your limit. Try again at 3pm.',
-    );
-  });
+  test(
+    'a classified failure leads with guidance and keeps the provider text',
+    () {
+      final turn = _failed(<String, Object?>{
+        'failureClass': 'usage_limit',
+        'errorMessage': 'You hit your limit. Try again at 3pm.',
+      });
+      expect(turn.failureClass, AgentChatFailureClass.usageLimit);
+      expect(
+        agentChatTurnFailureMessage(turn),
+        "The provider's usage limit was reached. Send the message again once "
+        'the limit resets.\nYou hit your limit. Try again at 3pm.',
+      );
+    },
+  );
 
   test('each class reads from its snake_case wire name', () {
     for (final (wire, failureClass) in <(String, AgentChatFailureClass)>[

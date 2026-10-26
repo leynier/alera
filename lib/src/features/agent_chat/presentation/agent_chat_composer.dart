@@ -12,6 +12,7 @@ import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_menu.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_send_button.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_usage_popover.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
@@ -23,7 +24,6 @@ import 'package:alera/src/features/workbench/presentation/terminal_composer_cont
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -439,7 +439,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           targetId: targetId,
         ),
         const SizedBox(width: AleraTokens.space4),
-        _SendOrStopButton(
+        AgentChatSendOrStopButton(
           hasDraft:
               _composer.textController.text.trim().isNotEmpty ||
               _composer.attachments.isNotEmpty,
@@ -456,53 +456,3 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     ),
   );
 }
-
-class const _SendOrStopButton({
-  required final bool hasDraft,
-  required final bool canSend,
-  required final bool busy,
-  required final bool canSteer,
-  required final bool canInterrupt,
-  required final bool interrupting,
-  required final VoidCallback onSend,
-  required final VoidCallback onInterrupt,
-  final String? sendLabel,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    if (busy && !hasDraft) {
-      return AleraIconButton(
-        key: const ValueKey<String>('agent-chat-stop'),
-        tooltip: interrupting ? 'Stopping' : 'Stop',
-        icon: AleraIcons.stop,
-        iconColor: AleraTokens.onAccent,
-        backgroundColor: canInterrupt && !interrupting
-            ? AleraTokens.accent
-            : AleraTokens.surface,
-        borderRadius: AleraTokens.radiusPill,
-        minSize: AleraTokens.space32,
-        onPressed: canInterrupt && !interrupting ? onInterrupt : null,
-      );
-    }
-    final enabled = canSend && hasDraft;
-    return AleraIconButton(
-      key: const ValueKey<String>('agent-chat-send'),
-      tooltip:
-          sendLabel ??
-          (!busy
-              ? 'Send Message'
-              : canSteer
-              ? 'Queue Message, ${_modEnterLabel()} Steers Into This Turn'
-              : 'Queue Message'),
-      icon: AleraIcons.arrowUp,
-      iconColor: enabled ? AleraTokens.onAccent : AleraTokens.foregroundFaint,
-      backgroundColor: enabled ? AleraTokens.accent : AleraTokens.surface,
-      borderRadius: AleraTokens.radiusPill,
-      minSize: AleraTokens.space32,
-      onPressed: enabled ? onSend : null,
-    );
-  }
-}
-
-String _modEnterLabel() =>
-    defaultTargetPlatform == TargetPlatform.macOS ? '⌘Enter' : 'Ctrl+Enter';

@@ -44,6 +44,7 @@ mod session_projection_subagents;
 mod session_provider;
 mod session_queue;
 mod session_requests;
+mod session_send;
 mod session_snapshot;
 mod session_turn_admission;
 mod session_turns;
