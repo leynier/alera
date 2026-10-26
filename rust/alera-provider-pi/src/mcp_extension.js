@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { McpProcessTree } from "./mcp_process_tree.mjs";
 import { registerPermissionGate } from "./permission_extension.mjs";
+import { registerSkillMentions } from "./skill_mentions_extension.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
 const SPEC_FILE_ENV = "ALERA_PI_MCP_SPEC_FILE";
@@ -267,6 +268,7 @@ async function readSpecs() {
 export default async function aleraMcpExtension(pi) {
   const shutdown = new AbortController();
   registerPermissionGate(pi, shutdown.signal);
+  registerSkillMentions(pi);
   let specs = [];
   const clients = new Map();
   const ownedClients = new Set();

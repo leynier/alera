@@ -1,7 +1,8 @@
 use crate::mcp_extension::McpExtensionLease;
 use crate::{
+    commands,
     config::PiProviderConfig,
-    events, lifecycle, rpc, runtime,
+    events, lifecycle, rpc,
     runtime::{image_inputs, native_thread_id, state_model, user_input_payload},
 };
 use alera_agent_transport::{JsonLineProcess, JsonTransport};
@@ -51,6 +52,9 @@ pub struct PiProvider<T> {
     pub(crate) assistant_failure: Option<String>,
     pub(crate) session_exit_emitted: bool,
     pub(crate) mcp_extension: Option<McpExtensionLease>,
+    pub(crate) commands_pending: bool,
+    pub(crate) compact_pending: bool,
+    pub(crate) compaction_seen: bool,
 }
 
 impl PiProvider<JsonLineProcess> {
@@ -186,6 +190,7 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
         };
         self.session = Some(session.clone());
         self.queue_lifecycle_events(&session, lifecycle_command);
+        self.request_commands().await?;
         Ok(session)
     }
 
@@ -237,16 +242,26 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
                 }
             }
         }
-        let images = image_inputs(&input)?;
+        let compact = commands::compact_command(&input.input);
+        // Like T3 Code, `/compact` ignores attachments.
+        let images = match compact {
+            Some(_) => Vec::new(),
+            None => image_inputs(&input)?,
+        };
         let turn_id = self.next_turn();
-        let mut params = Map::new();
-        params.insert("message".into(), Value::String(input.input));
-        if !images.is_empty() {
-            params.insert("images".into(), Value::Array(images));
+        self.compaction_seen = false;
+        if let Some(instructions) = compact {
+            self.send_compact(instructions).await?;
+        } else {
+            let mut params = Map::new();
+            params.insert("message".into(), Value::String(input.input));
+            if !images.is_empty() {
+                params.insert("images".into(), Value::Array(images));
+            }
+            self.transport
+                .send(rpc::fire_and_forget("prompt", params))
+                .await?;
         }
-        self.transport
-            .send(rpc::fire_and_forget("prompt", params))
-            .await?;
         if let Some(active) = self.session.as_mut() {
             active.status = SessionStatus::Running;
             active.active_turn_id = Some(turn_id.clone());
@@ -371,15 +386,9 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
             event.validate()?;
             return Ok(Some(event));
         }
-        if let Some(message) = self.settle_message.take() {
-            let state = self.call("get_state", Value::Object(Map::new())).await?;
-            if runtime::state_is_idle(&state) {
-                let event = events::agent_settled(self, message)?;
-                self.mark_terminal(false);
-                event.validate()?;
-                return Ok(Some(event));
-            }
-            self.settle_message = Some(message);
+        if let Some(event) = self.take_settled().await? {
+            event.validate()?;
+            return Ok(Some(event));
         }
         loop {
             let message = if let Some(message) = self.queued_messages.pop_front() {
@@ -406,28 +415,7 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
                         return Ok(None);
                     }
                     self.session_exit_emitted = true;
-                    let thread_id = self
-                        .session
-                        .as_ref()
-                        .map(|session| session.thread_id.clone())
-                        .unwrap_or_else(|| "pi-pending-thread".into());
-                    let event = ProviderEvent::new(
-                        self.kind(),
-                        self.config.instance_id.clone(),
-                        thread_id,
-                        alera_provider_protocol::EventKind::SessionExited,
-                        json!({
-                            "reason": "Pi process exited",
-                            "recoverable": false,
-                            "exitKind": "error"
-                        }),
-                        Some(alera_provider_protocol::RawEvent {
-                            source: "pi.rpc".into(),
-                            method: Some("eof".into()),
-                            message_type: Some("session_exit".into()),
-                            payload: Value::Null,
-                        }),
-                    );
+                    let event = lifecycle::session_exited(self);
                     event.validate()?;
                     return Ok(Some(event));
                 };
@@ -435,25 +423,21 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
             };
             if rpc::is_response(&message) {
                 self.consume_response(&message)?;
-                if let Some(failure) = self.prompt_failure.take() {
-                    let event = lifecycle::prompt_failed(self, failure);
-                    self.mark_terminal(false);
+                if let Some(event) = self.after_response().await? {
                     event.validate()?;
                     return Ok(Some(event));
                 }
                 continue;
             }
             if rpc::record_type(&message) == Some("agent_settled") {
-                let state = self.call("get_state", Value::Object(Map::new())).await?;
-                if !runtime::state_is_idle(&state) {
-                    self.settle_message = Some(message);
-                    continue;
+                self.settle_message = Some(message);
+                if let Some(event) = self.take_settled().await? {
+                    event.validate()?;
+                    return Ok(Some(event));
                 }
-                let event = events::agent_settled(self, message)?;
-                self.mark_terminal(false);
-                event.validate()?;
-                return Ok(Some(event));
+                continue;
             }
+            self.observe_compaction(&message);
             let event = events::map_message(self, message)?;
             if let Some(event) = event {
                 event.validate()?;
@@ -477,6 +461,8 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
         self.prompt_failure = None;
         self.assistant_failure = None;
         self.session_exit_emitted = true;
+        self.commands_pending = false;
+        self.compact_pending = false;
         self.mcp_extension.take();
         if let Some(session) = self.session.as_mut() {
             session.status = SessionStatus::Stopped;

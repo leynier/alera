@@ -313,6 +313,7 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
             ));
         }
         let parts = crate::config::prompt_parts(&input)?;
+        let skills = self.mentioned_skills(&input.input).await;
         let turn_id = self.next_turn_id();
         let model = input.model.clone().or_else(|| session.model.clone());
         let mut started = ProviderEvent::new(
@@ -339,11 +340,12 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
         let response = match timed(
             self.config.request_timeout,
             "session.prompt",
-            self.client.prompt_parts_with_id(
+            self.client.prompt_parts_with_skills(
                 &session.native_thread_id,
                 parts,
                 model.as_deref(),
                 Some(&requested_message_id),
+                &skills,
             ),
         )
         .await

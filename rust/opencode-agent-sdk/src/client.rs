@@ -3,10 +3,7 @@ use crate::mcp::PermissionRule;
 use crate::model::{OpenCodeEvent, OpenCodeResponse, OpenCodeSession};
 use crate::sse::{SseDecoder, SseFrame, DEFAULT_MAX_SSE_EVENT_BYTES};
 use crate::transport::{request_with_body, ByteStream, HttpRequest, HttpResponse, HttpTransport};
-use crate::wire::{
-    is_execution_boundary, is_unknown_v2, model_value, parse_session, percent_encode_query,
-    prompt_body,
-};
+use crate::wire::{is_execution_boundary, is_unknown_v2, parse_session, percent_encode_query};
 use base64::Engine;
 use serde_json::{json, Value};
 use std::collections::VecDeque;
@@ -143,96 +140,6 @@ impl<T: HttpTransport> OpenCodeClient<T> {
         self.get_session(id).await
     }
 
-    pub async fn prompt(
-        &mut self,
-        session_id: &str,
-        text: &str,
-        model: Option<&str>,
-    ) -> Result<Value, OpenCodeError> {
-        self.prompt_parts(
-            session_id,
-            vec![json!({ "type": "text", "text": text })],
-            model,
-        )
-        .await
-    }
-
-    pub async fn prompt_parts(
-        &mut self,
-        session_id: &str,
-        parts: Vec<Value>,
-        model: Option<&str>,
-    ) -> Result<Value, OpenCodeError> {
-        self.prompt_parts_with_id(session_id, parts, model, None)
-            .await
-    }
-
-    pub async fn prompt_parts_with_id(
-        &mut self,
-        session_id: &str,
-        parts: Vec<Value>,
-        model: Option<&str>,
-        message_id: Option<&str>,
-    ) -> Result<Value, OpenCodeError> {
-        let path = match self.config.generation {
-            Generation::Legacy1 => format!("/session/{session_id}/prompt_async"),
-            Generation::V2 => format!("/session/{session_id}/prompt"),
-        };
-        let mut body = match self.config.generation {
-            Generation::Legacy1 => json!({ "parts": parts }),
-            Generation::V2 => prompt_body(parts),
-        };
-        if let Some(message_id) = message_id {
-            let field = if self.config.generation == Generation::V2 {
-                "id"
-            } else {
-                "messageID"
-            };
-            body[field] = Value::String(message_id.to_owned());
-        }
-        if let Some(model) = model {
-            body["model"] = model_value(model);
-        }
-        Ok(self.raw_request("POST", &path, Some(body)).await?.body)
-    }
-
-    pub async fn command(
-        &mut self,
-        session_id: &str,
-        command: &str,
-        arguments: Option<Value>,
-    ) -> Result<Value, OpenCodeError> {
-        let path = format!("/session/{session_id}/command");
-        let command_field = if self.config.generation == Generation::V2 {
-            "name"
-        } else {
-            "command"
-        };
-        let body = if self.config.generation == Generation::V2 {
-            let text = match arguments {
-                Some(Value::String(text)) => text,
-                Some(value) => value.to_string(),
-                None => String::new(),
-            };
-            json!({ "name": command, "text": text })
-        } else {
-            let mut body = json!({ command_field: command });
-            if let Some(arguments) = arguments {
-                body["arguments"] = arguments;
-            }
-            body
-        };
-        Ok(self.raw_request("POST", &path, Some(body)).await?.body)
-    }
-
-    pub async fn compact(&mut self, session_id: &str) -> Result<Value, OpenCodeError> {
-        let path = match self.config.generation {
-            Generation::Legacy1 => format!("/session/{session_id}/summarize"),
-            Generation::V2 => format!("/session/{session_id}/compact"),
-        };
-        Ok(self.raw_request("POST", &path, Some(json!({}))).await?.body)
-    }
-
     pub async fn abort(&mut self, session_id: &str) -> Result<Value, OpenCodeError> {
         let action = if self.config.generation == Generation::V2 {
             "interrupt"
@@ -322,12 +229,30 @@ impl<T: HttpTransport> OpenCodeClient<T> {
     }
 
     pub async fn next_event(&mut self) -> Result<Option<OpenCodeEvent>, OpenCodeError> {
+        while let Some(frame) = self.next_frame().await? {
+            if let Some(event) = self.decode_event(frame)? {
+                return Ok(Some(event));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The JSON of the next event, including the ones [Self::next_event]
+    /// leaves out because a session never needs them.
+    pub async fn next_raw_event(&mut self) -> Result<Option<Value>, OpenCodeError> {
+        let Some(frame) = self.next_frame().await? else {
+            return Ok(None);
+        };
+        serde_json::from_str(&frame.data)
+            .map(Some)
+            .map_err(|error| OpenCodeError::protocol(format!("invalid SSE JSON: {error}")))
+    }
+
+    async fn next_frame(&mut self) -> Result<Option<SseFrame>, OpenCodeError> {
         self.ensure_open()?;
         loop {
-            if let Some(event) = self.next_decoded_frame()? {
-                if let Some(event) = self.decode_event(event)? {
-                    return Ok(Some(event));
-                }
+            if let Some(frame) = self.decoded_frames.pop_front() {
+                return Ok(Some(frame));
             }
             let stream = self
                 .stream
@@ -422,10 +347,6 @@ impl<T: HttpTransport> OpenCodeClient<T> {
             });
         }
         Ok(OpenCodeResponse { status, body })
-    }
-
-    fn next_decoded_frame(&mut self) -> Result<Option<SseFrame>, OpenCodeError> {
-        Ok(self.decoded_frames.pop_front())
     }
 
     fn decode_event(&self, frame: SseFrame) -> Result<Option<OpenCodeEvent>, OpenCodeError> {

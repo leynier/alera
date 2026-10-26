@@ -103,6 +103,9 @@ impl<T: JsonTransport> PiProvider<T> {
     }
 
     pub(crate) fn consume_response(&mut self, message: &Value) -> Result<(), ProviderError> {
+        if self.consume_commands_response(message) || self.consume_compact_response(message) {
+            return Ok(());
+        }
         if message.get("command").and_then(Value::as_str) == Some("prompt")
             && message.get("success").and_then(Value::as_bool) == Some(false)
         {

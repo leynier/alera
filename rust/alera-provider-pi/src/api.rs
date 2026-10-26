@@ -27,6 +27,9 @@ impl<T> PiProvider<T> {
             assistant_failure: None,
             session_exit_emitted: false,
             mcp_extension: None,
+            commands_pending: false,
+            compact_pending: false,
+            compaction_seen: false,
         }
     }
 

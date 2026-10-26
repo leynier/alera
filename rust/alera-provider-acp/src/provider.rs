@@ -407,7 +407,11 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             prompt_id: self.prompt_id.as_ref(),
             prompt_meta_id: self.prompt_meta_id.as_deref(),
         };
-        let mapped = map_incoming(incoming, &context)?;
+        let registry_commands = self.registry_commands(&incoming);
+        let mut mapped = map_incoming(incoming, &context)?;
+        if let Some(split) = registry_commands {
+            self.publish_registry_commands(&mut mapped.event, split)?;
+        }
         mapped.event.validate()?;
         self.apply_mapped_state(&mapped);
         if let Some(pending) = mapped.pending {

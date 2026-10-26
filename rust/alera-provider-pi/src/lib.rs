@@ -5,6 +5,7 @@
 //! injected transport.
 
 mod api;
+mod commands;
 mod config;
 mod event_core;
 mod events;

@@ -9,6 +9,7 @@ mod policy;
 mod provider;
 mod questions;
 mod reasoning_effort;
+mod registry_commands;
 mod respond;
 mod runtime_response;
 mod state;

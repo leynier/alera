@@ -14,6 +14,7 @@ mod part_events;
 mod provider;
 mod request_events;
 mod runtime_response;
+mod skills;
 mod tool_events;
 
 pub use alera_provider_protocol;
@@ -26,3 +27,4 @@ pub use opencode_agent_sdk::{
     MockHttpTransport, ReqwestTransport,
 };
 pub use provider::OpenCodeProvider;
+pub use skills::{discover_skills, discover_skills_with_client};
