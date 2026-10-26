@@ -61,15 +61,32 @@ fn map_notification<T: JsonTransport>(
     }
     if let (Some(child), Some(parent)) = (native_thread_id.as_ref(), child_parent.as_ref()) {
         let terminal = matches!(method, "turn/completed" | "turn/aborted" | "thread/closed");
-        kind = if terminal {
-            EventKind::TaskCompleted
-        } else if matches!(method, "thread/started" | "turn/started") {
-            EventKind::TaskStarted
-        } else {
-            EventKind::TaskProgress
-        };
+        let item = matches!(
+            kind,
+            EventKind::ItemStarted
+                | EventKind::ItemUpdated
+                | EventKind::ItemCompleted
+                | EventKind::ContentDelta
+        );
         // A native sub-agent's result goes back to its parent agent.
-        payload = provider.child_task_payload(child, parent, method, &params, payload);
+        let task = provider.child_task_payload(child, parent, method, &params, payload.clone());
+        match item
+            .then(|| provider.child_item_payload(child, payload.clone()))
+            .flatten()
+        {
+            // The child's own work stays an item, under the call that spawned it.
+            Some(item) => payload = item,
+            None => {
+                kind = if terminal {
+                    EventKind::TaskCompleted
+                } else if matches!(method, "thread/started" | "turn/started") {
+                    EventKind::TaskStarted
+                } else {
+                    EventKind::TaskProgress
+                };
+                payload = task;
+            }
+        }
     }
     let thread_id = provider.app_thread_id(native_thread_id.as_deref());
     let mut event = ProviderEvent::new(

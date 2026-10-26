@@ -49,3 +49,39 @@ async fn background_commands_can_be_awaited_until_they_finish() {
         Err(ProviderError::InvalidState(_))
     ));
 }
+
+#[tokio::test]
+async fn a_running_subagent_stops_through_a_stop_task_control_request() {
+    let (mut provider, handle) = started_provider([
+        initialize_response(),
+        json!({"type":"system","subtype":"task_started","task_id":"agent","session_id":"native-session","task_type":"local_agent","description":"Explore"}),
+        json!({"type":"system","subtype":"task_started","task_id":"bash","session_id":"native-session","task_type":"local_bash","description":"npm test"}),
+        json!({"type":"control_response","response":{"subtype":"success","request_id":"req_2","response":{}}}),
+    ])
+    .await;
+    let mut started = 0;
+    while started < 2 {
+        if provider.next_event().await.unwrap().unwrap().kind == EventKind::TaskStarted {
+            started += 1;
+        }
+    }
+    // A background command is not a sub-agent, and unknown ids stop nothing.
+    for task in ["bash", "missing"] {
+        assert!(matches!(
+            provider.stop_subagent(task).await,
+            Err(ProviderError::InvalidState(_))
+        ));
+    }
+    provider.stop_subagent("agent").await.unwrap();
+    let writes = handle.writes.lock().unwrap().clone();
+    let stop = writes
+        .iter()
+        .find(|write| write["request"]["subtype"] == "stop_task")
+        .expect("stop_task control request");
+    assert_eq!(stop["request"]["task_id"], "agent");
+    provider.close().await.unwrap();
+    assert!(matches!(
+        provider.stop_subagent("agent").await,
+        Err(ProviderError::InvalidState(_))
+    ));
+}

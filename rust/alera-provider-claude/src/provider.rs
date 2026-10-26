@@ -276,6 +276,25 @@ impl Provider for ClaudeProvider {
         Ok(self.background_tasks.matching(task_ids))
     }
 
+    async fn stop_subagent(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        if self.session.is_none() || self.closed {
+            return Err(ProviderError::InvalidState(
+                "session has not started".into(),
+            ));
+        }
+        if !self.background_tasks.running_subagent(task_id) {
+            return Err(ProviderError::InvalidState(
+                "the sub-agent is not running".into(),
+            ));
+        }
+        self.client
+            .as_ref()
+            .ok_or_else(|| ProviderError::InvalidState("session client is unavailable".into()))?
+            .stop_task(task_id)
+            .await
+            .map_err(sdk_error)
+    }
+
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         let session = self
             .session

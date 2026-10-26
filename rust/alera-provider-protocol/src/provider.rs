@@ -69,6 +69,12 @@ pub trait Provider: Send {
     ) -> Result<FeedbackUploadResult, ProviderError> {
         Err(ProviderError::Unsupported("feedback upload".into()))
     }
+
+    /// Stops one provider-native sub-agent by the task id its task events
+    /// carry, leaving the session's own turn and other sub-agents running.
+    async fn stop_subagent(&mut self, _task_id: &str) -> Result<(), ProviderError> {
+        Err(ProviderError::Unsupported("stopping a sub-agent".into()))
+    }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError>;
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError>;
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError>;

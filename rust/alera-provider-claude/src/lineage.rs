@@ -65,6 +65,9 @@ impl ClaudeProvider {
             &task_id,
             background_command && payload.get("is_backgrounded") != Some(&Value::Bool(false)),
         );
+        if !background_command {
+            self.background_tasks.observe_subagent(&kind, &task_id);
+        }
         let mut normalized = canonical_payload::compact_nulls(json!({
             "taskId":task_id,
             "awaited":awaited,

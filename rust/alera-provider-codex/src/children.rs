@@ -1,9 +1,32 @@
 //! Native sub-agent threads under the session's thread, at any depth, and the
-//! `task.*` payloads their notifications become.
+//! `task.*` payloads their notifications become. A child's own items stream as
+//! items of the session, linked to the call that spawned the child, so its
+//! transcript can be read on its own.
 
 use crate::provider::CodexProvider;
-use alera_provider_protocol::NativeTask;
-use serde_json::{Map, Value};
+use alera_agent_transport::JsonTransport;
+use alera_provider_protocol::{NativeTask, ProviderError};
+use serde_json::{json, Map, Value};
+use std::collections::HashMap;
+
+/// What the session knows about each descendant thread beyond its parent.
+#[derive(Debug, Default)]
+pub(crate) struct ChildThreads {
+    /// The native call that spawned each child, first seen wins: later calls
+    /// that name the child (`wait`, `subAgentActivity` completions) only
+    /// report on it.
+    calls: HashMap<String, String>,
+    /// The model and reasoning effort the spawn asked for.
+    settings: HashMap<String, (Option<String>, Option<String>)>,
+    /// Each child's running native turn, which a stop interrupts.
+    turns: HashMap<String, String>,
+}
+
+impl ChildThreads {
+    pub(crate) fn clear_turns(&mut self) {
+        self.turns.clear();
+    }
+}
 
 impl<T> CodexProvider<T> {
     /// Registers the children a spawn names when their parent is the session
@@ -21,13 +44,47 @@ impl<T> CodexProvider<T> {
             return;
         }
         let label = spawn_label(params);
+        let item = params.get("item");
+        let setting = |key: &str| {
+            item.and_then(|item| item.get(key))
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+        };
+        let settings = (setting("model"), setting("reasoningEffort"));
         for child in &task.child_native_thread_ids {
             self.native_child_parents
                 .insert(child.clone(), parent.clone());
             if let Some(label) = &label {
                 self.child_labels.insert(child.clone(), label.clone());
             }
+            if let Some(call) = &task.native_tool_call_id {
+                self.child_threads
+                    .calls
+                    .entry(child.clone())
+                    .or_insert_with(|| call.clone());
+            }
+            if settings.0.is_some() || settings.1.is_some() {
+                self.child_threads
+                    .settings
+                    .entry(child.clone())
+                    .or_insert_with(|| settings.clone());
+            }
         }
+    }
+
+    /// The payload of a child's own item or delta, linked to the call that
+    /// spawned the child. `None` when the spawning call is unknown or the item
+    /// is the child's prompt, which the spawning call already carries.
+    pub(crate) fn child_item_payload(&self, child: &str, mut payload: Value) -> Option<Value> {
+        if payload.get("itemType") == Some(&json!("user_message")) {
+            return None;
+        }
+        let call = self.child_threads.calls.get(child)?;
+        payload["parentToolUseId"] = Value::String(call.clone());
+        payload["subagentThreadId"] = Value::String(child.to_owned());
+        Some(payload)
     }
 
     /// The payload of a descendant thread's notification, as a task of the
@@ -47,6 +104,11 @@ impl<T> CodexProvider<T> {
             "turn/started" => {
                 self.active_child_turns.insert(child.to_owned());
                 self.child_results.remove(child);
+                if let Some(turn) = params.pointer("/turn/id").and_then(Value::as_str) {
+                    self.child_threads
+                        .turns
+                        .insert(child.to_owned(), turn.to_owned());
+                }
             }
             "item/completed" => {
                 if let Some(text) = final_answer(params) {
@@ -55,6 +117,7 @@ impl<T> CodexProvider<T> {
             }
             _ if terminal => {
                 self.active_child_turns.remove(child);
+                self.child_threads.turns.remove(child);
             }
             _ => {}
         }
@@ -76,6 +139,14 @@ impl<T> CodexProvider<T> {
         }
         if let Some(label) = self.child_labels.get(child) {
             payload.insert("description".into(), label.clone().into());
+        }
+        if let Some((model, effort)) = self.child_threads.settings.get(child) {
+            if let Some(model) = model {
+                payload.insert("model".into(), model.clone().into());
+            }
+            if let Some(effort) = effort {
+                payload.insert("reasoningEffort".into(), effort.clone().into());
+            }
         }
         if terminal {
             if let Some(result) = self.child_results.remove(child) {
@@ -102,6 +173,31 @@ impl<T> CodexProvider<T> {
     pub(crate) fn clear_children(&mut self) {
         self.active_child_turns.clear();
         self.child_results.clear();
+        self.child_threads.clear_turns();
+    }
+}
+
+impl<T: JsonTransport> CodexProvider<T> {
+    /// Interrupts the running turn of one descendant thread, leaving the
+    /// session's own turn and every other child running.
+    pub(crate) async fn stop_child(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        if !self.native_child_parents.contains_key(task_id) {
+            return Err(ProviderError::Validation(
+                "the task is not a sub-agent of this session".into(),
+            ));
+        }
+        let turn = self
+            .child_threads
+            .turns
+            .get(task_id)
+            .cloned()
+            .ok_or_else(|| ProviderError::InvalidState("the sub-agent is not running".into()))?;
+        self.call(
+            "turn/interrupt",
+            json!({ "threadId": task_id, "turnId": turn }),
+        )
+        .await?;
+        Ok(())
     }
 }
 

@@ -42,6 +42,7 @@ pub struct CodexProvider<T> {
     /// Native child threads with a running turn. A root turn that fails
     /// while any runs leaves them working; they report their own ends.
     pub(crate) active_child_turns: HashSet<String>,
+    pub(crate) child_threads: crate::children::ChildThreads,
     /// The class of the root turn's last final `error` notification, for a
     /// failed `turn/completed` that does not repeat its `codexErrorInfo`.
     pub(crate) turn_failure_class: Option<alera_provider_protocol::FailureClass>,
@@ -100,6 +101,7 @@ impl<T> CodexProvider<T> {
             child_labels: HashMap::new(),
             child_results: HashMap::new(),
             active_child_turns: HashSet::new(),
+            child_threads: Default::default(),
             turn_failure_class: None,
             session_approvals: Default::default(),
             skills_stale: false,
@@ -311,6 +313,10 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         )
         .await?;
         Ok(())
+    }
+
+    async fn stop_subagent(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        self.stop_child(task_id).await
     }
 
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {

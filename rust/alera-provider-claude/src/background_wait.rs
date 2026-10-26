@@ -52,7 +52,7 @@ pub(super) fn append_background_wait_instructions(options: &mut ClaudeAgentOptio
 /// task id. Sub-agents are not here: their results return to the agent and
 /// they are always awaited.
 #[derive(Default)]
-pub(super) struct BackgroundTasks(HashSet<String>);
+pub(super) struct BackgroundTasks(HashSet<String>, HashSet<String>);
 
 impl BackgroundTasks {
     pub(super) fn observe(&mut self, kind: &EventKind, task_id: &str, background_command: bool) {
@@ -62,9 +62,22 @@ impl BackgroundTasks {
             }
             EventKind::TaskCompleted => {
                 self.0.remove(task_id);
+                self.1.remove(task_id);
             }
             _ => {}
         }
+    }
+
+    /// Records a sub-agent task (any task but a command) that started, so a
+    /// stop can be refused for ids that name nothing running.
+    pub(super) fn observe_subagent(&mut self, kind: &EventKind, task_id: &str) {
+        if kind == &EventKind::TaskStarted {
+            self.1.insert(task_id.to_owned());
+        }
+    }
+
+    pub(super) fn running_subagent(&self, task_id: &str) -> bool {
+        self.1.contains(task_id)
     }
 
     /// The requested ids that name a running background command, once each
@@ -81,6 +94,7 @@ impl BackgroundTasks {
 
     pub(super) fn clear(&mut self) {
         self.0.clear();
+        self.1.clear();
     }
 }
 
