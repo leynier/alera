@@ -48,8 +48,13 @@ impl ChatSession {
                     self.header.session.reasoning_effort.clone(),
                 )
             });
-            self.adopt_goal_turn(next_native_turn, model, reasoning_effort)
-                .await;
+            self.adopt_native_turn(
+                next_native_turn,
+                model,
+                reasoning_effort,
+                GOAL_CONTINUATION_ORIGIN,
+            )
+            .await;
         }
         self.goal_continuing = false;
     }
@@ -57,11 +62,12 @@ impl ChatSession {
     /// Starts the app turn for a native turn the agent started on its own.
     /// It has no user message; its origin says why it runs. Codex reuses the
     /// last turn's settings for it, so the turn records those.
-    async fn adopt_goal_turn(
+    pub(super) async fn adopt_native_turn(
         &mut self,
         native_turn: &str,
         model: Option<String>,
         reasoning_effort: Option<String>,
+        origin: &str,
     ) {
         if self.header.session.active_turn_id.is_some() {
             return;
@@ -79,7 +85,7 @@ impl ChatSession {
             provider: self.header.provider.clone(),
             provider_instance_id: self.header.provider_instance_id.clone(),
             generation: self.generation,
-            origin: Some(GOAL_CONTINUATION_ORIGIN.into()),
+            origin: Some(origin.into()),
         };
         let turn_id = turn.turn_id.clone();
         self.header.upsert_turn(turn);

@@ -266,6 +266,7 @@ mod tests {
     "agentChatSkillsV1",
     "agentChatReadCursorV1",
     "agentChatGoalV1",
+    "agentChatAcpChildSessionsV1",
                 "chatOrchestrationV1",
                 "workspaceDetailsV1",
                 "gitOperationsProgressV1",

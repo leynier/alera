@@ -40,6 +40,7 @@ impl ChatSession {
                 return;
             }
             EventKind::TurnStarted => {
+                self.adopt_agent_started_turn(&event).await;
                 let model = event.payload["model"].as_str().map(str::to_string);
                 if let (Some(active), Some(model)) =
                     (self.header.session.active_turn_id.clone(), model)

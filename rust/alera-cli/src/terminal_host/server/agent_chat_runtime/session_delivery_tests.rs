@@ -10,6 +10,8 @@ use super::commands::{CallerCtx, ChatOp, ConfigureInput, ReceiptKey};
 mod fixture;
 use fixture::*;
 
+#[path = "session_acp_children_tests.rs"]
+mod acp_children;
 #[path = "session_background_work_tests.rs"]
 mod background_work;
 #[path = "session_feedback_tests.rs"]

@@ -356,6 +356,10 @@ impl ChatSession {
         });
         self.header.session.capabilities["rollback"] = Value::Bool(native.rollback_before_turn);
         if let Some(provider) = self.provider.as_ref() {
+            // ACP agents stop a native child session only once it negotiated them.
+            if provider.subagent_capabilities().stop {
+                self.header.session.capabilities["stopSubagent"] = Value::Bool(true);
+            }
             self.header.session.capabilities["reasoningEffort"] =
                 super::wire::json(&provider.reasoning_effort_capabilities());
         }

@@ -22,6 +22,7 @@ pub(crate) mod runtime_handle;
 mod runtime_handle_attention;
 mod runtime_handle_fork;
 mod session;
+mod session_agent_turns;
 mod session_background_work;
 mod session_config;
 #[cfg(test)]
