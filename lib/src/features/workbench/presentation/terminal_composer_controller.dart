@@ -6,7 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 class TerminalComposerController extends ChangeNotifier {
-  final textController = TextEditingController();
+  /// [textController] lets a chat paint tokens such as skill mentions.
+  TerminalComposerController({TextEditingController? textController})
+    : textController = textController ?? TextEditingController();
+
+  final TextEditingController textController;
   final focusNode = FocusNode(debugLabel: 'TerminalComposer');
   final dropTargetKey = GlobalKey(debugLabel: 'TerminalComposerDropTarget');
 

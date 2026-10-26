@@ -44,7 +44,7 @@ Future<List<String>> _pickFiles() async => <String>[
 /// keys recall earlier prompts from an empty box until the recalled prompt is
 /// edited. [canSend] lets the person write; [canSubmit] lets the message go,
 /// so a draft can wait for an agent that cannot start yet. `@` attaches a
-/// file from [fileSearch] and a leading `/` runs a local command.
+/// file from [fileSearch], `/` runs a command and `$` invokes a skill.
 class const AgentChatComposer({
   super.key,
   required final TerminalComposerController controller,
@@ -76,6 +76,10 @@ class const AgentChatComposer({
   /// The workspace files `@` mentions search; without it the menu says so.
   final AgentChatComposerFileSearch? fileSearch,
 
+  /// The chat's skills for the `$` menu and `/skill:name`; without it `$`
+  /// stays plain text.
+  final AgentChatSkillsLoader? skills,
+
   /// Chat actions beside Add Files, such as Delegate Task.
   final Widget? chatActions,
 
@@ -105,8 +109,12 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         text: _composer.textController,
         focusNode: _composer.focusNode,
         fileSearch: () => widget.fileSearch,
-        commandState: () =>
-            agentChatSlashCommandState(widget.settings, widget.usage),
+        skills: widget.skills,
+        commandState: () => agentChatSlashCommandState(
+          widget.settings,
+          widget.usage,
+          skills: widget.skills?.skills ?? const <AgentChatProviderSkill>[],
+        ),
         onAttach: (path) => _composer.addPathAttachments(<String>[path]),
         onCommand: (command) => AgentChatSlashCommandTargets(
           modelPicker: widget.pickerController ?? _ownedPicker,
@@ -124,7 +132,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   @override
   void didUpdateWidget(covariant AgentChatComposer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.controller, widget.controller)) {
+    if (!identical(oldWidget.controller, widget.controller) ||
+        !identical(oldWidget.skills, widget.skills)) {
       if (oldWidget.controller.focusNode.onKeyEvent == _handleKey) {
         oldWidget.controller.focusNode.onKeyEvent = null;
       }

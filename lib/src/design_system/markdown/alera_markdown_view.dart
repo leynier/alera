@@ -38,10 +38,27 @@ class const AleraMarkdownView({
   final AleraMarkdownImageBuilder? imageBuilder,
   final AleraMarkdownCodeBuilder? codeBuilder,
   final TextStyle? style,
+
+  /// App tokens Markdown does not define, such as invoked skills, drawn
+  /// outside code and link labels.
+  final List<AleraMarkdownInlineToken> inlineTokens =
+      const <AleraMarkdownInlineToken>[],
 }) extends StatefulWidget {
   @override
   State<AleraMarkdownView> createState() => _AleraMarkdownViewState();
 }
+
+/// An app token inside Markdown text: [pattern] finds it and [build] draws
+/// each match in the run's [TextStyle].
+final class const AleraMarkdownInlineToken({
+  required final RegExp pattern,
+  required final InlineSpan Function(
+    BuildContext context,
+    Match match,
+    TextStyle style,
+  )
+  build,
+});
 
 // The package compares its theme by identity and re-parses the whole document
 // whenever it changes, so every view shares one instance per app theme.
@@ -100,6 +117,16 @@ class _AleraMarkdownViewState extends State<AleraMarkdownView> {
           onLinkTap: _handleLinkTap,
           imageBuilder: _buildImage,
           codeBuilder: _buildCode,
+          inlinePatterns: widget.inlineTokens.isEmpty
+              ? null
+              : <InlinePattern>[
+                  for (final token in widget.inlineTokens)
+                    InlinePattern(
+                      pattern: token.pattern,
+                      builder: (context, match, style) =>
+                          token.build(context, match, style),
+                    ),
+                ],
         ),
       ),
     );

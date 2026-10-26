@@ -5,6 +5,8 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/markdown/alera_code_block.dart';
 import 'package:alera/src/design_system/markdown/alera_markdown_view.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown_math.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_skill_chips.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:re_highlight/languages/all.dart';
@@ -26,6 +28,9 @@ class const AgentChatMarkdown({
   required final String data,
   final ValueChanged<String>? onOpenLink,
   final bool muted = false,
+
+  /// Skills whose mentions draw as chips, for the person's own messages.
+  final List<AgentChatProviderSkill> skills = const <AgentChatProviderSkill>[],
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -33,9 +38,11 @@ class const AgentChatMarkdown({
       color: muted ? AleraTokens.foregroundMuted : AleraTokens.foreground,
       height: 1.45,
     );
+    final skillToken = agentChatSkillMarkdownToken(skills);
     return AleraMarkdownView(
       data: agentChatDollarMath(data),
       style: style,
+      inlineTokens: <AleraMarkdownInlineToken>[?skillToken],
       onLinkTap: onOpenLink,
       imageBuilder: (context, source, width, height) => Tooltip(
         message: source,

@@ -17,6 +17,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer.dar
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_full_data.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_skills_binding.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
@@ -48,14 +49,19 @@ class const AgentChatSurface({
 
 class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     with WidgetsBindingObserver {
-  final TerminalComposerController _composer = TerminalComposerController();
+  late final AgentChatSkillsBinding _skills = .forChat(ref, () => _chat);
+  late final TerminalComposerController _composer = TerminalComposerController(
+    textController: _skills.textController,
+  );
   final AleraPopoverController _picker = AleraPopoverController();
   late final AgentChatQueuedEdit _queuedEdit = AgentChatQueuedEdit(_composer);
   late final AgentChatComposerDrafts _drafts;
   late AgentChatTimelineActions _actions;
   bool _restoringDraft = false;
+  AgentChatRef get _chat =>
+      AgentChatRef(chatId: widget.chatId, workspaceId: widget.workspace.id);
   AgentChatTurnHistoryActions get _history => AgentChatTurnHistoryActions(
-    chat: AgentChatRef(chatId: widget.chatId, workspaceId: widget.workspace.id),
+    chat: _chat,
     composer: _composer,
     onOpenFile: (path) => unawaited(_openFile(path)),
   );
@@ -184,6 +190,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
         oldWidget.workspace.hostId != widget.workspace.hostId) {
       _stopListeningToDraft(oldWidget.chatId, oldWidget.workspace);
       _saveDraft(oldWidget.chatId, oldWidget.workspace);
+      _skills.forget();
       _listenToDraft();
       _restoreDraft();
     }
@@ -203,6 +210,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     _composer.removeListener(_saveCurrentDraft);
     _composer.textController.removeListener(_saveCurrentDraft);
     _queuedEdit.dispose();
+    _skills.dispose();
     _composer.dispose();
     _picker.dispose();
     super.dispose();
@@ -356,6 +364,9 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     ref.listen(_provider.select((state) => state.removed), (was, removed) {
       if (removed && was != true) _offerRemovedDraft();
     });
+    _skills.showAgent(
+      ref.watch(_provider.select((state) => state.thread?.providerInstanceId)),
+    );
     final phase = ref.watch(_provider.select((state) => state.phase));
     final hasThread = ref.watch(
       _provider.select((state) => state.thread != null),
@@ -379,11 +390,11 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
           children: <Widget>[
             Expanded(
               child: AgentChatFindHost(
-                chat: AgentChatRef(
-                  chatId: widget.chatId,
-                  workspaceId: widget.workspace.id,
+                chat: _chat,
+                child: AgentChatSkillsBuilder(
+                  binding: _skills,
+                  child: _buildTimeline(),
                 ),
-                child: _buildTimeline(),
               ),
             ),
             AgentChatFooter(
@@ -391,6 +402,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
               workspace: widget.workspace,
               fallbackProvider: widget.fallbackProvider,
               composer: _composer,
+              skills: _skills.loader,
               pickerController: _picker,
               queuedEdit: _queuedEdit,
               requestDockMaxHeight: constraints.maxHeight.isFinite
@@ -466,10 +478,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
       );
     }
     return AgentChatFullDataScope(
-      chat: AgentChatRef(
-        chatId: widget.chatId,
-        workspaceId: widget.workspace.id,
-      ),
+      chat: _chat,
       child: AgentChatTimelineView(
         projection: view.projection,
         actions: _actions,

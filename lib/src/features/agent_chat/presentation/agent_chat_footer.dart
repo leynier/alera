@@ -44,6 +44,9 @@ class const AgentChatFooter({
   final AgentChatQueuedEdit? queuedEdit,
   final VoidCallback? onOpenArchived,
   final double? requestDockMaxHeight,
+
+  /// The chat's skills for the composer's `$` menu.
+  final AgentChatSkillsLoader? skills,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -302,6 +305,7 @@ class const AgentChatFooter({
                   workspaceId: workspace.id,
                 ),
                 onOpenFile: onOpenFile,
+                skills: skills,
                 fileSearch: WorkspaceAgentChatComposerFileSearch(
                   workspace: workspace,
                   files: ref.read(workspaceFileServiceProvider),

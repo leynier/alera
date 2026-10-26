@@ -208,6 +208,9 @@ abstract final class const AleraIcons._() {
   static const IconData command = LucideIcons.zap;
   // A slash command the chat agent advertises, in the composer `/` menu.
   static const IconData agentCommand = LucideIcons.squareSlash;
+  // A skill the chat agent offers, in the composer `$` menu and as the chip
+  // of a skill a message invoked (T3 Code draws the same box).
+  static const IconData skill = LucideIcons.box;
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
   static const IconData comment = LucideIcons.messageSquare;

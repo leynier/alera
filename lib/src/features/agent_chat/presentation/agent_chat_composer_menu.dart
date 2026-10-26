@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_composer_menu.dart';
 import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.dart';
@@ -10,8 +12,8 @@ import 'package:alera/src/features/error_reporting/application/user_facing_error
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
-/// A row of the composer menu: a workspace file, a local command or a
-/// command the agent advertises.
+/// A row of the composer menu: a workspace file, a local command, a command
+/// the agent advertises or one of its skills.
 sealed class AgentChatComposerMenuEntry {
   const AgentChatComposerMenuEntry();
 }
@@ -27,12 +29,23 @@ final class const AgentChatComposerProviderCommandEntry(
   final AgentChatProviderCommand command,
 ) extends AgentChatComposerMenuEntry;
 
+/// A skill, from the `$` menu or as `/skill:name` in the `/` menu.
+final class const AgentChatComposerSkillEntry(
+  final AgentChatProviderSkill skill, {
+  final bool fromSlashMenu = false,
+}) extends AgentChatComposerMenuEntry;
+
+const String agentChatComposerNoSkillsMessage = 'No matching skill.';
+const String agentChatComposerSkillsPendingMessage =
+    'Skills appear once the agent starts. Send a message first.';
+const String agentChatComposerSkillsLoadingMessage = 'Loading skills…';
+
 const String agentChatComposerNoFileSearchMessage =
     'File mentions need a workspace to search.';
 const String agentChatComposerNoFilesMessage = 'No matching files.';
 const String agentChatComposerNoCommandsMessage = 'No matching command.';
 
-/// What the `@` and `/` menu of the chat composer shows and does. It follows
+/// What the `@`, `/` and `$` menu of the chat composer shows and does. It follows
 /// the field's text, caret and focus, so it opens while the caret is in a
 /// trigger token of a focused field and closes otherwise; Escape closes it
 /// until the caret leaves that token. The field forwards its keys through
@@ -47,10 +60,12 @@ class AgentChatComposerMenuController extends ChangeNotifier {
     required this.onAttach,
     required this.onCommand,
     AgentChatComposerMentionSearch? mentions,
+    this.skills,
   }) : mentions = mentions ?? AgentChatComposerMentionSearch() {
     text.addListener(_sync);
     focusNode.addListener(_sync);
     this.mentions.addListener(_onResults);
+    skills?.addListener(_onSkills);
   }
 
   final TextEditingController text;
@@ -60,6 +75,10 @@ class AgentChatComposerMenuController extends ChangeNotifier {
   final ValueChanged<String> onAttach;
   final ValueChanged<AgentChatSlashCommand> onCommand;
   final AgentChatComposerMentionSearch mentions;
+
+  /// The chat's skills; without it, or on a runtime without them, `$` stays
+  /// plain text.
+  final AgentChatSkillsLoader? skills;
 
   AgentChatComposerTrigger? _trigger;
   AgentChatComposerTrigger? _dismissed;
@@ -80,25 +99,39 @@ class AgentChatComposerMenuController extends ChangeNotifier {
               for (final path in mentions.results)
                 AgentChatComposerFileEntry(path),
             ],
-    AgentChatComposerTrigger(kind: .command, :final query) =>
+    AgentChatComposerTrigger(kind: .command, :final query, :final start) =>
       <AgentChatComposerMenuEntry>[
         for (final entry in agentChatSlashMenuEntries(
           commandState(),
           query: query,
+          atPromptStart: start == 0,
         ))
           switch (entry) {
             AgentChatSlashMenuLocalCommand(:final option) =>
               AgentChatComposerCommandEntry(option),
             AgentChatSlashMenuProviderCommand(:final command) =>
               AgentChatComposerProviderCommandEntry(command),
+            AgentChatSlashMenuSkill(:final skill) =>
+              AgentChatComposerSkillEntry(skill, fromSlashMenu: true),
           },
+      ],
+    AgentChatComposerTrigger(kind: .skill, :final query) =>
+      <AgentChatComposerMenuEntry>[
+        for (final skill in agentChatSearchProviderSkills(
+          skills?.skills ?? const <AgentChatProviderSkill>[],
+          query,
+        ))
+          AgentChatComposerSkillEntry(skill),
       ],
   };
 
+  bool get _skillsAvailable => skills != null && !skills!.unsupported;
+
   void _sync() {
-    final detected = focusNode.hasFocus
+    final found = focusNode.hasFocus
         ? detectAgentChatComposerTrigger(text.value)
         : null;
+    final detected = found?.kind == .skill && !_skillsAvailable ? null : found;
     final dismissed = _dismissed;
     if (dismissed != null &&
         (detected == null ||
@@ -113,6 +146,11 @@ class AgentChatComposerMenuController extends ChangeNotifier {
     if (next?.kind != previous?.kind || next?.query != previous?.query) {
       _active = 0;
     }
+    if (next != null && next.kind != .mention && next.kind != previous?.kind) {
+      // Each time a menu opens it asks again, so a skill added meanwhile
+      // shows; the loader keeps a fresh answer and the runtime its cache.
+      unawaited(skills?.request());
+    }
     switch (next) {
       case AgentChatComposerTrigger(kind: .mention, :final query):
         final source = fileSearch();
@@ -125,6 +163,15 @@ class AgentChatComposerMenuController extends ChangeNotifier {
         mentions.reset();
     }
     notifyListeners();
+  }
+
+  void _onSkills() {
+    if (_trigger == null && !_skillsAvailable) return;
+    if (_trigger?.kind == .skill && !_skillsAvailable) {
+      _sync();
+      return;
+    }
+    _onResults();
   }
 
   void _onResults() {
@@ -201,6 +248,14 @@ class AgentChatComposerMenuController extends ChangeNotifier {
           trigger,
           replacement: command.insertion,
         );
+      case AgentChatComposerSkillEntry(:final skill):
+        // T3 Code inserts `$name ` from both menus; the runtime adapter
+        // rewrites it into the provider's own form when it sends.
+        text.value = replaceAgentChatComposerTrigger(
+          text.value,
+          trigger,
+          replacement: skill.insertion,
+        );
     }
   }
 
@@ -211,6 +266,7 @@ class AgentChatComposerMenuController extends ChangeNotifier {
     mentions
       ..removeListener(_onResults)
       ..dispose();
+    skills?.removeListener(_onSkills);
     super.dispose();
   }
 }
@@ -236,26 +292,42 @@ class const AgentChatComposerMenuOverlay({
   );
 
   Widget _menu() {
-    final mention = controller.trigger?.kind == .mention;
+    final kind = controller.trigger?.kind;
+    final mention = kind == .mention;
+    final skill = kind == .skill;
     final search = controller.mentions;
+    final skills = controller.skills;
     final entries = controller.entries;
     return AleraComposerMenu(
       key: const ValueKey<String>('agent-chat-composer-menu'),
-      semanticsLabel: mention ? 'File Mentions' : 'Commands',
-      title: mention ? 'Files' : 'Commands',
+      semanticsLabel: mention
+          ? 'File Mentions'
+          : skill
+          ? 'Skills'
+          : 'Commands',
+      title: mention
+          ? 'Files'
+          : skill
+          ? 'Skills'
+          : 'Commands',
       items: <AleraComposerMenuItem>[for (final entry in entries) _item(entry)],
       activeIndex: controller.activeIndex,
-      loading: mention && search.loading,
-      loadingMessage: 'Searching workspace files…',
-      emptyMessage: switch (mention) {
-        true when controller.fileSearch() == null =>
+      loading:
+          (mention && search.loading) ||
+          (skill && skills != null && skills.loading && skills.list == null),
+      loadingMessage: skill
+          ? agentChatComposerSkillsLoadingMessage
+          : 'Searching workspace files…',
+      emptyMessage: switch (kind) {
+        .mention when controller.fileSearch() == null =>
           agentChatComposerNoFileSearchMessage,
-        true when search.error != null => actionFailureMessage(
+        .mention when search.error != null => actionFailureMessage(
           'search workspace files',
           search.error,
         ),
-        true => agentChatComposerNoFilesMessage,
-        false => agentChatComposerNoCommandsMessage,
+        .mention => agentChatComposerNoFilesMessage,
+        .skill => agentChatComposerSkillsEmptyMessage(skills),
+        _ => agentChatComposerNoCommandsMessage,
       },
       onActiveChanged: controller.highlight,
       onPick: controller.pick,
@@ -294,6 +366,19 @@ class const AgentChatComposerMenuOverlay({
               color: AleraTokens.foregroundMuted,
             ),
           ),
+        AgentChatComposerSkillEntry(:final skill, :final fromSlashMenu) =>
+          AleraComposerMenuItem(
+            id: 'skill:${skill.name}',
+            // T3 Code labels a skill by name in the `/` menu, where it
+            // reads as a command, and by its display name in the `$` menu.
+            label: fromSlashMenu ? '/skill:${skill.name}' : skill.label,
+            detail: skill.detail,
+            leading: const Icon(
+              AleraIcons.skill,
+              size: AleraTokens.iconMd,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
       };
 
   static AleraComposerMenuItem _fileItem(String relativePath) {
@@ -311,6 +396,21 @@ class const AgentChatComposerMenuOverlay({
       ),
     );
   }
+}
+
+/// Why the `$` menu has no rows: the agent reports skills only once it
+/// starts, discovery failed, or nothing matches.
+String agentChatComposerSkillsEmptyMessage(AgentChatSkillsLoader? skills) {
+  final list = skills?.list;
+  if (list == null && skills?.error != null) {
+    return actionFailureMessage('load the skills', skills!.error);
+  }
+  return switch (list?.status) {
+    AgentChatSkillsStatus.pending => agentChatComposerSkillsPendingMessage,
+    AgentChatSkillsStatus.failed =>
+      list!.error ?? 'The skills could not be loaded.',
+    _ => agentChatComposerNoSkillsMessage,
+  };
 }
 
 /// What the composer's commands act on.
@@ -339,8 +439,9 @@ final class const AgentChatSlashCommandTargets({
 /// commands follow the footer controls, and `/usage` the usage ring.
 AgentChatSlashCommandState agentChatSlashCommandState(
   AgentChatComposerSettings settings,
-  AgentChatUsage usage,
-) => AgentChatSlashCommandState(
+  AgentChatUsage usage, {
+  List<AgentChatProviderSkill> skills = const <AgentChatProviderSkill>[],
+}) => AgentChatSlashCommandState(
   modelPickerAvailable:
       settings.catalog == AgentChatCatalogState.ready && !settings.configuring,
   modelPickerBlockedReason: switch (settings.catalog) {
@@ -353,4 +454,5 @@ AgentChatSlashCommandState agentChatSlashCommandState(
   configuring: settings.configuring,
   usageAvailable: usage.contextFraction != null || usage.windows.isNotEmpty,
   providerCommands: settings.session.commands,
+  providerSkills: skills,
 );

@@ -8,6 +8,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_meta.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_skill_chips.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_notice.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -131,7 +132,10 @@ class _CollapsibleTextState extends State<_CollapsibleText> {
   @override
   Widget build(BuildContext context) {
     final text = widget.item.text;
-    if (!agentChatMessageCollapses(text)) return AgentChatMarkdown(data: text);
+    final skills = AgentChatSkillsScope.of(context);
+    if (!agentChatMessageCollapses(text)) {
+      return AgentChatMarkdown(data: text, skills: skills);
+    }
     final expansion = widget.expansion;
     final expanded =
         expansion?.isExpanded(_key, byDefault: false) ??
@@ -147,10 +151,10 @@ class _CollapsibleTextState extends State<_CollapsibleText> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
         if (expanded)
-          AgentChatMarkdown(data: text)
+          AgentChatMarkdown(data: text, skills: skills)
         else
-          Text(
-            text,
+          Text.rich(
+            TextSpan(children: agentChatSkillTextSpans(text, skills)),
             maxLines: agentChatMessageCollapseLines,
             overflow: TextOverflow.fade,
             style: Theme.of(context).textTheme.bodyMedium,
@@ -380,7 +384,15 @@ class const AgentChatOutgoingMessageView({
                         ? Border.all(color: AleraTokens.error)
                         : null,
                   ),
-                  child: Text(message.text, style: theme.textTheme.bodyMedium),
+                  child: Text.rich(
+                    TextSpan(
+                      children: agentChatSkillTextSpans(
+                        message.text,
+                        AgentChatSkillsScope.of(context),
+                      ),
+                    ),
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
               ),
             const SizedBox(height: AleraTokens.space4),
