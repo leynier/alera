@@ -2,10 +2,11 @@
 
 use alera_agent_http::{HttpClientConfig, ReqwestTransport};
 use alera_provider_protocol::{
-    InterruptInput, NativeForkInput, NativeForkResult, NativeHistoryCapabilities,
-    NativeRewindFilesInput, NativeRewindFilesResult, NativeRollbackInput, NativeRollbackResult,
-    Provider, ProviderCapabilities, ProviderError, ProviderEvent, ProviderKind, ProviderSession,
-    ReasoningEffortCapabilities, RuntimeResponse, SessionStartInput, TurnInput, TurnStartResult,
+    FeedbackUploadInput, FeedbackUploadResult, InterruptInput, NativeForkInput, NativeForkResult,
+    NativeHistoryCapabilities, NativeRewindFilesInput, NativeRewindFilesResult,
+    NativeRollbackInput, NativeRollbackResult, Provider, ProviderCapabilities, ProviderError,
+    ProviderEvent, ProviderKind, ProviderSession, ReasoningEffortCapabilities, RuntimeResponse,
+    SessionStartInput, TurnInput, TurnStartResult,
 };
 use async_trait::async_trait;
 
@@ -135,6 +136,12 @@ impl Provider for OwnedProvider {
         input: NativeRewindFilesInput,
     ) -> Result<NativeRewindFilesResult, ProviderError> {
         self.provider.rewind_files(input).await
+    }
+    async fn upload_feedback(
+        &mut self,
+        input: FeedbackUploadInput,
+    ) -> Result<FeedbackUploadResult, ProviderError> {
+        self.provider.upload_feedback(input).await
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         self.provider.interrupt(input).await

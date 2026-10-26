@@ -260,6 +260,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                         .into(),
             });
         }
+        crate::feedback::refuse_feedback_turn(&input)?;
         if crate::compact::is_compact_turn(&input) {
             return self.start_compaction(&session).await;
         }
@@ -282,6 +283,13 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
             turn_id,
             native_turn_id: Some(native_turn_id),
         })
+    }
+
+    async fn upload_feedback(
+        &mut self,
+        input: alera_provider_protocol::FeedbackUploadInput,
+    ) -> Result<alera_provider_protocol::FeedbackUploadResult, ProviderError> {
+        self.upload_feedback_native(input).await
     }
 
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {

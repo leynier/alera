@@ -61,6 +61,14 @@ pub trait Provider: Send {
             "awaiting background tasks".into(),
         ))
     }
+    /// Uploads the session's native thread and the agent's logs to its vendor
+    /// as a bug report. Only an explicit request from the person may call it.
+    async fn upload_feedback(
+        &mut self,
+        _input: FeedbackUploadInput,
+    ) -> Result<FeedbackUploadResult, ProviderError> {
+        Err(ProviderError::Unsupported("feedback upload".into()))
+    }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError>;
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError>;
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError>;

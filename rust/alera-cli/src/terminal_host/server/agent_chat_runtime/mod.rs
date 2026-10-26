@@ -27,6 +27,7 @@ mod session_config;
 #[cfg(test)]
 mod session_delivery_tests;
 mod session_effort;
+mod session_feedback;
 mod session_history;
 mod session_history_mutations;
 mod session_native_checkpoints;

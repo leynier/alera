@@ -350,6 +350,19 @@ pub(super) async fn dispatch(
                 )
                 .await
         }
+        "agentChat.feedback" => {
+            let request_id = required_string(payload, "requestId")?;
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::Feedback {
+                        reason: optional_string(payload, "reason")?,
+                    },
+                    ctx,
+                    Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
         "agentChat.respond" => {
             let request_id = required_string(payload, "requestId")?;
             runtime

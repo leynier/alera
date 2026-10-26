@@ -19,13 +19,18 @@ pub(crate) fn is_compact_turn(input: &TurnInput) -> bool {
 }
 
 impl<T: JsonTransport> CodexProvider<T> {
-    /// Queues `session.commands.updated` with the commands Codex runs.
+    /// Queues `session.commands.updated` with the commands T3 Code lists for
+    /// Codex: `/compact`, and `/feedback`, which clients run themselves.
     pub(crate) fn queue_session_commands(&mut self) {
         let Some(session) = self.session.as_ref() else {
             return;
         };
-        let commands =
-            ProviderSlashCommand::from_native("compact", Some(COMPACT_DESCRIPTION), None);
+        let commands = [
+            ProviderSlashCommand::from_native("compact", Some(COMPACT_DESCRIPTION), None),
+            crate::feedback::feedback_command(),
+        ]
+        .into_iter()
+        .flatten();
         let event = ProviderEvent::new(
             ProviderKind::Codex,
             self.config.instance_id.clone(),
@@ -110,6 +115,7 @@ impl<T: JsonTransport> CodexProvider<T> {
         input: &TurnInput,
         expected_turn_id: &str,
     ) -> Result<(), ProviderError> {
+        crate::feedback::refuse_feedback_turn(input)?;
         if is_compact_turn(input) {
             return Err(ProviderError::Unsupported(
                 "Context compaction must run as a separate turn. Queue it or wait for the active turn to finish."

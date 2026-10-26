@@ -56,10 +56,14 @@ async fn started(frames: impl IntoIterator<Item = Value>) -> CodexProvider<MockT
 }
 
 #[tokio::test]
-async fn session_start_resume_and_fork_advertise_compact() {
+async fn session_start_resume_and_fork_advertise_compact_and_feedback() {
     let expected = json!({ "commands": [{
         "name": "compact",
         "description": "Summarize the conversation and reduce context usage",
+    }, {
+        "name": "feedback",
+        "description": "Send this thread and Codex logs to OpenAI",
+        "input": { "hint": "Describe the issue (optional)" },
     }] });
     let start = SessionStartInput::new("app");
     let mut resume = SessionStartInput::new("app");

@@ -14,4 +14,6 @@ The required upstream MIT copyright notice is preserved in `LICENSE`.
 
 `ProviderEvent::native_task()` decodes typed `payload.nativeTask` lineage, retaining native task, tool-call, parent-thread, and child-thread references without allocating application identities. Missing native identities are never filled with invented provider ids. Raw native frames remain authoritative for unnormalized extensions.
 
+`Provider::upload_feedback(FeedbackUploadInput)` sends the native thread and the agent's logs to its vendor as a bug report and returns the vendor's `feedbackId`, as T3 Code's `uploadFeedback` does. It is outward-facing, so only an explicit request from the person may call it; adapters without it answer `Unsupported`.
+
 `NativeHistoryCapabilities.fileCheckpointing` distinguishes the ability to enable checkpoints from an already-enabled session's `rewindFiles`. `NativeRewindFilesResult` retains optional provider-reported outcome/statistic fields; missing `canRewind` means unknown. Internal raw response preservation does not authorize projecting it into public recovery views.

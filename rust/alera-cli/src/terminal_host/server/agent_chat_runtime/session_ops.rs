@@ -286,6 +286,7 @@ impl ChatSession {
                 runtime_request_id,
                 response,
             } => self.respond(&runtime_request_id, response, ctx).await,
+            ChatOp::Feedback { reason } => self.upload_feedback(reason).await,
             ChatOp::Configure(input) => self.configure(input).await,
             ChatOp::Rename { title } => self.rename(title).await,
             ChatOp::Recover { mode } => self.recover(mode.as_deref()).await,

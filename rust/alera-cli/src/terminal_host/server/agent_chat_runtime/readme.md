@@ -9,6 +9,7 @@ Runtime-host chat sessions over the Rust provider adapters (`alera-provider-*`).
 - Tab record: `kind: "agentChat"`, `payload: {chatId, provider, providerInstanceId, model?}`, `title` = chat title. The payload keys are host-owned: a client `tab.upsert` keeps the stored values.
 - `tab.remove` of an `agentChat` tab uses the same lifecycle as `agentChat.close`: a never-sent chat is discarded atomically; a chat with history is archived, its provider stopped and queued input cancelled.
 - `agentChatApprovalRedirectV1` adds `declineRequests: {requestIds}` to `agentChat.send`: the pending approvals the sender saw. In one actor step the runtime declines them (or cancels where decline is not offered) and admits the message. When the pending approvals are not exactly those, it refuses with `errorCode: "approvalsChanged"` before declining anything. The CLI and MCP send surfaces do not expose it.
+- `agentChatFeedbackV1` adds `agentChat.feedback`, T3 Code's Codex `/feedback`: the live provider uploads its native thread and logs to its vendor (`Provider::upload_feedback`, Codex `feedback/upload` with `classification: bug` and `includeLogs: true`) and answers with the vendor's `feedbackId`. Clients send it only after the person confirmed the upload. The transcript does not change. A chat with no message yet answers `feedbackNeedsConversation`, a busy chat `turnActive` (the upload holds the actor, as `/compact` does), a chat whose provider is not running `providerUnavailable`, a provider without the method `unsupported`, and a failed upload `feedbackFailed` with Codex's message. The Codex adapter also refuses a turn whose whole text is `/feedback`, so an older client that sends the command as text never reaches the model.
 - Native verbs use `agentChatNativeRewindV1`, `agentChatRewindFilesV1`, `agentChatFileCheckpointsV1` and `agentChatNativeHistoryV1`. Global wire support is separate from the session's verified native capabilities and exact available boundaries.
 
 ## Verbs
@@ -31,6 +32,7 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 | `agentChat.queueSteer` | `{requestId, chatId, queueId, turnId}` | `{delivery: steered, queueId, itemId, turnId}` |
 | `agentChat.interrupt` | `{requestId, chatId, turnId?}` | `{acknowledged: true}` (the turn ends through events) |
 | `agentChat.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |
+| `agentChat.feedback` | `{requestId, chatId, reason?}` | `{feedbackId}` (`agentChatFeedbackV1`; see below) |
 | `agentChat.configure` | `{requestId, chatId, provider?, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` |
 | `agentChat.rename` | `{requestId, chatId, title}` | `{title}` |
 | `agentChat.recover` | `{requestId, chatId, mode?: resume\|restart}` | `{snapshot}` |

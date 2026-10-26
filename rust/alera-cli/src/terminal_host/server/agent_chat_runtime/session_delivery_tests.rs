@@ -12,6 +12,8 @@ use fixture::*;
 
 #[path = "session_background_work_tests.rs"]
 mod background_work;
+#[path = "session_feedback_tests.rs"]
+mod feedback;
 #[path = "session_parent_resume_tests.rs"]
 mod parent_resume;
 #[path = "session_commands_tests.rs"]

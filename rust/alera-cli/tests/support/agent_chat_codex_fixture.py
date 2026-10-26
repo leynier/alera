@@ -109,6 +109,13 @@ try:
             if pending is not None:
                 complete(*pending, status="interrupted")
                 pending = None
+        elif method == "feedback/upload":
+            if params.get("reason") == "fail":
+                emit({"id": request_id, "error": {
+                    "code": -32603, "message": "Fixture feedback upload refused."}})
+            else:
+                emit({"id": request_id, "result": {
+                    "threadId": "fixture-feedback-" + params["threadId"]}})
         elif method is None and request_id == 7001:
             if pending is None or message.get("result", {}).get("decision") != "accept":
                 raise RuntimeError("unexpected native approval response")

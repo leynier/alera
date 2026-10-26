@@ -201,6 +201,11 @@ pub(crate) enum ChatOp {
         runtime_request_id: String,
         response: Value,
     },
+    /// `/feedback`: upload the native thread and the agent's logs to its
+    /// vendor, after the person confirmed it on the client.
+    Feedback {
+        reason: Option<String>,
+    },
     Configure(ConfigureInput),
     Rename {
         title: String,

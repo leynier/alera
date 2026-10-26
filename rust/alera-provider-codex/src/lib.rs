@@ -10,6 +10,7 @@ mod compact;
 mod config;
 mod events;
 mod failure;
+mod feedback;
 mod history;
 mod lineage;
 mod mcp;

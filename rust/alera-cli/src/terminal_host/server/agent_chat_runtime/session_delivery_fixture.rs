@@ -36,6 +36,9 @@ pub(super) struct Recorded {
     pub(super) reject_steer: AtomicBool,
     pub(super) reject_send: AtomicBool,
     pub(super) send_gate: Mutex<Option<Arc<SendGate>>>,
+    pub(super) feedback: Mutex<Vec<FeedbackUploadInput>>,
+    /// The next feedback upload fails with this instead of answering.
+    pub(super) feedback_error: Mutex<Option<ProviderError>>,
     /// `(provider, cwd, refresh)` of each skill discovery.
     pub(super) skill_discoveries: Mutex<Vec<(String, Option<PathBuf>, bool)>>,
 }
@@ -201,6 +204,19 @@ impl Provider for RecordingProvider {
         awaited: bool,
     ) -> Result<Vec<String>, ProviderError> {
         self.inner.await_background_tasks(task_ids, awaited).await
+    }
+    async fn upload_feedback(
+        &mut self,
+        input: FeedbackUploadInput,
+    ) -> Result<FeedbackUploadResult, ProviderError> {
+        if let Some(error) = self.recorded.feedback_error.lock().unwrap().take() {
+            return Err(error);
+        }
+        let mut uploads = self.recorded.feedback.lock().unwrap();
+        uploads.push(input);
+        Ok(FeedbackUploadResult {
+            feedback_id: format!("feedback-{}", uploads.len()),
+        })
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
         self.inner.interrupt(input).await
