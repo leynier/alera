@@ -8,6 +8,7 @@ pub(crate) const AGENT_CHAT_EXPERIENCE_CAPABILITIES: &[&str] = &[
     "agentChatEffortV1",
     "agentChatQueueSteerV1",
     "agentChatQueueEditV1",
+    "agentChatQueueReorderV1",
     "agentChatForkV1",
     "agentChatRewindV1",
     "agentChatDeleteV1",

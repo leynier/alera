@@ -98,6 +98,64 @@ void main() {
   );
 
   test(
+    'queue edit reads the runtime answer and reorder sends the position',
+    () async {
+      transport.capabilities.addAll(<String>[
+        AgentChatWire.queueEditCapability,
+        AgentChatWire.queueReorderCapability,
+      ]);
+      transport.responses[AgentChatWire.queueEdit] = <String, Object?>{
+        'updated': true,
+        'queueId': 'q',
+      };
+      transport.responses[AgentChatWire.queueReorder] = <String, Object?>{
+        'reordered': true,
+        'queueId': 'q',
+        'index': 0,
+      };
+      expect(
+        await repository.lifecycle.queueEdit(
+          _chat,
+          requestId: 'edit',
+          queueId: 'q',
+          text: 'new',
+        ),
+        isTrue,
+      );
+      expect(
+        await repository.lifecycle.queueReorder(
+          _chat,
+          requestId: 'move',
+          queueId: 'q',
+          index: 0,
+        ),
+        isTrue,
+      );
+      expect(transport.requests.last.$1, AgentChatWire.queueReorder);
+      expect(transport.requests.last.$2, <String, Object?>{
+        'chatId': 'c',
+        'workspaceId': 'w',
+        'requestId': 'move',
+        'queueId': 'q',
+        'index': 0,
+      });
+    },
+  );
+
+  test('queue reorder fails closed without its capability', () async {
+    await expectLater(
+      repository.lifecycle.queueReorder(
+        _chat,
+        requestId: 'move',
+        queueId: 'q',
+        index: 1,
+      ),
+      throwsA(isA<AgentChatCapabilityRequired>()),
+    );
+    expect(transport.requests, isEmpty);
+  });
+
+  test(
     'every history action fails closed without its own capability',
     () async {
       await expectLater(

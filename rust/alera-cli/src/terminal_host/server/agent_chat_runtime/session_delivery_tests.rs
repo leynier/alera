@@ -12,6 +12,8 @@ use fixture::*;
 
 #[path = "session_background_work_tests.rs"]
 mod background_work;
+#[path = "session_queue_reorder_tests.rs"]
+mod queue_reorder;
 #[path = "session_redirect_tests.rs"]
 mod redirect;
 

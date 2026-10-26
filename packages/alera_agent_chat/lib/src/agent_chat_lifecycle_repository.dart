@@ -28,6 +28,17 @@ abstract class AgentChatLifecycleRepository {
   }) =>
       Future.error(UnsupportedError('Queued message editing is unavailable.'));
 
+  /// Moves a queued message to the zero-based [index]; `false` when it was
+  /// already there.
+  Future<bool> queueReorder(
+    AgentChatRef chat, {
+    required String requestId,
+    required String queueId,
+    required int index,
+  }) => Future.error(
+    UnsupportedError('Queued message reordering is unavailable.'),
+  );
+
   Future<AgentChatSendResult> queueSteer(AgentChatQueueSteerInput input) =>
       Future.error(UnsupportedError('Queued message steering is unavailable.'));
 

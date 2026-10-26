@@ -26,6 +26,23 @@ impl ChatSession {
         entry.text = text;
         Ok(json!({"updated":true,"queueId":queue_id}))
     }
+    /// Moves one queued message to `index` (clamped to the last slot). The
+    /// header delta persists the new order like any other queue change.
+    pub(super) fn reorder_queued(&mut self, queue_id: &str, index: usize) -> HostResult<Value> {
+        let from = self
+            .header
+            .queue
+            .iter()
+            .position(|entry| entry.queue_id == queue_id)
+            .ok_or_else(|| conflict("queueNotFound", "That message is no longer queued."))?;
+        let to = index.min(self.header.queue.len() - 1);
+        if from != to {
+            let entry = self.header.queue.remove(from);
+            self.header.queue.insert(to, entry);
+        }
+        Ok(json!({"reordered": from != to, "queueId": queue_id, "index": to}))
+    }
+
     pub(super) fn enqueue(&mut self, input: SendInput, ctx: &CallerCtx) -> Value {
         let entry = QueueEntry {
             queue_id: new_id("queue"),

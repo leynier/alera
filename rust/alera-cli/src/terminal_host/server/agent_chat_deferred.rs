@@ -180,6 +180,24 @@ pub(super) async fn dispatch(
                 )
                 .await
         }
+        "agentChat.queueReorder" => {
+            let request_id = required_string(payload, "requestId")?;
+            let index = payload
+                .get("index")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| HostError::format("index must be a non-negative integer"))?;
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::QueueReorder {
+                        queue_id: required_string(payload, "queueId")?,
+                        index: usize::try_from(index).unwrap_or(usize::MAX),
+                    },
+                    ctx,
+                    Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
         "agentChat.approvalHistory" => {
             let limit = payload
                 .get("limit")

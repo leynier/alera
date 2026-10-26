@@ -86,7 +86,31 @@ final class RuntimeAgentChatLifecycleRepository
         'text': text,
       }),
     );
-    return agentChatJsonBool(json['edited']);
+    // The runtime answers `{updated: true}`; `edited` is kept for any client
+    // fake that still answers with the old key.
+    return agentChatJsonBool(json['updated'] ?? json['edited']);
+  }
+
+  @override
+  Future<bool> queueReorder(
+    AgentChatRef chat, {
+    required String requestId,
+    required String queueId,
+    required int index,
+  }) async {
+    if (index < 0) {
+      throw const FormatException('A queue position cannot be negative.');
+    }
+    final json = await _request(
+      AgentChatWire.queueReorderCapability,
+      AgentChatWire.queueReorder,
+      _scoped(chat, <String, Object?>{
+        'requestId': requestId,
+        'queueId': queueId,
+        'index': index,
+      }),
+    );
+    return agentChatJsonBool(json['reordered']);
   }
 
   @override

@@ -269,6 +269,7 @@ impl ChatSession {
             }
             ChatOp::QueueCancel { queue_id } => Ok(self.cancel_queued(&queue_id)),
             ChatOp::QueueEdit { queue_id, text } => self.edit_queued(&queue_id, text),
+            ChatOp::QueueReorder { queue_id, index } => self.reorder_queued(&queue_id, index),
             ChatOp::QueuePromoteToSteer { queue_id, turn_id } => {
                 self.promote_queue_to_steer(&queue_id, &turn_id, ctx).await
             }

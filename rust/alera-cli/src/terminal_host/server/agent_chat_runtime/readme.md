@@ -27,6 +27,7 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 | `agentChat.send` | `{requestId, chatId, clientMessageId, text, attachments?, delivery?: auto\|steer\|queue, model?, reasoningEffort?, interactionMode?, declineRequests?: {requestIds}}` | `{delivery: started\|queued\|steered, itemId?, turnId?, queueId?}` |
 | `agentChat.queueCancel` | `{requestId, chatId, queueId}` | `{cancelled: bool}` |
 | `agentChat.queueEdit` | `{requestId, chatId, queueId, text}` | `{updated: true, queueId}` (attachments preserved) |
+| `agentChat.queueReorder` | `{requestId, chatId, queueId, index}` | `{reordered: bool, queueId, index}` (`agentChatQueueReorderV1`; an index past the end lands on the last slot) |
 | `agentChat.queueSteer` | `{requestId, chatId, queueId, turnId}` | `{delivery: steered, queueId, itemId, turnId}` |
 | `agentChat.interrupt` | `{requestId, chatId, turnId?}` | `{acknowledged: true}` (the turn ends through events) |
 | `agentChat.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |

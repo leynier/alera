@@ -9,6 +9,7 @@ abstract final class AgentChatWire {
   static const String effortCapability = 'agentChatEffortV1';
   static const String queueSteerCapability = 'agentChatQueueSteerV1';
   static const String queueEditCapability = 'agentChatQueueEditV1';
+  static const String queueReorderCapability = 'agentChatQueueReorderV1';
   static const String forkCapability = 'agentChatForkV1';
   static const String rewindCapability = 'agentChatRewindV1';
   static const String nativeRewindCapability = 'agentChatNativeRewindV1';
@@ -66,6 +67,7 @@ abstract final class AgentChatWire {
   static const String attachmentCancel = 'agentChat.attachment.cancel';
   static const String queueCancel = 'agentChat.queueCancel';
   static const String queueEdit = 'agentChat.queueEdit';
+  static const String queueReorder = 'agentChat.queueReorder';
   static const String queueSteer = 'agentChat.queueSteer';
   static const String markRead = 'agentChat.markRead';
   static const String fork = 'agentChat.fork';

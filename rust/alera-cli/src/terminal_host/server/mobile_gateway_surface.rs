@@ -62,6 +62,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatEffortV1",
     "agentChatQueueSteerV1",
     "agentChatQueueEditV1",
+    "agentChatQueueReorderV1",
     "agentChatForkV1",
     "agentChatRewindV1",
     "agentChatDeleteV1",
@@ -191,6 +192,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.queueCancel"
             | "agentChat.queueSteer"
             | "agentChat.queueEdit"
+            | "agentChat.queueReorder"
             | "agentChat.fork"
             | "agentChat.rewind"
             | "agentChat.delete"

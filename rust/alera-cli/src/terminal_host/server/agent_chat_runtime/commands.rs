@@ -175,6 +175,11 @@ pub(crate) enum ChatOp {
         queue_id: String,
         text: String,
     },
+    /// Move one queued message to a new zero-based position.
+    QueueReorder {
+        queue_id: String,
+        index: usize,
+    },
     /// Atomically cancel one client message, removing it from the queue or
     /// interrupting its owned active turn.
     CancelMessage {
