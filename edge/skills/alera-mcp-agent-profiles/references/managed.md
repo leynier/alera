@@ -9,8 +9,7 @@ A managed profile stores its settings in `managedConfig`, and Alera builds the c
 | `copilot` | `model`, `effort`, `agent`, `mode`, `context`, `allowAll`, `maxAiCredits`, `maxAutopilotContinues`, `noAskUser` |
 | `cursor` | `model`, `mode`, `permissionMode`, `sandbox`, `trustWorkspace` |
 | `agy` | `model`, `effort`, `agent`, `mode`, `skipPermissions`, `sandbox` |
-| `opencode` | `model`, `agent`, `autoApprove` |
-| `opencode2` | `model`, `agent`, `autoApprove` |
+| `opencode` | `model`, `agent`, `autoApprove`; covers OpenCode v1 and OpenCode 2, and on OpenCode 2 the interactive launch applies only `autoApprove` |
 | `pi` | `model`, `thinking`, `projectTrust` |
 | `amp` | `mode`, `fast` |
 | `grok` | `model`, `effort`, `agent`, `permissionMode`, `sandbox`, `disableWebSearch` |

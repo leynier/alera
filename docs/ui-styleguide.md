@@ -89,7 +89,7 @@ Motion:
 | `durationSlow` | `280ms` |
 | `durationSpin` | `1200ms` (full turn of continuously rotating progress indicators) |
 | `toastDuration` | `4000ms` (default toast lifetime) |
-| `toastLongDuration` | `6000ms` (warnings and errors worth reading; also `AleraToast.longDuration`) |
+| `toastLongDuration` | `6000ms` (default lifetime of warning and error toasts; also `AleraToast.longDuration`) |
 
 Typography and sizing:
 
@@ -146,6 +146,16 @@ Requested panel width is stored per workspace, constrained at render time to lea
 - For long-running actions, reserve control width up front when labels/icons can change.
 - Loading and progress copy ends with the ellipsis character (`Loading…`), never three periods.
 - Prefer disabled state for short work and stage labels/progress for multi-step work.
+
+## Error Messages
+
+- Format an error for display with `userFacingErrorMessage(error)` from `lib/src/features/error_reporting/application/user_facing_error_message.dart`, or with `actionFailureMessage('archive workspace', error)` for a failed user action, which reads `Could not archive workspace: <cause>`. Both drop Dart type prefixes such as `Bad state:` and `Exception:` and wrapper class names, turn typed errors (git, forge, runtime, native file and search errors) into a sentence, and never return an empty string.
+- Report a failed action with `showActionFailure(action: ..., error: ..., stackTrace: ...)`, which logs the error with its stack trace and publishes one error toast. Use `showErrorToast` when the cause already says everything and needs no `Could not ...` lead.
+- Error and warning toasts default to the long toast duration (`AleraToast.longDuration`). Do not pass the short duration to an error.
+- `ErrorNotificationHost` writes every error and warning toast to the diagnostics log under the `UserVisibleErrors` logger, so a failure the user saw is always in a diagnostics bundle.
+- Never classify an error by its formatted text. Match on the typed error or its raw message: the display text is cleaned for people and may change.
+- Never hide the cause behind generic text such as `Something went wrong`. Show the cause the formatter returns; `unknownErrorMessage` is only for an error that carries no readable text.
+- With **Clarify Error Messages** on (AI Assist, off by default), the toast host may rewrite an error toast that has no action of its own. It shows the original with a caption while the rewrite runs, keeps the original when the rewrite fails, and offers **Copy Original** on the rewritten toast. Mobile does not clarify errors.
 
 ## Iconography
 

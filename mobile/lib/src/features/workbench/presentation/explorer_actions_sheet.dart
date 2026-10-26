@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_action_sheet.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -21,7 +22,17 @@ enum ExplorerAction {
   copyRelativePath,
   collapse,
   useAsSourceControlRoot,
-  clearSourceControlRoot,
+  clearSourceControlRoot;
+
+  /// The verb phrase a failure names: `Could not <failureAction>: <cause>`.
+  String get failureAction => switch (this) {
+    open => 'open the file',
+    comment => 'add the comment',
+    copyPath || copyRelativePath => 'copy the path',
+    collapse => 'collapse the folders',
+    useAsSourceControlRoot => 'set the source control root',
+    clearSourceControlRoot => 'clear the source control root',
+  };
 }
 
 /// Read and navigation actions for one explorer row. File mutation stays on
@@ -174,6 +185,6 @@ Future<void> showExplorerActionsSheet(
     }
   } on Object catch (error, stackTrace) {
     _logger.warning('explorer action ${action.name} failed', error, stackTrace);
-    notify('Explorer action failed: $error');
+    notify(actionFailureMessage(action.failureAction, error));
   }
 }

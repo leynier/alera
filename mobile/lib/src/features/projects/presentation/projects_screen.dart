@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/projects/application/projects_controller.dart';
@@ -151,8 +153,13 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
               ),
             );
           }
-        } on Object catch (error) {
-          if (context.mounted) _showError(context, error);
+        } on Object catch (error, stackTrace) {
+          _showError(
+            context.mounted ? ScaffoldMessenger.of(context) : null,
+            'add the project',
+            error,
+            stackTrace,
+          );
         }
       case AddProjectChoice.cloneRepository:
         final draft = await showDialog<CloneProjectDraft>(
@@ -169,8 +176,13 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
                 directoryName: draft.directoryName,
                 name: draft.projectName,
               );
-        } on Object catch (error) {
-          if (context.mounted) _showError(context, error);
+        } on Object catch (error, stackTrace) {
+          _showError(
+            context.mounted ? ScaffoldMessenger.of(context) : null,
+            'clone the repository',
+            error,
+            stackTrace,
+          );
         }
     }
   }
@@ -196,8 +208,13 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
           await ref
               .read(projectsControllerProvider(host.id).notifier)
               .renameProject(project.id, name);
-        } on Object catch (error) {
-          if (context.mounted) _showError(context, error);
+        } on Object catch (error, stackTrace) {
+          _showError(
+            context.mounted ? ScaffoldMessenger.of(context) : null,
+            'rename the project',
+            error,
+            stackTrace,
+          );
         }
       case _ProjectAction.setup:
         await Navigator.of(context).push<void>(
@@ -241,8 +258,13 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
                 .read(projectsControllerProvider(host.id).notifier)
                 .removeProject(project.id, approvedDependencies: dependencies);
           }
-        } on Object catch (error) {
-          if (context.mounted) _showError(context, error);
+        } on Object catch (error, stackTrace) {
+          _showError(
+            context.mounted ? ScaffoldMessenger.of(context) : null,
+            'remove the project',
+            error,
+            stackTrace,
+          );
         }
     }
   }
@@ -268,14 +290,28 @@ class const ProjectsScreen({super.key, required final PairedHostProfile host})
           ),
         );
       }
-    } on Object catch (error) {
-      if (context.mounted) _showError(context, error);
+    } on Object catch (error, stackTrace) {
+      _showError(
+        context.mounted ? ScaffoldMessenger.of(context) : null,
+        'open the workspace',
+        error,
+        stackTrace,
+      );
     }
   }
 
-  void _showError(BuildContext context, Object error) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(error.toString())));
+  void _showError(
+    ScaffoldMessengerState? messenger,
+    String action,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    showActionFailure(
+      messenger,
+      action: action,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 
@@ -426,7 +462,7 @@ class const _ErrorState({
       child: Column(
         mainAxisSize: .min,
         children: <Widget>[
-          Text(error.toString(), textAlign: .center),
+          Text(userFacingErrorMessage(error), textAlign: .center),
           const SizedBox(height: AleraTokens.spaceLg),
           FilledButton(onPressed: onRetry, child: const Text('Try Again')),
         ],

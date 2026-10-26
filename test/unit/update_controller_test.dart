@@ -112,7 +112,7 @@ void main() {
       );
       expect(
         container.read(aleraUpdateControllerProvider).message,
-        contains('network down'),
+        contains('Network down'),
       );
     });
 
@@ -221,7 +221,7 @@ void main() {
       );
       expect(
         container.read(aleraUpdateControllerProvider).message,
-        contains('disk full'),
+        contains('Disk full'),
       );
     });
 
@@ -251,7 +251,7 @@ void main() {
 
       final state = container.read(aleraUpdateControllerProvider);
       expect(state.status, AleraUpdateStatus.error);
-      expect(state.message, contains('helper unavailable'));
+      expect(state.message, contains('Helper unavailable'));
       expect(state.message, contains('Alera is still running'));
     });
 
@@ -315,7 +315,7 @@ void main() {
 
       final state = container.read(aleraUpdateControllerProvider);
       expect(state.status, AleraUpdateStatus.error);
-      expect(state.message, contains('scoop missing'));
+      expect(state.message, contains('Scoop missing'));
       expect(state.message, contains('Alera is still running'));
     });
 
@@ -384,7 +384,7 @@ void main() {
 
       final state = container.read(aleraUpdateControllerProvider);
       expect(state.status, AleraUpdateStatus.error);
-      expect(state.message, contains('relaunch unavailable'));
+      expect(state.message, contains('Relaunch unavailable'));
     });
   });
 }

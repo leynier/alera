@@ -18,13 +18,14 @@ Alera-managed hook commands include `alera-runtime-agent-hook` in the command st
 | Cursor | `~/.cursor/hooks.json` | Merged command entries with a 5s timeout. `sessionStart` is not registered. |
 | Antigravity | `~/.gemini/config/hooks.json` | Top-level `alera-status` bundle. |
 | Grok Build | `~/.grok/hooks/alera-status.json` | Dedicated Alera file. `$GROK_HOME` is honored. |
-| OpenCode | `~/.config/opencode/plugins/alera-agent-status.js` | Dedicated plugin. `$OPENCODE_CONFIG_DIR` is honored. |
-| OpenCode 2 | `~/.config/opencode/plugins/alera-agent-status-v2.js` | Dedicated plugin. Same config dir as v1. It reports only from a private server (`opencode2 --standalone`, which Alera's launches use): the shared background service carries the environment of whichever tab started it. |
+| OpenCode | `~/.config/opencode/plugins/alera-agent-status.js` | Dedicated plugin for both OpenCode v1 (1.3.4 and later, through `server`) and OpenCode 2 (through `setup`). `$OPENCODE_CONFIG_DIR` is honored. On OpenCode 2 it reports only from a private server (`opencode --standalone`, which Alera's launches use): the shared background service carries the environment of whichever tab started it. Installing it deletes the separate `alera-agent-status-v2.js` older versions wrote. |
 | Pi | `~/.pi/agent/extensions/alera-agent-status.ts` | Dedicated extension. `$PI_CODING_AGENT_DIR` is honored. |
 | Amp | `~/.config/amp/plugins/alera-agent-status.ts` | Dedicated plugin. `$AMP_CONFIG_DIR` is honored. |
 | fx | none | Herdr socket and pane id in the terminal environment. fx reports its conversation id with `pane.report_agent_session` at startup, which binds the tab for `fx --resume`. |
 
-The shared hook script lives at `~/.alera/agent-hooks/alera-runtime-agent-hook.sh` (`.cmd` on Windows). It no-ops unless the terminal identity environment is present, so hooks that fire outside an Alera terminal do not report.
+The shared hook script lives at `~/.alera/agent-hooks/alera-runtime-agent-hook.sh` (`.cmd` on Windows). Claude on Windows uses the dedicated `alera-runtime-agent-hook.ps1` instead, launched directly with `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File` through Git Bash. This keeps MSYS from rewriting `cmd` switches and prevents event JSON on stdin from becoming an interactive command line. The command remains compatible with the older string-form Claude hooks and Windows PowerShell 5.1. Scripts no-op unless the terminal identity environment is present, so hooks that fire outside an Alera terminal do not report.
+
+Claude's Windows script reads event JSON as UTF-8 data and reads only the endpoint port, token and version assignments from `endpoint.cmd`; it never executes that file. Runtime startup, terminal preparation and hook-settings changes reconcile previously installed Claude commands to the current launcher. Reconciliation preserves user handlers, including those in the same matcher block as an Alera handler, and leaves an already-current settings file byte-identical.
 
 ## How to clean
 
@@ -33,7 +34,7 @@ The reversible path is the matching Settings (or `alera runtime agents disable`)
 To clean by hand without Alera:
 
 1. Dedicated files (Copilot `hooks/alera.json`, Grok `hooks/alera-status.json`, OpenCode/Pi/Amp plugin files): delete the file if it contains `alera-runtime-agent-hook` or `ALERA_AGENT_STATUS_MANAGED_FILE`. Do not delete sibling user files in the same directory.
-2. Merged JSON (Claude `settings.json`, Cursor `hooks.json`, Codex `hooks.json`, Antigravity `hooks.json`): remove array entries whose command contains `alera-runtime-agent-hook` or a legacy `alera-<agent>-hook` name. Keep every other entry. For Antigravity, drop the `alera-status` object if it is empty after that.
+2. Merged JSON (Claude `settings.json`, Cursor `hooks.json`, Codex `hooks.json`, Antigravity `hooks.json`): remove handlers whose command contains `alera-runtime-agent-hook` or a legacy `alera-<agent>-hook` name. Keep sibling user handlers and their matcher metadata; remove a block only when no handlers remain. For Antigravity, drop the `alera-status` object if it is empty after that.
 3. Codex `config.toml`: remove `[hooks.state]` keys that point at `agent-runtime-homes/codex` or at Alera commands in `hooks.json`. Do not disable `features.hooks` if other hooks remain.
 4. Older overlay leftovers under the runtime directory (`agent-runtime-homes/`, `agent-runtime-overlays/`): delete those directories. Host start already does this. Desktop application-support copies of the same names from older app versions can be deleted the same way; they are not user config.
 

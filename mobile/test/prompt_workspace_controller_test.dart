@@ -139,7 +139,7 @@ void main() {
     );
     expect(
       container.read(promptWorkspaceControllerProvider('host-1')).error,
-      contains('launch response was lost'),
+      contains('Launch response was lost'),
     );
 
     await controller.retryAgent('Add offline support');

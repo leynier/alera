@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 
 part 'grok_ai_assist.dart';
@@ -264,10 +265,6 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
   AiAssistAgent.opencode: openCodeAiAssistSpec(
     agent: .opencode,
     binary: 'opencode',
-  ),
-  AiAssistAgent.opencode2: openCodeAiAssistSpec(
-    agent: .opencode2,
-    binary: 'opencode2',
   ),
   AiAssistAgent.opencodeGo: openCodeGoAiAssistSpec,
   AiAssistAgent.chatgpt: AiAssistAgentSpec(

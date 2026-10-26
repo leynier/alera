@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/badges/alera_badge.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
@@ -366,8 +367,14 @@ class const RunResourcesScreen({
     final messenger = ScaffoldMessenger.of(context);
     try {
       await action();
-    } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(runErrorMessage(error))));
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'change run resources',
+        error: error,
+        stackTrace: stackTrace,
+        message: runErrorMessage(error),
+      );
     }
   }
 }

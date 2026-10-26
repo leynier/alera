@@ -20,7 +20,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::SessionDriver;
 
 use super::host_service_requests::required_non_blank;
-pub(super) use super::request_payloads::{anyhow_json_result, json_result, parse_payload};
+pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
 
@@ -386,10 +386,11 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 9] = [
+                const ALLOWED: [&str; 10] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
+                    "deleteAgentSessionsOnWorkspaceRemoval",
                     "defaultAgentProfileId",
                     "agentStatusHooks",
                     "agentQuotas",
@@ -455,7 +456,7 @@ impl ServerActor {
                     .runtime_store
                     .list_projects()
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 projects
                     .retain(|project| !alera_core::runtime::is_voice_home_project_id(&project.id));
                 let mut projects = json_result(Ok::<_, HostError>(projects))?;
@@ -624,7 +625,7 @@ impl ServerActor {
                 self.runtime_store
                     .request_relocation_setup_cancellation(&id, &relocation_id, &attempt_id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 Ok(json!({"cancellationRequested": true, "processesClosed": false}))
             }
             "workspace.list" => {
@@ -646,7 +647,7 @@ impl ServerActor {
                     .runtime_store
                     .list_all_workspaces()
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 workspaces.retain(|workspace| {
                     !alera_core::runtime::is_voice_home_workspace_id(&workspace.id)
                 });
@@ -679,7 +680,7 @@ impl ServerActor {
                 let id = require_string_key(payload, "id")?;
                 crate::workspace_show::show(&self.runtime_store, &id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))
+                    .map_err(|error| HostError::from_anyhow(&error))
             }
             "workspace.find" => {
                 self.require_auth(client_id)?;
@@ -718,7 +719,7 @@ impl ServerActor {
                     .runtime_store
                     .list_workspace_tabs(&workspace_id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 if self.is_mobile_client(client_id) {
                     Ok(self.mobile_workspace_tabs_payload(
                         self.workspace_tabs_for_client(client_id, tabs),
@@ -734,7 +735,7 @@ impl ServerActor {
                     .runtime_store
                     .find_workspace_tab(&id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?
+                    .map_err(|error| HostError::from_anyhow(&error))?
                     .and_then(|tab| self.workspace_tab_for_client(client_id, tab));
                 Ok(json!(tab))
             }
@@ -754,7 +755,7 @@ impl ServerActor {
                     .runtime_store
                     .find_workspace_tab(&tab.id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?
+                    .map_err(|error| HostError::from_anyhow(&error))?
                 {
                     if stored.workspace_id != tab.workspace_id {
                         return Err(HostError::state(
@@ -776,6 +777,7 @@ impl ServerActor {
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
                         crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
+                        crate::terminal_host::orchestration::agent_session_settings::AGENT_NATIVE_SESSION_SETTINGS_KEY,
                         super::tab_compatibility::RUN_ID_TAB_PAYLOAD_KEY,
                         super::tab_compatibility::RUN_TASK_ID_TAB_PAYLOAD_KEY,
                     ] {
@@ -794,7 +796,7 @@ impl ServerActor {
                     .runtime_store
                     .rename_workspace_tab(&id, &title)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 let workspace_id = tab.workspace_id.clone();
                 let tab = self.workspace_tab_for_client(client_id, tab);
                 self.broadcast_workspace_tabs_changed(Some(&workspace_id));
@@ -1142,10 +1144,10 @@ impl ServerActor {
                     .runtime_store
                     .mobile_access_settings()
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 let next = apply_mobile_settings_update_resolved(current.clone(), request)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 let value =
                     serde_json::to_value(self.apply_mobile_gateway_settings(current, next).await?)
                         .map_err(|error| HostError::format(error.to_string()))?;
@@ -1159,11 +1161,11 @@ impl ServerActor {
                     .runtime_store
                     .mobile_access_settings()
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 let (next, endpoint) =
                     prepare_mobile_pairing_offer_settings_resolved(current.clone(), &request)
                         .await
-                        .map_err(|error| HostError::state(error.to_string()))?;
+                        .map_err(|error| HostError::from_anyhow(&error))?;
                 let settings = if next == current {
                     if self.mobile_gateway.is_none() {
                         self.restart_mobile_gateway().await?;
@@ -1397,6 +1399,10 @@ fn host_shutdown_busy_message(
 #[cfg(test)]
 #[path = "requests/access_cases.rs"]
 mod access_cases;
+
+#[cfg(test)]
+#[path = "requests/runtime_settings_cases.rs"]
+mod runtime_settings_cases;
 
 #[cfg(test)]
 mod tests;

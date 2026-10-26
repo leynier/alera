@@ -1,10 +1,12 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/background_submission.dart';
 import 'package:flutter/material.dart';
 
@@ -155,9 +157,10 @@ class _CreatePullRequestSheetState extends State<CreatePullRequestSheet> {
       }
       _title.text = details.title;
       _body.text = details.body;
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('generate pull request details', error, stackTrace);
       if (mounted) {
-        setState(() => _error = pullRequestActionErrorMessage(error));
+        setState(() => _error = runtimeActionErrorMessage(error));
       }
     } finally {
       if (mounted) {

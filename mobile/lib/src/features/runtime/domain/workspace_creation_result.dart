@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 
@@ -37,7 +38,7 @@ class const WorkspaceCreationResult({
       workspace: workspace,
       steps: steps,
       deferredSetupCommand: deferredSetupCommand,
-      setupLaunchError: error.toString(),
+      setupLaunchError: userFacingErrorMessage(error),
       parentLinkError: parentLinkError,
     );
   }
@@ -48,7 +49,7 @@ class const WorkspaceCreationResult({
       steps: steps,
       deferredSetupCommand: deferredSetupCommand,
       setupLaunchError: setupLaunchError,
-      parentLinkError: error.toString(),
+      parentLinkError: userFacingErrorMessage(error),
     );
   }
 

@@ -1,17 +1,17 @@
 use super::{
-    RuntimeAiAssistSettings, AI_ASSIST_AGENTS, CHAT_GPT_SERVICE_TIER_DEFAULT,
+    is_ai_assist_agent, RuntimeAiAssistSettings, CHAT_GPT_SERVICE_TIER_DEFAULT,
     CHAT_GPT_SERVICE_TIER_FAST,
 };
 
 pub fn validate_ai_assist_settings(settings: &RuntimeAiAssistSettings) -> anyhow::Result<()> {
-    if !AI_ASSIST_AGENTS.contains(&settings.agent.trim()) {
+    if !is_ai_assist_agent(&settings.agent) {
         return Err(anyhow::anyhow!("AI Assist agent is unsupported."));
     }
     if settings
         .prompt_settings_by_operation
         .values()
         .filter_map(|prompt| prompt.agent.as_deref())
-        .any(|agent| !AI_ASSIST_AGENTS.contains(&agent.trim()))
+        .any(|agent| !is_ai_assist_agent(agent))
     {
         return Err(anyhow::anyhow!("AI Assist prompt agent is unsupported."));
     }
@@ -55,9 +55,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn accepts_the_retired_opencode2_agent_as_opencode() {
+        let settings = RuntimeAiAssistSettings {
+            agent: "opencode2".to_string(),
+            ..RuntimeAiAssistSettings::default()
+        };
+        assert!(validate_ai_assist_settings(&settings).is_ok());
+        assert!(!super::super::AI_ASSIST_AGENTS.contains(&"opencode2"));
+    }
+
+    #[test]
     fn accepts_direct_providers() {
         for agent in ["opencode-go", "chatgpt"] {
-            assert!(AI_ASSIST_AGENTS.contains(&agent));
+            assert!(super::super::AI_ASSIST_AGENTS.contains(&agent));
             let settings = RuntimeAiAssistSettings {
                 agent: agent.to_string(),
                 ..RuntimeAiAssistSettings::default()

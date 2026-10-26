@@ -26,6 +26,8 @@ const SUPPORTED_AGENTS: [&str; 11] = [
     "cursor",
     "agy",
     "opencode",
+    // Route of the OpenCode 2 plugin older Alera versions installed; its events
+    // are reported as `opencode`.
     "opencode2",
     "pi",
     "amp",
@@ -158,7 +160,7 @@ fn parse_hook_event(agent: &str, content_type: &str, body: &[u8]) -> Option<Agen
         terminal_session_id: required_string(record.get("terminalSessionId"))?,
         workspace_id: required_string(record.get("workspaceId"))?,
         tab_id: required_string(record.get("tabId"))?,
-        agent_type: agent.to_string(),
+        agent_type: alera_core::runtime::canonical_agent_type(agent).to_string(),
         payload,
         event_name,
     })

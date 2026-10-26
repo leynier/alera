@@ -65,7 +65,7 @@ final class WorkspaceRelocationControllerProvider
 }
 
 String _$workspaceRelocationControllerHash() =>
-    r'05185230c26f3e23b7f284ee06a87f8b05b64ebb';
+    r'54ca2262d09deeec15e81ad02117f4759a4366c9';
 
 final class WorkspaceRelocationControllerFamily extends $Family
     with

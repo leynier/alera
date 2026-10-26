@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
@@ -93,7 +94,8 @@ class _WorkspaceGitSubmissionDialogState
       if (mounted && revision == _revision) {
         setState(
           () => _error =
-              'Could not generate a message. Enter one manually: $error',
+              'Could not generate a message. Enter one manually: '
+              '${userFacingErrorMessage(error)}',
         );
       }
     } finally {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
@@ -132,7 +133,7 @@ class _WorkspaceFileViewerScreenState
               icon: AleraIcons.loadFailed,
               title: 'Could not open file',
               message: 'Check the connection to the host and try again.',
-              detail: snapshot.error.toString(),
+              detail: userFacingErrorMessage(snapshot.error),
               action: FilledButton.icon(
                 onPressed: () => setState(() => _load = _read()),
                 icon: const Icon(AleraIcons.refresh),

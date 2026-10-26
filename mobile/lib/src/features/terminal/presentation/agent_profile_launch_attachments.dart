@@ -79,7 +79,7 @@ extension on _AgentProfileLaunchSheetState {
       _showAttachmentFailure(
         message: error is UnsupportedError
             ? (error.message ?? 'Image upload failed.')
-            : 'Could not add the attachment. Try again.',
+            : actionFailureMessage('add the attachment', error),
         error: error,
         stackTrace: stackTrace,
       );
@@ -110,7 +110,7 @@ extension on _AgentProfileLaunchSheetState {
       return <String>[upload.hostPath];
     } on Object catch (error, stackTrace) {
       _showAttachmentFailure(
-        message: 'Could not add the attachment. Try again.',
+        message: actionFailureMessage('add the attachment', error),
         error: error,
         stackTrace: stackTrace,
       );

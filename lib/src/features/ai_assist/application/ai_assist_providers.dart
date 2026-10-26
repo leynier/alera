@@ -1,3 +1,4 @@
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_host_completer.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
@@ -20,6 +21,7 @@ AiAssistAgentRunner aiAssistAgentRunner(Ref ref) {
       agent: AiAssistAgent.chatgpt,
     ),
     processRunner: ref.read(processRunnerProvider),
+    openCodeGenerationProbe: ref.read(openCodeGenerationProbeProvider),
     hostCompleter: RuntimeHostAiAssistCompleter(
       client: ref.read(runtimeHostClientProvider),
     ),

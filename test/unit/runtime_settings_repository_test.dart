@@ -71,6 +71,7 @@ void main() {
       await repository.save(
         AleraSettings.defaults.copyWith(
           aiAssist: const AiAssistSettings(
+            clarifyErrorMessages: true,
             selectedThinkingByOperation:
                 <AiAssistOperation, Map<String, String>>{
                   AiAssistOperation.commitMessage: <String, String>{
@@ -88,6 +89,7 @@ void main() {
       expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
       final aiAssist = payload['aiTextGeneration']! as Map<String, Object?>;
       expect(aiAssist['agent'], 'codex');
+      expect(aiAssist['clarifyErrorMessages'], isTrue);
       expect(aiAssist['chatGptServiceTier'], aiAssistChatGptDefaultServiceTier);
       expect(
         aiAssist['promptSettingsByOperation'],
@@ -179,6 +181,36 @@ void main() {
     );
   });
 
+  test('agent session deletion on workspace removal round-trips', () async {
+    final legacy = _MemorySettingsRepository();
+    final client = _RecordingRuntimeHostClient();
+    client.responses['runtimeSettings.get'] = <String, Object?>{
+      'workspaceDirectory': null,
+      'deleteAgentSessionsOnWorkspaceRemoval': true,
+    };
+    final repository = RuntimeSettingsRepository(
+      client: client,
+      legacyRepository: legacy,
+    );
+
+    final loaded = await repository.load();
+    expect(loaded.general.deleteAgentSessionsOnWorkspaceRemoval, isTrue);
+
+    await repository.save(
+      loaded.copyWith(
+        general: loaded.general.copyWith(
+          deleteAgentSessionsOnWorkspaceRemoval: false,
+        ),
+      ),
+    );
+    expect(
+      client
+          .payloads['runtimeSettings.update']!
+          .single['deleteAgentSessionsOnWorkspaceRemoval'],
+      isFalse,
+    );
+  });
+
   test(
     'load combines shared AI Assist execution settings with local discovery',
     () async {
@@ -201,6 +233,7 @@ void main() {
         'workspaceDirectory': '/tmp/workspaces',
         'aiTextGeneration': <String, Object?>{
           'enabled': true,
+          'clarifyErrorMessages': true,
           'agent': 'claude',
           'selectedModelByAgent': <String, String>{'claude': 'opus'},
           'selectedThinkingByOperation': <String, Object?>{
@@ -227,6 +260,7 @@ void main() {
       final loaded = await repository.load();
 
       expect(loaded.aiAssist.agent, AiAssistAgent.claude);
+      expect(loaded.aiAssist.clarifyErrorMessages, isTrue);
       expect(
         loaded.aiAssist.instructionsFor(.workspaceIdentity),
         'Use feature branches.',

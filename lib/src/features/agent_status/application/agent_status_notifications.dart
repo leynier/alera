@@ -178,7 +178,6 @@ String _agentLabel(AgentType agentType) {
     AgentType.cursor => 'Cursor',
     AgentType.agy => 'Antigravity',
     AgentType.opencode => 'OpenCode',
-    AgentType.opencode2 => 'OpenCode 2',
     AgentType.pi => 'Pi',
     AgentType.amp => 'Amp',
     AgentType.grok => 'Grok Build',
@@ -259,14 +258,7 @@ String? _requiredString(Object? value) {
   return trimmed.isEmpty ? null : trimmed;
 }
 
-AgentType? _agentType(Object? value) {
-  for (final type in AgentType.values) {
-    if (type.key == value) {
-      return type;
-    }
-  }
-  return null;
-}
+AgentType? _agentType(Object? value) => AgentType.tryParse(value);
 
 AgentStatusState? _state(Object? value) {
   for (final state in AgentStatusState.values) {

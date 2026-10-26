@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
@@ -79,7 +80,7 @@ class _SectionDialogState extends State<_SectionDialog> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = '$error';
+          _error = userFacingErrorMessage(error);
           _loading = false;
         });
       }

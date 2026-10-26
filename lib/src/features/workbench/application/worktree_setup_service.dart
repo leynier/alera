@@ -1,3 +1,5 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -143,7 +145,7 @@ class WorktreeSetupService._(
         kind: .copy,
         label: label,
         succeeded: false,
-        message: error.toString(),
+        message: userFacingErrorMessage(error),
       );
     }
   }
@@ -248,7 +250,7 @@ class WorktreeSetupService._(
         kind: .command,
         label: command,
         succeeded: false,
-        message: error.toString(),
+        message: userFacingErrorMessage(error),
       );
     }
   }

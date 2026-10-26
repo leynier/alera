@@ -19,7 +19,8 @@ pub enum RuntimeSettingsAction {
 #[derive(Debug, Args)]
 pub struct RuntimeSettingsSetArgs {
     /// KEY=VALUE. Keys: workspaceDirectory, confirmProjectRemoval,
-    /// confirmWorkspaceRemoval, defaultAgentProfileId, aiAssist.enabled,
+    /// confirmWorkspaceRemoval, deleteAgentSessionsOnWorkspaceRemoval,
+    /// defaultAgentProfileId, aiAssist.enabled,
     /// aiAssist.autoGenerateAgentTitles, aiAssist.agent,
     /// aiAssist.timeoutSeconds, automation.startAtLogin,
     /// automation.runRetentionDays, automation.auditRetentionDays,

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -212,11 +213,11 @@ class AgentQuotaService(
           hostId: hostId,
           snapshots: <AgentQuotaSnapshot>[
             for (final snapshot in previous.snapshots)
-              snapshot.asStale(error.toString()),
+              snapshot.asStale(userFacingErrorMessage(error)),
           ],
           environment: previous.environment,
           fetchedAt: previous.fetchedAt,
-          error: error.toString(),
+          error: userFacingErrorMessage(error),
         );
       }
       return AgentQuotaState(
@@ -224,7 +225,7 @@ class AgentQuotaService(
         snapshots: const <AgentQuotaSnapshot>[],
         environment: const <String, bool>{},
         fetchedAt: DateTime.now().toUtc(),
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
       );
     }
   }

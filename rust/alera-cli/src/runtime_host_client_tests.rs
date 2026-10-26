@@ -178,3 +178,20 @@ async fn start_hello_server() -> (u16, tokio::task::JoinHandle<()>) {
     });
     (port, server)
 }
+
+#[test]
+fn a_host_answer_reads_without_the_wire_format_exception_prefix() {
+    let raw = "FormatException: Workspace id is required.";
+    let answer = RuntimeHostAnswer(raw.to_string());
+    assert_eq!(answer.to_string(), "Workspace id is required.");
+    assert_eq!(answer.0, raw, "the wire text itself is kept");
+
+    let chained = anyhow::Error::new(RuntimeHostAnswer(raw.to_string())).context("Could not start");
+    assert_eq!(
+        format!("{chained:#}"),
+        "Could not start: Workspace id is required."
+    );
+
+    let state = RuntimeHostAnswer("A runtime mutation is in progress.".to_string());
+    assert_eq!(state.to_string(), "A runtime mutation is in progress.");
+}

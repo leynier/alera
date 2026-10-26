@@ -7,6 +7,7 @@ use crate::agent_status::{
     AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
 };
 use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
+use crate::terminal_host::orchestration::agent_registry::canonical_agent_type;
 use crate::terminal_host::orchestration::agent_session_resume::native_session_id;
 use crate::terminal_host::orchestration::claude_subagent_roster::ClaudeSubagentRoster;
 use crate::terminal_host::session::{
@@ -22,6 +23,8 @@ impl ServerActor {
         mut event: AgentHookEvent,
         relayed: bool,
     ) {
+        // An older plugin or satellite may still report as `opencode2`.
+        event.agent_type = canonical_agent_type(&event.agent_type).to_string();
         let Ok(settings) = self.runtime_store.agent_status_hook_settings().await else {
             return;
         };

@@ -56,7 +56,7 @@ final class SectionSelectionControllerProvider
 }
 
 String _$sectionSelectionControllerHash() =>
-    r'c4604865605b3c3dc18acd87c2b7811edd94f3b1';
+    r'409ff3b7a27ce5ea6a611ba4f681a41c37a8992f';
 
 final class SectionSelectionControllerFamily extends $Family
     with

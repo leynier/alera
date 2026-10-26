@@ -44,7 +44,7 @@ pub(super) async fn hub_pull_request_payload(
     let linked = store
         .find_linked_review(workspace_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?;
+        .map_err(|error| HostError::from_anyhow(&error))?;
     let mut forwarded = payload.clone();
     forwarded[HUB_LINKED_REVIEW_KEY] = linked.as_ref().map_or(Value::Null, linked_review_json);
     if let Ok(settings) = store.effective_ai_assist_settings().await {
@@ -102,7 +102,7 @@ async fn store_linked_review(
         return store
             .remove_linked_review(workspace_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()));
+            .map_err(|error| HostError::from_anyhow(&error));
     };
     let text = |key: &str| {
         linked
@@ -124,7 +124,7 @@ async fn store_linked_review(
         })
         .await
         .map(|_| ())
-        .map_err(|error| HostError::state(error.to_string()))
+        .map_err(|error| HostError::from_anyhow(&error))
 }
 
 fn linked_review_json(review: &LinkedReview) -> Value {

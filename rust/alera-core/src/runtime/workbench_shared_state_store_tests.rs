@@ -213,6 +213,29 @@ async fn workspace_removal_confirmation_defaults_to_true() {
 }
 
 #[tokio::test]
+async fn agent_session_deletion_on_workspace_removal_defaults_off_and_round_trips() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+
+    assert!(
+        !store
+            .runtime_settings()
+            .await
+            .unwrap()
+            .delete_agent_sessions_on_workspace_removal
+    );
+    let settings = store
+        .set_delete_agent_sessions_on_workspace_removal(true)
+        .await
+        .unwrap();
+    assert!(settings.delete_agent_sessions_on_workspace_removal);
+    assert!(store
+        .delete_agent_sessions_on_workspace_removal()
+        .await
+        .unwrap());
+}
+
+#[tokio::test]
 async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();

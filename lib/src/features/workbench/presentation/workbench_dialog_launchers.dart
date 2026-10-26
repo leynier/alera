@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
@@ -43,12 +44,15 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
 
 part 'workbench_dialog_launchers_create_workspace.dart';
 part 'workbench_dialog_launchers_project_hosts.dart';
 part 'workbench_dialog_launchers_remote_hosts.dart';
 part 'workbench_dialog_launchers_remote_project.dart';
+
+final Logger _dialogLaunchersLogger = Logger('WorkbenchDialogLaunchers');
 
 /// Shared dialog flows for project/workspace creation and settings.
 ///
@@ -118,13 +122,15 @@ Future<void> showQuickOpenFlow(BuildContext context, WidgetRef ref) async {
         ref.read(activityNavigationProvider.notifier).close();
         return;
       }
-    } catch (_) {
-      if (!context.mounted) return;
-      AleraToast.show(
-        context,
-        message: 'Could not open the selected file.',
-        tone: AleraToastTone.error,
+    } catch (error, stackTrace) {
+      // The controller reports a failed open through `state.error`, which the
+      // shell shows; a toast here as well would show the failure twice.
+      _dialogLaunchersLogger.warning(
+        'Could not open the Quick Open selection',
+        error,
+        stackTrace,
       );
+      if (!context.mounted) return;
     }
   }
   if (previousFocus?.canRequestFocus ?? false) {
@@ -202,8 +208,12 @@ Future<void> showAddProjectFlow(
     try {
       await controller.addLocalProject(path: result.path, name: result.name);
       AleraToast.publish(message: 'Project added', tone: .success);
-    } catch (error) {
-      AleraToast.publish(message: error.toString(), tone: .error);
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: 'add project',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 }

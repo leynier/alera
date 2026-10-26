@@ -1,8 +1,10 @@
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_request_error.dart';
 
 /// Sentence-case text for an inbox failure, keyed by the runtime's error code.
-/// Anything without a known code keeps the runtime's own text.
-String inboxErrorMessage(Object error) {
+/// Anything without a known code keeps the runtime's own text, without Dart
+/// type prefixes.
+String inboxErrorMessage(Object? error) {
   if (error is RuntimeRequestError) {
     return switch (error.code) {
       'inbox_pending_limit' => 'This agent already has 100 questions waiting. Wait for it to read them or cancel some.',
@@ -20,9 +22,8 @@ String inboxErrorMessage(Object error) {
       'inbox_invalid_address' => 'Use an inbox address like ext:user, with lowercase letters, digits, dots, underscores or hyphens.',
       'inbox_invalid_expiry' => 'Choose an expiry between 1 minute and 7 days.',
       'message_too_large' => 'The question is too long.',
-      _ => error.message,
+      _ => userFacingErrorMessage(error),
     };
   }
-  if (error is StateError) return error.message;
-  return '$error';
+  return userFacingErrorMessage(error);
 }

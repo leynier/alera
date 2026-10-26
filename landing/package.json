@@ -1,6 +1,10 @@
 {
   "name": "alera-landing",
   "type": "module",
+  "engines": {
+    "node": "^22.23.4 || ^24.22.1 || ^26.12.1",
+    "bun": ">=1.4.4"
+  },
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
@@ -27,7 +31,7 @@
     "@astrojs/sitemap": "^3.7.3",
     "@lucide/astro": "1.33.0",
     "@vercel/analytics": "^2.0.1",
-    "astro": "^7.1.6",
+    "astro": "^7.3.3",
     "fflate": "0.8.3"
   },
   "devDependencies": {

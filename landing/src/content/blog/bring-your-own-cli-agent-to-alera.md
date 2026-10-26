@@ -2,11 +2,13 @@
 title: "Bring Your Own CLI Agent To Alera"
 description: "We did not want to invent another agent protocol. If it runs in a terminal, it runs in Alera - and the big ones get first-class treatment."
 pubDate: 2026-07-28T15:00:00.000Z
-updatedDate: 2026-09-28
+updatedDate: 2026-10-23
 tags: ["Agents", "Orchestration"]
 relatedDocs: ["agents", "agent-profiles", "agent-states"]
 ---
 
+> **Update, October 2026:** OpenCode v1 and OpenCode 2 are one agent again, `opencode`: both install as `opencode`, and Alera detects which one you have and launches it accordingly. Profiles and settings that still say `opencode2` keep working as `opencode`.
+>
 > **Update, September 2026:**
 >
 > - Live status for these agents is opt-in: every status hook is off by default until you turn it on under **Settings → Agents → Status Hooks** or with `alera runtime agents`.

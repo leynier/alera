@@ -55,7 +55,7 @@ extension _PromptWorkspaceDialogBranchLoading on _PromptWorkspaceDialogState {
         _update(() {
           _loadingBranches = false;
           _sourceBranch = null;
-          _error = error.toString();
+          _error = userFacingErrorMessage(error);
         });
       }
     }

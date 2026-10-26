@@ -233,7 +233,6 @@ bool isAgentStatusHookEnabled(
     AgentType.cursor => settings.cursor,
     AgentType.agy => settings.agy,
     AgentType.opencode => settings.opencode,
-    AgentType.opencode2 => settings.opencode2,
     AgentType.pi => settings.pi,
     AgentType.amp => settings.amp,
     AgentType.grok => settings.grok,

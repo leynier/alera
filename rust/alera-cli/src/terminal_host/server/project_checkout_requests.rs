@@ -15,7 +15,7 @@ impl ServerActor {
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            let result = super::requests::anyhow_json_result(
+            let result = super::requests::json_result(
                 crate::remote_project_checkout::register(
                     &store,
                     request,

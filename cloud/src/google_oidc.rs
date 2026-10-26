@@ -203,11 +203,14 @@ mod tests {
         Arc,
     };
 
+    use aws_lc_rs::{
+        encoding::{AsDer, Pkcs8V1Der},
+        rsa::{KeyPair, KeySize},
+        signature::KeyPair as _,
+    };
     use axum::{routing::get, Json, Router};
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-    use rsa::rand_core::OsRng;
-    use rsa::{pkcs1::EncodeRsaPrivateKey, traits::PublicKeyParts, RsaPrivateKey};
     use serde_json::json;
     use tokio::net::TcpListener;
     use url::Url;
@@ -339,15 +342,32 @@ mod tests {
     }
 
     fn test_rsa_key() -> TestRsaKey {
-        let private = RsaPrivateKey::new(&mut OsRng, 2048)
+        let private = KeyPair::generate(KeySize::Rsa2048)
             .unwrap_or_else(|error| panic!("generate ephemeral test RSA key: {error}"));
-        let der = private
-            .to_pkcs1_der()
+        let der: Pkcs8V1Der<'_> = private
+            .as_der()
             .unwrap_or_else(|error| panic!("encode ephemeral test RSA key: {error}"));
         TestRsaKey {
-            encoding: EncodingKey::from_rsa_der(der.as_bytes()),
-            modulus: URL_SAFE_NO_PAD.encode(private.n().to_bytes_be()),
-            exponent: URL_SAFE_NO_PAD.encode(private.e().to_bytes_be()),
+            encoding: EncodingKey::from_rsa_pem(
+                format!(
+                    "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----",
+                    base64::engine::general_purpose::STANDARD.encode(der.as_ref())
+                )
+                .as_bytes(),
+            )
+            .unwrap_or_else(|error| panic!("parse ephemeral test RSA key: {error}")),
+            modulus: URL_SAFE_NO_PAD.encode(
+                private
+                    .public_key()
+                    .modulus()
+                    .big_endian_without_leading_zero(),
+            ),
+            exponent: URL_SAFE_NO_PAD.encode(
+                private
+                    .public_key()
+                    .exponent()
+                    .big_endian_without_leading_zero(),
+            ),
         }
     }
 

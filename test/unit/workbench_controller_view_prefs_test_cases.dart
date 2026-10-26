@@ -415,9 +415,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_controller.state.bootstrapped, isTrue);
     expect(
       _controller.state.error,
-      contains(
-        'Failed to bootstrap workbench: Bad state: cannot list projects',
-      ),
+      'Could not load the workbench: Cannot list projects',
     );
   });
 
@@ -451,66 +449,66 @@ void _registerWorkbenchControllerViewPrefsTests() {
     },
   );
 
-  test('surfaces project and workspace action failures in state', () async {
-    await expectLater(_controller.addLocalProject(path: ''), throwsStateError);
-    expect(_controller.state.error, contains('Project path must not be empty'));
+  test(
+    'project and workspace actions leave reporting failures to callers',
+    () async {
+      await expectLater(
+        _controller.addLocalProject(path: ''),
+        throwsStateError,
+      );
+      expect(_controller.state.error, isNull);
 
-    await expectLater(
-      _controller.cloneProject(
-        gitUrl: 'https://example.com/repo.git',
-        destinationPath: '',
-      ),
-      throwsStateError,
-    );
-    expect(
-      _controller.state.error,
-      contains('Destination path must not be empty'),
-    );
+      await expectLater(
+        _controller.cloneProject(
+          gitUrl: 'https://example.com/repo.git',
+          destinationPath: '',
+        ),
+        throwsStateError,
+      );
+      expect(_controller.state.error, isNull);
 
-    await expectLater(
-      _controller.renameProject(projectId: 'missing', name: 'Renamed'),
-      throwsStateError,
-    );
-    expect(_controller.state.error, contains('project not found'));
+      await expectLater(
+        _controller.renameProject(projectId: 'missing', name: 'Renamed'),
+        throwsStateError,
+      );
+      expect(_controller.state.error, isNull);
 
-    _harness.projectRepository.removeError = StateError('cannot remove');
-    await expectLater(
-      _controller.removeProject(_harness.project.id),
-      throwsStateError,
-    );
-    expect(_controller.state.error, contains('cannot remove'));
+      _harness.projectRepository.removeError = StateError('cannot remove');
+      await expectLater(
+        _controller.removeProject(_harness.project.id),
+        throwsStateError,
+      );
+      expect(_controller.state.error, isNull);
 
-    await expectLater(
-      _controller.createWorkspace(
-        project: _harness.project,
-        sourceBranch: '',
-        newBranchName: 'feature/failure',
-      ),
-      throwsA(isA<WorkspaceException>()),
-    );
-    expect(_controller.state.error, contains('Source branch is required'));
+      await expectLater(
+        _controller.createWorkspace(
+          project: _harness.project,
+          sourceBranch: '',
+          newBranchName: 'feature/failure',
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+      expect(_controller.state.error, isNull);
 
-    await expectLater(
-      _controller.renameWorkspace(workspaceId: 'missing', name: 'Renamed'),
-      throwsA(isA<WorkspaceException>()),
-    );
-    expect(_controller.state.error, contains('Workspace not found'));
+      await expectLater(
+        _controller.renameWorkspace(workspaceId: 'missing', name: 'Renamed'),
+        throwsA(isA<WorkspaceException>()),
+      );
+      expect(_controller.state.error, isNull);
 
-    await _controller.bootstrap();
-    final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
+      await _controller.bootstrap();
+      final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
 
-    await expectLater(
-      _controller.deleteWorkspace(
-        project: _harness.project,
-        workspace: mainWorkspace,
-      ),
-      throwsA(isA<WorkspaceException>()),
-    );
-    expect(
-      _controller.state.error,
-      contains('Removing a shared workspace cannot delete its branch'),
-    );
-  });
+      await expectLater(
+        _controller.deleteWorkspace(
+          project: _harness.project,
+          workspace: mainWorkspace,
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+      expect(_controller.state.error, isNull);
+    },
+  );
 
   test('surfaces tab and layout failures in state', () async {
     await _controller.bootstrap();
@@ -524,7 +522,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       _controller.createTerminalTab(workspace),
       throwsStateError,
     );
-    expect(_controller.state.error, contains('cannot create tab'));
+    expect(_controller.state.error, contains('Cannot create tab'));
     _harness.workbenchRepository.upsertWorkspaceTabError = null;
 
     _harness.workbenchRepository.removeWorkspaceTabError = StateError(
@@ -537,7 +535,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       ),
       throwsStateError,
     );
-    expect(_controller.state.error, contains('cannot close tab'));
+    expect(_controller.state.error, contains('Cannot close tab'));
     _harness.workbenchRepository.removeWorkspaceTabError = null;
 
     await expectLater(
@@ -598,6 +596,6 @@ void _registerWorkbenchControllerViewPrefsTests() {
       ),
       throwsStateError,
     );
-    expect(_controller.state.error, contains('cannot split tab'));
+    expect(_controller.state.error, contains('Cannot split tab'));
   });
 }

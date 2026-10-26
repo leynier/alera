@@ -213,6 +213,7 @@ impl RuntimeStore {
         // this feature's schema.
         self.migrate_chat_orchestration().await?;
         self.migrate_agent_chats().await?;
+        self.migrate_agent_native_sessions().await?;
         Ok(())
     }
 

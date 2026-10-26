@@ -20,7 +20,6 @@ enum AgentType(this.key) {
   cursor('cursor'),
   agy('agy'),
   opencode('opencode'),
-  opencode2('opencode2'),
   pi('pi'),
   amp('amp'),
   grok('grok'),
@@ -28,9 +27,17 @@ enum AgentType(this.key) {
 
   final String key;
 
+  /// The key OpenCode 2 used while it was a separate agent. OpenCode v1 and
+  /// OpenCode 2 both install as `opencode` now, and an older runtime or a
+  /// stored profile may still name it.
+  static const legacyOpenCode2Key = 'opencode2';
+
   static AgentType? tryParse(Object? value) {
     if (value is! String) {
       return null;
+    }
+    if (value == legacyOpenCode2Key) {
+      return opencode;
     }
     for (final type in AgentType.values) {
       if (type.key == value) {

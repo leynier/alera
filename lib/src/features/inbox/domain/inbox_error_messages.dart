@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
@@ -34,5 +35,5 @@ String inboxErrorMessage(Object error) {
   if (error is TerminalHostConnectionClosedException) {
     return 'The Alera runtime is not reachable.';
   }
-  return error.toString();
+  return userFacingErrorMessage(error);
 }

@@ -5,6 +5,7 @@ const desktopPortableFields = <String, List<String>>{
   'general': [
     'confirmProjectRemoval',
     'confirmWorkspaceRemoval',
+    'deleteAgentSessionsOnWorkspaceRemoval',
     'showTrayIcon',
     'showDockBadge',
     'showTrayBadge',
@@ -40,6 +41,7 @@ const desktopPortableFields = <String, List<String>>{
   'aiTextGeneration': [
     'enabled',
     'autoGenerateAgentTitles',
+    'clarifyErrorMessages',
     'agent',
     'selectedModelByAgent',
     'selectedThinkingByModel',

@@ -15,7 +15,6 @@ const List<AgentType> spawnableAgentProfileAdapters = <AgentType>[
   AgentType.cursor,
   AgentType.agy,
   AgentType.opencode,
-  AgentType.opencode2,
   AgentType.pi,
   AgentType.amp,
   AgentType.grok,
@@ -31,7 +30,6 @@ const Map<AgentType, String> agentProfileDefaultCommands = <AgentType, String>{
   AgentType.cursor: 'cursor-agent',
   AgentType.agy: 'agy',
   AgentType.opencode: 'opencode',
-  AgentType.opencode2: 'opencode2',
   AgentType.pi: 'pi',
   AgentType.amp: 'amp',
   AgentType.grok: 'grok',
@@ -39,6 +37,9 @@ const Map<AgentType, String> agentProfileDefaultCommands = <AgentType, String>{
 };
 
 AgentType? agentProfileAdapterFromKey(String key) {
+  if (key == AgentType.legacyOpenCode2Key) {
+    return AgentType.opencode;
+  }
   for (final adapter in spawnableAgentProfileAdapters) {
     if (adapter.key == key) {
       return adapter;

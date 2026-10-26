@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_pull_request_actions.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_action_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/pull_request_agent_watch_scope_controller.dart';
@@ -316,8 +318,9 @@ class const PullRequestPanelActions({
     } else {
       try {
         list = await ref.read(workspaceListControllerProvider(hostId).future);
-      } on Object catch (error) {
-        _report(messenger, pullRequestActionErrorMessage(error));
+      } on Object catch (error, stackTrace) {
+        logActionFailure('load workspaces', error, stackTrace);
+        _report(messenger, runtimeActionErrorMessage(error));
         return;
       }
     }
@@ -350,8 +353,9 @@ class const PullRequestPanelActions({
       if (context.mounted) {
         await navigator.maybePop();
       }
-    } on Object catch (error) {
-      _report(messenger, pullRequestActionErrorMessage(error));
+    } on Object catch (error, stackTrace) {
+      logActionFailure('archive the workspace', error, stackTrace);
+      _report(messenger, runtimeActionErrorMessage(error));
     }
   }
 
@@ -365,8 +369,9 @@ class const PullRequestPanelActions({
     } else {
       try {
         list = await ref.read(workspaceListControllerProvider(hostId).future);
-      } on Object catch (error) {
-        _report(messenger, pullRequestActionErrorMessage(error));
+      } on Object catch (error, stackTrace) {
+        logActionFailure('load workspaces', error, stackTrace);
+        _report(messenger, runtimeActionErrorMessage(error));
         return;
       }
     }
@@ -395,8 +400,9 @@ class const PullRequestPanelActions({
       if (removed && context.mounted) {
         await navigator.maybePop();
       }
-    } on Object catch (error) {
-      _report(messenger, pullRequestActionErrorMessage(error));
+    } on Object catch (error, stackTrace) {
+      logActionFailure('remove the workspace', error, stackTrace);
+      _report(messenger, runtimeActionErrorMessage(error));
     }
   }
 

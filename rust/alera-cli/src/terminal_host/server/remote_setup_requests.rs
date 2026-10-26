@@ -32,7 +32,7 @@ impl ServerActor {
             .runtime_store
             .find_workspace(&workspace_id)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?
+            .map_err(|error| HostError::from_anyhow(&error))?
             .ok_or_else(|| HostError::state("Workspace no longer exists"))?;
         if workspace.host_id == alera_core::runtime::LOCAL_HOST_ID {
             return Ok(false);

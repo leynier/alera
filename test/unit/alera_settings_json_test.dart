@@ -13,6 +13,7 @@ void main() {
         general: GeneralSettings(
           confirmProjectRemoval: false,
           confirmWorkspaceRemoval: false,
+          deleteAgentSessionsOnWorkspaceRemoval: true,
           keepAliveEnabled: true,
           showTrayIcon: false,
           showDockBadge: false,
@@ -92,6 +93,7 @@ void main() {
 
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
+      expect(restored.general.deleteAgentSessionsOnWorkspaceRemoval, isTrue);
       expect(restored.general.keepAliveEnabled, isTrue);
       expect(restored.general.showTrayIcon, isFalse);
       expect(restored.general.showDockBadge, isFalse);

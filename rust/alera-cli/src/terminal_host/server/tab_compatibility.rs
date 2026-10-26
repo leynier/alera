@@ -13,7 +13,7 @@ pub(super) const RUN_ID_TAB_PAYLOAD_KEY: &str = "runId";
 /// The run task a worker terminal was created for.
 pub(super) const RUN_TASK_ID_TAB_PAYLOAD_KEY: &str = "runTaskId";
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 14] = [
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 15] = [
     HANDOFF_SOURCE_WORKSPACE_IDS_KEY,
     "agentProfileLaunchV1",
     "initialPrompt",
@@ -26,6 +26,7 @@ const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 14] = [
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_ID_KEY,
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_SESSION_AGENT_KEY,
     crate::terminal_host::orchestration::agent_session_resume::AGENT_NATIVE_CCS_PROFILE_KEY,
+    crate::terminal_host::orchestration::agent_session_settings::AGENT_NATIVE_SESSION_SETTINGS_KEY,
     RUN_ID_TAB_PAYLOAD_KEY,
     RUN_TASK_ID_TAB_PAYLOAD_KEY,
 ];

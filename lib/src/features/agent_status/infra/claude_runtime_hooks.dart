@@ -64,10 +64,6 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     if (existing == null) {
       return false;
     }
-    if (baseConfig == null &&
-        _managedHooksComplete(existing, descriptor.managedScriptFileNames)) {
-      return true;
-    }
     final nextConfig = <String, Object?>{...existing};
     final hooks = _hooksMap(nextConfig);
     for (final entry in hooks.entries.toList(growable: false)) {
@@ -97,8 +93,34 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
       ];
     }
     nextConfig['hooks'] = hooks;
+    if (baseConfig == null && _sameSettingsJson(existing, nextConfig)) {
+      return true;
+    }
     _writeJsonObject(settingsPath, nextConfig);
     return true;
+  }
+
+  bool _sameSettingsJson(Object? left, Object? right) {
+    if (left is Map && right is Map) {
+      return left.length == right.length &&
+          left.entries.every(
+            (entry) =>
+                right.containsKey(entry.key) &&
+                _sameSettingsJson(entry.value, right[entry.key]),
+          );
+    }
+    if (left is List && right is List) {
+      if (left.length != right.length) {
+        return false;
+      }
+      for (var index = 0; index < left.length; index++) {
+        if (!_sameSettingsJson(left[index], right[index])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return left == right;
   }
 
   bool _removeManagedHooksAtSettings({
@@ -222,8 +244,9 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
             'ALERA_AGENT_HOOK_EVENT=${_shQuote(event.eventName)} '
             '/bin/sh ${_shQuote(descriptor.scriptPath)}; fi',
       ManagedAgentHookPlatform.windows =>
-        'cmd /d /s /c "if exist ""${descriptor.scriptPath}"" '
-            '(set ALERA_AGENT_HOOK_EVENT=${event.eventName}&& call ""${descriptor.scriptPath}"")"',
+        'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass '
+            '-File ${_shQuote(descriptor.scriptPath)} '
+            '-HookEventName ${event.eventName}',
     };
   }
 
@@ -241,19 +264,7 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
 
   String _managedScript() {
     if (_platform == ManagedAgentHookPlatform.windows) {
-      return <String>[
-        '@echo off',
-        'setlocal',
-        'if defined ALERA_AGENT_HOOK_ENDPOINT if exist "%ALERA_AGENT_HOOK_ENDPOINT%" call "%ALERA_AGENT_HOOK_ENDPOINT%" 2>nul',
-        'if "%ALERA_AGENT_HOOK_PORT%"=="" exit /b 0',
-        'if "%ALERA_AGENT_HOOK_TOKEN%"=="" exit /b 0',
-        'if "%ALERA_TERMINAL_SESSION_ID%"=="" exit /b 0',
-        'if "%ALERA_WORKSPACE_ID%"=="" exit /b 0',
-        'if "%ALERA_TAB_ID%"=="" exit /b 0',
-        _windowsPostCommand(),
-        'exit /b 0',
-        '',
-      ].join('\r\n');
+      return _claudeWindowsHookScript;
     }
     return <String>[
       '#!/bin/sh',
@@ -281,10 +292,6 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     ].join('\n');
   }
 
-  String _windowsPostCommand() {
-    return 'powershell -NoProfile -ExecutionPolicy Bypass -Command "\$utf8=[System.Text.UTF8Encoding]::new(\$false); [Console]::InputEncoding=\$utf8; [Console]::OutputEncoding=\$utf8; \$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace(\$inputData)) { exit 0 }; try { \$body=@{ terminalSessionId=\$env:ALERA_TERMINAL_SESSION_ID; workspaceId=\$env:ALERA_WORKSPACE_ID; tabId=\$env:ALERA_TAB_ID; hookEventName=\$env:ALERA_AGENT_HOOK_EVENT; version=\$env:ALERA_AGENT_HOOK_VERSION; payload=(\$inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; \$bodyBytes=\$utf8.GetBytes(\$body); Invoke-WebRequest -UseBasicParsing -Method Post -Uri (\'http://127.0.0.1:\' + \$env:ALERA_AGENT_HOOK_PORT + \'/hook/claude\') -ContentType \'application/json; charset=utf-8\' -Headers @{ \'$aleraAgentHookTokenHeader\'=\$env:ALERA_AGENT_HOOK_TOKEN } -Body \$bodyBytes | Out-Null } catch {}"';
-  }
-
   Map<String, Object?> _hooksMap(Map<String, Object?> config) {
     final hooks = config['hooks'];
     if (hooks is Map) {
@@ -301,20 +308,6 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
       for (final item in value)
         if (item is Map) Map<String, Object?>.from(item),
     ];
-  }
-
-  bool _managedHooksComplete(
-    Map<String, Object?> config,
-    Set<String> scriptFileNames,
-  ) {
-    final hooks = _hooksMap(config);
-    return _claudeEvents.every((event) {
-      final definitions = _definitionsFromValue(hooks[event.eventName]);
-      return definitions.any(
-        (definition) =>
-            _definitionHasManagedCommand(definition, scriptFileNames),
-      );
-    });
   }
 
   bool _definitionHasManagedCommand(

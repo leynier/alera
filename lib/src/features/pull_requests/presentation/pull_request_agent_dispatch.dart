@@ -1,9 +1,10 @@
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
 import 'package:alera/src/features/agent_task_dispatch/presentation/agent_task_dispatch_launcher.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_ship_follow_up_runner.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
-import 'package:alera/src/features/pull_requests/application/pull_request_agent_watch_providers.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_prompts.dart';
@@ -147,14 +148,12 @@ Future<void> startPullRequestAgentWatch({
           watchScope: watchScope,
           lastDispatch: dispatched,
         );
-  } on Object catch (error) {
-    if (context.mounted) {
-      AleraToast.show(
-        context,
-        message: 'Could not start watching. $error',
-        tone: .error,
-      );
-    }
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      action: 'start watching',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 

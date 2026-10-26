@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
@@ -44,11 +45,12 @@ Future<void> closeWorkspaceAgentTerminal(
     await workspaceClient.removeTab(status.tabId);
     ref.invalidate(workspaceListControllerProvider(hostId));
     ref.invalidate(tabsControllerProvider(hostId, workspaceId));
-  } on Object catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not close agent terminal: $error')),
-      );
-    }
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      context.mounted ? ScaffoldMessenger.of(context) : null,
+      action: 'close agent terminal',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }

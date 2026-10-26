@@ -5,6 +5,8 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/remote_hosts/application/remote_host_label_provider.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
@@ -87,7 +89,7 @@ class const AgentQuotaStatusBar({super.key, final Widget? trailing})
         hostLabel: hostLabel,
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
-        error: error.toString(),
+        error: userFacingErrorMessage(error),
         onRefresh: refresh,
         onTogglePinned: togglePinned,
         trailing: trailing,

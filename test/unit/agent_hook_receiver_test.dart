@@ -228,7 +228,7 @@ void main() {
     });
 
     test(
-      'accepts Cursor, OpenCode, OpenCode 2, Pi, Amp, and Grok hook routes',
+      'accepts Cursor, OpenCode (both routes), Pi, Amp, and Grok hook routes',
       () async {
         final cursorResponse = await _post(
           receiver.endpoint!.port,
@@ -322,7 +322,8 @@ void main() {
         expect(sink.events.map((event) => event.agentType), <AgentType>[
           AgentType.cursor,
           AgentType.opencode,
-          AgentType.opencode2,
+          // The route the OpenCode 2 plugin of older versions posts to.
+          AgentType.opencode,
           AgentType.pi,
           AgentType.amp,
           AgentType.grok,

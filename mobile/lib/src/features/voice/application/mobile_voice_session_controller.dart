@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/voice/application/mobile_voice_session_state.dart';
@@ -90,11 +92,12 @@ class MobileVoiceSessionController extends _$MobileVoiceSessionController
         active: state.active,
         busy: state.busy,
       );
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('load the voice session', error, stackTrace);
       if (!ref.mounted) {
         return;
       }
-      state = MobileVoiceSessionState(lastError: error.toString());
+      state = MobileVoiceSessionState(lastError: userFacingErrorMessage(error));
     }
   }
 
@@ -181,7 +184,8 @@ class MobileVoiceSessionController extends _$MobileVoiceSessionController
         return;
       }
       state = _fromStatus(status, supported: true, active: true, busy: false);
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('start the voice session', error, stackTrace);
       if (epoch != _captureEpoch) {
         return;
       }
@@ -220,7 +224,7 @@ class MobileVoiceSessionController extends _$MobileVoiceSessionController
     }
     state = MobileVoiceSessionState(
       supported: state.supported,
-      lastError: error.toString(),
+      lastError: userFacingErrorMessage(error),
     );
     if (status != null) {
       state = _fromStatus(
@@ -228,7 +232,7 @@ class MobileVoiceSessionController extends _$MobileVoiceSessionController
         supported: true,
         active: false,
         busy: false,
-      ).copyWith(lastError: error.toString());
+      ).copyWith(lastError: userFacingErrorMessage(error));
     }
   }
 

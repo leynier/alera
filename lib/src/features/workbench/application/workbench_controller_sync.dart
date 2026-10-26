@@ -24,7 +24,7 @@ mixin _WorkbenchControllerSync
         .catchError((Object error) {
           if (!_disposed) {
             state = state.copyWith(
-              error: 'Could not reconcile workspace state: $error',
+              error: actionFailureMessage('refresh workspace state', error),
             );
           }
         });

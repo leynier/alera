@@ -9,7 +9,6 @@ const List<String> supportedAgentHooks = <String>[
   'cursor',
   'agy',
   'opencode',
-  'opencode2',
   'pi',
   'amp',
   'grok',
@@ -23,7 +22,6 @@ const Map<String, String> agentHookLabels = <String, String>{
   'cursor': 'Cursor',
   'agy': 'Antigravity',
   'opencode': 'OpenCode',
-  'opencode2': 'OpenCode 2',
   'pi': 'Pi',
   'amp': 'Amp',
   'grok': 'Grok Build',
@@ -34,6 +32,9 @@ class const PortableHostSettings({
   required final String? workspaceDirectory,
   required final bool confirmProjectRemoval,
   required final bool confirmWorkspaceRemoval,
+
+  /// Null when the host predates the setting and would reject an update.
+  final bool? deleteAgentSessionsOnWorkspaceRemoval,
   required final Map<String, bool> agentStatusHooks,
   required final QuotaSettings agentQuotas,
   required final MobileVoiceSettings voice,
@@ -44,8 +45,15 @@ class const PortableHostSettings({
       workspaceDirectory: json['workspaceDirectory'] as String?,
       confirmProjectRemoval: json['confirmProjectRemoval'] != false,
       confirmWorkspaceRemoval: json['confirmWorkspaceRemoval'] != false,
+      deleteAgentSessionsOnWorkspaceRemoval:
+          json['deleteAgentSessionsOnWorkspaceRemoval'] as bool?,
       agentStatusHooks: <String, bool>{
-        for (final agent in supportedAgentHooks) agent: hooks[agent] == true,
+        for (final agent in supportedAgentHooks)
+          agent:
+              hooks[agent] == true ||
+              // OpenCode v1 and OpenCode 2 share one toggle now; a runtime
+              // may still report the retired `opencode2` one.
+              (agent == 'opencode' && hooks['opencode2'] == true),
       },
       agentQuotas: .fromJson(json.mapValue('agentQuotas')),
       voice: MobileVoiceSettings.fromJson(json.mapValue('voice')),
@@ -57,6 +65,7 @@ class const PortableHostSettings({
     bool clearWorkspaceDirectory = false,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? deleteAgentSessionsOnWorkspaceRemoval,
     Map<String, bool>? agentStatusHooks,
     QuotaSettings? agentQuotas,
     MobileVoiceSettings? voice,
@@ -69,6 +78,9 @@ class const PortableHostSettings({
           confirmProjectRemoval ?? this.confirmProjectRemoval,
       confirmWorkspaceRemoval:
           confirmWorkspaceRemoval ?? this.confirmWorkspaceRemoval,
+      deleteAgentSessionsOnWorkspaceRemoval:
+          deleteAgentSessionsOnWorkspaceRemoval ??
+          this.deleteAgentSessionsOnWorkspaceRemoval,
       agentStatusHooks: agentStatusHooks ?? this.agentStatusHooks,
       agentQuotas: agentQuotas ?? this.agentQuotas,
       voice: voice ?? this.voice,

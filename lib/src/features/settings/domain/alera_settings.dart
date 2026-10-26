@@ -12,6 +12,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 
 part 'agent_quota_settings.dart';
+part 'agent_status_hook_settings.dart';
 part 'alera_settings.mapper.dart';
 
 @MappableEnum()
@@ -209,51 +210,6 @@ class const _LegacyKeepRuntimeOpenHook() extends MappingHook {
 }
 
 @MappableClass()
-class const AgentStatusHookSettings({
-  this.codex = false,
-  this.claude = false,
-  this.copilot = false,
-  this.cursor = false,
-  this.agy = false,
-  this.opencode = false,
-  this.opencode2 = false,
-  this.pi = false,
-  this.amp = false,
-  this.grok = false,
-  this.fx = false,
-}) with AgentStatusHookSettingsMappable {
-  final bool codex;
-  final bool claude;
-  final bool copilot;
-  final bool cursor;
-  final bool agy;
-  final bool opencode;
-  final bool opencode2;
-  final bool pi;
-  final bool amp;
-  final bool grok;
-  final bool fx;
-
-  bool get anyEnabled =>
-      codex ||
-      claude ||
-      copilot ||
-      cursor ||
-      agy ||
-      opencode ||
-      opencode2 ||
-      pi ||
-      amp ||
-      grok ||
-      fx;
-
-  static const AgentStatusHookSettings defaults = AgentStatusHookSettings();
-
-  factory fromJson(Map<String, Object?> json) =>
-      AgentStatusHookSettingsMapper.fromMap(Map<String, dynamic>.from(json));
-}
-
-@MappableClass()
 class const EditorSettings({
   this.tabSize = 4,
   this.themeName = EditorSyntaxThemeNames.alera,
@@ -296,6 +252,7 @@ class const GeneralSettings({
   this.starClicked = false,
   this.confirmProjectRemoval = true,
   this.confirmWorkspaceRemoval = true,
+  this.deleteAgentSessionsOnWorkspaceRemoval = false,
   this.keepAliveEnabled = false,
   this.showTrayIcon = true,
   this.showDockBadge = true,
@@ -318,6 +275,9 @@ class const GeneralSettings({
 
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
+
+  /// Delete the local agent conversations of a workspace when it is removed.
+  final bool deleteAgentSessionsOnWorkspaceRemoval;
 
   /// Prevent idle and display sleep while Alera is running.
   final bool keepAliveEnabled;

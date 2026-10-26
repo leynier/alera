@@ -104,16 +104,6 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         accepts_queued_input: false,
     },
     AgentAdapter {
-        // OpenCode 2 installs as `opencode2` beside v1's `opencode`.
-        agent_type: "opencode2",
-        default_command: "opencode2",
-        force_submit: true,
-        interrupt_bytes: CTRL_C,
-        startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
-        session_resume: Some(AgentSessionResumeShape::Flag("--session")),
-        accepts_queued_input: false,
-    },
-    AgentAdapter {
         agent_type: "pi",
         default_command: "pi",
         force_submit: true,
@@ -153,7 +143,10 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
     },
 ];
 
+pub use alera_core::runtime::canonical_agent_type;
+
 pub fn adapter_for(agent_type: &str) -> Option<&'static AgentAdapter> {
+    let agent_type = canonical_agent_type(agent_type);
     AGENT_ADAPTERS
         .iter()
         .find(|adapter| adapter.agent_type == agent_type)
@@ -172,16 +165,7 @@ mod tests {
         assert_eq!(
             types,
             [
-                "codex",
-                "claude",
-                "copilot",
-                "cursor",
-                "agy",
-                "opencode",
-                "opencode2",
-                "pi",
-                "amp",
-                "grok",
+                "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok",
                 "fx"
             ]
         );
@@ -208,7 +192,6 @@ mod tests {
                     AgentStartupPrompt::LongOption("--prompt-interactive")
                 ),
                 ("opencode", AgentStartupPrompt::LongOption("--prompt")),
-                ("opencode2", AgentStartupPrompt::LongOption("--prompt")),
                 ("pi", AgentStartupPrompt::Positional),
                 ("amp", AgentStartupPrompt::StdinScript),
                 ("grok", AgentStartupPrompt::PositionalAfterTerminator),
@@ -232,7 +215,6 @@ mod tests {
                 ("cursor", false),
                 ("agy", false),
                 ("opencode", false),
-                ("opencode2", false),
                 ("pi", false),
                 ("amp", false),
                 ("grok", false),
@@ -262,10 +244,6 @@ mod tests {
                 ("cursor", Some(AgentSessionResumeShape::Flag("--resume"))),
                 ("agy", Some(AgentSessionResumeShape::Flag("--conversation"))),
                 ("opencode", Some(AgentSessionResumeShape::Flag("--session"))),
-                (
-                    "opencode2",
-                    Some(AgentSessionResumeShape::Flag("--session"))
-                ),
                 ("pi", Some(AgentSessionResumeShape::Flag("--session"))),
                 (
                     "amp",
@@ -276,6 +254,21 @@ mod tests {
                 ("grok", Some(AgentSessionResumeShape::Flag("--resume"))),
                 ("fx", Some(AgentSessionResumeShape::Flag("--resume"))),
             ]
+        );
+    }
+
+    #[test]
+    fn the_retired_opencode2_type_resolves_to_opencode() {
+        assert_eq!(canonical_agent_type("opencode2"), "opencode");
+        assert_eq!(canonical_agent_type("claude"), "claude");
+        // Built from the registry alone, not the alias.
+        assert!(AGENT_ADAPTERS
+            .iter()
+            .all(|adapter| adapter.agent_type != "opencode2"));
+        assert_eq!(adapter_for("opencode2"), adapter_for("opencode"));
+        assert_eq!(
+            adapter_for("opencode2").unwrap().default_command,
+            "opencode"
         );
     }
 }

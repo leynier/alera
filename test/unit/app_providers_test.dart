@@ -668,7 +668,6 @@ void main() {
         cursor: true,
         agy: true,
         opencode: true,
-        opencode2: true,
         pi: true,
         amp: true,
         grok: true,

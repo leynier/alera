@@ -1,12 +1,14 @@
 use anyhow::Result;
 use sqlx::Row;
 
-use super::{parse_timestamp, AgentProfile, AgentProfileLaunchMode, RuntimeStoreError};
+use super::{
+    canonical_agent_type, parse_timestamp, AgentProfile, AgentProfileLaunchMode, RuntimeStoreError,
+};
 
 pub(super) fn normalize_agent_profile(mut profile: AgentProfile) -> Result<AgentProfile> {
     profile.id = profile.id.trim().to_string();
     profile.name = profile.name.trim().to_string();
-    profile.agent_type = profile.agent_type.trim().to_string();
+    profile.agent_type = canonical_agent_type(profile.agent_type.trim()).to_string();
     profile.command = profile.command.trim().to_string();
     profile.custom_prompt = profile.custom_prompt.trim().to_string();
     profile.description = profile.description.trim().to_string();
@@ -58,7 +60,7 @@ pub(super) fn agent_profile_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Age
         id: row.try_get("id")?,
         name: row.try_get("name")?,
         sort_order: row.try_get("sortOrder")?,
-        agent_type: row.try_get("agentType")?,
+        agent_type: canonical_agent_type(&row.try_get::<String, _>("agentType")?).to_string(),
         command: row.try_get("command")?,
         launch_mode: row
             .try_get::<String, _>("launchMode")?

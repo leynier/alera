@@ -72,6 +72,9 @@ class RuntimeSettingsRepository({
           confirmWorkspaceRemoval:
               runtime['confirmWorkspaceRemoval'] as bool? ??
               legacy.general.confirmWorkspaceRemoval,
+          deleteAgentSessionsOnWorkspaceRemoval:
+              runtime['deleteAgentSessionsOnWorkspaceRemoval'] as bool? ??
+              legacy.general.deleteAgentSessionsOnWorkspaceRemoval,
         ),
         agents: legacy.agents.copyWith(
           defaultAgentProfileId: defaultAgentProfileId,
@@ -115,6 +118,8 @@ class RuntimeSettingsRepository({
       'workspaceDirectory': settings.general.workspaceDirectory,
       'confirmProjectRemoval': settings.general.confirmProjectRemoval,
       'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
+      'deleteAgentSessionsOnWorkspaceRemoval':
+          settings.general.deleteAgentSessionsOnWorkspaceRemoval,
       'defaultAgentProfileId': settings.agents.defaultAgentProfileId,
       'agentStatusHooks': settings.agents.agentStatusHooks.toMap(),
       'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
@@ -139,6 +144,7 @@ Map<String, Object?> _runtimeAiAssistSettings(AiAssistSettings settings) {
   return <String, Object?>{
     'enabled': settings.enabled,
     'autoGenerateAgentTitles': settings.autoGenerateAgentTitles,
+    'clarifyErrorMessages': settings.clarifyErrorMessages,
     'agent': settings.agent.key,
     'selectedModelByAgent': <String, String>{
       for (final entry in settings.selectedModelByAgent.entries)

@@ -181,6 +181,7 @@ impl ServerActor {
 
 pub(super) fn profile_from_payload(payload: &Value) -> HostResult<AgentProfile> {
     let agent_type = require_profile_string(payload, "agentType")?;
+    let agent_type = alera_core::runtime::canonical_agent_type(&agent_type).to_string();
     // The store cannot validate this: alera-core does not know the adapter
     // registry. A profile pointing at an unknown adapter would spawn a worker
     // the host has no way to make ready.

@@ -97,7 +97,7 @@ void main() {
     );
     expect(
       userFacingExceptionMessage(Exception('source branch is required')),
-      'source branch is required',
+      'Source branch is required',
     );
   });
 

@@ -2,11 +2,15 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_skill_install_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('AleraSkillTerminalInstallControl');
 
 typedef AleraSkillTerminalRunner = Future<void> Function(
   BuildContext context,
@@ -84,11 +88,12 @@ class _AleraSkillTerminalInstallControlState
       if (mounted) {
         setState(() => _status = followUp);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not install the skill', error, stackTrace);
       if (mounted) {
         setState(() {
           _status = AleraSkillInstallStatus(
-            'Install failed: $error',
+            'Install failed: ${userFacingErrorMessage(error)}',
             needsAttention: true,
           );
         });

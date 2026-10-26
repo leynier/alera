@@ -273,13 +273,11 @@ fn transcribe_inner(
     let duration = ((samples.len() as u128 * 1000) / 16_000).min(i64::MAX as u128) as i64;
     let mut audio = vec![0.0; samples.len()];
     convert_integer_to_float_audio(&samples, &mut audio)
-        .map_err(|error| HostError::state(format!("audio decode failed: {error:?}")))?;
+        .map_err(|error| HostError::state(format!("audio decode failed: {error}")))?;
     let context = WhisperContext::new_with_params(model, desktop_whisper_context_parameters())
-        .map_err(|error| {
-            HostError::state(format!("Whisper model could not be loaded: {error:?}"))
-        })?;
+        .map_err(|error| HostError::state(format!("Whisper model could not be loaded: {error}")))?;
     let mut state = context.create_state().map_err(|error| {
-        HostError::state(format!("Whisper state could not be created: {error:?}"))
+        HostError::state(format!("Whisper state could not be created: {error}"))
     })?;
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 0 });
     params.set_n_threads(
@@ -302,13 +300,13 @@ fn transcribe_inner(
         if cancelled.load(Ordering::Relaxed) {
             HostError::state("dictation was cancelled")
         } else {
-            HostError::state(format!("Whisper inference failed: {error:?}"))
+            HostError::state(format!("Whisper inference failed: {error}"))
         }
     })?;
     let mut text = String::new();
     for segment in state.as_iter() {
         text.push_str(&segment.to_str_lossy().map_err(|error| {
-            HostError::state(format!("Whisper returned invalid text: {error:?}"))
+            HostError::state(format!("Whisper returned invalid text: {error}"))
         })?);
     }
     let text = text.trim().to_string();

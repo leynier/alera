@@ -19,7 +19,7 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
       return discovered;
     }
     return switch (adapter) {
-      AgentType.opencode || AgentType.opencode2 => const <ManagedAgentOption>[
+      AgentType.opencode => const <ManagedAgentOption>[
         ManagedAgentOption('build', 'Build'),
       ],
       _ => const <ManagedAgentOption>[],
@@ -31,9 +31,7 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
   }
 
   bool _canDiscoverPersonas(AgentType adapter) {
-    return adapter == AgentType.agy ||
-        adapter == AgentType.opencode ||
-        adapter == AgentType.opencode2;
+    return adapter == AgentType.agy || adapter == AgentType.opencode;
   }
 
   void _scheduleDiscovery(AgentType adapter) {
@@ -78,9 +76,15 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
           _discoveryErrors[adapter] = result.error!;
         }
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not discover models', error, stackTrace);
       if (mounted) {
-        _setDiscoveryState(() => _discoveryErrors[adapter] = error.toString());
+        _setDiscoveryState(
+          () => _discoveryErrors[adapter] = actionFailureMessage(
+            'discover models',
+            error,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -114,9 +118,15 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
           _discoveryErrors[adapter] = result.error!;
         }
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Could not discover personas', error, stackTrace);
       if (mounted) {
-        _setDiscoveryState(() => _discoveryErrors[adapter] = error.toString());
+        _setDiscoveryState(
+          () => _discoveryErrors[adapter] = actionFailureMessage(
+            'discover personas',
+            error,
+          ),
+        );
       }
     } finally {
       if (mounted) {

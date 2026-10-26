@@ -518,13 +518,9 @@ class _FakeAgentHookServer implements AgentHookServer {
     if (!path.startsWith('/hook/')) {
       return null;
     }
-    final key = path.substring('/hook/'.length);
-    for (final agentType in AgentType.values) {
-      if (agentType.key == key) {
-        return agentType;
-      }
-    }
-    return null;
+    // Mirrors the native receiver, which still serves the retired
+    // `/hook/opencode2` route as OpenCode.
+    return AgentType.tryParse(path.substring('/hook/'.length));
   }
 }
 

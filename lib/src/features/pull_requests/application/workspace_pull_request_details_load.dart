@@ -15,8 +15,12 @@ Future<({List<ReviewCheck> checks, String? error})> _loadReviewChecks(
       ),
       error: null,
     );
-  } catch (error) {
-    return (checks: const <ReviewCheck>[], error: error.toString());
+  } catch (error, stackTrace) {
+    _log.warning('Could not load pull request checks', error, stackTrace);
+    return (
+      checks: const <ReviewCheck>[],
+      error: userFacingErrorMessage(error),
+    );
   }
 }
 
@@ -38,8 +42,12 @@ Future<({List<ReviewComment> comments, String? error})> _loadReviewComments(
       ),
       error: null,
     );
-  } catch (error) {
-    return (comments: const <ReviewComment>[], error: error.toString());
+  } catch (error, stackTrace) {
+    _log.warning('Could not load pull request comments', error, stackTrace);
+    return (
+      comments: const <ReviewComment>[],
+      error: userFacingErrorMessage(error),
+    );
   }
 }
 

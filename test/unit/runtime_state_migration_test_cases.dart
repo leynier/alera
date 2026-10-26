@@ -7,6 +7,7 @@ void _registerRuntimeStateMigrationTests() {
       ..settings = AleraSettings.defaults.copyWith(
         aiAssist: const AiAssistSettings(
           agent: .chatgpt,
+          clarifyErrorMessages: true,
           selectedThinkingByModel: <String, String>{'gpt-6.1-sol': 'high'},
           selectedThinkingByOperation: <AiAssistOperation, Map<String, String>>{
             AiAssistOperation.commitMessage: <String, String>{
@@ -74,6 +75,7 @@ void _registerRuntimeStateMigrationTests() {
         .map((payload) => payload['aiTextGeneration'])
         .whereType<Map<String, Object?>>()
         .single;
+    expect(aiAssistPayload['clarifyErrorMessages'], isTrue);
     expect(aiAssistPayload['selectedThinkingByModel'], <String, String>{
       'gpt-6.1-sol': 'high',
     });

@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/text_actions/application/text_action_prompt.dart';
 import 'package:alera/src/features/text_actions/application/text_action_replacement.dart';
@@ -194,13 +195,12 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
       AleraToast.publish(message: 'Text action applied.', tone: .success);
     } on AiAssistCanceledException {
       AleraToast.publish(message: 'Text action was canceled.');
-    } on AiAssistException catch (error) {
-      AleraToast.publish(
-        message: 'Text action failed: ${error.message}',
-        tone: .error,
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'run the text action',
+        error: error,
+        stackTrace: stackTrace,
       );
-    } on Object catch (error) {
-      AleraToast.publish(message: 'Text action failed: $error', tone: .error);
     } finally {
       _runningTargets.remove(target.identity);
     }

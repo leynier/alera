@@ -17,21 +17,18 @@ AiAssistAgentSpec openCodeAiAssistSpec({
       ),
     ],
     defaultModelId: 'opencode/deepseek-v4-flash-free',
+    // The v1 shape; a run replaces it with the installed generation's
+    // (see `_planCommand`), since OpenCode 2 rejects `--variant`.
     buildArgs:
         ({
           required prompt,
           required model,
           thinkingLevel,
           required timeoutSeconds,
-        }) => <String>[
-          'run',
-          '--model',
-          model,
-          '--agent',
-          'build',
-          '--format',
-          'default',
-          if (thinkingLevel != null) ...<String>['--variant', thinkingLevel],
-        ],
+        }) => openCodeRunArguments(
+          model: model,
+          thinkingLevel: thinkingLevel,
+          generation: OpenCodeGeneration.v1,
+        ),
   );
 }

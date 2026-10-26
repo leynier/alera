@@ -2,7 +2,7 @@ part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerCreateWorkspaceTests() {
   test(
-    'createWorkspace surfaces service failures in state and rethrows',
+    'createWorkspace rethrows service failures without storing them in state',
     () async {
       _harness.gitBackend.failingWorktreeAddBranches.add('feature/broken');
 
@@ -15,7 +15,7 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
         throwsA(isA<Exception>()),
       );
 
-      expect(_controller.state.error, isNotNull);
+      expect(_controller.state.error, isNull);
       expect(
         _controller.state
             .workspacesFor(_harness.project.id)
@@ -102,14 +102,9 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
   );
 
   test('createWorkspace clears a previous error on success', () async {
-    _harness.gitBackend.failingWorktreeAddBranches.add('feature/first-try');
     await expectLater(
-      _controller.createWorkspace(
-        project: _harness.project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/first-try',
-      ),
-      throwsA(isA<Exception>()),
+      _controller.renameWorkspaceTab(tabId: 'missing', title: '   '),
+      throwsStateError,
     );
     expect(_controller.state.error, isNotNull);
 

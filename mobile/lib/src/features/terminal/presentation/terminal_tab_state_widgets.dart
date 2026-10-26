@@ -194,7 +194,7 @@ class const _SessionError({
             ),
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
-              error.toString(),
+              userFacingErrorMessage(error),
               textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

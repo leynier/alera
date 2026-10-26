@@ -206,16 +206,17 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
         previous: previous,
         code: .unknown,
         message: _shipFailureMessage(
-          error.context,
+          userFacingErrorMessage(error),
           changesCommitted: changesCommitted,
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.warning('Ship failed', error, stackTrace);
       return _finishShipFailure(
         previous: previous,
         code: .unknown,
         message: _shipFailureMessage(
-          error.toString(),
+          userFacingErrorMessage(error),
           changesCommitted: changesCommitted,
         ),
       );

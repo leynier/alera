@@ -22,8 +22,8 @@ const SKILLS: &[(&str, &str)] = &[
 const DIGESTS: &[(&str, i64, &str)] = &[
     (
         "alera-cli",
-        9,
-        "63e34ceccbc8a018c410b86e60e5a010952f8f25ce6edf3e014193dd2a7bf9a5",
+        10,
+        "67fe331bee771e7d5c0026c174abcfa3dc1f6d22d385ca81514eed16c5a9f50f",
     ),
     (
         "alera-orchestration",
@@ -37,8 +37,8 @@ const DIGESTS: &[(&str, i64, &str)] = &[
     ),
     (
         "alera-agent-profiles",
-        1,
-        "84ed0aebcdf7b00cba2132ee714ef0d3f405d94f9d3f63d6b6b4144c82472a23",
+        2,
+        "0961dc3f28220490a2aa5c94e4de2dc36d43d19641350596e312df2dadece416",
     ),
 ];
 

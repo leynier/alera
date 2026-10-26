@@ -80,7 +80,9 @@ extension _TerminalTabRefresh on _TerminalTabViewState {
           .warning('terminal refresh failed', error, stackTrace);
       if (mounted && epoch == _refreshEpoch && _entryVisible) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not refresh terminal')),
+          SnackBar(
+            content: Text(actionFailureMessage('refresh terminal', error)),
+          ),
         );
       }
     } finally {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_notice.dart';
@@ -35,7 +36,7 @@ class const ExplorerPanel({
       return switch (state) {
         AsyncError(:final error) => AleraEmptyState(
           icon: AleraIcons.files,
-          message: error.toString(),
+          message: userFacingErrorMessage(error),
           action: FilledButton(onPressed: reload, child: const Text('Retry')),
         ),
         _ => const Center(child: CircularProgressIndicator()),
@@ -95,7 +96,7 @@ class const _ExplorerBody({
     if (view.error != null && view.rows.isEmpty) {
       return AleraEmptyState(
         icon: AleraIcons.files,
-        message: view.error.toString(),
+        message: userFacingErrorMessage(view.error),
       );
     }
     if (view.isEmpty) {

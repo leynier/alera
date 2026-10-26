@@ -48,7 +48,7 @@ void main() {
     await tester.tap(find.text('Open File'));
     await tester.pumpAndSettle();
     expect(workbench.actions, contains('workspace:ws-1'));
-    expect(workbench._opens, [(false, false)]);
+    expect(workbench.opens, [(false, false)]);
     expect(tester.takeException(), isNull);
   });
 
@@ -58,7 +58,7 @@ void main() {
     ) async {
       debugDefaultTargetPlatformOverride = platform;
       final workbench = _FileOpenWorkbench()
-        ..pendingSelection = Completer<void>();
+        .._pendingSelection = Completer<void>();
       await _pumpProjectRecipe(tester, workbench);
       final key = platform == TargetPlatform.macOS
           ? LogicalKeyboardKey.metaLeft
@@ -66,11 +66,11 @@ void main() {
       await tester.sendKeyDownEvent(key);
       await tester.tap(find.text('Open File'));
       await tester.pump();
-      expect(workbench._opens, isEmpty);
+      expect(workbench.opens, isEmpty);
       await tester.sendKeyUpEvent(key);
-      workbench.pendingSelection!.complete();
+      workbench._pendingSelection!.complete();
       await tester.pumpAndSettle();
-      expect(workbench._opens, [(true, true)]);
+      expect(workbench.opens, [(true, true)]);
       expect(tester.takeException(), isNull);
       debugDefaultTargetPlatformOverride = null;
     });
@@ -344,8 +344,8 @@ class _ProjectCatalogTestRepository extends CatalogTestRepository {
 }
 
 class _FileOpenWorkbench extends BoardTestWorkbench {
-  Completer<void>? pendingSelection;
-  final _opens = <(bool, bool)>[];
+  Completer<void>? _pendingSelection;
+  final opens = <(bool, bool)>[];
 
   void setWorkspaceAvailable(bool available) {
     final original = boardWorkbenchState();
@@ -362,7 +362,7 @@ class _FileOpenWorkbench extends BoardTestWorkbench {
     required Project project,
     required Workspace workspace,
   }) async {
-    if (pendingSelection != null) await pendingSelection!.future;
+    if (_pendingSelection != null) await _pendingSelection!.future;
     await super.selectWorkspace(project: project, workspace: workspace);
   }
 
@@ -375,7 +375,7 @@ class _FileOpenWorkbench extends BoardTestWorkbench {
     bool preview = false,
     bool oppositePanel = false,
   }) async {
-    _opens.add((preview, oppositePanel));
+    opens.add((preview, oppositePanel));
     final now = DateTime.utc(2026);
     return WorkspaceTabRecord(
       id: 'recipe-file',

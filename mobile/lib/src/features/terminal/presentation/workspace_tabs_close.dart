@@ -66,9 +66,9 @@ extension _WorkspaceTabsClose on _WorkspaceTabsScreenState {
         stackTrace,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not close tab: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(actionFailureMessage('close tab', error))),
+        );
       }
     }
   }

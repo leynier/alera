@@ -167,7 +167,7 @@ fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response 
         Err(error) => {
             return failure(
                 "model",
-                format!("The Whisper model could not be loaded: {error:?}"),
+                format!("The Whisper model could not be loaded: {error}"),
             )
         }
     };
@@ -176,7 +176,7 @@ fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response 
         Err(error) => {
             return failure(
                 "model",
-                format!("The Whisper state could not be created: {error:?}"),
+                format!("The Whisper state could not be created: {error}"),
             )
         }
     };
@@ -209,7 +209,7 @@ fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response 
         } else {
             failure(
                 "inference",
-                format!("Whisper could not transcribe the recording: {error:?}"),
+                format!("Whisper could not transcribe the recording: {error}"),
             )
         };
     }
@@ -220,7 +220,7 @@ fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response 
             Err(error) => {
                 return failure(
                     "inference",
-                    format!("Whisper returned invalid text: {error:?}"),
+                    format!("Whisper returned invalid text: {error}"),
                 )
             }
         }
@@ -289,7 +289,7 @@ fn read_audio(path: &str) -> Result<(Vec<f32>, i64), Response> {
     convert_integer_to_float_audio(&samples, &mut audio).map_err(|error| {
         failure(
             "audio",
-            format!("The recording could not be decoded: {error:?}"),
+            format!("The recording could not be decoded: {error}"),
         )
     })?;
     if spec.channels == 2 {
@@ -297,7 +297,7 @@ fn read_audio(path: &str) -> Result<(Vec<f32>, i64), Response> {
         convert_stereo_to_mono_audio(&audio, &mut mono).map_err(|error| {
             failure(
                 "audio",
-                format!("The recording could not be mixed: {error:?}"),
+                format!("The recording could not be mixed: {error}"),
             )
         })?;
         audio = mono;

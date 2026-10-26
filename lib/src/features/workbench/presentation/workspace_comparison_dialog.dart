@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
@@ -90,7 +91,9 @@ class _WorkspaceComparisonDialogState extends State<WorkspaceComparisonDialog> {
               child: FutureBuilder<GitDiffResult>(
                 future: _diff,
                 builder: (context, result) {
-                  if (result.hasError) return Text(result.error.toString());
+                  if (result.hasError) {
+                    return Text(userFacingErrorMessage(result.error));
+                  }
                   if (!result.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }

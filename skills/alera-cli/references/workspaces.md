@@ -173,6 +173,8 @@ alera workspace remove --id <workspace-id> --delete-branch
 alera workspace remove --id <workspace-id> --keep-branch
 ```
 
+When the runtime setting `deleteAgentSessionsOnWorkspaceRemoval` is on (`alera runtime settings show`), removing a workspace also deletes the agent conversations that ran in it, using each agent's own mechanism: for a linked worktree everything each agent stores for that path, for the main checkout only the conversations Alera recorded there. Amp threads are archived instead, conversations another workspace still uses are kept, and workspaces on a remote host are not affected. This cannot be undone, so check the setting before removing a workspace whose conversations the user may want.
+
 ### Linked Issues
 
 A workspace can link one issue by URL. GitHub, GitLab, and Azure DevOps issues are fetched through `gh`, `glab`, and `az boards` on the machine running Alera; any other tracker URL is stored as a plain link. Linking never fails because a fetch failed: the command prints a warning and keeps the link.

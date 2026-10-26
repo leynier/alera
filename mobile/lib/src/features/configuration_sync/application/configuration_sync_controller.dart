@@ -1,4 +1,5 @@
 import 'package:alera_configuration/alera_configuration.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'configuration_sync_controller.g.dart';
@@ -69,7 +70,9 @@ class ConfigurationSyncController extends _$ConfigurationSyncController {
         /* Keep the original failure when the target disconnected. */
       }
       if (ref.mounted) {
-        state = AsyncData(previous.copyWith(error: error.toString()));
+        state = AsyncData(
+          previous.copyWith(error: userFacingErrorMessage(error)),
+        );
       }
     } finally {
       releaseService?.call();

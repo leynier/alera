@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_checkout_selection.dart';
 
 import 'dart:async';
@@ -295,13 +297,14 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         );
         _parentWorkspaceId = isRetryProject ? preferredParent : null;
       });
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('load branches', error, stackTrace);
       if (mounted &&
           _projectId == projectId &&
           _checkoutHostId == checkoutHostId &&
           generation == _branchLoadGeneration) {
         setState(() {
-          _error = 'Could not load branches: $error';
+          _error = actionFailureMessage('load branches', error);
         });
       }
     } finally {
@@ -368,9 +371,10 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         future.ignore();
         Navigator.of(context).pop(true);
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('create the workspace', error, stackTrace);
       if (mounted) {
-        setState(() => _error = error.toString());
+        setState(() => _error = userFacingErrorMessage(error));
       }
     } finally {
       if (mounted) {

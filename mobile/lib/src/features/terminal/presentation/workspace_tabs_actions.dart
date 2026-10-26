@@ -36,9 +36,9 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
         stackTrace,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not rename tab: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(actionFailureMessage('rename tab', error))),
+        );
       }
     }
   }
@@ -182,7 +182,9 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
       );
       if (messenger.mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not generate title: $error')),
+          SnackBar(
+            content: Text(actionFailureMessage('generate title', error)),
+          ),
         );
       }
     }

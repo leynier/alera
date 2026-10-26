@@ -322,9 +322,17 @@ impl RuntimeHostRpcClient {
 #[derive(Debug)]
 pub(crate) struct RuntimeHostAnswer(pub(crate) String);
 
+impl RuntimeHostAnswer {
+    /// The answer as a person should read it. The wire renders a malformed
+    /// request like Dart's `FormatException`, which is noise in a terminal.
+    pub(crate) fn message(&self) -> &str {
+        self.0.strip_prefix("FormatException: ").unwrap_or(&self.0)
+    }
+}
+
 impl std::fmt::Display for RuntimeHostAnswer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(self.message())
     }
 }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
@@ -24,7 +25,7 @@ void main() {
     ) async {
       final controller = _QuickOpenTestController(
         _state(_workspace('workspace-1', 'Main', '/repo/main')),
-      )..openGate = Completer<void>();
+      ).._openGate = Completer<void>();
       final container = await _pumpQuickOpen(
         tester,
         controller: controller,
@@ -48,21 +49,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(activityNavigationProvider).visible, isTrue);
       if (outcome == 'success') {
-        controller.openGate!.complete();
+        controller._openGate!.complete();
       } else if (outcome == 'failure') {
-        controller.openGate!.completeError(StateError('cannot open'));
+        controller._openGate!.completeError(StateError('cannot open'));
       }
       await tester.pumpAndSettle();
       final location = container.read(activityNavigationProvider);
       expect(location.visible, outcome != 'success');
       expect(location.runs.runId, 'run-1');
       expect(location.runs.taskId, 'task-1');
-      expect(controller._openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
-      if (outcome == 'failure') {
-        expect(toasts.single.message, 'Could not open the selected file.');
-      } else {
-        expect(toasts, isEmpty);
-      }
+      expect(controller.openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
+      // A failure is reported once, through state.error, which the shell
+      // turns into the toast; the launcher adds none of its own.
+      expect(toasts, isEmpty);
+      expect(
+        controller.state.error,
+        outcome == 'failure' ? 'Cannot open' : isNull,
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -102,7 +105,7 @@ void main() {
 
     await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
-    expect(controller._openedFiles, <String>['lib/main_test.dart']);
+    expect(controller.openedFiles, <String>['lib/main_test.dart']);
   });
 
   testWidgets('ignores stale searches', (tester) async {
@@ -175,7 +178,7 @@ void main() {
     await tester.sendKeyEvent(.arrowDown);
     await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
-    expect(controller._openedFiles, <String>['b.dart']);
+    expect(controller.openedFiles, <String>['b.dart']);
     expect(anchorFocus.hasFocus, isTrue);
 
     await tester.tap(find.text('Open Quick Open'));
@@ -412,8 +415,8 @@ class _QuickOpenFileService({
 
 class _QuickOpenTestController(final WorkbenchState _seed)
     extends WorkbenchController {
-  final List<String> _openedFiles = <String>[];
-  Completer<void>? openGate;
+  final List<String> openedFiles = <String>[];
+  Completer<void>? _openGate;
 
   @override
   WorkbenchState build() => _seed;
@@ -430,11 +433,17 @@ class _QuickOpenTestController(final WorkbenchState _seed)
     bool preview = false,
     bool oppositePanel = false,
   }) async {
-    _openedFiles.add(relativePath);
-    await openGate?.future;
+    openedFiles.add(relativePath);
+    try {
+      await _openGate?.future;
+    } catch (error) {
+      // Mirrors production: a failed open is reported through state.error.
+      state = state.copyWith(error: userFacingErrorMessage(error));
+      rethrow;
+    }
     final now = DateTime.utc(2026);
     return WorkspaceTabRecord(
-      id: 'tab-${_openedFiles.length}',
+      id: 'tab-${openedFiles.length}',
       workspaceId: workspace.id,
       kind: .editor,
       title: relativePath,

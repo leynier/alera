@@ -103,6 +103,10 @@ pub use chat_orchestration_delivery::*;
 pub use chat_orchestration_models::*;
 pub use chat_orchestration_receipts::chat_orchestration_request_digest;
 pub use chat_orchestration_store::new_chat_orchestration_task_id;
+mod agent_native_session_store;
+pub use agent_native_session_store::AgentNativeSessionRecord;
+#[cfg(test)]
+mod agent_native_session_store_tests;
 mod agent_profile_launch_receipt_store;
 #[cfg(test)]
 mod agent_profile_launch_receipt_store_tests;
@@ -114,6 +118,7 @@ mod agent_profile_store_helpers;
 #[cfg(test)]
 mod agent_profile_store_tests;
 mod agent_quota_settings_models;
+mod agent_status_hook_settings_models;
 mod ai_assist_validation;
 mod alera_account_models;
 mod alera_account_store;
@@ -417,6 +422,7 @@ pub use relocation_setup_store::RelocationSetupReceipt;
 pub use agent_profile_launch_receipt_store::*;
 pub use agent_profile_models::*;
 pub use agent_quota_settings_models::*;
+pub use agent_status_hook_settings_models::*;
 pub use ai_assist_validation::validate_ai_assist_settings;
 pub use alera_account_models::*;
 #[allow(unused_imports)]
@@ -476,7 +482,9 @@ pub use settings_models::*;
 pub use ssh_target_store::{SshTargetBootstrapStateUpdate, SshTargetReferences};
 pub use store::*;
 pub use store_error::*;
-pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
+pub use text_actions_validation::{
+    is_ai_assist_agent, validate_text_actions_settings, AI_ASSIST_AGENTS,
+};
 pub use voice_home::*;
 pub use workbench_shared_state_models::*;
 pub use workspace_location_path::relocated_path as relocated_workspace_path;

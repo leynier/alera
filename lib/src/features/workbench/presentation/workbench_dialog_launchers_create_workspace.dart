@@ -443,7 +443,9 @@ void _showWorkspaceCreationToast(
   if (result.hasParentLinkError) {
     AleraToast.show(
       context,
-      message: 'Workspace created, but parent link failed',
+      message:
+          'Workspace created, but could not link it to its parent: '
+          '${result.parentLinkError}',
       tone: .error,
       duration: AleraToast.longDuration,
     );

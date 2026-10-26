@@ -70,7 +70,7 @@ impl ServerActor {
                         &request.id,
                     )
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 if has_active_automation {
                     return Err(HostError::state(
                         "Workspace is owned by an active automation",
@@ -132,7 +132,7 @@ impl ServerActor {
                     &request,
                 )
                 .await
-                .map_err(|error| HostError::state(error.to_string()))?;
+                .map_err(|error| HostError::from_anyhow(&error))?;
                 let remote_automation_cleanup = self
                     .requested_remote_automation_cleanup(client_id, &request.id, payload)
                     .await?;
@@ -184,7 +184,7 @@ impl ServerActor {
                         &request.id,
                     )
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
+                    .map_err(|error| HostError::from_anyhow(&error))?;
                 if has_active_automation {
                     return Err(HostError::state(
                         "Workspace is owned by an active automation",
@@ -195,7 +195,7 @@ impl ServerActor {
                     &request,
                 )
                 .await
-                .map_err(|error| HostError::state(error.to_string()))?;
+                .map_err(|error| HostError::from_anyhow(&error))?;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -348,7 +348,7 @@ impl ServerActor {
                     .runtime_store
                     .workflow_launch_for_terminal(&tab_id)
                     .await
-                    .map_err(|error| HostError::state(error.to_string()))?
+                    .map_err(|error| HostError::from_anyhow(&error))?
                     .is_some()
                 {
                     return Err(HostError::state(

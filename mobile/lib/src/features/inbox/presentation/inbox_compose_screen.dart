@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
@@ -85,7 +86,8 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
             : null,
       );
       if (mounted) Navigator.of(context).pop(result.threadId);
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logActionFailure('send the question', error, stackTrace);
       if (mounted) setState(() => _error = inboxErrorMessage(error));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -136,7 +138,7 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
               AsyncValue(value: null, hasError: true, :final error) =>
                 AleraEmptyState(
                   message: 'The host could not list its agents.',
-                  detail: '$error',
+                  detail: inboxErrorMessage(error),
                 ),
               AsyncValue(value: null) => const Center(
                 child: CircularProgressIndicator(),

@@ -155,6 +155,9 @@ void _registerAleraShellWorkspaceRemovalTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(events.last.message, 'Bad state: delete workspace failed');
+    expect(
+      events.last.message,
+      'Could not remove workspace: Delete workspace failed',
+    );
   });
 }

@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/updater/application/update_providers.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
@@ -75,7 +76,7 @@ class AleraUpdateController extends _$AleraUpdateController {
       }
       state = state.copyWith(
         status: .error,
-        message: 'Update check failed: $error',
+        message: actionFailureMessage('check for updates', error),
         progress: 0,
       );
     }
@@ -156,7 +157,7 @@ class AleraUpdateController extends _$AleraUpdateController {
       state = state.copyWith(
         status: .error,
         message:
-            'Update installation failed: $error '
+            '${_sentence(actionFailureMessage('install the update', error))} '
             'Alera is still running. Try again.',
       );
     }
@@ -179,14 +180,15 @@ class AleraUpdateController extends _$AleraUpdateController {
     );
     try {
       await _service.upgradeThroughPackageManager();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _log.warning('package manager upgrade failed', error, stackTrace);
       if (_disposed) {
         return;
       }
       state = state.copyWith(
         status: .error,
         message:
-            'The $manager upgrade could not be started: $error '
+            '${_sentence(actionFailureMessage('start the $manager upgrade', error))} '
             'Alera is still running. Try the command below instead.',
         progress: 0,
       );
@@ -226,9 +228,12 @@ class AleraUpdateController extends _$AleraUpdateController {
       }
       state = state.copyWith(
         status: .error,
-        message: 'Alera could not restart: $error',
+        message: actionFailureMessage('restart Alera', error),
         progress: 0,
       );
     }
   }
 }
+
+String _sentence(String text) =>
+    RegExp(r'[.!?]$').hasMatch(text) ? text : '$text.';

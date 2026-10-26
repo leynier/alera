@@ -81,7 +81,6 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       // status. This branch protects future misuse.
       AgentType.cursor ||
       AgentType.opencode ||
-      AgentType.opencode2 ||
       AgentType.pi ||
       AgentType.amp ||
       AgentType.fx => throw ArgumentError.value(
@@ -96,7 +95,6 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
   _ManagedHookArtifact? _managedArtifact(AgentType agentType) {
     return switch (agentType) {
       AgentType.opencode => _opencodeArtifact(),
-      AgentType.opencode2 => _opencode2Artifact(),
       AgentType.pi => _piArtifact(),
       AgentType.amp => _ampArtifact(),
       AgentType.codex ||
@@ -169,6 +167,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
   ) {
     final file = File(artifact.path);
     if (!file.existsSync()) {
+      _removeRetiredArtifacts(artifact);
       return _managedArtifactStatus(artifact);
     }
     late final String content;
@@ -198,10 +197,26 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       );
     }
     file.deleteSync();
+    _removeRetiredArtifacts(artifact);
     return _managedArtifactStatus(artifact);
   }
 
+  /// Deletes files an older Alera version wrote in place of [artifact], and
+  /// only those that still carry the managed marker.
+  void _removeRetiredArtifacts(_ManagedHookArtifact artifact) {
+    for (final path in artifact.retiredPaths) {
+      final file = File(path);
+      try {
+        if (file.existsSync() &&
+            file.readAsStringSync().contains(_managedArtifactMarker)) {
+          file.deleteSync();
+        }
+      } catch (_) {}
+    }
+  }
+
   void _writeManagedArtifact(_ManagedHookArtifact artifact) {
+    _removeRetiredArtifacts(artifact);
     final file = File(artifact.path);
     file.parent.createSync(recursive: true);
     if (file.existsSync() && file.readAsStringSync() == artifact.content) {

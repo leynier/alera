@@ -283,7 +283,7 @@ fn public(data: &Value) -> HostResult<Value> {
 }
 
 fn store_error(error: impl std::fmt::Display) -> HostError {
-    HostError::state(error.to_string())
+    HostError::state(format!("{error:#}"))
 }
 
 #[cfg(test)]

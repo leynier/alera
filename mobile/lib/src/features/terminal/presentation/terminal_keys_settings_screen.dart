@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_layout.dart';
@@ -61,7 +62,7 @@ class const TerminalKeysSettingsScreen({super.key}) extends ConsumerWidget {
             icon: AleraIcons.loadFailed,
             title: 'Could not load quick keys',
             message: 'The saved quick-key layout could not be read.',
-            detail: error.toString(),
+            detail: userFacingErrorMessage(error),
             action: FilledButton.icon(
               onPressed: () =>
                   ref.invalidate(terminalAccessoryLayoutControllerProvider),

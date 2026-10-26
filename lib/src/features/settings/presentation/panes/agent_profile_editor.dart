@@ -10,6 +10,7 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_prompt_delivery.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_managed_editor.dart';
@@ -44,6 +45,7 @@ class const AgentProfileEditor({
   final bool personasLoading = false,
   final String? discoveryError,
   final String? error,
+  final OpenCodeGeneration openCodeGeneration = OpenCodeGeneration.fallback,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -51,6 +53,7 @@ class const AgentProfileEditor({
     final managedCommandPreview = managedAgentCommandPreview(
       adapter,
       managedConfig,
+      openCodeGeneration: openCodeGeneration,
     );
     return SingleChildScrollView(
       child: Column(

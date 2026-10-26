@@ -13,6 +13,10 @@ const SETTING_PROPERTIES: &[(&str, &str)] = &[
     ("workspaceDirectory", "workspaceDirectory"),
     ("confirmProjectRemoval", "confirmProjectRemoval"),
     ("confirmWorkspaceRemoval", "confirmWorkspaceRemoval"),
+    (
+        "deleteAgentSessionsOnWorkspaceRemoval",
+        "deleteAgentSessionsOnWorkspaceRemoval",
+    ),
     ("defaultAgentProfileId", "defaultAgentProfileId"),
     ("aiAssistEnabled", "aiAssist.enabled"),
     (
@@ -35,17 +39,7 @@ const SETTING_PROPERTIES: &[(&str, &str)] = &[
 
 /// Agent integration keys `runtime agents enable` accepts.
 const INTEGRATION_AGENTS: &[&str] = &[
-    "codex",
-    "claude",
-    "copilot",
-    "cursor",
-    "agy",
-    "opencode",
-    "opencode2",
-    "pi",
-    "amp",
-    "grok",
-    "fx",
+    "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "fx",
 ];
 
 /// `runtime agents enable` prints every runtime setting when a host is
@@ -54,6 +48,7 @@ const SETTINGS_OUTSIDE_INTEGRATIONS: &[&str] = &[
     "workspaceDirectory",
     "confirmProjectRemoval",
     "confirmWorkspaceRemoval",
+    "deleteAgentSessionsOnWorkspaceRemoval",
     "defaultAgentProfileId",
     "agentQuotas",
     "mobilePushNotifications",
@@ -79,6 +74,10 @@ fn settings_schema() -> Value {
             (
                 "confirmWorkspaceRemoval",
                 boolean("Ask before removing a workspace in the app."),
+            ),
+            (
+                "deleteAgentSessionsOnWorkspaceRemoval",
+                boolean("Also delete the local agent conversations of a removed workspace. Cannot be undone."),
             ),
             (
                 "defaultAgentProfileId",

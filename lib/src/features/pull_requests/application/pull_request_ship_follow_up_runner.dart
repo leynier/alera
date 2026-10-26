@@ -1,7 +1,11 @@
 import 'package:alera/src/features/agent_task_dispatch/domain/agent_task_dispatch.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_agent_watch.dart';
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_follow_up.dart';
+import 'package:logging/logging.dart';
+
+final Logger _logger = Logger('PullRequestShipFollowUp');
 
 /// The watch mode [followUp] starts, or null when it only ships.
 PullRequestAgentWatchMode? pullRequestShipWatchMode(
@@ -57,7 +61,8 @@ Future<void> runPullRequestShipFollowUp({
   }
   try {
     await startWatch(number, mode, binding);
-  } on Object catch (error) {
-    onWatchFailed('$failure $error');
+  } on Object catch (error, stackTrace) {
+    _logger.warning('Could not start watching', error, stackTrace);
+    onWatchFailed('$failure ${userFacingErrorMessage(error)}');
   }
 }

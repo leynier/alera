@@ -353,7 +353,7 @@ void _registerWorkbenchControllerFailureTests() {
     await _flushUntil(() => _controller.state.error != null);
     _harness.workbenchRepository.upsertWorkbenchLayoutError = null;
 
-    expect(_controller.state.error, contains('bad layout'));
+    expect(_controller.state.error, contains('Bad layout'));
     expect(_controller.state.activeWorkspaceId, workspace.id);
   });
 

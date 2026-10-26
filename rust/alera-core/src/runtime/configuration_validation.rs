@@ -68,6 +68,7 @@ pub(super) fn validate_settings(settings: &Value) -> Result<()> {
             match key.as_str() {
                 "confirmProjectRemoval"
                 | "confirmWorkspaceRemoval"
+                | "deleteAgentSessionsOnWorkspaceRemoval"
                 | "showTrayIcon"
                 | "showDockBadge"
                 | "showTrayBadge"

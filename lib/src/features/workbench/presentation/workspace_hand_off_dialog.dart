@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
@@ -109,7 +110,8 @@ class _WorkspaceHandOffDialogState extends State<_WorkspaceHandOffDialog> {
       if (mounted && generation == _generation && revision == _editRevision) {
         setState(
           () => _branchError =
-              'AI Assist failed. Enter a branch name or regenerate. $error',
+              'AI Assist failed. Enter a branch name or regenerate. '
+              '${userFacingErrorMessage(error)}',
         );
       }
     } finally {
@@ -155,7 +157,7 @@ class _WorkspaceHandOffDialogState extends State<_WorkspaceHandOffDialog> {
         }
       }
     } catch (error) {
-      if (mounted) setState(() => _branchError = error.toString());
+      if (mounted) setState(() => _branchError = userFacingErrorMessage(error));
       return;
     } finally {
       if (mounted) setState(() => _validating = false);

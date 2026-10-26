@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_workspace_panels.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_action_error_message.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_actions_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_commit_draft.dart';
 import 'package:alera_mobile/src/features/workbench/application/source_control_controller.dart';
@@ -479,21 +480,19 @@ void main() {
 
   test('non-git failures keep their own message', () {
     expect(
-      sourceControlErrorMessage(const HostUnreachableException()),
+      runtimeActionErrorMessage(const HostUnreachableException()),
       'Could not reach the host',
     );
     expect(
-      sourceControlErrorMessage(const RuntimeConnectionLost()),
+      runtimeActionErrorMessage(const RuntimeConnectionLost()),
       'Lost the connection to the host',
     );
     expect(
-      sourceControlErrorMessage(StateError('Nothing to commit.')),
+      runtimeActionErrorMessage(StateError('Nothing to commit.')),
       'Nothing to commit.',
     );
     expect(
-      sourceControlErrorMessage(
-        TimeoutException('x', const Duration(seconds: 1)),
-      ),
+      runtimeActionErrorMessage(TimeoutException('x', Duration.zero)),
       'The runtime did not answer in time.',
     );
   });

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/agent_profiles/application/opencode_generation_probe.dart';
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_diff_only_execution.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_host_completer.dart';
@@ -56,14 +58,23 @@ abstract interface class AiAssistAgentRunner implements AgentTaskRunner {}
 class CliAiAssistAgentRunner({
   required final ProcessRunner processRunner,
   CommandEnvironmentResolver? commandEnvironmentResolver,
+  OpenCodeGenerationProbe? openCodeGenerationProbe,
   this.hostCompleter,
   this.chatGptCompleter,
 }) implements AiAssistAgentRunner {
   this
     : commandEnvironmentResolver =
-          commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
+          commandEnvironmentResolver ?? UserCommandEnvironmentResolver(),
+      openCodeGenerationProbe =
+          openCodeGenerationProbe ??
+          OpenCodeGenerationProbe(
+            processRunner: processRunner,
+            commandEnvironmentResolver:
+                commandEnvironmentResolver ?? UserCommandEnvironmentResolver(),
+          );
 
   final CommandEnvironmentResolver commandEnvironmentResolver;
+  final OpenCodeGenerationProbe openCodeGenerationProbe;
   final AiAssistHostCompleter? hostCompleter;
   final AiAssistHostCompleter? chatGptCompleter;
   final Map<String, StartedProcess> _running = <String, StartedProcess>{};
@@ -124,9 +135,13 @@ class CliAiAssistAgentRunner({
           },
           includeParentEnvironment: plan.exactEnvironment == null,
         );
-      } catch (_) {
+      } catch (error) {
         throw AiAssistException(
-          '${plan.label} could not be started. Check that ${plan.binary} is installed and on PATH.',
+          aiAssistProcessStartFailureMessage(
+            subject: plan.label,
+            binary: plan.binary,
+            error: error,
+          ),
         );
       }
       processExit = process.exitCode;

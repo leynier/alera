@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
@@ -111,8 +113,8 @@ class _MobileVoiceSettingsScreenState
         _geminiConfigured = status.geminiConfigured;
         _openaiConfigured = status.openaiConfigured;
       });
-    } on Object catch (error) {
-      _showError(error);
+    } on Object catch (error, stackTrace) {
+      _showError('save the Gemini key', error, stackTrace);
     }
   }
 
@@ -136,8 +138,8 @@ class _MobileVoiceSettingsScreenState
         _geminiConfigured = status.geminiConfigured;
         _openaiConfigured = status.openaiConfigured;
       });
-    } on Object catch (error) {
-      _showError(error);
+    } on Object catch (error, stackTrace) {
+      _showError('save the OpenAI key', error, stackTrace);
     }
   }
 
@@ -154,17 +156,18 @@ class _MobileVoiceSettingsScreenState
         _geminiConfigured = status.geminiConfigured;
         _openaiConfigured = status.openaiConfigured;
       });
-    } on Object catch (error) {
-      _showError(error);
+    } on Object catch (error, stackTrace) {
+      _showError('clear the key', error, stackTrace);
     }
   }
 
-  void _showError(Object error) {
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(error.toString())));
+  void _showError(String action, Object error, StackTrace stackTrace) {
+    showActionFailure(
+      mounted ? ScaffoldMessenger.of(context) : null,
+      action: action,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   @override
@@ -175,8 +178,9 @@ class _MobileVoiceSettingsScreenState
       next,
     ) {
       if (next.hasError && previous?.error != next.error) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(next.error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(userFacingErrorMessage(next.error))),
+        );
       }
     });
     return Scaffold(
@@ -187,7 +191,7 @@ class _MobileVoiceSettingsScreenState
           error: (error, _) => Center(
             child: Padding(
               padding: AleraTokens.pagePadding,
-              child: Text(error.toString(), textAlign: .center),
+              child: Text(userFacingErrorMessage(error), textAlign: .center),
             ),
           ),
           data: (value) {

@@ -302,7 +302,7 @@ async fn read_mobile_workspace_file(
         payload,
     )
     .await
-    .map_err(|error| HostError::state(error.to_string()))?
+    .map_err(|error| HostError::from_anyhow(&error))?
     {
         return Ok(remote);
     }
@@ -366,7 +366,7 @@ pub(super) async fn workspace_for_mobile_file_request(
     runtime_store
         .find_workspace(&workspace_id)
         .await
-        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
         .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))
 }
 
@@ -406,7 +406,7 @@ async fn known_workspace_paths(runtime_store: &RuntimeStore) -> HostResult<Vec<S
     Ok(runtime_store
         .list_all_workspaces()
         .await
-        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::from_anyhow(&error))?
         .into_iter()
         .map(|workspace| workspace.path)
         .collect())

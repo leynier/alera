@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
 import 'package:flutter/material.dart';
 
 /// Loads the next page and reports a failure instead of letting it escape.
@@ -19,9 +20,12 @@ class const LoadMoreButton({
   Future<void> _load(ScaffoldMessengerState messenger) async {
     try {
       await onLoad();
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not load more: $error')),
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        messenger,
+        action: 'load more',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }

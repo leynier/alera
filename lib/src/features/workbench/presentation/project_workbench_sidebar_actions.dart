@@ -1,16 +1,21 @@
 part of 'project_workbench_sidebar.dart';
 
-enum _WorkbenchSidebarMutation(final String successMessage) {
-  renameProject('Project renamed'),
-  renameWorkspace('Workspace renamed'),
-  pinWorkspace('Workspace pinned'),
-  unpinWorkspace('Workspace unpinned'),
-  pinWorkspaceTree('Workspace tree pinned'),
-  unpinWorkspaceTree('Workspace tree unpinned'),
-  updateWorkspaceTags('Workspace tags updated'),
-  updateWorkspaceParent('Workspace parent updated'),
-  clearWorkspaceParent('Workspace parent cleared'),
-  removeProject('Project removed'),
+final Logger _sidebarLogger = Logger('WorkbenchSidebar');
+
+enum _WorkbenchSidebarMutation(
+  final String successMessage,
+  final String failureAction,
+) {
+  renameProject('Project renamed', 'rename project'),
+  renameWorkspace('Workspace renamed', 'rename workspace'),
+  pinWorkspace('Workspace pinned', 'pin workspace'),
+  unpinWorkspace('Workspace unpinned', 'unpin workspace'),
+  pinWorkspaceTree('Workspace tree pinned', 'pin workspace tree'),
+  unpinWorkspaceTree('Workspace tree unpinned', 'unpin workspace tree'),
+  updateWorkspaceTags('Workspace tags updated', 'update workspace tags'),
+  updateWorkspaceParent('Workspace parent updated', 'update workspace parent'),
+  clearWorkspaceParent('Workspace parent cleared', 'clear workspace parent'),
+  removeProject('Project removed', 'remove project'),
 }
 
 enum _WorkbenchSidebarMutationResult { applied, notApplied }
@@ -297,11 +302,12 @@ mixin _ProjectWorkbenchSidebarActions
         message: mutation.successMessage,
         tone: .success,
       );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(context, message: error.toString(), tone: .error);
+    } catch (error, stackTrace) {
+      showActionFailure(
+        action: mutation.failureAction,
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -347,11 +353,11 @@ mixin _ProjectWorkbenchSidebarActions
       await ref
           .read(workbenchControllerProvider.notifier)
           .closeWorkspaceTab(workspace: workspace, tabId: tabId);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(context, message: error.toString(), tone: .error);
+    } catch (error, stackTrace) {
+      // Closing a tab is reported through `state.error` by the controller,
+      // the same as from the tab strip and the keyboard, so a toast here
+      // would show the failure twice.
+      _sidebarLogger.warning('Could not close terminal', error, stackTrace);
     }
   }
 }

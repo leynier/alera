@@ -50,6 +50,16 @@ impl ServerActor {
                     .await,
             )?;
         }
+        if let Some(value) = payload.get("deleteAgentSessionsOnWorkspaceRemoval") {
+            let enabled = value.as_bool().ok_or_else(|| {
+                HostError::format("deleteAgentSessionsOnWorkspaceRemoval must be a boolean.")
+            })?;
+            runtime_value(
+                self.runtime_store
+                    .set_delete_agent_sessions_on_workspace_removal(enabled)
+                    .await,
+            )?;
+        }
         if let Some(value) = payload.get("defaultAgentProfileId") {
             let profile_id = match value {
                 Value::String(value) => Some(value.as_str()),

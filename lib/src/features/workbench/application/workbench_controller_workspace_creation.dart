@@ -66,6 +66,8 @@ mixin _WorkbenchControllerWorkspaceCreation
     );
   }
 
+  /// A failure is thrown, not stored in `state.error`: the New Workspace
+  /// dialogs and job cards show it, and storing it too would toast it twice.
   Future<WorkspaceCreationResult> _createWorkspace({
     required bool useProjectCheckout,
     required Project project,
@@ -78,56 +80,51 @@ mixin _WorkbenchControllerWorkspaceCreation
     String? hostId,
     String? issueUrl,
   }) async {
-    try {
-      final result = useProjectCheckout
-          ? await _workspaceService.createSharedWorkspace(
-              project: project,
-              name: name,
-              hostId: hostId,
-              issueUrl: issueUrl,
-            )
-          : await _workspaceService.createLinkedWorkspace(
-              project: project,
-              sourceBranch: sourceBranch,
-              newBranchName: newBranchName,
-              reuseExistingBranch: reuseExistingBranch,
-              name: name,
-              hostId: hostId,
-              issueUrl: issueUrl,
-            );
-      _reconcileCreatedWorkspace(project, result.workspace);
-      if (initializeTabs) {
-        await _initializeCreatedWorkspace(
+    final result = useProjectCheckout
+        ? await _workspaceService.createSharedWorkspace(
+            project: project,
+            name: name,
+            hostId: hostId,
+            issueUrl: issueUrl,
+          )
+        : await _workspaceService.createLinkedWorkspace(
+            project: project,
+            sourceBranch: sourceBranch,
+            newBranchName: newBranchName,
+            reuseExistingBranch: reuseExistingBranch,
+            name: name,
+            hostId: hostId,
+            issueUrl: issueUrl,
+          );
+    _reconcileCreatedWorkspace(project, result.workspace);
+    if (initializeTabs) {
+      await _initializeCreatedWorkspace(
+        workspace: result.workspace,
+        ensureInitialTerminal: true,
+        deferredSetup: result,
+      );
+    }
+    final parentId = parentWorkspaceId?.trim();
+    if (parentId != null && parentId.isNotEmpty) {
+      try {
+        await _workspaceGraphRepository.linkWorkspaces(
+          parentWorkspaceId: parentId,
+          childWorkspaceId: result.workspace.id,
+        );
+      } catch (error) {
+        // The workspace itself was created successfully, so the failure is
+        // reported as a warning on the result instead of failing the flow.
+        state = state.copyWith(error: null);
+        return WorkspaceCreationResult(
           workspace: result.workspace,
-          ensureInitialTerminal: true,
-          deferredSetup: result,
+          setupReport: result.setupReport,
+          parentLinkError: userFacingErrorMessage(error),
+          deferredSetupCommand: result.deferredSetupCommand,
         );
       }
-      final parentId = parentWorkspaceId?.trim();
-      if (parentId != null && parentId.isNotEmpty) {
-        try {
-          await _workspaceGraphRepository.linkWorkspaces(
-            parentWorkspaceId: parentId,
-            childWorkspaceId: result.workspace.id,
-          );
-        } catch (error) {
-          // The workspace itself was created successfully, so the failure is
-          // reported as a warning on the result instead of failing the flow.
-          state = state.copyWith(error: null);
-          return WorkspaceCreationResult(
-            workspace: result.workspace,
-            setupReport: result.setupReport,
-            parentLinkError: error.toString(),
-            deferredSetupCommand: result.deferredSetupCommand,
-          );
-        }
-      }
-      state = state.copyWith(error: null);
-      return result;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
     }
+    state = state.copyWith(error: null);
+    return result;
   }
 
   /// Adds a workspace the runtime created on its own, as the From Prompt

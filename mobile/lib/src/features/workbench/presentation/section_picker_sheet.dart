@@ -1,4 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/action_failure_feedback.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
@@ -103,7 +105,7 @@ class _SectionPickerState extends ConsumerState<_SectionPicker> {
                     loading: () => const LinearProgressIndicator(),
                     error: (error, _) => Column(
                       children: [
-                        Text('$error'),
+                        Text(userFacingErrorMessage(error)),
                         TextButton(
                           onPressed: () => ref.invalidate(provider),
                           child: const Text('Retry'),
@@ -274,12 +276,13 @@ Future<void> showSectionActionsSheet(
     await ref
         .read(workspaceListControllerProvider(hostId).notifier)
         .removeSection(section.id);
-  } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not delete section: $error')),
-      );
-    }
+  } on Object catch (error, stackTrace) {
+    showActionFailure(
+      context.mounted ? ScaffoldMessenger.of(context) : null,
+      action: 'delete section',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:logging/logging.dart';
@@ -121,7 +122,10 @@ class SkillInstallController extends _$SkillInstallController {
       if (_disposed) {
         return;
       }
-      state = SkillInstallState(phase: 'failed', message: error.toString());
+      state = SkillInstallState(
+        phase: 'failed',
+        message: userFacingErrorMessage(error),
+      );
     }
   }
 

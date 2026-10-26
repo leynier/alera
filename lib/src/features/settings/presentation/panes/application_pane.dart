@@ -45,8 +45,7 @@ class const ApplicationSettingsPane({
           key: groupKeys['safety'],
           child: AleraSettingsGroup(
             title: 'Safety',
-            description:
-                'Confirmation prompts for destructive workspace actions.',
+            description: 'Confirmation prompts and cleanup for destructive workspace actions.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Confirm Project Removal',
@@ -60,6 +59,13 @@ class const ApplicationSettingsPane({
                 description: 'Always required because removal closes all tabs, stops running processes, and discards unsaved changes.',
                 value: true,
                 onChanged: null,
+              ),
+              SettingsSwitchRow(
+                title: 'Delete Agent Sessions With Workspace',
+                description: 'When a workspace is removed, also delete the local agent conversations that ran in it. Amp threads are archived. This cannot be undone.',
+                value: general.deleteAgentSessionsOnWorkspaceRemoval,
+                onChanged: (value) =>
+                    controller.setDeleteAgentSessionsOnWorkspaceRemoval(value),
               ),
             ],
           ),

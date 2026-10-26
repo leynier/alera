@@ -20,6 +20,21 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
       description: 'Ask before removing a workspace worktree.',
       keywords: <String>['safety', 'destructive', 'remove', 'delete'],
     ),
+    'Delete Agent Sessions With Workspace': SettingsSearchEntryDetails(
+      description:
+          'Delete local agent conversations when a workspace is removed.',
+      keywords: <String>[
+        'safety',
+        'destructive',
+        'remove',
+        'delete',
+        'sessions',
+        'conversations',
+        'history',
+        'claude',
+        'codex',
+      ],
+    ),
   },
   'desktop': {
     'New Workspace Tools': SettingsSearchEntryDetails(
@@ -236,10 +251,6 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
     'OpenCode Hooks': SettingsSearchEntryDetails(
       description: 'Install managed OpenCode status plugin.',
-      keywords: <String>['opencode', 'agent', 'status', 'hooks', 'plugin'],
-    ),
-    'OpenCode 2 Hooks': SettingsSearchEntryDetails(
-      description: 'Install managed OpenCode 2 status plugin.',
       keywords: <String>[
         'opencode',
         'opencode2',
@@ -286,7 +297,6 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
         'antigravity',
         'agy',
         'opencode',
-        'opencode2',
         'pi',
         'amp',
         'grok',
@@ -384,13 +394,25 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
       'antigravity',
       'agy',
       'opencode',
-      'opencode2',
       'opencode go',
       'go',
       'chatgpt',
       'pi',
       'amp',
       'custom',
+    ],
+    groupId: 'generation',
+  ),
+  SettingsSearchEntry(
+    title: 'Clarify Error Messages',
+    description: 'Rewrite error notifications with AI Assist, falling back to the original error.',
+    keywords: <String>[
+      'error',
+      'errors',
+      'explain',
+      'clarify',
+      'notification',
+      'toast',
     ],
     groupId: 'generation',
   ),

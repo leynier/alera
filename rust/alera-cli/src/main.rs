@@ -52,6 +52,7 @@ mod mcp_commands;
 mod mcp_settings;
 mod mcp_tools;
 mod mobile_access;
+mod native_agent_sessions;
 mod native_credential_entry;
 mod netbird;
 mod opencode_auth;
@@ -861,8 +862,10 @@ pub(crate) fn print_value<T: Serialize>(value: &T, json_output: bool, message: &
     }
 }
 
+/// Prints a command failure with its whole cause chain (`{:#}`), so an
+/// `anyhow` context such as "git worktree add failed" still says why.
 pub(crate) fn print_error(error: impl std::fmt::Display) -> i32 {
-    eprintln!("{error}");
+    eprintln!("{error:#}");
     1
 }
 

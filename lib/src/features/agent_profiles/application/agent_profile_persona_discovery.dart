@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/features/agent_profiles/application/opencode_generation_probe.dart';
+import 'package:alera/src/features/agent_profiles/domain/opencode_generation.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_process_failure.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
@@ -13,19 +16,31 @@ class const AgentProfilePersonaDiscoveryResult({
 class AgentProfilePersonaDiscovery({
   required final ProcessRunner processRunner,
   required final CommandEnvironmentResolver commandEnvironmentResolver,
+  OpenCodeGenerationProbe? openCodeGenerationProbe,
 }) {
+  this
+    : openCodeGenerationProbe =
+          openCodeGenerationProbe ??
+          OpenCodeGenerationProbe(
+            processRunner: processRunner,
+            commandEnvironmentResolver: commandEnvironmentResolver,
+          );
+
+  final OpenCodeGenerationProbe openCodeGenerationProbe;
+
   static const Duration _timeout = Duration(seconds: 30);
   static const int _maxOutputBytes = 1024 * 1024;
 
   Future<AgentProfilePersonaDiscoveryResult> discover(AgentType adapter) async {
+    // OpenCode 2 has no `agent` command; it would answer with its help text.
+    if (adapter == AgentType.opencode &&
+        await openCodeGenerationProbe.detect() == OpenCodeGeneration.v2) {
+      return const AgentProfilePersonaDiscoveryResult(personas: <String>[]);
+    }
     final command = switch (adapter) {
       AgentType.agy => (executable: 'agy', arguments: const <String>['agents']),
       AgentType.opencode => (
         executable: 'opencode',
-        arguments: const <String>['agent', 'list'],
-      ),
-      AgentType.opencode2 => (
-        executable: 'opencode2',
         arguments: const <String>['agent', 'list'],
       ),
       _ => null,
@@ -41,10 +56,14 @@ class AgentProfilePersonaDiscovery({
         command.arguments,
         environment: await commandEnvironmentResolver.environment(),
       );
-    } catch (_) {
+    } catch (error) {
       return AgentProfilePersonaDiscoveryResult(
         personas: const <String>[],
-        error: '${command.executable} persona discovery could not be started.',
+        error: aiAssistProcessStartFailureMessage(
+          subject: '${command.executable} persona discovery',
+          binary: command.executable,
+          error: error,
+        ),
       );
     }
 
@@ -64,8 +83,7 @@ class AgentProfilePersonaDiscovery({
       }
       final personas = switch (adapter) {
         AgentType.agy => _parseAgy(output.stdout),
-        AgentType.opencode ||
-        AgentType.opencode2 => _parseOpenCode(output.stdout),
+        AgentType.opencode => _parseOpenCode(output.stdout),
         _ => const <String>[],
       };
       return AgentProfilePersonaDiscoveryResult(personas: personas);

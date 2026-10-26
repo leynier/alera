@@ -1,3 +1,4 @@
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_details_overlay.dart';
 
 import 'dart:async';
@@ -73,7 +74,8 @@ class const AleraShellPage({super.key}) extends ConsumerWidget {
     final dbAsync = ref.watch(aleraDatabaseProvider);
     return dbAsync.when(
       loading: () => const AleraShellLoadingView(),
-      error: (error, _) => AleraShellDatabaseErrorView(error: error.toString()),
+      error: (error, _) =>
+          AleraShellDatabaseErrorView(error: userFacingErrorMessage(error)),
       data: (_) => const GitHubStarPromptWatch(child: _AleraShellPageBody()),
     );
   }

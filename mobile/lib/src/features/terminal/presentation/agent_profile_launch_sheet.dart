@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/core/errors/user_facing_error_message.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
@@ -140,13 +141,10 @@ class _AgentProfileLaunchSheetState
     }
   }
 
-  String _launchErrorMessage(Object error) {
-    final message = error.toString().replaceFirst('Exception: ', '').trim();
-    if (message.isEmpty) {
-      return 'Could not start the agent. Try again.';
-    }
-    return message;
-  }
+  String _launchErrorMessage(Object error) => userFacingErrorMessage(
+    error,
+    fallback: 'Could not start the agent. Try again.',
+  );
 
   @override
   Widget build(BuildContext context) {

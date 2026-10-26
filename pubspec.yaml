@@ -1,11 +1,11 @@
 name: alera
 description: "Alera desktop agentic development environment for workspace terminals"
 publish_to: 'none'
-version: 0.107.1+556
+version: 0.109.0+567
 
 environment:
-  sdk: ^3.13.2
-  flutter: ">=3.47.2"
+  sdk: ^3.13.7
+  flutter: ">=3.47.8"
 
 dependencies:
   alera_agent_chat:

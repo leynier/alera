@@ -43,6 +43,7 @@ void main() {
 
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
+      expect(general.deleteAgentSessionsOnWorkspaceRemoval, isFalse);
       expect(general.keepAliveEnabled, isFalse);
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
@@ -68,7 +69,6 @@ void main() {
       expect(agents.agentStatusHooks.cursor, isFalse);
       expect(agents.agentStatusHooks.agy, isFalse);
       expect(agents.agentStatusHooks.opencode, isFalse);
-      expect(agents.agentStatusHooks.opencode2, isFalse);
       expect(agents.agentStatusHooks.pi, isFalse);
       expect(agents.agentStatusHooks.amp, isFalse);
       expect(agents.agentStatusHooks.grok, isFalse);
@@ -128,7 +128,7 @@ void main() {
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,
-        12,
+        11,
       );
     });
 

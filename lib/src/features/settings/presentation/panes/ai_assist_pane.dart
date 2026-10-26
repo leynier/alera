@@ -7,6 +7,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_diff_only_exe
 import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_setting_rows.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_custom_command_dialog.dart';
 import 'package:alera/src/features/settings/presentation/panes/chatgpt_account_settings.dart';
@@ -123,6 +124,14 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                 onChanged: (value) => widget.onChanged(
                   (settings) =>
                       settings.copyWith(autoGenerateAgentTitles: value),
+                ),
+              ),
+              SettingsSwitchRow(
+                title: 'Clarify Error Messages',
+                description: 'Rewrite error notifications so they explain what went wrong and what to do next. The error text is sent to the selected agent, and the original error is shown if this fails.',
+                value: settings.clarifyErrorMessages,
+                onChanged: (value) => widget.onChanged(
+                  (settings) => settings.copyWith(clarifyErrorMessages: value),
                 ),
               ),
               AiAssistAgentRow(
