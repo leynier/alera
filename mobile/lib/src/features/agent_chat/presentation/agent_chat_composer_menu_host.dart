@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_composer_draft.dart';
 import 'package:alera_mobile/src/features/agent_chat/infra/mobile_agent_chat_composer_file_search.dart';
@@ -22,6 +23,9 @@ class const AgentChatComposerMenuHost({
   required final TextEditingController controller,
   required final FocusNode focusNode,
   required final AgentChatComposerControls commands,
+
+  /// The chat's skills for `$` and `/skill:name`.
+  final AgentChatSkillsLoader? skills,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentChatComposerMenuHost> createState() =>
@@ -36,7 +40,11 @@ class _AgentChatComposerMenuHostState
     text: widget.controller,
     focusNode: widget.focusNode,
     fileSearch: _fileSearch,
-    commandState: () => widget.commands.slashCommandState(ref),
+    skills: widget.skills,
+    commandState: () => widget.commands.slashCommandState(
+      ref,
+      skills: widget.skills?.skills ?? const <AgentChatProviderSkill>[],
+    ),
     onAttach: _attach,
     onCommand: (command) =>
         unawaited(widget.commands.runSlashCommand(context, ref, command)),
@@ -46,7 +54,8 @@ class _AgentChatComposerMenuHostState
   void didUpdateWidget(covariant AgentChatComposerMenuHost oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller ||
-        oldWidget.focusNode != widget.focusNode) {
+        oldWidget.focusNode != widget.focusNode ||
+        oldWidget.skills != widget.skills) {
       _menu.dispose();
       _menu = _create();
     }

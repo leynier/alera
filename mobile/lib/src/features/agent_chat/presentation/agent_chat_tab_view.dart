@@ -15,6 +15,8 @@ import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_view_stat
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_picker.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_upload_bar.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_skill_text_controller.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tab_skills.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_native_history_rewind_sheet.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_sheets.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
@@ -60,7 +62,8 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
 
   late final AgentChatDraftStore _store;
   late final AgentChatViewMemory _memory;
-  late final TextEditingController _composer;
+  late final AgentChatSkillTextController _composer;
+  late final AgentChatTabSkills _skills;
   final FocusNode _focus = FocusNode();
   @override
   final AgentChatQueuedEdit queuedEdit = AgentChatQueuedEdit();
@@ -97,8 +100,13 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       widget.chatId,
       workspaceId: widget.workspaceId,
     );
-    _composer = TextEditingController.fromValue(draft.value)
+    _composer = AgentChatSkillTextController.fromValue(draft.value)
       ..addListener(_persist);
+    _skills = AgentChatTabSkills(
+      textController: _composer,
+      load: ({required refresh}) =>
+          ref.read(_provider.notifier).skills(refresh: refresh),
+    )..addListener(() => setState(() {}));
     _attachments = draft.attachments;
     _store.addListener(
       widget.hostId,
@@ -134,6 +142,7 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       workspaceId: widget.workspaceId,
     );
     unawaited(_store.flush());
+    _skills.dispose();
     _composer
       ..removeListener(_persist)
       ..dispose();
@@ -446,6 +455,7 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
         _ => const Center(child: CircularProgressIndicator()),
       };
     }
+    _skills.showAgent(view.thread.providerInstanceId);
     final availability = agentChatAvailability(
       refreshing: async.isLoading,
       failed: async.hasError,
@@ -453,6 +463,8 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       readOnly: view.thread.archived,
     );
     return AgentChatTabBody(
+      skills: _skills.loader,
+      skillList: _skills.skills,
       hostId: widget.hostId,
       workspaceId: widget.workspaceId,
       chatId: widget.chatId,

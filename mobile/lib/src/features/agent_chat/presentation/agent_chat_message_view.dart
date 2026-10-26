@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_his
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_skill_chips.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -275,13 +276,10 @@ class _UserBubbleState extends State<_UserBubble> {
                       padding: const EdgeInsets.all(AleraTokens.space12),
                       child: widget.partial
                           ? AgentChatPartialText(text: text)
-                          : collapsed
-                          ? Text(
-                              text,
-                              maxLines: agentChatMessageCollapseLines,
-                              overflow: .ellipsis,
-                            )
-                          : SelectableText(text),
+                          : AgentChatUserBubbleText(
+                              text: text,
+                              collapsed: collapsed,
+                            ),
                     ),
                   ),
                 if (collapsible)

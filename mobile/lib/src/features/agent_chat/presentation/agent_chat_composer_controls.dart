@@ -178,7 +178,10 @@ class const AgentChatComposerControls({
   /// What the composer's `/` commands can do in this chat right now: the
   /// model picker and mode commands follow this chip and its settings, and
   /// `/usage` the usage ring.
-  AgentChatSlashCommandState slashCommandState(WidgetRef ref) {
+  AgentChatSlashCommandState slashCommandState(
+    WidgetRef ref, {
+    List<AgentChatProviderSkill> skills = const <AgentChatProviderSkill>[],
+  }) {
     final catalog = ref.read(agentChatProvidersProvider(hostId, workspaceId));
     final providers = catalog.value;
     final usage = view.thread.usage;
@@ -194,6 +197,7 @@ class const AgentChatComposerControls({
       interactionMode: view.session.interactionMode,
       usageAvailable: usage.contextFraction != null || usage.windows.isNotEmpty,
       providerCommands: view.session.commands,
+      providerSkills: skills,
     );
   }
 

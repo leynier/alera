@@ -82,4 +82,9 @@ extension AgentChatHistoryOperations on AgentChatController {
 
   Future<AgentChatTurnDiff> turnDiff(String turnId) =>
       _ready().repository.lifecycle.turnDiff(_chat, turnId: turnId);
+
+  /// What the composer's `$` menu offers; [refresh] bypasses the runtime's
+  /// discovery cache.
+  Future<AgentChatSkillList> skills({bool refresh = false}) =>
+      _ready().repository.lifecycle.skills(_chat, refresh: refresh);
 }

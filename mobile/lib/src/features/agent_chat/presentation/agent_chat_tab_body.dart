@@ -85,6 +85,11 @@ class const AgentChatTabBody({
   required final VoidCallback onRetryConnection,
   required final bool canStartNewChat,
   required final double minimumComposerHeight,
+
+  /// The chat's skills, for the composer's `$` menu and the messages' chips.
+  final AgentChatSkillsLoader? skills,
+  final List<AgentChatProviderSkill> skillList =
+      const <AgentChatProviderSkill>[],
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -192,6 +197,7 @@ class const AgentChatTabBody({
                 chatId: chatId,
                 cwd: view.session.cwd,
                 memory: memory,
+                skills: skillList,
                 child: AgentChatHistoryActions(
                   onFork: canFork
                       ? (turnId) => unawaited(handlers.fork(turnId))
@@ -380,6 +386,7 @@ class const AgentChatTabBody({
                 ),
                 settings: controls,
                 suggestions: AgentChatComposerMenuHost(
+                  skills: skills,
                   hostId: hostId,
                   workspaceId: workspaceId,
                   chatId: chatId,

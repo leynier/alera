@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera_agent_chat/alera_agent_chat.dart';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
@@ -20,6 +22,9 @@ class const AgentChatScope({
   required final String chatId,
   required final String? cwd,
   final AgentChatViewMemory? memory,
+
+  /// The chat's skills, so messages draw the ones they invoked as chips.
+  final List<AgentChatProviderSkill> skills = const <AgentChatProviderSkill>[],
   required super.child,
 }) extends InheritedWidget {
   static AgentChatScope? maybeOf(BuildContext context) =>
@@ -31,7 +36,8 @@ class const AgentChatScope({
       workspaceId != oldWidget.workspaceId ||
       chatId != oldWidget.chatId ||
       cwd != oldWidget.cwd ||
-      !identical(memory, oldWidget.memory);
+      !identical(memory, oldWidget.memory) ||
+      !identical(skills, oldWidget.skills);
 }
 
 /// Whether the fold under [key] is open: the person's own choice for this

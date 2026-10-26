@@ -94,6 +94,8 @@ abstract final class const AleraIcons._() {
   static const IconData agent = LucideIcons.bot;
   // A slash command the chat agent advertises, in the composer `/` menu.
   static const IconData agentCommand = LucideIcons.squareSlash;
+  // A skill the chat agent offers, as on the desktop.
+  static const IconData skill = LucideIcons.box;
   static const IconData plan = LucideIcons.lightbulb;
   static const IconData quota = LucideIcons.gauge;
   static const IconData cloudOff = LucideIcons.cloudOff;
