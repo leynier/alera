@@ -72,7 +72,7 @@ final class AgentChatControllerProvider
 }
 
 String _$agentChatControllerHash() =>
-    r'db29a6b65e99b94484dc2510778a1ae39b39bda3';
+    r'350fadd36cf7ae0256b1988bfc1390312566a129';
 
 /// One chat on the paired runtime and what the person asks of it. The runtime
 /// owns the transcript and the provider process; this mirrors one and
