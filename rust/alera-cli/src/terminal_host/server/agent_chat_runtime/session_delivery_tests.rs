@@ -12,6 +12,8 @@ use fixture::*;
 
 #[path = "session_background_work_tests.rs"]
 mod background_work;
+#[path = "session_redirect_tests.rs"]
+mod redirect;
 
 #[tokio::test]
 async fn supported_effort_reaches_session_and_turn_and_remembering_waits_for_native_acceptance() {

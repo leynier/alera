@@ -9,8 +9,10 @@ use super::item_normalization::segment_complete_item;
 use super::session::ChatSession;
 use super::wire::{ChatItem, ChatTurn, STREAM_TEXT};
 
-pub(super) fn client_message_digest(input: &SendInput) -> String {
-    payload_digest(&json!({
+/// [declines] joins the digest only when present, so receipts stored before
+/// redirects existed still match their retries.
+pub(super) fn client_message_digest(input: &SendInput, declines: &[String]) -> String {
+    let mut digest = json!({
         "text": input.text,
         "attachments": input.attachments,
         "delivery": input.delivery,
@@ -18,7 +20,11 @@ pub(super) fn client_message_digest(input: &SendInput) -> String {
         "reasoningEffort": input.reasoning_effort,
         "interactionMode": input.interaction_mode,
         "origin": input.origin,
-    }))
+    });
+    if !declines.is_empty() {
+        digest["declineRequests"] = json!(declines);
+    }
+    payload_digest(&digest)
 }
 
 pub(super) fn provider_attachments(attachments: &[Value]) -> Vec<Attachment> {

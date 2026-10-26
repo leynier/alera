@@ -52,6 +52,17 @@ impl ChatSession {
     }
 
     pub(super) async fn send(&mut self, input: SendInput, ctx: &CallerCtx) -> HostResult<Value> {
+        self.send_declining(input, &[], ctx).await
+    }
+
+    /// Declines [declines] (pending approvals the sender saw) and admits the
+    /// message in one actor step, after every check a send can fail.
+    pub(super) async fn send_declining(
+        &mut self,
+        input: SendInput,
+        declines: &[String],
+        ctx: &CallerCtx,
+    ) -> HostResult<Value> {
         if self.header.provider == alera_core::runtime::AGENT_CHAT_UNSELECTED_PROVIDER {
             return Err(conflict(
                 "providerRequired",
@@ -74,7 +85,7 @@ impl ChatSession {
             ));
         }
         let scope = self.client_message_scope();
-        let digest = client_message_digest(&input);
+        let digest = client_message_digest(&input, declines);
         match self
             .deps
             .store
@@ -106,6 +117,9 @@ impl ChatSession {
             return Err(unsupported(
                 "This provider cannot take input during a running turn.",
             ));
+        }
+        if !declines.is_empty() {
+            self.decline_for_redirect(declines, ctx).await?;
         }
         let client_message_id = input.client_message_id.clone();
         let response = if input.delivery == "steer" {

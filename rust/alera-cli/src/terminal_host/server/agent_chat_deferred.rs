@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::agent_chat_runtime::commands::{
-    optional_string, required_string, CallerCtx, ChatOp, ConfigureInput, ReceiptKey, SendInput,
+    decline_request_ids, optional_string, required_string, CallerCtx, ChatOp, ConfigureInput,
+    ReceiptKey, SendInput,
 };
 use super::agent_chat_runtime::ids::payload_digest;
 use super::agent_chat_runtime::{AgentChatRuntime, CreateChatInput};
@@ -130,10 +131,14 @@ pub(super) async fn dispatch(
                 runtime_mode_ceiling: None,
                 origin: None,
             };
+            let operation = match decline_request_ids(payload)? {
+                Some(request_ids) => ChatOp::SendDecliningRequests { input, request_ids },
+                None => ChatOp::Send(input),
+            };
             runtime
                 .command(
                     &chat_id,
-                    ChatOp::Send(input),
+                    operation,
                     ctx,
                     Some(receipt_from_send(payload, request_type)?),
                 )

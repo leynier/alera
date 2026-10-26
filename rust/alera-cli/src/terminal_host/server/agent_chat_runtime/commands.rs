@@ -111,6 +111,13 @@ pub(crate) enum ChatOp {
         limit: usize,
     },
     Send(SendInput),
+    /// A send that first declines the pending approvals the sender saw, in
+    /// the same actor step, so the message redirects the agent instead of
+    /// waiting behind an approval nobody answers.
+    SendDecliningRequests {
+        input: SendInput,
+        request_ids: Vec<String>,
+    },
     /// Send on behalf of an authenticated chat while enforcing its mode
     /// ceiling inside the serialized session actor.
     SendWithinCeiling {
@@ -246,6 +253,44 @@ pub(crate) fn optional_string(payload: &Value, key: &str) -> HostResult<Option<S
         Some(Value::String(value)) => Ok(Some(value.clone())),
         Some(_) => Err(HostError::format(format!("{key} must be a string"))),
     }
+}
+
+/// `declineRequests: {requestIds}` on `agentChat.send`: the pending approvals
+/// the sender saw, which the send declines before it admits the message.
+pub(crate) fn decline_request_ids(payload: &Value) -> HostResult<Option<Vec<String>>> {
+    let declines = match payload.get("declineRequests") {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::Object(declines)) => declines,
+        Some(_) => return Err(HostError::format("declineRequests must be an object")),
+    };
+    if declines.keys().any(|key| key != "requestIds") {
+        return Err(HostError::format("declineRequests only takes requestIds"));
+    }
+    let mut ids = Vec::new();
+    for id in declines
+        .get("requestIds")
+        .and_then(Value::as_array)
+        .ok_or_else(|| HostError::format("declineRequests.requestIds must be an array"))?
+    {
+        match id.as_str().map(str::trim) {
+            Some(id) if !id.is_empty() => {
+                if !ids.iter().any(|known| known == id) {
+                    ids.push(id.to_owned());
+                }
+            }
+            _ => {
+                return Err(HostError::format(
+                    "declineRequests.requestIds must hold request ids",
+                ))
+            }
+        }
+    }
+    if ids.is_empty() {
+        return Err(HostError::format(
+            "declineRequests.requestIds needs at least one request id",
+        ));
+    }
+    Ok(Some(ids))
 }
 
 pub(crate) fn required_string(payload: &Value, key: &str) -> HostResult<String> {

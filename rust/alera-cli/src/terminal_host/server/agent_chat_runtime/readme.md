@@ -8,6 +8,7 @@ Runtime-host chat sessions over the Rust provider adapters (`alera-provider-*`).
 - A client opts in by sending `supportedTabKinds: ["agentChat"]` in `hello` (local) or `mobile.hello`. Clients that do not declare it never see `agentChat` tabs in `tab.list`, `tab.find` or tab events, cannot `tab.upsert` over one and cannot `tab.remove` one, and never receive `agentChat*` events.
 - Tab record: `kind: "agentChat"`, `payload: {chatId, provider, providerInstanceId, model?}`, `title` = chat title. The payload keys are host-owned: a client `tab.upsert` keeps the stored values.
 - `tab.remove` of an `agentChat` tab uses the same lifecycle as `agentChat.close`: a never-sent chat is discarded atomically; a chat with history is archived, its provider stopped and queued input cancelled.
+- `agentChatApprovalRedirectV1` adds `declineRequests: {requestIds}` to `agentChat.send`: the pending approvals the sender saw. In one actor step the runtime declines them (or cancels where decline is not offered) and admits the message. When the pending approvals are not exactly those, it refuses with `errorCode: "approvalsChanged"` before declining anything. The CLI and MCP send surfaces do not expose it.
 - Native verbs use `agentChatNativeRewindV1`, `agentChatRewindFilesV1`, `agentChatFileCheckpointsV1` and `agentChatNativeHistoryV1`. Global wire support is separate from the session's verified native capabilities and exact available boundaries.
 
 ## Verbs
@@ -23,7 +24,7 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 | `agentChat.snapshot` | `{chatId}` | `Snapshot` (items bounded to 256 KiB) |
 | `agentChat.history` | `{chatId, before, limit?}` | `{items, turns, historyBefore?}` (bounded to 256 KiB) |
 | `agentChat.payload` | `{chatId, workspaceId?, itemId, index?:0, limit?:200}` | `{chunks:[{index,text}], nextIndex?, segmentCount, format:"json", revision}` (bounded to 256 KiB) |
-| `agentChat.send` | `{requestId, chatId, clientMessageId, text, attachments?, delivery?: auto\|steer\|queue, model?, reasoningEffort?, interactionMode?}` | `{delivery: started\|queued\|steered, itemId?, turnId?, queueId?}` |
+| `agentChat.send` | `{requestId, chatId, clientMessageId, text, attachments?, delivery?: auto\|steer\|queue, model?, reasoningEffort?, interactionMode?, declineRequests?: {requestIds}}` | `{delivery: started\|queued\|steered, itemId?, turnId?, queueId?}` |
 | `agentChat.queueCancel` | `{requestId, chatId, queueId}` | `{cancelled: bool}` |
 | `agentChat.queueEdit` | `{requestId, chatId, queueId, text}` | `{updated: true, queueId}` (attachments preserved) |
 | `agentChat.queueSteer` | `{requestId, chatId, queueId, turnId}` | `{delivery: steered, queueId, itemId, turnId}` |

@@ -225,6 +225,9 @@ impl ChatSession {
                 self.configure_file_checkpoints(enabled).await
             }
             ChatOp::Send(input) => self.send(input, ctx).await,
+            ChatOp::SendDecliningRequests { input, request_ids } => {
+                self.send_declining(input, &request_ids, ctx).await
+            }
             ChatOp::SendWithinCeiling {
                 mut input,
                 runtime_mode_ceiling,

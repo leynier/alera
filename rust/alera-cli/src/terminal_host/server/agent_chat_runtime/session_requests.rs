@@ -155,6 +155,65 @@ impl ChatSession {
         Ok(json!({"resolved": true}))
     }
 
+    /// Declines every pending approval before a redirecting message is
+    /// admitted. [request_ids] are the approvals the sender saw: one that
+    /// arrived since, or one already answered, refuses the whole send before
+    /// anything is declined, so the message never overrides an approval its
+    /// sender did not see.
+    pub(super) async fn decline_for_redirect(
+        &mut self,
+        request_ids: &[String],
+        ctx: &CallerCtx,
+    ) -> HostResult<()> {
+        let mut responses = Vec::with_capacity(request_ids.len());
+        for request_id in request_ids {
+            let row = self
+                .header
+                .pending_requests
+                .iter()
+                .find(|request| &request.request_id == request_id)
+                .filter(|request| is_approval(kind_of(request)))
+                .ok_or_else(|| {
+                    conflict(
+                        APPROVALS_CHANGED,
+                        "An approval was already answered, so your message wasn't sent.",
+                    )
+                })?;
+            let decision = ["decline", "cancel"]
+                .into_iter()
+                .find(|decision| row.decisions.iter().any(|offered| offered == decision))
+                .ok_or_else(|| unsupported("This approval cannot be declined."))?;
+            if !self
+                .open_requests
+                .iter()
+                .any(|open| &open.request_id == request_id)
+            {
+                return Err(conflict(
+                    "request_resolved",
+                    "The provider is no longer waiting for this request.",
+                ));
+            }
+            responses.push((
+                request_id.clone(),
+                json!({"type": "approval", "decision": decision}),
+            ));
+        }
+        if self.header.pending_requests.iter().any(|request| {
+            is_approval(kind_of(request)) && !request_ids.contains(&request.request_id)
+        }) {
+            return Err(conflict(
+                APPROVALS_CHANGED,
+                "Another approval arrived, so your message wasn't sent.",
+            ));
+        }
+        // A provider failure part way leaves the earlier declines in place;
+        // the send then fails and the message stays with its sender.
+        for (request_id, response) in responses {
+            self.respond(&request_id, response, ctx).await?;
+        }
+        Ok(())
+    }
+
     pub(super) fn expire_requests_of_turn(&mut self, turn_id: Option<&str>) {
         let expired: Vec<_> = self
             .header
@@ -188,6 +247,10 @@ impl ChatSession {
         }
     }
 }
+
+/// The approvals a redirecting send was based on are no longer the pending
+/// ones.
+const APPROVALS_CHANGED: &str = "approvalsChanged";
 
 /// Feedback is a short instruction, not a document.
 const MAX_APPROVAL_FEEDBACK_BYTES: usize = 16 * 1024;

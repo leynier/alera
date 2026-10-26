@@ -139,6 +139,32 @@ impl MockProviderControl {
         );
     }
 
+    pub fn request_approval(&self, native_turn: usize, native_id: &str) {
+        let request = RuntimeRequest {
+            request_id: native_id.into(),
+            thread_id: self.chat_id.clone(),
+            turn_id: Some(format!("native-turn-{native_turn}")),
+            item_id: None,
+            kind: RequestKind::CommandExecutionApproval,
+            questions: Vec::new(),
+            payload: json!({"command": "cargo clean"}),
+            supports_feedback: false,
+        };
+        self.events
+            .send(
+                ProviderEvent::new(
+                    ProviderKind::Codex,
+                    "codex",
+                    &self.chat_id,
+                    EventKind::RequestOpened,
+                    json!({}),
+                    None,
+                )
+                .with_request(request),
+            )
+            .unwrap();
+    }
+
     pub fn request_input(&self, native_turn: usize, native_id: &str) {
         let request = RuntimeRequest {
             request_id: native_id.into(),
