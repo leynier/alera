@@ -31,6 +31,7 @@ event_kinds! {
     SessionExited => "session.exited",
     SessionCommandsUpdated => "session.commands.updated",
     SessionSkillsUpdated => "session.skills.updated",
+    SessionGoalUpdated => "session.goal.updated",
     ThreadStarted => "thread.started",
     ThreadStateChanged => "thread.state.changed",
     ThreadMetadataUpdated => "thread.metadata.updated",

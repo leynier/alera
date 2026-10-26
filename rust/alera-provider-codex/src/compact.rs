@@ -1,5 +1,6 @@
 //! T3 Code's Codex `/compact`: a turn whose whole text is the command runs
-//! `thread/compact/start` instead of `turn/start`, and the composer lists it.
+//! `thread/compact/start` instead of `turn/start`, and the composer lists it
+//! with `/goal` (see `goal.rs`).
 
 use crate::provider::CodexProvider;
 use crate::{events, wire};
@@ -11,6 +12,10 @@ use alera_provider_protocol::{
 use serde_json::{json, Value};
 
 const COMPACT_DESCRIPTION: &str = "Summarize the conversation and reduce context usage";
+
+pub(crate) fn compact_command() -> Option<ProviderSlashCommand> {
+    ProviderSlashCommand::from_native("compact", Some(COMPACT_DESCRIPTION), None)
+}
 
 /// The detection T3 Code's run execution uses: no attachments and the
 /// trimmed, lowercased text is exactly `/compact`.
@@ -25,12 +30,7 @@ impl<T: JsonTransport> CodexProvider<T> {
         let Some(session) = self.session.as_ref() else {
             return;
         };
-        let commands = [
-            ProviderSlashCommand::from_native("compact", Some(COMPACT_DESCRIPTION), None),
-            crate::feedback::feedback_command(),
-        ]
-        .into_iter()
-        .flatten();
+        let commands = self.session_command_list();
         let event = ProviderEvent::new(
             ProviderKind::Codex,
             self.config.instance_id.clone(),
@@ -95,7 +95,9 @@ impl<T: JsonTransport> CodexProvider<T> {
                         "Codex notification queue is full".into(),
                     ));
                 }
-                let event = events::map_message(self, message)?;
+                let Some(event) = events::map_message(self, message)? else {
+                    continue;
+                };
                 let started = started_turn_id(&event, native_thread_id);
                 self.queued_events.push_back(event);
                 if let Some(turn_id) = started {
@@ -109,7 +111,8 @@ impl<T: JsonTransport> CodexProvider<T> {
         })?
     }
 
-    /// T3 Code's orchestrator refuses both, so a compaction stays one turn.
+    /// T3 Code's orchestrator refuses these, so a compaction stays one turn
+    /// and a goal command never joins a running one.
     pub(crate) fn ensure_steerable(
         &self,
         input: &TurnInput,
@@ -119,6 +122,14 @@ impl<T: JsonTransport> CodexProvider<T> {
         if is_compact_turn(input) {
             return Err(ProviderError::Unsupported(
                 "Context compaction must run as a separate turn. Queue it or wait for the active turn to finish."
+                    .into(),
+            ));
+        }
+        if alera_provider_protocol::parse_goal_command(&input.input, !input.attachments.is_empty())
+            .is_some()
+        {
+            return Err(ProviderError::Unsupported(
+                "Goal commands must run as a separate turn. Queue it or wait for the active turn to finish."
                     .into(),
             ));
         }

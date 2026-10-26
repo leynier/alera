@@ -199,6 +199,17 @@ impl<T: JsonTransport> CodexProvider<T> {
             .session
             .clone()
             .ok_or_else(|| ProviderError::InvalidState("start a Codex session first".into()))?;
+        if self
+            .goal
+            .hold
+            .as_ref()
+            .is_some_and(|hold| hold.native_turn_id == expected_turn_id)
+        {
+            return Err(ProviderError::InvalidState(
+                "The goal turn is finishing. Send the message again once the next one starts."
+                    .into(),
+            ));
+        }
         if session.thread_id != input.thread_id
             || expected_turn_id.trim().is_empty()
             || session.active_turn_id.as_deref() != Some(expected_turn_id)

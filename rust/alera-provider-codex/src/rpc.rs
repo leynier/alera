@@ -55,8 +55,9 @@ impl<T: JsonTransport> CodexProvider<T> {
                             "Codex notification queue is full".into(),
                         ));
                     }
-                    let event = events::map_message(self, message)?;
-                    self.queued_events.push_back(event);
+                    if let Some(event) = events::map_message(self, message)? {
+                        self.queued_events.push_back(event);
+                    }
                     continue;
                 }
                 if message.get("id").and_then(Value::as_i64) == Some(id) {

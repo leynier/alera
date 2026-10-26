@@ -56,10 +56,14 @@ async fn started(frames: impl IntoIterator<Item = Value>) -> CodexProvider<MockT
 }
 
 #[tokio::test]
-async fn session_start_resume_and_fork_advertise_compact_and_feedback() {
+async fn session_start_resume_and_fork_advertise_compact_goal_and_feedback() {
     let expected = json!({ "commands": [{
         "name": "compact",
         "description": "Summarize the conversation and reduce context usage",
+    }, {
+        "name": "goal",
+        "description": "Set a goal Codex keeps working toward until it is done",
+        "input": { "hint": "Objective, or pause, resume, clear" },
     }, {
         "name": "feedback",
         "description": "Send this thread and Codex logs to OpenAI",

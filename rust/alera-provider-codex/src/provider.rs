@@ -53,6 +53,7 @@ pub struct CodexProvider<T> {
     pub(crate) abandoned_responses: HashSet<i64>,
     /// The native turn the last `/compact` runs in, which cannot be steered.
     pub(crate) compaction_turn_id: Option<String>,
+    pub(crate) goal: crate::goal::GoalState,
 }
 
 impl<T: JsonTransport> CodexProvider<T> {
@@ -107,6 +108,7 @@ impl<T> CodexProvider<T> {
             skills_stale: false,
             abandoned_responses: HashSet::new(),
             compaction_turn_id: None,
+            goal: Default::default(),
         }
     }
 
@@ -264,27 +266,19 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         }
         crate::feedback::refuse_feedback_turn(&input)?;
         if crate::compact::is_compact_turn(&input) {
-            return self.start_compaction(&session).await;
+            self.goal.starting_turn = true;
+            let result = self.start_compaction(&session).await;
+            self.goal.starting_turn = false;
+            return result;
         }
-        let params = self.turn_params(&input, &session)?;
-        let response = self.call("turn/start", Value::Object(params)).await?;
-        let native_turn_id = Self::decode_turn_id(&response)?;
-        let thread_id = session.thread_id.clone();
-        let turn_id = native_turn_id.clone();
-        let waiting_for_request = !self.pending_requests.is_empty();
-        if let Some(session) = self.session.as_mut() {
-            session.status = if waiting_for_request {
-                SessionStatus::Waiting
-            } else {
-                SessionStatus::Running
-            };
-            session.active_turn_id = Some(native_turn_id.clone());
+        if let Some(command) =
+            alera_provider_protocol::parse_goal_command(&input.input, !input.attachments.is_empty())
+        {
+            return self.run_goal_command(command, &input, &session).await;
         }
-        Ok(TurnStartResult {
-            thread_id,
-            turn_id,
-            native_turn_id: Some(native_turn_id),
-        })
+        let result = self.start_root_turn(&input, &session).await;
+        self.flush_goal_requests().await?;
+        result
     }
 
     async fn upload_feedback(
@@ -304,9 +298,23 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                 "interrupt threadId does not match the active session".into(),
             ));
         }
-        let turn_id = input.turn_id.or(session.active_turn_id).ok_or_else(|| {
-            ProviderError::InvalidState("no active Codex turn to interrupt".into())
-        })?;
+        let requested = input.turn_id.or(session.active_turn_id);
+        // A goal command turn never reached Codex and settles on its own.
+        if requested
+            .as_deref()
+            .is_some_and(|turn| turn.starts_with(crate::goal_command::GOAL_COMMAND_TURN_PREFIX))
+        {
+            return Ok(());
+        }
+        let goal_work = self.goal.working();
+        let Some(turn_id) = self.stop_goal_work(requested).await? else {
+            if goal_work {
+                return Ok(());
+            }
+            return Err(ProviderError::InvalidState(
+                "no active Codex turn to interrupt".into(),
+            ));
+        };
         self.call(
             "turn/interrupt",
             json!({ "threadId": session.native_thread_id, "turnId": turn_id }),
@@ -406,7 +414,8 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         &mut self,
     ) -> Result<Option<alera_provider_protocol::ProviderEvent>, ProviderError> {
         self.ensure_open()?;
-        let message = loop {
+        loop {
+            self.flush_goal_requests().await?;
             if let Some(event) = self.queued_events.pop_front() {
                 self.mark_event_consumed(&event);
                 return Ok(Some(event));
@@ -415,7 +424,16 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                 self.queue_session_skills().await;
                 continue;
             }
-            let Some(message) = self.transport.recv().await? else {
+            let held = self.goal.hold.is_some();
+            let Some(message) = self.recv_within_goal_hold().await? else {
+                if held && self.goal.hold.is_none() {
+                    continue;
+                }
+                // The held turn settles before the stream ends.
+                if self.goal.hold.is_some() {
+                    self.release_goal_hold();
+                    continue;
+                }
                 return Ok(None);
             };
             if self.absorb_skills_message(&message) {
@@ -426,13 +444,18 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                     "Codex received an unsolicited response".into(),
                 ));
             }
-            if !self.answer_allowed_request(&message).await? {
-                break message;
+            if self.answer_allowed_request(&message).await? {
+                continue;
             }
-        };
-        let event = events::map_message(self, message)?;
-        self.mark_event_consumed(&event);
-        Ok(Some(event))
+            if self.queued_events.len() >= self.config.max_queued_events {
+                return Err(ProviderError::InvalidState(
+                    "Codex notification queue is full".into(),
+                ));
+            }
+            if let Some(event) = events::map_message(self, message)? {
+                self.queued_events.push_back(event);
+            }
+        }
     }
 
     async fn close(&mut self) -> Result<(), ProviderError> {
@@ -447,6 +470,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.skills_stale = false;
         self.abandoned_responses.clear();
         self.compaction_turn_id = None;
+        self.goal.reset();
         self.terminal_event_pending = false;
         self.clear_children();
         self.turn_failure_class = None;

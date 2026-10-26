@@ -1,7 +1,7 @@
 use crate::{
     error::nonempty, ContentDeltaPayload, EventKind, ItemLifecyclePayload, ProviderError,
-    ProviderEvent, ProviderSkillsUpdate, ProviderSlashCommandsUpdate, RequestKind, TurnStatus,
-    UsageLimitsUpdate, UserInputQuestion,
+    ProviderEvent, ProviderGoalUpdate, ProviderSkillsUpdate, ProviderSlashCommandsUpdate,
+    RequestKind, TurnStatus, UsageLimitsUpdate, UserInputQuestion,
 };
 
 impl ProviderEvent {
@@ -110,6 +110,12 @@ impl ProviderEvent {
                 for skill in update.skills {
                     nonempty(&skill.name, "skill name")?;
                     nonempty(&skill.path, "skill path")?;
+                }
+            }
+            EventKind::SessionGoalUpdated => {
+                let update = decode::<ProviderGoalUpdate>(&self.payload, "session goal")?;
+                if let Some(goal) = update.goal {
+                    nonempty(&goal.objective, "goal objective")?;
                 }
             }
             EventKind::AccountRateLimitsUpdated => {

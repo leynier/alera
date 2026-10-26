@@ -8,18 +8,39 @@ use alera_provider_protocol::{
 };
 use serde_json::Value;
 
+/// The event for an incoming message, or `None` when the goal holds or
+/// drops it (see `goal.rs`).
 pub(crate) fn map_message<T: JsonTransport>(
     provider: &mut CodexProvider<T>,
     message: Value,
-) -> Result<ProviderEvent, ProviderError> {
+) -> Result<Option<ProviderEvent>, ProviderError> {
     let method = wire::method(&message)
         .map(ToOwned::to_owned)
         .ok_or_else(|| ProviderError::Protocol("Codex incoming message has no method".into()))?;
+    let params = wire::params(&message);
     if let Some(id) = message.get("id").cloned() {
-        map_request(provider, &id, &method, wire::params(&message), message)
-    } else {
-        map_notification(provider, &method, wire::params(&message), message)
+        return map_request(provider, &id, &method, params, message).map(Some);
     }
+    if provider.drops_goal_orphan(&method, &params) {
+        return Ok(None);
+    }
+    let event = map_notification(provider, &method, params.clone(), message)?;
+    Ok(provider.apply_goal_notification(&method, &params, event))
+}
+
+/// The event of a notification Alera makes up for a turn that never reaches
+/// Codex, kept apart from the goal so it is neither held nor dropped.
+pub(crate) fn map_synthetic<T: JsonTransport>(
+    provider: &mut CodexProvider<T>,
+    method: &str,
+    params: Value,
+) -> Result<ProviderEvent, ProviderError> {
+    let message = wire::notification(method, params.clone());
+    let mut event = map_notification(provider, method, params, message)?;
+    if let Some(raw) = event.raw.as_mut() {
+        raw.source = "alera.codex.goal-command".into();
+    }
+    Ok(event)
 }
 
 fn map_notification<T: JsonTransport>(
