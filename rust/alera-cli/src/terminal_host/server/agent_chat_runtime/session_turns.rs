@@ -26,6 +26,9 @@ pub(super) struct TurnEnd {
     pub error_message: Option<String>,
     pub reason: Option<String>,
     pub failure_class: FailureClass,
+    /// The provider's native child turns outlive this failed turn and report
+    /// their own ends; otherwise the turn's awaited work ends with it.
+    pub child_turns_continue: bool,
 }
 
 impl TurnEnd {
@@ -35,6 +38,7 @@ impl TurnEnd {
             error_message,
             reason,
             failure_class: FailureClass::Unknown,
+            child_turns_continue: false,
         }
     }
 }
@@ -371,6 +375,7 @@ impl ChatSession {
             error_message,
             reason,
             failure_class,
+            child_turns_continue,
         } = end;
         let status = status.as_str();
         let Some(turn_id) = self.header.session.active_turn_id.take() else {
@@ -409,8 +414,15 @@ impl ChatSession {
             self.pending.item(&item_id);
         }
         self.expire_requests_of_turn(Some(&turn_id));
+        // Child work survives a completed turn, and a failed one whose
+        // provider says its children continue. A failed or stopped turn
+        // otherwise takes its children down with it.
+        if status != "completed" && !child_turns_continue {
+            self.awaited_tasks
+                .retain(|_, started_in| started_in.as_deref() != Some(turn_id.as_str()));
+        }
         if self.provider.is_some() {
-            self.set_status("ready");
+            self.set_status(self.idle_status());
         } else if matches!(
             self.header.session.status.as_str(),
             "running" | "waiting" | "starting"

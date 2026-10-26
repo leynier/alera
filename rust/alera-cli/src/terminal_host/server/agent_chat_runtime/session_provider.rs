@@ -240,6 +240,8 @@ impl ChatSession {
             Ok((provider, session)) => {
                 self.live_caps = Some(provider.capabilities());
                 self.provider = Some(provider);
+                // Task ids of an earlier process name nothing in this one.
+                self.awaited_tasks.clear();
                 self.events_armed = true;
                 self.record_native_session(&session.native_thread_id).await;
                 if self.startup_forking {
@@ -325,6 +327,7 @@ impl ChatSession {
         let Some(mut provider) = self.provider.take() else {
             return;
         };
+        self.awaited_tasks.clear();
         let _ = tokio::time::timeout(CLOSE_TIMEOUT, provider.close()).await;
         self.revoke_launch_credentials("providerExited").await;
         self.live_caps = None;

@@ -183,7 +183,7 @@ impl ChatSession {
             self.set_status(if self.header.session.active_turn_id.is_some() {
                 "running"
             } else {
-                "ready"
+                self.idle_status()
             });
         }
     }

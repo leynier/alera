@@ -57,6 +57,7 @@ impl ChatSession {
                 let error = event.payload["errorMessage"].as_str().map(str::to_string);
                 self.end_turn(TurnEnd {
                     failure_class: event.failure_class(),
+                    child_turns_continue: event.child_turns_continue(),
                     ..TurnEnd::new(&state, error, None)
                 })
                 .await;
@@ -110,7 +111,10 @@ impl ChatSession {
             EventKind::TaskStarted
             | EventKind::TaskProgress
             | EventKind::TaskUpdated
-            | EventKind::TaskCompleted => self.apply_subagent_task(&event).await,
+            | EventKind::TaskCompleted => {
+                self.track_awaited_task(&event);
+                self.apply_subagent_task(&event).await;
+            }
             EventKind::ThreadTokenUsageUpdated => self.apply_token_usage(&event.payload),
             EventKind::AccountRateLimitsUpdated => {
                 let windows = event.payload["limits"]["windows"].clone();
