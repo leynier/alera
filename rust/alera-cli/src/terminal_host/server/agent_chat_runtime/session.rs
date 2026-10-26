@@ -114,6 +114,9 @@ pub(crate) struct ChatSession {
     pub(super) items: HashMap<String, ChatItem>,
     /// List and tab notices, sent after the commit they describe.
     pub(super) notices: Vec<ChatRuntimeEvent>,
+    /// Set while a goal turn hands its run to the next one, so the session
+    /// never reads as idle between them.
+    pub(super) goal_continuing: bool,
     pub(super) busy_flag: bool,
     pub(super) live_flag: bool,
     pub(super) closed: bool,
@@ -223,6 +226,7 @@ impl ChatSession {
             awaited_tasks: HashMap::new(),
             items,
             notices: Vec::new(),
+            goal_continuing: false,
             busy_flag: false,
             live_flag: false,
             closed: false,

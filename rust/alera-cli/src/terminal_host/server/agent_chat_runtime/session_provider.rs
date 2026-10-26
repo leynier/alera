@@ -306,7 +306,13 @@ impl ChatSession {
             .bind_agent_chat_native_thread(&self.header.chat_id, self.generation, Some(native))
             .await
         {
-            Ok(()) => self.native_thread = Some(native.to_string()),
+            Ok(()) => {
+                // A goal lives on its native thread; a new one has none.
+                if self.header.session.goal.take().is_some() {
+                    self.pending.session();
+                }
+                self.native_thread = Some(native.to_string());
+            }
             Err(error) => {
                 tracing::warn!(chat_id = %self.header.chat_id, error = %error, "agent chat native thread was not recorded")
             }

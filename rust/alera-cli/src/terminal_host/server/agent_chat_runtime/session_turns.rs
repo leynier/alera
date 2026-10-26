@@ -107,6 +107,7 @@ impl ChatSession {
             provider: self.header.provider.clone(),
             provider_instance_id: self.header.provider_instance_id.clone(),
             generation: self.generation,
+            origin: None,
         };
         let mut item = ChatItem::new(new_id("item"), "user_message", &stamp, self.generation);
         item.turn_id = Some(turn.turn_id.clone());

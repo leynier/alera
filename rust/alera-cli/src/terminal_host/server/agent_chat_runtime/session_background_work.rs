@@ -89,7 +89,7 @@ impl ChatSession {
     /// The status of a live provider with no turn running: working while the
     /// agent still waits on its background work.
     pub(super) fn idle_status(&self) -> &'static str {
-        if self.awaited_tasks.is_empty() {
+        if self.awaited_tasks.is_empty() && !self.goal_continuing {
             "ready"
         } else {
             "running"

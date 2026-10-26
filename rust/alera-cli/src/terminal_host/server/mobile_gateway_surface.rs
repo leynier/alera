@@ -80,6 +80,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatFeedbackV1",
     "agentChatSubagentThreadsV1",
     "agentChatMergeBackV1",
+    "agentChatGoalV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",

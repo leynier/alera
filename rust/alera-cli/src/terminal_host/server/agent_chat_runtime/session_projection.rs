@@ -56,12 +56,15 @@ impl ChatSession {
                     .unwrap_or("completed")
                     .to_string();
                 let error = event.payload["errorMessage"].as_str().map(str::to_string);
-                self.end_turn(TurnEnd {
+                let end = TurnEnd {
                     failure_class: event.failure_class(),
                     child_turns_continue: event.child_turns_continue(),
                     ..TurnEnd::new(&state, error, None)
-                })
-                .await;
+                };
+                match event.goal_continuation_turn() {
+                    Some(next) => self.end_turn_into_goal(end, next).await,
+                    None => self.end_turn(end).await,
+                }
                 self.drain_queue().await;
                 return;
             }
@@ -132,6 +135,7 @@ impl ChatSession {
                     }
                 }
             }
+            EventKind::SessionGoalUpdated => self.apply_goal_update(&event),
             EventKind::SessionSkillsUpdated => {
                 if let Ok(update) =
                     serde_json::from_value::<ProviderSkillsUpdate>(event.payload.clone())

@@ -54,6 +54,27 @@ thread = "fixture-thread-" + str(os.getpid())
 turn_number = 0
 pending = None
 initialized = False
+goal = None
+
+
+def next_turn():
+    global turn_number
+    turn_number += 1
+    return "fixture-turn-%s-%s" % (os.getpid(), turn_number)
+
+
+def goal_changed():
+    notice("thread/goal/updated", {"threadId": thread, "goal": goal})
+
+
+def continue_goal():
+    """Like Codex: an active goal starts its next turn on its own, here once
+    before the goal is met."""
+    turn = next_turn()
+    notice("turn/started", {"threadId": thread, "turn": {"id": turn}})
+    complete(thread, turn, "fixture-assistant-" + turn)
+    goal["status"] = "complete"
+    goal_changed()
 
 try:
     for line in sys.stdin:
@@ -82,8 +103,7 @@ try:
         elif method == "turn/start":
             if pending is not None:
                 raise RuntimeError("another turn started during approval")
-            turn_number += 1
-            turn = "fixture-turn-%s-%s" % (os.getpid(), turn_number)
+            turn = next_turn()
             item = "fixture-assistant-" + turn
             emit({"id": request_id, "result": {"turn": {"id": turn}}})
             notice("turn/started", {"threadId": thread, "turn": {"id": turn}})
@@ -104,6 +124,24 @@ try:
                                  "reason": "Fixture approval boundary"}})
             else:
                 complete(thread, turn, item)
+        elif method == "thread/goal/get":
+            emit({"id": request_id, "result": {"goal": goal}})
+        elif method == "thread/goal/set":
+            if goal is None:
+                goal = {"threadId": thread, "objective": "", "status": "active",
+                        "tokensUsed": 0, "timeUsedSeconds": 0,
+                        "createdAt": 1, "updatedAt": 1}
+            for key in ("objective", "status"):
+                if params.get(key) is not None:
+                    goal[key] = params[key]
+            emit({"id": request_id, "result": {"goal": goal}})
+            goal_changed()
+            if goal["status"] == "active":
+                continue_goal()
+        elif method == "thread/goal/clear":
+            emit({"id": request_id, "result": {"cleared": goal is not None}})
+            goal = None
+            notice("thread/goal/cleared", {"threadId": thread})
         elif method == "turn/interrupt":
             emit({"id": request_id, "result": {}})
             if pending is not None:

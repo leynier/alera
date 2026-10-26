@@ -119,6 +119,10 @@ pub(crate) struct ChatTurn {
     pub provider_instance_id: String,
     #[serde(default)]
     pub generation: i64,
+    /// `goalContinuation` for a turn the agent started on its own to keep
+    /// working toward its goal; such a turn has no user message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -94,10 +94,12 @@ impl ChatSession {
         let client_message_id = input.client_message_id.clone();
         let response = if input.delivery == "steer" {
             self.steer_message(input, ctx).await?
-        } else if self.must_queue() {
-            self.enqueue(input, ctx)
         } else {
-            self.start_turn(input, ctx).await?
+            match self.admit_goal_command(input, ctx).await? {
+                Ok(response) => response,
+                Err(input) if self.must_queue() => self.enqueue(input, ctx),
+                Err(input) => self.start_turn(input, ctx).await?,
+            }
         };
         // Recorded once the message itself is committed.
         self.message_receipts.push(AgentChatReceipt {

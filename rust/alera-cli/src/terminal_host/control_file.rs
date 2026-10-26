@@ -265,6 +265,7 @@ mod tests {
     "agentChatTurnDiffV1",
     "agentChatSkillsV1",
     "agentChatReadCursorV1",
+    "agentChatGoalV1",
                 "chatOrchestrationV1",
                 "workspaceDetailsV1",
                 "gitOperationsProgressV1",
