@@ -11,6 +11,7 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_close_confirmation.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_composer_commands.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_find_requests.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart'
@@ -32,6 +33,7 @@ import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_r
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'keyboard_command_dispatcher_agent_chat.dart';
 part 'keyboard_command_dispatcher_navigation.dart';
 
 /// Maps a [KeyboardActionId] to concrete app behavior, reusing existing
@@ -41,6 +43,10 @@ class const KeyboardCommandDispatcher({
   required final WidgetRef ref,
   required final BuildContext context,
   final TerminalSessionHandle? terminalSession,
+
+  /// The instance of the scoped surface that held the focus, such as the
+  /// chat id for a binding scoped to an agent chat.
+  final String? scopeTarget,
 }) {
   /// Restore the active workbench pane after a global surface was dismissed.
   void focusActivePane() => _focusActivePane();
@@ -115,6 +121,8 @@ class const KeyboardCommandDispatcher({
         unawaited(_newAgentChat());
       case KeyboardActionId.chooseAgentChatModel:
         _chooseAgentChatModel();
+      case KeyboardActionId.findInAgentChat:
+        _findInAgentChat();
       case KeyboardActionId.closeTab:
         _closeActiveTab();
       case KeyboardActionId.nextTab:

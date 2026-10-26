@@ -52,6 +52,7 @@ class const AgentChatFooter({
           recovering: state.recovering,
           queue: state.thread?.queue ?? const <AgentChatQueueEntry>[],
           planSteps: state.projection?.activePlanSteps,
+          refiningPlan: agentChatImplementablePlanId(state) != null,
           busy: state.busy,
           requests: state.projection?.requests ?? const <AgentChatRequest>[],
           responding: state.respondingRequestIds,
@@ -237,6 +238,7 @@ class const AgentChatFooter({
                         view.requests,
                         settings,
                         approvalSend,
+                        refiningPlan: view.refiningPlan,
                       ),
                 sendLabel: approvalSend?.sendLabel,
                 promptHistory: () =>
@@ -331,8 +333,9 @@ String _hint(
   bool busy,
   List<AgentChatRequest> requests,
   AgentChatComposerSettings settings,
-  AgentChatApprovalSend? approvalSend,
-) {
+  AgentChatApprovalSend? approvalSend, {
+  required bool refiningPlan,
+}) {
   if (!live) return 'Reconnecting to the Alera runtime';
   if (approvalSend != null) return approvalSend.hint;
   if (requests.isNotEmpty) return agentChatRequestPendingHint;
@@ -342,5 +345,6 @@ String _hint(
     return '${settings.providerLabel} cannot start yet; your draft is kept';
   }
   if (busy) return 'Send a message to queue it after this turn';
+  if (refiningPlan) return 'Describe what to change in the plan';
   return 'Ask ${settings.providerLabel} anything';
 }

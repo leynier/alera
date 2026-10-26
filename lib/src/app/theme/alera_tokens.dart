@@ -46,6 +46,7 @@ abstract final class AleraTokens {
   static const double agentChatAttachmentThumbnailSize = 60.0;
   static const double agentChatComposerCompactWidth = 560.0;
   static const double agentChatStatusDotSize = 7.0;
+  static const double agentChatFindBarWidth = 360.0;
   // A chat timeline follows new output again once the reader is this close
   // to the end.
   static const double agentChatFollowRearmExtent = 40.0;

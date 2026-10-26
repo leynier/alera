@@ -250,6 +250,15 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     searchKeywords: <String>['agent', 'chat', 'model', 'provider'],
   ),
   KeybindingDefinition(
+    id: .findInAgentChat,
+    label: 'Find in Chat',
+    group: .tabs,
+    description: 'Search the loaded messages of the focused agent chat.',
+    defaultBindings: .uniform(<String>['Mod+F']),
+    searchKeywords: <String>['search', 'agent', 'chat', 'messages'],
+    scope: .agentChat,
+  ),
+  KeybindingDefinition(
     id: .closeTab,
     label: 'Close Tab',
     group: .tabs,

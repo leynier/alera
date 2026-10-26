@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_timeline_sessions.dart';
@@ -26,6 +27,7 @@ mixin AgentChatTimelineScrolling<T extends StatefulWidget> on State<T> {
   bool _settleScheduled = false;
   bool _placeScheduled = false;
   int _programmatic = 0;
+  int _reveals = 0;
 
   AgentChatTimelineSession get session;
 
@@ -34,6 +36,9 @@ mixin AgentChatTimelineScrolling<T extends StatefulWidget> on State<T> {
 
   /// Keys of the entries built right now, for capturing the reader's place.
   Iterable<String> get builtEntryKeys;
+
+  /// The position of the entry with [key] in the timeline, if it is there.
+  int? indexOfEntry(String key);
 
   void initScrolling() {
     scroll.addListener(_handleScroll);
@@ -167,6 +172,8 @@ mixin AgentChatTimelineScrolling<T extends StatefulWidget> on State<T> {
   }
 
   bool _endStep() {
+    // A reveal took over since this follow was scheduled.
+    if (session.mode != AgentChatScrollMode.following) return true;
     final position = scroll.position;
     if (position.extentAfter < AleraTokens.dividerExtent) return true;
     _jump(position.maxScrollExtent);
@@ -207,6 +214,58 @@ mixin AgentChatTimelineScrolling<T extends StatefulWidget> on State<T> {
     }
     _jump(desired);
     return (scroll.position.pixels - before).abs() < 0.5;
+  }
+
+  /// Brings the entry [key], at [index] of [count], into view so its rows
+  /// build, then calls [onBuilt]. The lazily built list only knows extents
+  /// near what it laid out, so this jumps toward the entry and corrects over
+  /// a few frames. The timeline stops following, so output streaming in
+  /// meanwhile does not pull the reader away from what they looked for.
+  void revealEntry(
+    String key, {
+    required int index,
+    required int count,
+    required VoidCallback onBuilt,
+  }) {
+    session
+      ..mode = AgentChatScrollMode.free
+      ..anchoredEntryKey = null
+      ..anchoredClientMessageId = null;
+    anchorSpacer.value = 0;
+    final reveal = ++_reveals;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      for (var attempt = 0; attempt < 12; attempt += 1) {
+        if (!mounted || !scroll.hasClients || reveal != _reveals) return;
+        if (entryBox(key) != null) {
+          onBuilt();
+          return;
+        }
+        _jumpToward(index, count);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// One step toward the unbuilt entry at [index]: its proportional offset,
+  /// but at least a viewport past the entries built now, so a poor estimate
+  /// still makes progress.
+  void _jumpToward(int index, int count) {
+    final viewport = _viewportBox();
+    if (viewport == null) return;
+    final position = scroll.position;
+    var target = position.maxScrollExtent * index / math.max(1, count - 1);
+    final built = <int>[
+      for (final key in builtEntryKeys)
+        if (entryBox(key) != null) ?indexOfEntry(key),
+    ];
+    if (built.isNotEmpty) {
+      final page = viewport.size.height;
+      target = index < built.reduce(math.min)
+          ? math.min(target, position.pixels - page)
+          : math.max(target, position.pixels + page);
+    }
+    _jump(target);
   }
 
   /// Lazily built rows change the scroll extent as they lay out, so one step

@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_view_state.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_plan_delegation.dart';
@@ -8,14 +9,16 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
 /// A plan the agent proposed in plan mode. Long plans show a preview until
-/// expanded; the latest one offers to leave plan mode and implement it, and
-/// any settled one can be implemented in a new workspace instead.
+/// expanded; the latest one offers to refine it from the composer in plan
+/// mode or to leave plan mode and implement it, and any settled one can be
+/// implemented in a new workspace instead.
 class const AgentChatProposedPlanView({
   super.key,
   required final AgentChatItem item,
   required final AgentChatExpansion expansion,
   required final ValueChanged<String> onOpenLink,
   required final VoidCallback? onImplement,
+  final VoidCallback? onRefine,
 }) extends StatefulWidget {
   @override
   State<AgentChatProposedPlanView> createState() =>
@@ -23,7 +26,7 @@ class const AgentChatProposedPlanView({
 }
 
 class _AgentChatProposedPlanViewState extends State<AgentChatProposedPlanView> {
-  String get _key => 'plan-${widget.item.id}';
+  String get _key => agentChatPlanFoldKey(widget.item.id);
 
   @override
   Widget build(BuildContext context) {
@@ -90,13 +93,20 @@ class _AgentChatProposedPlanViewState extends State<AgentChatProposedPlanView> {
           if (!item.isInProgress) ...<Widget>[
             const SizedBox(height: AleraTokens.space12),
             // Implement In New Workspace hides itself without chat tasks, so
-            // the row may hold only Implement Plan, or nothing.
+            // the row may hold only Refine and Implement Plan, or nothing.
             Wrap(
               alignment: WrapAlignment.end,
               spacing: AleraTokens.space8,
               runSpacing: AleraTokens.space8,
               children: <Widget>[
                 ChatTaskImplementPlanButton(plan: item),
+                if (widget.onRefine case final VoidCallback refine)
+                  OutlinedButton.icon(
+                    key: const ValueKey<String>('agent-chat-refine-plan'),
+                    onPressed: refine,
+                    icon: const Icon(AleraIcons.edit, size: AleraTokens.iconMd),
+                    label: const Text('Refine'),
+                  ),
                 if (widget.onImplement case final VoidCallback implement)
                   FilledButton.icon(
                     key: const ValueKey<String>('agent-chat-implement-plan'),
@@ -114,6 +124,29 @@ class _AgentChatProposedPlanViewState extends State<AgentChatProposedPlanView> {
       ),
     );
   }
+}
+
+/// The plan Implement Plan and Refine act on: the newest proposed plan of
+/// the latest turn, while the chat is idle in plan mode.
+String? agentChatImplementablePlanId(AgentChatViewState state) {
+  final thread = state.thread;
+  final projection = state.projection;
+  if (thread == null ||
+      projection == null ||
+      thread.session.busy ||
+      thread.session.interactionMode != AgentChatInteractionMode.plan) {
+    return null;
+  }
+  for (final entry in projection.entries.reversed) {
+    if (entry is! AgentChatTurnEntry) continue;
+    for (final answer in entry.section.answers.reversed) {
+      if (answer.type == AgentChatItemType.plan && !answer.isInProgress) {
+        return answer.id;
+      }
+    }
+    return null;
+  }
+  return null;
 }
 
 /// The running turn's checklist, docked above the composer while the agent

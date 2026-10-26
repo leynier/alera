@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_timeline_sessions.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_find.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_announcer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_entry.dart';
@@ -49,7 +51,8 @@ final class _CachedEntry {
 }
 
 class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
-    with AgentChatTimelineScrolling<AgentChatTimelineView> {
+    with AgentChatTimelineScrolling<AgentChatTimelineView>
+    implements AgentChatFindViewport {
   static const int _cacheLimit = 128;
   static const String _entryKeyPrefix = 'agent-chat-entry:';
 
@@ -57,6 +60,7 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
       LinkedHashMap<String, _CachedEntry>();
   late AgentChatTimelineSession _session;
   ({String key, double top})? _historyAnchor;
+  AgentChatFindController? _find;
 
   @override
   AgentChatTimelineSession get session => _session;
@@ -72,12 +76,77 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
   Iterable<String> get builtEntryKeys => _cache.keys;
 
   @override
+  int? indexOfEntry(String key) => widget.projection.indexOfKey(key);
+
+  @override
+  int? get firstVisibleEntryIndex {
+    final key = captureAnchor()?.key;
+    return key == null ? null : indexOfEntry(key);
+  }
+
+  /// Opens the folds that hide the match, then scrolls its row into view.
+  @override
+  void reveal(AgentChatFindMatch match) {
+    final index = indexOfEntry(match.entryKey);
+    if (index == null) return;
+    final expansion = _session.expansion;
+    final closed = <String>[
+      for (final key in match.foldKeys)
+        if (!expansion.isExpanded(key, byDefault: false)) key,
+    ];
+    if (closed.isNotEmpty) {
+      for (final key in closed) {
+        expansion.set(key, expanded: true);
+      }
+      final cached = _cache[match.entryKey];
+      if (cached != null) {
+        // A fresh token rebuilds the entry with its folds open while the
+        // anchor key, and so the row's state, survives.
+        _cache[match.entryKey] = _CachedEntry(
+          Object(),
+          cached.widget,
+          cached.anchorKey,
+        );
+      }
+      setState(() {});
+    }
+    revealEntry(
+      match.entryKey,
+      index: index,
+      count: widget.projection.entries.length,
+      onBuilt: () {
+        final target =
+            _find?.targetContext(match.targetKey) ??
+            _cache[match.entryKey]?.anchorKey.currentContext;
+        if (target == null) return;
+        unawaited(
+          Scrollable.ensureVisible(
+            target,
+            alignment: 0.2,
+            duration: AleraTokens.durationMid,
+            curve: Curves.easeOut,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   void initState() {
     super.initState();
     _session = ref
         .read(agentChatTimelineSessionsProvider)
         .of(widget.actions.chatId);
     initScrolling();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final find = AgentChatFindScope.maybeOf(context);
+    if (identical(find, _find)) return;
+    _find?.detach(this);
+    _find = find?..attach(this);
   }
 
   @override
@@ -170,6 +239,7 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
 
   @override
   void dispose() {
+    _find?.detach(this);
     disposeScrolling();
     super.dispose();
   }

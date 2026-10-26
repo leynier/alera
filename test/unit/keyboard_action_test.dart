@@ -63,7 +63,7 @@ void main() {
     expect(ids.length, KeyboardActionId.values.length);
   });
 
-  test('default chords parse and stay unique per platform', () {
+  test('default chords parse and stay unique per platform and scope', () {
     for (final platform in KeyboardPlatform.values) {
       final owners = <String, KeyboardActionId>{};
       for (final definition in keybindingDefinitions) {
@@ -78,7 +78,10 @@ void main() {
           );
           final chord = (result as KeyChordParseSuccess).chord;
           final isMacOS = platform.isMacOS;
+          // A scoped binding may reuse a global chord; see
+          // KeyboardActionScope.
           final resolved = <Object>[
+            definition.scope.name,
             chord.meta || (chord.useMod && isMacOS),
             chord.control || (chord.useMod && !isMacOS),
             chord.alt,

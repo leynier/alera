@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_find.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_turn_view.dart';
@@ -28,18 +29,24 @@ class const AgentChatTimelineEntryView({
       ),
       AgentChatStandaloneEntry(:final item) => Padding(
         padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-        child: AgentChatItemRowView(
-          item: item,
-          expansion: expansion,
-          actions: actions,
-          workspacePath: workspacePath,
+        child: AgentChatFindTarget(
+          targetKey: agentChatFindItemTargetKey(item.id),
+          child: AgentChatItemRowView(
+            item: item,
+            expansion: expansion,
+            actions: actions,
+            workspacePath: workspacePath,
+          ),
         ),
       ),
-      AgentChatOutgoingEntry(:final message) => AgentChatOutgoingMessageView(
-        message: message,
-        onRetry: () => actions.onRetrySend(message.clientMessageId),
-        onEdit: () => actions.onEditSend(message.clientMessageId),
-        uploading: preparingAttachmentIds.contains(message.clientMessageId),
+      AgentChatOutgoingEntry(:final message) => AgentChatFindTarget(
+        targetKey: agentChatFindOutgoingTargetKey(message.clientMessageId),
+        child: AgentChatOutgoingMessageView(
+          message: message,
+          onRetry: () => actions.onRetrySend(message.clientMessageId),
+          onEdit: () => actions.onEditSend(message.clientMessageId),
+          uploading: preparingAttachmentIds.contains(message.clientMessageId),
+        ),
       ),
     };
   }

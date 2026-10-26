@@ -126,6 +126,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.newAgentChatTab;
       case r'chooseAgentChatModel':
         return KeyboardActionId.chooseAgentChatModel;
+      case r'findInAgentChat':
+        return KeyboardActionId.findInAgentChat;
       case r'closeTab':
         return KeyboardActionId.closeTab;
       case r'nextTab':
@@ -220,6 +222,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'newAgentChatTab';
       case KeyboardActionId.chooseAgentChatModel:
         return r'chooseAgentChatModel';
+      case KeyboardActionId.findInAgentChat:
+        return r'findInAgentChat';
       case KeyboardActionId.closeTab:
         return r'closeTab';
       case KeyboardActionId.nextTab:

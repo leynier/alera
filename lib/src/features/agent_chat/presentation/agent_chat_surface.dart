@@ -12,8 +12,10 @@ import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_view_state.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_archived_chats_dialog.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_settings.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_find_bar.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_full_data.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
@@ -258,6 +260,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     onOpenFile: (path) => unawaited(_openFile(path)),
     onImplementPlan: () => unawaited(_implementPlan()),
     implementablePlanId: implementablePlanId,
+    onRefinePlan: _composer.focusNode.requestFocus,
     onForkTurn: _historySupport.fork
         ? (turnId) => unawaited(_history.fork(context, ref, turnId))
         : null,
@@ -368,7 +371,15 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
         builder: (context, constraints) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Expanded(child: _buildTimeline()),
+            Expanded(
+              child: AgentChatFindHost(
+                chat: AgentChatRef(
+                  chatId: widget.chatId,
+                  workspaceId: widget.workspace.id,
+                ),
+                child: _buildTimeline(),
+              ),
+            ),
             AgentChatFooter(
               chatId: widget.chatId,
               workspace: widget.workspace,
@@ -402,7 +413,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
           projection: state.projection!,
           canLoadEarlier: state.thread!.historyBefore != null,
           loadingEarlier: state.loadingHistory,
-          implementablePlanId: _implementablePlanId(state),
+          implementablePlanId: agentChatImplementablePlanId(state),
           title: state.thread!.title,
           provider: state.thread!.provider,
           providerInstanceId: state.thread!.providerInstanceId,
@@ -463,27 +474,4 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
       ),
     );
   }
-}
-
-/// The plan an "Implement Plan" button may act on: the newest proposed plan
-/// of the latest turn, while the chat is idle in plan mode.
-String? _implementablePlanId(AgentChatViewState state) {
-  final thread = state.thread;
-  final projection = state.projection;
-  if (thread == null ||
-      projection == null ||
-      thread.session.busy ||
-      thread.session.interactionMode != AgentChatInteractionMode.plan) {
-    return null;
-  }
-  for (final entry in projection.entries.reversed) {
-    if (entry is! AgentChatTurnEntry) continue;
-    for (final answer in entry.section.answers.reversed) {
-      if (answer.type == AgentChatItemType.plan && !answer.isInProgress) {
-        return answer.id;
-      }
-    }
-    return null;
-  }
-  return null;
 }

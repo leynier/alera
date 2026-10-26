@@ -2,6 +2,8 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/keyboard/presentation/keyboard_action_scope_region.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,11 +43,20 @@ class const KeyboardShortcutsScope({super.key, required final Widget child})
     final keyboard = ref.read(settingsControllerProvider).keyboard;
     final resolver = KeybindingResolver(settings: keyboard);
     final modifiers = KeyModifierState.fromKeyboard(.instance);
-    final resolved = resolver.resolveAction(event, modifiers);
+    final region = KeyboardActionScopeRegion.ofPrimaryFocus();
+    final resolved = resolver.resolveAction(
+      event,
+      modifiers,
+      focusScope: region?.scope ?? KeyboardActionScope.global,
+    );
     if (resolved == null) {
       return KeyEventResult.ignored;
     }
-    KeyboardCommandDispatcher(ref: ref, context: context).dispatch(resolved.id);
+    KeyboardCommandDispatcher(
+      ref: ref,
+      context: context,
+      scopeTarget: region?.target,
+    ).dispatch(resolved.id);
     return KeyEventResult.handled;
   }
 }

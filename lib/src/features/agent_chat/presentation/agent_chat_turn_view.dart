@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_find.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_handoff_divider.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
@@ -57,12 +58,15 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
               handoff: handoff,
             ),
           for (final prompt in section.prompts)
-            AgentChatUserMessageView(
-              chatId: widget.actions.chatId,
-              item: prompt,
-              workspacePath: widget.workspacePath,
-              onOpenFile: widget.actions.onOpenFile,
-              expansion: widget.expansion,
+            _target(
+              agentChatFindMessageTargetKey(prompt.id),
+              AgentChatUserMessageView(
+                chatId: widget.actions.chatId,
+                item: prompt,
+                workspacePath: widget.workspacePath,
+                onOpenFile: widget.actions.onOpenFile,
+                expansion: widget.expansion,
+              ),
             ),
           for (final segment in section.segments)
             ..._segment(segment, history: history),
@@ -101,14 +105,17 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
         : segment.live || segment.activity.isNotEmpty;
     return <Widget>[
       for (final steer in segment.steers)
-        AgentChatUserMessageView(
-          key: ValueKey<String>('agent-chat-steer-${steer.id}'),
-          chatId: widget.actions.chatId,
-          item: steer,
-          workspacePath: widget.workspacePath,
-          onOpenFile: widget.actions.onOpenFile,
-          expansion: widget.expansion,
-          steering: true,
+        _target(
+          agentChatFindMessageTargetKey(steer.id),
+          AgentChatUserMessageView(
+            key: ValueKey<String>('agent-chat-steer-${steer.id}'),
+            chatId: widget.actions.chatId,
+            item: steer,
+            workspacePath: widget.workspacePath,
+            onOpenFile: widget.actions.onOpenFile,
+            expansion: widget.expansion,
+            steering: true,
+          ),
         ),
       if (showHeader && first)
         AgentChatTurnHeader(
@@ -130,12 +137,15 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
         ),
       if (expanded)
         for (final row in segment.activity)
-          AgentChatActivityRowView(
-            key: ValueKey<String>('agent-chat-activity-${row.key}'),
-            row: row,
-            expansion: widget.expansion,
-            actions: widget.actions,
-            workspacePath: widget.workspacePath,
+          _target(
+            agentChatFindActivityTargetKey(row),
+            AgentChatActivityRowView(
+              key: ValueKey<String>('agent-chat-activity-${row.key}'),
+              row: row,
+              expansion: widget.expansion,
+              actions: widget.actions,
+              workspacePath: widget.workspacePath,
+            ),
           )
       else if (live != null) ...<Widget>[
         for (final narration in live.narration)
@@ -153,15 +163,26 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
         ),
       ],
       for (final answer in segment.answers)
-        _AnswerView(
-          key: ValueKey<String>('agent-chat-answer-${answer.id}'),
-          item: answer,
-          actions: widget.actions,
-          expansion: widget.expansion,
-          workspacePath: widget.workspacePath,
+        _target(
+          agentChatFindAnswerTargetKey(answer.id),
+          _AnswerView(
+            key: ValueKey<String>('agent-chat-answer-${answer.id}'),
+            item: answer,
+            actions: widget.actions,
+            expansion: widget.expansion,
+            workspacePath: widget.workspacePath,
+          ),
         ),
     ];
   }
+
+  /// A row find can land on, keyed so rows keep their state as others are
+  /// inserted around them.
+  static Widget _target(String targetKey, Widget child) => AgentChatFindTarget(
+    key: ValueKey<String>('agent-chat-find-$targetKey'),
+    targetKey: targetKey,
+    child: child,
+  );
 }
 
 /// The failure a turn ended with, unless an error row already says it.
@@ -194,6 +215,9 @@ class const _AnswerView({
         onOpenLink: actions.onOpenLink,
         onImplement: actions.implementablePlanId == item.id
             ? actions.onImplementPlan
+            : null,
+        onRefine: actions.implementablePlanId == item.id
+            ? actions.onRefinePlan
             : null,
       ),
       _ => AgentChatItemRowView(

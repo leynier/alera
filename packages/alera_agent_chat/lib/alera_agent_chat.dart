@@ -50,6 +50,7 @@ export 'src/agent_chat_subagent.dart';
 export 'src/agent_chat_summary.dart';
 export 'src/agent_chat_thread.dart';
 export 'src/agent_chat_title_source.dart';
+export 'src/agent_chat_timeline_find.dart';
 export 'src/agent_chat_timeline_projection.dart';
 export 'src/agent_chat_transport.dart';
 export 'src/agent_chat_worked_actions.dart';

@@ -13,6 +13,10 @@ final class const AgentChatTimelineActions({
   required final VoidCallback onImplementPlan,
   final String? implementablePlanId,
 
+  /// Puts the caret in the composer to answer the plan
+  /// [implementablePlanId] with changes, staying in plan mode.
+  final VoidCallback? onRefinePlan,
+
   /// History controls of a settled turn, by turn id. Pass each only when the
   /// runtime advertises its capability (`agentChatForkV1`,
   /// `agentChatRewindV1`, `agentChatTurnDiffV1`); a null one hides the control.
