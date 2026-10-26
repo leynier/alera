@@ -128,6 +128,18 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.chooseAgentChatModel;
       case r'findInAgentChat':
         return KeyboardActionId.findInAgentChat;
+      case r'increaseAgentChatEffort':
+        return KeyboardActionId.increaseAgentChatEffort;
+      case r'decreaseAgentChatEffort':
+        return KeyboardActionId.decreaseAgentChatEffort;
+      case r'cycleAgentChatMode':
+        return KeyboardActionId.cycleAgentChatMode;
+      case r'stopAgentChatTurn':
+        return KeyboardActionId.stopAgentChatTurn;
+      case r'editLastQueuedMessage':
+        return KeyboardActionId.editLastQueuedMessage;
+      case r'steerNextQueuedMessage':
+        return KeyboardActionId.steerNextQueuedMessage;
       case r'closeTab':
         return KeyboardActionId.closeTab;
       case r'nextTab':
@@ -224,6 +236,18 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'chooseAgentChatModel';
       case KeyboardActionId.findInAgentChat:
         return r'findInAgentChat';
+      case KeyboardActionId.increaseAgentChatEffort:
+        return r'increaseAgentChatEffort';
+      case KeyboardActionId.decreaseAgentChatEffort:
+        return r'decreaseAgentChatEffort';
+      case KeyboardActionId.cycleAgentChatMode:
+        return r'cycleAgentChatMode';
+      case KeyboardActionId.stopAgentChatTurn:
+        return r'stopAgentChatTurn';
+      case KeyboardActionId.editLastQueuedMessage:
+        return r'editLastQueuedMessage';
+      case KeyboardActionId.steerNextQueuedMessage:
+        return r'steerNextQueuedMessage';
       case KeyboardActionId.closeTab:
         return r'closeTab';
       case KeyboardActionId.nextTab:

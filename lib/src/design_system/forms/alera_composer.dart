@@ -16,6 +16,10 @@ class const AleraComposer({
   required final List<AleraTextActionMenuItem> textActions,
   required final ValueChanged<String> onTextActionSelected,
   this.onPaste,
+
+  /// A strip above the attachments and the field, such as an
+  /// `AleraComposerBanner` naming an edit in progress.
+  final Widget? header,
   final Widget? attachmentBar,
   final Widget? footer,
   final Widget? trailingAction,
@@ -150,6 +154,7 @@ class _AleraComposerState extends State<AleraComposer> {
         child: Column(
           mainAxisSize: .min,
           children: <Widget>[
+            ?widget.header,
             ?widget.attachmentBar,
             CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{

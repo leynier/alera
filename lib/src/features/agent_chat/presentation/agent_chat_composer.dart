@@ -12,6 +12,7 @@ import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_menu.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_send_button.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_usage_popover.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
@@ -78,6 +79,11 @@ class const AgentChatComposer({
 
   /// Chat actions beside Add Files, such as Delegate Task.
   final Widget? chatActions,
+
+  /// A queued message being edited here; Send saves it through
+  /// [onSaveQueuedEdit] and Escape cancels it.
+  final AgentChatQueuedEdit? queuedEdit,
+  final AgentChatQueuedEditSave? onSaveQueuedEdit,
   final TerminalClipboard clipboard = const NativeTerminalClipboard(),
   final Future<List<String>> Function() pickFiles = _pickFiles,
 }) extends StatefulWidget {
@@ -93,6 +99,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   late AgentChatComposerMenuController _menu = _createMenu();
 
   TerminalComposerController get _composer => widget.controller;
+  bool get _editing => widget.queuedEdit?.isEditing ?? false;
 
   AgentChatComposerMenuController _createMenu() =>
       AgentChatComposerMenuController(
@@ -242,6 +249,11 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   }
 
   void _send({bool steer = false}) {
+    final edit = widget.queuedEdit;
+    if (edit != null && edit.isEditing && widget.onSaveQueuedEdit != null) {
+      unawaited(saveAgentChatQueuedEdit(edit, widget.onSaveQueuedEdit!));
+      return;
+    }
     if (!widget.canSubmit) return;
     final attachments = <AgentChatAttachment>[
       for (final attachment in _composer.attachments)
@@ -267,7 +279,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   }
 
   void _escape() {
-    if (widget.canInterrupt) {
+    if (widget.queuedEdit?.isEditing ?? false) {
+      widget.queuedEdit!.cancel();
+    } else if (widget.canInterrupt) {
       widget.onInterrupt();
     } else {
       _composer.focusNode.unfocus();
@@ -346,13 +360,15 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           listenable: Listenable.merge(<Listenable>[
             _composer,
             _composer.textController,
+            ?widget.queuedEdit,
           ]),
           builder: (context, _) => AleraComposer(
             controller: _composer.textController,
             focusNode: _composer.focusNode,
             enabled: widget.canSend,
-            hasAttachments: _composer.attachments.isNotEmpty,
+            hasAttachments: _composer.attachments.isNotEmpty || _editing,
             hintText: widget.hintText,
+            header: agentChatQueuedEditBanner(widget.queuedEdit),
             attachmentBar: TerminalComposerAttachmentBar(
               attachments: _composer.attachments,
               onRemove: _composer.removeAttachment,
@@ -442,13 +458,14 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         AgentChatSendOrStopButton(
           hasDraft:
               _composer.textController.text.trim().isNotEmpty ||
-              _composer.attachments.isNotEmpty,
-          canSend: widget.canSend && widget.canSubmit,
+              _composer.attachments.isNotEmpty ||
+              _editing,
+          canSend: widget.canSend && (widget.canSubmit || _editing),
           busy: widget.busy,
           canSteer: widget.canSteer,
           canInterrupt: widget.canInterrupt,
           interrupting: widget.interrupting,
-          sendLabel: widget.sendLabel,
+          sendLabel: _editing ? 'Save Queued Message' : widget.sendLabel,
           onSend: _send,
           onInterrupt: widget.onInterrupt,
         ),

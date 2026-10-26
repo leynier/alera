@@ -12,6 +12,7 @@ import 'package:alera/src/features/agent_chat/application/agent_chat_providers.d
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_close_confirmation.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_composer_commands.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_find_requests.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_shortcut_targets.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart'
@@ -51,11 +52,13 @@ class const KeyboardCommandDispatcher({
   /// Restore the active workbench pane after a global surface was dismissed.
   void focusActivePane() => _focusActivePane();
 
-  void dispatch(KeyboardActionId id) {
+  /// Runs [id]. Returns `false` only when a chat action found no focused
+  /// chat that could use it, so the caller can let the key through.
+  bool dispatch(KeyboardActionId id) {
     if (ref.read(activityNavigationProvider).visible &&
         keybindingDefinitions.firstWhere((action) => action.id == id).group !=
             KeyboardActionGroup.global) {
-      return;
+      return _agentChatShortcutFor(id) == null;
     }
     switch (id) {
       case KeyboardActionId.openActivity:
@@ -123,6 +126,13 @@ class const KeyboardCommandDispatcher({
         _chooseAgentChatModel();
       case KeyboardActionId.findInAgentChat:
         _findInAgentChat();
+      case KeyboardActionId.increaseAgentChatEffort ||
+          KeyboardActionId.decreaseAgentChatEffort ||
+          KeyboardActionId.cycleAgentChatMode ||
+          KeyboardActionId.stopAgentChatTurn ||
+          KeyboardActionId.editLastQueuedMessage ||
+          KeyboardActionId.steerNextQueuedMessage:
+        return _runAgentChatShortcut(id);
       case KeyboardActionId.closeTab:
         _closeActiveTab();
       case KeyboardActionId.nextTab:
@@ -151,6 +161,7 @@ class const KeyboardCommandDispatcher({
       case KeyboardActionId.focusPreviousPane:
         _focusPane(-1);
     }
+    return true;
   }
 
   Future<void> _handOffActiveWorkspace() async {
@@ -216,17 +227,6 @@ class const KeyboardCommandDispatcher({
       workspace: workspace,
       targetGroupId: groupId == null || groupId.isEmpty ? null : groupId,
     );
-  }
-
-  /// Opens the agent and model picker of the active chat tab; elsewhere the
-  /// chord does nothing.
-  void _chooseAgentChatModel() {
-    final tab = ref.read(workbenchControllerProvider).activeWorkspaceTab;
-    final chatId = tab?.kind == WorkspaceTabKind.agentChat
-        ? tab!.agentChatId
-        : null;
-    if (chatId == null) return;
-    ref.read(agentChatComposerCommandsProvider.notifier).chooseModel(chatId);
   }
 
   void _showContextPanel(WorkbenchContextPanelTab tab) {

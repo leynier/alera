@@ -52,11 +52,11 @@ class const KeyboardShortcutsScope({super.key, required final Widget child})
     if (resolved == null) {
       return KeyEventResult.ignored;
     }
-    KeyboardCommandDispatcher(
+    final handled = KeyboardCommandDispatcher(
       ref: ref,
       context: context,
       scopeTarget: region?.target,
     ).dispatch(resolved.id);
-    return KeyEventResult.handled;
+    return handled ? KeyEventResult.handled : KeyEventResult.ignored;
   }
 }

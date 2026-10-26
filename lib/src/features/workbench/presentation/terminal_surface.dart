@@ -179,12 +179,12 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         !resolved.allowInTerminal) {
       return KeyEventResult.ignored;
     }
-    KeyboardCommandDispatcher(
+    final handled = KeyboardCommandDispatcher(
       ref: ref,
       context: context,
       terminalSession: widget.session,
     ).dispatch(resolved.id);
-    return KeyEventResult.handled;
+    return handled ? KeyEventResult.handled : KeyEventResult.ignored;
   }
 
   @override

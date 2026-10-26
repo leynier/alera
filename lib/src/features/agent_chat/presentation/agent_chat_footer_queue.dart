@@ -3,17 +3,21 @@ import 'package:alera/src/design_system/chat/alera_message_queue.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_shortcut_target.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Messages the runtime holds until the running turn ends. Every client sees
-/// the same queue. Edit replaces the text in one runtime step where the
-/// runtime offers it, and otherwise takes the message back into the
-/// composer. Steer moves a message into the running turn, only where the
-/// runtime does that atomically and the agent accepts steering.
+/// the same queue. Where the runtime edits in place, Edit opens the message
+/// in the composer ([queuedEdit]), or in a dialog without one; elsewhere it
+/// takes the message back into the composer. Steer moves a message into the
+/// running turn, only where the runtime does that atomically and the agent
+/// accepts steering. Reorder needs the runtime's reorder support.
 class const AgentChatFooterQueue({
   super.key,
   required final String chatId,
@@ -21,6 +25,7 @@ class const AgentChatFooterQueue({
   required final List<AgentChatQueueEntry> queue,
   required final bool canSteer,
   required final TerminalComposerController composer,
+  final AgentChatQueuedEdit? queuedEdit,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,40 +46,68 @@ class const AgentChatFooterQueue({
             )
             .value ??
         false;
+    final reorderSupported =
+        ref
+            .watch(
+              agentChatCapabilityProvider(AgentChatWire.queueReorderCapability),
+            )
+            .value ??
+        false;
+    final edit = queuedEdit;
     AgentChatQueueEntry? entryFor(String queueId) =>
         queue.where((entry) => entry.queueId == queueId).firstOrNull;
-    return AleraMessageQueue(
-      key: const ValueKey<String>('agent-chat-queue'),
-      messages: <AleraQueuedMessageRow>[
-        for (final entry in queue)
-          AleraQueuedMessageRow(
-            id: entry.queueId,
-            text: entry.text,
-            attachmentCount: entry.attachments.length,
-            hasImage: entry.attachments.any(
-              (attachment) => attachment.type.isImage,
-            ),
-          ),
-      ],
-      canSteer: canSteer && steerSupported,
-      onSteer: controller.steerQueued,
-      onRemove: (queueId) async => controller.cancelQueued(queueId),
-      onEdit: (queueId) async {
-        final entry = entryFor(queueId);
-        if (entry == null) return;
-        if (editInPlace) {
-          await showDialog<void>(
-            context: context,
-            builder: (_) => AleraMessageEditor(
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable?>[edit]),
+      builder: (context, _) => AleraMessageQueue(
+        key: const ValueKey<String>('agent-chat-queue'),
+        editingId: edit?.queueId,
+        onCancelEdit: edit?.cancel,
+        onReorder: reorderSupported ? controller.reorderQueued : null,
+        editShortcutLabel: editInPlace
+            ? agentChatShortcutLabel(
+                ref,
+                KeyboardActionId.editLastQueuedMessage,
+              )
+            : null,
+        steerShortcutLabel: agentChatShortcutLabel(
+          ref,
+          KeyboardActionId.steerNextQueuedMessage,
+        ),
+        messages: <AleraQueuedMessageRow>[
+          for (final entry in queue)
+            AleraQueuedMessageRow(
+              id: entry.queueId,
               text: entry.text,
               attachmentCount: entry.attachments.length,
-              onSave: (text) => controller.editQueued(queueId, text),
+              hasImage: entry.attachments.any(
+                (attachment) => attachment.type.isImage,
+              ),
             ),
-          );
-          return;
-        }
-        if (await controller.cancelQueued(queueId)) _restore(entry);
-      },
+        ],
+        canSteer: canSteer && steerSupported,
+        onSteer: controller.steerQueued,
+        onRemove: (queueId) async => controller.cancelQueued(queueId),
+        onEdit: (queueId) async {
+          final entry = entryFor(queueId);
+          if (entry == null) return;
+          if (editInPlace && edit != null) {
+            edit.begin(entry);
+            return;
+          }
+          if (editInPlace) {
+            await showDialog<void>(
+              context: context,
+              builder: (_) => AleraMessageEditor(
+                text: entry.text,
+                attachmentCount: entry.attachments.length,
+                onSave: (text) => controller.editQueued(queueId, text),
+              ),
+            );
+            return;
+          }
+          if (await controller.cancelQueued(queueId)) _restore(entry);
+        },
+      ),
     );
   }
 

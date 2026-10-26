@@ -166,6 +166,17 @@ mixin _AgentChatComposerActions on _$AgentChatController {
     }
   }
 
+  /// Moves a queued message to the zero-based [index]; the new order
+  /// arrives as a change like any other queue update.
+  Future<void> reorderQueued(String queueId, int index) => _guard(
+    () => _lifecycle.queueReorder(
+      _chat,
+      requestId: _nextId(),
+      queueId: queueId,
+      index: index,
+    ),
+  );
+
   /// Moves a queued message into the running turn in one runtime step.
   Future<void> steerQueued(String queueId) async {
     final turnId = state.thread?.session.activeTurnId;

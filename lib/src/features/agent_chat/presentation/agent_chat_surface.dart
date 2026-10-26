@@ -16,6 +16,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_find_bar.d
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_full_data.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
@@ -49,6 +50,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     with WidgetsBindingObserver {
   final TerminalComposerController _composer = TerminalComposerController();
   final AleraPopoverController _picker = AleraPopoverController();
+  late final AgentChatQueuedEdit _queuedEdit = AgentChatQueuedEdit(_composer);
   late final AgentChatComposerDrafts _drafts;
   late AgentChatTimelineActions _actions;
   bool _restoringDraft = false;
@@ -200,6 +202,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     unawaited(_drafts.flush());
     _composer.removeListener(_saveCurrentDraft);
     _composer.textController.removeListener(_saveCurrentDraft);
+    _queuedEdit.dispose();
     _composer.dispose();
     _picker.dispose();
     super.dispose();
@@ -207,6 +210,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
 
   void _restoreDraft() {
     if (!mounted) return;
+    _queuedEdit.cancel();
     final draft = _drafts.read(
       widget.chatId,
       hostId: widget.workspace.hostId,
@@ -232,10 +236,12 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
 
   void _saveDraft(String chatId, Workspace workspace) => _drafts.write(
     chatId,
-    AgentChatComposerDraft(
-      text: _composer.textController.text,
-      attachments: List.unmodifiable(_composer.attachments),
-    ),
+    // While a queued message is edited, the draft set aside is the draft.
+    _queuedEdit.heldDraft ??
+        AgentChatComposerDraft(
+          text: _composer.textController.text,
+          attachments: List.unmodifiable(_composer.attachments),
+        ),
     hostId: workspace.hostId,
     workspaceId: workspace.id,
   );
@@ -386,6 +392,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
               fallbackProvider: widget.fallbackProvider,
               composer: _composer,
               pickerController: _picker,
+              queuedEdit: _queuedEdit,
               requestDockMaxHeight: constraints.maxHeight.isFinite
                   ? constraints.maxHeight *
                         AleraTokens.agentChatRequestDockHeightFraction

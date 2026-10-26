@@ -13,7 +13,9 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_act
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_queue.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_native_history_notice.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_dock.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_shortcut_target.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
 import 'package:alera/src/features/agent_provider_settings/presentation/agent_provider_settings_launcher.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_dock.dart';
@@ -37,6 +39,9 @@ class const AgentChatFooter({
   required final ValueChanged<String> onOpenFile,
   final ValueChanged<String>? onOpenLink,
   final AleraPopoverController? pickerController,
+
+  /// A queued message being edited in [composer].
+  final AgentChatQueuedEdit? queuedEdit,
   final VoidCallback? onOpenArchived,
   final double? requestDockMaxHeight,
 }) extends ConsumerWidget {
@@ -76,6 +81,17 @@ class const AgentChatFooter({
       ),
     );
     final controller = ref.read(provider.notifier);
+    ref.listen(provider.select((state) => state.thread?.queue), (_, queue) {
+      final loss = queuedEdit?.reconcile(queue ?? const []);
+      if (loss case final AgentChatQueuedEditLoss loss
+          when loss != AgentChatQueuedEditLoss.none) {
+        AleraToast.publish(
+          message: loss == AgentChatQueuedEditLoss.kept
+              ? 'The message left the queue; your edit is now the draft.'
+              : 'The message left the queue before your edit was saved.',
+        );
+      }
+    });
     final catalogProvider = agentChatProviderCatalogProvider(workspace.id);
     final catalog = ref.watch(catalogProvider);
     final hostKey = agentChatHostKey(workspace.hostId);
@@ -162,6 +178,7 @@ class const AgentChatFooter({
           queue: view.queue,
           canSteer: view.canSteer,
           composer: composer,
+          queuedEdit: queuedEdit,
         ),
       if (view.planSteps case final AgentChatItem steps when view.busy)
         AgentChatPlanProgressDock(item: steps),
@@ -191,6 +208,11 @@ class const AgentChatFooter({
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            AgentChatShortcutTarget(
+              chatId: chatId,
+              workspaceId: workspace.id,
+              queuedEdit: queuedEdit,
+            ),
             // Hides itself on runtimes without chat tasks or with none open,
             // so it sits outside the spaced docks.
             Padding(
@@ -245,6 +267,8 @@ class const AgentChatFooter({
                     ref.read(provider).projection?.promptHistory ??
                     const <String>[],
                 pickerController: pickerController,
+                queuedEdit: queuedEdit,
+                onSaveQueuedEdit: controller.editQueued,
                 onSend: (text, attachments, {steer = false}) {
                   final delivery = steer
                       ? AgentChatDelivery.steer
