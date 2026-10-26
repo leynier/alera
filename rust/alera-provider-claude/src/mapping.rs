@@ -58,11 +58,16 @@ impl ClaudeProvider {
         }
         let raw = || self.raw(subtype.clone(), payload.clone());
         match subtype.as_str() {
-            "init" | "initialize" => vec![self.event(
-                EventKind::SessionConfigured,
-                json!({ "config": payload }),
-                raw(),
-            )],
+            "init" | "initialize" => {
+                let commands = self.init_message_commands(&payload);
+                let mut events = vec![self.event(
+                    EventKind::SessionConfigured,
+                    json!({ "config": payload }),
+                    raw(),
+                )];
+                events.extend(commands);
+                events
+            }
             "session_state_changed" | "session-state-changed" => {
                 let native_state = payload.get("state").and_then(Value::as_str);
                 let Some(state) = native_state.and_then(session_state) else {

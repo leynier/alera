@@ -107,8 +107,12 @@ impl JsonTransport for FakeTransport {
 async fn initializes_sends_prompt_and_parses_messages() {
     let (transport, writes) = FakeTransport::new(false, true);
     let client = ClaudeClient::with_transport(transport, ClaudeAgentOptions::default()).unwrap();
+    assert_eq!(client.server_info(), None);
     let initialization = client.initialize().await.unwrap();
     assert_eq!(initialization["commands"], json!([]));
+    // A repeated initialize answers empty but keeps what the CLI said first.
+    assert_eq!(client.initialize().await.unwrap(), json!({}));
+    assert_eq!(client.server_info(), Some(json!({ "commands": [] })));
     client.send_prompt("hello").await.unwrap();
     assert_eq!(
         client.next_message().await.unwrap().unwrap().kind(),

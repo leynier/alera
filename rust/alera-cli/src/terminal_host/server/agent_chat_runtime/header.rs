@@ -3,6 +3,7 @@
 //! it against the last committed one, so the delta always explains exactly
 //! what changed, which the store verifies.
 
+use alera_provider_protocol::ProviderSlashCommand;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -28,6 +29,10 @@ pub(crate) struct SessionView {
     pub capabilities: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    /// The slash commands the live provider advertised, kept across restarts
+    /// so the composer lists them before the provider reports again.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub commands: Vec<ProviderSlashCommand>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }

@@ -1,5 +1,8 @@
 use agent_client_protocol::AcpRequestId;
-use alera_provider_protocol::{CanonicalItemType, ItemStatus, RequestKind, TurnStatus};
+use alera_provider_protocol::{
+    CanonicalItemType, ItemStatus, ProviderSlashCommand, ProviderSlashCommandsUpdate, RequestKind,
+    TurnStatus,
+};
 use serde_json::{json, Value};
 
 pub(crate) fn prompt_matches(
@@ -112,6 +115,27 @@ pub(crate) fn terminal_state(value: Option<&Value>) -> TurnStatus {
         Some("error") | Some("failed") => TurnStatus::Failed,
         _ => TurnStatus::Completed,
     }
+}
+
+/// The commands of an `available_commands_update`, which replaces the whole
+/// list each time it arrives.
+pub(crate) fn available_commands(update: &Value) -> ProviderSlashCommandsUpdate {
+    let commands = update
+        .get("availableCommands")
+        .or_else(|| update.get("available_commands"))
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    ProviderSlashCommandsUpdate::new(commands.iter().filter_map(|command| {
+        ProviderSlashCommand::from_native(
+            command.get("name").and_then(Value::as_str)?,
+            command.get("description").and_then(Value::as_str),
+            command
+                .get("input")
+                .and_then(|input| input.get("hint"))
+                .and_then(Value::as_str),
+        )
+    }))
 }
 
 #[cfg(test)]

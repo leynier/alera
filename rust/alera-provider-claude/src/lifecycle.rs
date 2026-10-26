@@ -60,6 +60,7 @@ impl ClaudeProvider {
             fork_source_native_thread_id: None,
             pending_user_prompt: None,
             turn_failure: Default::default(),
+            described_commands: false,
         })
     }
 

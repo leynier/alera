@@ -3,7 +3,8 @@
 
 use alera_core::runtime::AgentChatNativeIdInput;
 use alera_provider_protocol::{
-    ContentDeltaPayload, EventKind, ItemLifecyclePayload, ProviderEvent, StreamKind,
+    ContentDeltaPayload, EventKind, ItemLifecyclePayload, ProviderEvent,
+    ProviderSlashCommandsUpdate, StreamKind,
 };
 use serde_json::{json, Value};
 
@@ -114,6 +115,19 @@ impl ChatSession {
             | EventKind::TaskCompleted => {
                 self.track_awaited_task(&event);
                 self.apply_subagent_task(&event).await;
+            }
+            EventKind::SessionCommandsUpdated => {
+                // Normalized again here so a provider that skipped the
+                // shared constructor still cannot grow the header unbounded.
+                if let Ok(update) =
+                    serde_json::from_value::<ProviderSlashCommandsUpdate>(event.payload.clone())
+                {
+                    let commands = ProviderSlashCommandsUpdate::new(update.commands).commands;
+                    if commands != self.header.session.commands {
+                        self.header.session.commands = commands;
+                        self.pending.session();
+                    }
+                }
             }
             EventKind::ThreadTokenUsageUpdated => self.apply_token_usage(&event.payload),
             EventKind::AccountRateLimitsUpdated => {

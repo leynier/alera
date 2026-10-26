@@ -1,6 +1,6 @@
 use crate::mapping_values::{
-    content_text, is_mcp_tool_call, item_id, logical_request_id, permission_kind, prompt_matches,
-    string, terminal_state, tool_payload,
+    available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id,
+    permission_kind, prompt_matches, string, terminal_state, tool_payload,
 };
 use crate::questions::extract_questions;
 use crate::transport::PendingRequest;
@@ -268,7 +268,12 @@ fn map_notification(
         "plan" | "plan_update" | "plan_removed" => {
             (EventKind::TurnPlanUpdated, json!({"plan": update}), None)
         }
-        "available_commands_update" | "config_option_update" | "current_mode_update" => {
+        "available_commands_update" => (
+            EventKind::SessionCommandsUpdated,
+            available_commands(&update).payload(),
+            None,
+        ),
+        "config_option_update" | "current_mode_update" => {
             (EventKind::ThreadMetadataUpdated, update.clone(), None)
         }
         "compaction_update" | "compaction_summary_chunk" => (

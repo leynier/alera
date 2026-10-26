@@ -185,6 +185,8 @@ impl ChatSession {
         }
         self.live_caps = None;
         self.events_armed = false;
+        // Another agent has its own commands; it reports them once it starts.
+        self.header.session.commands.clear();
         self.header.provider = provider;
         self.header.provider_instance_id = instance_id.clone();
         self.header.session.model = model.or_else(|| {

@@ -20,6 +20,8 @@ mod mcp;
 mod reasoning_effort;
 #[path = "runtime_response.rs"]
 mod runtime_response;
+#[path = "slash_commands.rs"]
+mod slash_commands;
 #[path = "turns.rs"]
 mod turns;
 #[path = "user_messages.rs"]
@@ -111,6 +113,8 @@ pub struct ClaudeProvider {
     fork_source_native_thread_id: Option<String>,
     pending_user_prompt: Option<user_messages::UserPromptCorrelation>,
     turn_failure: failure::TurnFailureEvidence,
+    // `initialize` described the commands, so `system/init` names are ignored.
+    described_commands: bool,
 }
 
 fn sdk_error(error: ClaudeSdkError) -> ProviderError {
@@ -247,6 +251,7 @@ impl Provider for ClaudeProvider {
         };
         self.session = Some(session.clone());
         self.queue_session_events();
+        self.queue_initialize_commands();
         Ok(session)
     }
 

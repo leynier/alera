@@ -16,6 +16,8 @@ use tokio::runtime::Handle;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::{timeout_at, Duration, Instant};
+#[path = "client_controls.rs"]
+mod client_controls;
 #[path = "client_stream.rs"]
 mod client_stream;
 type PendingSender = oneshot::Sender<Result<Value>>;
@@ -44,6 +46,7 @@ struct ClientInner {
     initialized: AtomicBool,
     initialize_lock: Mutex<()>,
     message_overflowed: AtomicBool,
+    server_info: std::sync::Mutex<Option<Value>>,
 }
 
 pub struct ClaudeClient {
@@ -120,6 +123,7 @@ impl ClaudeClient {
             initialized: AtomicBool::new(false),
             initialize_lock: Mutex::new(()),
             message_overflowed: AtomicBool::new(false),
+            server_info: std::sync::Mutex::new(None),
         });
         Self {
             inner,
@@ -221,6 +225,11 @@ impl ClaudeClient {
         let response = self
             .send_control_request(request, self.options.initialize_timeout)
             .await?;
+        *self
+            .inner
+            .server_info
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(response.clone());
         self.inner.initialized.store(true, Ordering::Release);
         Ok(response)
     }
@@ -258,6 +267,17 @@ impl ClaudeClient {
         self.next_message().await
     }
 
+    /// What the CLI answered to `initialize` (its commands, output styles,
+    /// models and account), like the Python SDK's `get_server_info`. `None`
+    /// before initialization.
+    pub fn server_info(&self) -> Option<Value> {
+        self.inner
+            .server_info
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
     pub fn is_initialized(&self) -> bool {
         self.inner.initialized.load(Ordering::Acquire)
     }
@@ -270,77 +290,8 @@ impl ClaudeClient {
         self.options.run_end_timeout
     }
 
-    pub async fn interrupt(&self) -> Result<()> {
-        self.control_command(
-            serde_json::json!({ "subtype": "interrupt" }),
-            self.options.initialize_timeout,
-        )
-        .await
-        .map(|_| ())
-    }
-
-    pub async fn set_permission_mode(&self, mode: impl Into<String>) -> Result<()> {
-        self.control_command(
-            serde_json::json!({ "subtype": "set_permission_mode", "mode": mode.into() }),
-            self.options.initialize_timeout,
-        )
-        .await
-        .map(|_| ())
-    }
-
-    pub async fn set_model(&self, model: Option<String>) -> Result<()> {
-        self.control_command(
-            serde_json::json!({ "subtype": "set_model", "model": model }),
-            self.options.initialize_timeout,
-        )
-        .await
-        .map(|_| ())
-    }
-
     pub(crate) fn options_initialize_timeout(&self) -> Duration {
         self.options.initialize_timeout
-    }
-
-    pub async fn get_mcp_status(&self) -> Result<Value> {
-        self.control_command(
-            serde_json::json!({ "subtype": "mcp_status" }),
-            self.options.initialize_timeout,
-        )
-        .await
-    }
-
-    pub async fn get_context_usage(&self) -> Result<Value> {
-        self.control_command(
-            serde_json::json!({ "subtype": "get_context_usage" }),
-            self.options.initialize_timeout,
-        )
-        .await
-    }
-
-    pub async fn reconnect_mcp_server(&self, server_name: impl Into<String>) -> Result<()> {
-        self.control_command(
-            serde_json::json!({ "subtype": "mcp_reconnect", "serverName": server_name.into() }),
-            self.options.initialize_timeout,
-        )
-        .await
-        .map(|_| ())
-    }
-
-    pub async fn toggle_mcp_server(
-        &self,
-        server_name: impl Into<String>,
-        enabled: bool,
-    ) -> Result<()> {
-        self.control_command(serde_json::json!({ "subtype": "mcp_toggle", "serverName": server_name.into(), "enabled": enabled }), self.options.initialize_timeout).await.map(|_| ())
-    }
-
-    pub async fn stop_task(&self, task_id: impl Into<String>) -> Result<()> {
-        self.control_command(
-            serde_json::json!({ "subtype": "stop_task", "task_id": task_id.into() }),
-            self.options.initialize_timeout,
-        )
-        .await
-        .map(|_| ())
     }
 
     pub async fn control_command(

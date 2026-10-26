@@ -1,6 +1,7 @@
 use crate::{
     error::nonempty, ContentDeltaPayload, EventKind, ItemLifecyclePayload, ProviderError,
-    ProviderEvent, RequestKind, TurnStatus, UsageLimitsUpdate, UserInputQuestion,
+    ProviderEvent, ProviderSlashCommandsUpdate, RequestKind, TurnStatus, UsageLimitsUpdate,
+    UserInputQuestion,
 };
 
 impl ProviderEvent {
@@ -89,6 +90,13 @@ impl ProviderEvent {
                     return Err(ProviderError::Validation(
                         "session.configured requires config".into(),
                     ));
+                }
+            }
+            EventKind::SessionCommandsUpdated => {
+                let update =
+                    decode::<ProviderSlashCommandsUpdate>(&self.payload, "session commands")?;
+                for command in update.commands {
+                    nonempty(&command.name, "command name")?;
                 }
             }
             EventKind::AccountRateLimitsUpdated => {
