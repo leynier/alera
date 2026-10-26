@@ -9,6 +9,9 @@ impl ClaudeProvider {
         if let Some(native) = message.session_id.as_deref() {
             self.set_native_thread(native);
         }
+        if let Some(error) = message.error.as_deref() {
+            self.turn_failure.assistant_error(error);
+        }
         let native_message_id = message.uuid.clone().filter(|id| !id.trim().is_empty());
         let parent_tool_use_id = message.parent_tool_use_id.clone();
         let suppress_text = self.take_streamed_text(message.message_id.as_deref());

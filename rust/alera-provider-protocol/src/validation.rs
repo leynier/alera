@@ -55,6 +55,9 @@ impl ProviderEvent {
                     self.payload["message"].as_str().unwrap_or_default(),
                     "runtime message",
                 )?;
+                if self.kind == EventKind::RuntimeError {
+                    validate_failure_class(&self.payload)?;
+                }
             }
             EventKind::RequestOpened | EventKind::RequestResolved => {
                 decode::<RequestKind>(&self.payload["requestType"], "requestType")?;
@@ -106,11 +109,16 @@ impl ProviderEvent {
                 }
             }
             EventKind::TurnCompleted => {
-                serde_json::from_value::<TurnStatus>(self.payload["state"].clone()).map_err(
-                    |_| {
+                let state = serde_json::from_value::<TurnStatus>(self.payload["state"].clone())
+                    .map_err(|_| {
                         ProviderError::Validation("turn.completed requires a terminal state".into())
-                    },
-                )?;
+                    })?;
+                validate_failure_class(&self.payload)?;
+                if state != TurnStatus::Failed && self.payload.get("failureClass").is_some() {
+                    return Err(ProviderError::Validation(
+                        "failureClass describes a failed turn".into(),
+                    ));
+                }
                 if let Some(usage) = self.payload.get("tokenUsage") {
                     validate_token_usage(usage)?;
                 }
@@ -144,6 +152,15 @@ fn decode<T: serde::de::DeserializeOwned>(
 ) -> Result<T, ProviderError> {
     serde_json::from_value(value.clone())
         .map_err(|error| ProviderError::Validation(format!("invalid {name} payload: {error}")))
+}
+
+fn validate_failure_class(payload: &serde_json::Value) -> Result<(), ProviderError> {
+    match payload.get("failureClass") {
+        Some(class) if !class.is_string() => Err(ProviderError::Validation(
+            "failureClass must be a string".into(),
+        )),
+        _ => Ok(()),
+    }
 }
 
 fn validate_token_usage(usage: &serde_json::Value) -> Result<(), ProviderError> {

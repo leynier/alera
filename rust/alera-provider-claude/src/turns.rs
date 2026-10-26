@@ -44,10 +44,12 @@ impl ClaudeProvider {
                 SessionStatus::Running | SessionStatus::Waiting
             )
         {
-            return Err(ProviderError::InvalidState(
-                "cannot start a Claude turn while another turn is active or awaiting an event"
-                    .into(),
-            ));
+            return Err(ProviderError::Rejected {
+                class: alera_provider_protocol::FailureClass::PreviousTurnActive,
+                detail:
+                    "cannot start a Claude turn while another turn is active or awaiting an event"
+                        .into(),
+            });
         }
         if self.closed {
             return Err(ProviderError::Closed);
@@ -112,6 +114,7 @@ impl ClaudeProvider {
             return Err(sdk_error(error));
         }
         self.next_turn = next_turn;
+        self.turn_failure = Default::default();
         self.pending_user_prompt = Some(user_messages::UserPromptCorrelation {
             turn_id: turn_id.clone(),
             app_user_item_id,

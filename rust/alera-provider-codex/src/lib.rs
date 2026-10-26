@@ -7,6 +7,7 @@
 
 mod config;
 mod events;
+mod failure;
 mod history;
 mod lineage;
 mod mcp;

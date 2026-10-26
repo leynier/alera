@@ -1,8 +1,8 @@
 use alera_provider_protocol::{
-    ApprovalDecision, ApprovalPolicy, Attachment, EventKind, InteractionMode, ProviderEvent,
-    ProviderKind, ProviderRefs, ProviderSession, RequestId, RuntimeMode, RuntimeRequest,
-    RuntimeResponse, SandboxMode, SessionStartInput, SessionStatus, StreamKind, TurnInput,
-    TurnStatus,
+    ApprovalDecision, ApprovalPolicy, Attachment, EventKind, FailureClass, InteractionMode,
+    ProviderEvent, ProviderKind, ProviderRefs, ProviderSession, RequestId, RuntimeMode,
+    RuntimeRequest, RuntimeResponse, SandboxMode, SessionStartInput, SessionStatus, StreamKind,
+    TurnInput, TurnStatus,
 };
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -303,4 +303,26 @@ fn attachment_only_turn_is_valid_for_image_or_file_context() {
         };
         input.validate().unwrap();
     }
+}
+
+#[test]
+fn failure_classes_keep_snake_case_wire_names() {
+    for (class, wire) in [
+        (FailureClass::UsageLimit, "usage_limit"),
+        (FailureClass::ContextWindowFull, "context_window_full"),
+        (FailureClass::Auth, "auth"),
+        (FailureClass::PreviousTurnActive, "previous_turn_active"),
+        (FailureClass::AttachmentUnreadable, "attachment_unreadable"),
+        (FailureClass::Unknown, "unknown"),
+    ] {
+        assert_eq!(serde_json::to_value(class).unwrap(), json!(wire));
+        assert_eq!(
+            serde_json::from_value::<FailureClass>(json!(wire)).unwrap(),
+            class
+        );
+    }
+    assert_eq!(
+        serde_json::from_value::<FailureClass>(json!("billing")).unwrap(),
+        FailureClass::Unknown
+    );
 }

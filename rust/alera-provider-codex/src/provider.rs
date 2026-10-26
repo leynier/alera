@@ -34,6 +34,9 @@ pub struct CodexProvider<T> {
     pub(crate) history_mode: Option<String>,
     pub(crate) session_effort: Option<String>,
     pub(crate) native_child_parents: HashMap<String, String>,
+    /// The class of the root turn's last final `error` notification, for a
+    /// failed `turn/completed` that does not repeat its `codexErrorInfo`.
+    pub(crate) turn_failure_class: Option<alera_provider_protocol::FailureClass>,
     pub(crate) session_approvals: crate::session_approvals::SessionApprovals,
 }
 
@@ -80,6 +83,7 @@ impl<T> CodexProvider<T> {
             history_mode: None,
             session_effort: None,
             native_child_parents: HashMap::new(),
+            turn_failure_class: None,
             session_approvals: Default::default(),
         }
     }
@@ -229,10 +233,12 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
             )
             || session.active_turn_id.is_some()
         {
-            return Err(ProviderError::InvalidState(
-                "cannot start a Codex turn while another turn is active or awaiting an event"
-                    .into(),
-            ));
+            return Err(ProviderError::Rejected {
+                class: alera_provider_protocol::FailureClass::PreviousTurnActive,
+                detail:
+                    "cannot start a Codex turn while another turn is active or awaiting an event"
+                        .into(),
+            });
         }
         let params = self.turn_params(&input, &session)?;
         let response = self.call("turn/start", Value::Object(params)).await?;
@@ -395,6 +401,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.queued_events.clear();
         self.session_approvals.clear();
         self.terminal_event_pending = false;
+        self.turn_failure_class = None;
         if let Some(session) = self.session.as_mut() {
             session.status = SessionStatus::Stopped;
             session.active_turn_id = None;

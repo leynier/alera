@@ -125,10 +125,10 @@ async fn overlapping_turns_are_rejected_until_result() {
         .send_turn(TurnInput::text("app-thread", "second"))
         .await
         .unwrap_err();
-    assert!(matches!(
-        error,
-        alera_provider_protocol::ProviderError::InvalidState(_)
-    ));
+    assert_eq!(
+        error.failure_class(),
+        alera_provider_protocol::FailureClass::PreviousTurnActive
+    );
 }
 
 #[tokio::test]

@@ -49,10 +49,28 @@ fn map_notification<T: JsonTransport>(
         }
         payload["nativeTask"] = serde_json::to_value(task).expect("native task is serializable");
     }
+    if kind == EventKind::RuntimeError {
+        let class = crate::failure::error_info(&params)
+            .map(crate::failure::failure_class)
+            .unwrap_or_default();
+        if !class.is_unknown() {
+            payload["failureClass"] = serde_json::json!(class);
+        }
+    }
     let child_parent = native_thread_id
         .as_deref()
         .and_then(|id| provider.native_child_parents.get(id))
         .cloned();
+    let root = child_parent.is_none()
+        && native_thread_id.as_deref().is_none_or(|id| {
+            provider
+                .session
+                .as_ref()
+                .is_none_or(|session| session.native_thread_id == id)
+        });
+    if root {
+        classify_root_failure(provider, method, &params, &mut payload);
+    }
     if let (Some(child), Some(parent)) = (native_thread_id.as_ref(), child_parent.as_ref()) {
         let terminal = matches!(method, "turn/completed" | "turn/aborted" | "thread/closed");
         kind = if terminal {
@@ -96,15 +114,42 @@ fn map_notification<T: JsonTransport>(
         provider_request_id: None,
     });
     event.validate()?;
-    if native_thread_id.as_deref().is_none_or(|id| {
-        provider
-            .session
-            .as_ref()
-            .is_none_or(|session| session.native_thread_id == id)
-    }) {
+    if root {
         provider.apply_notification_state(method, event.turn_id.as_deref());
     }
     Ok(event)
+}
+
+/// Gives a failed root turn its class. A `codexErrorInfo` on the completion decides the class; a
+/// missing one falls back to the turn's last final `error` notification.
+fn classify_root_failure<T>(
+    provider: &mut CodexProvider<T>,
+    method: &str,
+    params: &Value,
+    payload: &mut Value,
+) {
+    match method {
+        "turn/started" => provider.turn_failure_class = None,
+        "error" if params.get("willRetry") != Some(&Value::Bool(true)) => {
+            provider.turn_failure_class = Some(
+                crate::failure::error_info(params)
+                    .map(crate::failure::failure_class)
+                    .unwrap_or_default(),
+            );
+        }
+        "turn/completed" => {
+            if payload["state"] == "failed" {
+                let class = crate::failure::error_info(params)
+                    .map(crate::failure::failure_class)
+                    .or(provider.turn_failure_class)
+                    .unwrap_or_default();
+                payload["failureClass"] = serde_json::json!(class);
+            }
+            provider.turn_failure_class = None;
+        }
+        "turn/aborted" => provider.turn_failure_class = None,
+        _ => {}
+    }
 }
 
 fn map_request<T: JsonTransport>(

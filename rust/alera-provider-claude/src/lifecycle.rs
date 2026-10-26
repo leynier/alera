@@ -59,6 +59,7 @@ impl ClaudeProvider {
             file_checkpointing: false,
             fork_source_native_thread_id: None,
             pending_user_prompt: None,
+            turn_failure: Default::default(),
         })
     }
 

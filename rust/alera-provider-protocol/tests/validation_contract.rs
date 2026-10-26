@@ -1,6 +1,6 @@
 use alera_provider_protocol::{
-    EventKind, ProviderError, ProviderEvent, ProviderKind, ProviderRefs, RawEvent, RuntimeMode,
-    SessionStartInput,
+    EventKind, FailureClass, ProviderError, ProviderEvent, ProviderKind, ProviderRefs, RawEvent,
+    RuntimeMode, SessionStartInput,
 };
 use serde_json::json;
 
@@ -203,4 +203,45 @@ fn event_validation_rejects_blank_provider_refs_and_raw_metadata() {
         payload: json!({}),
     });
     valid_raw.validate().unwrap();
+}
+
+#[test]
+fn failed_turn_carries_a_failure_class() {
+    let failed = valid_completed_event(json!({
+        "state": "failed",
+        "errorMessage": "You've hit your usage limit.",
+        "failureClass": "usage_limit",
+    }));
+    failed.validate().unwrap();
+    assert_eq!(failed.failure_class(), FailureClass::UsageLimit);
+
+    let plain = valid_completed_event(json!({ "state": "failed" }));
+    plain.validate().unwrap();
+    assert_eq!(plain.failure_class(), FailureClass::Unknown);
+
+    // A class from a newer adapter still reads, as unknown.
+    let newer = valid_completed_event(json!({ "state": "failed", "failureClass": "billing" }));
+    newer.validate().unwrap();
+    assert_eq!(newer.failure_class(), FailureClass::Unknown);
+
+    for payload in [
+        json!({ "state": "completed", "failureClass": "auth" }),
+        json!({ "state": "failed", "failureClass": 7 }),
+    ] {
+        expect_validation_error(valid_completed_event(payload).validate());
+    }
+}
+
+#[test]
+fn rejected_turns_keep_their_detail_and_expose_only_the_class() {
+    let error = ProviderError::Rejected {
+        class: FailureClass::PreviousTurnActive,
+        detail: "turn 3 is still active".into(),
+    };
+    assert_eq!(error.failure_class(), FailureClass::PreviousTurnActive);
+    assert!(error.to_string().contains("turn 3 is still active"));
+    assert_eq!(
+        ProviderError::InvalidState("x".into()).failure_class(),
+        FailureClass::Unknown
+    );
 }

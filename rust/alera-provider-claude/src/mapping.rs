@@ -102,7 +102,11 @@ impl ClaudeProvider {
         }
     }
 
-    fn map_rate_limit(&self, info: claude_agent_sdk::RateLimitEvent) -> Vec<ProviderEvent> {
+    fn map_rate_limit(&mut self, info: claude_agent_sdk::RateLimitEvent) -> Vec<ProviderEvent> {
+        self.turn_failure.rate_limit(
+            &info.rate_limit_info.status,
+            info.rate_limit_info.rate_limit_type.as_deref(),
+        );
         let payload = serde_json::to_value(&info).unwrap_or(Value::Null);
         let Some(window) = rate_limit_window(&payload) else {
             let warning = json!({
@@ -140,7 +144,8 @@ impl ClaudeProvider {
             || message
                 .errors
                 .as_ref()
-                .is_some_and(|errors| !errors.is_empty());
+                .is_some_and(|errors| !errors.is_empty())
+            || failure::result_failed_without_error(&message);
         let state = if interrupted {
             "interrupted"
         } else if failed {
@@ -181,6 +186,9 @@ impl ClaudeProvider {
                     terminal_payload["errorMessage"] = Value::String(result.clone());
                 }
             }
+            if failed {
+                terminal_payload["failureClass"] = json!(self.turn_failure.class(&message));
+            }
             if let Some(model_usage) = message.model_usage.clone() {
                 terminal_payload["modelUsage"] = model_usage;
             }
@@ -212,6 +220,7 @@ impl ClaudeProvider {
         if let Ok(mut active) = self.active_turn_id.try_lock() {
             *active = None;
         }
+        self.turn_failure = Default::default();
         self.streamed_text_message_ids.clear();
         self.streamed_thinking_message_ids.clear();
         self.streamed_text_unscoped = false;

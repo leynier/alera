@@ -177,8 +177,10 @@ impl AssistantMessage {
                 .get("parent_tool_use_id")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
-            error: message
+            // The CLI sets the error code on the envelope, beside `message`.
+            error: value
                 .get("error")
+                .or_else(|| message.get("error"))
                 .and_then(Value::as_str)
                 .map(str::to_owned),
             usage: message.get("usage").cloned(),

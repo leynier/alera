@@ -3,6 +3,7 @@
 mod command;
 mod error;
 mod event;
+mod failure;
 mod mcp;
 mod native_history;
 mod native_task;
@@ -16,6 +17,7 @@ mod validation;
 pub use command::*;
 pub use error::*;
 pub use event::*;
+pub use failure::*;
 pub use mcp::*;
 pub use native_history::*;
 pub use native_task::*;

@@ -67,3 +67,17 @@ fn parses_conversation_reset_as_typed_message() {
     assert_eq!(message.new_conversation_id, "new");
     assert_eq!(message.raw, wire);
 }
+
+#[test]
+fn reads_the_assistant_error_code_from_the_envelope() {
+    let wire = json!({
+        "type": "assistant",
+        "session_id": "session-1",
+        "error": "authentication_failed",
+        "message": { "id": "msg-1", "model": "m", "content": [] }
+    });
+    let Message::Assistant(message) = Message::from_value(wire) else {
+        panic!("expected assistant message");
+    };
+    assert_eq!(message.error.as_deref(), Some("authentication_failed"));
+}

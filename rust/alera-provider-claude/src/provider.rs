@@ -2,6 +2,8 @@
 mod callbacks;
 #[path = "canonical_payload.rs"]
 mod canonical_payload;
+#[path = "failure.rs"]
+mod failure;
 #[path = "history.rs"]
 mod history;
 #[path = "lifecycle.rs"]
@@ -108,6 +110,7 @@ pub struct ClaudeProvider {
     file_checkpointing: bool,
     fork_source_native_thread_id: Option<String>,
     pending_user_prompt: Option<user_messages::UserPromptCorrelation>,
+    turn_failure: failure::TurnFailureEvidence,
 }
 
 fn sdk_error(error: ClaudeSdkError) -> ProviderError {

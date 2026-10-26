@@ -1,3 +1,4 @@
+use crate::FailureClass;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -18,6 +19,10 @@ pub enum ProviderError {
         message: String,
         data: Option<serde_json::Value>,
     },
+    /// A turn refused for a fixed reason. Only `class` reaches curated
+    /// messages; `detail` can name private configuration.
+    #[error("provider rejected the turn: {detail}")]
+    Rejected { class: FailureClass, detail: String },
     #[error("provider operation timed out: {operation}")]
     Timeout { operation: String },
     #[error("provider connection is closed")]
