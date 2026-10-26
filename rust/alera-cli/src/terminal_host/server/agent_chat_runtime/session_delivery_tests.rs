@@ -253,3 +253,78 @@ async fn deferred_native_fork_uses_the_selected_old_boundary_and_sends_no_duplic
     runtime.shutdown().await;
     harness.finish().await;
 }
+
+fn handoff_markers(snapshot: &serde_json::Value) -> Vec<serde_json::Value> {
+    snapshot["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["type"] == "notice" && item["normalized"]["handoff"].is_object())
+        .cloned()
+        .collect()
+}
+
+#[tokio::test]
+async fn provider_switch_records_a_handoff_marker_that_fails_with_its_turn() {
+    let (harness, runtime, factory) = fixture().await;
+    let chat = create(&runtime, None).await;
+    send(&runtime, &chat, "first", "Earlier question").await;
+    finish_turn(&runtime, &factory, &chat, 1).await;
+    assert!(handoff_markers(&runtime.snapshot(&chat).await.unwrap()).is_empty());
+    runtime
+        .command(
+            &chat,
+            ChatOp::Configure(ConfigureInput {
+                provider_instance_id: Some("claudeAgent".into()),
+                ..Default::default()
+            }),
+            CallerCtx::runtime(),
+            None,
+        )
+        .await
+        .unwrap();
+
+    factory.recorded.reject_send.store(true, Ordering::SeqCst);
+    let failed = send(&runtime, &chat, "second", "Continue here").await;
+    wait_until(|| factory.recorded.turns.lock().unwrap().len() == 2).await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !runtime.snapshot(&chat).await.unwrap()["session"]["activeTurnId"].is_null() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let snapshot = runtime.snapshot(&chat).await.unwrap();
+    let markers = handoff_markers(&snapshot);
+    assert_eq!(markers.len(), 1);
+    assert_eq!(markers[0]["turnId"], failed["turnId"]);
+    assert_eq!(markers[0]["status"], "failed");
+    let handoff = &markers[0]["normalized"]["handoff"];
+    assert_eq!(handoff["status"], "failed");
+    assert_eq!(handoff["from"]["provider"], "codex");
+    assert_eq!(handoff["from"]["model"], "verified-model");
+    assert_eq!(handoff["to"]["provider"], "claudeAgent");
+
+    factory.recorded.reject_send.store(false, Ordering::SeqCst);
+    let retried = send(&runtime, &chat, "third", "Try again").await;
+    wait_until(|| factory.recorded.turns.lock().unwrap().len() == 3).await;
+    assert!(factory.recorded.turns.lock().unwrap()[2]
+        .input
+        .contains("Earlier question"));
+    let markers = handoff_markers(&runtime.snapshot(&chat).await.unwrap());
+    assert_eq!(markers.len(), 2);
+    let retry = markers
+        .iter()
+        .find(|marker| marker["turnId"] == retried["turnId"])
+        .unwrap();
+    assert_eq!(retry["status"], "completed");
+    assert_eq!(retry["normalized"]["handoff"]["status"], "completed");
+    // The retry names where the context came from, not the failed turn.
+    assert_eq!(retry["normalized"]["handoff"]["from"]["provider"], "codex");
+    assert_eq!(
+        retry["normalized"]["handoff"]["to"]["provider"],
+        "claudeAgent"
+    );
+    runtime.shutdown().await;
+    harness.finish().await;
+}

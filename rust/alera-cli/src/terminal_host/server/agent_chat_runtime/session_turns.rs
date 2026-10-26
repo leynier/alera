@@ -227,10 +227,14 @@ impl ChatSession {
                 .insert("segmentCount".into(), Value::from(segment_count as u64));
         }
         let segmented = segment_count > 1;
-        let text = self.turn_text(&input.text, &item_id).await?;
+        let (text, handed_off) = self.turn_text(&input.text, &item_id).await?;
+        let handoff = handed_off.then(|| self.handoff_marker(&turn, &stamp));
         self.header.upsert_turn(turn.clone());
         self.header.session.active_turn_id = Some(turn.turn_id.clone());
         self.set_status("running");
+        if let Some(handoff) = handoff {
+            self.insert_item(handoff);
+        }
         for item in text_items.drain(..) {
             self.insert_item(item);
             if self.pending.estimated_bytes(&self.items) >= FLUSH_TEXT_BYTES {
@@ -275,10 +279,11 @@ impl ChatSession {
     }
 
     /// The user's text, preceded by the transcript handoff on the first turn
-    /// of a fresh provider session in a chat with history.
-    async fn turn_text(&mut self, text: &str, current_item_id: &str) -> HostResult<String> {
+    /// of a fresh provider session in a chat with history, and whether the
+    /// transcript was prepended.
+    async fn turn_text(&mut self, text: &str, current_item_id: &str) -> HostResult<(String, bool)> {
         if !self.handoff_pending {
-            return Ok(text.to_string());
+            return Ok((text.to_string(), false));
         }
         let store = self.deps.store.clone();
         let chat_id = self.header.chat_id.clone();
@@ -286,8 +291,8 @@ impl ChatSession {
             .await
             .map_err(HostError::state)?;
         Ok(match prefix {
-            Some(prefix) => format!("{prefix}{text}"),
-            None => text.to_string(),
+            Some(prefix) => (format!("{prefix}{text}"), true),
+            None => (text.to_string(), false),
         })
     }
 
@@ -308,6 +313,7 @@ impl ChatSession {
                     if let Some(native) = &result.native_turn_id {
                         self.map_native_turn(native, &app_turn).await;
                     }
+                    self.settle_handoff(&app_turn, "completed");
                 }
                 self.handoff_pending = false;
                 self.events_armed = true;
@@ -391,6 +397,8 @@ impl ChatSession {
         }
         self.provider_turn_id = None;
         self.deferred_turn = None;
+        // A marker still pending here never reached a provider.
+        self.settle_handoff(&turn_id, "failed");
         let open: Vec<String> = self
             .items
             .values()

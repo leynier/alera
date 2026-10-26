@@ -96,6 +96,9 @@ pub(crate) struct ChatSession {
     pub(super) deferred_turn: Option<DeferredTurn>,
     /// The next user turn carries the transcript of earlier sessions.
     pub(super) handoff_pending: bool,
+    /// Where the pending handoff's context came from, kept after a failed
+    /// handoff so the retry names the original source, not the failed turn.
+    pub(super) handoff_from: Option<Value>,
     pub(super) provider_turn_id: Option<String>,
     pub(super) native_ids: HashMap<(String, String), String>,
     pub(super) open_requests: Vec<OpenRequest>,
@@ -207,6 +210,7 @@ impl ChatSession {
             startup_resume: false,
             deferred_turn: None,
             handoff_pending: false,
+            handoff_from: None,
             provider_turn_id: None,
             native_ids: HashMap::new(),
             open_requests: Vec::new(),

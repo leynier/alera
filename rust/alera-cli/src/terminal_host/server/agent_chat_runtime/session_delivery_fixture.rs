@@ -34,6 +34,7 @@ pub(super) struct Recorded {
     pub(super) steers: Mutex<Vec<(TurnInput, String)>>,
     pub(super) forks: Mutex<Vec<NativeForkInput>>,
     pub(super) reject_steer: AtomicBool,
+    pub(super) reject_send: AtomicBool,
     pub(super) send_gate: Mutex<Option<Arc<SendGate>>>,
 }
 
@@ -127,6 +128,11 @@ impl Provider for RecordingProvider {
     }
     async fn send_turn(&mut self, input: TurnInput) -> Result<TurnStartResult, ProviderError> {
         self.recorded.turns.lock().unwrap().push(input.clone());
+        if self.recorded.reject_send.load(Ordering::SeqCst) {
+            return Err(ProviderError::Unsupported(
+                "The native provider refused the turn.".into(),
+            ));
+        }
         let gate = self.recorded.send_gate.lock().unwrap().take();
         if let Some(gate) = gate {
             gate.entered.notify_one();

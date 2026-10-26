@@ -2,11 +2,16 @@
 //! native generation. Only user and assistant text is included.
 
 use alera_core::runtime::RuntimeStore;
+use serde_json::{json, Value};
 
-use super::wire::ChatItem;
+use super::ids::{new_id, now};
+use super::session::ChatSession;
+use super::wire::{ChatItem, ChatTurn};
 
 pub(crate) const HANDOFF_MAX_CHARS: usize = 24_000;
 const HANDOFF_SCAN_ITEMS: i64 = 400;
+/// The key of a handoff marker's payload in a `notice` item's `normalized`.
+pub(crate) const HANDOFF_MARKER_KEY: &str = "handoff";
 
 pub(crate) async fn transcript_handoff(
     store: &RuntimeStore,
@@ -66,4 +71,64 @@ fn quote(text: &str) -> String {
         .map(|line| format!("> {line}"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn endpoint(turn: &ChatTurn) -> Value {
+    json!({
+        "provider": turn.provider,
+        "providerInstanceId": turn.provider_instance_id,
+        "model": turn.model,
+    })
+}
+
+impl ChatSession {
+    /// The timeline marker of a turn that carries the transcript into a fresh
+    /// provider session. It is a typed `notice` rather than a new item type,
+    /// so a client that predates it still shows a plain notice row instead of
+    /// an unknown action. It stays pending until the provider accepts the
+    /// turn; [`Self::settle_handoff`] then records whether it arrived.
+    pub(super) fn handoff_marker(&mut self, turn: &ChatTurn, stamp: &str) -> ChatItem {
+        let from = self
+            .handoff_from
+            .take()
+            .or_else(|| self.header.turns.last().map(endpoint));
+        self.handoff_from = from.clone();
+        let mut item = ChatItem::new(new_id("item"), "notice", stamp, self.generation);
+        item.turn_id = Some(turn.turn_id.clone());
+        item.title = Some("Context handoff".into());
+        item.normalized.insert(
+            HANDOFF_MARKER_KEY.into(),
+            json!({"from": from, "to": endpoint(turn), "status": "pending"}),
+        );
+        item
+    }
+
+    /// Settles the pending handoff marker of `turn_id` as `completed` or
+    /// `failed`; a failed handoff stays pending for the next turn.
+    pub(super) fn settle_handoff(&mut self, turn_id: &str, status: &str) {
+        let pending: Vec<String> = self
+            .items
+            .values()
+            .filter(|item| item.turn_id.as_deref() == Some(turn_id))
+            .filter(|item| item.status == "inProgress")
+            .filter(|item| item.normalized.contains_key(HANDOFF_MARKER_KEY))
+            .map(|item| item.item_id.clone())
+            .collect();
+        for item_id in pending {
+            if let Some(item) = self.items.get_mut(&item_id) {
+                item.status = if status == "completed" {
+                    "completed"
+                } else {
+                    "failed"
+                }
+                .into();
+                item.normalized[HANDOFF_MARKER_KEY]["status"] = json!(status);
+                item.updated_at = now();
+            }
+            self.pending.item(&item_id);
+        }
+        if status == "completed" {
+            self.handoff_from = None;
+        }
+    }
 }
