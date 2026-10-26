@@ -45,6 +45,7 @@ export 'src/agent_chat_provider_skill.dart';
 export 'src/agent_chat_provider_settings.dart';
 export 'src/agent_chat_provider_status.dart';
 export 'src/agent_chat_queue_entry.dart';
+export 'src/agent_chat_relationships.dart';
 export 'src/agent_chat_repository.dart';
 export 'src/agent_chat_repository_services.dart';
 export 'src/agent_chat_request.dart';

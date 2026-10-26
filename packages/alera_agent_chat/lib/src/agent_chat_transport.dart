@@ -31,6 +31,13 @@ abstract final class AgentChatWire {
   static const String readCursorCapability = 'agentChatReadCursorV1';
   static const String attachmentUploadCapability =
       'agentChatAttachmentUploadV1';
+
+  /// `agentChat.subagent` reads a provider-native sub-agent's own transcript
+  /// and `agentChat.stopSubagent` stops it.
+  static const String subagentThreadsCapability = 'agentChatSubagentThreadsV1';
+
+  /// `agentChat.mergeBack` hands a fork's work to the chat it came from.
+  static const String mergeBackCapability = 'agentChatMergeBackV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -92,6 +99,9 @@ abstract final class AgentChatWire {
   static const String feedback = 'agentChat.feedback';
   static const String configure = 'agentChat.configure';
   static const String rename = 'agentChat.rename';
+  static const String subagent = 'agentChat.subagent';
+  static const String stopSubagent = 'agentChat.stopSubagent';
+  static const String mergeBack = 'agentChat.mergeBack';
   static const String recover = 'agentChat.recover';
   static const String close = 'agentChat.close';
   static const String list = 'agentChat.list';

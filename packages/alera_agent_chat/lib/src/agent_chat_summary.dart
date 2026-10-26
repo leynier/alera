@@ -24,6 +24,9 @@ class const AgentChatSummary({
 
   /// The chat whose first delegation handed work to this one.
   final String? parentChatId,
+
+  /// The chat this one was forked from.
+  final String? forkedFromChatId,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -52,6 +55,7 @@ class const AgentChatSummary({
       unread: agentChatJsonBool(json['unread']),
       readCursor: agentChatJsonInt(json['readCursor']) ?? 0,
       parentChatId: agentChatJsonString(json['parentChatId']),
+      forkedFromChatId: agentChatJsonString(json['forkedFromChatId']),
     );
   }
 }

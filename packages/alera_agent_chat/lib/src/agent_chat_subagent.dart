@@ -34,6 +34,12 @@ class const AgentChatSubagent({
   final String? description,
   final String? summary,
   final String? taskType,
+  final String? model,
+  final String? reasoningEffort,
+
+  /// When the sub-agent last started running, and when it settled.
+  final DateTime? startedAt,
+  final DateTime? completedAt,
 }) {
   static AgentChatSubagent? fromJson(Object? value) {
     if (value is! Map) return null;
@@ -44,6 +50,10 @@ class const AgentChatSubagent({
       description: agentChatJsonString(json['description']),
       summary: agentChatJsonString(json['summary']),
       taskType: agentChatJsonString(json['taskType']),
+      model: agentChatJsonString(json['model']),
+      reasoningEffort: agentChatJsonString(json['reasoningEffort']),
+      startedAt: agentChatJsonDate(json['startedAt']),
+      completedAt: agentChatJsonDate(json['completedAt']),
     );
   }
 }
@@ -79,6 +89,20 @@ extension AgentChatSubagentItem on AgentChatItem {
     }
     return 'Sub-agent';
   }
+
+  /// The model the sub-agent runs on: what the provider reported, else what
+  /// the call asked for (Claude's Task tool takes a `model`).
+  String? get subagentModel =>
+      subagent?.model ?? agentChatJsonString(agentChatJsonMap(input)['model']);
+
+  String? get subagentReasoningEffort =>
+      subagent?.reasoningEffort ??
+      agentChatJsonString(agentChatJsonMap(input)['reasoningEffort']);
+
+  /// What the call asked the sub-agent to do.
+  String? get subagentPrompt =>
+      agentChatJsonString(agentChatJsonMap(input)['prompt']) ??
+      agentChatJsonString(normalized['prompt']);
 
   /// The sub-agent's state, falling back to the call's own status before
   /// the provider reports the task.

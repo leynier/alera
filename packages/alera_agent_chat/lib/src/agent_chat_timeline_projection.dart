@@ -15,6 +15,7 @@ import 'package:alera_agent_chat/src/agent_chat_worked_actions.dart';
 
 part 'agent_chat_timeline_projection_history.dart';
 part 'agent_chat_timeline_projection_segments.dart';
+part 'agent_chat_timeline_projection_subagent_thread.dart';
 part 'agent_chat_timeline_projection_subagents.dart';
 part 'agent_chat_timeline_projection_turn.dart';
 

@@ -6,6 +6,7 @@ import 'package:alera_agent_chat/src/agent_chat_native_history_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_provider_skill.dart';
 import 'package:alera_agent_chat/src/runtime_agent_chat_native_history_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
+import 'package:alera_agent_chat/src/agent_chat_timeline_projection.dart';
 import 'package:alera_agent_chat/src/agent_chat_transport.dart';
 
 final class RuntimeAgentChatLifecycleRepository
@@ -227,4 +228,44 @@ final class RuntimeAgentChatLifecycleRepository
       _scoped(chat, <String, Object?>{if (refresh) 'refresh': true}),
     ),
   );
+
+  @override
+  Future<AgentChatSubagentTranscript> subagent(
+    AgentChatRef chat, {
+    required String itemId,
+  }) async => AgentChatSubagentTranscript.fromJson(
+    await _request(
+      AgentChatWire.subagentThreadsCapability,
+      AgentChatWire.subagent,
+      _scoped(chat, <String, Object?>{'itemId': itemId}),
+    ),
+  );
+
+  @override
+  Future<void> stopSubagent(
+    AgentChatRef chat, {
+    required String requestId,
+    required String itemId,
+  }) => _request(
+    AgentChatWire.subagentThreadsCapability,
+    AgentChatWire.stopSubagent,
+    _scoped(chat, <String, Object?>{'requestId': requestId, 'itemId': itemId}),
+  );
+
+  @override
+  Future<String> mergeBack(
+    AgentChatRef chat, {
+    required String requestId,
+  }) async {
+    final json = await _request(
+      AgentChatWire.mergeBackCapability,
+      AgentChatWire.mergeBack,
+      _scoped(chat, <String, Object?>{'requestId': requestId}),
+    );
+    final target = agentChatJsonString(json['chatId']);
+    if (target == null) {
+      throw const FormatException('A merge-back answer names no chat.');
+    }
+    return target;
+  }
 }

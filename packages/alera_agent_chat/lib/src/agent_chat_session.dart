@@ -19,6 +19,9 @@ class const AgentChatCapabilities({
   final bool attachments = false,
   final bool images = false,
   final bool plan = false,
+
+  /// Whether one provider-native sub-agent can be stopped on its own.
+  final bool stopSubagent = false,
   final AgentChatNativeHistoryCapabilities nativeHistory =
       const AgentChatNativeHistoryCapabilities(),
 }) {
@@ -38,6 +41,7 @@ class const AgentChatCapabilities({
       attachments: agentChatJsonBool(json['attachments']),
       images: agentChatJsonBool(json['images']),
       plan: agentChatJsonBool(json['plan']),
+      stopSubagent: agentChatJsonBool(json['stopSubagent']),
       nativeHistory: AgentChatNativeHistoryCapabilities.fromJson(
         json['nativeHistory'],
       ),
