@@ -82,6 +82,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatMergeBackV1",
     "agentChatGoalV1",
     "agentChatAcpChildSessionsV1",
+    "agentChatWorkflowsV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
@@ -213,6 +214,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.nativeHistory.reconcile"
             | "agentChat.subagent"
             | "agentChat.stopSubagent"
+            | "agentChat.workflowScript"
+            | "agentChat.workflowAgent"
             | "agentChat.mergeBack"
             | "agentChat.preferences.get"
             | "agentChat.preferences.update"

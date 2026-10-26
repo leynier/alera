@@ -198,6 +198,8 @@ impl ChatSession {
                 | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
                 | ChatOp::SubagentTranscript { .. }
+                | ChatOp::WorkflowScript { .. }
+                | ChatOp::WorkflowAgent { .. }
                 | ChatOp::Rename { .. }
                 | ChatOp::Reopen { .. }
                 | ChatOp::Close
@@ -285,6 +287,11 @@ impl ChatSession {
             }
             ChatOp::SubagentTranscript { item_id } => self.subagent_transcript(&item_id).await,
             ChatOp::StopSubagent { item_id } => self.stop_subagent(&item_id).await,
+            ChatOp::WorkflowScript { item_id } => self.workflow_script(&item_id).await,
+            ChatOp::WorkflowAgent {
+                item_id,
+                agent_index,
+            } => self.workflow_agent(&item_id, agent_index).await,
             ChatOp::MergeBackSource => self.merge_back_source().await,
             ChatOp::ReceiveMergeBack(input) => self.receive_merge_back(input).await,
             ChatOp::Respond {

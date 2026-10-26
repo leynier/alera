@@ -1,6 +1,7 @@
 //! Thread relationship verbs: a provider-native sub-agent read and stopped on
 //! its own (`agentChatSubagentThreadsV1`) and a fork merged back into the chat
-//! it was forked from (`agentChatMergeBackV1`).
+//! it was forked from (`agentChatMergeBackV1`), and a workflow's script and
+//! member answers read (`agentChatWorkflowsV1`).
 
 use serde_json::Value;
 
@@ -39,6 +40,35 @@ pub(super) async fn dispatch(
                     },
                     ctx,
                     Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
+        "agentChat.workflowScript" => {
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::WorkflowScript {
+                        item_id: required_string(payload, "itemId")?,
+                    },
+                    ctx,
+                    None,
+                )
+                .await
+        }
+        "agentChat.workflowAgent" => {
+            let agent_index = payload
+                .get("agentIndex")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| HostError::format("agentIndex must be a non-negative integer"))?;
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::WorkflowAgent {
+                        item_id: required_string(payload, "itemId")?,
+                        agent_index,
+                    },
+                    ctx,
+                    None,
                 )
                 .await
         }

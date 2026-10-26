@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 
 use super::ids::{native_key, now};
 use super::session::ChatSession;
+use super::session_workflows::{fold_workflow, workflow_status};
 
 const MAX_SUBAGENT_TEXT: usize = 512;
 
@@ -162,7 +163,6 @@ impl ChatSession {
             }
         }
         self.load_item(&parent).await;
-        let status = subagent_status(event);
         let Some(call) = self.items.get_mut(&parent) else {
             return;
         };
@@ -176,6 +176,7 @@ impl ChatSession {
             .get("status")
             .and_then(Value::as_str)
             .map(str::to_owned);
+        let status = workflow_status(event, subagent_status(event), previous.as_deref());
         if status == "running" {
             // A settled sub-agent that runs again (a Codex child's next
             // turn) restarts its clock.
@@ -208,6 +209,7 @@ impl ChatSession {
                 subagent[key] = json!(bounded(text));
             }
         }
+        fold_workflow(&mut subagent, event);
         if call.normalized.get("subagent") == Some(&subagent) {
             return;
         }

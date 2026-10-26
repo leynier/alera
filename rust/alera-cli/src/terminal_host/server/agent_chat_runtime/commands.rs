@@ -199,6 +199,15 @@ pub(crate) enum ChatOp {
     StopSubagent {
         item_id: String,
     },
+    /// The script of the workflow a call started (`agentChatWorkflowsV1`).
+    WorkflowScript {
+        item_id: String,
+    },
+    /// What one member of the workflow a call started answered.
+    WorkflowAgent {
+        item_id: String,
+        agent_index: u64,
+    },
     /// A fork's source chat and the work it did since the fork point.
     MergeBackSource,
     /// Hold a fork's work for this chat's next turn (`agentChat.mergeBack`).
@@ -248,6 +257,8 @@ impl ChatOp {
                 | ChatOp::SkillSource
                 | ChatOp::NativeHistoryOperation { .. }
                 | ChatOp::SubagentTranscript { .. }
+                | ChatOp::WorkflowScript { .. }
+                | ChatOp::WorkflowAgent { .. }
                 | ChatOp::MergeBackSource
         )
     }

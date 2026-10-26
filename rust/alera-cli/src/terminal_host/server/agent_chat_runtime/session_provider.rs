@@ -241,6 +241,7 @@ impl ChatSession {
                 self.live_caps = Some(provider.capabilities());
                 self.provider = Some(provider);
                 // Task ids of an earlier process name nothing in this one.
+                self.end_workflows_of_process("stopped").await;
                 self.awaited_tasks.clear();
                 self.events_armed = true;
                 self.record_native_session(&session.native_thread_id).await;
@@ -333,6 +334,7 @@ impl ChatSession {
         let Some(mut provider) = self.provider.take() else {
             return;
         };
+        self.end_workflows_of_process("failed").await;
         self.awaited_tasks.clear();
         let _ = tokio::time::timeout(CLOSE_TIMEOUT, provider.close()).await;
         self.revoke_launch_credentials("providerExited").await;
@@ -395,6 +397,7 @@ impl ChatSession {
         self.cancel_startup().await;
         self.revoke_launch_credentials(reason).await;
         self.deferred_turn = None;
+        self.end_workflows_of_process("stopped").await;
         if let Some(mut provider) = self.provider.take() {
             if self.header.session.active_turn_id.is_some() {
                 let _ = tokio::time::timeout(

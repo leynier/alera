@@ -336,6 +336,8 @@ impl ChatSession {
             self.pending.item(&item_id);
         }
         self.expire_requests_of_turn(Some(&turn_id));
+        self.end_workflows_of(&turn_id, status, child_turns_continue)
+            .await;
         self.end_awaited_work_of(&turn_id, status, child_turns_continue);
         if self.provider.is_some() {
             self.set_status(self.idle_status());

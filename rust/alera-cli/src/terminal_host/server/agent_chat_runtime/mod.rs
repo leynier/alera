@@ -55,8 +55,10 @@ mod session_snapshot;
 mod session_subagents;
 mod session_turn_admission;
 mod session_turns;
+mod session_workflows;
 pub(crate) mod tab_directory;
 pub(crate) mod wire;
+mod workflow_files;
 
 pub(crate) use commands::{CallerCtx, ChatOp, ReceiptKey, SendInput};
 pub(crate) use events::ChatRuntimeEvent;
