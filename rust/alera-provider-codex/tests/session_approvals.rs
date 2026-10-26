@@ -44,6 +44,7 @@ async fn answer(
             request_id: RequestId::String(item.into()),
             decision,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

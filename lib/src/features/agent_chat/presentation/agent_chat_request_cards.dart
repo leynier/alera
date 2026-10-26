@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_key_value_row.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_decline_feedback_dialog.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_elicitation_form.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
@@ -12,13 +13,15 @@ import 'package:flutter/material.dart';
 /// An approval the agent is blocked on: what it wants to run, change or read,
 /// and exactly the decisions the runtime offers, in the runtime's order,
 /// since a provider may not honor any other. Two are buttons (the first
-/// decision and Decline when offered); the rest wait in an overflow.
+/// decision and Decline when offered); the rest wait in an overflow. When the
+/// provider takes feedback, a decline can also say what to do instead.
 class const AgentChatApprovalCard({
   super.key,
   required final AgentChatRequest request,
   required final bool responding,
   required final bool enabled,
   required final ValueChanged<AgentChatApprovalDecision> onDecision,
+  final ValueChanged<String>? onDeclineWithFeedback,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -28,15 +31,38 @@ class const AgentChatApprovalCard({
     final path = agentChatJsonString(request.path);
     final detail = agentChatJsonString(request.detail);
     final expiresAt = request.expiresAt;
+    final override = request.fullAccessOverride;
+    final onFeedback = onDeclineWithFeedback;
+    final canAct = enabled && !responding;
     return _RequestCardFrame(
       title: agentChatRequestTitle(request),
       responding: responding,
-      actions: _decisionButtons(
-        request.offeredDecisions,
-        enabled: enabled && !responding,
-        onDecision: onDecision,
-      ),
+      actions: <Widget>[
+        ..._decisionButtons(
+          request.offeredDecisions,
+          enabled: canAct,
+          onDecision: onDecision,
+        ),
+        if (onFeedback != null && agentChatOffersDeclineFeedback(request))
+          TextButton(
+            key: const ValueKey<String>('agent-chat-decline-feedback'),
+            onPressed: canAct
+                ? () async {
+                    final feedback = await showAgentChatDeclineFeedbackDialog(
+                      context,
+                    );
+                    if (feedback != null) onFeedback(feedback);
+                  }
+                : null,
+            child: const Text('$agentChatDeclineWithFeedbackLabel…'),
+          ),
+      ],
       children: <Widget>[
+        if (override != null)
+          AleraInlineNotice(
+            tone: .warning,
+            message: agentChatFullAccessOverrideMessage(override),
+          ),
         ?_CappedBody.of(<Widget>[
           if (command != null) _MonoBlock(text: command),
           if (cwd != null)

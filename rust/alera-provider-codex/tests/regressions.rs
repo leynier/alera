@@ -69,6 +69,7 @@ async fn server_request_id_collision_keeps_logical_and_wire_ids_separate() {
             request_id: RequestId::String("logical-approval".into()),
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();
@@ -472,6 +473,7 @@ async fn typed_runtime_response_must_match_pending_request_kind() {
             request_id: RequestId::String("logical-input".into()),
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap_err();
@@ -515,6 +517,7 @@ async fn terminal_event_expires_pending_requests_and_rejects_stale_response() {
                 request_id: RequestId::String("stale-approval".into()),
                 decision: ApprovalDecision::Accept,
                 updated_input: None,
+                feedback: None,
             })
             .await,
         Err(ProviderError::InvalidState(_))

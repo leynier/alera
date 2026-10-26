@@ -163,6 +163,7 @@ async fn notifications_are_normalized_and_approval_response_keeps_integer_id() {
             request_id: RequestId::String("item-1".into()),
             decision: ApprovalDecision::AcceptForSession,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

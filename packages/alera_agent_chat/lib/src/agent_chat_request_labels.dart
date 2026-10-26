@@ -12,6 +12,23 @@ String agentChatDecisionLabel(AgentChatApprovalDecision decision) =>
       .cancel => 'Cancel Turn',
     };
 
+const String agentChatDeclineWithFeedbackLabel = 'Decline With Feedback';
+
+/// Why an approval arrived although the session has full access.
+String agentChatFullAccessOverrideMessage(
+  AgentChatFullAccessOverride override,
+) => switch (override) {
+  .askRule =>
+    'Asked despite full access: an ask rule in your settings matches this.',
+  .providerCheck =>
+    "Asked despite full access: the agent's own safety check flagged this.",
+};
+
+/// Whether [request] can be declined with feedback for the agent.
+bool agentChatOffersDeclineFeedback(AgentChatRequest request) =>
+    request.supportsFeedback &&
+    request.offeredDecisions.contains(AgentChatApprovalDecision.decline);
+
 String agentChatRequestTitle(AgentChatRequest request) {
   final title = request.title?.trim();
   return title == null || title.isEmpty

@@ -174,6 +174,7 @@ fn approval_response_preserves_native_request_id_and_decision_wire_names() {
         request_id: RequestId::Integer(7),
         decision: ApprovalDecision::AcceptForSession,
         updated_input: Some(json!({ "command": "cargo test --locked" })),
+        feedback: None,
     };
     let wire = serde_json::to_value(&response).unwrap();
     assert_eq!(wire["type"], "approval");

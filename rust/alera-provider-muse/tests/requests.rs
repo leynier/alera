@@ -49,6 +49,7 @@ async fn approval_preserves_wire_id_and_selects_an_offered_choice() {
             request_id: "approval-1".into(),
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

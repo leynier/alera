@@ -92,6 +92,24 @@ class const AgentChatElicitation({
       });
 }
 
+/// Why a session with full access still asked for approval.
+enum AgentChatFullAccessOverride(this.wire) {
+  /// A user-configured ask rule matched.
+  askRule('ask_rule'),
+
+  /// The provider's own safety check asked.
+  providerCheck('provider_check');
+
+  final String wire;
+
+  static AgentChatFullAccessOverride? tryParse(Object? value) {
+    for (final override in values) {
+      if (override.wire == value) return override;
+    }
+    return null;
+  }
+}
+
 /// Something the agent is waiting on: an approval, answers to questions, or
 /// an MCP server form. [id] is the runtime's request id, which is what a
 /// response must name; the provider's native id never reaches the client.
@@ -112,6 +130,8 @@ class const AgentChatRequest({
   final AgentChatElicitation? elicitation,
   final DateTime? expiresAt,
   final AgentChatJson payload = const <String, Object?>{},
+  final bool supportsFeedback = false,
+  final AgentChatFullAccessOverride? fullAccessOverride,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -147,6 +167,10 @@ class const AgentChatRequest({
           : null,
       expiresAt: agentChatJsonDate(json['expiresAt']),
       payload: agentChatJsonMap(json['payload']),
+      supportsFeedback: agentChatJsonBool(json['supportsFeedback']),
+      fullAccessOverride: AgentChatFullAccessOverride.tryParse(
+        json['fullAccessOverride'],
+      ),
     );
   }
 

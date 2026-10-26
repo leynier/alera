@@ -155,6 +155,7 @@ fn map_approval(
         kind,
         questions: Vec::new(),
         payload: params.clone(),
+        supports_feedback: false,
     };
     let event_kind = EventKind::RequestOpened;
     let payload = serde_json::json!({
@@ -215,6 +216,7 @@ fn map_user_input(
         kind: RequestKind::ToolUserInput,
         questions: questions.clone(),
         payload: params.clone(),
+        supports_feedback: false,
     };
     let payload = serde_json::json!({
         "requestType": RequestKind::ToolUserInput,

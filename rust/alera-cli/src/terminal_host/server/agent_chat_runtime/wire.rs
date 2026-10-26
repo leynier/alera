@@ -144,6 +144,12 @@ pub(crate) struct ChatRequest {
     pub elicitation: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
+    /// A decline may carry feedback for the agent that asked.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub supports_feedback: bool,
+    /// Why a full-access session still asked: `ask_rule` or `provider_check`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_access_override: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -136,6 +136,7 @@ fn map_request<T: JsonTransport>(
         kind,
         questions: questions.clone(),
         payload: params.clone(),
+        supports_feedback: false,
     };
     let event_kind = if kind == RequestKind::ToolUserInput {
         EventKind::UserInputRequested

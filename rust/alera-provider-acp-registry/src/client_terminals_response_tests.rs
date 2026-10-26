@@ -72,7 +72,8 @@ async fn failed_permission_response_write_never_records_execute_grant() {
         .respond(RuntimeResponse::Approval {
             request_id: request.request_id,
             decision: ApprovalDecision::Accept,
-            updated_input: None
+            updated_input: None,
+            feedback: None,
         })
         .await
         .is_err());

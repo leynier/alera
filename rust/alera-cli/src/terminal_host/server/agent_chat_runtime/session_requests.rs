@@ -189,6 +189,9 @@ impl ChatSession {
     }
 }
 
+/// Feedback is a short instruction, not a document.
+const MAX_APPROVAL_FEEDBACK_BYTES: usize = 16 * 1024;
+
 fn kind_of(request: &ChatRequest) -> RequestKind {
     serde_json::from_value(Value::String(request.kind.clone())).unwrap_or(RequestKind::Unknown)
 }
@@ -209,10 +212,31 @@ fn native_response(
             }
             let decision: ApprovalDecision = serde_json::from_value(Value::String(decision.into()))
                 .map_err(|_| unsupported("Unknown approval decision."))?;
+            let feedback = match response.get("feedback") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(text)) => Some(text.trim().to_owned()),
+                Some(_) => return Err(HostError::format("feedback must be a string")),
+            }
+            .filter(|text| !text.is_empty());
+            if let Some(text) = &feedback {
+                if !row.supports_feedback {
+                    return Err(unsupported("This request does not take feedback."));
+                }
+                if !matches!(
+                    decision,
+                    ApprovalDecision::Decline | ApprovalDecision::Cancel
+                ) {
+                    return Err(unsupported("Feedback only goes with a decline."));
+                }
+                if text.len() > MAX_APPROVAL_FEEDBACK_BYTES {
+                    return Err(HostError::format("feedback is too long"));
+                }
+            }
             Ok(RuntimeResponse::Approval {
                 request_id,
                 decision,
                 updated_input: None,
+                feedback,
             })
         }
         "userInput" if kind == RequestKind::ToolUserInput => {
@@ -256,5 +280,65 @@ fn native_response(
             "A {response_type:?} response does not answer a {} request.",
             row.kind
         ))),
+    }
+}
+
+#[cfg(test)]
+mod feedback_tests {
+    use super::*;
+
+    fn approval(supports_feedback: bool) -> ChatRequest {
+        serde_json::from_value(json!({
+            "requestId": "request", "kind": "command_execution_approval",
+            "createdAt": "2026-10-25T00:00:00.000Z",
+            "decisions": ["accept", "decline", "cancel"],
+            "supportsFeedback": supports_feedback,
+        }))
+        .unwrap()
+    }
+
+    fn respond(row: &ChatRequest, response: Value) -> HostResult<RuntimeResponse> {
+        native_response(row, RequestId::String("native".into()), &response)
+    }
+
+    #[test]
+    fn a_decline_carries_trimmed_feedback() {
+        let response = respond(
+            &approval(true),
+            json!({"type": "approval", "decision": "decline", "feedback": "  Use cargo clean.  "}),
+        )
+        .unwrap();
+        assert!(matches!(
+            response,
+            RuntimeResponse::Approval { feedback: Some(text), .. } if text == "Use cargo clean."
+        ));
+        let blank = respond(
+            &approval(true),
+            json!({"type": "approval", "decision": "decline", "feedback": "   "}),
+        )
+        .unwrap();
+        assert!(matches!(
+            blank,
+            RuntimeResponse::Approval { feedback: None, .. }
+        ));
+    }
+
+    #[test]
+    fn feedback_needs_support_and_a_decline() {
+        assert!(respond(
+            &approval(false),
+            json!({"type": "approval", "decision": "decline", "feedback": "no"}),
+        )
+        .is_err());
+        assert!(respond(
+            &approval(true),
+            json!({"type": "approval", "decision": "accept", "feedback": "ok"}),
+        )
+        .is_err());
+        assert!(respond(
+            &approval(true),
+            json!({"type": "approval", "decision": "decline", "feedback": 3}),
+        )
+        .is_err());
     }
 }

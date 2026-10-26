@@ -23,6 +23,7 @@ async fn malformed_approval_cannot_grant_execution_and_turn_completion_expires_g
         kind: RequestKind::CommandExecutionApproval,
         questions: Vec::new(),
         payload: json!({"sessionId":"native", "options":[{"kind":"allow_once", "optionId":""}]}),
+        supports_feedback: false,
     };
     let mut event = ProviderEvent::new(
         ProviderKind::Other("acpRegistry".into()),
@@ -38,7 +39,8 @@ async fn malformed_approval_cannot_grant_execution_and_turn_completion_expires_g
         .validate_response(&RuntimeResponse::Approval {
             request_id: RequestId::Integer(1),
             decision: ApprovalDecision::Accept,
-            updated_input: None
+            updated_input: None,
+            feedback: None,
         })
         .is_err());
     assert!(create(&service).await.is_err());

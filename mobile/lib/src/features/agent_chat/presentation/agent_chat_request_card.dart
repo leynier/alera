@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_decline_feedback_dialog.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_elicitation_form.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
@@ -63,6 +64,13 @@ class const AgentChatRequestCard({
               path,
               style: AleraTokens.monoStyle.copyWith(
                 color: AleraTokens.foreground,
+              ),
+            ),
+          if (request.fullAccessOverride case final override?)
+            Text(
+              agentChatFullAccessOverrideMessage(override),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AleraTokens.warning,
               ),
             ),
           if (detail.isNotEmpty) AgentChatMarkdown(text: detail),
@@ -137,12 +145,27 @@ class const _ApprovalActions({
                     ),
                 ],
           ),
+        if (agentChatOffersDeclineFeedback(request))
+          TextButton(
+            key: const ValueKey<String>('agent-chat-decline-feedback'),
+            onPressed: enabled ? () => _declineWithFeedback(context) : null,
+            child: const Text('$agentChatDeclineWithFeedbackLabel…'),
+          ),
       ],
     );
   }
 
   void _answer(AgentChatApprovalDecision decision) =>
       unawaited(onRespond(request, AgentChatApprovalResponse(decision)));
+
+  Future<void> _declineWithFeedback(BuildContext context) async {
+    final feedback = await showAgentChatDeclineFeedbackDialog(context);
+    if (feedback == null) return;
+    await onRespond(
+      request,
+      AgentChatApprovalResponse(.decline, feedback: feedback),
+    );
+  }
 }
 
 class const _ElicitationActions({

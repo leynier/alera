@@ -129,6 +129,78 @@ void main() {
       ]);
     });
 
+    testWidgets('declines with feedback and explains a full access ask', (
+      tester,
+    ) async {
+      final feedback = <String>[];
+      final request = _request(<String, Object?>{
+        'kind': 'permissionApproval',
+        'title': 'Run git push?',
+        'decisions': <Object?>['accept', 'decline', 'cancel'],
+        'supportsFeedback': true,
+        'fullAccessOverride': 'ask_rule',
+      });
+      await tester.pumpWidget(
+        _host(
+          AgentChatApprovalCard(
+            request: request,
+            responding: false,
+            enabled: true,
+            onDecision: (_) {},
+            onDeclineWithFeedback: feedback.add,
+          ),
+        ),
+      );
+
+      expect(
+        find.widgetWithText(
+          AleraInlineNotice,
+          agentChatFullAccessOverrideMessage(.askRule),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('agent-chat-decline-feedback')),
+      );
+      await tester.pumpAndSettle();
+      final send = find.byKey(
+        const ValueKey<String>('agentChatDeclineFeedbackSend'),
+      );
+      expect(tester.widget<FilledButton>(send).onPressed, isNull);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('agentChatDeclineFeedback')).last,
+        '  Push to a branch instead.  ',
+      );
+      await tester.pump();
+      await tester.tap(send);
+      await tester.pumpAndSettle();
+      expect(feedback, <String>['Push to a branch instead.']);
+    });
+
+    testWidgets('offers no feedback when the provider takes none', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          AgentChatApprovalCard(
+            request: _request(<String, Object?>{
+              'kind': 'commandExecutionApproval',
+              'decisions': <Object?>['accept', 'decline'],
+            }),
+            responding: false,
+            enabled: true,
+            onDecision: (_) {},
+            onDeclineWithFeedback: (_) {},
+          ),
+        ),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('agent-chat-decline-feedback')),
+        findsNothing,
+      );
+      expect(find.byType(AleraInlineNotice), findsNothing);
+    });
+
     testWidgets('disables its decisions while responding', (tester) async {
       final decisions = <AgentChatApprovalDecision>[];
       final request = _request(<String, Object?>{

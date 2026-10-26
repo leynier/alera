@@ -156,6 +156,7 @@ impl MockProviderControl {
                 multi_select: false,
             }],
             payload: json!({}),
+            supports_feedback: false,
         };
         self.events
             .send(

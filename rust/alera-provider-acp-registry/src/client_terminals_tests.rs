@@ -146,6 +146,7 @@ pub(crate) fn approval(
         kind,
         questions: Vec::new(),
         payload: json!({"sessionId":"native", "options":[{"kind": if session_scope {"allow_always"} else {"allow_once"}, "optionId":"allow"}]}),
+        supports_feedback: false,
     };
     let mut event = ProviderEvent::new(
         ProviderKind::Other("acpRegistry".into()),
@@ -161,6 +162,7 @@ pub(crate) fn approval(
         request_id: RequestId::Integer(9),
         decision,
         updated_input: None,
+        feedback: None,
     };
     service.validate_response(&response)?;
     service.record_response(&response);

@@ -54,6 +54,7 @@ impl ClientTerminals {
             request_id,
             decision,
             updated_input,
+            feedback: None,
         } = response
         else {
             return Ok(());

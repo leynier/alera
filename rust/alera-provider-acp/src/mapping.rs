@@ -390,6 +390,7 @@ fn map_request(
         kind,
         questions: questions.clone(),
         payload: request.params.clone(),
+        supports_feedback: false,
     };
     let event_kind = if kind != RequestKind::McpElicitationApproval && !questions.is_empty() {
         EventKind::UserInputRequested

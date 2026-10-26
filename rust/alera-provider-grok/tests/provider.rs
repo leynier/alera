@@ -123,6 +123,7 @@ async fn provider_delegates_acp_handshake_session_turn_and_request() {
             request_id: request.request_id,
             decision: alera_provider_protocol::ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .expect("permission response");

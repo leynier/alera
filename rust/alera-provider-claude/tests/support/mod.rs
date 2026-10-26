@@ -147,13 +147,17 @@ pub(crate) fn result_message_with_usage(usage: Value) -> Value {
 pub(crate) async fn started_provider(
     incoming: impl IntoIterator<Item = Value>,
 ) -> (ClaudeProvider, ScriptedTransportHandle) {
+    started_provider_with(incoming, SessionStartInput::new("app-thread")).await
+}
+
+pub(crate) async fn started_provider_with(
+    incoming: impl IntoIterator<Item = Value>,
+    session: SessionStartInput,
+) -> (ClaudeProvider, ScriptedTransportHandle) {
     let (transport, handle) = ScriptedTransport::new(incoming);
     let mut provider =
         ClaudeProvider::with_transport(transport, ClaudeProviderConfig::default()).unwrap();
     provider.initialize().await.unwrap();
-    provider
-        .start_session(SessionStartInput::new("app-thread"))
-        .await
-        .unwrap();
+    provider.start_session(session).await.unwrap();
     (provider, handle)
 }

@@ -117,14 +117,18 @@ sealed class AgentChatResponse {
 }
 
 final class AgentChatApprovalResponse extends AgentChatResponse {
-  const AgentChatApprovalResponse(this.decision);
+  const AgentChatApprovalResponse(this.decision, {this.feedback});
 
   final AgentChatApprovalDecision decision;
+
+  /// What to tell the agent with a decline, when the request supports it.
+  final String? feedback;
 
   @override
   AgentChatJson toJson() => <String, Object?>{
     'type': 'approval',
     'decision': decision.wire,
+    'feedback': ?feedback,
   };
 }
 

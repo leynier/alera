@@ -101,6 +101,7 @@ async fn extension_confirm_uses_native_id_and_resolves_once() {
             request_id: RequestId::Integer(17),
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();
@@ -351,6 +352,7 @@ async fn persistent_approval_decisions_remain_pending_until_one_time_answer() {
             request_id: RequestId::Integer(17),
             decision: ApprovalDecision::AcceptForSession,
             updated_input: None,
+            feedback: None,
         })
         .await;
     assert!(matches!(
@@ -362,6 +364,7 @@ async fn persistent_approval_decisions_remain_pending_until_one_time_answer() {
             request_id: RequestId::Integer(17),
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

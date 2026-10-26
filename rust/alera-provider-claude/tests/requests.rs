@@ -1,7 +1,8 @@
 mod support;
 
 use alera_provider_protocol::{
-    ApprovalDecision, EventKind, Provider, RequestKind, RuntimeResponse, TurnInput,
+    ApprovalDecision, EventKind, Provider, RequestKind, RuntimeMode, RuntimeResponse,
+    SessionStartInput, TurnInput,
 };
 use serde_json::json;
 use support::*;
@@ -36,6 +37,7 @@ async fn approval_request_round_trips_and_keeps_request_id() {
             request_id: runtime_request.request_id.clone(),
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();
@@ -46,6 +48,97 @@ async fn approval_request_round_trips_and_keeps_request_id() {
         .iter()
         .any(|frame| frame["type"] == "control_response"
             && frame["response"]["request_id"] == "permission-native-id"));
+}
+
+#[tokio::test]
+async fn declining_with_feedback_tells_the_agent_why() {
+    let request = json!({
+        "type": "control_request",
+        "request_id": "permission-feedback",
+        "request": {
+            "subtype": "can_use_tool",
+            "tool_name": "Bash",
+            "input": {"command": "rm -rf build"},
+            "tool_use_id": "tool-2"
+        }
+    });
+    let (mut provider, handle) = started_provider([initialize_response(), request]).await;
+    provider
+        .send_turn(TurnInput::text("app-thread", "clean"))
+        .await
+        .unwrap();
+    let _ = provider.next_event().await.unwrap();
+    let _ = provider.next_event().await.unwrap();
+    let _ = provider.next_event().await.unwrap();
+    let event = provider.next_event().await.unwrap().unwrap();
+    let runtime_request = event.runtime_request.clone().unwrap();
+    assert!(runtime_request.supports_feedback);
+    provider
+        .respond(RuntimeResponse::Approval {
+            request_id: runtime_request.request_id,
+            decision: ApprovalDecision::Decline,
+            updated_input: None,
+            feedback: Some("  Use cargo clean instead.  ".into()),
+        })
+        .await
+        .unwrap();
+    tokio::task::yield_now().await;
+    let writes = handle.writes.lock().unwrap();
+    let response = writes
+        .iter()
+        .find(|frame| frame["response"]["request_id"] == "permission-feedback")
+        .expect("permission response");
+    assert_eq!(response["response"]["response"]["behavior"], "deny");
+    assert_eq!(
+        response["response"]["response"]["message"],
+        "Use cargo clean instead."
+    );
+}
+
+#[tokio::test]
+async fn full_access_approvals_say_why_claude_asked() {
+    let ask_rule = json!({
+        "type": "control_request",
+        "request_id": "ask-rule",
+        "request": {
+            "subtype": "can_use_tool",
+            "tool_name": "Bash",
+            "input": {"command": "git push"},
+            "decision_reason": "\u{1b}[1mgit push\u{1b}[0m matches an ask rule",
+            "matched_ask_rule": {"source": "userSettings", "tool_name": "Bash", "rule_content": "git push:*"}
+        }
+    });
+    let check = json!({
+        "type": "control_request",
+        "request_id": "provider-check",
+        "request": {
+            "subtype": "can_use_tool",
+            "tool_name": "Write",
+            "input": {"file_path": "/etc/hosts"},
+            "title": "Write /etc/hosts",
+            "decision_reason": "Write /etc/hosts"
+        }
+    });
+    let mut session = SessionStartInput::new("app-thread");
+    session.runtime_mode = RuntimeMode::FullAccess;
+    let (mut provider, _handle) =
+        started_provider_with([initialize_response(), ask_rule, check], session).await;
+    provider
+        .send_turn(TurnInput::text("app-thread", "ship"))
+        .await
+        .unwrap();
+    let mut requests = Vec::new();
+    while requests.len() < 2 {
+        let event = provider.next_event().await.unwrap().unwrap();
+        if let Some(request) = event.runtime_request {
+            requests.push(request.payload);
+        }
+    }
+    assert_eq!(requests[0]["fullAccessOverride"], "ask_rule");
+    assert_eq!(requests[0]["reason"], "git push matches an ask rule");
+    assert_eq!(requests[1]["fullAccessOverride"], "provider_check");
+    // A reason that only repeats the prompt adds nothing.
+    assert!(requests[1].get("reason").is_none());
 }
 
 #[tokio::test]
@@ -89,6 +182,7 @@ async fn ask_user_question_without_native_id_gets_stable_question_id() {
     );
     let runtime_request = event.runtime_request.clone().unwrap();
     assert_eq!(runtime_request.kind, RequestKind::ToolUserInput);
+    assert!(!runtime_request.supports_feedback);
     assert_eq!(runtime_request.questions[0].id, "Choice");
     let mut answers = std::collections::BTreeMap::new();
     answers.insert("Choice".into(), json!("Yes"));

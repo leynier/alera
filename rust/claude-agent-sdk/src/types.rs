@@ -80,6 +80,12 @@ pub struct ToolPermissionContext {
     pub agent_id: Option<String>,
     pub blocked_path: Option<String>,
     pub decision_reason: Option<String>,
+    /// The user-configured ask rule that made the CLI ask, when one did.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matched_ask_rule: Option<Value>,
+    /// The CLI asks hosts not to offer a standing "always allow" grant.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub suppress_always_allow_rule: bool,
     pub title: Option<String>,
     pub display_name: Option<String>,
     pub description: Option<String>,

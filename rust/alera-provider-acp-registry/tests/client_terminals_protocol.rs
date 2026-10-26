@@ -139,6 +139,7 @@ async fn approve(
             request_id: request.request_id,
             decision,
             updated_input: None,
+            feedback: None,
         })
         .await
 }

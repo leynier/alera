@@ -119,6 +119,14 @@ pub(crate) fn permission_context(
             .get("decision_reason")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        matched_ask_rule: request
+            .get("matched_ask_rule")
+            .filter(|rule| !rule.is_null())
+            .cloned(),
+        suppress_always_allow_rule: request
+            .get("suppress_always_allow_rule")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         title: request
             .get("title")
             .and_then(Value::as_str)

@@ -86,6 +86,7 @@ async fn steer_request_id_collision_retains_callback_and_correlates_response() {
             request_id: request.request_id,
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

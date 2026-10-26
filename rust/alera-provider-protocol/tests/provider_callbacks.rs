@@ -158,6 +158,7 @@ fn request_event(request_id: RequestId) -> (ProviderEvent, RuntimeRequest) {
         kind: RequestKind::CommandExecutionApproval,
         questions: Vec::new(),
         payload: json!({ "command": "cargo test" }),
+        supports_feedback: false,
     };
     let event = ProviderEvent::new(
         ProviderKind::Codex,
@@ -186,6 +187,7 @@ fn approval(request_id: RequestId) -> RuntimeResponse {
         request_id,
         decision: alera_provider_protocol::ApprovalDecision::Accept,
         updated_input: None,
+        feedback: None,
     }
 }
 

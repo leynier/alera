@@ -270,6 +270,10 @@ class _AgentChatRequestDockState extends ConsumerState<AgentChatRequestDock> {
         enabled: widget.enabled,
         onDecision: (decision) =>
             widget.onRespond(request, AgentChatApprovalResponse(decision)),
+        onDeclineWithFeedback: (feedback) => widget.onRespond(
+          request,
+          AgentChatApprovalResponse(.decline, feedback: feedback),
+        ),
       );
     } else if (request.isElicitation) {
       card = AgentChatElicitationCard(

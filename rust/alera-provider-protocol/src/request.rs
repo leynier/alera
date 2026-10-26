@@ -107,6 +107,10 @@ pub struct RuntimeRequest {
     #[serde(default)]
     pub questions: Vec<UserInputQuestion>,
     pub payload: Value,
+    /// Whether a declining answer may carry feedback the provider passes to
+    /// the agent that asked, instead of a fixed refusal.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub supports_feedback: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -120,6 +124,10 @@ pub enum RuntimeResponse {
         request_id: RequestId,
         decision: ApprovalDecision,
         updated_input: Option<Value>,
+        /// What to tell the agent along with a decline, when the request
+        /// supports feedback.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        feedback: Option<String>,
     },
     UserInput {
         request_id: RequestId,

@@ -44,6 +44,7 @@ async fn permission_request_keeps_native_id_and_replies_on_v2_route() {
             request_id: "permission-7".into(),
             decision: alera_provider_protocol::ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

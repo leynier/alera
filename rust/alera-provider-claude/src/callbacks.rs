@@ -44,6 +44,7 @@ pub(crate) fn install_callbacks(
     turn_id: &Arc<Mutex<Option<String>>>,
     plan_interaction: &Arc<AtomicBool>,
 ) {
+    let bypass_permissions = options.permission_mode.as_deref() == Some("bypassPermissions");
     let tx = request_tx.clone();
     let plan_interaction = Arc::clone(plan_interaction);
     let pending_ref = pending;
@@ -105,6 +106,28 @@ pub(crate) fn install_callbacks(
             let native_request_id = nonempty_string(&context.control.request_id);
             let raw = nonnull_raw(&context.control.raw, &input);
             let context_value = serde_json::to_value(&context).unwrap_or(Value::Null);
+            // Full access never asks unless an ask rule or Claude's own check
+            // does, so such an approval says which one.
+            let full_access = bypass_permissions && !plan_interaction.load(Ordering::SeqCst);
+            let mut payload = json!({
+                "toolName": tool_name,
+                "input": input,
+                "context": context_value,
+                "requestType": request_kind,
+            });
+            if let Some(reason) = approval_reason(&context) {
+                payload["reason"] = Value::String(reason);
+            }
+            if full_access {
+                payload["fullAccessOverride"] = Value::String(
+                    if context.matched_ask_rule.is_some() {
+                        "ask_rule"
+                    } else {
+                        "provider_check"
+                    }
+                    .into(),
+                );
+            }
             let request = RuntimeRequest {
                 request_id: RequestId::from(request_id.clone()),
                 thread_id: thread_id.lock().await.clone().unwrap_or_default(),
@@ -112,12 +135,11 @@ pub(crate) fn install_callbacks(
                 item_id: context.tool_use_id.clone(),
                 kind: request_kind,
                 questions,
-                payload: json!({
-                    "toolName": tool_name,
-                    "input": input,
-                    "context": context_value,
-                    "requestType": request_kind,
-                }),
+                payload,
+                // Claude passes a deny message to the agent that asked, so a
+                // decline can explain what to do instead. Questions are
+                // answered, not declined.
+                supports_feedback: request_kind != RequestKind::ToolUserInput,
             };
             let (sender, receiver) = oneshot::channel();
             pending.lock().await.insert(
@@ -189,6 +211,7 @@ pub(crate) fn install_callbacks(
                     "message": message,
                     "requestType": RequestKind::DynamicToolCall,
                 }),
+                supports_feedback: false,
             };
             let native_request_id = nonempty_string(&context.request_id);
             let raw = nonnull_raw(&context.raw, &message);
@@ -245,22 +268,31 @@ fn permission_result(
         RuntimeResponse::Approval {
             decision,
             updated_input,
+            feedback,
             ..
-        } => match decision {
-            ApprovalDecision::Accept
-            | ApprovalDecision::AcceptForSession
-            | ApprovalDecision::AcceptAlways => Ok(PermissionResult::Allow {
-                updated_input: updated_input.or_else(|| Some(input.clone())),
-                updated_permissions: None,
-            }),
-            ApprovalDecision::Decline => Ok(PermissionResult::deny(format!(
-                "permission denied for {tool_name}"
-            ))),
-            ApprovalDecision::Cancel => Ok(PermissionResult::Deny {
-                message: format!("permission cancelled for {tool_name}"),
-                interrupt: true,
-            }),
-        },
+        } => {
+            let feedback = feedback
+                .map(|feedback| feedback.trim().to_owned())
+                .filter(|feedback| !feedback.is_empty());
+            match decision {
+                ApprovalDecision::Accept
+                | ApprovalDecision::AcceptForSession
+                | ApprovalDecision::AcceptAlways => Ok(PermissionResult::Allow {
+                    updated_input: updated_input.or_else(|| Some(input.clone())),
+                    updated_permissions: None,
+                }),
+                ApprovalDecision::Decline => {
+                    Ok(PermissionResult::deny(feedback.unwrap_or_else(|| {
+                        format!("permission denied for {tool_name}")
+                    })))
+                }
+                ApprovalDecision::Cancel => Ok(PermissionResult::Deny {
+                    message: feedback
+                        .unwrap_or_else(|| format!("permission cancelled for {tool_name}")),
+                    interrupt: true,
+                }),
+            }
+        }
         RuntimeResponse::UserInput { answers, .. } => Ok(PermissionResult::Allow {
             updated_input: Some(json!({ "answers": answers })),
             updated_permissions: None,
@@ -283,6 +315,56 @@ fn mcp_result(response: RuntimeResponse) -> Result<Option<Value>, ClaudeSdkError
     }
 }
 
+/// Claude's decision reason without terminal escapes, unless it only repeats
+/// the prompt already shown.
+fn approval_reason(context: &claude_agent_sdk::ToolPermissionContext) -> Option<String> {
+    let reason = strip_terminal_controls(context.decision_reason.as_deref()?);
+    let reason = reason.trim();
+    let repeats = [&context.title, &context.description]
+        .into_iter()
+        .flatten()
+        .any(|prompt| prompt.trim() == reason);
+    (!reason.is_empty() && !repeats).then(|| reason.to_owned())
+}
+
+/// Drops ANSI escape sequences and other control characters, keeping line
+/// breaks and tabs.
+fn strip_terminal_controls(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\u{1b}' => match chars.peek() {
+                // CSI: parameters and intermediates up to a final byte.
+                Some('[') => {
+                    chars.next();
+                    for c in chars.by_ref() {
+                        if ('\u{40}'..='\u{7e}').contains(&c) {
+                            break;
+                        }
+                    }
+                }
+                // OSC: up to BEL or ST.
+                Some(']') => {
+                    chars.next();
+                    while let Some(c) = chars.next() {
+                        if c == '\u{7}' || (c == '\u{1b}' && chars.next_if_eq(&'\\').is_some()) {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    chars.next();
+                }
+            },
+            '\n' | '\t' => out.push(c),
+            c if c.is_control() => {}
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 fn nonempty_string(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_owned())
 }
@@ -292,5 +374,20 @@ fn nonnull_raw(raw: &Value, fallback: &Value) -> Value {
         fallback.clone()
     } else {
         raw.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_terminal_controls;
+
+    #[test]
+    fn terminal_controls_are_stripped_from_reasons() {
+        assert_eq!(
+            strip_terminal_controls(
+                "\u{1b}[1;31mrm\u{1b}[0m matches\u{7} rule\u{1b}]8;;https://x\u{1b}\\\nnext"
+            ),
+            "rm matches rule\nnext"
+        );
     }
 }

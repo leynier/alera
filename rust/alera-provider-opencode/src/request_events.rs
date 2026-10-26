@@ -44,6 +44,7 @@ pub(crate) fn map_permission<T: HttpTransport>(
         kind,
         questions: Vec::new(),
         payload: json!({ "requestType": kind, "args": props }),
+        supports_feedback: false,
     };
     let mut event = ProviderEvent::new(
         opencode_kind(),
@@ -127,6 +128,7 @@ pub(crate) fn map_question<T: HttpTransport>(
         kind: RequestKind::ToolUserInput,
         questions: questions.clone(),
         payload: json!({ "requestType": "tool_user_input", "questions": questions }),
+        supports_feedback: false,
     };
     let mut event = ProviderEvent::new(
         opencode_kind(),
@@ -225,6 +227,7 @@ pub(crate) fn map_form<T: HttpTransport>(
         kind: RequestKind::ToolUserInput,
         questions: questions.clone(),
         payload: json!({ "requestType": "tool_user_input", "form": form }),
+        supports_feedback: false,
     };
     let mut event = ProviderEvent::new(
         opencode_kind(),

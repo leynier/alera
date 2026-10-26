@@ -60,6 +60,7 @@ async fn session_turn_permission_and_terminal_update_round_trip() {
             request_id,
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();
@@ -192,6 +193,7 @@ async fn grok_session_approval_requires_the_native_session_option() {
             request_id: request.runtime_request.unwrap().request_id,
             decision: ApprovalDecision::AcceptForSession,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap_err();
@@ -224,6 +226,7 @@ async fn subprocess_handshake_resume_and_interrupt_keep_native_wire_ids() {
             request_id,
             decision: ApprovalDecision::Accept,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();
@@ -253,6 +256,7 @@ async fn subprocess_handshake_resume_and_interrupt_keep_native_wire_ids() {
             request_id: pending_id,
             decision: ApprovalDecision::Cancel,
             updated_input: None,
+            feedback: None,
         })
         .await
         .unwrap();

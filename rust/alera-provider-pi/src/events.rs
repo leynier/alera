@@ -349,6 +349,7 @@ fn map_extension_request<T: JsonTransport>(
         kind: request_kind,
         questions: questions.clone(),
         payload: message.clone(),
+        supports_feedback: false,
     };
     let event_kind = if request_kind == RequestKind::ToolUserInput {
         EventKind::UserInputRequested
