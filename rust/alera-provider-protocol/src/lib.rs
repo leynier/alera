@@ -12,6 +12,9 @@ mod provider;
 mod reasoning_effort;
 mod request;
 mod session;
+mod skill;
+mod skill_frontmatter;
+mod skill_mention;
 mod slash_command;
 mod validation;
 
@@ -27,6 +30,9 @@ pub use provider::*;
 pub use reasoning_effort::*;
 pub use request::*;
 pub use session::*;
+pub use skill::*;
+pub use skill_frontmatter::*;
+pub use skill_mention::*;
 pub use slash_command::*;
 
 pub use alera_agent_transport as transport;
