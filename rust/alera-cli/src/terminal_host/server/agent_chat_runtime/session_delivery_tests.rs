@@ -30,10 +30,10 @@ mod redirect;
 mod skills;
 #[path = "session_subagent_tests.rs"]
 mod subagents;
-#[path = "session_workflow_tests.rs"]
-mod workflows;
 #[path = "session_transfer_tests.rs"]
 mod transfers;
+#[path = "session_workflow_tests.rs"]
+mod workflows;
 
 #[tokio::test]
 async fn supported_effort_reaches_session_and_turn_and_remembering_waits_for_native_acceptance() {
