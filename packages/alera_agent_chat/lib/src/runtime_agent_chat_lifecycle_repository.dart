@@ -8,6 +8,7 @@ import 'package:alera_agent_chat/src/runtime_agent_chat_native_history_repositor
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_timeline_projection.dart';
 import 'package:alera_agent_chat/src/agent_chat_transport.dart';
+import 'package:alera_agent_chat/src/agent_chat_workflow.dart';
 
 final class RuntimeAgentChatLifecycleRepository
     extends AgentChatLifecycleRepository
@@ -250,6 +251,34 @@ final class RuntimeAgentChatLifecycleRepository
     AgentChatWire.subagentThreadsCapability,
     AgentChatWire.stopSubagent,
     _scoped(chat, <String, Object?>{'requestId': requestId, 'itemId': itemId}),
+  );
+
+  @override
+  Future<AgentChatWorkflowScript> workflowScript(
+    AgentChatRef chat, {
+    required String itemId,
+  }) async => AgentChatWorkflowScript.fromJson(
+    await _request(
+      AgentChatWire.workflowsCapability,
+      AgentChatWire.workflowScript,
+      _scoped(chat, <String, Object?>{'itemId': itemId}),
+    ),
+  );
+
+  @override
+  Future<List<String>> workflowAgent(
+    AgentChatRef chat, {
+    required String itemId,
+    required int agentIndex,
+  }) async => agentChatWorkflowAgentAnswers(
+    await _request(
+      AgentChatWire.workflowsCapability,
+      AgentChatWire.workflowAgent,
+      _scoped(chat, <String, Object?>{
+        'itemId': itemId,
+        'agentIndex': agentIndex,
+      }),
+    ),
   );
 
   @override

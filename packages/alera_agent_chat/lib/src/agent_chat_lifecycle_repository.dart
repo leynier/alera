@@ -3,6 +3,7 @@ import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_provider_skill.dart';
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
 import 'package:alera_agent_chat/src/agent_chat_timeline_projection.dart';
+import 'package:alera_agent_chat/src/agent_chat_workflow.dart';
 
 abstract class AgentChatLifecycleRepository {
   const AgentChatLifecycleRepository();
@@ -100,6 +101,21 @@ abstract class AgentChatLifecycleRepository {
     required String requestId,
     required String itemId,
   }) => Future.error(UnsupportedError('Stopping a sub-agent is unavailable.'));
+
+  /// The script of the workflow the call [itemId] started
+  /// (`agentChatWorkflowsV1`).
+  Future<AgentChatWorkflowScript> workflowScript(
+    AgentChatRef chat, {
+    required String itemId,
+  }) => Future.error(UnsupportedError('Workflow scripts are unavailable.'));
+
+  /// What member [agentIndex] of the workflow the call [itemId] started
+  /// answered, one entry per turn.
+  Future<List<String>> workflowAgent(
+    AgentChatRef chat, {
+    required String itemId,
+    required int agentIndex,
+  }) => Future.error(UnsupportedError('Workflow answers are unavailable.'));
 
   /// Hands this fork's work since the fork point to the chat it was forked
   /// from, for that chat's next turn (`agentChatMergeBackV1`). Answers the

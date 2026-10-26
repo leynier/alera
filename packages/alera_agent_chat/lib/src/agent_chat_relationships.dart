@@ -2,6 +2,7 @@ import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_subagent.dart';
 import 'package:alera_agent_chat/src/agent_chat_summary.dart';
+import 'package:alera_agent_chat/src/agent_chat_workflow_groups.dart';
 
 /// How a related chat or sub-agent relates to the chat on screen.
 enum AgentChatRelationKind {
@@ -50,9 +51,15 @@ final class const AgentChatRelation({
   /// host), so it cannot be opened from here.
   final bool missing = false,
   final DateTime? sortedAt,
+
+  /// The sub-agent's phases and members, when it is a workflow.
+  final AgentChatWorkflowGroup? workflow,
 }) {
   String get key =>
       call == null ? 'chat-$chatId-${kind.name}' : 'sub-${call!.id}';
+
+  /// "Sub-agent", or "Workflow" for a sub-agent that runs one.
+  String get kindLabel => workflow == null ? kind.label : 'Workflow';
 }
 
 /// The chat's parent, fork source, delegated chats, forks and native
@@ -114,11 +121,13 @@ final class AgentChatRelationships {
     for (final call in items) {
       if (!call.startsSubagent || call.parentItemId != null) continue;
       final status = call.subagentStatus;
+      final workflow = call.workflowGroup;
       final relation = AgentChatRelation(
         kind: AgentChatRelationKind.subagent,
         call: call,
         title: _title(call.subagentLabel, fallback: 'Sub-agent'),
-        statusLabel: status.label,
+        statusLabel: workflow?.summary ?? status.label,
+        workflow: workflow,
         active: status == AgentChatSubagentStatus.running,
         failed: status == AgentChatSubagentStatus.failed,
         sortedAt: call.subagent?.startedAt ?? call.createdAt,

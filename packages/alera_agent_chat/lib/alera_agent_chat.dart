@@ -65,6 +65,8 @@ export 'src/agent_chat_timeline_find.dart';
 export 'src/agent_chat_timeline_projection.dart';
 export 'src/agent_chat_transport.dart';
 export 'src/agent_chat_worked_actions.dart';
+export 'src/agent_chat_workflow.dart';
+export 'src/agent_chat_workflow_groups.dart';
 export 'src/runtime_agent_chat_repository.dart';
 export 'src/runtime_agent_chat_lifecycle_repository.dart';
 export 'src/runtime_agent_chat_native_history_repository.dart';

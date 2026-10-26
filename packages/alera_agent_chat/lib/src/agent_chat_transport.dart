@@ -46,6 +46,10 @@ abstract final class AgentChatWire {
   /// own, and turns may carry `origin: backgroundContinuation`.
   static const String acpChildSessionsCapability =
       'agentChatAcpChildSessionsV1';
+
+  /// Sub-agents may carry a `workflow`; `agentChat.workflowScript` and
+  /// `agentChat.workflowAgent` read its script and a member's answers.
+  static const String workflowsCapability = 'agentChatWorkflowsV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -108,6 +112,8 @@ abstract final class AgentChatWire {
   static const String configure = 'agentChat.configure';
   static const String rename = 'agentChat.rename';
   static const String subagent = 'agentChat.subagent';
+  static const String workflowScript = 'agentChat.workflowScript';
+  static const String workflowAgent = 'agentChat.workflowAgent';
   static const String stopSubagent = 'agentChat.stopSubagent';
   static const String mergeBack = 'agentChat.mergeBack';
   static const String recover = 'agentChat.recover';

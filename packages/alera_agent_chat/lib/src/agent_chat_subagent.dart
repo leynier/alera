@@ -1,5 +1,7 @@
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
+import 'package:alera_agent_chat/src/agent_chat_workflow.dart';
+import 'package:alera_agent_chat/src/agent_chat_workflow_groups.dart';
 
 /// Where a provider-native sub-agent is.
 enum AgentChatSubagentStatus {
@@ -40,6 +42,9 @@ class const AgentChatSubagent({
   /// When the sub-agent last started running, and when it settled.
   final DateTime? startedAt,
   final DateTime? completedAt,
+
+  /// Set when the sub-agent is a workflow (`agentChatWorkflowsV1`).
+  final AgentChatWorkflow? workflow,
 }) {
   static AgentChatSubagent? fromJson(Object? value) {
     if (value is! Map) return null;
@@ -54,6 +59,7 @@ class const AgentChatSubagent({
       reasoningEffort: agentChatJsonString(json['reasoningEffort']),
       startedAt: agentChatJsonDate(json['startedAt']),
       completedAt: agentChatJsonDate(json['completedAt']),
+      workflow: AgentChatWorkflow.fromJson(json['workflow']),
     );
   }
 }
@@ -74,10 +80,21 @@ extension AgentChatSubagentItem on AgentChatItem {
         (tool == 'task' || tool == 'agent');
   }
 
-  /// "Explore the parser", from the runtime's task or the call's input.
+  /// The workflow this call started, grouped by phase; `null` for any
+  /// other sub-agent.
+  AgentChatWorkflowGroup? get workflowGroup {
+    final workflow = subagent?.workflow;
+    return workflow == null
+        ? null
+        : AgentChatWorkflowGroup.build(workflow, subagentStatus);
+  }
+
+  /// "Explore the parser", from the runtime's task or the call's input. A
+  /// workflow goes by its script's name.
   String get subagentLabel {
     final input = agentChatJsonMap(this.input);
     final candidates = <String?>[
+      subagent?.workflow?.name,
       subagent?.description,
       agentChatJsonString(input['description']),
       agentChatJsonString(input['subagent_type']),
