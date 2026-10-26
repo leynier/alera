@@ -19,6 +19,7 @@ mod skill_frontmatter;
 mod skill_mention;
 mod skill_order;
 mod slash_command;
+mod subagent;
 mod validation;
 
 pub use command::*;
@@ -40,5 +41,6 @@ pub use skill_frontmatter::*;
 pub use skill_mention::*;
 pub use skill_order::*;
 pub use slash_command::*;
+pub use subagent::*;
 
 pub use alera_agent_transport as transport;

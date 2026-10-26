@@ -24,6 +24,12 @@ pub(crate) struct MappingContext<'a> {
     pub(crate) turn_id: Option<&'a str>,
     pub(crate) prompt_id: Option<&'a AcpRequestId>,
     pub(crate) prompt_meta_id: Option<&'a str>,
+    /// An idle `state_update` ends the running turn. ACP v2 work-state
+    /// following clears it for an idle that predates the prompt's work.
+    pub(crate) idle_ends_turn: bool,
+    /// ACP v2: a prompt response with no stop reason only accepts the
+    /// prompt; the turn ends on the idle `state_update`.
+    pub(crate) prompt_acceptance: bool,
 }
 
 pub(crate) fn map_incoming(
@@ -205,6 +211,7 @@ fn map_notification(
         "state_update" => {
             if update.get("state").and_then(Value::as_str) == Some("idle")
                 && context.turn_id.is_some()
+                && context.idle_ends_turn
             {
                 let state = match update.get("stopReason").and_then(Value::as_str) {
                     Some("cancelled") | Some("interrupted") => TurnStatus::Interrupted,
@@ -314,6 +321,25 @@ fn map_response(
                 context,
                 "session/prompt",
                 EventKind::Unknown("acp.response".into()),
+                payload,
+                response.raw,
+                None,
+            ),
+            pending: None,
+        });
+    }
+    let accepted_only = context.prompt_acceptance
+        && response.error.is_none()
+        && response.result.as_ref().is_none_or(|result| {
+            result.get("stopReason").is_none() && result.get("stop_reason").is_none()
+        });
+    if accepted_only {
+        let payload = response.result.clone().unwrap_or(Value::Null);
+        return Ok(MappedIncoming {
+            event: event(
+                context,
+                "session/prompt",
+                EventKind::Unknown("acp.prompt.accepted".into()),
                 payload,
                 response.raw,
                 None,

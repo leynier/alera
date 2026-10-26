@@ -104,6 +104,10 @@ impl<T: JsonTransport> Provider for AcpRegistryProvider<T> {
         self.inner.capabilities()
     }
 
+    fn subagent_capabilities(&self) -> alera_provider_protocol::SubagentCapabilities {
+        self.inner.subagent_capabilities()
+    }
+
     fn reasoning_effort_capabilities(
         &self,
     ) -> alera_provider_protocol::ReasoningEffortCapabilities {
@@ -171,6 +175,10 @@ impl<T: JsonTransport> Provider for AcpRegistryProvider<T> {
         self.inner.interrupt(input).await
     }
 
+    async fn stop_subagent(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        self.inner.stop_subagent(task_id).await
+    }
+
     async fn respond(
         &mut self,
         response: alera_provider_protocol::RuntimeResponse,
@@ -228,6 +236,7 @@ fn acp_config(config: &AcpRegistryProviderConfig) -> AcpProviderConfig {
         request_timeout: config.request_timeout,
         max_queued_events: 1024,
         session_mode: None,
+        native_child_sessions: config.agent_flavor() == AcpRegistryAgentFlavor::ClaudeAgent,
     }
 }
 
@@ -236,7 +245,7 @@ fn process_config(config: &AcpRegistryProviderConfig) -> ProcessConfig {
         executable: config.executable.clone().unwrap_or_default(),
         args: config.args.clone(),
         cwd: config.cwd.clone(),
-        env: config.env.clone(),
+        env: config.launch_env(),
         max_frame_bytes: config.max_frame_bytes,
         shutdown_timeout: config.shutdown_timeout,
     }
@@ -254,7 +263,7 @@ fn resolved_process_config(
         executable,
         args: config.args.clone(),
         cwd: config.cwd.clone(),
-        env: config.env.clone(),
+        env: config.launch_env(),
         max_frame_bytes: config.max_frame_bytes,
         shutdown_timeout: config.shutdown_timeout,
     })

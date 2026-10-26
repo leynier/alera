@@ -5,6 +5,8 @@ mod construction;
 mod mapping;
 mod mapping_values;
 mod mcp;
+mod native_children;
+mod native_children_route;
 mod policy;
 mod provider;
 mod questions;

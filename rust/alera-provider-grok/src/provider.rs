@@ -138,6 +138,7 @@ fn acp_config(config: &GrokProviderConfig) -> AcpProviderConfig {
         request_timeout: config.request_timeout,
         max_queued_events: 1024,
         session_mode: None,
+        native_child_sessions: false,
     }
 }
 

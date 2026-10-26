@@ -12,6 +12,10 @@ pub trait Provider: Send {
     fn native_history_capabilities(&self) -> NativeHistoryCapabilities {
         NativeHistoryCapabilities::default()
     }
+    /// What the live session can do with the agent's own sub-agents.
+    fn subagent_capabilities(&self) -> SubagentCapabilities {
+        SubagentCapabilities::default()
+    }
     fn session(&self) -> Option<&ProviderSession>;
     async fn initialize(&mut self) -> Result<(), ProviderError>;
     async fn start_session(

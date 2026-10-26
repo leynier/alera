@@ -25,6 +25,6 @@ pub use client_terminals_process::{
 };
 pub use config::{
     AcpDistribution, AcpRegistryAgentFlavor, AcpRegistryProviderConfig, AcpRegistryRecipe,
-    AcpRegistrySource,
+    AcpRegistrySource, CLAUDE_ACP_V2_ENV,
 };
 pub use provider::AcpRegistryProvider;

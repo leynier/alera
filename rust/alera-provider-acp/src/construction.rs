@@ -25,6 +25,7 @@ impl<T: JsonTransport> AcpProvider<T> {
             session_config_options: Vec::new(),
             initialized: false,
             closed: false,
+            children: Default::default(),
         }
     }
 

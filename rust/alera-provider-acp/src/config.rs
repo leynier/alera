@@ -64,6 +64,10 @@ pub struct AcpProviderConfig {
     pub request_timeout: Duration,
     pub max_queued_events: usize,
     pub session_mode: Option<String>,
+    /// Follow the agent's ACP v2 work state and project its native child
+    /// sessions (Claude Agent's `subagent_update` and `session_message`) as
+    /// sub-agents. Takes effect only when the agent negotiates ACP v2.
+    pub native_child_sessions: bool,
 }
 
 impl Default for AcpProviderConfig {
@@ -81,6 +85,7 @@ impl Default for AcpProviderConfig {
             request_timeout: Duration::from_secs(120),
             max_queued_events: 1024,
             session_mode: None,
+            native_child_sessions: false,
         }
     }
 }

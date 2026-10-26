@@ -5,6 +5,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+/// Claude Agent's switch between ACP v1 and its v2 preview.
+pub const CLAUDE_ACP_V2_ENV: &str = "CLAUDE_AGENT_ACP_EXPERIMENTAL_V2";
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AcpRegistrySource {
@@ -34,6 +37,9 @@ pub enum AcpRegistryAgentFlavor {
     Devin,
     Copilot,
     MistralVibe,
+    /// Claude Agent (`claude-agent-acp`), whose ACP v2 preview runs
+    /// sub-agents as native child sessions.
+    ClaudeAgent,
 }
 
 impl AcpRegistryAgentFlavor {
@@ -48,6 +54,23 @@ impl AcpRegistryAgentFlavor {
         }
         if normalized == "mistral-vibe" {
             return Self::MistralVibe;
+        }
+        if normalized == "claude-acp"
+            || (source == AcpRegistrySource::Local
+                && executable
+                    .and_then(|path| path.file_name())
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| {
+                        [
+                            "claude-agent-acp",
+                            "claude-agent-acp.exe",
+                            "claude-agent-acp.cmd",
+                        ]
+                        .iter()
+                        .any(|known| name.eq_ignore_ascii_case(known))
+                    }))
+        {
+            return Self::ClaudeAgent;
         }
         if normalized == "github-copilot-cli"
             || (source == AcpRegistrySource::Local
@@ -165,6 +188,21 @@ impl AcpRegistryProviderConfig {
             env: self.env.clone(),
             auth_method_id: self.auth_method_id.clone(),
         })
+    }
+
+    /// The environment the agent launches with. Claude Agent speaks the ACP
+    /// v2 preview (native child sessions) unless the instance or the host
+    /// environment sets `CLAUDE_AGENT_ACP_EXPERIMENTAL_V2` itself.
+    pub fn launch_env(&self) -> BTreeMap<OsString, OsString> {
+        let mut env = self.env.clone();
+        let key = OsString::from(CLAUDE_ACP_V2_ENV);
+        if self.agent_flavor() == AcpRegistryAgentFlavor::ClaudeAgent
+            && !env.contains_key(&key)
+            && std::env::var_os(&key).is_none()
+        {
+            env.insert(key, OsString::from("1"));
+        }
+        env
     }
 
     pub fn agent_flavor(&self) -> AcpRegistryAgentFlavor {

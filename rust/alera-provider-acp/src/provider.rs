@@ -26,6 +26,7 @@ pub struct AcpProvider<T> {
     pub(crate) session_config_options: Vec<serde_json::Value>,
     pub(crate) initialized: bool,
     pub(crate) closed: bool,
+    pub(crate) children: crate::native_children::NativeChildren,
 }
 #[async_trait]
 impl<T: JsonTransport> Provider for AcpProvider<T> {
@@ -66,6 +67,9 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
     }
     fn session(&self) -> Option<&ProviderSession> {
         self.session.as_ref()
+    }
+    fn subagent_capabilities(&self) -> alera_provider_protocol::SubagentCapabilities {
+        self.native_subagent_capabilities()
     }
     fn reasoning_effort_capabilities(
         &self,
@@ -229,6 +233,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             active_turn_id: None,
         };
         self.session = Some(session.clone());
+        self.children.clear();
         let event = ProviderEvent::new(
             self.kind(),
             self.config.provider_instance_id.clone(),
@@ -325,6 +330,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         });
         self.queue_event(started)?;
         self.prompt_id = Some(prompt_id);
+        self.children.reset_turn();
         self.prompt_meta_id = (self.config.flavor == AcpFlavor::Grok).then(|| turn_id.clone());
         if let Some(active) = self.session.as_mut() {
             active.status = SessionStatus::Running;
@@ -363,6 +369,9 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             .await
             .map_err(acp_error)
     }
+    async fn stop_subagent(&mut self, task_id: &str) -> Result<(), ProviderError> {
+        self.stop_native_child(task_id).await
+    }
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {
         self.respond_native(response).await
     }
@@ -385,6 +394,13 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         let session = self.session.clone().ok_or_else(|| {
             ProviderError::InvalidState("ACP event arrived before session/new".into())
         })?;
+        let follows = self.follows_work_state();
+        if follows {
+            if let Some(event) = self.route_native_child(&incoming, &session)? {
+                event.validate()?;
+                return Ok(Some(event));
+            }
+        }
         let provider_kind = self.kind();
         if let agent_client_protocol::AcpIncoming::Notification { params, .. } = &incoming {
             if params.get("sessionId").and_then(serde_json::Value::as_str)
@@ -406,11 +422,16 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             turn_id: session.active_turn_id.as_deref(),
             prompt_id: self.prompt_id.as_ref(),
             prompt_meta_id: self.prompt_meta_id.as_deref(),
+            idle_ends_turn: !follows || self.children.accepted || self.children.running_seen,
+            prompt_acceptance: follows,
         };
         let registry_commands = self.registry_commands(&incoming);
         let mut mapped = map_incoming(incoming, &context)?;
         if let Some(split) = registry_commands {
             self.publish_registry_commands(&mut mapped.event, split)?;
+        }
+        if follows {
+            self.settle_root_event(&mut mapped.event);
         }
         mapped.event.validate()?;
         self.apply_mapped_state(&mapped);
