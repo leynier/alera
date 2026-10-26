@@ -92,6 +92,10 @@ abstract final class const AleraIcons._() {
   static const IconData fileGeneric = LucideIcons.file;
   static const IconData attach = LucideIcons.paperclip;
   static const IconData agent = LucideIcons.bot;
+  // A slash command the chat agent advertises, in the composer `/` menu.
+  static const IconData agentCommand = LucideIcons.squareSlash;
+  static const IconData plan = LucideIcons.lightbulb;
+  static const IconData quota = LucideIcons.gauge;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;
   static const IconData contextCompact = LucideIcons.foldHorizontal;

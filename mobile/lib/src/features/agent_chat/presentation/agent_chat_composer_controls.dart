@@ -175,6 +175,52 @@ class const AgentChatComposerControls({
     );
   }
 
+  /// What the composer's `/` commands can do in this chat right now: the
+  /// model picker and mode commands follow this chip and its settings, and
+  /// `/usage` the usage ring.
+  AgentChatSlashCommandState slashCommandState(WidgetRef ref) {
+    final catalog = ref.read(agentChatProvidersProvider(hostId, workspaceId));
+    final providers = catalog.value;
+    final usage = view.thread.usage;
+    return AgentChatSlashCommandState(
+      modelPickerAvailable: enabled && providers != null,
+      modelPickerBlockedReason: providers != null
+          ? null
+          : catalog.hasError
+          ? 'The agents could not be loaded.'
+          : 'The agents are still loading.',
+      planModeSupported:
+          agentChatInstanceOf(providers, view)?.supportsPlanMode ?? false,
+      interactionMode: view.session.interactionMode,
+      usageAvailable: usage.contextFraction != null || usage.windows.isNotEmpty,
+      providerCommands: view.session.commands,
+    );
+  }
+
+  /// Runs a local `/` command picked in the composer, through the same
+  /// picker, settings and sheet as the controls themselves.
+  Future<void> runSlashCommand(
+    BuildContext context,
+    WidgetRef ref,
+    AgentChatSlashCommand command,
+  ) async {
+    switch (command) {
+      case AgentChatSlashCommand.model:
+        final providers = ref
+            .read(agentChatProvidersProvider(hostId, workspaceId))
+            .value;
+        if (providers != null) await _pick(context, ref, providers);
+      case AgentChatSlashCommand.plan || AgentChatSlashCommand.standard:
+        await onConfigure(
+          AgentChatConfiguration(
+            interactionMode: agentChatSlashCommandInteractionMode(command),
+          ),
+        );
+      case AgentChatSlashCommand.usage:
+        await showAgentChatUsageSheet(context, view.thread.usage);
+    }
+  }
+
   Future<void> _pick(
     BuildContext context,
     WidgetRef ref,

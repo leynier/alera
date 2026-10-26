@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_view_stat
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_attachment_upload_bar.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer_menu_host.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_footer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
@@ -159,6 +160,26 @@ class const AgentChatTabBody({
             false);
     final plan = agentChatRunningPlan(view.timeline);
     final recovery = view.thread.recovery;
+    final controls = AgentChatComposerControls(
+      hostId: hostId,
+      workspaceId: workspaceId,
+      remoteHostId: remoteHostId,
+      view: view,
+      enabled: canAct,
+      onOpenProviderSettings: handlers.openProviderSettings,
+      onSelect: (selection) => handlers.run(
+        'Could not change the agent.',
+        () => controller.select(selection),
+      ),
+      onConfigure: (configuration) => handlers.run(
+        'Could not change the chat settings.',
+        () => controller.configure(configuration),
+      ),
+      onFileCheckpointing: (enabled) => handlers.run(
+        'Could not change file checkpointing.',
+        () => controller.configureFileCheckpoints(enabled: enabled),
+      ),
+    );
     return LayoutBuilder(
       builder: (context, constraints) => Column(
         children: <Widget>[
@@ -357,25 +378,14 @@ class const AgentChatTabBody({
                     controller.interrupt,
                   ),
                 ),
-                settings: AgentChatComposerControls(
+                settings: controls,
+                suggestions: AgentChatComposerMenuHost(
                   hostId: hostId,
                   workspaceId: workspaceId,
-                  remoteHostId: remoteHostId,
-                  view: view,
-                  enabled: canAct,
-                  onOpenProviderSettings: handlers.openProviderSettings,
-                  onSelect: (selection) => handlers.run(
-                    'Could not change the agent.',
-                    () => controller.select(selection),
-                  ),
-                  onConfigure: (configuration) => handlers.run(
-                    'Could not change the chat settings.',
-                    () => controller.configure(configuration),
-                  ),
-                  onFileCheckpointing: (enabled) => handlers.run(
-                    'Could not change file checkpointing.',
-                    () => controller.configureFileCheckpoints(enabled: enabled),
-                  ),
+                  chatId: chatId,
+                  controller: composer,
+                  focusNode: focusNode,
+                  commands: controls,
                 ),
               ),
             ),
