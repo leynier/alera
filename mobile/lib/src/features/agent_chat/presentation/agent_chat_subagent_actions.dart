@@ -139,7 +139,9 @@ class const AgentChatSubagentRowActions({
         if (stoppable)
           IconButton(
             key: ValueKey<String>('agent-chat-subagent-stop-${call.id}'),
-            tooltip: 'Stop Sub-agent',
+            tooltip: call.subagent?.workflow == null
+                ? 'Stop Sub-agent'
+                : 'Stop Workflow',
             icon: const Icon(
               AleraIcons.stopSubagent,
               size: AleraTokens.space16,
@@ -150,7 +152,9 @@ class const AgentChatSubagentRowActions({
           ),
         IconButton(
           key: ValueKey<String>('agent-chat-subagent-open-${call.id}'),
-          tooltip: 'Open Sub-agent',
+          tooltip: call.subagent?.workflow == null
+              ? 'Open Sub-agent'
+              : 'Open Workflow',
           icon: const Icon(AleraIcons.chevronRight, size: AleraTokens.space16),
           onPressed: () =>
               unawaited(openAgentChatSubagent(context, chat, call.id)),

@@ -11,6 +11,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_mar
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_bar.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_view.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_workflow_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -100,7 +101,9 @@ class const AgentChatSubagentScreen({
           if (stoppable)
             IconButton(
               key: const ValueKey<String>('agent-chat-subagent-stop'),
-              tooltip: 'Stop Sub-agent',
+              tooltip: call.subagent?.workflow == null
+                  ? 'Stop Sub-agent'
+                  : 'Stop Workflow',
               icon: const Icon(
                 AleraIcons.stopSubagent,
                 color: AleraTokens.error,
@@ -134,7 +137,13 @@ class const AgentChatSubagentScreen({
                 ),
                 child: SelectableText(prompt, style: theme.textTheme.bodySmall),
               ),
-            if (timeline.rows.isEmpty && timeline.running)
+            if (call.workflowGroup case final workflow?)
+              AgentChatWorkflowSection(
+                chat: chat,
+                callId: call.id,
+                group: workflow,
+              )
+            else if (timeline.rows.isEmpty && timeline.running)
               _Notice('The sub-agent has not reported work yet.'),
             for (final row in timeline.rows) agentChatActivityRowView(row),
             if (timeline.summary case final summary?)

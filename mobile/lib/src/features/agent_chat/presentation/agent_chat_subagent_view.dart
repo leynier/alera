@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_ite
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_actions.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_workflow_view.dart';
 import 'package:flutter/material.dart';
 
 /// One activity row of a turn, a sub-agent's included.
@@ -52,13 +53,18 @@ class _AgentChatSubagentViewState extends State<AgentChatSubagentView> {
     final theme = Theme.of(context);
     final row = widget.row;
     final summary = row.summary?.trim() ?? '';
-    final hasBody = row.rows.isNotEmpty || summary.isNotEmpty;
+    final workflow = row.call.workflowGroup;
+    final hasBody =
+        row.rows.isNotEmpty || summary.isNotEmpty || workflow != null;
     final expanded = hasBody && _expanded;
     final failed = row.status == AgentChatSubagentStatus.failed;
     final color = failed ? AleraTokens.error : AleraTokens.foregroundMuted;
     final style = theme.textTheme.bodySmall?.copyWith(color: color);
-    final label = 'Sub-agent: ${row.label}';
-    final state = row.childCount == 0
+    final label =
+        '${workflow == null ? 'Sub-agent' : 'Workflow'}: ${row.label}';
+    final state = workflow != null
+        ? workflow.summary
+        : row.childCount == 0
         ? row.status.label
         : '${row.status.label} · ${row.childCount} '
               '${row.childCount == 1 ? 'step' : 'steps'}';
@@ -78,7 +84,7 @@ class _AgentChatSubagentViewState extends State<AgentChatSubagentView> {
               child: Row(
                 children: <Widget>[
                   Icon(
-                    AleraIcons.agent,
+                    workflow == null ? AleraIcons.agent : AleraIcons.workflow,
                     size: AleraTokens.space16,
                     color: color,
                   ),
@@ -124,6 +130,11 @@ class _AgentChatSubagentViewState extends State<AgentChatSubagentView> {
             child: Column(
               crossAxisAlignment: .stretch,
               children: <Widget>[
+                if (workflow != null)
+                  AgentChatWorkflowPhaseList(
+                    callId: row.call.id,
+                    group: workflow,
+                  ),
                 for (final child in row.rows) agentChatActivityRowView(child),
                 if (summary.isNotEmpty)
                   Padding(

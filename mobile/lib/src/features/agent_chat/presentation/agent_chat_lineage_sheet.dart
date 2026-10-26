@@ -142,8 +142,8 @@ class const _RelationTile({
       AgentChatRelationKind.parentChat ||
       AgentChatRelationKind.forkSource => AleraIcons.openParent,
       AgentChatRelationKind.fork => AleraIcons.gitFork,
-      AgentChatRelationKind.delegatedChat ||
-      AgentChatRelationKind.subagent => AleraIcons.agent,
+      AgentChatRelationKind.delegatedChat || AgentChatRelationKind.subagent =>
+        relation.workflow == null ? AleraIcons.agent : AleraIcons.workflow,
     };
     final relatedChatId = relation.chatId;
     final workspaceId = relatedChatId == null
@@ -189,7 +189,7 @@ class const _RelationTile({
       key: ValueKey<String>('agent-chat-lineage-${relation.key}'),
       leading: Icon(icon, color: relation.failed ? AleraTokens.error : null),
       title: Text(relation.title, maxLines: 1, overflow: .ellipsis),
-      subtitle: Text('${relation.kind.label} · ${relation.statusLabel}'),
+      subtitle: Text('${relation.kindLabel} · ${relation.statusLabel}'),
       enabled: onTap != null || onMergeBack != null || stoppable,
       onTap: onTap,
       trailing: switch ((onMergeBack, stoppable)) {
@@ -201,7 +201,9 @@ class const _RelationTile({
         ),
         (null, true) => IconButton(
           key: ValueKey<String>('agent-chat-lineage-stop-${call!.id}'),
-          tooltip: 'Stop Sub-agent',
+          tooltip: relation.workflow == null
+              ? 'Stop Sub-agent'
+              : 'Stop Workflow',
           icon: const Icon(AleraIcons.stopSubagent, color: AleraTokens.error),
           onPressed: () =>
               unawaited(stopAgentChatSubagent(context, ref, chat, call.id)),
