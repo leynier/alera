@@ -1,8 +1,8 @@
 use alera_provider_protocol::{
-    dollar_skill_mentions, leading_skill_mention, parse_skill_frontmatter_yaml,
-    rewrite_skill_mentions, skill_frontmatter_block, skill_frontmatter_flag, skill_mentions,
-    EventKind, ProviderEvent, ProviderKind, ProviderSkill, ProviderSkillsUpdate,
-    MAX_PROVIDER_SKILLS,
+    compare_skill_names, dollar_skill_mentions, leading_skill_mention,
+    parse_skill_frontmatter_yaml, rewrite_skill_mentions, skill_frontmatter_block,
+    skill_frontmatter_flag, skill_mentions, EventKind, ProviderEvent, ProviderKind, ProviderSkill,
+    ProviderSkillsUpdate, MAX_PROVIDER_SKILLS,
 };
 use serde_json::json;
 
@@ -181,4 +181,14 @@ fn frontmatter_yaml_reads_as_json() {
     assert_eq!(skill_frontmatter_flag(Some(&json!("Y")), false), None);
     assert_eq!(skill_frontmatter_flag(Some(&json!("Y")), true), Some(true));
     assert_eq!(skill_frontmatter_flag(Some(&json!(0)), false), Some(false));
+}
+
+#[test]
+fn skill_names_sort_like_locale_compare() {
+    let mut names = vec!["b", "a:b", "A", "a", "a-b", "a_b", "ab", "2spec", "Ab"];
+    names.sort_by(|left, right| compare_skill_names(left, right));
+    assert_eq!(
+        names,
+        ["2spec", "a", "A", "a_b", "a-b", "a:b", "ab", "Ab", "b"]
+    );
 }
