@@ -145,6 +145,7 @@ pub(crate) fn is_unknown_v2(event_type: &str) -> bool {
         "question.replied",
         "question.rejected",
         "todo.updated",
+        "command.updated",
         "unreadable.execution.started",
         "unreadable.execution.ended",
     ];

@@ -15,6 +15,8 @@ fn response(value: serde_json::Value) -> HttpResponse {
 async fn permission_request_keeps_native_id_and_replies_on_v2_route() {
     let transport = MockHttpTransport::new();
     transport.push_response(response(json!({"id":"s1"})));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(response(json!({"id":"m1"})));
     transport.push_response(response(json!({"ok":true})));
     transport.push_stream([br#"data: {"type":"permission.asked","data":{"sessionID":"s1","id":"permission-7","permission":"bash","patterns":["ls"]}}
@@ -61,6 +63,8 @@ async fn permission_request_keeps_native_id_and_replies_on_v2_route() {
 async fn question_request_maps_answers_by_question_id() {
     let transport = MockHttpTransport::new();
     transport.push_response(response(json!({"id":"s1"})));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(response(json!({"id":"m1"})));
     transport.push_response(response(json!({"ok":true})));
     transport.push_stream([br#"data: {"type":"question.asked","data":{"sessionID":"s1","id":"question-2","questions":[{"header":"choice","question":"Pick","options":[{"label":"A","value":"a"}]}]}}
@@ -105,6 +109,8 @@ async fn question_request_maps_answers_by_question_id() {
 async fn v2_form_request_maps_fields_and_replies_with_form_id() {
     let transport = MockHttpTransport::new();
     transport.push_response(response(json!({"id":"s1"})));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(response(json!({"id":"m1"})));
     transport.push_response(response(json!({"ok":true})));
     transport.push_stream([br#"data: {"type":"form.created","data":{"form":{"id":"form-2","sessionID":"s1","title":"Choose","fields":[{"key":"choice","title":"Choice","description":"Pick one","type":"string","options":[{"label":"A","value":"a"}]}]}}}

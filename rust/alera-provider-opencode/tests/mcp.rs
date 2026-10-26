@@ -44,6 +44,8 @@ async fn injects_and_removes_v2_mcp_servers_for_one_session() {
     transport.push_response(empty_mcp_list());
     transport.push_response(response(json!({"id":"session-1"})));
     transport.push_response(HttpResponse::new(204, Vec::new()));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_stream(std::iter::empty::<Vec<u8>>());
     transport.push_response(HttpResponse::new(204, Vec::new()));
     let mut provider = OpenCodeProvider::new(transport, OpenCodeProviderConfig::default());
@@ -70,9 +72,10 @@ async fn injects_and_removes_v2_mcp_servers_for_one_session() {
     );
     let add: serde_json::Value = serde_json::from_slice(&requests[2].body).expect("add body");
     assert_eq!(add["config"]["type"], "remote");
-    assert_eq!(requests[4].method, "DELETE");
+    assert_eq!(requests[4].path, "http://127.0.0.1:4096/api/command");
+    assert_eq!(requests[5].method, "DELETE");
     assert_eq!(
-        requests[4].path,
+        requests[5].path,
         "http://127.0.0.1:4096/api/experimental/mcp/alera-chat-1"
     );
 }
@@ -135,6 +138,8 @@ async fn native_mcp_tool_events_use_canonical_item_type_and_refs() {
     transport.push_response(empty_mcp_list());
     transport.push_response(response(json!({"id":"session-1"})));
     transport.push_response(HttpResponse::new(204, Vec::new()));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(response(json!({"id":"message-1"})));
     transport.push_stream([br#"data: {"type":"session.tool.input.started","data":{"sessionID":"session-1","id":"call-1","assistantMessageID":"message-1","name":"docs_search"}}
 
@@ -290,6 +295,8 @@ async fn distinct_hyphen_namespace_uses_one_directory_for_preflight_and_install(
     transport.push_response(response(json!({"id":"session-1"})));
     transport.push_response(HttpResponse::new(204, Vec::new()));
     transport.push_response(HttpResponse::new(204, Vec::new()));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_stream(std::iter::empty::<Vec<u8>>());
     transport.push_response(HttpResponse::new(204, Vec::new()));
     transport.push_response(HttpResponse::new(204, Vec::new()));

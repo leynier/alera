@@ -61,6 +61,10 @@ async fn started_with_resume(
     transport
         .http
         .push_response(HttpResponse::new(200, br#"{"id":"ses_native"}"#));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport
+        .http
+        .push_response(HttpResponse::new(404, Vec::new()));
     transport
         .http
         .push_response(HttpResponse::new(204, Vec::new()));

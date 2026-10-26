@@ -89,6 +89,9 @@ impl HttpTransport for SchemaTransport {
                 ),
             });
         }
+        if request.method == "GET" && request.path == self.route("/command") {
+            return Ok(HttpResponse::new(404, Vec::new()));
+        }
         assert!(
             (request.method == "POST" && request.path == self.route("/session"))
                 || (request.method == "GET"

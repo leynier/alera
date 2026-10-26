@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use opencode_agent_sdk::{
     ClientConfig, HttpTransport, OpenCodeClient, OpenCodeEvent, SessionRequest,
 };
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::future::Future;
 use std::time::Duration;
@@ -65,6 +65,7 @@ pub struct OpenCodeProvider<T: HttpTransport> {
     pub(crate) scoped_mcp_servers: Vec<String>,
     pub(crate) mcp_tool_ids: HashSet<String>,
     pub(crate) native_parts: crate::native_parts::NativeParts,
+    pub(crate) background: Option<crate::background::BackgroundCall>,
 }
 
 impl<T: HttpTransport> OpenCodeProvider<T> {
@@ -83,6 +84,7 @@ impl<T: HttpTransport> OpenCodeProvider<T> {
             scoped_mcp_servers: Vec::new(),
             mcp_tool_ids: HashSet::new(),
             native_parts: Default::default(),
+            background: None,
         }
     }
 
@@ -132,14 +134,15 @@ impl<T: HttpTransport> OpenCodeProvider<T> {
         }
     }
 
-    fn next_turn_id(&mut self) -> String {
+    pub(crate) fn next_turn_id(&mut self) -> String {
         self.next_turn = self.next_turn.saturating_add(1);
         format!("turn:opencode:{}", self.next_turn)
     }
 }
 
 #[async_trait]
-impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
+// Clone and 'static let a 1.x command request outlive one call.
+impl<T: HttpTransport + Clone + 'static> Provider for OpenCodeProvider<T> {
     fn kind(&self) -> ProviderKind {
         Self::provider_kind()
     }
@@ -291,6 +294,9 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
         });
         started.validate()?;
         self.queued_events.push_back(started);
+        if let Some(commands) = self.commands_event().await {
+            self.queued_events.push_back(commands);
+        }
         Ok(session)
     }
 
@@ -312,77 +318,7 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
                 "cannot start an OpenCode turn while another turn is active".into(),
             ));
         }
-        let parts = crate::config::prompt_parts(&input)?;
-        let skills = self.mentioned_skills(&input.input).await;
-        let turn_id = self.next_turn_id();
-        let model = input.model.clone().or_else(|| session.model.clone());
-        let mut started = ProviderEvent::new(
-            Self::provider_kind(),
-            self.config.provider_instance_id.clone(),
-            session.thread_id.clone(),
-            EventKind::TurnStarted,
-            model
-                .as_ref()
-                .map(|model| json!({ "model": model }))
-                .unwrap_or_else(|| json!({})),
-            None,
-        );
-        let requested_message_id = crate::native_message_id::native_message_id(&started);
-        self.active_turn = Some(ActiveTurn {
-            id: turn_id.clone(),
-            native_message_id: Some(requested_message_id.clone()),
-            interrupted: false,
-        });
-        if let Some(session) = self.session.as_mut() {
-            session.status = SessionStatus::Running;
-            session.active_turn_id = Some(turn_id.clone());
-        }
-        let response = match timed(
-            self.config.request_timeout,
-            "session.prompt",
-            self.client.prompt_parts_with_skills(
-                &session.native_thread_id,
-                parts,
-                model.as_deref(),
-                Some(&requested_message_id),
-                &skills,
-            ),
-        )
-        .await
-        {
-            Ok(response) => response,
-            Err(error) => {
-                self.active_turn = None;
-                if let Some(session) = self.session.as_mut() {
-                    session.status = SessionStatus::Ready;
-                    session.active_turn_id = None;
-                }
-                return Err(error);
-            }
-        };
-        let native_message_id = response
-            .get("id")
-            .or_else(|| response.get("messageID"))
-            .and_then(Value::as_str)
-            .map(str::to_owned)
-            .or(Some(requested_message_id));
-        self.native_parts.start_turn(native_message_id.clone());
-        if let Some(active) = self.active_turn.as_mut() {
-            active.native_message_id = native_message_id.clone();
-        }
-        started.turn_id = Some(turn_id.clone());
-        started.provider_refs = Some(alera_provider_protocol::ProviderRefs {
-            provider_turn_id: native_message_id.clone(),
-            provider_item_id: native_message_id.clone(),
-            provider_request_id: None,
-        });
-        started.validate()?;
-        self.queued_events.push_back(started);
-        Ok(TurnStartResult {
-            thread_id: session.thread_id,
-            turn_id,
-            native_turn_id: native_message_id,
-        })
+        self.start_turn(input, session).await
     }
 
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
@@ -406,6 +342,9 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
                     "interrupt turnId does not match the active turn".into(),
                 ));
             }
+        }
+        if let Some(call) = self.background.take() {
+            call.abort();
         }
         timed(
             self.config.request_timeout,
@@ -469,23 +408,15 @@ impl<T: HttpTransport> Provider for OpenCodeProvider<T> {
 
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError> {
         self.ensure_open()?;
-        if let Some(event) = self.queued_events.pop_front() {
-            return Ok(Some(event));
-        }
-        let Some(event) = self
-            .client
-            .next_event()
-            .await
-            .map_err(crate::config::map_open_code_error)?
-        else {
-            return Ok(None);
-        };
-        Ok(Some(self.event_from_sdk(event)?))
+        self.next_event_or_call().await
     }
 
     async fn close(&mut self) -> Result<(), ProviderError> {
         if self.closed {
             return Ok(());
+        }
+        if let Some(call) = self.background.take() {
+            call.abort();
         }
         crate::mcp::close(self, self.config.request_timeout).await
     }

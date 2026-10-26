@@ -7,6 +7,7 @@
 
 mod catalog;
 mod client;
+mod command;
 mod error;
 mod forms;
 mod inventory;
@@ -20,6 +21,7 @@ mod transport;
 mod wire;
 
 pub use client::{ClientConfig, Generation, OpenCodeClient, SessionRequest};
+pub use command::CommandRequest;
 pub use error::OpenCodeError;
 pub use mcp::{normalized_mcp_server_name, McpServerConfig, PermissionRule};
 pub use model::{OpenCodeEvent, OpenCodeModel, OpenCodeResponse, OpenCodeSession, RuntimeRequest};

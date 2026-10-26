@@ -98,6 +98,8 @@ fn provider_with_stream(
         200,
         serde_json::to_vec(&json!({"id":"session-1"})).unwrap(),
     ));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(HttpResponse::new(
         200,
         serde_json::to_vec(&json!({"id":"message-1"})).unwrap(),
@@ -210,6 +212,8 @@ async fn interrupt_waits_for_v2_execution_terminal() {
         200,
         serde_json::to_vec(&json!({"id":"session-1"})).unwrap(),
     ));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(HttpResponse::new(
         200,
         serde_json::to_vec(&json!({"id":"message-1"})).unwrap(),
@@ -268,6 +272,8 @@ async fn event_stream_reads_are_not_limited_by_request_timeout() {
         200,
         serde_json::to_vec(&json!({"id":"session-1"})).unwrap(),
     ));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
     transport.push_response(HttpResponse::new(
         200,
         serde_json::to_vec(&json!({"id":"message-1"})).unwrap(),
