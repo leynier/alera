@@ -46,6 +46,10 @@ pub struct CodexProvider<T> {
     /// failed `turn/completed` that does not repeat its `codexErrorInfo`.
     pub(crate) turn_failure_class: Option<alera_provider_protocol::FailureClass>,
     pub(crate) session_approvals: crate::session_approvals::SessionApprovals,
+    /// Set by `skills/changed`; the next `next_event` lists the skills again.
+    pub(crate) skills_stale: bool,
+    /// Requests given up on after a timeout whose answers may still arrive.
+    pub(crate) abandoned_responses: HashSet<i64>,
 }
 
 impl<T: JsonTransport> CodexProvider<T> {
@@ -96,6 +100,8 @@ impl<T> CodexProvider<T> {
             active_child_turns: HashSet::new(),
             turn_failure_class: None,
             session_approvals: Default::default(),
+            skills_stale: false,
+            abandoned_responses: HashSet::new(),
         }
     }
 
@@ -380,14 +386,21 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         &mut self,
     ) -> Result<Option<alera_provider_protocol::ProviderEvent>, ProviderError> {
         self.ensure_open()?;
-        if let Some(event) = self.queued_events.pop_front() {
-            self.mark_event_consumed(&event);
-            return Ok(Some(event));
-        }
         let message = loop {
+            if let Some(event) = self.queued_events.pop_front() {
+                self.mark_event_consumed(&event);
+                return Ok(Some(event));
+            }
+            if self.skills_stale {
+                self.queue_session_skills().await;
+                continue;
+            }
             let Some(message) = self.transport.recv().await? else {
                 return Ok(None);
             };
+            if self.absorb_skills_message(&message) {
+                continue;
+            }
             if message.get("id").is_some() && wire::method(&message).is_none() {
                 return Err(ProviderError::Protocol(
                     "Codex received an unsolicited response".into(),
@@ -411,6 +424,8 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.pending_requests.clear();
         self.queued_events.clear();
         self.session_approvals.clear();
+        self.skills_stale = false;
+        self.abandoned_responses.clear();
         self.terminal_event_pending = false;
         self.clear_children();
         self.turn_failure_class = None;

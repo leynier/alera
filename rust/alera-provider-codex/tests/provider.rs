@@ -86,7 +86,8 @@ async fn resume_uses_native_thread_id_and_turn_input_supports_attachments() {
     let transport = MockTransport::new([
         initialize_response(1),
         json!({ "id": 2, "result": { "thread": { "id": "native-resumed" } } }),
-        turn_response(3, "native-turn-2"),
+        json!({ "id": 3, "result": { "data": [] } }),
+        turn_response(4, "native-turn-2"),
     ]);
     let mut provider = CodexProvider::new(transport, config());
     let mut input = SessionStartInput::new("app-thread-2");
@@ -104,8 +105,9 @@ async fn resume_uses_native_thread_id_and_turn_input_supports_attachments() {
     let writes = provider.transport().writes();
     assert_eq!(writes[2]["method"], "thread/resume");
     assert_eq!(writes[2]["params"]["threadId"], "native-resumed");
+    assert_eq!(writes[3]["method"], "skills/list");
     assert_eq!(
-        writes[3]["params"]["input"][1],
+        writes[4]["params"]["input"][1],
         json!({
             "type": "image",
             "url": "https://example.test/image.png"

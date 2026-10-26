@@ -85,8 +85,9 @@ impl<T: JsonTransport> CodexProvider<T> {
             cwd: input.cwd.or_else(|| self.config.cwd.clone()),
             active_turn_id: None,
         };
-        self.session = Some(session.clone());
-        Ok(session)
+        self.session = Some(session);
+        self.queue_session_skills().await;
+        Ok(self.session.clone().expect("the session was just started"))
     }
 
     pub(crate) async fn fork_native(

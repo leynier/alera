@@ -19,11 +19,13 @@ mod reasoning_effort;
 mod responses;
 mod rpc;
 mod session_approvals;
+mod skills;
 mod state;
 mod wire;
 
 pub use config::{CodexConfig, CodexProviderConfig};
 pub use provider::CodexProvider;
+pub use skills::probe_skills;
 
 pub use alera_agent_transport::{JsonLineProcess, JsonTransport, MockTransport, ProcessConfig};
 pub use alera_provider_protocol;

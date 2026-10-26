@@ -32,6 +32,19 @@ fn main() {
                 "turn": { "id": "native-turn-fixture" },
             }),
             "turn/interrupt" => json!({}),
+            "skills/list" => json!({
+                "data": [{
+                    "cwd": message["params"]["cwds"][0],
+                    "errors": [],
+                    "skills": [{
+                        "name": "review",
+                        "description": "Review the change",
+                        "path": "/skills/review/SKILL.md",
+                        "scope": "user",
+                        "enabled": true,
+                    }],
+                }],
+            }),
             _ => json!({}),
         };
         if method == "initialize" {

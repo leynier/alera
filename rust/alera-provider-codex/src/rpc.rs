@@ -13,6 +13,16 @@ impl<T: JsonTransport> CodexProvider<T> {
         method: &str,
         params: Value,
     ) -> Result<Value, ProviderError> {
+        let id = self.send_request(method, params).await?;
+        self.await_response(id, method, self.config.request_timeout)
+            .await
+    }
+
+    pub(crate) async fn send_request(
+        &mut self,
+        method: &str,
+        params: Value,
+    ) -> Result<i64, ProviderError> {
         self.ensure_open()?;
         let id = self.next_request_id;
         self.next_request_id = self
@@ -22,9 +32,21 @@ impl<T: JsonTransport> CodexProvider<T> {
         self.transport
             .send(wire::request(id, method, params))
             .await?;
-        tokio::time::timeout(self.config.request_timeout, async {
+        Ok(id)
+    }
+
+    pub(crate) async fn await_response(
+        &mut self,
+        id: i64,
+        method: &str,
+        timeout: std::time::Duration,
+    ) -> Result<Value, ProviderError> {
+        tokio::time::timeout(timeout, async {
             loop {
                 let message = self.transport.recv().await?.ok_or(ProviderError::Closed)?;
+                if self.absorb_skills_message(&message) {
+                    continue;
+                }
                 // A server request can reuse a numeric id. Its method makes it
                 // a request before its id can be a response discriminator.
                 if wire::method(&message).is_some() {
@@ -218,7 +240,9 @@ impl<T: JsonTransport> CodexProvider<T> {
 pub(crate) fn native_input(input: &TurnInput) -> Result<Vec<Value>, ProviderError> {
     let mut values = Vec::new();
     if !input.input.is_empty() {
-        values.push(json!({ "type": "text", "text": input.input }));
+        // Codex only expands `$name`; composers accept any currency sigil.
+        let text = alera_provider_protocol::dollar_skill_mentions(&input.input);
+        values.push(json!({ "type": "text", "text": text }));
     }
     for attachment in &input.attachments {
         values.push(match attachment {
