@@ -8,21 +8,26 @@ const double _nearLimit = 0.9;
 
 /// How full the context window is, as a ring beside Send, opening a popover
 /// with the context window and the provider's usage limits and when each
-/// resets. Hidden when the provider reports neither.
+/// resets. Hidden when the provider reports neither. A [controller] lets the
+/// composer's `/usage` command open the popover.
 class const AgentChatUsageButton({
   super.key,
   required final AgentChatUsage usage,
+  final AleraPopoverController? controller,
 }) extends StatefulWidget {
   @override
   State<AgentChatUsageButton> createState() => _AgentChatUsageButtonState();
 }
 
 class _AgentChatUsageButtonState extends State<AgentChatUsageButton> {
-  final AleraPopoverController _popover = AleraPopoverController();
+  AleraPopoverController? _ownedPopover;
+
+  AleraPopoverController get _popover =>
+      widget.controller ?? (_ownedPopover ??= AleraPopoverController());
 
   @override
   void dispose() {
-    _popover.dispose();
+    _ownedPopover?.dispose();
     super.dispose();
   }
 

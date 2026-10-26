@@ -10,6 +10,8 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_menu.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_usage_popover.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
@@ -41,7 +43,8 @@ Future<List<String>> _pickFiles() async => <String>[
 /// Shift+Enter breaks the line, Escape stops a running turn, and the arrow
 /// keys recall earlier prompts from an empty box until the recalled prompt is
 /// edited. [canSend] lets the person write; [canSubmit] lets the message go,
-/// so a draft can wait for an agent that cannot start yet.
+/// so a draft can wait for an agent that cannot start yet. `@` attaches a
+/// file from [fileSearch] and a leading `/` runs a local command.
 class const AgentChatComposer({
   super.key,
   required final TerminalComposerController controller,
@@ -70,6 +73,9 @@ class const AgentChatComposer({
   final VoidCallback? onRetryCatalog,
   final VoidCallback? onOpenProviderSettings,
 
+  /// The workspace files `@` mentions search; without it the menu says so.
+  final AgentChatComposerFileSearch? fileSearch,
+
   /// Chat actions beside Add Files, such as Delegate Task.
   final Widget? chatActions,
   final TerminalClipboard clipboard = const NativeTerminalClipboard(),
@@ -82,8 +88,26 @@ class const AgentChatComposer({
 class _AgentChatComposerState extends State<AgentChatComposer> {
   int? _historyIndex;
   String _historyDraft = '';
+  final AleraPopoverController _ownedPicker = AleraPopoverController();
+  final AleraPopoverController _usagePopover = AleraPopoverController();
+  late AgentChatComposerMenuController _menu = _createMenu();
 
   TerminalComposerController get _composer => widget.controller;
+
+  AgentChatComposerMenuController _createMenu() =>
+      AgentChatComposerMenuController(
+        text: _composer.textController,
+        focusNode: _composer.focusNode,
+        fileSearch: () => widget.fileSearch,
+        commandState: () =>
+            agentChatSlashCommandState(widget.settings, widget.usage),
+        onAttach: (path) => _composer.addPathAttachments(<String>[path]),
+        onCommand: (command) => AgentChatSlashCommandTargets(
+          modelPicker: widget.pickerController ?? _ownedPicker,
+          usage: _usagePopover,
+          onConfigure: widget.onConfigure,
+        ).run(command),
+      );
 
   @override
   void initState() {
@@ -100,6 +124,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       }
       widget.controller.focusNode.onKeyEvent = _handleKey;
       _historyIndex = null;
+      _menu.dispose();
+      _menu = _createMenu();
     }
   }
 
@@ -108,12 +134,18 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     if (_composer.focusNode.onKeyEvent == _handleKey) {
       _composer.focusNode.onKeyEvent = null;
     }
+    _menu.dispose();
+    _ownedPicker.dispose();
+    _usagePopover.dispose();
     super.dispose();
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
+    }
+    if (_menu.handleKey(event) == KeyEventResult.handled) {
+      return KeyEventResult.handled;
     }
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.enter ||
@@ -288,7 +320,12 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => AgentChatComposerMenuOverlay(
+    controller: _menu,
+    child: _buildComposer(context),
+  );
+
+  Widget _buildComposer(BuildContext context) {
     final textActions = AleraTextActionsScope.maybeOf(context);
     return DragTarget<TerminalPathDragPayload>(
       onWillAcceptWithDetails: (details) =>
@@ -371,7 +408,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                 enabled: widget.canSend,
                 busy: widget.busy,
                 compact: compact,
-                pickerController: widget.pickerController,
+                pickerController: widget.pickerController ?? _ownedPicker,
                 onConfigure: widget.onConfigure,
                 onChoose: widget.onChoose,
                 onRetryCatalog: widget.onRetryCatalog,
@@ -396,7 +433,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         // Keeps a control clipped at the viewport edge from
         // running into the fixed controls.
         const SizedBox(width: AleraTokens.space8),
-        AgentChatUsageButton(usage: widget.usage),
+        AgentChatUsageButton(usage: widget.usage, controller: _usagePopover),
         AiDictationControl(
           key: const ValueKey<String>('agent-chat-dictation'),
           targetId: targetId,

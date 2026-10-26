@@ -15,6 +15,11 @@ export 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_m
     show AgentChatChooseCallback;
 export 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_settings.dart';
 
+/// Whether the chat's agent offers a plan mode, which shows the Plan control
+/// and the `/plan` and `/default` commands.
+bool agentChatPlanModeSupported(AgentChatComposerSettings settings) =>
+    settings.instance?.supportsPlanMode ?? settings.session.capabilities.plan;
+
 /// Agent and model, approval mode, plan mode and reasoning effort for the
 /// next turn. The picker always shows; on a [compact] composer, which must
 /// have a bounded width, the other settings fold into More Composer Controls
@@ -38,8 +43,7 @@ class const AgentChatComposerControls({
   List<AgentChatRuntimeMode> get _runtimeModes =>
       settings.instance?.runtimeModes ?? const <AgentChatRuntimeMode>[];
 
-  bool get _planSupported =>
-      settings.instance?.supportsPlanMode ?? settings.session.capabilities.plan;
+  bool get _planSupported => agentChatPlanModeSupported(settings);
 
   bool get _hasOverflow =>
       _runtimeModes.length > 1 ||

@@ -8,6 +8,7 @@ import 'package:alera/src/features/agent_chat/application/agent_chat_controller.
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_actions.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_queue.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_native_history_notice.dart';
@@ -16,6 +17,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_do
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
 import 'package:alera/src/features/agent_provider_settings/presentation/agent_provider_settings_launcher.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_dock.dart';
+import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -274,6 +276,10 @@ class const AgentChatFooter({
                   workspaceId: workspace.id,
                 ),
                 onOpenFile: onOpenFile,
+                fileSearch: WorkspaceAgentChatComposerFileSearch(
+                  workspace: workspace,
+                  files: ref.read(workspaceFileServiceProvider),
+                ),
               ),
           ],
         ),
