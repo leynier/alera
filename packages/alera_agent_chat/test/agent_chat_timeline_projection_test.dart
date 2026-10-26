@@ -167,7 +167,197 @@ void main() {
       ),
     );
     expect(section.prompts.single.id, 'u1');
-    expect(section.answers.map((item) => item.id), <String>['a1', 'u2', 'a2']);
+    expect(section.segments, hasLength(2));
+    expect(section.segments.last.steers.single.id, 'u2');
+    expect(section.answers.map((item) => item.id), <String>['a1', 'a2']);
+  });
+
+  group('steer segments', () {
+    String rowId(AgentChatActivityRow row) => switch (row) {
+      AgentChatActionGroupRow(:final actions) => actions.first.item.id,
+      AgentChatItemRow(:final item) => item.id,
+      AgentChatSubagentRow(:final call) => call.id,
+    };
+
+    test('a steer sits between the work it split', () {
+      final section = _section(
+        AgentChatTimelineProjection.build(
+          _thread(<Map<String, Object?>>[
+            _item('u1', 'user_message', text: 'Start'),
+            _item('c1', 'command_execution'),
+            _item('a1', 'assistant_message', text: 'First pass'),
+            _item(
+              'u2',
+              'user_message',
+              text: 'Also add tests',
+              createdAt: '2026-10-12T10:00:10Z',
+            ),
+            _item('c2', 'command_execution'),
+            _item('c3', 'file_change'),
+            _item(
+              'a2',
+              'assistant_message',
+              text: 'Done',
+              createdAt: '2026-10-12T10:00:40Z',
+            ),
+          ]),
+        ),
+      );
+      final [first, second] = section.segments;
+      expect(first.steers, isEmpty);
+      expect(first.activity.map(rowId), <String>['c1']);
+      expect(first.answers.single.id, 'a1');
+      expect(first.foldKey, agentChatTurnFoldKey('turn-1'));
+      expect(second.steers.single.id, 'u2');
+      expect(second.activity.map(rowId), <String>['c2']);
+      expect(second.actionCount, 2);
+      expect(second.answers.single.id, 'a2');
+      expect(second.foldKey, agentChatTurnSegmentFoldKey('turn-1', 'u2'));
+      expect(second.collapsedByDefault, isTrue);
+      expect(agentChatTurnSegmentHeaderLabel(second), 'Continued for 30s');
+      expect(section.activity, hasLength(2));
+      expect(section.actionCount, 3);
+    });
+
+    test('steers back to back split the turn once, after the last', () {
+      final section = _section(
+        AgentChatTimelineProjection.build(
+          _thread(<Map<String, Object?>>[
+            _item('u1', 'user_message', text: 'Start'),
+            _item('c1', 'command_execution'),
+            _item('u2', 'user_message', text: 'Also this'),
+            _item('u3', 'user_message', text: 'And that'),
+            _item('c2', 'command_execution'),
+          ]),
+        ),
+      );
+      expect(section.segments, hasLength(2));
+      expect(section.segments.last.steers.map((item) => item.id), <String>[
+        'u2',
+        'u3',
+      ]);
+      expect(
+        section.segments.last.foldKey,
+        agentChatTurnSegmentFoldKey('turn-1', 'u3'),
+      );
+    });
+
+    test('a steer before any output does not split the turn', () {
+      final section = _section(
+        AgentChatTimelineProjection.build(
+          _thread(<Map<String, Object?>>[
+            _item('u1', 'user_message', text: 'Start'),
+            _item('u2', 'user_message', text: 'Actually, this'),
+            _item('c1', 'command_execution'),
+            _item('a1', 'assistant_message', text: 'Done'),
+          ]),
+        ),
+      );
+      expect(section.prompts.single.id, 'u1');
+      expect(section.segments.single.steers.single.id, 'u2');
+      expect(section.segments.single.answers.single.id, 'a1');
+    });
+
+    test('only the segment a running turn works in is live', () {
+      final section = _section(
+        AgentChatTimelineProjection.build(
+          _thread(<Map<String, Object?>>[
+            _item('u1', 'user_message', text: 'Start'),
+            _item('c1', 'command_execution'),
+            _item('c2', 'command_execution'),
+            _item('u2', 'user_message', text: 'Steer'),
+            _item('c3', 'command_execution', status: 'inProgress'),
+          ], activeTurnId: 'turn-1'),
+        ),
+      );
+      final [first, second] = section.segments;
+      expect(first.live, isFalse);
+      expect(first.liveWork, isNull);
+      expect(first.collapsedByDefault, isTrue);
+      expect(second.live, isTrue);
+      expect(second.liveWork?.current?.item.id, 'c3');
+      expect(section.liveWork, same(second.liveWork));
+      expect(agentChatTurnSegmentHeaderLabel(second), 'Working');
+    });
+
+    test('a turn nobody steered keeps one segment', () {
+      final section = _section(
+        AgentChatTimelineProjection.build(
+          _thread(<Map<String, Object?>>[
+            _item('u1', 'user_message', text: 'Start'),
+            _item('c1', 'command_execution'),
+            _item('a1', 'assistant_message', text: 'Done'),
+          ]),
+        ),
+      );
+      expect(section.segments.single.steers, isEmpty);
+      expect(section.activity, hasLength(1));
+      expect(section.answers.single.id, 'a1');
+    });
+  });
+
+  group('context handoff', () {
+    Map<String, Object?> handoff(
+      String status, {
+      String itemStatus = 'completed',
+    }) => _item(
+      'h1',
+      'notice',
+      status: itemStatus,
+      normalized: <String, Object?>{
+        'handoff': <String, Object?>{
+          'from': <String, Object?>{'provider': 'codex', 'model': 'gpt-5'},
+          'to': <String, Object?>{
+            'provider': 'claudeAgent',
+            'providerInstanceId': 'claudeAgent',
+            'model': null,
+          },
+          'status': status,
+        },
+      },
+    );
+
+    test('the marker leaves the work and opens the turn', () {
+      final section = _section(
+        AgentChatTimelineProjection.build(
+          _thread(<Map<String, Object?>>[
+            handoff('completed'),
+            _item('u1', 'user_message', text: 'Continue'),
+            _item('c1', 'command_execution'),
+            _item('a1', 'assistant_message', text: 'Done'),
+          ]),
+        ),
+      );
+      expect(section.handoff?.id, 'h1');
+      expect(section.prompts.single.id, 'u1');
+      expect(section.activity, hasLength(1));
+      final marker = section.handoff!.handoff!;
+      expect(marker.from?.provider, 'codex');
+      expect(marker.from?.model, 'gpt-5');
+      expect(marker.to.provider, 'claudeAgent');
+      expect(marker.to.model, isNull);
+      expect(marker.status, AgentChatHandoffStatus.completed);
+      expect(agentChatHandoffLabel(marker), 'Context Handoff');
+    });
+
+    test('a failed marker reads as failed', () {
+      final item = AgentChatItem.fromJson(
+        handoff('failed', itemStatus: 'failed'),
+      );
+      expect(item.handoff?.failed, isTrue);
+      expect(agentChatHandoffLabel(item.handoff!), 'Context Handoff Failed');
+      // A failed item settles a marker the runtime left pending.
+      expect(
+        AgentChatItem.fromJson(handoff('pending', itemStatus: 'failed'))
+            .handoff
+            ?.failed,
+        isTrue,
+      );
+    });
+
+    test('other notices are not handoffs', () {
+      expect(AgentChatItem.fromJson(_item('n1', 'notice')).handoff, isNull);
+    });
   });
 
   test('plan checklists become progress; proposed plans are answers', () {

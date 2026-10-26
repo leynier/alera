@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_turn_view.dart';
@@ -12,14 +13,15 @@ Map<String, Object?> _item(
   String type, {
   String text = '',
   String status = 'completed',
+  String createdAt = '2026-10-12T10:00:00Z',
   Map<String, Object?> normalized = const <String, Object?>{},
 }) => <String, Object?>{
   'itemId': id,
   'turnId': 'turn-1',
   'type': type,
   'status': status,
-  'createdAt': '2026-10-12T10:00:00Z',
-  'updatedAt': '2026-10-12T10:00:00Z',
+  'createdAt': createdAt,
+  'updatedAt': createdAt,
   'text': text,
   'normalized': normalized,
 };
@@ -253,5 +255,97 @@ void main() {
       isSemantics(hasExpandedState: true, isExpanded: true),
     );
     handle.dispose();
+  });
+
+  testWidgets('a steer sits between the work it split and folds its own', (
+    tester,
+  ) async {
+    final section = _section(<Map<String, Object?>>[
+      _item('u1', 'user_message', text: 'Start'),
+      _command('c1'),
+      _command('c2'),
+      _item('a1', 'assistant_message', text: 'First pass'),
+      _item(
+        'u2',
+        'user_message',
+        text: 'Also add tests',
+        createdAt: '2026-10-12T10:00:10Z',
+      ),
+      _command('c3'),
+      _command('c4'),
+      _command('c5'),
+      _item(
+        'a2',
+        'assistant_message',
+        text: 'Second pass',
+        createdAt: '2026-10-12T10:00:40Z',
+      ),
+    ]);
+    await _pump(tester, section);
+    double top(String text) =>
+        tester.getTopLeft(find.textContaining(text, findRichText: true)).dy;
+    expect(find.text('Worked for 40s'), findsOneWidget);
+    expect(find.text('Continued for 30s'), findsOneWidget);
+    expect(top('First pass'), lessThan(top('Also add tests')));
+    expect(top('Also add tests'), lessThan(top('Continued for 30s')));
+    expect(top('Continued for 30s'), lessThan(top('Second pass')));
+
+    expect(find.text('Ran 3 commands'), findsNothing);
+    await tester.tap(find.text('Continued for 30s'));
+    await tester.pump();
+    expect(find.text('Ran 3 commands'), findsOneWidget);
+    // The first segment keeps its own fold.
+    expect(find.text('Ran 2 commands'), findsNothing);
+  });
+
+  Map<String, Object?> handoff({required bool failed}) => _item(
+    'h1',
+    'notice',
+    status: failed ? 'failed' : 'completed',
+    normalized: <String, Object?>{
+      'handoff': <String, Object?>{
+        'from': <String, Object?>{'provider': 'codex', 'model': 'gpt-5'},
+        'to': <String, Object?>{'provider': 'claudeAgent'},
+        'status': failed ? 'failed' : 'completed',
+      },
+    },
+  );
+
+  testWidgets('a handoff draws a divider above its turn', (tester) async {
+    final section = _section(<Map<String, Object?>>[
+      handoff(failed: false),
+      _item('u1', 'user_message', text: 'Continue here'),
+      _item('a1', 'assistant_message', text: 'On it'),
+    ]);
+    await _pump(tester, section);
+    expect(find.text('Context Handoff'), findsOneWidget);
+    expect(find.text('gpt-5'), findsOneWidget);
+    expect(find.text('Claude'), findsOneWidget);
+    expect(find.text('Context handoff'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('Context Handoff')).dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.textContaining('Continue here', findRichText: true),
+            )
+            .dy,
+      ),
+    );
+    expect(
+      find.bySemanticsLabel('Context Handoff from gpt-5 to Claude'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a failed handoff reads as failed', (tester) async {
+    final section = _section(<Map<String, Object?>>[
+      handoff(failed: true),
+      _item('u1', 'user_message', text: 'Continue here'),
+    ]);
+    await _pump(tester, section);
+    expect(find.text('Context Handoff Failed'), findsOneWidget);
+    final label = tester.widget<Text>(find.text('Context Handoff Failed'));
+    expect(label.style?.color, AleraTokens.error);
   });
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_handoff_divider.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_live_work_row.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
@@ -15,7 +16,9 @@ import 'package:flutter/material.dart';
 /// for", one live row for the current action and what came before behind a
 /// disclosure. Once it succeeds: the work folded under "Worked for", the
 /// answer, and the files it changed. A turn that failed, stopped or was cut
-/// short stays open, so the failing action is in view.
+/// short stays open, so the failing action is in view. A steering prompt
+/// sits between the work it split, and the work after it folds under its own
+/// "Continued for" divider.
 class const AgentChatTurnView({
   super.key,
   required final AgentChatTurnSection section,
@@ -25,59 +28,35 @@ class const AgentChatTurnView({
 }
 
 class _AgentChatTurnViewState extends State<AgentChatTurnView> {
-  String get _foldKey => agentChatTurnFoldKey(widget.section.turnId);
-
-  /// What the person chose, remembered per chat; until then the section's
-  /// default applies, so a turn folds its work away by itself when it
-  /// succeeds and opens up when it fails.
-  bool get _expanded => agentChatFoldExpanded(
+  /// What the person chose, remembered per chat; until then the segment's
+  /// default applies, so its work folds away by itself when it succeeds and
+  /// opens up when it fails.
+  bool _expanded(AgentChatTurnSegment segment) => agentChatFoldExpanded(
     context,
-    _foldKey,
-    fallback: !widget.section.collapsedByDefault,
+    segment.foldKey,
+    fallback: !segment.collapsedByDefault,
   );
 
-  void _toggle() => setState(
-    () => agentChatRememberFold(context, _foldKey, expanded: !_expanded),
+  void _toggle(AgentChatTurnSegment segment) => setState(
+    () => agentChatRememberFold(
+      context,
+      segment.foldKey,
+      expanded: !_expanded(segment),
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
     final section = widget.section;
-    final expanded = _expanded;
-    final planSteps = section.planSteps;
-    final live = section.liveWork;
     final settled = !section.working;
+    final handoff = section.handoff?.handoff;
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
+        if (handoff != null) AgentChatHandoffDivider(handoff: handoff),
         for (final prompt in section.prompts)
           AgentChatUserMessage(item: prompt),
-        if (section.working || section.activity.isNotEmpty)
-          _WorkedDivider(
-            section: section,
-            expanded: expanded,
-            onToggle: section.canToggleActivity && settled ? _toggle : null,
-          ),
-        if (live != null && !expanded)
-          AgentChatLiveWorkRow(
-            work: live,
-            expanded: false,
-            onToggle: section.canToggleActivity ? _toggle : null,
-          )
-        else if (expanded) ...<Widget>[
-          for (final row in section.activity) agentChatActivityRowView(row),
-          if (live != null)
-            AgentChatLiveWorkRow(work: live, expanded: true, onToggle: _toggle),
-        ],
-        if (planSteps != null) AgentChatPlanCard(item: planSteps),
-        for (final answer in section.answers)
-          switch (answer.type) {
-            AgentChatItemType.userMessage => AgentChatUserMessage(item: answer),
-            AgentChatItemType.assistantMessage => AgentChatAssistantMessage(
-              item: answer,
-            ),
-            _ => AgentChatItemRowView(item: answer),
-          },
+        for (final segment in section.segments) ..._segment(segment),
         if (settled && section.changedFiles.isNotEmpty)
           AgentChatChangedFiles(
             turnId: section.turnId,
@@ -87,17 +66,71 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
       ],
     );
   }
+
+  /// A segment's steers, its divider, its work and its answers. The first
+  /// segment's divider is the turn header, with the whole turn's time.
+  List<Widget> _segment(AgentChatTurnSegment segment) {
+    final section = widget.section;
+    final expanded = _expanded(segment);
+    final live = segment.liveWork;
+    final planSteps = segment == section.segments.last
+        ? section.planSteps
+        : null;
+    void toggle() => _toggle(segment);
+    final first = segment.index == 0;
+    final showDivider = first
+        ? section.working || section.activity.isNotEmpty
+        : segment.live || segment.activity.isNotEmpty;
+    final style = Theme.of(context).textTheme.labelSmall
+        ?.copyWith(color: AleraTokens.foregroundMuted);
+    final segmentLabel = agentChatTurnSegmentHeaderLabel(segment);
+    return <Widget>[
+      for (final steer in segment.steers) AgentChatUserMessage(item: steer),
+      if (showDivider)
+        _FoldDivider(
+          expanded: expanded,
+          onToggle: segment.canToggleActivity && !segment.live ? toggle : null,
+          label: first
+              ? AgentChatTurnHeaderText(section: section, style: style)
+              : segment.live
+              ? AgentChatShimmerText(text: segmentLabel, style: style)
+              : Text(
+                  segmentLabel,
+                  style: style,
+                  maxLines: 1,
+                  overflow: .ellipsis,
+                ),
+        ),
+      if (live != null && !expanded)
+        AgentChatLiveWorkRow(
+          work: live,
+          expanded: false,
+          onToggle: segment.canToggleActivity ? toggle : null,
+        )
+      else if (expanded) ...<Widget>[
+        for (final row in segment.activity) agentChatActivityRowView(row),
+        if (live != null)
+          AgentChatLiveWorkRow(work: live, expanded: true, onToggle: toggle),
+      ],
+      if (planSteps != null) AgentChatPlanCard(item: planSteps),
+      for (final answer in segment.answers)
+        switch (answer.type) {
+          AgentChatItemType.assistantMessage => AgentChatAssistantMessage(
+            item: answer,
+          ),
+          _ => AgentChatItemRowView(item: answer),
+        },
+    ];
+  }
 }
 
-class const _WorkedDivider({
-  required final AgentChatTurnSection section,
+class const _FoldDivider({
+  required final Widget label,
   required final bool expanded,
   required final VoidCallback? onToggle,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.labelSmall
-        ?.copyWith(color: AleraTokens.foregroundMuted);
     return Semantics(
       button: onToggle != null,
       expanded: onToggle == null ? null : expanded,
@@ -110,9 +143,7 @@ class const _WorkedDivider({
           ),
           child: Row(
             children: <Widget>[
-              Flexible(
-                child: AgentChatTurnHeaderText(section: section, style: style),
-              ),
+              Flexible(child: label),
               if (onToggle != null) ...<Widget>[
                 const SizedBox(width: AleraTokens.space6),
                 Icon(

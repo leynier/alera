@@ -14,6 +14,7 @@ import 'package:alera_agent_chat/src/agent_chat_thread.dart';
 import 'package:alera_agent_chat/src/agent_chat_worked_actions.dart';
 
 part 'agent_chat_timeline_projection_history.dart';
+part 'agent_chat_timeline_projection_segments.dart';
 part 'agent_chat_timeline_projection_subagents.dart';
 part 'agent_chat_timeline_projection_turn.dart';
 
@@ -51,7 +52,9 @@ final class AgentChatItemRow extends AgentChatActivityRow {
 }
 
 /// One turn: the prompt, the work under "Worked for", then what the agent
-/// said. Sections are reused while their items are unchanged, so a stream of
+/// said. A steering prompt sent after the turn produced output splits the
+/// rest into [segments], so it sits between the work before and after it.
+/// Sections are reused while their items are unchanged, so a stream of
 /// changes to the live turn leaves earlier turns' widgets untouched. Both
 /// apps read the turn grammar (live row, folding, header label) from here so
 /// they show a turn the same way.
@@ -60,14 +63,21 @@ final class AgentChatTurnSection {
     required this.turnId,
     required this.turn,
     required this.working,
+    required this.handoff,
     required this.prompts,
-    required this.activity,
-    required this.answers,
+    required this.segments,
     required this.planSteps,
     required this.startedAt,
     required this.workedFor,
     required this.sourceItems,
-  });
+  }) : activity = List<AgentChatActivityRow>.unmodifiable(
+         <AgentChatActivityRow>[
+           for (final segment in segments) ...segment.activity,
+         ],
+       ),
+       answers = List<AgentChatItem>.unmodifiable(<AgentChatItem>[
+         for (final segment in segments) ...segment.answers,
+       ]);
 
   factory AgentChatTurnSection.fromItems(
     String turnId,
@@ -76,8 +86,8 @@ final class AgentChatTurnSection {
     required bool working,
   }) {
     final prompts = <AgentChatItem>[];
-    final answers = <AgentChatItem>[];
-    final activityItems = <AgentChatItem>[];
+    final slices = <_SegmentSlice>[_SegmentSlice()];
+    AgentChatItem? handoff;
     AgentChatItem? planSteps;
     // A sub-agent's own items, text included, belong under its call rather
     // than in the main agent's work or answer.
@@ -86,41 +96,49 @@ final class AgentChatTurnSection {
       for (final children in subagents.values)
         for (final child in children) child.id,
     };
-    var lastActivity = -1;
-    for (var index = 0; index < items.length; index += 1) {
-      if (!childIds.contains(items[index].id) && _isActivity(items[index])) {
-        lastActivity = index;
-      }
-    }
-    for (var index = 0; index < items.length; index += 1) {
-      final item = items[index];
+    for (final item in items) {
       if (childIds.contains(item.id)) continue;
+      if (item.handoff != null) {
+        handoff = item;
+        continue;
+      }
       switch (item.type) {
+        case AgentChatItemType.userMessage
+            when prompts.isEmpty &&
+                slices.length == 1 &&
+                slices.single.steers.isEmpty:
+          prompts.add(item);
         case AgentChatItemType.userMessage:
-          // The first prompt opens the turn; later ones steered it and stay
-          // visible in order with the answers.
-          (prompts.isEmpty && answers.isEmpty ? prompts : answers).add(item);
-        case AgentChatItemType.assistantMessage:
-          // Text followed by more work is progress narration; the text after
-          // the last action is the answer.
-          (index < lastActivity ? activityItems : answers).add(item);
+          // Later prompts steered the turn. Once it produced output a steer
+          // starts a new segment; steers back to back split it only once.
+          if (slices.last.items.isNotEmpty) slices.add(_SegmentSlice());
+          slices.last.steers.add(item);
         case AgentChatItemType.plan when item.planSteps.isNotEmpty:
           planSteps = item;
-        case AgentChatItemType.plan || AgentChatItemType.error:
-          answers.add(item);
         default:
-          activityItems.add(item);
+          slices.last.items.add(item);
       }
     }
+    final outcome = _outcomeFor(working: working, turn: turn);
     return AgentChatTurnSection._(
       turnId: turnId,
       turn: turn,
       working: working,
+      handoff: handoff,
       prompts: List<AgentChatItem>.unmodifiable(prompts),
-      activity: List<AgentChatActivityRow>.unmodifiable(
-        _activityRows(activityItems, subagents),
-      ),
-      answers: List<AgentChatItem>.unmodifiable(answers),
+      segments: List<AgentChatTurnSegment>.unmodifiable(<AgentChatTurnSegment>[
+        for (final (index, slice) in slices.indexed)
+          AgentChatTurnSegment._from(
+            turnId: turnId,
+            index: index,
+            slice: slice,
+            subagents: subagents,
+            // Work before a steer is over even while the turn runs.
+            outcome: index == slices.length - 1
+                ? outcome
+                : AgentChatTurnOutcome.succeeded,
+          ),
+      ]),
       planSteps: planSteps,
       startedAt: turn?.startedAt ?? items.firstOrNull?.createdAt,
       workedFor:
@@ -156,8 +174,21 @@ final class AgentChatTurnSection {
   final String turnId;
   final AgentChatTurn? turn;
   final bool working;
+
+  /// The context handoff the turn carried to a fresh provider session; both
+  /// apps draw it as a divider above the turn.
+  final AgentChatItem? handoff;
   final List<AgentChatItem> prompts;
+
+  /// The turn's work split at steering prompts, oldest first. There is
+  /// always at least one; a turn nobody steered has exactly one.
+  final List<AgentChatTurnSegment> segments;
+
+  /// Every segment's work rows, in order.
   final List<AgentChatActivityRow> activity;
+
+  /// Every segment's answers, in order. Steering prompts are not answers;
+  /// they open their segment.
   final List<AgentChatItem> answers;
 
   /// The turn's latest plan checklist, shown as progress rather than a row.
@@ -170,46 +201,42 @@ final class AgentChatTurnSection {
   final Duration? workedFor;
   final List<AgentChatItem> sourceItems;
 
-  int get actionCount => activity.fold<int>(
-    0,
-    (count, row) => switch (row) {
-      AgentChatActionGroupRow(:final actions) => count + actions.length,
-      AgentChatItemRow() || AgentChatSubagentRow() => count + 1,
-    },
-  );
+  int get actionCount => _actionCount(activity);
 
   /// How the turn ended, or that it still runs.
-  late final AgentChatTurnOutcome outcome = _outcomeOf(this);
+  late final AgentChatTurnOutcome outcome = _outcomeFor(
+    working: working,
+    turn: turn,
+  );
 
-  /// What a running turn shows instead of every action: one row for the
-  /// current action. Null once the turn settles or before it did anything.
-  late final AgentChatLiveWork? liveWork = working && activity.isNotEmpty
-      ? AgentChatLiveWork._from(activity)
-      : null;
+  /// The live row of the segment working now; null once the turn settles or
+  /// before it did anything.
+  AgentChatLiveWork? get liveWork => segments.last.liveWork;
 
   /// Files the turn changed, one entry per path with its latest change.
   late final List<AgentChatFileChange> changedFiles = _changedFiles(
     sourceItems,
   );
 
-  /// Whether the work rows start folded. A running turn folds them into its
-  /// live row; a succeeded turn folds them under "Worked for" unless there is
-  /// only one; a failed, stopped or cancelled turn keeps them open so the
-  /// failing action stays in view.
-  bool get collapsedByDefault => switch (outcome) {
-    AgentChatTurnOutcome.running => activity.isNotEmpty,
-    AgentChatTurnOutcome.succeeded => actionCount > 1,
-    _ => false,
-  };
+  /// Whether the work under the turn header, its first segment, starts
+  /// folded. See [AgentChatTurnSegment.collapsedByDefault].
+  bool get collapsedByDefault => segments.first.collapsedByDefault;
 
-  bool get canToggleActivity =>
-      working ? (liveWork?.hiddenCount ?? 0) > 0 : actionCount > 1;
+  bool get canToggleActivity => segments.first.canToggleActivity;
 
   bool get failed => switch (outcome) {
     AgentChatTurnOutcome.running || AgentChatTurnOutcome.succeeded => false,
     _ => true,
   };
 }
+
+int _actionCount(List<AgentChatActivityRow> activity) => activity.fold<int>(
+  0,
+  (count, row) => switch (row) {
+    AgentChatActionGroupRow(:final actions) => count + actions.length,
+    AgentChatItemRow() || AgentChatSubagentRow() => count + 1,
+  },
+);
 
 bool _isActivity(AgentChatItem item) =>
     item.type.isActivity ||

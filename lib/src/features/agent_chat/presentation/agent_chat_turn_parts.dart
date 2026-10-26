@@ -122,6 +122,60 @@ class _AgentChatTurnHeaderState extends ConsumerState<AgentChatTurnHeader> {
   }
 }
 
+/// The header of a segment a steer opened: "Continued for 12s", or a
+/// shimmering "Working" while the turn works in it. The turn header above
+/// keeps the ticking time, so this one has no timer.
+class const AgentChatTurnSegmentHeader({
+  super.key,
+  required final AgentChatTurnSegment segment,
+  required final bool expanded,
+  required final VoidCallback? onToggle,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: AleraTokens.foregroundMuted);
+    final label = agentChatTurnSegmentHeaderLabel(segment);
+    final onToggle = this.onToggle;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
+      child: Row(
+        children: <Widget>[
+          AgentChatDisclosure(
+            key: ValueKey<String>('agent-chat-continued-${segment.foldKey}'),
+            expanded: expanded,
+            onToggle: onToggle,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (segment.live)
+                  AleraShimmerText(text: label, style: style)
+                else
+                  Text(label, style: style),
+                if (onToggle != null) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  Icon(
+                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+                    size: AleraTokens.iconMd,
+                    color: AleraTokens.foregroundFaint,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          const Expanded(
+            child: Divider(
+              height: AleraTokens.dividerExtent,
+              color: AleraTokens.borderSubtle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// What a running turn shows of its work: the current action, the first
 /// sentence of the latest reasoning, and a way to the earlier actions.
 class const AgentChatLiveWorkRow({

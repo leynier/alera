@@ -14,9 +14,11 @@ enum AgentChatTurnOutcome {
   interruptedByRestart,
 }
 
-AgentChatTurnOutcome _outcomeOf(AgentChatTurnSection section) {
-  if (section.working) return AgentChatTurnOutcome.running;
-  final turn = section.turn;
+AgentChatTurnOutcome _outcomeFor({
+  required bool working,
+  required AgentChatTurn? turn,
+}) {
+  if (working) return AgentChatTurnOutcome.running;
   return switch (turn?.status) {
     AgentChatTurnStatus.failed => AgentChatTurnOutcome.failed,
     AgentChatTurnStatus.cancelled => AgentChatTurnOutcome.cancelled,

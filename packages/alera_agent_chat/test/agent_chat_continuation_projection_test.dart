@@ -153,8 +153,10 @@ void main() {
     );
     final section = _section(projection);
     expect(section.prompts.single.text, 'Start here');
-    expect(section.answers.map((item) => item.id), <String>['a', 'steer']);
-    expect(section.answers.last.text, 'Also add tests please');
+    expect(section.answers.map((item) => item.id), <String>['a']);
+    final steer = section.segments.last.steers.single;
+    expect(steer.id, 'steer');
+    expect(steer.text, 'Also add tests please');
     expect(projection.promptHistory, <String>['Start here']);
   });
 
