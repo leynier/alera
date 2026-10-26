@@ -1,9 +1,13 @@
-use alera_agent_transport::{ProcessConfig, DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};
+use alera_agent_transport::{ProcessConfig, DEFAULT_SHUTDOWN_TIMEOUT};
 use alera_provider_protocol::{ApprovalPolicy, SandboxMode};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Duration;
+
+/// Codex app-server frames carry base64 images and whole diffs, so they get
+/// the same 128 MiB ceiling T3 Code uses instead of the shared 4 MiB default.
+pub const CODEX_MAX_FRAME_BYTES: usize = 128 * 1024 * 1024;
 
 /// Configuration for one Codex app-server connection.
 #[derive(Clone, Debug)]
@@ -39,7 +43,7 @@ impl Default for CodexProviderConfig {
             model: None,
             approval_policy: None,
             sandbox_mode: None,
-            max_frame_bytes: DEFAULT_MAX_FRAME_BYTES,
+            max_frame_bytes: CODEX_MAX_FRAME_BYTES,
             shutdown_timeout: DEFAULT_SHUTDOWN_TIMEOUT,
             request_timeout: Duration::from_secs(120),
             max_queued_events: 1024,

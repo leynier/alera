@@ -139,28 +139,41 @@ impl<T: JsonTransport> CodexProvider<T> {
             "sandboxPolicy".into(),
             crate::policy::sandbox_policy(sandbox_mode),
         );
-        if matches!(
+        // Codex keeps the last collaboration mode on the thread, so every turn
+        // states its mode; otherwise leaving Plan would keep planning.
+        let plan = matches!(
             input.interaction_mode,
             alera_provider_protocol::InteractionMode::Plan
-        ) {
-            let model = input
-                .model
-                .clone()
-                .or_else(|| session.model.clone())
-                .or_else(|| self.config.model.clone())
-                .ok_or_else(|| {
-                    ProviderError::Validation("plan collaboration mode requires a model".into())
-                })?;
-            params.insert(
-                "collaborationMode".into(),
-                json!({
-                    "mode": "plan",
-                    "settings": {
-                        "model": model,
-                        "reasoning_effort": effort.as_deref().or(self.session_effort.as_deref()).unwrap_or("medium")
-                    }
-                }),
-            );
+        );
+        let model = input
+            .model
+            .clone()
+            .or_else(|| session.model.clone())
+            .or_else(|| self.config.model.clone());
+        match model {
+            Some(model) => {
+                let mut settings = Map::new();
+                let effort = effort
+                    .or_else(|| self.session_effort.clone())
+                    .or_else(|| default_reasoning_effort(&model).map(str::to_owned));
+                settings.insert("model".into(), Value::String(model));
+                if let Some(effort) = effort {
+                    settings.insert("reasoning_effort".into(), Value::String(effort));
+                }
+                params.insert(
+                    "collaborationMode".into(),
+                    json!({
+                        "mode": if plan { "plan" } else { "default" },
+                        "settings": settings,
+                    }),
+                );
+            }
+            None if plan => {
+                return Err(ProviderError::Validation(
+                    "plan collaboration mode requires a model".into(),
+                ));
+            }
+            None => {}
         }
         Ok(params)
     }
@@ -221,4 +234,14 @@ pub(crate) fn native_input(input: &TurnInput) -> Result<Vec<Value>, ProviderErro
         });
     }
     Ok(values)
+}
+
+/// Like T3 Code, an unset effort runs gpt-6-astra at medium; every other
+/// model keeps the default Codex picks for it.
+fn default_reasoning_effort(model: &str) -> Option<&'static str> {
+    let family = model
+        .strip_prefix("openai.")
+        .filter(|rest| rest.starts_with("gpt-"))
+        .unwrap_or(model);
+    (family == "gpt-6-astra").then_some("medium")
 }

@@ -134,9 +134,71 @@ async fn plan_turn_includes_required_collaboration_settings() {
         provider.transport().writes()[3]["params"]["collaborationMode"],
         json!({
             "mode": "plan",
-            "settings": { "model": "gpt-5", "reasoning_effort": "medium" }
+            "settings": { "model": "gpt-5" }
         })
     );
+}
+
+#[tokio::test]
+async fn every_turn_states_its_collaboration_mode_so_leaving_plan_resets_it() {
+    let transport = MockTransport::new([
+        initialize_response(1),
+        thread_response(2, "native-mode"),
+        json!({ "id": 3, "result": { "turn": { "id": "native-turn-plan" } } }),
+        json!({ "method": "turn/completed", "params": { "threadId": "native-mode", "turn": { "id": "native-turn-plan", "status": "completed" } } }),
+        json!({ "id": 4, "result": { "turn": { "id": "native-turn-default" } } }),
+    ]);
+    let mut provider = CodexProvider::new(transport, config());
+    let mut session_input = SessionStartInput::new("app-mode");
+    session_input.model = Some("gpt-6-astra".into());
+    provider.start_session(session_input).await.unwrap();
+    let mut plan = TurnInput::text("app-mode", "plan");
+    plan.interaction_mode = InteractionMode::Plan;
+    provider.send_turn(plan).await.unwrap();
+    while provider.next_event().await.unwrap().is_some_and(|event| {
+        !matches!(
+            event.kind,
+            alera_provider_protocol::EventKind::TurnCompleted
+        )
+    }) {}
+    provider
+        .send_turn(TurnInput::text("app-mode", "build"))
+        .await
+        .unwrap();
+    let writes = provider.transport().writes();
+    let modes: Vec<_> = writes
+        .iter()
+        .filter(|write| write["method"] == "turn/start")
+        .map(|write| write["params"]["collaborationMode"].clone())
+        .collect();
+    assert_eq!(
+        modes,
+        vec![
+            json!({ "mode": "plan", "settings": { "model": "gpt-6-astra", "reasoning_effort": "medium" } }),
+            json!({ "mode": "default", "settings": { "model": "gpt-6-astra", "reasoning_effort": "medium" } }),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn default_turn_without_a_model_omits_collaboration_mode() {
+    let transport = MockTransport::new([
+        initialize_response(1),
+        thread_response(2, "native-unknown"),
+        json!({ "id": 3, "result": { "turn": { "id": "native-turn" } } }),
+    ]);
+    let mut provider = CodexProvider::new(transport, config());
+    provider
+        .start_session(SessionStartInput::new("app-unknown"))
+        .await
+        .unwrap();
+    provider
+        .send_turn(TurnInput::text("app-unknown", "hi"))
+        .await
+        .unwrap();
+    assert!(provider.transport().writes()[3]["params"]
+        .get("collaborationMode")
+        .is_none());
 }
 
 #[tokio::test]
