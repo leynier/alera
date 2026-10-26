@@ -162,6 +162,15 @@ void main() {
         ),
         'Resumed after 2 delegated tasks finished',
       );
+      expect(
+        agentChatOriginHeading(
+          const AgentChatItemOrigin(
+            kind: .subagentWake,
+            taskIds: <String>['child'],
+          ),
+        ),
+        'Resumed after a sub-agent finished',
+      );
     },
   );
 

@@ -33,7 +33,12 @@ pub struct CodexProvider<T> {
     pub(crate) terminal_event_pending: bool,
     pub(crate) history_mode: Option<String>,
     pub(crate) session_effort: Option<String>,
+    /// Every descendant thread of the session's thread, with its parent.
     pub(crate) native_child_parents: HashMap<String, String>,
+    /// What each child's spawn called it, for its task description.
+    pub(crate) child_labels: HashMap<String, String>,
+    /// Each child's latest final answer in its running turn.
+    pub(crate) child_results: HashMap<String, String>,
     /// Native child threads with a running turn. A root turn that fails
     /// while any runs leaves them working; they report their own ends.
     pub(crate) active_child_turns: HashSet<String>,
@@ -86,6 +91,8 @@ impl<T> CodexProvider<T> {
             history_mode: None,
             session_effort: None,
             native_child_parents: HashMap::new(),
+            child_labels: HashMap::new(),
+            child_results: HashMap::new(),
             active_child_turns: HashSet::new(),
             turn_failure_class: None,
             session_approvals: Default::default(),
@@ -405,7 +412,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.queued_events.clear();
         self.session_approvals.clear();
         self.terminal_event_pending = false;
-        self.active_child_turns.clear();
+        self.clear_children();
         self.turn_failure_class = None;
         if let Some(session) = self.session.as_mut() {
             session.status = SessionStatus::Stopped;

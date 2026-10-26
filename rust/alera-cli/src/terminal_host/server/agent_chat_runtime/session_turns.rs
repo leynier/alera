@@ -330,13 +330,7 @@ impl ChatSession {
             self.pending.item(&item_id);
         }
         self.expire_requests_of_turn(Some(&turn_id));
-        // Child work survives a completed turn, and a failed one whose
-        // provider says its children continue. A failed or stopped turn
-        // otherwise takes its children down with it.
-        if status != "completed" && !child_turns_continue {
-            self.awaited_tasks
-                .retain(|_, started_in| started_in.as_deref() != Some(turn_id.as_str()));
-        }
+        self.end_awaited_work_of(&turn_id, status, child_turns_continue);
         if self.provider.is_some() {
             self.set_status(self.idle_status());
         } else if matches!(

@@ -68,4 +68,11 @@ impl ProviderEvent {
     pub fn task_awaited(&self) -> bool {
         self.payload.get("awaited") == Some(&Value::Bool(true))
     }
+
+    /// A `task.completed` whose result the native parent agent only reads
+    /// on its next turn. When no parent turn runs, the host starts one so
+    /// the agent can act on it; a running turn receives it natively.
+    pub fn task_wakes_parent(&self) -> bool {
+        self.payload.get("wakesParent") == Some(&Value::Bool(true))
+    }
 }

@@ -256,6 +256,37 @@ fn task_events_accept_only_true_awaited_and_a_named_parent_task() {
 }
 
 #[test]
+fn only_a_completed_task_wakes_its_parent() {
+    let task = |kind: EventKind, payload: serde_json::Value| {
+        let mut event = valid_completed_event(payload);
+        event.kind = kind;
+        event
+    };
+    let finished = task(
+        EventKind::TaskCompleted,
+        json!({ "taskId": "agent-1", "wakesParent": true }),
+    );
+    finished.validate().unwrap();
+    assert!(finished.task_wakes_parent());
+    assert!(!task(EventKind::TaskCompleted, json!({ "taskId": "agent-1" })).task_wakes_parent());
+
+    expect_validation_error(
+        task(
+            EventKind::TaskStarted,
+            json!({ "taskId": "agent-1", "wakesParent": true }),
+        )
+        .validate(),
+    );
+    expect_validation_error(
+        task(
+            EventKind::TaskCompleted,
+            json!({ "taskId": "agent-1", "wakesParent": false }),
+        )
+        .validate(),
+    );
+}
+
+#[test]
 fn rejected_turns_keep_their_detail_and_expose_only_the_class() {
     let error = ProviderError::Rejected {
         class: FailureClass::PreviousTurnActive,

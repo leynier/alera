@@ -324,4 +324,31 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('a sub-agent wake reads as a runtime notice', (tester) async {
+    final repository = FakeAgentChatRepository()
+      ..snapshots.add(
+        () => agentChatSnapshotFixture(
+          items: <Map<String, Object?>>[
+            agentChatItemFixture(
+              'u1',
+              'user_message',
+              text: 'Subagent completed: Count the files',
+              normalized: <String, Object?>{
+                'origin': <String, Object?>{
+                  'kind': 'subagentWake',
+                  'taskIds': <Object?>['child'],
+                },
+              },
+            ),
+          ],
+        ),
+      );
+    await _pumpSurface(tester, repository);
+    expect(find.text('Resumed after a sub-agent finished'), findsOneWidget);
+    expect(
+      find.text('Subagent completed: Count the files', findRichText: true),
+      findsNothing,
+    );
+  });
 }

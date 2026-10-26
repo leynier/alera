@@ -61,6 +61,8 @@ class _AutomatedInputState extends State<_AutomatedInput> {
             : tasks > 1
             ? '$tasks delegated tasks finished'
             : 'Delegated work finished',
+      AgentChatItemOriginKind.subagentWake =>
+        tasks > 1 ? '$tasks sub-agents finished' : 'A sub-agent finished',
       _ => 'Message from another chat',
     };
     final item = widget.item;
@@ -91,9 +93,13 @@ class _AutomatedInputState extends State<_AutomatedInput> {
                 child: Row(
                   children: <Widget>[
                     Icon(
-                      origin.kind == AgentChatItemOriginKind.orchestrationWake
-                          ? AleraIcons.workspaceChildren
-                          : AleraIcons.inbox,
+                      switch (origin.kind) {
+                        AgentChatItemOriginKind.orchestrationWake =>
+                          AleraIcons.workspaceChildren,
+                        AgentChatItemOriginKind.subagentWake =>
+                          AleraIcons.agent,
+                        _ => AleraIcons.inbox,
+                      },
                       size: AleraTokens.space16,
                       color: AleraTokens.foregroundMuted,
                     ),

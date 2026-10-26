@@ -198,7 +198,12 @@ class const AgentChatPlanStep({
 enum AgentChatItemOriginKind {
   user,
   chatMessage,
-  orchestrationWake;
+  orchestrationWake,
+
+  /// The runtime resumed the agent because a native sub-agent it started
+  /// finished after its turn ended. [AgentChatItemOrigin.taskIds] are the
+  /// provider's task ids, not chat tasks.
+  subagentWake;
 
   static AgentChatItemOriginKind fromJson(Object? value) => agentChatWireEnum(
     value,
@@ -209,7 +214,8 @@ enum AgentChatItemOriginKind {
 
 /// Who put a user message into the chat when it was not the person: another
 /// chat sending a message, or the runtime waking this chat because delegated
-/// tasks finished. The runtime projects only these safe lineage fields.
+/// tasks or its own sub-agents finished. The runtime projects only these safe
+/// lineage fields.
 class const AgentChatItemOrigin({
   required final AgentChatItemOriginKind kind,
   final String? senderChatId,

@@ -113,8 +113,11 @@ impl ChatSession {
             | EventKind::TaskProgress
             | EventKind::TaskUpdated
             | EventKind::TaskCompleted => {
-                self.track_awaited_task(&event);
+                let ended = self.track_awaited_task(&event);
                 self.apply_subagent_task(&event).await;
+                if let Some(ended) = ended {
+                    self.resume_parent_after_child(&event, ended).await;
+                }
             }
             EventKind::SessionCommandsUpdated => {
                 // Normalized again here so a provider that skipped the

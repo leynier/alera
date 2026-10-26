@@ -75,7 +75,7 @@ The store record is internal; the wire task is a projection:
 
 ### Chat summary and read
 
-`chat` is the agent chat summary plus `projectId`, `hostId`, `runtimeMode` and `lineage {parentChatId?, taskId?, role?}`. `read.messages` are `{itemId, role: user|assistant, text, createdAt, origin?}` with `origin {kind: user|chatMessage|orchestrationWake, senderChatId?, taskIds?}`; `read.plans` are `{itemId, explanation?, steps: [{step, status}]}`. No reasoning, tool payloads or raw provider data.
+`chat` is the agent chat summary plus `projectId`, `hostId`, `runtimeMode` and `lineage {parentChatId?, taskId?, role?}`. `read.messages` are `{itemId, role: user|assistant, text, createdAt, origin?}` with `origin {kind: user|chatMessage|orchestrationWake|subagentWake, senderChatId?, taskIds?}`; `read.plans` are `{itemId, explanation?, steps: [{step, status}]}`. No reasoning, tool payloads or raw provider data.
 
 ## Events
 

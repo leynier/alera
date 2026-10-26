@@ -8,9 +8,8 @@ impl<T> CodexProvider<T> {
                 if session.native_thread_id == native_thread_id {
                     return session.thread_id.clone();
                 }
-                if self.native_child_parents.get(native_thread_id)
-                    == Some(&session.native_thread_id)
-                {
+                // Every registered descendant belongs to this session.
+                if self.native_child_parents.contains_key(native_thread_id) {
                     return session.thread_id.clone();
                 }
             }

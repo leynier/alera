@@ -102,10 +102,11 @@ pub(crate) struct ChatSession {
     pub(super) provider_turn_id: Option<String>,
     pub(super) native_ids: HashMap<(String, String), String>,
     pub(super) open_requests: Vec<OpenRequest>,
-    /// Native background work the agent resumes from (`task.*.awaited`), by
-    /// task id, with the app turn that started it. It keeps the chat working
-    /// after that turn ends; other background work does not.
-    pub(super) awaited_tasks: HashMap<String, Option<String>>,
+    /// Native background work the agent resumes from (`task.*.awaited`, or
+    /// a background command it said it waits on), by task id. It keeps the
+    /// chat working after the turn that started it ends; other background
+    /// work does not.
+    pub(super) awaited_tasks: HashMap<String, super::session_background_work::AwaitedTask>,
     pub(super) items: HashMap<String, ChatItem>,
     /// List and tab notices, sent after the commit they describe.
     pub(super) notices: Vec<ChatRuntimeEvent>,

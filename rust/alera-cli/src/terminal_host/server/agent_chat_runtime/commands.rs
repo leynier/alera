@@ -44,7 +44,7 @@ pub(crate) struct SendInput {
     #[serde(default)]
     pub runtime_mode_ceiling: Option<String>,
     /// Host-only: who sent a message that no person typed
-    /// (`{kind: chatMessage|orchestrationWake, senderChatId?, taskIds?}`).
+    /// (`{kind: chatMessage|orchestrationWake|subagentWake, senderChatId?, taskIds?}`).
     /// Wire requests always leave it `None`, which records `{kind: user}`.
     pub origin: Option<Value>,
 }

@@ -6,7 +6,11 @@ use serde_json::{json, Value};
 use super::super::AgentChatRuntime;
 use super::fixture::*;
 
-async fn wait_for_session(runtime: &AgentChatRuntime, chat: &str, test: impl Fn(&Value) -> bool) {
+pub(super) async fn wait_for_session(
+    runtime: &AgentChatRuntime,
+    chat: &str,
+    test: impl Fn(&Value) -> bool,
+) {
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             let snapshot = runtime.snapshot(chat).await.unwrap();
@@ -22,7 +26,7 @@ async fn wait_for_session(runtime: &AgentChatRuntime, chat: &str, test: impl Fn(
     });
 }
 
-fn idle_with(status: &'static str) -> impl Fn(&Value) -> bool {
+pub(super) fn idle_with(status: &'static str) -> impl Fn(&Value) -> bool {
     move |session| session["activeTurnId"].is_null() && session["status"] == status
 }
 

@@ -34,19 +34,7 @@ fn map_notification<T: JsonTransport>(
     let mut kind = notification_kind(method, &params);
     let mut payload = normalized_payload(method, &params)?;
     if let Some(task) = crate::lineage::native_task(&params)? {
-        if let Some(parent) = &task.parent_native_thread_id {
-            if provider
-                .session
-                .as_ref()
-                .is_some_and(|session| &session.native_thread_id == parent)
-            {
-                for child in &task.child_native_thread_ids {
-                    provider
-                        .native_child_parents
-                        .insert(child.clone(), parent.clone());
-                }
-            }
-        }
+        provider.register_children(&task, &params);
         payload["nativeTask"] = serde_json::to_value(task).expect("native task is serializable");
     }
     if kind == EventKind::RuntimeError {
@@ -73,15 +61,6 @@ fn map_notification<T: JsonTransport>(
     }
     if let (Some(child), Some(parent)) = (native_thread_id.as_ref(), child_parent.as_ref()) {
         let terminal = matches!(method, "turn/completed" | "turn/aborted" | "thread/closed");
-        match method {
-            "turn/started" => {
-                provider.active_child_turns.insert(child.clone());
-            }
-            _ if terminal => {
-                provider.active_child_turns.remove(child);
-            }
-            _ => {}
-        }
         kind = if terminal {
             EventKind::TaskCompleted
         } else if matches!(method, "thread/started" | "turn/started") {
@@ -90,16 +69,7 @@ fn map_notification<T: JsonTransport>(
             EventKind::TaskProgress
         };
         // A native sub-agent's result goes back to its parent agent.
-        payload = serde_json::json!({
-            "taskId":child,
-            "status":if terminal { "completed" } else { "running" },
-            "awaited":true,
-            "nativeTask":alera_provider_protocol::NativeTask {
-                parent_native_thread_id:Some(parent.clone()), child_native_thread_ids:vec![child.clone()],
-                status:Some(method.into()), ..Default::default()
-            },
-            "detail":payload,
-        });
+        payload = provider.child_task_payload(child, parent, method, &params, payload);
     }
     let thread_id = provider.app_thread_id(native_thread_id.as_deref());
     let mut event = ProviderEvent::new(

@@ -141,36 +141,4 @@ impl ChatSession {
         call.updated_at = now();
         self.pending.item(&parent);
     }
-
-    /// Keeps `awaited_tasks` current. Only the event that starts a task can
-    /// register it, so a late progress event never holds the chat again.
-    pub(super) fn track_awaited_task(&mut self, event: &ProviderEvent) {
-        let Some(task_id) = nonempty(event.payload.get("taskId")).map(str::to_owned) else {
-            return;
-        };
-        match event.kind {
-            EventKind::TaskStarted if event.task_awaited() => {
-                let started_in = self.app_turn_id(event);
-                self.awaited_tasks.insert(task_id, started_in);
-            }
-            EventKind::TaskCompleted
-                if self.awaited_tasks.remove(&task_id).is_some()
-                    && self.header.session.active_turn_id.is_none()
-                    && self.header.session.status == "running" =>
-            {
-                self.set_status(self.idle_status());
-            }
-            _ => {}
-        }
-    }
-
-    /// The status of a live provider with no turn running: working while the
-    /// agent still waits on its background work.
-    pub(super) fn idle_status(&self) -> &'static str {
-        if self.awaited_tasks.is_empty() {
-            "ready"
-        } else {
-            "running"
-        }
-    }
 }

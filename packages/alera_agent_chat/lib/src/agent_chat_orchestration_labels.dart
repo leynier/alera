@@ -125,6 +125,10 @@ String agentChatOriginHeading(
     origin.taskIds.isEmpty
         ? 'Resumed after delegated work finished'
         : 'Resumed after ${origin.taskIds.length} delegated ${origin.taskIds.length == 1 ? 'task' : 'tasks'} finished',
+  .subagentWake =>
+    origin.taskIds.length > 1
+        ? 'Resumed after ${origin.taskIds.length} sub-agents finished'
+        : 'Resumed after a sub-agent finished',
   .chatMessage =>
     origin.taskIds.isNotEmpty ? 'Task' : 'Message from another chat',
   .user => 'Message',

@@ -525,4 +525,24 @@ void main() {
     expect(wake.origin!.taskIds, <String>['t1', 't2']);
     expect(projection.promptHistory, <String>['Mine']);
   });
+
+  test('a sub-agent wake is automated input with its own origin', () {
+    final projection = AgentChatTimelineProjection.build(
+      _thread(<Map<String, Object?>>[
+        <String, Object?>{
+          ..._item('w1', 'user_message', text: 'Subagent completed: Count'),
+          'normalized': <String, Object?>{
+            'origin': <String, Object?>{
+              'kind': 'subagentWake',
+              'taskIds': <Object?>['child'],
+            },
+          },
+        },
+      ]),
+    );
+    final wake = _sections(projection).first.prompts.single;
+    expect(wake.isAutomatedInput, isTrue);
+    expect(wake.origin!.kind, AgentChatItemOriginKind.subagentWake);
+    expect(projection.promptHistory, isEmpty);
+  });
 }

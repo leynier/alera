@@ -84,6 +84,12 @@ impl ProviderEvent {
                     nonempty(parent.as_str().unwrap_or_default(), "parentTaskId")?;
                 }
                 only_true(&self.payload, "awaited")?;
+                only_true(&self.payload, "wakesParent")?;
+                if self.kind != EventKind::TaskCompleted && self.task_wakes_parent() {
+                    return Err(ProviderError::Validation(
+                        "wakesParent describes a completed task".into(),
+                    ));
+                }
             }
             EventKind::SessionConfigured => {
                 if !self.payload["config"].is_object() {

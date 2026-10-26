@@ -5,6 +5,7 @@
 //! the rest of Alera. A transport can be injected for deterministic tests;
 //! production construction uses the bounded windowless child-process transport.
 
+mod children;
 mod config;
 mod events;
 mod failure;
