@@ -5,13 +5,13 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_triggers.dart';
 import 'package:alera/src/features/error_reporting/application/user_facing_error_message.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
-/// A row of the composer menu: a workspace file or a local command.
+/// A row of the composer menu: a workspace file, a local command or a
+/// command the agent advertises.
 sealed class AgentChatComposerMenuEntry {
   const AgentChatComposerMenuEntry();
 }
@@ -21,6 +21,10 @@ final class const AgentChatComposerFileEntry(final String relativePath)
 
 final class const AgentChatComposerCommandEntry(
   final AgentChatSlashCommandOption option,
+) extends AgentChatComposerMenuEntry;
+
+final class const AgentChatComposerProviderCommandEntry(
+  final AgentChatProviderCommand command,
 ) extends AgentChatComposerMenuEntry;
 
 const String agentChatComposerNoFileSearchMessage =
@@ -78,11 +82,16 @@ class AgentChatComposerMenuController extends ChangeNotifier {
             ],
     AgentChatComposerTrigger(kind: .command, :final query) =>
       <AgentChatComposerMenuEntry>[
-        for (final option in agentChatSlashCommandOptions(
+        for (final entry in agentChatSlashMenuEntries(
           commandState(),
           query: query,
         ))
-          AgentChatComposerCommandEntry(option),
+          switch (entry) {
+            AgentChatSlashMenuLocalCommand(:final option) =>
+              AgentChatComposerCommandEntry(option),
+            AgentChatSlashMenuProviderCommand(:final command) =>
+              AgentChatComposerProviderCommandEntry(command),
+          },
       ],
   };
 
@@ -168,8 +177,10 @@ class AgentChatComposerMenuController extends ChangeNotifier {
         : KeyEventResult.ignored;
   }
 
-  /// Picks the row at [index]: a file is attached and a command runs, and
-  /// either way its token leaves the prompt. A disabled command does nothing.
+  /// Picks the row at [index]: a file is attached and a local command runs,
+  /// and either way its token leaves the prompt. An agent command replaces
+  /// the token with `/name ` for the person to finish, since the agent
+  /// expands it when the prompt is sent. A disabled command does nothing.
   void pick(int index) {
     final trigger = _trigger;
     final entries = this.entries;
@@ -184,6 +195,12 @@ class AgentChatComposerMenuController extends ChangeNotifier {
         if (!option.enabled) return;
         text.value = replaceAgentChatComposerTrigger(text.value, trigger);
         onCommand(option.command);
+      case AgentChatComposerProviderCommandEntry(:final command):
+        text.value = replaceAgentChatComposerTrigger(
+          text.value,
+          trigger,
+          replacement: command.insertion,
+        );
     }
   }
 
@@ -266,6 +283,17 @@ class const AgentChatComposerMenuOverlay({
             color: AleraTokens.foregroundMuted,
           ),
         ),
+        AgentChatComposerProviderCommandEntry(:final command) =>
+          AleraComposerMenuItem(
+            id: 'agent-command:${command.name}',
+            label: command.label,
+            detail: command.detail,
+            leading: const Icon(
+              AleraIcons.agentCommand,
+              size: AleraTokens.iconMd,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
       };
 
   static AleraComposerMenuItem _fileItem(String relativePath) {
@@ -324,4 +352,5 @@ AgentChatSlashCommandState agentChatSlashCommandState(
   interactionMode: settings.session.interactionMode,
   configuring: settings.configuring,
   usageAvailable: usage.contextFraction != null || usage.windows.isNotEmpty,
+  providerCommands: settings.session.commands,
 );

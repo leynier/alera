@@ -10,7 +10,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_horizontal_scroll_view.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_menu.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_send_button.dart';

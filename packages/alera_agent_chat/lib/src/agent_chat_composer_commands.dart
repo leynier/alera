@@ -1,4 +1,5 @@
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
+import 'package:alera_agent_chat/src/agent_chat_provider_command.dart';
 
 /// A local `/` command of the chat composer: it changes the composer or
 /// opens one of its controls instead of being sent to the agent. Desktop and
@@ -33,6 +34,10 @@ final class const AgentChatSlashCommandState({
       AgentChatInteractionMode.standard,
   final bool configuring = false,
   final bool usageAvailable = false,
+
+  /// What the agent advertises, listed after the local commands.
+  final List<AgentChatProviderCommand> providerCommands =
+      const <AgentChatProviderCommand>[],
 });
 
 /// A command the composer menu lists, with why it cannot run when it is
@@ -125,3 +130,74 @@ AgentChatInteractionMode? agentChatSlashCommandInteractionMode(
   AgentChatSlashCommand.standard => AgentChatInteractionMode.standard,
   AgentChatSlashCommand.model || AgentChatSlashCommand.usage => null,
 };
+
+/// A row of the `/` menu: a local command, or one the agent advertises.
+sealed class AgentChatSlashMenuEntry {
+  const AgentChatSlashMenuEntry();
+
+  /// What follows the slash.
+  String get name;
+}
+
+final class const AgentChatSlashMenuLocalCommand(
+  final AgentChatSlashCommandOption option,
+) extends AgentChatSlashMenuEntry {
+  @override
+  String get name => option.command.name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AgentChatSlashMenuLocalCommand && other.option == option;
+
+  @override
+  int get hashCode => option.hashCode;
+}
+
+final class const AgentChatSlashMenuProviderCommand(
+  final AgentChatProviderCommand command,
+) extends AgentChatSlashMenuEntry {
+  @override
+  String get name => command.name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AgentChatSlashMenuProviderCommand && other.command == command;
+
+  @override
+  int get hashCode => command.hashCode;
+}
+
+/// Names the local table owns. They stay the composer's even while one of
+/// them is hidden, so typing `/plan` never means one thing in one chat and
+/// another in the next.
+final Set<String> _localCommandNames = <String>{
+  for (final command in AgentChatSlashCommand.values) command.name,
+};
+
+/// The `/` menu for [state] whose names match [query]: the local commands
+/// of [agentChatSlashCommandOptions], then the agent's own. A local command
+/// wins over an agent command of the same name, compared without case.
+/// Names that start with [query] come before names that only contain it.
+List<AgentChatSlashMenuEntry> agentChatSlashMenuEntries(
+  AgentChatSlashCommandState state, {
+  String query = '',
+}) {
+  final seen = <String>{..._localCommandNames};
+  final entries = <AgentChatSlashMenuEntry>[
+    for (final option in agentChatSlashCommandOptions(state))
+      AgentChatSlashMenuLocalCommand(option),
+    for (final command in state.providerCommands)
+      if (seen.add(command.name.toLowerCase()))
+        AgentChatSlashMenuProviderCommand(command),
+  ];
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return entries;
+  return <AgentChatSlashMenuEntry>[
+    for (final entry in entries)
+      if (entry.name.toLowerCase().startsWith(needle)) entry,
+    for (final entry in entries)
+      if (!entry.name.toLowerCase().startsWith(needle) &&
+          entry.name.toLowerCase().contains(needle))
+        entry,
+  ];
+}

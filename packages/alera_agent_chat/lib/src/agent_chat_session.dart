@@ -1,6 +1,7 @@
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_native_history_capabilities.dart';
+import 'package:alera_agent_chat/src/agent_chat_provider_command.dart';
 
 /// What the provider behind a chat actually implements. Controls that need a
 /// missing capability are hidden or disabled rather than failing on use.
@@ -58,6 +59,10 @@ class const AgentChatSession({
   final AgentChatCapabilities capabilities = const AgentChatCapabilities(),
   final String? errorMessage,
   final int generation = 0,
+
+  /// The slash commands the agent advertises, for the composer's `/` menu.
+  final List<AgentChatProviderCommand> commands =
+      const <AgentChatProviderCommand>[],
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -77,6 +82,7 @@ class const AgentChatSession({
       capabilities: AgentChatCapabilities.fromJson(json['capabilities']),
       errorMessage: agentChatJsonString(json['errorMessage']),
       generation: agentChatJsonInt(json['generation']) ?? 0,
+      commands: agentChatProviderCommandsFromJson(json['commands']),
     );
   }
 

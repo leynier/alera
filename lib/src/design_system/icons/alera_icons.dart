@@ -206,6 +206,8 @@ abstract final class const AleraIcons._() {
   // App-wide commands, e.g. the Global group in the command palette. Not the
   // Mac command glyph, which would read as a shortcut hint on Windows/Linux.
   static const IconData command = LucideIcons.zap;
+  // A slash command the chat agent advertises, in the composer `/` menu.
+  static const IconData agentCommand = LucideIcons.squareSlash;
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
   static const IconData comment = LucideIcons.messageSquare;

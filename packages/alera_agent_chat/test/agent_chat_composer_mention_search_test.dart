@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
+import 'package:test/test.dart';
 
 final class _FakeSession implements AgentChatComposerFileSearchSession {
   final Map<String, Completer<List<String>>> pending =
@@ -130,5 +130,26 @@ void main() {
     expect(search.error, isA<StateError>());
     expect(search.results, isEmpty);
     expect(search.loading, isFalse);
+  });
+
+  test('listeners hear results until they are removed', () async {
+    final source = _FakeSearch();
+    final search = AgentChatComposerMentionSearch(debounce: Duration.zero);
+    addTearDown(search.dispose);
+    var calls = 0;
+    void listener() => calls++;
+    search
+      ..addListener(listener)
+      ..search(source, 'a');
+    expect(calls, 1);
+    await _settle();
+    await _settle();
+    source.sessions.single.pending['a']!.complete(<String>['a.dart']);
+    await _settle();
+    expect(calls, 2);
+    search
+      ..removeListener(listener)
+      ..reset();
+    expect(calls, 2);
   });
 }

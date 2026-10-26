@@ -2,7 +2,6 @@ import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
-import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_menu.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_usage_popover.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
@@ -69,6 +68,7 @@ final class _Harness {
   TextEditingController get text => composer.textController;
 
   Widget build({
+    AgentChatComposerSettings settings = _settings,
     AgentChatComposerFileSearch? fileSearch,
     AgentChatUsage usage = const AgentChatUsage(),
     bool canInterrupt = false,
@@ -81,7 +81,7 @@ final class _Harness {
           controller: composer,
           workspaceId: 'ws-1',
           chatId: 'chat-1',
-          settings: _settings,
+          settings: settings,
           usage: usage,
           canSend: true,
           busy: canInterrupt,
@@ -112,6 +112,7 @@ final class _Harness {
 
 Future<_Harness> _pump(
   WidgetTester tester, {
+  AgentChatComposerSettings settings = _settings,
   AgentChatComposerFileSearch? fileSearch,
   AgentChatUsage usage = const AgentChatUsage(),
   bool canInterrupt = false,
@@ -120,6 +121,7 @@ Future<_Harness> _pump(
   addTearDown(harness.dispose);
   await tester.pumpWidget(
     harness.build(
+      settings: settings,
       fileSearch: fileSearch,
       usage: usage,
       canInterrupt: canInterrupt,
@@ -351,5 +353,46 @@ void main() {
     expect(harness.text.text, '@');
     await _press(tester, LogicalKeyboardKey.enter);
     expect(harness.composer.attachments.single.path, '/repo/b.dart');
+  });
+
+  testWidgets('agent commands follow local ones and insert their name', (
+    tester,
+  ) async {
+    final harness = await _pump(
+      tester,
+      settings: const AgentChatComposerSettings(
+        provider: 'claudeAgent',
+        providerInstanceId: 'claude',
+        session: AgentChatSession(
+          status: AgentChatSessionStatus.ready,
+          commands: <AgentChatProviderCommand>[
+            AgentChatProviderCommand(
+              name: 'review',
+              description: 'Review a pull request',
+            ),
+            AgentChatProviderCommand(name: 'compact', inputHint: 'focus'),
+            AgentChatProviderCommand(name: 'model', description: 'Clashes'),
+          ],
+        ),
+        providers: <AgentChatProviderInstance>[],
+        canSwitchProvider: true,
+        configuring: false,
+      ),
+    );
+
+    await _type(tester, '/');
+    expect(find.text('/model'), findsOneWidget);
+    expect(find.text('Clashes'), findsNothing);
+    expect(find.text('/review'), findsOneWidget);
+    expect(find.text('Review a pull request'), findsOneWidget);
+    expect(find.text('focus'), findsOneWidget);
+
+    await _type(tester, '/rev');
+    await _press(tester, LogicalKeyboardKey.enter);
+
+    expect(harness.sent, isEmpty);
+    expect(harness.text.text, '/review ');
+    expect(harness.text.selection.baseOffset, '/review '.length);
+    expect(find.text('/review'), findsNothing);
   });
 }
