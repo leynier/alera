@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_context_transfer.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
@@ -26,6 +27,10 @@ class const AgentChatSnapshot({
   final AgentChatUsage usage = const AgentChatUsage(),
   final AgentChatRecovery? recovery,
   final AgentChatNativeOperation? pendingNativeOperation,
+
+  /// Context moved into this chat, oldest first (`agentChatTransfersV1`).
+  final List<AgentChatContextTransfer> contextTransfers =
+      const <AgentChatContextTransfer>[],
   final String? historyBefore,
 }) {
   factory fromJson(Object? value) {
@@ -55,6 +60,7 @@ class const AgentChatSnapshot({
       pendingNativeOperation: agentChatPendingNativeOperationFromJson(
         json['pendingNativeOperation'],
       ),
+      contextTransfers: agentChatTransfersFromJson(json['contextTransfers']),
       historyBefore: agentChatJsonString(json['historyBefore']),
     );
   }
@@ -75,6 +81,7 @@ class const AgentChatSnapshot({
     AgentChatUsage? usage,
     Object? recovery = _unchanged,
     Object? pendingNativeOperation = _unchanged,
+    List<AgentChatContextTransfer>? contextTransfers,
     Object? historyBefore = _unchanged,
   }) => AgentChatSnapshot(
     chatId: chatId,
@@ -98,6 +105,7 @@ class const AgentChatSnapshot({
     pendingNativeOperation: identical(pendingNativeOperation, _unchanged)
         ? this.pendingNativeOperation
         : pendingNativeOperation as AgentChatNativeOperation?,
+    contextTransfers: contextTransfers ?? this.contextTransfers,
     historyBefore: identical(historyBefore, _unchanged)
         ? this.historyBefore
         : historyBefore as String?,

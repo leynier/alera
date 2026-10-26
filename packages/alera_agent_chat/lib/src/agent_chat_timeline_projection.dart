@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_context_transfer.dart';
 import 'package:alera_agent_chat/src/agent_chat_continuation_projection.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
@@ -17,6 +18,7 @@ part 'agent_chat_timeline_projection_history.dart';
 part 'agent_chat_timeline_projection_segments.dart';
 part 'agent_chat_timeline_projection_subagent_thread.dart';
 part 'agent_chat_timeline_projection_subagents.dart';
+part 'agent_chat_timeline_projection_transfers.dart';
 part 'agent_chat_timeline_projection_turn.dart';
 
 /// A row under a turn's "Worked for" divider.
@@ -411,6 +413,7 @@ final class AgentChatTimelineProjection {
       sections[turnId] = section;
       entries.add(AgentChatTurnEntry(section));
     }
+    _insertTransfers(entries, thread);
     for (final message in outgoing) {
       if (!thread.containsClientMessage(message.clientMessageId)) {
         entries.add(AgentChatOutgoingEntry(message));

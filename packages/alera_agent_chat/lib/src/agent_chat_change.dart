@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_context_transfer.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
@@ -64,6 +65,9 @@ class const AgentChatChange({
   final AgentChatRecovery? recovery,
   final bool hasPendingNativeOperation = false,
   final AgentChatNativeOperation? pendingNativeOperation,
+
+  /// Every transfer record when one changed; null when none did.
+  final List<AgentChatContextTransfer>? contextTransfers,
 }) {
   /// Parses the event payload `{chatId, workspaceId, cursor, delta}`.
   factory fromJson(Object? value) {
@@ -106,6 +110,9 @@ class const AgentChatChange({
       pendingNativeOperation: agentChatPendingNativeOperationFromJson(
         delta['pendingNativeOperation'],
       ),
+      contextTransfers: delta.containsKey('contextTransfers')
+          ? agentChatTransfersFromJson(delta['contextTransfers'])
+          : null,
     );
   }
 }

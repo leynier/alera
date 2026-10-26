@@ -50,6 +50,10 @@ abstract final class AgentChatWire {
   /// Sub-agents may carry a `workflow`; `agentChat.workflowScript` and
   /// `agentChat.workflowAgent` read its script and a member's answers.
   static const String workflowsCapability = 'agentChatWorkflowsV1';
+
+  /// Snapshots and changes carry `contextTransfers`: the context moved into
+  /// the chat by forks, merge-backs, handoffs and delegated work.
+  static const String transfersCapability = 'agentChatTransfersV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.

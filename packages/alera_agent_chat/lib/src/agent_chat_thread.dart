@@ -1,4 +1,5 @@
 import 'package:alera_agent_chat/src/agent_chat_change.dart';
+import 'package:alera_agent_chat/src/agent_chat_context_transfer.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_native_operation.dart';
 import 'package:alera_agent_chat/src/agent_chat_queue_entry.dart';
@@ -73,6 +74,8 @@ final class AgentChatThread {
   AgentChatNativeOperation? get pendingNativeOperation =>
       snapshot.pendingNativeOperation;
   String? get historyBefore => snapshot.historyBefore;
+  List<AgentChatContextTransfer> get contextTransfers =>
+      snapshot.contextTransfers;
 
   AgentChatItem? itemById(String id) {
     final index = _itemIndexes[id];
@@ -158,6 +161,7 @@ final class AgentChatThread {
           pendingNativeOperation: change.hasPendingNativeOperation
               ? change.pendingNativeOperation
               : pendingNativeOperation,
+          contextTransfers: change.contextTransfers,
         ),
       ),
     );
