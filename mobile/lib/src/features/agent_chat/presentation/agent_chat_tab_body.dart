@@ -27,6 +27,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_req
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_status_banner.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_timeline_view.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_transition_announcer.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice.dart';
@@ -275,7 +276,7 @@ class const AgentChatTabBody({
               ),
             ),
           ),
-          _TransitionAnnouncer(view: view),
+          AgentChatTransitionAnnouncer(view: view),
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: constraints.maxHeight),
             child: AgentChatFooter(
@@ -459,43 +460,4 @@ class const AgentChatTabBody({
     if (model == null) return agentChatProviderDefaultLabel;
     return instance?.modelById(model)?.label ?? model;
   }
-}
-
-/// Says the moments that matter out loud for a screen reader, once each: a
-/// request needing an answer, a turn finishing, a turn failing.
-class const _TransitionAnnouncer({required final AgentChatViewState view})
-    extends StatefulWidget {
-  @override
-  State<_TransitionAnnouncer> createState() => _TransitionAnnouncerState();
-}
-
-class _TransitionAnnouncerState extends State<_TransitionAnnouncer> {
-  String _label = '';
-
-  @override
-  void didUpdateWidget(covariant _TransitionAnnouncer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final before = oldWidget.view;
-    final after = widget.view;
-    final next =
-        after.timeline.requests.length > before.timeline.requests.length
-        ? 'The agent needs your response.'
-        : before.turnActive && !after.turnActive
-        ? (_lastTurnFailed(after) ? 'The turn failed.' : 'The turn finished.')
-        : null;
-    if (next != null) _label = next;
-  }
-
-  bool _lastTurnFailed(AgentChatViewState view) =>
-      switch (view.thread.turns.lastOrNull?.status) {
-        AgentChatTurnStatus.failed => true,
-        _ => false,
-      };
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    label: _label,
-    child: const SizedBox.shrink(),
-  );
 }
