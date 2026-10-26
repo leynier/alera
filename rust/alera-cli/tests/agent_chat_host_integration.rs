@@ -162,7 +162,10 @@ fn socket_chat_streams_approval_once_and_reconnects_to_the_durable_snapshot() {
         .into_iter()
         .filter(|row| row["event"] == "input")
         .map(|row| row["message"].clone())
+        // The session lists its skills after it starts, beside the turn.
+        .filter(|message| message["method"] != "skills/list")
         .collect::<Vec<_>>();
+    assert_eq!(host.inputs("skills/list").len(), 1);
     assert_eq!(messages[0]["method"], "initialize");
     assert_eq!(messages[1]["method"], "initialized");
     assert_eq!(messages[2]["method"], "thread/start");

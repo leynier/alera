@@ -1,3 +1,5 @@
+mod support;
+
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::{EventKind, Provider, ProviderEvent, SessionStartInput};
 use serde_json::{json, Value};
@@ -19,7 +21,7 @@ async fn observe(frames: Vec<Value>) -> Vec<ProviderEvent> {
         .unwrap();
     let mut events = Vec::new();
     for _ in 0..count {
-        let event = provider.next_event().await.unwrap().unwrap();
+        let event = support::next_event(&mut provider).await.unwrap().unwrap();
         event.validate().unwrap();
         events.push(event);
     }
