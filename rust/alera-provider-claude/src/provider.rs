@@ -28,6 +28,8 @@ mod slash_commands;
 mod turns;
 #[path = "user_messages.rs"]
 mod user_messages;
+#[path = "workflow.rs"]
+mod workflow;
 
 use alera_agent_transport::{JsonTransport, TransportError};
 use alera_provider_protocol::{
@@ -118,6 +120,7 @@ pub struct ClaudeProvider {
     // `initialize` described the commands, so `system/init` names are ignored.
     described_commands: bool,
     background_tasks: background_wait::BackgroundTasks,
+    workflow_tasks: workflow::WorkflowTasks,
 }
 
 fn sdk_error(error: ClaudeSdkError) -> ProviderError {

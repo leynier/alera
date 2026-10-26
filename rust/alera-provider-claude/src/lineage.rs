@@ -80,6 +80,9 @@ impl ClaudeProvider {
             "nativeTask":task,
             "detail":payload,
         }));
+        if let Some(workflow) = self.workflow_frame(&task_id, payload) {
+            normalized["workflow"] = workflow;
+        }
         if kind == EventKind::TaskCompleted && normalized.get("status").is_none() {
             normalized["status"] = json!(canonical_payload::completed_task_status(payload));
         }

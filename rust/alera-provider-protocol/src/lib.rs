@@ -21,6 +21,7 @@ mod skill_order;
 mod slash_command;
 mod subagent;
 mod validation;
+mod workflow;
 
 pub use command::*;
 pub use error::*;
@@ -42,5 +43,6 @@ pub use skill_mention::*;
 pub use skill_order::*;
 pub use slash_command::*;
 pub use subagent::*;
+pub use workflow::*;
 
 pub use alera_agent_transport as transport;

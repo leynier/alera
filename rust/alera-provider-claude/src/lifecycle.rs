@@ -62,6 +62,7 @@ impl ClaudeProvider {
             turn_failure: Default::default(),
             described_commands: false,
             background_tasks: Default::default(),
+            workflow_tasks: Default::default(),
         })
     }
 

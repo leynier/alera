@@ -10,7 +10,12 @@ impl ClaudeProvider {
             Message::Result(message) => self.map_result(message),
             Message::RateLimit(info) => self.map_rate_limit(info),
             Message::System(message) => self.map_system(message),
-            Message::User(message) => vec![self.map_user_message(message)],
+            Message::User(message) => {
+                let handles = self.workflow_handles_event(&message);
+                let mut events = vec![self.map_user_message(message)];
+                events.extend(handles);
+                events
+            }
             Message::ConversationReset(message) => {
                 if !message.session_id.is_empty() {
                     self.set_native_thread(&message.session_id);
