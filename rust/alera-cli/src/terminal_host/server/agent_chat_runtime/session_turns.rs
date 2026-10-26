@@ -136,7 +136,7 @@ impl ChatSession {
                 .insert("segmentCount".into(), Value::from(segment_count as u64));
         }
         let segmented = segment_count > 1;
-        let (text, handed_off) = self.turn_text(&input.text, &item_id).await?;
+        let (text, handed_off) = self.turn_text(&input.text, &item_id, &turn.turn_id).await?;
         let handoff = handed_off.then(|| self.handoff_marker(&turn, &stamp));
         self.header.upsert_turn(turn.clone());
         self.header.session.active_turn_id = Some(turn.turn_id.clone());
@@ -190,9 +190,14 @@ impl ChatSession {
     /// The user's text, preceded by the transcript handoff on the first turn
     /// of a fresh provider session in a chat with history, and whether the
     /// transcript was prepended.
-    async fn turn_text(&mut self, text: &str, current_item_id: &str) -> HostResult<(String, bool)> {
+    async fn turn_text(
+        &mut self,
+        text: &str,
+        current_item_id: &str,
+        turn_id: &str,
+    ) -> HostResult<(String, bool)> {
         // Work merged back from a fork rides ahead of the next prompt.
-        let text = match self.take_merge_back_context().await {
+        let text = match self.take_merge_back_context(turn_id).await {
             Some(merged) => format!("{merged}{text}"),
             None => text.to_string(),
         };

@@ -12,6 +12,7 @@ Runtime-host chat sessions over the Rust provider adapters (`alera-provider-*`).
 - `agentChatFeedbackV1` adds `agentChat.feedback`, T3 Code's Codex `/feedback`: the live provider uploads its native thread and logs to its vendor (`Provider::upload_feedback`, Codex `feedback/upload` with `classification: bug` and `includeLogs: true`) and answers with the vendor's `feedbackId`. Clients send it only after the person confirmed the upload. The transcript does not change. A chat with no message yet answers `feedbackNeedsConversation`, a busy chat `turnActive` (the upload holds the actor, as `/compact` does), a chat whose provider is not running `providerUnavailable`, a provider without the method `unsupported`, and a failed upload `feedbackFailed` with Codex's message. The Codex adapter also refuses a turn whose whole text is `/feedback`, so an older client that sends the command as text never reaches the model.
 - `agentChatGoalV1` means `session.goal` carries the agent's goal (`{objective, status, tokensUsed?, tokenBudget?, timeUsedSeconds?}`, absent when none) and a turn may carry `origin: "goalContinuation"`: a turn the agent started on its own toward an active goal, with no user message. A goal command (`/goal ...`, when the session advertises `goal`) sent with `delivery: auto` over a running turn is queued; one that starts or ends goal work (`GoalCommand::stops_active_turn`) goes first and interrupts the turn. A new native thread or a provider switch drops the goal.
 - `agentChatWorkflowsV1` means a sub-agent may carry `normalized.subagent.workflow` (a provider-native workflow, Claude Code's `local_workflow`) and adds `agentChat.workflowScript` and `agentChat.workflowAgent`, which read the run's script and one member's answers from the files the provider keeps for it.
+- `agentChatTransfersV1` means the snapshot and `agentChatChanged` deltas carry `contextTransfers`: the context moved into the chat, oldest first (see [Context transfers](#context-transfers)).
 - Native verbs use `agentChatNativeRewindV1`, `agentChatRewindFilesV1`, `agentChatFileCheckpointsV1` and `agentChatNativeHistoryV1`. Global wire support is separate from the session's verified native capabilities and exact available boundaries.
 
 ## Verbs
@@ -75,6 +76,20 @@ A provider-native sub-agent is not a chat: its items live in the parent chat und
 `agentChatAcpChildSessionsV1` means ACP agents' native child sessions (Claude Agent on ACP v2) arrive as sub-agents of the Agent call that delegated to them, and a turn may carry `origin: "backgroundContinuation"`: a turn the agent started on its own once the background work it waited on ended (a `turn.started` with `agentStarted.origin`), adopted only while no app turn runs.
 
 `agentChat.mergeBack` reads the fork's own user prompts and main-agent answers after `forkedFromTurnId` (sub-agent items, notices and automated input stay behind, bounded like a transcript handoff) and records them in the source chat as a `notice` titled "Merged back from <fork>" with `normalized.mergeBack {fromChatId, fromTitle, status: pending|delivered}`. Nothing runs then: the source's next turn carries the pending merges ahead of the person's message as background context and marks them `delivered`. The pending ids live in the header (`pendingMergeBacks`), so a restart keeps them. The fork must be idle and have completed a turn of its own (`chatBusy`, `nothingToMerge`); only a fork can merge back (`notFork`).
+
+## Context transfers
+
+`agentChatTransfersV1`, T3 Code's `contextTransfers`. Each record lives in the header of the chat that received the context, so it survives a restart with the snapshot; a delta carries the whole list whenever one changes. A record is `{transferId, kind, sourceChatId, targetChatId, status, createdAt, updatedAt, sourceTitle?, sourceTurnId?, targetTurnId?, itemId?, taskId?, from?, to?, error?, consumedAt?}`, `from`/`to` being `{provider, providerInstanceId, model}`. At most 200 are kept; settled ones are dropped first.
+
+| `kind` | Recorded in | When | `status` |
+| --- | --- | --- | --- |
+| `fork` | the fork | `agentChat.fork`, with `sourceTurnId` the fork point | `consumed` |
+| `mergeBack` | the source chat | `agentChat.mergeBack`, with `itemId` its notice | `pending`, then `consumed` with `targetTurnId` when the next turn carries it |
+| `providerHandoff` | the same chat (source and target) | a turn that carries the transcript into a fresh provider session, with `itemId` its handoff marker | `pending`, then `consumed` or `failed` with the marker |
+| `subagentSpawn` | a delegated chat | `chatOrchestration.delegate` with a parent, once the brief's turn starts | `consumed` |
+| `subagentResult` | the parent chat | a wake delivers a settled task, with `targetTurnId` the wake's turn when it started one and `error` for a failed, interrupted or cancelled task | `consumed` |
+
+`ChatOp::RecordTransfer` is how chat orchestration writes the delegated records: it keeps one record per task and kind, refuses a record addressed to another chat (`transferTarget`), and is best effort, so a chat that cannot take it only loses the row. `chatOrchestration.transfers {chatId?}` (the injected `chat_transfers` tool and `alera chat transfers`) lists a chat's records newest first; a bound agent reads its own chat when it names none.
 
 ## Additive lifecycle contract
 

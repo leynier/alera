@@ -71,7 +71,15 @@ pub(crate) async fn deliver_next_wake(
         )
         .await;
     match send {
-        Ok(_) => {
+        Ok(sent) => {
+            super::transfers::record_delegated_results(
+                store,
+                runtime,
+                parent_chat_id,
+                &task_ids,
+                sent.get("turnId").and_then(Value::as_str),
+            )
+            .await;
             let delivered = store
                 .ack_chat_orchestration_wake(parent_chat_id, wake.generation)
                 .await

@@ -33,6 +33,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
         }
         ChatAction::List(args) => list(&runtime, args).await,
         ChatAction::Read(args) => read(&runtime, args).await,
+        ChatAction::Transfers(args) => crate::chat_transfers::run(&runtime, args).await,
         ChatAction::Delegate(args) => delegate(&runtime, *args).await,
         ChatAction::Send(args) => send(&runtime, args).await,
         ChatAction::Task(args) => task(&runtime, args).await,

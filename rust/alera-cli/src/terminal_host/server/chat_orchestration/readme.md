@@ -53,6 +53,7 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, 
 | `chatOrchestration.configure` | `{requestId, chatId, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` (as `agentChat.configure`) |
 | `chatOrchestration.read` | `{chatId, limit?}` | `{chat, messages, plans, truncated}` |
 | `chatOrchestration.list` | `{workspaceId?, projectId?, hostId?, includeArchived?}` | `{chats}` |
+| `chatOrchestration.transfers` | `{chatId?}` (a bound agent defaults to its own chat) | `{chatId, transfers: [{transferId, kind, sourceChatId, targetChatId, status, sourceTitle?, taskId?, error?, createdAt, consumedAt?}]}` newest first (`agentChatTransfersV1`) |
 
 `backgroundWait` is for bound agents only and always acts on the credentialed caller's own chat; a payload `chatId` is ignored and a person's call fails with `unsupported`. It marks (`waiting: true`) or unmarks background commands the agent waits on so the chat stays working until they end, and ids that name no running background command come back in `unmatched`. A provider without background waits answers `unsupported` with an `Invalid request` message; a chat with no live provider answers `provider_unavailable`; a provider error or a call that takes longer than 15 seconds answers `background_wait_failed`. It is forwarded from a satellite like the other verbs.
 

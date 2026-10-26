@@ -10,6 +10,7 @@ mod automations;
 mod automations_manage;
 mod chat_orchestration;
 mod chat_tasks;
+mod chat_transfers;
 mod events;
 mod inbox;
 mod inbox_manage;
@@ -163,6 +164,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
 /// a target.
 pub(super) fn chat_tools() -> Vec<ToolSpec> {
     let mut tools = chat_orchestration::tools();
+    tools.extend(chat_transfers::tools());
     tools.extend(
         projects::tools()
             .into_iter()

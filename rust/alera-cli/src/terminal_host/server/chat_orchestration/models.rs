@@ -168,6 +168,10 @@ pub(crate) enum OrchestrationRequest {
         chat_id: String,
         limit: usize,
     },
+    /// The context transfers recorded in a chat (`agentChatTransfersV1`).
+    Transfers {
+        chat_id: Option<String>,
+    },
     ListChats {
         workspace_id: Option<String>,
         project_id: Option<String>,

@@ -83,6 +83,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatGoalV1",
     "agentChatAcpChildSessionsV1",
     "agentChatWorkflowsV1",
+    "agentChatTransfersV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
@@ -237,6 +238,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "chatOrchestration.respond"
             | "chatOrchestration.configure"
             | "chatOrchestration.read"
+            | "chatOrchestration.transfers"
             | "chatOrchestration.list"
             | "mobile.hosts.list"
             | "hostDirectory.roots"

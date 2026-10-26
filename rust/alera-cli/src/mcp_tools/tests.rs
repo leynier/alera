@@ -247,6 +247,7 @@ fn chat_catalog_uses_the_chat_wire_verbs_and_bounded_wait() {
         "chat_capabilities",
         "chat_list",
         "chat_read",
+        "chat_transfers",
         "chat_delegate",
         "chat_send",
         "chat_task_status",

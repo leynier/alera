@@ -161,8 +161,9 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(names.len(), 16);
+    assert_eq!(names.len(), 17);
     assert!(names.contains(&"chat_background_wait"));
+    assert!(names.contains(&"chat_transfers"));
     assert!(names
         .iter()
         .all(|name| name.starts_with("chat_")

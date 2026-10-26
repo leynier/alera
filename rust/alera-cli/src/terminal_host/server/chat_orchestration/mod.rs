@@ -28,6 +28,7 @@ mod service;
 mod targets;
 mod task_acknowledgement;
 mod tasks;
+mod transfers;
 mod wakes;
 
 pub(crate) use authorization::{BoundChat, OrchestrationCaller};
@@ -88,6 +89,8 @@ mod task_acknowledgement_tests;
 pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod transfers_tests;
 #[cfg(test)]
 mod turn_lifecycle_tests;
 #[cfg(test)]

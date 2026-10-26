@@ -142,6 +142,15 @@ pub(crate) fn header_delta(old: &Header, new: &Header) -> Map<String, Value> {
                 .unwrap_or(Value::Null),
         );
     }
+    if old.extra.get("contextTransfers") != new.extra.get("contextTransfers") {
+        delta.insert(
+            "contextTransfers".into(),
+            new.extra
+                .get("contextTransfers")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+    }
     if old.extra.get("pendingNativeOperation") != new.extra.get("pendingNativeOperation") {
         delta.insert(
             "pendingNativeOperation".into(),

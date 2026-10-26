@@ -300,6 +300,16 @@ impl ChatOrchestrationService {
             .get("turnId")
             .and_then(Value::as_str)
             .map(ToOwned::to_owned);
+        if let Some(parent) = parent_chat_id.as_deref() {
+            super::transfers::record_delegated_brief(
+                self.runtime.as_ref(),
+                parent,
+                &child_chat_id,
+                &task_id,
+                turn_id.as_deref(),
+            )
+            .await;
+        }
         let transition = transition_status(
             ChatOrchestrationTaskStatus::Preparing,
             ChatOrchestrationTaskStatus::Running,

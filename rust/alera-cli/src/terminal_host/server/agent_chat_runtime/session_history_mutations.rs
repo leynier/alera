@@ -163,6 +163,8 @@ impl ChatSession {
             record.metadata.as_mut().expect("fork metadata exists")["nativeFork"] = native;
         }
         record.snapshot["session"]["historyOperation"] = json!({"kind": operation_kind});
+        record.snapshot[super::session_transfers::TRANSFERS_KEY] =
+            super::session_transfers::fork_transfer(&self.header, turn_id, new_chat_id);
         let tab = chat_tab_record(
             new_tab_id,
             &record.workspace_id,

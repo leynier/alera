@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 
 use super::ids::{new_id, now};
 use super::session::ChatSession;
+use super::session_transfers::{ContextTransfer, TransferKind, TransferStatus};
 use super::wire::{ChatItem, ChatTurn};
 
 pub(crate) const HANDOFF_MAX_CHARS: usize = 24_000;
@@ -100,6 +101,18 @@ impl ChatSession {
             HANDOFF_MARKER_KEY.into(),
             json!({"from": from, "to": endpoint(turn), "status": "pending"}),
         );
+        let chat_id = self.header.chat_id.clone();
+        let mut transfer = ContextTransfer::new(
+            TransferKind::ProviderHandoff,
+            &chat_id,
+            &chat_id,
+            TransferStatus::Pending,
+        );
+        transfer.item_id = Some(item.item_id.clone());
+        transfer.target_turn_id = Some(turn.turn_id.clone());
+        transfer.from = from;
+        transfer.to = Some(endpoint(turn));
+        self.record_transfer(transfer);
         item
     }
 
@@ -126,6 +139,12 @@ impl ChatSession {
                 item.updated_at = now();
             }
             self.pending.item(&item_id);
+            let settled = if status == "completed" {
+                TransferStatus::Consumed
+            } else {
+                TransferStatus::Failed
+            };
+            self.settle_item_transfers(&item_id, settled, None);
         }
         if status == "completed" {
             self.handoff_from = None;

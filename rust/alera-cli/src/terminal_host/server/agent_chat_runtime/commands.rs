@@ -212,6 +212,8 @@ pub(crate) enum ChatOp {
     MergeBackSource,
     /// Hold a fork's work for this chat's next turn (`agentChat.mergeBack`).
     ReceiveMergeBack(super::session_merge_back::MergeBackInput),
+    /// Keep a record of context another chat's work moved into this one.
+    RecordTransfer(super::session_transfers::ContextTransfer),
     /// Mark (`awaited`) or unmark background tasks the chat's own agent waits
     /// on, by the task ids it saw.
     AwaitBackgroundTasks {

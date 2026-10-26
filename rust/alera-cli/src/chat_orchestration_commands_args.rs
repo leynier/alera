@@ -22,6 +22,8 @@ pub enum ChatAction {
     List(ChatListArgs),
     /// Read a bounded chat transcript for a task or chat.
     Read(ChatReadArgs),
+    /// List the context transfers recorded in a chat, newest first.
+    Transfers(ChatTransfersArgs),
     /// Delegate a brief to an existing or newly-created chat.
     Delegate(Box<ChatDelegateArgs>),
     /// Send a message to an existing child chat.
@@ -62,6 +64,13 @@ pub struct ChatListArgs {
     /// Include archived child chats.
     #[arg(long)]
     pub include_archived: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct ChatTransfersArgs {
+    /// Chat id; a chat-bound agent defaults to its own chat.
+    #[arg(long = "chat-id")]
+    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Args)]

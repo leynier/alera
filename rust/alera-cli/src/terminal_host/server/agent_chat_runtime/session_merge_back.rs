@@ -16,6 +16,7 @@ use super::ids::{new_id, now};
 use super::item_normalization::segment_complete_item;
 use super::session::ChatSession;
 use super::session_snapshot::HISTORY_MAX_ITEMS;
+use super::session_transfers::{agent_endpoint, ContextTransfer, TransferKind, TransferStatus};
 use super::wire::{ChatItem, STREAM_TEXT};
 
 /// The key of a merge-back notice's payload in its `normalized`.
@@ -186,6 +187,16 @@ impl ChatSession {
             }),
         );
         let item_id = item.item_id.clone();
+        let mut transfer = ContextTransfer::new(
+            TransferKind::MergeBack,
+            &input.from_chat_id,
+            &self.header.chat_id,
+            TransferStatus::Pending,
+        );
+        transfer.source_title = Some(input.from_title.clone());
+        transfer.item_id = Some(item_id.clone());
+        transfer.to = Some(agent_endpoint(&self.header));
+        self.record_transfer(transfer);
         let rows = segment_complete_item(item, STREAM_TEXT, &input.text)
             .map_err(|error| HostError::state(format!("The fork could not be merged: {error}")))?;
         for row in rows {
@@ -214,8 +225,8 @@ impl ChatSession {
     }
 
     /// The merged-back work to put ahead of the next prompt, marking each
-    /// notice delivered. `None` when nothing is pending.
-    pub(super) async fn take_merge_back_context(&mut self) -> Option<String> {
+    /// notice delivered by `turn_id`. `None` when nothing is pending.
+    pub(super) async fn take_merge_back_context(&mut self, turn_id: &str) -> Option<String> {
         let pending = self.pending_merge_backs();
         if pending.is_empty() {
             return None;
@@ -233,6 +244,7 @@ impl ChatSession {
                 item.normalized[MERGE_BACK_KEY]["status"] = json!("delivered");
                 item.updated_at = now();
                 self.pending.item(&item_id);
+                self.settle_item_transfers(&item_id, TransferStatus::Consumed, Some(turn_id));
                 if let Some(text) = text.filter(|text| !text.trim().is_empty()) {
                     sections.push(format!("From the fork \"{title}\":\n\n{}", quote(&text)));
                 }

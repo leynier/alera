@@ -294,6 +294,7 @@ impl ChatSession {
             } => self.workflow_agent(&item_id, agent_index).await,
             ChatOp::MergeBackSource => self.merge_back_source().await,
             ChatOp::ReceiveMergeBack(input) => self.receive_merge_back(input).await,
+            ChatOp::RecordTransfer(transfer) => self.receive_transfer(transfer).await,
             ChatOp::Respond {
                 runtime_request_id,
                 response,

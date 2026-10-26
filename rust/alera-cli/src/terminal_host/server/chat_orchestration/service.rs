@@ -264,6 +264,7 @@ impl ChatOrchestrationService {
                 .await
             }
             OrchestrationRequest::Read { chat_id, limit } => self.read(chat_id, limit).await,
+            OrchestrationRequest::Transfers { chat_id } => self.transfers(chat_id, caller).await,
             OrchestrationRequest::ListChats {
                 workspace_id,
                 project_id,

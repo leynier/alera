@@ -53,6 +53,7 @@ mod session_send;
 mod session_skills;
 mod session_snapshot;
 mod session_subagents;
+pub(crate) mod session_transfers;
 mod session_turn_admission;
 mod session_turns;
 mod session_workflows;

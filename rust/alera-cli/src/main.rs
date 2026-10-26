@@ -19,6 +19,7 @@ mod chat_orchestration_request;
 mod chat_task_command_contract;
 mod chat_task_commands;
 mod chat_task_payload_validation;
+mod chat_transfers;
 mod cli;
 mod cli_async_runtime;
 #[cfg(test)]

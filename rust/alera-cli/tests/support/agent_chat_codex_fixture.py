@@ -96,6 +96,9 @@ try:
                 raise RuntimeError("thread started before initialized notification")
             thread = params.get("threadId", thread)
             emit({"id": request_id, "result": {"thread": {"id": thread}}})
+        elif method == "thread/fork":
+            thread = "fixture-fork-%s" % os.getpid()
+            emit({"id": request_id, "result": {"thread": {"id": thread}}})
         elif method == "skills/list":
             emit({"id": request_id, "result": {"data": [
                 {"cwd": cwd, "errors": [], "skills": []} for cwd in params.get("cwds", [])

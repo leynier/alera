@@ -358,6 +358,9 @@ impl OrchestrationRequest {
                     .unwrap_or(100)
                     .clamp(1, 200) as usize,
             }),
+            "transfers" => Ok(Self::Transfers {
+                chat_id: optional_string(payload, "chatId")?,
+            }),
             "list" => Ok(Self::ListChats {
                 workspace_id: optional_string(payload, "workspaceId")?,
                 project_id: optional_string(payload, "projectId")?,
