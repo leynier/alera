@@ -5,6 +5,8 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+#[cfg(not(unix))]
+use alera_core::captured_process::ProcessTreeGuard;
 use alera_core::child_process::windowless_async_command;
 use alera_core::login_shell_environment::apply_login_shell_environment;
 use async_trait::async_trait;
@@ -42,7 +44,8 @@ pub struct ProcessConfig {
     pub max_frame_bytes: usize,
     /// Deadline for writes and output backpressure, and the grace period a
     /// still-running child gets on close before each harder stop: SIGTERM to
-    /// its process group on Unix, then SIGKILL.
+    /// its process group on Unix, then SIGKILL. Windows has no SIGTERM, so
+    /// the child's job is killed once this grace period ends.
     pub shutdown_timeout: Duration,
 }
 
@@ -105,12 +108,15 @@ async fn drain_stderr(mut stderr: ChildStderr, tail: Arc<Mutex<StderrTail>>) {
 /// Cancelled sends retain their frame and original deadline. Sending that same
 /// encoded frame resumes it once; a different frame follows it in FIFO order.
 ///
-/// On Unix the child runs in its own process group, which is stopped as a
-/// whole on close, on drop, and when this process dies.
+/// On Unix the child runs in its own process group and on Windows in its own
+/// Job Object, which is stopped as a whole on close, on drop, and when this
+/// process dies.
 pub struct JsonLineProcess {
     child: Option<Child>,
     #[cfg(unix)]
     group: Option<ProcessGroup>,
+    #[cfg(not(unix))]
+    tree: Option<ProcessTreeGuard>,
     stdin: Option<ChildStdin>,
     pending_frame: Option<PendingFrame>,
     pending_error: Option<TransportError>,
@@ -169,8 +175,10 @@ impl JsonLineProcess {
             .map_err(|source| TransportError::io("start process group", source))?;
         #[cfg(unix)]
         group.join(&mut command);
+        // Windows starts the child suspended and resumes it only once its job
+        // holds it, so nothing it starts can run outside the job.
         #[cfg(not(unix))]
-        command.kill_on_drop(true);
+        ProcessTreeGuard::prepare_command(&mut command);
 
         let mut child = match command.spawn() {
             Ok(child) => child,
@@ -178,6 +186,18 @@ impl JsonLineProcess {
                 #[cfg(unix)]
                 group.kill();
                 return Err(TransportError::Spawn { executable, source });
+            }
+        };
+        #[cfg(not(unix))]
+        let tree = match ProcessTreeGuard::attach(&child) {
+            Ok(tree) => tree,
+            Err(reason) => {
+                let _ = child.start_kill();
+                let _ = child.wait().await;
+                return Err(TransportError::io(
+                    "attach process tree",
+                    std::io::Error::other(reason),
+                ));
             }
         };
         let stdin = child.stdin.take().ok_or_else(|| {
@@ -204,6 +224,8 @@ impl JsonLineProcess {
             child: Some(child),
             #[cfg(unix)]
             group: Some(group),
+            #[cfg(not(unix))]
+            tree: Some(tree),
             stdin: Some(stdin),
             pending_frame: None,
             pending_error: None,
@@ -245,11 +267,15 @@ impl JsonLineProcess {
         }
     }
 
-    /// Kill the child at once and, on Unix, everything left in its group.
+    /// Kill the child at once with everything left in its group or job.
     fn kill_child(&mut self) {
         #[cfg(unix)]
         if let Some(group) = self.group.as_mut() {
             group.kill();
+        }
+        #[cfg(not(unix))]
+        if let Some(tree) = self.tree.as_ref() {
+            tree.terminate();
         }
         if let Some(child) = self.child.as_mut() {
             let _ = child.start_kill();
@@ -258,7 +284,7 @@ impl JsonLineProcess {
 
     /// Stop a child that outlived its closed stdin. On Unix its whole group
     /// gets SIGTERM and, after the shutdown timeout, SIGKILL; elsewhere the
-    /// child is killed at once.
+    /// child and its job are killed at once.
     async fn stop_child(&mut self) -> Option<std::process::ExitStatus> {
         #[cfg(unix)]
         if let Some(group) = self.group.as_mut() {
@@ -308,10 +334,13 @@ impl JsonLineProcess {
         }
         self.child.take();
         // Whatever the child left running, such as an MCP server's own child,
-        // gets SIGTERM and then SIGKILL. That also ends the stderr pipes such
-        // descendants inherited, so the drain below can finish.
+        // gets SIGTERM and then SIGKILL, or on Windows dies with the job. That
+        // also ends the stderr pipes such descendants inherited, so the drain
+        // below can finish.
         #[cfg(unix)]
         self.group.take();
+        #[cfg(not(unix))]
+        self.tree.take();
 
         self.messages.close();
         if let Some(task) = self.stdout_task.take() {
@@ -457,21 +486,12 @@ impl Drop for JsonLineProcess {
         }
         drop(self.stdin.take());
         // Dropping the group sends SIGTERM to the child and everything it
-        // started, then SIGKILL, with or without a runtime. Tokio reaps the
-        // dropped child.
+        // started, then SIGKILL, and dropping the job kills them on Windows,
+        // with or without a runtime. Tokio reaps the dropped child.
         #[cfg(unix)]
         self.group.take();
         #[cfg(not(unix))]
-        if let Some(mut child) = self.child.take() {
-            if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                handle.spawn(async move {
-                    let _ = child.kill().await;
-                    let _ = child.wait().await;
-                });
-            }
-            // Child::kill_on_drop(true) remains the fallback when Drop runs
-            // outside a Tokio runtime.
-        }
+        self.tree.take();
     }
 }
 

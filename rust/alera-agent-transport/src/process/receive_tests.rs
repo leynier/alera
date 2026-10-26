@@ -21,6 +21,8 @@ async fn cancelled_failure_cleanup_retains_the_original_receive_error() {
         child: None,
         #[cfg(unix)]
         group: None,
+        #[cfg(not(unix))]
+        tree: None,
         stdin: None,
         pending_frame: None,
         pending_error: None,

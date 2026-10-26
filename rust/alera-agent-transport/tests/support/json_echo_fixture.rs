@@ -19,6 +19,17 @@ async fn main() {
         own_agent(args[1..].to_vec()).await;
         return;
     }
+    if args.first().is_some_and(|arg| arg == "--leave-grandchild") {
+        leave_grandchild(&args[1], args[2] == "keep-running").await;
+        return;
+    }
+    if args.first().is_some_and(|arg| arg == "--hold-pipe") {
+        let _pipe = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&args[1])
+            .unwrap();
+        std::future::pending::<()>().await;
+    }
     let stdin = tokio::io::stdin();
     let mut lines = BufReader::new(stdin).lines();
     let mut stdout = tokio::io::stdout();
@@ -136,10 +147,11 @@ async fn main() {
 }
 
 /// Stand in for the runtime host: hold an agent transport until killed.
-async fn own_agent(args: Vec<std::ffi::OsString>) {
+async fn own_agent(mut args: Vec<std::ffi::OsString>) {
+    let executable = args.remove(0);
     let _agent =
         alera_agent_transport::JsonLineProcess::spawn(alera_agent_transport::ProcessConfig {
-            executable: "/bin/sh".into(),
+            executable: executable.into(),
             args,
             shutdown_timeout: Duration::from_secs(1),
             ..alera_agent_transport::ProcessConfig::default()
@@ -147,6 +159,24 @@ async fn own_agent(args: Vec<std::ffi::OsString>) {
         .await
         .unwrap();
     std::future::pending::<()>().await;
+}
+
+/// Stand in for an agent CLI that starts a process of its own, such as an MCP
+/// server, which holds `pipe` open until it dies. The agent then either exits
+/// once its input closes or keeps running regardless.
+async fn leave_grandchild(pipe: &std::ffi::OsStr, keep_running: bool) {
+    let mut grandchild =
+        alera_core::child_process::windowless_async_command(std::env::current_exe().unwrap());
+    grandchild
+        .arg("--hold-pipe")
+        .arg(pipe)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null());
+    let _grandchild = grandchild.spawn().unwrap();
+    if keep_running {
+        std::future::pending::<()>().await;
+    }
+    let _ = tokio::io::copy(&mut tokio::io::stdin(), &mut tokio::io::sink()).await;
 }
 
 fn gated_input(prefix_received: &Path, resume: &Path) {

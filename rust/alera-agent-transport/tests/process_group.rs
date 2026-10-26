@@ -168,6 +168,7 @@ async fn killed_owner_takes_the_agent_group_with_it() {
     owner
         .args([
             OsString::from("--own-agent"),
+            "/bin/sh".into(),
             "-c".into(),
             KEEPS_RUNNING.into(),
             "agent".into(),
