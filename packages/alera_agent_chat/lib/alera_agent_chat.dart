@@ -8,6 +8,7 @@ export 'src/agent_chat_composer_labels.dart';
 export 'src/agent_chat_composer_mention_search.dart';
 export 'src/agent_chat_composer_triggers.dart';
 export 'src/agent_chat_error_message.dart';
+export 'src/agent_chat_feedback.dart';
 export 'src/agent_chat_inputs.dart';
 export 'src/agent_chat_lifecycle_inputs.dart';
 export 'src/agent_chat_lifecycle_repository.dart';

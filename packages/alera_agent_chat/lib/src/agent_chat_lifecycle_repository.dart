@@ -70,6 +70,14 @@ abstract class AgentChatLifecycleRepository {
     required String turnId,
   }) => Future.error(UnsupportedError('Turn diffs are unavailable.'));
 
+  /// Uploads [chat]'s thread and the agent's logs to its vendor and returns
+  /// the vendor's feedback id. Call it only after the person agreed to it.
+  Future<String> feedback(
+    AgentChatRef chat, {
+    required String requestId,
+    String? reason,
+  }) => Future.error(UnsupportedError('Agent feedback is unavailable.'));
+
   /// What the composer's `$` menu offers for [chat]. [refresh] asks the
   /// runtime to discover them again instead of answering from its cache.
   Future<AgentChatSkillList> skills(

@@ -4,8 +4,10 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_feedback.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_tab_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
@@ -30,6 +32,7 @@ import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
 
 part 'agent_chat_tab_drafts.dart';
+part 'agent_chat_tab_feedback.dart';
 part 'agent_chat_tab_read_cursor.dart';
 
 /// The body of an agent chat tab. Everything shown comes from the runtime's

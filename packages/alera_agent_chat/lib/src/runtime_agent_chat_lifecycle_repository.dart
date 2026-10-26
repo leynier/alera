@@ -195,6 +195,28 @@ final class RuntimeAgentChatLifecycleRepository
   );
 
   @override
+  Future<String> feedback(
+    AgentChatRef chat, {
+    required String requestId,
+    String? reason,
+  }) async {
+    final trimmed = reason?.trim();
+    final json = await _request(
+      AgentChatWire.feedbackCapability,
+      AgentChatWire.feedback,
+      _scoped(chat, <String, Object?>{
+        'requestId': requestId,
+        if (trimmed != null && trimmed.isNotEmpty) 'reason': trimmed,
+      }),
+    );
+    final feedbackId = agentChatJsonString(json['feedbackId'])?.trim() ?? '';
+    if (feedbackId.isEmpty) {
+      throw const FormatException('The runtime returned no feedback id.');
+    }
+    return feedbackId;
+  }
+
+  @override
   Future<AgentChatSkillList> skills(
     AgentChatRef chat, {
     bool refresh = false,

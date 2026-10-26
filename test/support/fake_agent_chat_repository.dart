@@ -183,6 +183,7 @@ AgentChatSnapshot agentChatSnapshotFixture({
   List<Map<String, Object?>> requests = const <Map<String, Object?>>[],
   List<Map<String, Object?>> queue = const <Map<String, Object?>>[],
   Map<String, Object?>? recovery,
+  List<Map<String, Object?>> commands = const <Map<String, Object?>>[],
   Map<String, Object?> capabilities = const <String, Object?>{
     'interrupt': true,
     'approvals': true,
@@ -204,6 +205,7 @@ AgentChatSnapshot agentChatSnapshotFixture({
     'interactionMode': 'default',
     'activeTurnId': ?activeTurnId,
     'capabilities': capabilities,
+    'commands': commands,
   },
   'turns': turns,
   'items': items,

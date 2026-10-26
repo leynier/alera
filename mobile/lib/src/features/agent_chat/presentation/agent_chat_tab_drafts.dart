@@ -133,7 +133,7 @@ extension _AgentChatTabDrafts on _AgentChatTabViewState {
       value: _composer.value,
       attachments: _attachments,
     );
-    if (!draft.canSubmit) return;
+    if (!draft.canSubmit || _takeFeedback(draft)) return;
     final plan = switch (ref.read(_provider).value) {
       final AgentChatViewState view => agentChatApprovalSend(
         view.timeline.requests,

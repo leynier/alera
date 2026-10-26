@@ -29,6 +29,9 @@ final class const AgentChatComposerSettings({
   final String? switchBlockedReason,
   final AgentChatPreferences preferences = const AgentChatPreferences(),
   final AgentChatPendingModel? pendingModel,
+
+  /// The runtime runs `/feedback` (`agentChat.feedback`).
+  final bool feedbackSupported = false,
 }) {
   /// Whether the chat has an agent; an unselected draft has none yet.
   bool get hasSelection => providerInstanceId.isNotEmpty || provider.isNotEmpty;

@@ -19,6 +19,12 @@ abstract final class AgentChatErrorCodes {
   static const String nativeOperationRevisionConflict =
       'nativeOperationRevisionConflict';
 
+  /// `/feedback` in a chat that has no message yet.
+  static const String feedbackNeedsConversation = 'feedbackNeedsConversation';
+
+  /// The agent could not upload `/feedback`; the message says why.
+  static const String feedbackFailed = 'feedbackFailed';
+
   /// A redirecting send named approvals that are no longer the pending ones.
   static const String approvalsChanged = 'approvalsChanged';
 }

@@ -4,6 +4,7 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_feedback.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_availability.dart';
@@ -13,6 +14,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_att
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_composer_menu_host.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_feedback_banner.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_footer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
@@ -145,6 +147,13 @@ class const AgentChatTabBody({
     final operation = view.thread.pendingNativeOperation;
     final canViewChanges = runtimeOffers(AgentChatWire.turnDiffCapability);
     final editsInPlace = runtimeOffers(AgentChatWire.queueEditCapability);
+    // Watched so `/feedback` reads a settled answer when it is sent.
+    runtimeOffers(AgentChatWire.feedbackCapability);
+    final feedback = ref.watch(
+      agentChatFeedbackSubmissionsProvider.select(
+        (chats) => chats[agentChatFeedbackKey(hostId, chatId)] ?? const [],
+      ),
+    );
     final tasksSupported =
         ref.watch(mobileChatTasksSupportedProvider(hostId)).value ?? false;
     final canDelegate = canAct && tasksSupported;
@@ -262,6 +271,13 @@ class const AgentChatTabBody({
             child: AgentChatFooter(
               minimumComposerHeight: minimumComposerHeight,
               notices: <Widget>[
+                for (final submission in feedback)
+                  AgentChatFeedbackBanner(
+                    submission: submission,
+                    onDismiss: () => ref
+                        .read(agentChatFeedbackSubmissionsProvider.notifier)
+                        .dismiss(hostId, chatId, submission.id),
+                  ),
                 if (operation != null)
                   AgentChatNativeOperationBanner(
                     key: ValueKey<String>('native-${operation.operationId}'),

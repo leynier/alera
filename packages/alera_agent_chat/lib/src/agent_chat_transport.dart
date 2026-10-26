@@ -21,6 +21,9 @@ abstract final class AgentChatWire {
   /// admitting the message in one runtime step.
   static const String approvalRedirectCapability =
       'agentChatApprovalRedirectV1';
+
+  /// `agentChat.feedback`: Codex `/feedback` uploads the thread and logs.
+  static const String feedbackCapability = 'agentChatFeedbackV1';
   static const String deleteCapability = 'agentChatDeleteV1';
   static const String approvalHistoryCapability = 'agentChatApprovalHistoryV1';
   static const String turnDiffCapability = 'agentChatTurnDiffV1';
@@ -86,6 +89,7 @@ abstract final class AgentChatWire {
   static const String skills = 'agentChat.skills';
   static const String interrupt = 'agentChat.interrupt';
   static const String respond = 'agentChat.respond';
+  static const String feedback = 'agentChat.feedback';
   static const String configure = 'agentChat.configure';
   static const String rename = 'agentChat.rename';
   static const String recover = 'agentChat.recover';

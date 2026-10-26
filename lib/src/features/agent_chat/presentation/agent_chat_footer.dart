@@ -5,10 +5,12 @@ import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_feedback.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_controls.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_file_search.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_feedback_views.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_actions.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer_queue.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_native_history_notice.dart';
@@ -97,6 +99,18 @@ class const AgentChatFooter({
     });
     final catalogProvider = agentChatProviderCatalogProvider(workspace.id);
     final catalog = ref.watch(catalogProvider);
+    final feedbackSupported =
+        ref
+            .watch(
+              agentChatCapabilityProvider(AgentChatWire.feedbackCapability),
+            )
+            .value ??
+        false;
+    final feedback = ref.watch(
+      agentChatFeedbackSubmissionsProvider.select(
+        (chats) => chats[chatId] ?? const <AgentChatFeedbackSubmission>[],
+      ),
+    );
     final hostKey = agentChatHostKey(workspace.hostId);
     final preferences =
         ref.watch(agentChatPreferencesProvider(hostKey)).value ??
@@ -121,6 +135,7 @@ class const AgentChatFooter({
       switchBlockedReason: view.switchBlockedReason,
       preferences: preferences,
       pendingModel: view.pendingModel,
+      feedbackSupported: feedbackSupported,
     );
     void openProviderSettings() => unawaited(
       openAgentChatProviderSettings(
@@ -146,6 +161,13 @@ class const AgentChatFooter({
           busy: view.reconciling,
           onAction: (action) =>
               unawaited(controller.reconcileNativeOperation(action)),
+        ),
+      for (final submission in feedback)
+        AgentChatFeedbackBanner(
+          submission: submission,
+          onDismiss: () => ref
+              .read(agentChatFeedbackSubmissionsProvider.notifier)
+              .dismiss(chatId, submission.id),
         ),
       if (view.actionError case final String error)
         AgentChatActionErrorBanner(
@@ -273,6 +295,23 @@ class const AgentChatFooter({
                 queuedEdit: queuedEdit,
                 onSaveQueuedEdit: controller.editQueued,
                 onSend: (text, attachments, {steer = false}) {
+                  final feedbackTaken = handleAgentChatFeedbackSend(
+                    context,
+                    ref,
+                    chat: AgentChatRef(
+                      chatId: chatId,
+                      workspaceId: workspace.id,
+                    ),
+                    available: agentChatFeedbackAvailable(
+                      supported: feedbackSupported,
+                      commands: settings.session.commands,
+                    ),
+                    neverSent: view.neverSent,
+                    composer: composer,
+                    text: text,
+                    attachments: attachments,
+                  );
+                  if (feedbackTaken) return false;
                   final delivery = steer
                       ? AgentChatDelivery.steer
                       : AgentChatDelivery.auto;

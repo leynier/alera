@@ -453,6 +453,10 @@ AgentChatSlashCommandState agentChatSlashCommandState(
   interactionMode: settings.session.interactionMode,
   configuring: settings.configuring,
   usageAvailable: usage.contextFraction != null || usage.windows.isNotEmpty,
-  providerCommands: settings.session.commands,
+  providerCommands: agentChatMenuProviderCommands(
+    settings.session.commands,
+    feedbackSupported: settings.feedbackSupported,
+    hasConversation: !settings.neverSent,
+  ),
   providerSkills: skills,
 );

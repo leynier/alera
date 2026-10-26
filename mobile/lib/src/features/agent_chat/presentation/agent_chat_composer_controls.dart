@@ -196,7 +196,20 @@ class const AgentChatComposerControls({
           agentChatInstanceOf(providers, view)?.supportsPlanMode ?? false,
       interactionMode: view.session.interactionMode,
       usageAvailable: usage.contextFraction != null || usage.windows.isNotEmpty,
-      providerCommands: view.session.commands,
+      providerCommands: agentChatMenuProviderCommands(
+        view.session.commands,
+        feedbackSupported:
+            ref
+                .read(
+                  agentChatCapabilityProvider(
+                    hostId,
+                    AgentChatWire.feedbackCapability,
+                  ),
+                )
+                .value ??
+            false,
+        hasConversation: !view.neverSent,
+      ),
       providerSkills: skills,
     );
   }
