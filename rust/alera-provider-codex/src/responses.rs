@@ -3,12 +3,32 @@ use alera_provider_protocol::{
 };
 use serde_json::{json, Map, Value};
 
-pub(crate) fn approval_result(decision: ApprovalDecision, updated_input: Option<Value>) -> Value {
-    let decision = match decision {
-        ApprovalDecision::Accept => "accept",
-        ApprovalDecision::AcceptForSession | ApprovalDecision::AcceptAlways => "acceptForSession",
-        ApprovalDecision::Decline => "decline",
-        ApprovalDecision::Cancel => "cancel",
+pub(crate) fn approval_result(
+    method: &str,
+    decision: ApprovalDecision,
+    updated_input: Option<Value>,
+) -> Value {
+    let decision = if crate::session_approvals::is_legacy(method) {
+        // The v1 approvals answer with a ReviewDecision instead.
+        match decision {
+            ApprovalDecision::Accept => json!("approved"),
+            ApprovalDecision::AcceptForSession | ApprovalDecision::AcceptAlways => {
+                json!("approved_for_session")
+            }
+            ApprovalDecision::Decline => {
+                json!({ "denied": { "rejection": "User declined the request." } })
+            }
+            ApprovalDecision::Cancel => json!("abort"),
+        }
+    } else {
+        json!(match decision {
+            ApprovalDecision::Accept => "accept",
+            ApprovalDecision::AcceptForSession | ApprovalDecision::AcceptAlways => {
+                "acceptForSession"
+            }
+            ApprovalDecision::Decline => "decline",
+            ApprovalDecision::Cancel => "cancel",
+        })
     };
     let mut result = json!({ "decision": decision });
     if let Some(updated_input) = updated_input {

@@ -13,6 +13,7 @@ use std::collections::{HashMap, VecDeque};
 pub(crate) struct PendingRequest {
     pub rpc_id: alera_provider_protocol::RequestId,
     pub method: String,
+    pub allowance: Option<crate::session_approvals::AllowanceGrant>,
 }
 
 /// A Codex app-server client using the provider protocol's JSON-lines boundary.
@@ -33,6 +34,31 @@ pub struct CodexProvider<T> {
     pub(crate) history_mode: Option<String>,
     pub(crate) session_effort: Option<String>,
     pub(crate) native_child_parents: HashMap<String, String>,
+    pub(crate) session_approvals: crate::session_approvals::SessionApprovals,
+}
+
+impl<T: JsonTransport> CodexProvider<T> {
+    /// Answers an approval the session allowance already covers, without
+    /// surfacing it. Returns whether the message was consumed.
+    async fn answer_allowed_request(&mut self, message: &Value) -> Result<bool, ProviderError> {
+        let (Some(id), Some(method)) = (message.get("id"), wire::method(message)) else {
+            return Ok(false);
+        };
+        let params = wire::params(message);
+        let Some(grant) = self.allowance_grant(method, &params) else {
+            return Ok(false);
+        };
+        if !self
+            .session_approvals
+            .allows(&grant.native_thread_id, grant.kind)
+        {
+            return Ok(false);
+        }
+        let rpc_id = wire::request_id(id)?;
+        let result = crate::session_approvals::allowed_result(method);
+        self.transport.send(wire::response(&rpc_id, result)).await?;
+        Ok(true)
+    }
 }
 
 impl<T> CodexProvider<T> {
@@ -54,6 +80,7 @@ impl<T> CodexProvider<T> {
             history_mode: None,
             session_effort: None,
             native_child_parents: HashMap::new(),
+            session_approvals: Default::default(),
         }
     }
 
@@ -252,11 +279,17 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {
         self.ensure_open()?;
         let request_id = response.request_id().clone();
-        let (rpc_id, method) = self
+        let (rpc_id, method, allowance) = self
             .pending_requests
             .get(&request_id)
             .ok_or_else(|| ProviderError::InvalidState("unknown Codex runtime request id".into()))
-            .map(|pending| (pending.rpc_id.clone(), pending.method.clone()))?;
+            .map(|pending| {
+                (
+                    pending.rpc_id.clone(),
+                    pending.method.clone(),
+                    pending.allowance.clone(),
+                )
+            })?;
         let method = method.as_str();
         let matches_method = match &response {
             RuntimeResponse::Native { .. } => true,
@@ -281,7 +314,12 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                 decision,
                 updated_input,
                 ..
-            } => responses::approval_result(decision, updated_input),
+            } => {
+                if let Some(grant) = &allowance {
+                    self.session_approvals.record(grant, decision);
+                }
+                responses::approval_result(method, decision, updated_input)
+            }
             RuntimeResponse::UserInput { answers, .. } => responses::user_input_result(answers),
             RuntimeResponse::Elicitation {
                 action, content, ..
@@ -329,14 +367,19 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
             self.mark_event_consumed(&event);
             return Ok(Some(event));
         }
-        let Some(message) = self.transport.recv().await? else {
-            return Ok(None);
+        let message = loop {
+            let Some(message) = self.transport.recv().await? else {
+                return Ok(None);
+            };
+            if message.get("id").is_some() && wire::method(&message).is_none() {
+                return Err(ProviderError::Protocol(
+                    "Codex received an unsolicited response".into(),
+                ));
+            }
+            if !self.answer_allowed_request(&message).await? {
+                break message;
+            }
         };
-        if message.get("id").is_some() && wire::method(&message).is_none() {
-            return Err(ProviderError::Protocol(
-                "Codex received an unsolicited response".into(),
-            ));
-        }
         let event = events::map_message(self, message)?;
         self.mark_event_consumed(&event);
         Ok(Some(event))
@@ -350,6 +393,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.closed = true;
         self.pending_requests.clear();
         self.queued_events.clear();
+        self.session_approvals.clear();
         self.terminal_event_pending = false;
         if let Some(session) = self.session.as_mut() {
             session.status = SessionStatus::Stopped;

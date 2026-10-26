@@ -126,6 +126,7 @@ fn map_request<T: JsonTransport>(
             "Codex runtime request id is already pending".into(),
         ));
     }
+    let allowance = provider.allowance_grant(method, &params);
     let questions = request_questions(&params);
     let request = RuntimeRequest {
         request_id: request_id.clone(),
@@ -163,6 +164,7 @@ fn map_request<T: JsonTransport>(
         PendingRequest {
             rpc_id,
             method: method.to_owned(),
+            allowance,
         },
     );
     provider.mark_waiting();

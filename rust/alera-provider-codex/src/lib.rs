@@ -16,6 +16,7 @@ mod provider;
 mod reasoning_effort;
 mod responses;
 mod rpc;
+mod session_approvals;
 mod state;
 mod wire;
 
