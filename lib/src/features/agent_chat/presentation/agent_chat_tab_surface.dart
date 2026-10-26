@@ -173,9 +173,10 @@ class _AgentChatTabSurfaceState extends ConsumerState<AgentChatTabSurface> {
                 ),
               )
             else
+              // Top-left: Find in Chat opens at the top-right.
               Positioned(
                 top: AleraTokens.space8,
-                right: AleraTokens.space16,
+                left: AleraTokens.space12,
                 child: AgentChatRelationshipsControl(
                   chatId: chatId,
                   workspaceId: widget.workspace.id,
