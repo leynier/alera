@@ -186,6 +186,11 @@ final class AgentChatTurnSection {
   bool get goalContinuation =>
       prompts.isEmpty && (turn?.goalContinuation ?? false);
 
+  /// A turn the provider started once its background work ended, with no
+  /// prompt to show; both apps mark it like a goal continuation.
+  bool get backgroundContinuation =>
+      prompts.isEmpty && (turn?.backgroundContinuation ?? false);
+
   /// The turn's work split at steering prompts, oldest first. There is
   /// always at least one; a turn nobody steered has exactly one.
   final List<AgentChatTurnSegment> segments;

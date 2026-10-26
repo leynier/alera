@@ -112,7 +112,9 @@ class const AgentChatTurn({
   final int generation = 0,
 
   /// Who started the turn when it was not the person: `goalContinuation`
-  /// for a turn the provider started on its own toward an active goal.
+  /// for a turn the provider started on its own toward an active goal,
+  /// `backgroundContinuation` for one it started once its background work
+  /// (an ACP agent's sub-agents) ended.
   final String? origin,
 }) {
   factory fromJson(Object? value) {
@@ -140,6 +142,10 @@ class const AgentChatTurn({
   /// A turn the provider started by itself to keep working toward its goal,
   /// so it has no prompt of its own.
   bool get goalContinuation => origin == 'goalContinuation';
+
+  /// A turn the provider started by itself once the background work it
+  /// waited on ended, so it has no prompt of its own.
+  bool get backgroundContinuation => origin == 'backgroundContinuation';
 
   /// A turn the runtime cut short when it restarted, rather than one the
   /// user or the provider stopped.

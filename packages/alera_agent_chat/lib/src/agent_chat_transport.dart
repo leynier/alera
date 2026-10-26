@@ -41,6 +41,11 @@ abstract final class AgentChatWire {
 
   /// Sessions carry the provider's `goal` and turns their `origin`.
   static const String goalCapability = 'agentChatGoalV1';
+
+  /// ACP agents' native child sessions read as sub-agents, stop on their
+  /// own, and turns may carry `origin: backgroundContinuation`.
+  static const String acpChildSessionsCapability =
+      'agentChatAcpChildSessionsV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.

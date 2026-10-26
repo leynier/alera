@@ -56,6 +56,8 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
       children: <Widget>[
         if (handoff != null) AgentChatHandoffDivider(handoff: handoff),
         if (section.goalContinuation) const AgentChatGoalContinuationMarker(),
+        if (section.backgroundContinuation)
+          const AgentChatGoalContinuationMarker(background: true),
         for (final prompt in section.prompts)
           AgentChatUserMessage(item: prompt),
         for (final segment in section.segments) ..._segment(segment),

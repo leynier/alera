@@ -62,6 +62,13 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
             AgentChatGoalContinuationMarker(
               key: ValueKey<String>('agent-chat-goal-turn-${section.turnId}'),
             ),
+          if (section.backgroundContinuation)
+            AgentChatGoalContinuationMarker(
+              key: ValueKey<String>(
+                'agent-chat-background-turn-${section.turnId}',
+              ),
+              background: true,
+            ),
           for (final prompt in section.prompts)
             _target(
               agentChatFindMessageTargetKey(prompt.id),

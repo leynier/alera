@@ -373,5 +373,17 @@ void main() {
       ], turn: turn()),
     );
     expect(find.text(AgentChatGoalContinuationMarker.label), findsNothing);
+
+    await _pump(
+      tester,
+      _section(<Map<String, Object?>>[
+        _item('a1', 'assistant_message', text: 'Fixed it.'),
+      ], turn: turn(origin: 'backgroundContinuation')),
+    );
+    expect(
+      find.text(AgentChatGoalContinuationMarker.backgroundLabel),
+      findsOneWidget,
+    );
+    expect(find.text(AgentChatGoalContinuationMarker.label), findsNothing);
   });
 }

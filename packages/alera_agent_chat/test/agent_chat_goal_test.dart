@@ -100,6 +100,14 @@ void main() {
       expect(continuation.goalContinuation, isTrue);
       expect(prompted.origin, isNull);
       expect(prompted.goalContinuation, isFalse);
+      final background = AgentChatTurn.fromJson(<String, Object?>{
+        'turnId': 't3',
+        'status': 'running',
+        'origin': 'backgroundContinuation',
+      });
+      expect(background.backgroundContinuation, isTrue);
+      expect(background.goalContinuation, isFalse);
+      expect(continuation.backgroundContinuation, isFalse);
     });
 
     test('a continuation turn without a prompt marks its section', () {
@@ -138,6 +146,10 @@ void main() {
       ];
       expect(sections.map((section) => section.goalContinuation), <bool>[
         true,
+        false,
+      ]);
+      expect(sections.map((section) => section.backgroundContinuation), <bool>[
+        false,
         false,
       ]);
     });

@@ -180,6 +180,17 @@ void main() {
     expect(find.text('Drafted the notes.'), findsOneWidget);
   });
 
+  testWidgets('a turn started after background work shows its marker', (
+    tester,
+  ) async {
+    await _pump(tester, origin: 'backgroundContinuation');
+    expect(
+      find.text(AgentChatGoalContinuationMarker.backgroundLabel),
+      findsOneWidget,
+    );
+    expect(find.text(AgentChatGoalContinuationMarker.label), findsNothing);
+  });
+
   testWidgets('a turn without an origin shows no marker', (tester) async {
     await _pump(tester);
     expect(find.text(AgentChatGoalContinuationMarker.label), findsNothing);
