@@ -43,9 +43,15 @@ impl ChatOrchestrationService {
             &chat_id,
             &operation,
         );
+        // A person's stop also stops the delegated work under the chat.
         let response = self
-            .runtime
-            .command(&chat_id, operation, caller.ctx.clone(), Some(key))
+            .stop_chat(
+                &chat_id,
+                operation,
+                caller.ctx.clone(),
+                Some(key),
+                caller.bound.is_none(),
+            )
             .await?;
         self.record_receipt(caller, "interrupt", &request_id, payload, response.clone())
             .await?;

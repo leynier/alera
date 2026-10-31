@@ -27,7 +27,7 @@ The scope and actor always come from the connection; payload fields such as `act
 
 ### Bound agent rules
 
-- Every call needs the caller chat to be unarchived with a running turn (`errorCode: "caller_turn_inactive"`), and the binding's generation must still be current (`chat_credential_invalid`).
+- Every call needs the caller chat to be unarchived with a running turn (`errorCode: "caller_turn_inactive"`), and the binding's generation must still be current (`chat_credential_invalid`). A chat whose turn ended still counts as live while its provider process runs a native sub-agent the turn started (the actor snapshot's `backgroundSubagentsRunning`), since such a background sub-agent keeps calling tools with the chat's credential; the credential itself is revoked when that process goes away.
 - Reads (`list`, `read`, `task`, `tasks.list`, `wait`, `capabilities`, `requests`) and `send` / `delegate` work across every project, workspace and host this runtime knows.
 - `interrupt`, `respond`, `configure` and `cancel` work only on the caller's descendants (`errorCode: "not_in_lineage"`). Humans are not limited by lineage.
 - A target chat or a new child may not run in a runtime mode above the caller's (`errorCode: "mode_ceiling"`); order: `approval-required < auto-accept-edits < auto < full-access`. A child without `runtimeMode` inherits the caller's.
@@ -46,7 +46,7 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, 
 | `chatOrchestration.tasks.list` | `{parentChatId?, childChatId?, rootTaskId?, workspaceId?, projectId?, statuses?, attention?, limit?, cursor?}` | `{tasks, nextCursor?}` |
 | `chatOrchestration.wait` | `{taskIds, waitSeconds?, until?: all\|any}` (default `all`) | `{tasks, timedOut}` |
 | `chatOrchestration.cancel` | `{requestId, taskId, reason?}` | `{task, cancelledTaskIds}` |
-| `chatOrchestration.interrupt` | `{requestId, chatId}` | `{acknowledged: true}` |
+| `chatOrchestration.interrupt` | `{requestId, chatId}` | `{acknowledged: true, interrupted}` |
 | `chatOrchestration.backgroundWait` | `{requestId, taskIds: 1..20 nonempty strings, waiting?: bool = true}` | `{matched, unmatched}` |
 | `chatOrchestration.requests` | `{taskId?, chatId?}` | `{requests: [{chatId, taskId?, request}]}` |
 | `chatOrchestration.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |
@@ -56,6 +56,10 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, 
 | `chatOrchestration.transfers` | `{chatId?}` (a bound agent defaults to its own chat) | `{chatId, transfers: [{transferId, kind, sourceChatId, targetChatId, status, sourceTitle?, taskId?, error?, createdAt, consumedAt?}]}` newest first (`agentChatTransfersV1`) |
 
 `backgroundWait` is for bound agents only and always acts on the credentialed caller's own chat; a payload `chatId` is ignored and a person's call fails with `unsupported`. It marks (`waiting: true`) or unmarks background commands the agent waits on so the chat stays working until they end, and ids that name no running background command come back in `unmatched`. A provider without background waits answers `unsupported` with an `Invalid request` message; a chat with no live provider answers `provider_unavailable`; a provider error or a call that takes longer than 15 seconds answers `background_wait_failed`. It is forwarded from a satellite like the other verbs.
+
+### Stop
+
+A person's stop of a chat (`agentChat.interrupt` from the desktop, a phone or the CLI, or `chatOrchestration.interrupt` without a chat credential) first interrupts the chat's own turn, or with none running the background work earlier turns left, and then stops the delegated work under the chat, even when that interrupt fails. In one store transaction (`RuntimeStore::stop_chat_orchestration_parent`) the chat's open and sealed wake cohorts are dropped and every unsettled `delegate` or `followup` task it owns, with its descendants, gets `launchOptions.parentStopped`, which keeps it from joining any wake later. The host then cancels a sealed cohort's message if it already waits in the chat's queue, and cancels each such task with its descendants under the person's authority, like `cancel`. A `message` task (a `send` that expects a reply from another chat) is left to that chat. A bound agent's `interrupt` of a descendant does not cascade. `ChatOrchestrationService::stop_chat(.., stop_delegated_tasks: false)` is the internal opt-out for a caller that stops the descendants itself. A hub stops a remote chat's delegated tasks itself, as it owns the ledger.
 
 `target` is exactly one of `{chat: {chatId}}`, `{workspace: {workspaceId}}` or `{newWorkspace: {projectId, hostId, mode: worktree|shared, branch?, sourceBranch?, reuseExistingBranch?, name?, parentWorkspaceId?, setup?: inline|deferred}}`. `hostId` is `local` or an SSH target id and is never implied. New workspaces are created through `workspace.createManaged` (worktree) or `workspace.createShared` (shared) on the host's own client, so setup, barriers, remote routing and broadcasts are the ordinary ones. Nothing selects a workspace or tab.
 
@@ -87,7 +91,7 @@ The store record is internal; the wire task is a projection:
 
 ## Parent wakes
 
-A wake is a message into the parent chat with `origin {kind: orchestrationWake, taskIds}` and the cohort's stable `clientMessageId` (`chat-orchestration-wake:<parentChatId>:<generation>`). It names the tasks; results are read with `task`. Completions join the parent's open cohort; the cohort is sealed and sent only while the parent has no running turn, so completions during a turn merge into one wake and a wake never interrupts or steers. A result acknowledged before delivery is withdrawn from the cohort. A sealed cohort is resent after a restart; the stable id makes that idempotent.
+A wake is a message into the parent chat with `origin {kind: orchestrationWake, taskIds}` and the cohort's stable `clientMessageId` (`chat-orchestration-wake:<parentChatId>:<generation>`). It names the tasks; results are read with `task`. Completions join the parent's open cohort; the cohort is sealed and sent only while the parent has no running turn, so completions during a turn merge into one wake and a wake never interrupts or steers. A result acknowledged before delivery is withdrawn from the cohort. A person's stop of the parent drops both its open and its sealed cohort (see Stop). A sealed cohort is resent after a restart; the stable id makes that idempotent.
 
 ## Errors
 

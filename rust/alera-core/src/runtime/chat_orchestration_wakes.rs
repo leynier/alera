@@ -97,8 +97,13 @@ pub(super) async fn enqueue_wake_in(
     let Some(parent) = task.parent_chat_id.as_deref() else {
         return Ok(None);
     };
+    let parent_stopped = task.launch_options.as_ref().is_some_and(|options| {
+        options.get(super::chat_orchestration_parent_stop::PARENT_STOPPED_KEY)
+            == Some(&serde_json::Value::Bool(true))
+    });
     if !task.notify.wakes_on(task.status)
         || task.result_delivery == ChatOrchestrationResultDelivery::Acknowledged
+        || parent_stopped
     {
         return Ok(None);
     }

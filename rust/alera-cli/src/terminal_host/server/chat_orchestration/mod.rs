@@ -25,6 +25,7 @@ mod request_admission;
 mod request_parser;
 mod runtime;
 mod service;
+mod stop;
 mod targets;
 mod task_acknowledgement;
 mod tasks;
@@ -35,6 +36,7 @@ pub(crate) use authorization::{BoundChat, OrchestrationCaller};
 pub(crate) use credentials::ChatCredentialLaunchHook;
 pub(crate) use runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
 pub(crate) use service::{ChatOrchestrationService, OrchestrationEventSink};
+pub(crate) use stop::DelegatedTasksStop;
 pub(crate) use targets::RuntimeTargetResolver;
 #[cfg(test)]
 pub(crate) use targets::{ChatTargetResolver, ResolvedChatTarget};
@@ -81,6 +83,8 @@ mod restart_recovery_tests;
 mod satellite_fixture;
 #[cfg(test)]
 mod shutdown_tests;
+#[cfg(test)]
+mod stop_tests;
 #[cfg(test)]
 mod subagent_projection_tests;
 #[cfg(test)]

@@ -62,11 +62,27 @@ impl ServerActor {
         } else {
             None
         };
+        let delegated_stop = super::chat_orchestration::DelegatedTasksStop::for_request(
+            self.chat_orchestration.as_ref(),
+            request_type,
+            payload,
+            &ctx,
+        );
         let request_type = request_type.to_owned();
         let payload = payload.clone();
         self.spawn_agent_chat_request(client_id, request_id, async move {
-            super::agent_chat_deferred::dispatch(runtime, &request_type, &payload, ctx, attachments)
-                .await
+            let response = super::agent_chat_deferred::dispatch(
+                runtime,
+                &request_type,
+                &payload,
+                ctx,
+                attachments,
+            )
+            .await;
+            if let Some(stop) = delegated_stop {
+                stop.run().await;
+            }
+            response
         });
         Ok(true)
     }
@@ -141,7 +157,19 @@ impl ServerActor {
         } else {
             None
         };
-        super::agent_chat_deferred::dispatch(runtime, request_type, payload, ctx, attachments).await
+        let delegated_stop = super::chat_orchestration::DelegatedTasksStop::for_request(
+            self.chat_orchestration.as_ref(),
+            request_type,
+            payload,
+            &ctx,
+        );
+        let response =
+            super::agent_chat_deferred::dispatch(runtime, request_type, payload, ctx, attachments)
+                .await;
+        if let Some(stop) = delegated_stop {
+            stop.run().await;
+        }
+        response
     }
 
     pub(super) fn agent_chat_caller(&self, client_id: u64) -> CallerCtx {

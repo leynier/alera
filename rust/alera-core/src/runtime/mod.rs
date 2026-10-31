@@ -75,6 +75,7 @@ mod chat_orchestration_credentials;
 mod chat_orchestration_delivery;
 mod chat_orchestration_lineage;
 mod chat_orchestration_models;
+mod chat_orchestration_parent_stop;
 mod chat_orchestration_preparation;
 #[cfg(test)]
 mod chat_orchestration_preparation_tests;
@@ -95,6 +96,7 @@ pub use chat_orchestration_credentials::{
 };
 pub use chat_orchestration_delivery::*;
 pub use chat_orchestration_models::*;
+pub use chat_orchestration_parent_stop::ChatOrchestrationParentStop;
 pub use chat_orchestration_receipts::chat_orchestration_request_digest;
 pub use chat_orchestration_store::new_chat_orchestration_task_id;
 mod agent_native_session_store;

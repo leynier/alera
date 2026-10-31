@@ -142,12 +142,22 @@ impl ServerActor {
             return Ok(false);
         }
         let caller = self.agent_chat_caller(client_id);
+        // The hub owns the ledger, so it stops a remote chat's delegated tasks.
+        let delegated_stop =
+            crate::terminal_host::server::chat_orchestration::DelegatedTasksStop::for_request(
+                self.chat_orchestration.as_ref(),
+                verb,
+                payload,
+                &caller,
+            );
         let payload = payload.clone();
         let verb = verb.to_owned();
         self.spawn_deferred_request(client_id, request_id, async move {
-            router
-                .forward_wire(&verb, &payload, caller)
-                .await?
+            let response = router.forward_wire(&verb, &payload, caller).await;
+            if let Some(stop) = delegated_stop {
+                stop.run().await;
+            }
+            response?
                 .ok_or_else(|| HostError::conflict("chat_not_found", "Chat not found.", json!({})))
         });
         Ok(true)

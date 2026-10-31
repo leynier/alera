@@ -30,15 +30,43 @@ impl ChatOrchestrationService {
             return Ok(response);
         }
         require_lineage_for_task(caller, &self.store, &task_id).await?;
-        let outcome = self
-            .store
-            .request_chat_orchestration_cancel_with_authority(
+        let (cancelled, errors) = self
+            .cancel_lineage(
                 &task_id,
                 &caller.ctx.scope,
                 caller
                     .bound
                     .as_ref()
                     .map(|bound| bound.runtime_mode.as_str()),
+            )
+            .await?;
+        let task = self
+            .store
+            .chat_orchestration_task(&task_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::conflict("task_not_found", "Task not found.", json!({})))?;
+        let response = json!({"task": task_value(&task), "cancelledTaskIds": cancelled, "reason": reason, "errors":errors});
+        self.record_receipt(caller, "cancel", &request_id, payload, response.clone())
+            .await?;
+        Ok(response)
+    }
+
+    /// Asks `task_id` and its unsettled descendants to stop with the
+    /// caller's authority, and stops each one's input. Returns the task ids
+    /// asked and the errors of those whose input could not be stopped.
+    pub(super) async fn cancel_lineage(
+        &self,
+        task_id: &str,
+        caller_scope: &str,
+        runtime_mode_ceiling: Option<&str>,
+    ) -> HostResult<(Vec<String>, Vec<Value>)> {
+        let outcome = self
+            .store
+            .request_chat_orchestration_cancel_with_authority(
+                task_id,
+                caller_scope,
+                runtime_mode_ceiling,
             )
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
@@ -51,7 +79,7 @@ impl ChatOrchestrationService {
             .collect::<HashSet<_>>();
         let mut pending = self
             .store
-            .chat_orchestration_task_descendants(&task_id)
+            .chat_orchestration_task_descendants(task_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         pending.push(outcome.task);
@@ -69,16 +97,7 @@ impl ChatOrchestrationService {
             }
             cancelled.push(task.task_id.clone());
         }
-        let task = self
-            .store
-            .chat_orchestration_task(&task_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::conflict("task_not_found", "Task not found.", json!({})))?;
-        let response = json!({"task": task_value(&task), "cancelledTaskIds": cancelled, "reason": reason, "errors":errors});
-        self.record_receipt(caller, "cancel", &request_id, payload, response.clone())
-            .await?;
-        Ok(response)
+        Ok((cancelled, errors))
     }
 
     pub(super) async fn cancel_task_input(&self, task: &ChatOrchestrationTask) -> HostResult<()> {
