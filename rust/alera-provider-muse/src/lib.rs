@@ -8,6 +8,7 @@
 mod config;
 mod event_mapping;
 mod events;
+mod failure;
 mod lifecycle;
 mod provider;
 mod responses;

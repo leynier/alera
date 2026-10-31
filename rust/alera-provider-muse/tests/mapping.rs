@@ -1,7 +1,7 @@
 mod support;
 
 use alera_provider_muse::{MuseProvider, MuseProviderConfig};
-use alera_provider_protocol::{EventKind, Provider, SessionStartInput, StreamKind};
+use alera_provider_protocol::{EventKind, FailureClass, Provider, SessionStartInput, StreamKind};
 use serde_json::json;
 use support::{initialize_response, session_response, ScriptedTransport};
 
@@ -66,6 +66,44 @@ async fn maps_failed_turn_with_canonical_error_message() {
         event.raw.as_ref().unwrap().message_type.as_deref(),
         Some("turn/completed")
     );
+    provider.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn classifies_only_a_typed_quota_stop_as_a_usage_limit() {
+    let refusal = "API error 429: Subscription quota exhausted. Your usage window resets at 2026-10-13T10:45:52Z.";
+    let transport = ScriptedTransport::new([
+        initialize_response(),
+        session_response(2, "muse-session"),
+        json!({
+            "jsonrpc":"2.0","method":"turn/completed","params":{
+                "sessionId":"muse-session","turnId":"turn-1","terminal":"failed",
+                "error":{"kind":"modelError","message":refusal,"retryable":false,
+                    "quota":{"limitKind":"tierLimit","resetsAtMs":1791802952000_u64}}
+            }
+        }),
+        json!({
+            "jsonrpc":"2.0","method":"turn/completed","params":{
+                "sessionId":"muse-session","turnId":"turn-2","terminal":"failed",
+                "error":{"kind":"modelError","message":refusal,"retryable":true}
+            }
+        }),
+        json!({
+            "jsonrpc":"2.0","method":"turn/completed","params":{
+                "sessionId":"muse-session","turnId":"turn-3","terminal":"completed"
+            }
+        }),
+    ]);
+    let mut provider = started(transport).await;
+    let limited = provider.next_event().await.unwrap().unwrap();
+    assert_eq!(limited.failure_class(), FailureClass::UsageLimit);
+    assert_eq!(limited.payload["errorMessage"], refusal);
+    // The text alone, as a relaying proxy sends it, does not make a usage limit.
+    let untyped = provider.next_event().await.unwrap().unwrap();
+    assert_eq!(untyped.payload["state"], "failed");
+    assert_eq!(untyped.failure_class(), FailureClass::Unknown);
+    let completed = provider.next_event().await.unwrap().unwrap();
+    assert!(completed.payload.get("failureClass").is_none());
     provider.close().await.unwrap();
 }
 

@@ -6,6 +6,8 @@ Runtime modes select both the MSP approval mode and a permission profile: approv
 
 The session's `workspaceRoot` is the chat directory's canonical path, with symlinks resolved and the disk's own case, because Muse rejects a root whose case differs from the disk's. On Windows that is the verbatim `\\?\` form Muse requires, while `muse serve` itself still starts in the plain directory. A directory that cannot be resolved is sent as given, in verbatim form on Windows.
 
+A failed turn carries a `failureClass`: `usage_limit` when Muse types the stop as a used-up subscription quota (`error.quota`), and `unknown` otherwise. The class never comes from the error message, so a quota refusal a proxy relays as plain text stays `unknown`.
+
 MCP injection is advertised only while an initialized connection has granted `sessionMcp`. Injected stdio and streamable HTTP servers use required startup mode for both session creation and resume, so the host must report connection failures instead of silently dropping orchestration tools. Stdio MCP `cwd` remains unsupported by the native MSP schema and is rejected before session startup.
 
 The implementation follows `@muse-code/sdk` 1.4.6 from `meta-models/muse-code-sdk` at commit `ea88c8221d381de7cb28281be8bc6b8b1507ba72`. The upstream SDK and committed protocol declarations are MIT licensed; this crate retains the accompanying MIT notice in `LICENSE-MIT`. The external host executable is not included in the upstream source repository or package and has separate licensing.

@@ -154,6 +154,9 @@ fn json_turn_completed(params: &Value) -> Value {
         _ => "failed",
     };
     let mut payload = serde_json::json!({"state": state, "terminal": terminal});
+    if state == "failed" {
+        payload["failureClass"] = serde_json::json!(crate::failure::turn_failure_class(params));
+    }
     if let Some(reason) = params.get("reason").and_then(Value::as_str).or_else(|| {
         params
             .get("error")
