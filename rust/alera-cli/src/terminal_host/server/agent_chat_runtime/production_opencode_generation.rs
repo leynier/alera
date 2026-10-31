@@ -20,7 +20,8 @@ use super::ProviderLaunch;
 #[path = "production_opencode_generation_tests.rs"]
 mod tests;
 
-const CLI_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
+// Stops a hung `--version`; wrapped installs can take seconds to start cold.
+const CLI_PROBE_TIMEOUT: Duration = Duration::from_secs(10);
 const SERVER_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_PROBE_BYTES: usize = 8 * 1024;
 const PROBE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);

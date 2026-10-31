@@ -352,3 +352,18 @@ async fn local_unknown_oversized_missing_and_stalled_binaries_fail_without_guess
         Err(ProviderError::Timeout { .. })
     ));
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_slow_but_healthy_version_probe_is_not_a_timeout() {
+    // Outlasts the former 4 second bound, as a cold wrapped install can.
+    let (_directory, executable) = binary_fixture("sleep 4.5\nprintf '%s\\n' 'opencode 1.18.16'");
+    let config = OpenCodeProviderConfig {
+        executable,
+        ..Default::default()
+    };
+    assert_eq!(
+        probe_binary(&config, CLI_PROBE_TIMEOUT).await.unwrap(),
+        OpenCodeGeneration::Legacy1
+    );
+}
