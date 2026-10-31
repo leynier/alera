@@ -19,6 +19,10 @@ class const AgentChatCapabilities({
   final bool rollback = false,
   final bool attachments = false,
   final bool images = false,
+
+  /// Whether non-image files reach the agent. Older runtimes omit it, and no
+  /// provider took files then.
+  final bool files = false,
   final bool plan = false,
 
   /// Whether one provider-native sub-agent can be stopped on its own.
@@ -41,6 +45,7 @@ class const AgentChatCapabilities({
       rollback: agentChatJsonBool(json['rollback']),
       attachments: agentChatJsonBool(json['attachments']),
       images: agentChatJsonBool(json['images']),
+      files: agentChatJsonBool(json['files']),
       plan: agentChatJsonBool(json['plan']),
       stopSubagent: agentChatJsonBool(json['stopSubagent']),
       nativeHistory: AgentChatNativeHistoryCapabilities.fromJson(
