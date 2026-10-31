@@ -16,6 +16,9 @@ enum AgentChatItemType {
   collabAgentToolCall,
   webSearch,
   imageView,
+
+  /// An image the agent generated, saved on the host at `imagePath`.
+  imageGeneration,
   reviewEntered,
   reviewExited,
   contextCompaction,
@@ -38,6 +41,7 @@ enum AgentChatItemType {
     AgentChatItemType.collabAgentToolCall ||
     AgentChatItemType.webSearch ||
     AgentChatItemType.imageView ||
+    AgentChatItemType.imageGeneration ||
     AgentChatItemType.reviewEntered ||
     AgentChatItemType.reviewExited ||
     AgentChatItemType.unknown => true,

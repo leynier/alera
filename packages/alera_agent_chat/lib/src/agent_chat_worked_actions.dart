@@ -8,6 +8,7 @@ enum AgentChatWorkedActionKind {
   edit,
   read,
   viewImage,
+  generateImage,
   listFiles,
   search,
   webSearch,
@@ -44,6 +45,8 @@ AgentChatWorkedActionKind agentChatWorkedActionKind(AgentChatItem item) {
       return AgentChatWorkedActionKind.webSearch;
     case AgentChatItemType.imageView:
       return AgentChatWorkedActionKind.viewImage;
+    case AgentChatItemType.imageGeneration:
+      return AgentChatWorkedActionKind.generateImage;
     case AgentChatItemType.reviewEntered || AgentChatItemType.reviewExited:
       return AgentChatWorkedActionKind.review;
     case AgentChatItemType.collabAgentToolCall:
@@ -117,6 +120,10 @@ String _phrase(
     AgentChatWorkedActionKind.viewImage =>
       '${verb('Viewed', 'Viewing')} '
           '${target == null ? 'an image' : _basename(target)}',
+    // The title of a generated image is generic, so only its file names it.
+    AgentChatWorkedActionKind.generateImage =>
+      '${verb('Generated', 'Generating')} '
+          '${item.imagePath == null ? 'an image' : _basename(item.imagePath!)}',
     AgentChatWorkedActionKind.listFiles =>
       target == null
           ? '${verb('Listed', 'Listing')} files'
@@ -210,6 +217,8 @@ String _summaryPart(
     AgentChatWorkedActionKind.read => 'read $count ${plural('file', 'files')}',
     AgentChatWorkedActionKind.viewImage =>
       'viewed $count ${plural('image', 'images')}',
+    AgentChatWorkedActionKind.generateImage =>
+      'generated $count ${plural('image', 'images')}',
     AgentChatWorkedActionKind.listFiles =>
       'listed files $count ${plural('time', 'times')}',
     AgentChatWorkedActionKind.search =>
