@@ -41,12 +41,14 @@ final class AgentChatLiveWork {
     required this.hiddenCount,
     required this.lastActionFailed,
     required this.narration,
+    required this.compaction,
   });
 
   factory AgentChatLiveWork._from(List<AgentChatActivityRow> activity) {
     final actions = <AgentChatWorkedAction>[];
     final narration = <AgentChatItem>[];
     AgentChatItem? reasoning;
+    AgentChatItem? compaction;
     var lastActionRow = -1;
     var lastReasoningRow = -1;
     var otherItems = 0;
@@ -66,6 +68,12 @@ final class AgentChatLiveWork {
           if (reasoning != null) otherItems += 1;
           reasoning = item;
           lastReasoningRow = index;
+        // The live row shows a running compaction, so it is not hidden.
+        case AgentChatItemRow(:final item)
+            when item.type == AgentChatItemType.contextCompaction &&
+                item.isInProgress:
+          if (compaction != null) otherItems += 1;
+          compaction = item;
         case AgentChatItemRow():
           otherItems += 1;
       }
@@ -79,37 +87,50 @@ final class AgentChatLiveWork {
         !last.item.isInProgress &&
         lastReasoningRow > lastActionRow &&
         (reasoning?.isInProgress ?? false);
-    final current = lastFailed || thinkingAfter ? null : last;
+    final current = compaction != null || lastFailed || thinkingAfter
+        ? null
+        : last;
     final reasoningText = reasoning == null
         ? ''
         : reasoning.reasoningText.trim().isNotEmpty
         ? reasoning.reasoningText
         : reasoning.text;
-    final snippet = agentChatReasoningSnippet(reasoningText);
+    // Reasoning from before a compaction is stale while it runs.
+    final snippet = compaction != null
+        ? null
+        : agentChatReasoningSnippet(reasoningText);
     final reasoningHidden =
-        reasoning != null && reasoningText.trim() != (snippet ?? '');
+        reasoning != null &&
+        (compaction != null || reasoningText.trim() != (snippet ?? ''));
     final earlier = actions.length - (current == null ? 0 : 1);
     return AgentChatLiveWork._(
-      label: switch (current) {
-        null => 'Thinking',
-        final AgentChatWorkedAction action when action.item.isInProgress =>
-          agentChatWorkedActionLiveLabel(action),
-        final AgentChatWorkedAction action => action.label,
-      },
+      label: compaction != null
+          ? 'Compacting'
+          : switch (current) {
+              null => 'Thinking',
+              final AgentChatWorkedAction action
+                  when action.item.isInProgress =>
+                agentChatWorkedActionLiveLabel(action),
+              final AgentChatWorkedAction action => action.label,
+            },
       current: current,
       reasoning: snippet,
       earlierCount: earlier,
       hiddenCount: earlier + otherItems + (reasoningHidden ? 1 : 0),
       lastActionFailed: lastFailed,
       narration: List<AgentChatItem>.unmodifiable(narration),
+      compaction: compaction,
     );
   }
 
   /// "Running make test", "Reading main.dart", or "Thinking" when there is
   /// no action yet, the last one failed, or the agent went back to thinking.
+  /// While [compacting] it reads "Compacting"; apps that keep a clock show
+  /// [agentChatCompactingLabel] instead.
   final String label;
 
-  /// The action [label] describes; null when it reads "Thinking".
+  /// The action [label] describes; null when it reads "Thinking" or while
+  /// the agent compacts its context.
   final AgentChatWorkedAction? current;
 
   /// The first sentence of the latest reasoning, clamped.
@@ -125,6 +146,15 @@ final class AgentChatLiveWork {
 
   /// Progress narration, in order; it stays visible above the live row.
   final List<AgentChatItem> narration;
+
+  /// A context compaction the agent is running now. While it runs the live
+  /// row is the compaction, timed from when it started.
+  final AgentChatItem? compaction;
+
+  bool get compacting => compaction != null;
+
+  /// When the running compaction started; the live row times it from here.
+  DateTime? get compactingSince => compaction?.createdAt;
 
   /// "3 earlier actions", or null when there are none.
   String? get earlierLabel => switch (earlierCount) {
@@ -178,6 +208,42 @@ String agentChatTurnHeaderLabel(
     AgentChatTurnOutcome.interruptedByRestart =>
       'Interrupted when the runtime restarted',
   };
+}
+
+/// The live row of a running compaction: "Compacting for 12s", timed from
+/// [since], or "Compacting" when its start is unknown.
+String agentChatCompactingLabel(DateTime? since, {required DateTime now}) =>
+    since == null
+    ? 'Compacting'
+    : 'Compacting for ${agentChatDurationLabel(_elapsed(since, now))}';
+
+/// The row of a context compaction item: "Compacting context" while it
+/// runs, "Compacted context (1.5k → 400 tokens)" once done, and why it ended
+/// otherwise. A stopped compaction arrives as failed with
+/// `data.outcome: stopped`, since items have no interrupted status.
+String agentChatCompactionLabel(AgentChatItem item) {
+  if (item.isInProgress) return 'Compacting context';
+  if (item.isFailed) {
+    return agentChatWireToken(item.data['outcome']) == 'stopped'
+        ? 'Compaction stopped'
+        : 'Compaction failed';
+  }
+  final before = agentChatJsonInt(item.data['preTokens']);
+  final after = agentChatJsonInt(item.data['postTokens']);
+  if (before == null || after == null) return 'Compacted context';
+  return 'Compacted context (${agentChatContextTokenLabel(before)} → '
+      '${agentChatContextTokenLabel(after)} tokens)';
+}
+
+/// "400", "1.5k", "120k", "1.2m": a token count at a glance, as T3 Code
+/// writes context sizes.
+String agentChatContextTokenLabel(int tokens) {
+  String trim(String value) =>
+      value.endsWith('.0') ? value.substring(0, value.length - 2) : value;
+  if (tokens < 1000) return '$tokens';
+  if (tokens < 10000) return '${trim((tokens / 1000).toStringAsFixed(1))}k';
+  if (tokens < 999500) return '${(tokens / 1000).round()}k';
+  return '${trim((tokens / 1000000).toStringAsFixed(1))}m';
 }
 
 Duration _elapsed(DateTime start, DateTime now) {
