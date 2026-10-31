@@ -305,10 +305,8 @@ fn native_response(
         "userInput" if kind == RequestKind::ToolUserInput => {
             let answers = response["answers"]
                 .as_object()
-                .ok_or_else(|| HostError::format("answers must be an object"))?
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone()))
-                .collect();
+                .ok_or_else(|| HostError::format("answers must be an object"))?;
+            let answers = super::request_answers::validated_answers(&row.questions, answers)?;
             Ok(RuntimeResponse::UserInput {
                 request_id,
                 answers,
