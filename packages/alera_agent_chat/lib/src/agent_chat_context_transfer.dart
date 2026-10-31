@@ -1,4 +1,4 @@
-import 'package:alera_agent_chat/src/agent_chat_item.dart';
+import 'package:alera_agent_chat/src/agent_chat_handoff.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 
 /// What moved context into a chat (`agentChatTransfersV1`), as T3 Code's

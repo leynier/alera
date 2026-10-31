@@ -1,5 +1,6 @@
 import 'package:alera_agent_chat/src/agent_chat_context_transfer.dart';
 import 'package:alera_agent_chat/src/agent_chat_continuation_projection.dart';
+import 'package:alera_agent_chat/src/agent_chat_handoff.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
@@ -14,6 +15,7 @@ import 'package:alera_agent_chat/src/agent_chat_subagent.dart';
 import 'package:alera_agent_chat/src/agent_chat_thread.dart';
 import 'package:alera_agent_chat/src/agent_chat_worked_actions.dart';
 
+part 'agent_chat_timeline_projection_entries.dart';
 part 'agent_chat_timeline_projection_history.dart';
 part 'agent_chat_timeline_projection_segments.dart';
 part 'agent_chat_timeline_projection_subagent_thread.dart';
@@ -315,42 +317,6 @@ bool _sameItems(List<AgentChatItem> previous, List<AgentChatItem> next) {
     if (!identical(previous[index], next[index])) return false;
   }
   return true;
-}
-
-sealed class AgentChatTimelineEntry {
-  const AgentChatTimelineEntry();
-
-  String get key;
-}
-
-final class AgentChatTurnEntry extends AgentChatTimelineEntry {
-  const AgentChatTurnEntry(this.section);
-
-  final AgentChatTurnSection section;
-
-  @override
-  String get key => 'turn-${section.turnId}';
-}
-
-/// An item outside any turn: chat-level notices, errors and compaction.
-final class AgentChatStandaloneEntry extends AgentChatTimelineEntry {
-  const AgentChatStandaloneEntry(this.item);
-
-  final AgentChatItem item;
-
-  @override
-  String get key => 'item-${item.id}';
-}
-
-/// A message the user sent that the runtime has not stamped into the
-/// timeline yet, or that it rejected.
-final class AgentChatOutgoingEntry extends AgentChatTimelineEntry {
-  const AgentChatOutgoingEntry(this.message);
-
-  final AgentChatOutgoingMessage message;
-
-  @override
-  String get key => 'outgoing-${message.clientMessageId}';
 }
 
 /// The timeline both apps render, derived from a thread.

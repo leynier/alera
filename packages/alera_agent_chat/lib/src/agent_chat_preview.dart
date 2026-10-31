@@ -1,4 +1,5 @@
 import 'package:alera_agent_chat/src/agent_chat_context_transfer.dart';
+import 'package:alera_agent_chat/src/agent_chat_handoff.dart';
 import 'package:alera_agent_chat/src/agent_chat_item.dart';
 import 'package:alera_agent_chat/src/agent_chat_modes.dart';
 import 'package:alera_agent_chat/src/agent_chat_subagent.dart';
