@@ -165,6 +165,11 @@ impl ChatSession {
             .provider_turn_id
             .clone()
             .ok_or_else(|| conflict("turnNotActive", "The native turn has not started."))?;
+        // The turn reads as running until its provider stops, but the agent
+        // never reads what is steered into it after a stop.
+        if self.stopping_turn.as_deref() == Some(turn_id.as_str()) {
+            return Err(conflict("turnStopping", "The running turn is stopping."));
+        }
         if !self.header.pending_requests.is_empty() {
             return Err(conflict(
                 "request_pending",

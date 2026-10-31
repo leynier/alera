@@ -73,7 +73,13 @@ pub(crate) async fn require_bound_turn(
     {
         return Err(invalid_binding());
     }
-    if active_turn.is_none() {
+    // A native sub-agent outlives the turn that started it and keeps calling
+    // tools with its chat's credential, which the provider process holds.
+    let background_subagents = snapshot
+        .get("backgroundSubagentsRunning")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if active_turn.is_none() && !background_subagents {
         return Err(HostError::conflict(
             "caller_turn_inactive",
             "The caller chat does not have a live turn.",

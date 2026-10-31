@@ -388,3 +388,51 @@ async fn archiving_a_still_live_chat_invalidates_its_bound_connection() {
     );
     harness.finish().await;
 }
+
+#[tokio::test]
+async fn a_background_subagent_keeps_the_chat_tools_after_its_turn_ends() {
+    use alera_provider_protocol::EventKind;
+
+    let harness = TestHarness::new().await;
+    let chat = harness.create_chat("ws-a", "auto").await;
+    harness
+        .send_human(&chat, "live", "Start a background helper.")
+        .await;
+    let caller = harness.agent(&chat).await;
+    let control = harness.control(&chat).await;
+    let empty = json!({});
+    let capabilities = || harness.service.handle("capabilities", &empty, &caller);
+    control.event(
+        EventKind::TaskStarted,
+        1,
+        json!({"taskId": "helper", "awaited": true}),
+    );
+    control.complete(1, "The helper keeps working.");
+    tokio::time::timeout(TEST_DEADLINE, async {
+        loop {
+            if harness.runtime.snapshot(&chat).await.unwrap()["session"]["activeTurnId"].is_null() {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    capabilities().await.unwrap();
+    control.event(
+        EventKind::TaskCompleted,
+        1,
+        json!({"taskId": "helper", "status": "completed"}),
+    );
+    tokio::time::timeout(TEST_DEADLINE, async {
+        loop {
+            if let Err(error) = capabilities().await {
+                break assert_eq!(error_code(&error), "caller_turn_inactive");
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    harness.finish().await;
+}

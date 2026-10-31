@@ -35,6 +35,10 @@ pub(super) struct Recorded {
     pub(super) forks: Mutex<Vec<NativeForkInput>>,
     pub(super) reject_steer: AtomicBool,
     pub(super) reject_send: AtomicBool,
+    /// Interrupts are recorded without ending the turn, as a provider that
+    /// takes a while to stop.
+    pub(super) hold_interrupt: AtomicBool,
+    pub(super) held_interrupts: Mutex<Vec<InterruptInput>>,
     pub(super) send_gate: Mutex<Option<Arc<SendGate>>>,
     pub(super) feedback: Mutex<Vec<FeedbackUploadInput>>,
     /// The next feedback upload fails with this instead of answering.
@@ -223,6 +227,10 @@ impl Provider for RecordingProvider {
         self.inner.stop_subagent(task_id).await
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
+        if self.recorded.hold_interrupt.load(Ordering::SeqCst) {
+            self.recorded.held_interrupts.lock().unwrap().push(input);
+            return Ok(());
+        }
         self.inner.interrupt(input).await
     }
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {

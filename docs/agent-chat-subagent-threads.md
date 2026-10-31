@@ -31,6 +31,7 @@ This page inventories what T3 Code (`reference_projects/t3code`, read at `origin
 - Runtime: `agentChat.subagent` and `agentChat.stopSubagent` under `agentChatSubagentThreadsV1`, `agentChat.mergeBack` under `agentChatMergeBackV1`, `agentChat.workflowScript` and `agentChat.workflowAgent` under `agentChatWorkflowsV1`, all advertised in the control file, `status.get` and `mobile.hello`, and allowed for phones. `agentChat.list` and snapshot lineage name `forkedFromChatId`. See the runtime [readme](../rust/alera-cli/src/terminal_host/server/agent_chat_runtime/readme.md).
 - Package: `AgentChatSubagentTranscript`, `agentChatSubagentDescendants`, `AgentChatSubagentTimeline`, `agentChatSubagentStatusLabel` and `AgentChatRelationships`, plus `subagent`, `stopSubagent` and `mergeBack` on the lifecycle repository.
 - Clients feature-detect both capabilities; an older runtime keeps sub-agents inline with no Open or Stop and no Merge Back.
+- Lifetime: a sub-agent never outlives the provider process that ran it. When the process ends, fails or is replaced, every sub-agent of it still running settles (`stopped`, or `failed` when the process failed), workflow or not. Stop on a chat with no turn running stops the background sub-agents earlier turns left, and their later ends never start the parent again. A background sub-agent may keep calling the chat's tools after its turn ends, as long as its process runs.
 
 ## Not Implemented
 

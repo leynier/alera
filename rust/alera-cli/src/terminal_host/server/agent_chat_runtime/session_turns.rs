@@ -274,9 +274,12 @@ impl ChatSession {
         }
     }
 
+    /// Stops the running turn. With none running, it stops the background
+    /// work earlier turns left instead.
     pub(super) async fn interrupt(&mut self, turn_id: Option<&str>) -> HostResult<Value> {
         let Some(active) = self.header.session.active_turn_id.clone() else {
-            return Ok(json!({"acknowledged": true, "interrupted": false}));
+            let stopped = self.stop_background_work().await;
+            return Ok(json!({"acknowledged": true, "interrupted": stopped}));
         };
         if turn_id.is_some_and(|id| id != active) {
             return Err(conflict("turnNotActive", "That turn is no longer running."));
@@ -296,6 +299,7 @@ impl ChatSession {
             })
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        self.stopping_turn = Some(active);
         self.events_armed = true;
         Ok(json!({"acknowledged": true, "interrupted": true}))
     }
@@ -333,6 +337,7 @@ impl ChatSession {
         }
         self.provider_turn_id = None;
         self.deferred_turn = None;
+        self.stopping_turn = None;
         // A marker still pending here never reached a provider.
         self.settle_handoff(&turn_id, "failed");
         let open: Vec<String> = self

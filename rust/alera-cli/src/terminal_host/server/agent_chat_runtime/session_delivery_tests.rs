@@ -28,6 +28,8 @@ mod queue_reorder;
 mod redirect;
 #[path = "session_skills_tests.rs"]
 mod skills;
+#[path = "session_stop_tests.rs"]
+mod stop;
 #[path = "session_subagent_tests.rs"]
 mod subagents;
 #[path = "session_transfer_tests.rs"]

@@ -3,7 +3,7 @@
 //! launched it keeps the run in `normalized.subagent.workflow`, folded from
 //! each task event's frame; its script and each member's answers are read
 //! on request (`agentChatWorkflowsV1`). A workflow stops with the turn that
-//! started it unless the provider says children continue, and never
+//! started it unless the provider says children continue, and no sub-agent
 //! outlives the provider process that ran it.
 
 use std::path::Path;
@@ -152,30 +152,59 @@ impl ChatSession {
         Ok(json!({"itemId": item_id, "agentIndex": agent_index, "answers": answers}))
     }
 
-    /// Settles the running workflows among `task_ids` as `status`, first
-    /// asking the provider to stop each when `stop` holds.
-    async fn settle_workflows(&mut self, task_ids: Vec<String>, status: &str, stop: bool) {
-        for task_id in task_ids {
-            let key = native_key(
-                &self.epoch_kind("subagentTask"),
-                &Value::String(task_id.clone()),
-            );
-            let Some(call_id) = self.native_ids.get(&key).cloned() else {
-                continue;
-            };
+    /// The calls that started the sub-agents of this provider process.
+    pub(super) fn subagent_calls_of_process(&self) -> Vec<String> {
+        let kinds = [
+            self.epoch_kind("subagentTask"),
+            self.epoch_kind("subagentThread"),
+        ];
+        let mut calls: Vec<String> = self
+            .native_ids
+            .iter()
+            .filter(|((kind, _), _)| kinds.contains(kind))
+            .map(|(_, call)| call.clone())
+            .collect();
+        calls.sort();
+        calls.dedup();
+        calls
+    }
+
+    /// Settles the running sub-agents among `call_ids` as `status`, only
+    /// workflows when `workflows_only` holds, first asking the provider to
+    /// stop each when `stop` holds. Returns the task ids of those it settled.
+    pub(super) async fn settle_subagents(
+        &mut self,
+        call_ids: Vec<String>,
+        status: &str,
+        stop: bool,
+        workflows_only: bool,
+    ) -> Vec<String> {
+        let mut settled = Vec::new();
+        for call_id in call_ids {
             self.load_item(&call_id).await;
-            let running = self
+            let Some(task_id) = self
                 .items
                 .get(&call_id)
                 .and_then(|call| call.normalized.get("subagent"))
-                .is_some_and(|subagent| {
-                    subagent.get("workflow").is_some()
-                        && subagent.get("status").and_then(Value::as_str) == Some("running")
-                });
-            if !running {
+                .filter(|subagent| {
+                    subagent.get("status").and_then(Value::as_str) == Some("running")
+                        && (!workflows_only || subagent.get("workflow").is_some())
+                })
+                .map(|subagent| {
+                    subagent
+                        .get("taskId")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned()
+                })
+            else {
                 continue;
-            }
-            if let Some(provider) = self.provider.as_mut().filter(|_| stop) {
+            };
+            if let Some(provider) = self
+                .provider
+                .as_mut()
+                .filter(|_| stop && !task_id.is_empty())
+            {
                 // Best effort: an unanswered stop must not hold the turn's end.
                 let _ = tokio::time::timeout(STOP_TIMEOUT, provider.stop_subagent(&task_id)).await;
             }
@@ -188,7 +217,9 @@ impl ChatSession {
             }
             call.updated_at = now();
             self.pending.item(&call_id);
+            settled.push(task_id);
         }
+        settled
     }
 
     /// A failed or stopped turn takes the workflows it started down with it,
@@ -203,25 +234,31 @@ impl ChatSession {
         if status == "completed" || child_turns_continue {
             return;
         }
-        let task_ids: Vec<String> = self
+        let task_kind = self.epoch_kind("subagentTask");
+        let call_ids: Vec<String> = self
             .awaited_tasks
             .iter()
             .filter(|(_, task)| task.started_in.as_deref() == Some(turn_id))
-            .map(|(task_id, _)| task_id.clone())
+            .filter_map(|(task_id, _)| {
+                self.native_ids
+                    .get(&native_key(&task_kind, &Value::String(task_id.clone())))
+                    .cloned()
+            })
             .collect();
         let settled = if status == "failed" {
             "failed"
         } else {
             "stopped"
         };
-        self.settle_workflows(task_ids, settled, true).await;
+        self.settle_subagents(call_ids, settled, true, true).await;
     }
 
-    /// A workflow can outlive its turn but not the provider process: when
-    /// the process ends, every workflow still running ends with it.
-    pub(super) async fn end_workflows_of_process(&mut self, status: &str) {
-        let task_ids: Vec<String> = self.awaited_tasks.keys().cloned().collect();
-        self.settle_workflows(task_ids, status, false).await;
+    /// A sub-agent can outlive its turn but not the provider process: when
+    /// the process ends, every sub-agent still running ends with it, as
+    /// nothing would report its end otherwise.
+    pub(super) async fn end_subagents_of_process(&mut self, status: &str) {
+        let call_ids = self.subagent_calls_of_process();
+        self.settle_subagents(call_ids, status, false, false).await;
     }
 }
 

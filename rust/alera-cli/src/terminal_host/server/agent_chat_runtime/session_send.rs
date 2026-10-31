@@ -92,7 +92,10 @@ impl ChatSession {
             self.decline_for_redirect(declines, ctx).await?;
         }
         let client_message_id = input.client_message_id.clone();
-        let response = if input.delivery == "steer" {
+        let response = if input.delivery == "steer" && self.turn_stopping() {
+            // Queued behind the stopped turn instead of steered into it.
+            self.enqueue(input, ctx)
+        } else if input.delivery == "steer" {
             self.steer_message(input, ctx).await?
         } else {
             match self.admit_goal_command(input, ctx).await? {
@@ -109,6 +112,11 @@ impl ChatSession {
             receipt: response.clone(),
         });
         Ok(response)
+    }
+
+    /// A stop reached the running turn, which has not ended yet.
+    fn turn_stopping(&self) -> bool {
+        self.stopping_turn.is_some() && self.stopping_turn == self.header.session.active_turn_id
     }
 
     /// A turn runs, waits on the user, or earlier messages wait ahead.

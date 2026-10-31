@@ -104,6 +104,9 @@ pub(crate) struct ChatSession {
     /// handoff so the retry names the original source, not the failed turn.
     pub(super) handoff_from: Option<Value>,
     pub(super) provider_turn_id: Option<String>,
+    /// The running turn a stop reached. It reads as running until the
+    /// provider ends it, but input steered into it would never be read.
+    pub(super) stopping_turn: Option<String>,
     pub(super) native_ids: HashMap<(String, String), String>,
     pub(super) open_requests: Vec<OpenRequest>,
     /// Native background work the agent resumes from (`task.*.awaited`, or
@@ -227,6 +230,7 @@ impl ChatSession {
             items,
             notices: Vec::new(),
             goal_continuing: false,
+            stopping_turn: None,
             busy_flag: false,
             live_flag: false,
             closed: false,

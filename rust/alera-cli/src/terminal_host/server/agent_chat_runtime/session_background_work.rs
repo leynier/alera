@@ -29,6 +29,9 @@ pub(crate) struct AwaitedTask {
     /// complete keep the chat working but no longer resume it, as the user
     /// stopped or lost that turn.
     pub resumes_parent: bool,
+    /// A native sub-agent, as opposed to a background command. A running
+    /// sub-agent may still call the chat's tools after its turn ends.
+    pub subagent: bool,
 }
 
 fn task_id(event: &ProviderEvent) -> Option<String> {
@@ -69,6 +72,7 @@ impl ChatSession {
                     AwaitedTask {
                         started_in,
                         resumes_parent: true,
+                        subagent: true,
                     },
                 );
                 None
@@ -84,6 +88,12 @@ impl ChatSession {
             }
             _ => None,
         }
+    }
+
+    /// Whether a native sub-agent this provider process started still runs
+    /// after its turn ended. Such a child keeps using the chat's tools.
+    pub(super) fn background_subagents_running(&self) -> bool {
+        self.provider.is_some() && self.awaited_tasks.values().any(|task| task.subagent)
     }
 
     /// The status of a live provider with no turn running: working while the
@@ -169,6 +179,7 @@ impl ChatSession {
                     .or_insert(AwaitedTask {
                         started_in: None,
                         resumes_parent: false,
+                        subagent: false,
                     });
             } else {
                 self.awaited_tasks.remove(task_id);
@@ -184,6 +195,38 @@ impl ChatSession {
             .filter(|task_id| !confirmed.contains(task_id))
             .collect();
         Ok(json!({"matched": confirmed, "unmatched": unmatched}))
+    }
+
+    /// Stop with no turn running ends the background work earlier turns
+    /// left: every running sub-agent of this provider process is asked to
+    /// stop and settles as stopped, and awaited work no longer holds the chat
+    /// or resumes it. Returns whether there was any.
+    pub(super) async fn stop_background_work(&mut self) -> bool {
+        let calls = self.subagent_calls_of_process();
+        let settled = self.settle_subagents(calls, "stopped", true, false).await;
+        let awaited: Vec<String> = self
+            .awaited_tasks
+            .drain()
+            .map(|(task_id, _)| task_id)
+            .filter(|task_id| !settled.contains(task_id))
+            .collect();
+        if let Some(provider) = self.provider.as_mut() {
+            // A background command may not stop this way; it no longer holds
+            // the chat either way.
+            for task_id in &awaited {
+                let _ =
+                    tokio::time::timeout(BACKGROUND_WAIT_TIMEOUT, provider.stop_subagent(task_id))
+                        .await;
+            }
+        }
+        if settled.is_empty() && awaited.is_empty() {
+            return false;
+        }
+        if self.header.session.active_turn_id.is_none() && self.header.session.status == "running" {
+            self.set_status(self.idle_status());
+        }
+        let _ = self.flush().await;
+        true
     }
 
     /// Starts a parent turn when a native child the provider does not report

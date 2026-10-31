@@ -39,6 +39,8 @@ impl ChatSession {
             .filter(|op| super::session_native_history_recovery::native_operation_freezes(op))
             .map(super::session_native_history_recovery::native_operation_public_summary)
             .unwrap_or(Value::Null);
+        // Live state for chat-tool authorization; never stored.
+        snapshot["backgroundSubagentsRunning"] = json!(self.background_subagents_running());
         Ok(snapshot)
     }
 
