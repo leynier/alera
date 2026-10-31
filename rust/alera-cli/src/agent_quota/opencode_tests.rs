@@ -107,3 +107,35 @@ fn duplicate_home_platform_paths_are_removed() {
     );
     assert_eq!(paths, vec![PathBuf::from("home/.local/share/opencode")]);
 }
+
+#[tokio::test]
+async fn go_usage_falls_back_to_the_next_key_only_after_a_rejection() {
+    let keys = ["replaced-key".to_string(), "imported-key".to_string()];
+    for (status, requested) in [
+        (200, vec!["replaced-key"]),
+        (500, vec!["replaced-key"]),
+        (401, vec!["replaced-key", "imported-key"]),
+        (403, vec!["replaced-key", "imported-key"]),
+    ] {
+        let sent = std::cell::RefCell::new(Vec::new());
+        let response = send_with_key_fallback(
+            &keys,
+            |key| {
+                sent.borrow_mut().push(key.to_string());
+                let answer = if key == "replaced-key" { status } else { 200 };
+                async move { answer }
+            },
+            |status| matches!(status, 401 | 403),
+        )
+        .await;
+        assert_eq!(sent.into_inner(), requested, "{status}");
+        assert_eq!(
+            response,
+            Some(if requested.len() == 2 { 200 } else { status })
+        );
+    }
+    assert_eq!(
+        send_with_key_fallback(&[], |_| async { 200 }, |_| false).await,
+        None
+    );
+}
