@@ -474,7 +474,7 @@ struct ServerActor {
         HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
     mutation_queue: runtime_mutation_queue::RuntimeMutationQueue,
-    agent_quota_cache: Option<(Instant, u64, Value)>,
+    agent_quota_cache: Option<host_service_agent_quota::AgentQuotaCache>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
     account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
@@ -743,6 +743,7 @@ impl ServerActor {
                 );
             }
             ServerCommand::AgentChatRuntimeEvent { event } => {
+                self.refresh_agent_quotas_after_usage_limit(&event);
                 self.queue_chat_runtime_push(&event).await;
                 self.handle_agent_chat_runtime_event(event);
             }

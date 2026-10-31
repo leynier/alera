@@ -11,7 +11,23 @@ use crate::terminal_host::protocol::{error_response, event, ok_response};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
+#[path = "host_service_agent_quota_refresh.rs"]
+mod refresh;
+#[cfg(test)]
+#[path = "host_service_agent_quota_refresh_tests.rs"]
+mod refresh_tests;
+
+use refresh::{UsageRefresh, HOST_REFRESH_CLIENT_ID};
+
 const AGENT_QUOTA_CACHE_TTL: Duration = Duration::from_secs(15 * 60);
+
+/// The host's last quota snapshot and the usage refreshes that update it.
+pub(super) struct AgentQuotaCache {
+    fetched_at: Instant,
+    environment_signature: u64,
+    snapshot: Value,
+    refresh: UsageRefresh,
+}
 
 impl ServerActor {
     pub(super) fn start_agent_quota_request(
@@ -30,14 +46,17 @@ impl ServerActor {
             .unwrap_or_else(|| json!({}));
         let environment_signature = quota_environment_signature(&environment_values);
         if !force_refresh {
-            if let Some((fetched_at, cached_signature, cached)) = &self.agent_quota_cache {
-                if *cached_signature == environment_signature
-                    && fetched_at.elapsed() < AGENT_QUOTA_CACHE_TTL
+            if let Some(cache) = &self.agent_quota_cache {
+                if cache.environment_signature == environment_signature
+                    && cache.fetched_at.elapsed() < AGENT_QUOTA_CACHE_TTL
                 {
-                    self.client_write(client_id, ok_response(request_id, cached.clone()));
+                    self.client_write(client_id, ok_response(request_id, cache.snapshot.clone()));
                     return Ok(());
                 }
             }
+        }
+        if let Some(cache) = self.agent_quota_cache.as_mut() {
+            cache.refresh.client_fetch_started(client_id, request_id);
         }
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
@@ -87,7 +106,7 @@ impl ServerActor {
         let environment_signature = self
             .agent_quota_cache
             .as_ref()
-            .map(|(_, signature, _)| *signature)
+            .map(|cache| cache.environment_signature)
             .unwrap_or(0);
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
@@ -136,7 +155,7 @@ impl ServerActor {
         let environment_signature = self
             .agent_quota_cache
             .as_ref()
-            .map(|(_, signature, _)| *signature)
+            .map(|cache| cache.environment_signature)
             .unwrap_or(0);
         let store = self.runtime_store.clone();
         let payload = payload.clone();
@@ -176,16 +195,10 @@ impl ServerActor {
                     return;
                 };
                 let merged = upsert_quota_snapshot(
-                    self.agent_quota_cache
-                        .as_ref()
-                        .filter(|(_, cached_signature, _)| {
-                            *cached_signature == environment_signature
-                        })
-                        .map(|(_, _, cached)| cached),
+                    self.cached_agent_quotas(environment_signature),
                     snapshot,
                 );
-                self.agent_quota_cache =
-                    Some((Instant::now(), environment_signature, merged.clone()));
+                self.store_agent_quotas(environment_signature, merged.clone());
                 self.client_write(
                     client_id,
                     ok_response(
@@ -212,36 +225,37 @@ impl ServerActor {
         environment_signature: u64,
         result: HostResult<Value>,
     ) {
+        if client_id == HOST_REFRESH_CLIENT_ID {
+            self.handle_agent_quota_refresh_finished(request_id, result);
+            return;
+        }
+        let next_refresh = self
+            .agent_quota_cache
+            .as_mut()
+            .and_then(|cache| cache.refresh.client_fetch_finished(client_id, request_id));
         match result {
             Ok(fresh) => {
                 let merged = self
-                    .agent_quota_cache
-                    .as_ref()
-                    .filter(|(_, cached_signature, _)| *cached_signature == environment_signature)
-                    .map(|(_, _, cached)| merge_quota_snapshots(cached, fresh.clone()))
+                    .cached_agent_quotas(environment_signature)
+                    .map(|cached| merge_quota_snapshots(cached, fresh.clone()))
                     .unwrap_or(fresh);
-                self.agent_quota_cache =
-                    Some((Instant::now(), environment_signature, merged.clone()));
+                self.store_agent_quotas(environment_signature, merged.clone());
                 self.client_write(client_id, ok_response(request_id, merged));
                 self.broadcast_authenticated(event("agentQuotasChanged", json!({})));
             }
-            Err(error) => {
-                if let Some((_, cached_signature, cached)) = &self.agent_quota_cache {
-                    if *cached_signature != environment_signature {
-                        self.client_write(client_id, error_response(request_id, &error));
-                        return;
-                    }
-                    self.client_write(
-                        client_id,
-                        ok_response(
-                            request_id,
-                            mark_quota_payload_stale(cached, &error.wire_message()),
-                        ),
-                    );
-                } else {
-                    self.client_write(client_id, error_response(request_id, &error));
-                }
-            }
+            Err(error) => match self.cached_agent_quotas(environment_signature) {
+                Some(cached) => self.client_write(
+                    client_id,
+                    ok_response(
+                        request_id,
+                        mark_quota_payload_stale(cached, &error.wire_message()),
+                    ),
+                ),
+                None => self.client_write(client_id, error_response(request_id, &error)),
+            },
+        }
+        if let Some(start) = next_refresh {
+            self.spawn_agent_quota_refresh(start);
         }
     }
 
@@ -256,14 +270,10 @@ impl ServerActor {
             Ok(mut payload) => {
                 if let Some(snapshot) = payload.get("snapshot").cloned() {
                     let merged = upsert_quota_snapshot(
-                        self.agent_quota_cache
-                            .as_ref()
-                            .filter(|(_, signature, _)| *signature == environment_signature)
-                            .map(|(_, _, cached)| cached),
+                        self.cached_agent_quotas(environment_signature),
                         snapshot,
                     );
-                    self.agent_quota_cache =
-                        Some((Instant::now(), environment_signature, merged.clone()));
+                    self.store_agent_quotas(environment_signature, merged.clone());
                     if let Some(object) = payload.as_object_mut() {
                         object.insert(
                             "snapshots".to_string(),
@@ -281,6 +291,31 @@ impl ServerActor {
                 self.client_write(client_id, error_response(request_id, &error));
             }
         }
+    }
+}
+
+impl ServerActor {
+    /// The cached snapshot, when it was fetched with the same environment.
+    fn cached_agent_quotas(&self, environment_signature: u64) -> Option<&Value> {
+        self.agent_quota_cache
+            .as_ref()
+            .filter(|cache| cache.environment_signature == environment_signature)
+            .map(|cache| &cache.snapshot)
+    }
+
+    /// Caches a fresh snapshot; usage refreshes in flight keep their state.
+    fn store_agent_quotas(&mut self, environment_signature: u64, snapshot: Value) {
+        let refresh = self
+            .agent_quota_cache
+            .take()
+            .map(|cache| cache.refresh)
+            .unwrap_or_default();
+        self.agent_quota_cache = Some(AgentQuotaCache {
+            fetched_at: Instant::now(),
+            environment_signature,
+            snapshot,
+            refresh,
+        });
     }
 }
 
