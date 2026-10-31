@@ -1,6 +1,7 @@
+use crate::mapping_turn::{prompt_complete, state_update, turn_completed};
 use crate::mapping_values::{
     available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id,
-    permission_kind, prompt_matches, string, terminal_state, tool_payload,
+    permission_kind, string, terminal_state, tool_payload,
 };
 use crate::questions::extract_questions;
 use crate::transport::PendingRequest;
@@ -76,54 +77,7 @@ fn map_notification(
         method,
         "x.ai/session/prompt_complete" | "_x.ai/session/prompt_complete"
     ) {
-        let native_prompt_id = params
-            .get("promptId")
-            .or_else(|| params.get("prompt_id"))
-            .and_then(Value::as_str);
-        if native_prompt_id.is_some_and(|id| id.starts_with("task-completed-")) {
-            return Ok(MappedIncoming {
-                event: event(context, method, EventKind::TaskCompleted, params, raw, None),
-                pending: None,
-            });
-        }
-        if native_prompt_id.is_some_and(|native| {
-            !prompt_matches(native, context.prompt_id, context.prompt_meta_id)
-        }) {
-            return Ok(MappedIncoming {
-                event: event(
-                    context,
-                    method,
-                    EventKind::Unknown(format!("acp.{method}")),
-                    params,
-                    raw,
-                    None,
-                ),
-                pending: None,
-            });
-        }
-        let payload = json!({
-            "state": terminal_state(
-                params.get("stopReason").or_else(|| params.get("stop_reason")),
-            ),
-            "stopReason": params.get("stopReason").or_else(|| params.get("stop_reason")),
-            "usage": params.get("usage"),
-            "result": params.get("agentResult").or_else(|| params.get("agent_result")),
-            "errorMessage": params
-                .get("errorMessage")
-                .or_else(|| params.get("error"))
-                .and_then(Value::as_str),
-        });
-        return Ok(MappedIncoming {
-            event: event(
-                context,
-                method,
-                EventKind::TurnCompleted,
-                payload,
-                raw,
-                None,
-            ),
-            pending: None,
-        });
+        return Ok(prompt_complete(method, params, raw, context));
     }
     let is_update = matches!(
         method,
@@ -209,68 +163,12 @@ fn map_notification(
             )
         }
         "state_update" => {
-            if update.get("state").and_then(Value::as_str) == Some("idle")
-                && context.turn_id.is_some()
-                && context.idle_ends_turn
-            {
-                let state = match update.get("stopReason").and_then(Value::as_str) {
-                    Some("cancelled") | Some("interrupted") => TurnStatus::Interrupted,
-                    Some("error") | Some("failed") => TurnStatus::Failed,
-                    _ => TurnStatus::Completed,
-                };
-                (
-                    EventKind::TurnCompleted,
-                    json!({
-                        "state": state,
-                        "stopReason": update.get("stopReason"),
-                        "usage": update.get("usage"),
-                        "errorMessage": update
-                            .get("errorMessage")
-                            .or_else(|| update.get("error"))
-                            .and_then(Value::as_str),
-                    }),
-                    None,
-                )
-            } else {
-                (EventKind::ThreadStateChanged, update.clone(), None)
-            }
+            let (kind, payload) = state_update(&update, context);
+            (kind, payload, None)
         }
         "turn_completed" => {
-            let native_prompt_id = update
-                .get("prompt_id")
-                .or_else(|| update.get("promptId"))
-                .and_then(Value::as_str);
-            if native_prompt_id.is_some_and(|id| id.starts_with("task-completed-")) {
-                (EventKind::TaskCompleted, update.clone(), None)
-            } else {
-                let matches_prompt = native_prompt_id
-                    .map(|native| prompt_matches(native, context.prompt_id, context.prompt_meta_id))
-                    .unwrap_or(context.prompt_id.is_none() || context.prompt_meta_id.is_some());
-                if !matches_prompt {
-                    (
-                        EventKind::Unknown(format!("acp.session-update.{name}")),
-                        update.clone(),
-                        None,
-                    )
-                } else {
-                    (
-                        EventKind::TurnCompleted,
-                        json!({
-                            "state": terminal_state(
-                                update.get("stop_reason").or_else(|| update.get("stopReason")),
-                            ),
-                            "stopReason": update.get("stop_reason").or_else(|| update.get("stopReason")),
-                            "usage": update.get("usage"),
-                            "result": update.get("agent_result").or_else(|| update.get("agentResult")),
-                            "errorMessage": update
-                                .get("errorMessage")
-                                .or_else(|| update.get("error"))
-                                .and_then(Value::as_str),
-                        }),
-                        None,
-                    )
-                }
-            }
+            let (kind, payload) = turn_completed(&update, context);
+            (kind, payload, None)
         }
         "plan" | "plan_update" | "plan_removed" => {
             (EventKind::TurnPlanUpdated, json!({"plan": update}), None)
@@ -466,7 +364,7 @@ fn map_request(
     })
 }
 
-fn event(
+pub(crate) fn event(
     context: &MappingContext<'_>,
     method: &str,
     kind: EventKind,
