@@ -360,12 +360,24 @@ fn map_plan(
     turn_id: Option<String>,
     raw: Option<RawEvent>,
 ) -> Result<ProviderEvent, ProviderError> {
+    // A cancelled todo is no outstanding work, and plan steps have no
+    // cancelled status, so it leaves the plan instead of showing as pending.
+    let plan = match props.get("todos").cloned() {
+        Some(Value::Array(todos)) => Value::Array(
+            todos
+                .into_iter()
+                .filter(|todo| todo.get("status").and_then(Value::as_str) != Some("cancelled"))
+                .collect(),
+        ),
+        Some(todos) => todos,
+        None => props.clone(),
+    };
     let mut event = ProviderEvent::new(
         opencode_kind(),
         "opencode",
         thread_id,
         EventKind::TurnPlanUpdated,
-        json!({ "plan": props.get("todos").cloned().unwrap_or_else(|| props.clone()) }),
+        json!({ "plan": plan }),
         raw,
     );
     event.turn_id = turn_id;
