@@ -1,5 +1,6 @@
 use crate::provider::MuseProvider;
 use crate::session_mcp;
+use crate::workspace;
 use alera_provider_protocol::*;
 use async_trait::async_trait;
 use serde_json::{Map, Value};
@@ -95,7 +96,7 @@ impl Provider for MuseProvider {
         if let Some(cwd) = &input.cwd {
             params.insert(
                 "workspaceRoot".into(),
-                Value::String(cwd.to_string_lossy().into()),
+                Value::String(workspace::workspace_root(cwd).await),
             );
         }
         if let Some(model) = &input.model {

@@ -12,6 +12,7 @@ mod lifecycle;
 mod provider;
 mod responses;
 mod session_mcp;
+mod workspace;
 
 pub use config::MuseProviderConfig;
 pub use provider::MuseProvider;
