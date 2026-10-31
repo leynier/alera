@@ -25,6 +25,7 @@ pub use command::CommandRequest;
 pub use error::OpenCodeError;
 pub use mcp::{normalized_mcp_server_name, McpServerConfig, PermissionRule};
 pub use model::{OpenCodeEvent, OpenCodeModel, OpenCodeResponse, OpenCodeSession, RuntimeRequest};
+pub use prompt::inline_file_part;
 pub use server::{OpenCodeServer, OpenCodeServerConfig, OpenCodeServerError};
 pub use sse::{SseDecoder, SseFrame};
 pub use transport::{

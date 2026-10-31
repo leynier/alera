@@ -5,6 +5,7 @@
 //! executable is an external dependency; callers inject the shared HTTP
 //! transport and may use its managed-process layer for local `serve` hosts.
 
+mod attachments;
 mod background;
 mod commands;
 mod config;

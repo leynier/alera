@@ -227,3 +227,40 @@ async fn v2_session_permission_rules_use_patch_route() {
     let body: serde_json::Value = serde_json::from_slice(&request.body).expect("permissions body");
     assert_eq!(body["permissions"][0]["action"], "alera-*");
 }
+
+#[tokio::test]
+async fn inline_file_parts_carry_their_bytes_on_both_generations() {
+    let part = opencode_agent_sdk::inline_file_part("image/png", "shot.png", b"\x89PNG");
+    assert_eq!(
+        part,
+        json!({"type":"file","mime":"image/png","filename":"shot.png","url":"data:image/png;base64,iVBORw=="})
+    );
+    for generation in [Generation::V2, Generation::Legacy1] {
+        let transport = MockHttpTransport::new();
+        transport.push_response(response(json!({"ok":true})));
+        let mut client = OpenCodeClient::new(
+            transport,
+            ClientConfig {
+                generation,
+                ..ClientConfig::default()
+            },
+        );
+        client
+            .prompt_parts(
+                "s1",
+                vec![json!({"type":"text","text":"look"}), part.clone()],
+                None,
+            )
+            .await
+            .expect("prompt");
+        let requests = client.transport().captured_requests();
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).expect("body");
+        match generation {
+            Generation::V2 => assert_eq!(
+                body,
+                json!({"text":"look","files":[{"uri":"data:image/png;base64,iVBORw==","name":"shot.png"}]})
+            ),
+            Generation::Legacy1 => assert_eq!(body["parts"][1], part),
+        }
+    }
+}

@@ -40,7 +40,7 @@ impl<T: HttpTransport + Clone + 'static> OpenCodeProvider<T> {
         if bare && input.input.trim() == "/compact" {
             return Ok(Dispatch::Compact);
         }
-        let parts = crate::config::prompt_parts(input)?;
+        let parts = crate::attachments::prompt_parts(input).await?;
         let generation = self.config.generation;
         // 2.x runs commands only for text alone; 1.x sends files along.
         let candidate = match generation {

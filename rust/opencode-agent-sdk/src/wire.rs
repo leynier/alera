@@ -54,7 +54,15 @@ pub(crate) fn prompt_body(parts: Vec<Value>) -> Value {
                     .or_else(|| part.get("url"))
                     .and_then(Value::as_str)
                 {
-                    files.push(json!({ "uri": uri }));
+                    let mut file = json!({ "uri": uri });
+                    if let Some(name) = part
+                        .get("name")
+                        .or_else(|| part.get("filename"))
+                        .and_then(Value::as_str)
+                    {
+                        file["name"] = Value::String(name.to_owned());
+                    }
+                    files.push(file);
                 }
             }
             _ => {}

@@ -9,3 +9,5 @@ The 1.x server exposes its configured name/status map at `GET /mcp`, dynamic reg
 The referenced upstream source is MIT licensed. The OpenCode executable remains an external runtime dependency and is not bundled or redistributed by this crate.
 
 The provider's operation timeout applies to HTTP control and handshake work; the SDK's incremental SSE reader keeps an open stream until a decodable event or EOF and enforces its bound per event rather than across coalesced events.
+
+`inline_file_part` builds a prompt file part whose bytes travel as a `data:` URL, so a server need not share the caller's filesystem: 1.x sends it as a `file` part with its `mime` and `filename`, 2.x as a `files` entry with its `name`.

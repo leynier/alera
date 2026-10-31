@@ -3,7 +3,6 @@ use alera_provider_protocol::{
     TurnInput,
 };
 use opencode_agent_sdk::{ClientConfig, Generation, McpServerConfig, OpenCodeServerConfig};
-use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -191,32 +190,4 @@ pub(crate) fn validate_turn_options(input: &TurnInput) -> Result<(), ProviderErr
         )));
     }
     Ok(())
-}
-
-pub(crate) fn prompt_parts(input: &TurnInput) -> Result<Vec<Value>, ProviderError> {
-    let mut parts = Vec::new();
-    if !input.input.trim().is_empty() {
-        parts.push(json!({ "type": "text", "text": input.input }));
-    }
-    for attachment in &input.attachments {
-        match attachment {
-            alera_provider_protocol::Attachment::Image { url } => parts.push(json!({
-                "type": "file",
-                "url": url,
-                "mime": "image/*"
-            })),
-            alera_provider_protocol::Attachment::LocalImage { .. }
-            | alera_provider_protocol::Attachment::File { .. } => {
-                return Err(ProviderError::Unsupported(
-                    "OpenCode adapter only supports URL image attachments".into(),
-                ))
-            }
-        }
-    }
-    if parts.is_empty() {
-        return Err(ProviderError::Validation(
-            "OpenCode turn requires text or a URL image".into(),
-        ));
-    }
-    Ok(parts)
 }

@@ -1,7 +1,22 @@
 use crate::wire::{model_value, prompt_body};
 use crate::{Generation, OpenCodeClient, OpenCodeError};
 use alera_agent_http::HttpTransport;
+use base64::Engine;
 use serde_json::{json, Value};
+
+/// A prompt file part that carries its bytes as a `data:` URL, so the
+/// server need not share the caller's filesystem. 1.x sends it as a `file`
+/// part; 2.x as a `files` entry, which decodes the URL and reads the type
+/// from the bytes.
+pub fn inline_file_part(mime: &str, filename: &str, bytes: &[u8]) -> Value {
+    let data = base64::engine::general_purpose::STANDARD.encode(bytes);
+    json!({
+        "type": "file",
+        "mime": mime,
+        "filename": filename,
+        "url": format!("data:{mime};base64,{data}"),
+    })
+}
 
 impl<T: HttpTransport> OpenCodeClient<T> {
     pub async fn prompt(
