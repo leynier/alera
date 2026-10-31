@@ -5,6 +5,10 @@ class const AgentChatQuestionOption({
   required final String label,
   final String description = '',
   final String? value,
+
+  /// Markdown the provider shows beside the option, such as a proposed
+  /// change, kept verbatim; null when it sent none or only whitespace.
+  final String? preview,
 }) {
   factory fromJson(Object? json) {
     if (json is String) return AgentChatQuestionOption(label: json);
@@ -13,6 +17,7 @@ class const AgentChatQuestionOption({
       label: agentChatJsonText(map['label']),
       description: agentChatJsonText(map['description']),
       value: agentChatJsonString(map['value']),
+      preview: agentChatJsonString(map['preview']),
     );
   }
 
