@@ -19,6 +19,8 @@ pub enum CanonicalItemType {
     ReviewEntered,
     ReviewExited,
     ContextCompaction,
+    /// An image the agent generated, saved on the host.
+    ImageGeneration,
     Error,
     Unknown,
 }

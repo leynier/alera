@@ -80,6 +80,7 @@ fn parse_agent(entry: &Value) -> Option<WorkflowAgent> {
         duration_ms: count(entry.get("durationMs")),
         queued_at: timestamp(entry.get("queuedAt")),
         started_at: timestamp(entry.get("startedAt")),
+        completed_at: None,
         prompt: preview(entry.get("promptPreview")),
         result: preview(entry.get("resultPreview")),
     })

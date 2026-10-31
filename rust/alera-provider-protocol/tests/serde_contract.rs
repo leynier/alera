@@ -1,8 +1,8 @@
 use alera_provider_protocol::{
-    ApprovalDecision, ApprovalPolicy, Attachment, EventKind, FailureClass, InteractionMode,
-    ProviderEvent, ProviderKind, ProviderRefs, ProviderSession, RequestId, RuntimeMode,
-    RuntimeRequest, RuntimeResponse, SandboxMode, SessionStartInput, SessionStatus, StreamKind,
-    TurnInput, TurnStatus,
+    ApprovalDecision, ApprovalPolicy, Attachment, CanonicalItemType, EventKind, FailureClass,
+    InteractionMode, ProviderEvent, ProviderKind, ProviderRefs, ProviderSession, RequestId,
+    RuntimeMode, RuntimeRequest, RuntimeResponse, SandboxMode, SessionStartInput, SessionStatus,
+    StreamKind, TurnInput, TurnStatus, USER_INPUT_OPTION_PREVIEWS,
 };
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -291,6 +291,11 @@ fn attachment_only_turn_is_valid_for_image_or_file_context() {
         },
         Attachment::File {
             path: PathBuf::from("/workspace/notes.md"),
+            name: None,
+        },
+        Attachment::File {
+            path: PathBuf::from("/runtime/agent-chat-attachments/u.data.md"),
+            name: Some("notes.md".into()),
         },
     ] {
         let input = TurnInput {
@@ -303,6 +308,44 @@ fn attachment_only_turn_is_valid_for_image_or_file_context() {
         };
         input.validate().unwrap();
     }
+}
+
+#[test]
+fn a_file_attachment_keeps_its_name_and_reads_payloads_without_one() {
+    let named = json!({"type": "file", "path": "/w/u.data.pdf", "name": "spec.pdf"});
+    let attachment: Attachment = serde_json::from_value(named.clone()).unwrap();
+    assert_eq!(
+        attachment,
+        Attachment::File {
+            path: PathBuf::from("/w/u.data.pdf"),
+            name: Some("spec.pdf".into()),
+        }
+    );
+    assert_eq!(serde_json::to_value(&attachment).unwrap(), named);
+
+    let unnamed = json!({"type": "file", "path": "/w/notes.md"});
+    let attachment: Attachment = serde_json::from_value(unnamed.clone()).unwrap();
+    assert_eq!(
+        attachment,
+        Attachment::File {
+            path: PathBuf::from("/w/notes.md"),
+            name: None,
+        }
+    );
+    assert_eq!(serde_json::to_value(&attachment).unwrap(), unnamed);
+}
+
+#[test]
+fn new_item_type_and_payload_key_keep_their_wire_names() {
+    assert_eq!(
+        serde_json::to_value(CanonicalItemType::ImageGeneration).unwrap(),
+        json!("image_generation")
+    );
+    assert_eq!(
+        serde_json::from_value::<CanonicalItemType>(json!("image_generation")).unwrap(),
+        CanonicalItemType::ImageGeneration
+    );
+    assert_eq!(USER_INPUT_OPTION_PREVIEWS, "optionPreviews");
 }
 
 #[test]

@@ -111,6 +111,47 @@ fn turn_completed_complete_usage_requires_input_and_output_counts() {
 }
 
 #[test]
+fn context_usage_fields_are_counts_when_present() {
+    let live = |payload: serde_json::Value| {
+        let mut event = valid_completed_event(payload);
+        event.kind = EventKind::ThreadTokenUsageUpdated;
+        event
+    };
+    live(json!({
+        "usageStatus": "partial",
+        "usageScope": "main_agent",
+        "hasSubagents": false,
+        "contextTokens": 38_123,
+        "contextWindow": 200_000,
+        "autoCompactTokens": 117_000
+    }))
+    .validate()
+    .unwrap();
+    live(json!({"inputTokens": 7})).validate().unwrap();
+    for field in ["contextTokens", "contextWindow", "autoCompactTokens"] {
+        for value in [json!("x"), json!(-1), json!(1.5), json!(null)] {
+            expect_validation_error(live(json!({ field: value.clone() })).validate());
+        }
+    }
+
+    let completed = |auto_compact: serde_json::Value| {
+        valid_completed_event(json!({
+            "state": "completed",
+            "tokenUsage": {
+                "usageScope": "main_agent",
+                "usageStatus": "partial",
+                "hasSubagents": false,
+                "contextTokens": 1_075,
+                "contextWindow": 200_000,
+                "autoCompactTokens": auto_compact
+            }
+        }))
+    };
+    completed(json!(117_000)).validate().unwrap();
+    expect_validation_error(completed(json!(-1)).validate());
+}
+
+#[test]
 fn event_validation_rejects_blank_identity_and_invalid_timestamp() {
     let mut event = valid_content_event(json!({
         "streamKind": "assistant_text",

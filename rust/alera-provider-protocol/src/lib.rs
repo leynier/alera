@@ -1,5 +1,6 @@
 //! UI-independent provider lifecycle and normalized runtime event contract.
 
+mod attachment_prompt;
 mod command;
 mod error;
 mod event;
@@ -23,6 +24,7 @@ mod subagent;
 mod validation;
 mod workflow;
 
+pub use attachment_prompt::*;
 pub use command::*;
 pub use error::*;
 pub use event::*;

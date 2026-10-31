@@ -72,6 +72,10 @@ pub struct WorkflowAgent {
     pub queued_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_at: Option<u64>,
+    /// When a settled member finished: the provider's last progress instant.
+    /// Its duration leaves out startup waits, so this is the wall-clock end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<u64>,
     /// Excerpts of what the member was asked and answered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
@@ -106,6 +110,7 @@ impl WorkflowAgent {
             duration_ms,
             queued_at,
             started_at,
+            completed_at,
             prompt,
             result
         )
@@ -127,6 +132,7 @@ impl WorkflowAgent {
             duration_ms: None,
             queued_at: None,
             started_at: None,
+            completed_at: None,
             prompt: None,
             result: None,
         }

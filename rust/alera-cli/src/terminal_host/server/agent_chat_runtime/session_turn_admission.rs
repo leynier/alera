@@ -41,7 +41,14 @@ pub(super) fn provider_attachments(attachments: &[Value]) -> Vec<Attachment> {
                     .and_then(Value::as_str)
                     .map(|url| Attachment::Image { url: url.into() }),
                 Some("localImage") => path.map(|path| Attachment::LocalImage { path }),
-                _ => path.map(|path| Attachment::File { path }),
+                _ => path.map(|path| Attachment::File {
+                    path,
+                    name: attachment
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .filter(|name| !name.trim().is_empty())
+                        .map(str::to_owned),
+                }),
             }
         })
         .collect()
@@ -160,7 +167,47 @@ impl ChatSession {
 
 #[cfg(test)]
 mod tests {
-    use super::slash_command_name;
+    use super::{provider_attachments, slash_command_name};
+    use alera_provider_protocol::Attachment;
+    use serde_json::json;
+    use std::path::PathBuf;
+
+    #[test]
+    fn provider_attachments_keep_the_person_s_file_name() {
+        let attachments = provider_attachments(&[
+            json!({
+                "type": "file",
+                "path": "/rt/agent-chat-attachments/u.data.pdf",
+                "name": "spec.pdf",
+                "attachmentId": "u",
+                "sizeBytes": 12
+            }),
+            json!({"type": "file", "path": "/w/notes.md", "name": "  "}),
+            json!({"type": "localImage", "path": "/w/shot.png", "name": "shot.png"}),
+            json!({"type": "image", "url": "https://example.test/a.png"}),
+            json!({"type": "file", "name": "orphan.txt"}),
+        ]);
+
+        assert_eq!(
+            attachments,
+            vec![
+                Attachment::File {
+                    path: PathBuf::from("/rt/agent-chat-attachments/u.data.pdf"),
+                    name: Some("spec.pdf".into()),
+                },
+                Attachment::File {
+                    path: PathBuf::from("/w/notes.md"),
+                    name: None,
+                },
+                Attachment::LocalImage {
+                    path: PathBuf::from("/w/shot.png"),
+                },
+                Attachment::Image {
+                    url: "https://example.test/a.png".into(),
+                },
+            ]
+        );
+    }
 
     #[test]
     fn a_slash_command_is_one_token_after_the_slash() {

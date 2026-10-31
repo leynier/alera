@@ -157,6 +157,7 @@ impl ProviderEvent {
                     validate_token_usage(usage)?;
                 }
             }
+            EventKind::ThreadTokenUsageUpdated => validate_context_usage(&self.payload)?,
             EventKind::TurnAborted => {
                 let reason = self.payload["reason"].as_str().unwrap_or_default();
                 nonempty(reason, "turn.aborted reason")?;
@@ -241,6 +242,22 @@ fn validate_token_usage(usage: &serde_json::Value) -> Result<(), ProviderError> 
                 )))
             }
             _ => {}
+        }
+    }
+    validate_context_usage(usage)
+}
+
+/// The context a provider holds now, its model's window, and where it
+/// compacts on its own: optional, and counts when present.
+fn validate_context_usage(usage: &serde_json::Value) -> Result<(), ProviderError> {
+    for field in ["contextTokens", "contextWindow", "autoCompactTokens"] {
+        if usage
+            .get(field)
+            .is_some_and(|value| value.as_u64().is_none())
+        {
+            return Err(ProviderError::Validation(format!(
+                "{field} must be a nonnegative integer"
+            )));
         }
     }
     Ok(())

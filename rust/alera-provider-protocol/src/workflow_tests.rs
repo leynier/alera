@@ -16,6 +16,7 @@ fn agent(index: u64, state: WorkflowAgentState) -> WorkflowAgent {
         duration_ms: None,
         queued_at: None,
         started_at: None,
+        completed_at: None,
         prompt: None,
         result: None,
     }
@@ -152,6 +153,23 @@ fn fields_a_later_frame_omits_are_kept_within_an_attempt() {
 }
 
 #[test]
+fn a_settled_member_keeps_its_completion_and_a_retry_clears_it() {
+    let mut done = agent(1, Completed);
+    done.completed_at = Some(4_432);
+    let first = SubagentWorkflow::merge(None, &frame(vec![], vec![done]));
+    let second = SubagentWorkflow::merge(Some(&first), &frame(vec![], vec![agent(1, Completed)]));
+    assert_eq!(second.agents[0].completed_at, Some(4_432));
+    let third = SubagentWorkflow::merge(Some(&second), &frame(vec![], vec![agent(1, Running)]));
+    assert_eq!(third.agents[0].state, Completed);
+    assert_eq!(third.agents[0].completed_at, Some(4_432));
+    let mut retry = agent(1, Running);
+    retry.attempt = Some(3);
+    let fourth = SubagentWorkflow::merge(Some(&third), &frame(vec![], vec![retry]));
+    assert_eq!(fourth.agents[0].state, Running);
+    assert_eq!(fourth.agents[0].completed_at, None);
+}
+
+#[test]
 fn run_handles_merge_field_by_field() {
     let first = SubagentWorkflow::merge(
         None,
@@ -202,6 +220,7 @@ fn a_runaway_frame_is_bounded() {
 fn the_wire_shape_matches_t3_and_malformed_frames_are_ignored() {
     let mut member = agent(1, Completed);
     member.total_tokens = Some(7);
+    member.completed_at = Some(1_700_000_004_432);
     let workflow = frame(vec![phase(1, "Alpha")], vec![member]);
     let value = serde_json::to_value(&workflow).unwrap();
     assert_eq!(
@@ -211,6 +230,7 @@ fn the_wire_shape_matches_t3_and_malformed_frames_are_ignored() {
             "agents": [{
                 "index": 1, "label": "alpha:1", "state": "completed",
                 "phaseIndex": 1, "phaseTitle": "Alpha", "totalTokens": 7,
+                "completedAt": 1_700_000_004_432_u64,
             }],
         })
     );

@@ -58,9 +58,19 @@ impl SessionStartInput {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Attachment {
-    Image { url: String },
-    LocalImage { path: PathBuf },
-    File { path: PathBuf },
+    Image {
+        url: String,
+    },
+    LocalImage {
+        path: PathBuf,
+    },
+    File {
+        path: PathBuf,
+        /// The person's file name; an uploaded file's saved path does not
+        /// keep it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -108,7 +118,7 @@ impl TurnInput {
         for attachment in &self.attachments {
             match attachment {
                 Attachment::Image { url } => nonempty(url, "image url")?,
-                Attachment::LocalImage { path } | Attachment::File { path } => {
+                Attachment::LocalImage { path } | Attachment::File { path, .. } => {
                     if path.as_os_str().is_empty() {
                         return Err(ProviderError::Validation(
                             "attachment path must not be empty".into(),

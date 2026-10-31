@@ -158,6 +158,7 @@ async fn unsupported_file_attachment_fails_before_turn_start() {
     let mut turn = TurnInput::text("app-file", "attach");
     turn.attachments.push(Attachment::File {
         path: "/tmp/file.txt".into(),
+        name: None,
     });
     assert!(matches!(
         provider.send_turn(turn).await,

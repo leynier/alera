@@ -94,6 +94,12 @@ pub struct UserInputQuestion {
 
 pub type UserInputAnswers = BTreeMap<String, Value>;
 
+/// The [RuntimeRequest] `payload` key for previews a provider shows beside a
+/// question's options: `{questionId: [preview | null, ...]}`, aligned with
+/// that question's options. A side channel, because a typed option field
+/// would break every provider that builds options literally.
+pub const USER_INPUT_OPTION_PREVIEWS: &str = "optionPreviews";
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeRequest {
