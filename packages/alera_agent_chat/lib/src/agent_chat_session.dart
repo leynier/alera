@@ -201,6 +201,9 @@ class const AgentChatUsage({
   final int? reasoningTokens,
   final int? contextTokens,
   final int? contextWindow,
+
+  /// Where the provider compacts the context on its own, in tokens.
+  final int? autoCompactTokens,
   final List<AgentChatUsageWindow> windows = const <AgentChatUsageWindow>[],
 }) {
   factory fromJson(Object? value) {
@@ -213,6 +216,7 @@ class const AgentChatUsage({
       reasoningTokens: agentChatJsonInt(tokens['reasoning']),
       contextTokens: agentChatJsonInt(tokens['context']),
       contextWindow: agentChatJsonInt(tokens['contextWindow']),
+      autoCompactTokens: agentChatJsonInt(tokens['autoCompact']),
       windows: <AgentChatUsageWindow>[
         for (final window in agentChatJsonList(json['windows']))
           AgentChatUsageWindow.fromJson(window),
@@ -227,7 +231,22 @@ class const AgentChatUsage({
     if (used == null || window == null || window <= 0) return null;
     return (used / window).clamp(0, 1).toDouble();
   }
+
+  /// Where along the context window the provider compacts on its own, for
+  /// the meter's tick; null unless it lies inside the window.
+  double? get autoCompactFraction {
+    final threshold = autoCompactTokens;
+    final window = contextWindow;
+    if (threshold == null || window == null || window <= 0) return null;
+    if (threshold <= 0 || threshold >= window) return null;
+    return threshold / window;
+  }
 }
+
+/// The note under the context meter. [tokens] is the formatted
+/// [AgentChatUsage.autoCompactTokens], such as "150,000".
+String agentChatAutoCompactNote(String tokens) =>
+    'Compacts automatically at about $tokens tokens.';
 
 enum AgentChatRecoveryKind {
   providerExited,
