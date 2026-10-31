@@ -120,6 +120,9 @@ final class AgentChatTurnSection {
           slices.last.steers.add(item);
         case AgentChatItemType.plan when item.planSteps.isNotEmpty:
           planSteps = item;
+        // A checklist the agent emptied, every task deleted, shows nowhere.
+        case AgentChatItemType.plan when item.normalized['planSteps'] is List:
+          planSteps = null;
         default:
           slices.last.items.add(item);
       }
