@@ -94,7 +94,7 @@ fn parse_override(value: &str) -> Option<SkillOverride> {
 
 /// User, project, project local, repository root local, then managed. From
 /// a nested cwd the CLI reads only the root's local file.
-fn settings_paths(config_dir: &Path, environment: &SkillEnvironment) -> Vec<PathBuf> {
+pub(crate) fn settings_paths(config_dir: &Path, environment: &SkillEnvironment) -> Vec<PathBuf> {
     let cwd = environment.cwd();
     let mut paths = vec![join(config_dir, &["settings.json"])];
     if let Some(cwd) = cwd {
@@ -110,7 +110,7 @@ fn settings_paths(config_dir: &Path, environment: &SkillEnvironment) -> Vec<Path
     paths
 }
 
-fn managed_settings_path(environment: &SkillEnvironment) -> Option<PathBuf> {
+pub(crate) fn managed_settings_path(environment: &SkillEnvironment) -> Option<PathBuf> {
     if cfg!(target_os = "macos") {
         return Some("/Library/Application Support/ClaudeCode/managed-settings.json".into());
     }

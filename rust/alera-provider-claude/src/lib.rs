@@ -4,10 +4,12 @@
 //! caller-owned thread and turn identifiers. It uses the Rust port of the
 //! Claude Agent SDK for both process and injected transports.
 
+mod claude_settings;
 mod provider;
 mod skills;
 
 pub use claude_agent_sdk::ClaudeAgentOptions;
+pub use claude_settings::claude_settings_base_url;
 pub use provider::{ClaudeProvider, ClaudeProviderConfig};
 pub use skills::{
     claude_user_message_content, discover_skills, plan_claude_skill_dispatch,

@@ -17,3 +17,6 @@ pub use dispatch::{
     ClaudeSkillDispatch,
 };
 pub(crate) use environment::SkillEnvironment;
+pub(crate) use lenient_json::parse_lenient_json;
+pub(crate) use paths::read_text;
+pub(crate) use settings::{managed_settings_path, settings_paths};
