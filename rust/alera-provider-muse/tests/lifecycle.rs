@@ -46,8 +46,9 @@ async fn resume_and_interrupt_wait_for_native_terminal_event() {
     let transport = ScriptedTransport::new([
         initialize_response(),
         session_response(2, "existing-session"),
+        response(3, json!({"applyOutcome":"noop"})),
         response(
-            3,
+            4,
             json!({
                 "status":"accepted",
                 "turnId":"native-turn",
@@ -60,7 +61,7 @@ async fn resume_and_interrupt_wait_for_native_terminal_event() {
             "method":"turn/started",
             "params":{"sessionId":"existing-session","turnId":"native-turn"}
         }),
-        response(4, json!({"status":"accepted"})),
+        response(5, json!({"status":"accepted"})),
         json!({
             "jsonrpc":"2.0",
             "method":"turn/completed",
@@ -229,6 +230,7 @@ async fn mcp_resume_forwards_the_same_session_config() {
     let transport = ScriptedTransport::new([
         initialize_response_with_grants(["sessionMcp"]),
         session_response(2, "existing-session"),
+        response(3, json!({"applyOutcome":"noop"})),
     ]);
     let writes = transport.writes.clone();
     let mut provider =

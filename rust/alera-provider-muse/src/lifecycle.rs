@@ -107,16 +107,31 @@ impl Provider for MuseProvider {
         if let Some(mode) = mode {
             params.insert("approvalMode".into(), Value::String(mode.into()));
         }
+        // Resume sends it too: the session may predate it or its mode changed.
+        params.insert(
+            "permissionProfile".into(),
+            Value::String(Self::permission_profile(input.runtime_mode).into()),
+        );
         if let Some(config) = session_mcp::config(&input.mcp_servers)? {
             params.insert("config".into(), Value::Object(config));
         }
         let summary = if input.resume_thread_id.is_some() {
-            self.client
+            let client = self
+                .client
                 .as_ref()
-                .ok_or_else(|| ProviderError::InvalidState("Muse client unavailable".into()))?
+                .ok_or_else(|| ProviderError::InvalidState("Muse client unavailable".into()))?;
+            let summary = client
                 .resume_session(params)
                 .await
-                .map_err(Self::sdk_error)?
+                .map_err(Self::sdk_error)?;
+            // `session/resume` does not admit `approvalMode`; select it after loading.
+            if let Some(mode) = mode {
+                client
+                    .set_approval_mode(&summary.session_id, mode)
+                    .await
+                    .map_err(Self::sdk_error)?;
+            }
+            summary
         } else {
             self.client
                 .as_ref()

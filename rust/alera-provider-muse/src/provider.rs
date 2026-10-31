@@ -177,6 +177,17 @@ impl MuseProvider {
         }))
     }
 
+    /// The permission profile a session selects. Without one Muse applies
+    /// its own default, which can be `:auto-review`, where an AI reviewer
+    /// decides eligible approvals instead of the person.
+    pub(crate) fn permission_profile(mode: RuntimeMode) -> &'static str {
+        match mode {
+            RuntimeMode::FullAccess => ":unrestricted",
+            RuntimeMode::Auto => ":auto-review",
+            RuntimeMode::ApprovalRequired | RuntimeMode::AutoAcceptEdits => ":ask-me",
+        }
+    }
+
     pub(crate) async fn handle_frame(
         &mut self,
         frame: MuseFrame,
