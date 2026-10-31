@@ -136,7 +136,14 @@ impl ChatSession {
                 .insert("segmentCount".into(), Value::from(segment_count as u64));
         }
         let segmented = segment_count > 1;
-        let (text, handed_off) = self.turn_text(&input.text, &item_id, &turn.turn_id).await?;
+        let (text, handed_off) = self
+            .turn_text(
+                &input.text,
+                !input.attachments.is_empty(),
+                &item_id,
+                &turn.turn_id,
+            )
+            .await?;
         let handoff = handed_off.then(|| self.handoff_marker(&turn, &stamp));
         self.header.upsert_turn(turn.clone());
         self.header.session.active_turn_id = Some(turn.turn_id.clone());
@@ -189,13 +196,19 @@ impl ChatSession {
 
     /// The user's text, preceded by the transcript handoff on the first turn
     /// of a fresh provider session in a chat with history, and whether the
-    /// transcript was prepended.
+    /// transcript was prepended. A slash command goes verbatim so the
+    /// provider still reads it as a command; the merged-back work and the
+    /// handoff wait for the next turn.
     async fn turn_text(
         &mut self,
         text: &str,
+        has_attachments: bool,
         current_item_id: &str,
         turn_id: &str,
     ) -> HostResult<(String, bool)> {
+        if !has_attachments && self.is_slash_command(text) {
+            return Ok((text.to_string(), false));
+        }
         // Work merged back from a fork rides ahead of the next prompt.
         let text = match self.take_merge_back_context(turn_id).await {
             Some(merged) => format!("{merged}{text}"),
@@ -216,6 +229,7 @@ impl ChatSession {
     }
 
     pub(super) async fn submit_turn(&mut self, input: TurnInput) {
+        let verbatim_command = input.attachments.is_empty() && self.is_slash_command(&input.input);
         let Some(provider) = self.provider.as_mut() else {
             return;
         };
@@ -234,7 +248,10 @@ impl ChatSession {
                     }
                     self.settle_handoff(&app_turn, "completed");
                 }
-                self.handoff_pending = false;
+                // A slash command left the handoff for the next turn.
+                if !verbatim_command {
+                    self.handoff_pending = false;
+                }
                 self.events_armed = true;
                 self.remember_first_send().await;
             }

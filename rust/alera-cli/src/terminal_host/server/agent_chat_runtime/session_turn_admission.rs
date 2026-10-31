@@ -47,7 +47,34 @@ pub(super) fn provider_attachments(attachments: &[Value]) -> Vec<Attachment> {
         .collect()
 }
 
+/// Commands the provider parses from the prompt even before it lists them.
+const BUILT_IN_COMMANDS: [&str; 2] = ["compact", "goal"];
+
+/// The name of the slash command `text` starts with: `/name` alone or
+/// followed by whitespace.
+pub(super) fn slash_command_name(text: &str) -> Option<&str> {
+    let rest = text.trim().strip_prefix('/')?;
+    let name = rest.split(char::is_whitespace).next()?;
+    (!name.is_empty() && !name.contains('/')).then_some(name)
+}
+
 impl ChatSession {
+    /// Whether `text` invokes one of the provider's slash commands, which
+    /// must reach it verbatim to run as a command.
+    pub(super) fn is_slash_command(&self, text: &str) -> bool {
+        slash_command_name(text).is_some_and(|name| {
+            BUILT_IN_COMMANDS
+                .iter()
+                .any(|command| command.eq_ignore_ascii_case(name))
+                || self
+                    .header
+                    .session
+                    .commands
+                    .iter()
+                    .any(|command| command.name.eq_ignore_ascii_case(name))
+        })
+    }
+
     pub(super) async fn derive_first_send_title(&mut self, text: &str) {
         if !self.never_sent() || self.header.title_source != "default" {
             return;
@@ -128,5 +155,22 @@ impl ChatSession {
         for item in segments {
             self.insert_item(item);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::slash_command_name;
+
+    #[test]
+    fn a_slash_command_is_one_token_after_the_slash() {
+        assert_eq!(slash_command_name("/compact"), Some("compact"));
+        assert_eq!(
+            slash_command_name("  /review focus on auth\n"),
+            Some("review")
+        );
+        assert_eq!(slash_command_name("/home/me/notes.txt is empty"), None);
+        assert_eq!(slash_command_name("/ compact"), None);
+        assert_eq!(slash_command_name("Please /compact"), None);
     }
 }

@@ -32,6 +32,8 @@ mod skills;
 mod subagents;
 #[path = "session_transfer_tests.rs"]
 mod transfers;
+#[path = "session_turn_input_tests.rs"]
+mod turn_input;
 #[path = "session_workflow_tests.rs"]
 mod workflows;
 
