@@ -61,6 +61,21 @@ class const AgentChatQuestion({
   }
 }
 
+/// How both apps present an MCP elicitation, so they offer the same answers.
+enum AgentChatElicitationShape {
+  /// Fields the person fills in before accepting.
+  form,
+
+  /// A link the person opens; accepting sends no content.
+  link,
+
+  /// A form without fields: accepting confirms with empty content.
+  confirmation,
+
+  /// A form the apps cannot render: it can only be declined or cancelled.
+  unsupported,
+}
+
 class const AgentChatElicitation({
   required final String mode,
   final String message = '',
@@ -95,6 +110,16 @@ class const AgentChatElicitation({
             type == 'integer' ||
             type == 'boolean';
       });
+
+  /// What the person can do with it. Accept is offered for every shape but
+  /// [AgentChatElicitationShape.unsupported], since accepting a form nobody
+  /// filled in would send the server nothing it asked for.
+  AgentChatElicitationShape get shape {
+    if (url != null) return .link;
+    if (agentChatWireToken(mode) == 'url') return .unsupported;
+    if (hasSupportedForm) return .form;
+    return properties.isEmpty ? .confirmation : .unsupported;
+  }
 }
 
 /// Why a session with full access still asked for approval.
