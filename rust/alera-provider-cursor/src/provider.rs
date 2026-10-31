@@ -1,7 +1,5 @@
 use crate::config::CursorProviderConfig;
-use crate::mapping::map_run_message;
 use crate::mcp::native_mcp_servers;
-use crate::stream_state::{is_assistant_delta, item_id, run_id, status_error_message};
 use alera_provider_protocol::{
     EventKind, InteractionMode, InterruptInput, Provider, ProviderCapabilities, ProviderError,
     ProviderEvent, ProviderKind, ProviderSession, RuntimeMode, RuntimeResponse, SessionStartInput,
@@ -19,6 +17,8 @@ const MAX_LOCAL_IMAGE_BYTES: usize = 8 * 1024 * 1024;
 
 #[path = "attachments.rs"]
 mod attachments;
+#[path = "frames.rs"]
+mod frames;
 #[path = "reasoning_effort.rs"]
 pub(crate) mod reasoning_effort;
 #[path = "recovery.rs"]
@@ -27,6 +27,8 @@ mod recovery;
 mod session_options;
 #[path = "skill_invocation.rs"]
 pub(crate) mod skill_invocation;
+#[path = "turn_end.rs"]
+mod turn_end;
 
 pub struct CursorProvider {
     client: CursorClient,
@@ -39,6 +41,7 @@ pub struct CursorProvider {
     native_item_id: Option<String>,
     streamed_assistant: bool,
     last_status_error_message: Option<String>,
+    turn_ended: bool,
     next_turn: u64,
     active_turn_id: Option<String>,
     stream_recovery_attempted: bool,
@@ -68,6 +71,7 @@ impl CursorProvider {
             native_item_id: None,
             streamed_assistant: false,
             last_status_error_message: None,
+            turn_ended: false,
             next_turn: 0,
             active_turn_id: None,
             stream_recovery_attempted: false,
@@ -322,6 +326,7 @@ impl Provider for CursorProvider {
         self.native_item_id = None;
         self.streamed_assistant = false;
         self.last_status_error_message = None;
+        self.turn_ended = false;
         self.stream_recovery_attempted = false;
         self.stream = Some(stream);
         if let Some(session) = self.session.as_mut() {
@@ -379,64 +384,19 @@ impl Provider for CursorProvider {
     }
 
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError> {
-        if let Some(event) = self.queued_events.pop_front() {
-            return Ok(Some(event));
-        }
-        self.ensure_open()?;
-        let Some(stream) = self.stream.as_mut() else {
-            return Ok(None);
-        };
-        let next = stream.next().await;
-        let message = match next {
-            Ok(Some(message)) => message,
-            Ok(None) => {
-                return self
-                    .recover_stream_loss("run stream ended before a terminal result".into())
-                    .await;
+        loop {
+            if let Some(event) = self.queued_events.pop_front() {
+                return Ok(Some(event));
             }
-            Err(error) => return self.recover_stream_loss(error.to_string()).await,
-        };
-        if let Some(run_id) = run_id(&message) {
-            self.native_run_id = Some(run_id);
-        }
-        if let Some(item_id) = item_id(&message) {
-            self.native_item_id = Some(item_id);
-        }
-        if let Some(message) = status_error_message(&message) {
-            self.last_status_error_message = Some(message);
-        }
-        let session = self.active_session()?;
-        let mut mapped = map_run_message(
-            &message,
-            &self.config.provider_instance_id,
-            &session.thread_id,
-            self.active_turn_id.as_deref(),
-            self.native_run_id.as_deref(),
-            self.native_item_id.as_deref(),
-            self.streamed_assistant,
-        )?;
-        if message.result.is_some() {
-            if let Some(error_message) = self.last_status_error_message.as_deref() {
-                for event in &mut mapped {
-                    if event.kind == alera_provider_protocol::EventKind::TurnCompleted
-                        && event.payload.get("errorMessage").is_none()
-                    {
-                        event.payload["errorMessage"] = Value::String(error_message.to_owned());
-                        event.validate()?;
-                    }
-                }
+            self.ensure_open()?;
+            if self.stream.is_none() {
+                return Ok(None);
+            }
+            // A frame can map to no event, such as Cursor's `turn-ended` update.
+            if let Some(event) = self.read_frame().await? {
+                return Ok(Some(event));
             }
         }
-        self.streamed_assistant |= mapped.iter().any(is_assistant_delta);
-        let terminal = message.result.is_some() || message.done.is_some();
-        self.queued_events.extend(mapped);
-        if terminal {
-            if let Some(stream) = self.stream.as_mut() {
-                let _ = stream.close().await;
-            }
-            self.clear_turn_state();
-        }
-        Ok(self.queued_events.pop_front())
     }
 
     async fn close(&mut self) -> Result<(), ProviderError> {
@@ -457,6 +417,7 @@ impl Provider for CursorProvider {
         self.native_item_id = None;
         self.streamed_assistant = false;
         self.last_status_error_message = None;
+        self.turn_ended = false;
         self.stream_recovery_attempted = false;
         self.mcp_servers.clear();
         let session_thread_id = self

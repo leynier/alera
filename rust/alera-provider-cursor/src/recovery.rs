@@ -14,6 +14,7 @@ impl CursorProvider {
         self.native_item_id = None;
         self.streamed_assistant = false;
         self.last_status_error_message = None;
+        self.turn_ended = false;
         self.stream_recovery_attempted = false;
         if let Some(session) = self.session.as_mut() {
             session.status = alera_provider_protocol::SessionStatus::Ready;
@@ -74,7 +75,7 @@ impl CursorProvider {
             Ok(response) => {
                 let message = wait_result_message(response, &native_run_id);
                 let session = self.active_session()?;
-                let mapped = match map_run_message(
+                let mut mapped = match map_run_message(
                     &message,
                     &self.config.provider_instance_id,
                     &session.thread_id,
@@ -94,6 +95,7 @@ impl CursorProvider {
                         )
                     }
                 };
+                self.settle_terminal_events(&mut mapped)?;
                 self.queued_events.extend(mapped);
                 self.clear_turn_state();
                 Ok(self.queued_events.pop_front())
