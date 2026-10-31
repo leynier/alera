@@ -4,30 +4,15 @@
 //! diagnostics bundle is meant to be shared, and a call site that forgets to
 //! mask is indistinguishable from one that had nothing to mask.
 
-use regex::Regex;
 use std::sync::{OnceLock, RwLock};
 
-pub const REDACTED: &str = "[redacted]";
+/// The pattern rules are shared with the agent transport, which masks the
+/// stderr tail of a provider exit error, so both mask the same shapes.
+pub use alera_agent_transport::REDACTED;
 
 /// Values below this length are not worth registering: short strings collide
 /// with ordinary words and would mask unrelated text.
 const MIN_REGISTERED_SECRET_LEN: usize = 8;
-
-fn keyed_secret_pattern() -> &'static Regex {
-    static PATTERN: OnceLock<Regex> = OnceLock::new();
-    PATTERN.get_or_init(|| {
-        Regex::new(
-            r#"(?i)\b(token|secret|password|passwd|api[_-]?key|authorization|deviceToken)\b"?\s*[:=]\s*"?([^\s",;}\)]+)"#,
-        )
-        .expect("keyed secret pattern is valid")
-    })
-}
-
-fn bearer_pattern() -> &'static Regex {
-    static PATTERN: OnceLock<Regex> = OnceLock::new();
-    PATTERN
-        .get_or_init(|| Regex::new(r"(?i)\bbearer\s+([A-Za-z0-9._\-+/=]+)").expect("valid pattern"))
-}
 
 fn registered_secrets() -> &'static RwLock<Vec<String>> {
     static SECRETS: OnceLock<RwLock<Vec<String>>> = OnceLock::new();
@@ -53,7 +38,9 @@ pub fn register_secret(value: &str) {
     secrets.push(trimmed.to_string());
 }
 
-/// Replaces every known secret in `input` with [`REDACTED`].
+/// Replaces every known secret in `input` with [`REDACTED`]: registered
+/// literals first, then credential shapes such as `OPENAI_API_KEY=...`,
+/// `Bearer ...` or an `sk-` key.
 pub fn redact(input: &str) -> String {
     let mut output = input.to_string();
 
@@ -65,17 +52,7 @@ pub fn redact(input: &str) -> String {
         }
     }
 
-    output = keyed_secret_pattern()
-        .replace_all(&output, |caps: &regex::Captures<'_>| {
-            format!("{}={REDACTED}", &caps[1])
-        })
-        .into_owned();
-
-    bearer_pattern()
-        .replace_all(&output, |_: &regex::Captures<'_>| {
-            format!("Bearer {REDACTED}")
-        })
-        .into_owned()
+    alera_agent_transport::redact_secrets(&output)
 }
 
 #[cfg(test)]
@@ -114,5 +91,44 @@ mod tests {
     fn leaves_ordinary_text_untouched() {
         let message = "failed to record activity for workspace ws-17: database is locked";
         assert_eq!(redact(message), message);
+    }
+
+    #[test]
+    fn masks_compound_credential_key_names() {
+        let redacted = redact(
+            "env OPENAI_API_KEY=key-one FOO_API_KEY=key-two MY_SECRET=secret-three \
+             GITHUB_TOKEN=token-four x_api_key: key-five clientSecret: key-six",
+        );
+        assert_eq!(
+            redacted,
+            "env OPENAI_API_KEY=[redacted] FOO_API_KEY=[redacted] MY_SECRET=[redacted] \
+             GITHUB_TOKEN=[redacted] x_api_key: [redacted] clientSecret: [redacted]"
+        );
+    }
+
+    #[test]
+    fn masks_provider_failure_credentials_but_not_ordinary_keys() {
+        let redacted = redact(
+            r#"oauth refresh failed: client_secret=client-value refresh_token=refresh-value {"client_secret":"json-value"} clientSecret: camel-value X-Auth-Token: header-value max_tokens=4096"#,
+        );
+        assert_eq!(
+            redacted,
+            r#"oauth refresh failed: client_secret=[redacted] refresh_token=[redacted] {"client_secret":"[redacted]"} clientSecret: [redacted] X-Auth-Token: [redacted] max_tokens=4096"#
+        );
+    }
+
+    #[test]
+    fn masks_provider_keys_with_underscores_in_stderr() {
+        let redacted = redact(
+            "anthropic=sk-ant-api03-AbCdEf_GhIjKlMnOpQr-StUvWx_yz0123456789-AA\n\
+             openai=sk-proj-AbCdEfGhIj_KlMnOpQrStUv-WxYz_0123456789",
+        );
+        assert_eq!(redacted, "anthropic=[redacted]\nopenai=[redacted]");
+    }
+
+    #[test]
+    fn keeps_authorization_scheme_while_masking_its_credential() {
+        let redacted = redact("request failed: Authorization: Bearer bearer-secret");
+        assert_eq!(redacted, "request failed: Authorization: Bearer [redacted]");
     }
 }
