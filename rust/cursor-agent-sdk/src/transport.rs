@@ -90,9 +90,20 @@ impl BridgeTransport for ReqwestBridgeTransport {
             })??;
         let status = response.status;
         let body = response.body;
-        let value: Value = serde_json::from_slice(&body).map_err(|error| {
-            CursorSdkError::Protocol(format!("unary response is not JSON: {error}"))
-        })?;
+        let value: Value = match serde_json::from_slice(&body) {
+            Ok(value) => value,
+            Err(_) if !(200..=299).contains(&status) => {
+                return Err(CursorSdkError::Http {
+                    status,
+                    message: format!("bridge RPC `{path}` failed"),
+                });
+            }
+            Err(error) => {
+                return Err(CursorSdkError::Protocol(format!(
+                    "unary response is not JSON: {error}"
+                )));
+            }
+        };
         if !(200..=299).contains(&status) {
             return Err(parse_rpc_error(path, status, value));
         }
@@ -120,7 +131,11 @@ impl BridgeTransport for ReqwestBridgeTransport {
             .headers
             .insert("content-type".into(), "application/connect+json".into());
         request.body = body;
-        let response = self.client.open_stream(request).await?;
+        let response = self
+            .client
+            .open_stream(request)
+            .await
+            .map_err(|error| stream_open_error(path, error))?;
         Ok(Box::new(HttpByteStream { inner: response }))
     }
 }
@@ -137,6 +152,22 @@ impl ByteStream for HttpByteStream {
 
     async fn close(&mut self) -> Result<(), CursorSdkError> {
         Ok(self.inner.close().await?)
+    }
+}
+
+/// A stream refused before its first frame answers with a Connect error body.
+fn stream_open_error(path: &str, error: alera_agent_http::HttpError) -> CursorSdkError {
+    match error {
+        alera_agent_http::HttpError::Status { status, body } => {
+            match serde_json::from_slice::<Value>(body.as_bytes()) {
+                Ok(value) if value.get("code").is_some() => parse_rpc_error(path, status, value),
+                _ => CursorSdkError::Http {
+                    status,
+                    message: format!("bridge stream `{path}` failed"),
+                },
+            }
+        }
+        other => other.into(),
     }
 }
 

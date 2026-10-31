@@ -318,7 +318,7 @@ impl Provider for CursorProvider {
                 None,
             )
             .await
-            .map_err(|error| ProviderError::Protocol(error.to_string()))?;
+            .map_err(crate::failure::send_error)?;
         self.next_turn = self.next_turn.saturating_add(1);
         let turn_id = format!("turn:cursor:{}", self.next_turn);
         self.active_turn_id = Some(turn_id.clone());

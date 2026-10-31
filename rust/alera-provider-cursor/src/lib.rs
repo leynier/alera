@@ -1,6 +1,7 @@
 //! Cursor provider adapter over the public MIT `sdk.v1` bridge contract.
 
 mod config;
+mod failure;
 mod mapping;
 mod mcp;
 mod provider;

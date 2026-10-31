@@ -1,4 +1,4 @@
-use cursor_agent_sdk::{encode_connect_frame, ConnectFrameDecoder};
+use cursor_agent_sdk::{encode_connect_frame, ConnectFrameDecoder, CursorSdkError};
 use serde_json::json;
 
 #[test]
@@ -29,4 +29,20 @@ fn decoder_rejects_end_error_and_oversized_frame() {
     oversized.extend_from_slice(&((16 * 1024 * 1024 + 1) as u32).to_be_bytes());
     let mut decoder = ConnectFrameDecoder::default();
     assert!(decoder.push(&oversized).is_err());
+}
+
+#[test]
+fn decoder_keeps_the_connect_code_of_an_end_error() {
+    let mut end_error = encode_connect_frame(&json!({
+        "error": {"code": "resource_exhausted", "message": "Too many requests"}
+    }))
+    .unwrap();
+    end_error[0] = 2;
+    let error = ConnectFrameDecoder::default().push(&end_error).unwrap_err();
+    let CursorSdkError::Rpc { code, message, .. } = &error else {
+        panic!("expected a typed end error, got {error:?}");
+    };
+    assert_eq!(code, "resource_exhausted");
+    assert_eq!(message, "Too many requests");
+    assert!(error.is_usage_limit());
 }

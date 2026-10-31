@@ -4,6 +4,8 @@ This crate maps the public `cursor-sdk-bridge` `sdk.v1` contract into the shared
 
 MCP stdio and HTTP specifications are translated into the bridge's `mcpServers` fields on create, resume, and send requests. The specifications belong to one provider session and are never shared through provider configuration.
 
+A failed turn carries `failureClass` from typed fields only: `usage_limit` when the run's `errorCode`, the Connect code of a broken stream, or the HTTP status of a refused send names a usage or rate limit (`PRO_USER_USAGE_LIMIT`, `RATE_LIMITED`, `resource_exhausted`, HTTP 429 and the like), otherwise `unknown`. A send refused on a limit fails as `ProviderError::Rejected` with that class.
+
 Interactive approvals and user-input callbacks are reported as unsupported because the public Cursor adapter surface does not expose them. Remote image URLs, generic file attachments, snapshots, rollback, fork, and concurrent sessions are rejected explicitly.
 
 The provider depends on [`cursor-agent-sdk`](../cursor-agent-sdk/readme.md), which is MIT licensed for its public bridge contract. The external bridge executable and embedded SDK are separate runtime dependencies.

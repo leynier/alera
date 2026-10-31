@@ -1,9 +1,10 @@
 //! Reads the run stream one frame at a time.
 
 use super::CursorProvider;
+use crate::failure::sdk_error_class;
 use crate::mapping::map_run_message;
 use crate::stream_state::{is_assistant_delta, item_id, run_id, status_error_message};
-use alera_provider_protocol::{ProviderError, ProviderEvent};
+use alera_provider_protocol::{FailureClass, ProviderError, ProviderEvent};
 
 impl CursorProvider {
     /// Maps the next frame of the running stream and returns its first event.
@@ -16,10 +17,16 @@ impl CursorProvider {
             Ok(Some(message)) => message,
             Ok(None) => {
                 return self
-                    .recover_stream_loss("run stream ended before a terminal result".into())
+                    .recover_stream_loss(
+                        "run stream ended before a terminal result".into(),
+                        FailureClass::Unknown,
+                    )
                     .await;
             }
-            Err(error) => return self.recover_stream_loss(error.to_string()).await,
+            Err(error) => {
+                let class = sdk_error_class(&error);
+                return self.recover_stream_loss(error.to_string(), class).await;
+            }
         };
         if let Some(run_id) = run_id(&message) {
             self.native_run_id = Some(run_id);

@@ -72,6 +72,9 @@ pub(crate) fn map_run_message(
             _ => TurnStatus::Failed,
         };
         let mut payload = json!({ "state": state });
+        if state == TurnStatus::Failed {
+            payload["failureClass"] = json!(crate::failure::result_class(result));
+        }
         if let Some(error) = result
             .get("errorMessage")
             .or_else(|| result.get("error_message"))

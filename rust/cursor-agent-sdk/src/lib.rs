@@ -14,7 +14,7 @@ mod transport;
 mod types;
 
 pub use client::{CursorClient, CursorClientConfig, CursorRunStream};
-pub use error::CursorSdkError;
+pub use error::{is_usage_limit_code, CursorSdkError};
 pub use framing::{encode_connect_frame, ConnectFrameDecoder, MAX_CONNECT_FRAME_BYTES};
 pub use mock::MockBridgeTransport;
 pub use models::*;

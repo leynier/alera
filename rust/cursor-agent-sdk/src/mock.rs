@@ -35,6 +35,15 @@ impl MockBridgeTransport {
             .push_back(Ok(chunks));
     }
 
+    /// The next stream fails to open with `error`.
+    pub fn push_stream_error(&self, error: CursorSdkError) {
+        self.inner
+            .lock()
+            .expect("mock mutex poisoned")
+            .streams
+            .push_back(Err(error));
+    }
+
     pub fn calls(&self) -> Vec<(String, Value)> {
         self.inner
             .lock()

@@ -1,7 +1,9 @@
 use super::CursorProvider;
+use crate::failure::sdk_error_class;
 use crate::mapping::map_run_message;
 use alera_provider_protocol::{
-    EventKind, Provider, ProviderError, ProviderEvent, ProviderRefs, RawEvent, TurnStatus,
+    EventKind, FailureClass, Provider, ProviderError, ProviderEvent, ProviderRefs, RawEvent,
+    TurnStatus,
 };
 use cursor_agent_sdk::RunStreamMessage;
 use serde_json::Value;
@@ -25,6 +27,7 @@ impl CursorProvider {
     pub(super) fn terminal_failure(
         &mut self,
         message: String,
+        class: FailureClass,
         raw_payload: Value,
     ) -> Result<Option<ProviderEvent>, ProviderError> {
         let session = self.active_session()?;
@@ -36,6 +39,7 @@ impl CursorProvider {
             serde_json::json!({
                 "state": TurnStatus::Failed,
                 "errorMessage": message,
+                "failureClass": class,
             }),
             Some(RawEvent {
                 source: "cursor.sdk.bridge".into(),
@@ -56,9 +60,12 @@ impl CursorProvider {
         Ok(self.queued_events.pop_front())
     }
 
+    /// `class` is the failure class of the stream error, which a failed
+    /// recovery keeps unless its own error has one.
     pub(super) async fn recover_stream_loss(
         &mut self,
         stream_error: String,
+        class: FailureClass,
     ) -> Result<Option<ProviderEvent>, ProviderError> {
         if let Some(stream) = self.stream.as_mut() {
             let _ = stream.close().await;
@@ -67,6 +74,7 @@ impl CursorProvider {
         let Some(native_run_id) = self.native_run_id.clone() else {
             return self.terminal_failure(
                 format!("{stream_error}; native run id is unavailable"),
+                class,
                 serde_json::json!({ "streamError": stream_error }),
             );
         };
@@ -88,6 +96,7 @@ impl CursorProvider {
                     Err(error) => {
                         return self.terminal_failure(
                             format!("{stream_error}; waitLiveRun mapping failed: {error}"),
+                            class,
                             serde_json::json!({
                                 "streamError": stream_error,
                                 "waitLiveRunMappingError": error.to_string(),
@@ -111,6 +120,7 @@ impl CursorProvider {
                         format!(
                             "{stream_error}; waitLiveRun failed: {wait_error}; ObserveRun failed: {observe_error}"
                         ),
+                        known_class([class, sdk_error_class(&wait_error), sdk_error_class(&observe_error)]),
                         serde_json::json!({
                             "streamError": stream_error,
                             "waitLiveRunError": wait_error.to_string(),
@@ -121,6 +131,7 @@ impl CursorProvider {
             }
             Err(wait_error) => self.terminal_failure(
                 format!("{stream_error}; waitLiveRun failed: {wait_error}"),
+                known_class([class, sdk_error_class(&wait_error)]),
                 serde_json::json!({
                     "streamError": stream_error,
                     "waitLiveRunError": wait_error.to_string(),
@@ -128,6 +139,14 @@ impl CursorProvider {
             ),
         }
     }
+}
+
+/// The first class that is known, if any.
+fn known_class<const N: usize>(classes: [FailureClass; N]) -> FailureClass {
+    classes
+        .into_iter()
+        .find(|class| !class.is_unknown())
+        .unwrap_or_default()
 }
 
 pub(super) fn wait_result_message(response: Value, native_run_id: &str) -> RunStreamMessage {

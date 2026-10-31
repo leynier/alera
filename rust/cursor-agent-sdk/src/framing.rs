@@ -21,6 +21,23 @@ pub fn encode_connect_frame(value: &Value) -> Result<Vec<u8>, CursorSdkError> {
     Ok(frame)
 }
 
+/// A Connect end-of-stream error keeps its code, so callers can classify it.
+fn end_stream_error(error: &Value, frame: &Value) -> CursorSdkError {
+    match error.get("code").and_then(Value::as_str) {
+        Some(code) => CursorSdkError::Rpc {
+            method: "run stream".into(),
+            code: code.to_owned(),
+            message: error
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("bridge stream failed")
+                .to_owned(),
+            details: Box::new(error.clone()),
+        },
+        None => CursorSdkError::Protocol(format!("stream end error: {frame}")),
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct ConnectFrameDecoder {
     buffer: Vec<u8>,
@@ -66,11 +83,8 @@ impl ConnectFrameDecoder {
             let value = serde_json::from_slice::<Value>(&payload)
                 .map_err(|error| CursorSdkError::Protocol(format!("stream JSON: {error}")))?;
             if flags & 0x02 != 0 {
-                if value.get("error").is_some() {
-                    return Err(CursorSdkError::Protocol(format!(
-                        "stream end error: {}",
-                        value
-                    )));
+                if let Some(error) = value.get("error") {
+                    return Err(end_stream_error(error, &value));
                 }
                 continue;
             }
