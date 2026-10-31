@@ -259,6 +259,7 @@ impl<T: JsonTransport> AcpProvider<T> {
             prompt_meta_id: None,
             idle_ends_turn: false,
             prompt_acceptance: false,
+            turnless_error_notice: false,
         };
         let incoming = AcpIncoming::Notification {
             method: method.to_owned(),

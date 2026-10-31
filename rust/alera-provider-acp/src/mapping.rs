@@ -25,12 +25,16 @@ pub(crate) struct MappingContext<'a> {
     pub(crate) turn_id: Option<&'a str>,
     pub(crate) prompt_id: Option<&'a AcpRequestId>,
     pub(crate) prompt_meta_id: Option<&'a str>,
-    /// An idle `state_update` ends the running turn. ACP v2 work-state
-    /// following clears it for an idle that predates the prompt's work.
+    /// An idle `state_update` ends the running turn. It is false for an
+    /// idle that predates the prompt's work: before acceptance or running
+    /// when following work state, else one an earlier ACP v2 turn still owes.
     pub(crate) idle_ends_turn: bool,
     /// ACP v2: a prompt response with no stop reason only accepts the
     /// prompt; the turn ends on the idle `state_update`.
     pub(crate) prompt_acceptance: bool,
+    /// An idle error while no turn runs becomes a runtime error. False right
+    /// after a failed turn, whose failure it would repeat.
+    pub(crate) turnless_error_notice: bool,
 }
 
 pub(crate) fn map_incoming(

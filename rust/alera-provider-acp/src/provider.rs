@@ -2,9 +2,10 @@ use crate::config::{AcpFlavor, AcpProviderConfig};
 use crate::mapping::{map_incoming, MappingContext};
 use crate::mcp::{map_servers, negotiated_capabilities};
 use crate::policy::is_auth_required;
+use crate::prompt_lifecycle::TurnFrame;
 use crate::runtime_response::{acp_error, cancelled_response};
 use crate::transport::{raw, PendingRequest};
-use agent_client_protocol::{AcpClient, AcpRequestId, RpcError};
+use agent_client_protocol::{AcpClient, AcpProtocolGeneration, AcpRequestId, RpcError};
 use alera_agent_transport::JsonTransport;
 use alera_provider_protocol::{
     EventKind, InteractionMode, InterruptInput, Provider, ProviderCapabilities, ProviderError,
@@ -27,6 +28,7 @@ pub struct AcpProvider<T> {
     pub(crate) initialized: bool,
     pub(crate) closed: bool,
     pub(crate) children: crate::native_children::NativeChildren,
+    pub(crate) prompt_lifecycle: crate::prompt_lifecycle::PromptLifecycle,
 }
 #[async_trait]
 impl<T: JsonTransport> Provider for AcpProvider<T> {
@@ -331,6 +333,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         self.queue_event(started)?;
         self.prompt_id = Some(prompt_id);
         self.children.reset_turn();
+        self.prompt_lifecycle.prompt_sent();
         self.prompt_meta_id = (self.config.flavor == AcpFlavor::Grok).then(|| turn_id.clone());
         if let Some(active) = self.session.as_mut() {
             active.status = SessionStatus::Running;
@@ -395,6 +398,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             ProviderError::InvalidState("ACP event arrived before session/new".into())
         })?;
         let follows = self.follows_work_state();
+        let frame = TurnFrame::of(&incoming, &session.native_thread_id);
         if follows {
             if let Some(event) = self.route_native_child(&incoming, &session)? {
                 event.validate()?;
@@ -422,8 +426,11 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             turn_id: session.active_turn_id.as_deref(),
             prompt_id: self.prompt_id.as_ref(),
             prompt_meta_id: self.prompt_meta_id.as_deref(),
-            idle_ends_turn: !follows || self.children.accepted || self.children.running_seen,
-            prompt_acceptance: follows,
+            idle_ends_turn: self
+                .prompt_lifecycle
+                .idle_ends_turn(follows, &self.children),
+            prompt_acceptance: self.protocol_generation() == AcpProtocolGeneration::V2,
+            turnless_error_notice: self.prompt_lifecycle.notices_turnless_errors(),
         };
         let registry_commands = self.registry_commands(&incoming);
         let mut mapped = map_incoming(incoming, &context)?;
@@ -434,7 +441,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             self.settle_root_event(&mut mapped.event);
         }
         mapped.event.validate()?;
-        self.apply_mapped_state(&mapped);
+        self.apply_mapped_state(&mapped, frame);
         if let Some(pending) = mapped.pending {
             if pending.kind == RequestKind::Unknown {
                 self.client

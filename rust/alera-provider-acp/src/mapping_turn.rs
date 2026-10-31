@@ -43,13 +43,11 @@ pub(crate) fn prompt_complete(
     }
 }
 
-/// A `state_update`: an idle state ends the running turn, any other only
-/// changes the thread's state.
+/// A `state_update`: an idle state ends the running turn, and while none
+/// runs an idle error is a runtime error. Any other state only changes the
+/// thread's state.
 pub(crate) fn state_update(update: &Value, context: &MappingContext<'_>) -> (EventKind, Value) {
-    if update.get("state").and_then(Value::as_str) != Some("idle")
-        || context.turn_id.is_none()
-        || !context.idle_ends_turn
-    {
+    if update.get("state").and_then(Value::as_str) != Some("idle") {
         return (EventKind::ThreadStateChanged, update.clone());
     }
     let state = match update.get("stopReason").and_then(Value::as_str) {
@@ -57,6 +55,12 @@ pub(crate) fn state_update(update: &Value, context: &MappingContext<'_>) -> (Eve
         Some("error") | Some("failed") => TurnStatus::Failed,
         _ => TurnStatus::Completed,
     };
+    if context.turn_id.is_none() {
+        return turnless_idle(update, state, context);
+    }
+    if !context.idle_ends_turn {
+        return (EventKind::ThreadStateChanged, update.clone());
+    }
     let mut payload = json!({
         "state": state,
         "stopReason": update.get("stopReason"),
@@ -64,6 +68,29 @@ pub(crate) fn state_update(update: &Value, context: &MappingContext<'_>) -> (Eve
     });
     insert_turn_error(&mut payload, update);
     (EventKind::TurnCompleted, payload)
+}
+
+/// An idle while no turn runs. An error the agent explains is shown as a
+/// runtime error, unless it repeats the failure of the turn that just ended;
+/// one without text stays a state change, as a runtime error needs a message.
+fn turnless_idle(
+    update: &Value,
+    state: TurnStatus,
+    context: &MappingContext<'_>,
+) -> (EventKind, Value) {
+    let message = (state == TurnStatus::Failed && context.turnless_error_notice)
+        .then(|| error_text(update))
+        .flatten();
+    let Some(message) = message else {
+        return (EventKind::ThreadStateChanged, update.clone());
+    };
+    let error = update.get("error");
+    let payload = json!({
+        "message": message,
+        "code": error.and_then(|error| error.get("code")),
+        "data": error.and_then(|error| error.get("data")),
+    });
+    (EventKind::RuntimeError, payload)
 }
 
 /// x.ai `turn_completed`. One without a prompt id ends the turn while no RPC
@@ -124,19 +151,22 @@ fn completion_payload(
 /// `errorMessage`, string `error` or `error.message`, and a structured
 /// `error`'s `code` and `data` in the shape of a failed prompt RPC.
 fn insert_turn_error(payload: &mut Value, source: &Value) {
+    payload["errorMessage"] = error_text(source).map_or(Value::Null, Value::from);
+    if let Some(error) = source.get("error").filter(|error| error.is_object()) {
+        payload["error"] = json!({"code": error.get("code"), "data": error.get("data")});
+    }
+}
+
+fn error_text(source: &Value) -> Option<&str> {
     let error = source.get("error");
-    let message = [
+    [
         source.get("errorMessage"),
         error,
         error.and_then(|error| error.get("message")),
     ]
     .into_iter()
     .flatten()
-    .find_map(non_blank);
-    payload["errorMessage"] = message.map_or(Value::Null, Value::from);
-    if let Some(error) = error.filter(|error| error.is_object()) {
-        payload["error"] = json!({"code": error.get("code"), "data": error.get("data")});
-    }
+    .find_map(non_blank)
 }
 
 fn non_blank(value: &Value) -> Option<&str> {

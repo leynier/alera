@@ -9,6 +9,7 @@ mod mcp;
 mod native_children;
 mod native_children_route;
 mod policy;
+mod prompt_lifecycle;
 mod provider;
 mod questions;
 mod reasoning_effort;

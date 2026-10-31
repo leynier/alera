@@ -297,7 +297,7 @@ async fn stopping_a_child_cancels_only_its_session() {
 }
 
 #[tokio::test]
-async fn agents_without_native_children_keep_todays_lifecycle() {
+async fn agents_without_native_children_project_no_child_sessions() {
     for (native, v1) in [(false, false), (true, true)] {
         let mut frames = if v1 {
             vec![
@@ -312,6 +312,7 @@ async fn agents_without_native_children_keep_todays_lifecycle() {
             delegation("child-1", ROOT, "agent-1", "Review the code"),
             chunk("child-1", "m", "child text"),
             json!({"jsonrpc":"2.0","id":3,"result":{}}),
+            state(ROOT, "idle", Some("end_turn")),
         ]);
         let mut provider = AcpProvider::with_transport(MockTransport::new(frames), config(native));
         provider
@@ -327,7 +328,18 @@ async fn agents_without_native_children_keep_todays_lifecycle() {
         assert!(events
             .iter()
             .all(|event| event.payload.get("parentToolUseId").is_none()));
-        assert_eq!(events.last().unwrap().kind, EventKind::TurnCompleted);
+        // Every ACP v2 prompt ends on its idle; a v1 prompt on its response.
+        let turns = kinds(&events, &EventKind::TurnCompleted);
+        assert_eq!(turns.len(), 1);
+        let end = turns[0].raw.as_ref().and_then(|raw| raw.method.as_deref());
+        assert_eq!(
+            end,
+            Some(if v1 {
+                "session/prompt"
+            } else {
+                "session/update"
+            })
+        );
         assert!(!provider.subagent_capabilities().stop);
         assert!(matches!(
             provider.stop_subagent("agent-1").await,

@@ -1,4 +1,5 @@
 use crate::mapping::MappedIncoming;
+use crate::prompt_lifecycle::TurnFrame;
 use crate::transport::{raw, PendingRequest};
 use crate::AcpProvider;
 use agent_client_protocol::AcpProtocolGeneration;
@@ -35,7 +36,10 @@ impl<T: JsonTransport> AcpProvider<T> {
         Ok(())
     }
 
-    pub(crate) fn apply_mapped_state(&mut self, mapped: &MappedIncoming) {
+    pub(crate) fn apply_mapped_state(&mut self, mapped: &MappedIncoming, frame: TurnFrame) {
+        let awaits_idle = self.protocol_generation() == AcpProtocolGeneration::V2;
+        self.prompt_lifecycle
+            .observe(frame, &mapped.event, awaits_idle);
         if mapped.event.kind == EventKind::TurnCompleted {
             if let Some(session) = self.session.as_mut() {
                 session.active_turn_id = None;
