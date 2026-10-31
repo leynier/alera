@@ -262,6 +262,7 @@ async fn a_failed_root_turn_leaves_working_children_running() {
     assert_eq!(turn.payload["state"], "failed");
     assert_eq!(turn.payload["childTurnsContinue"], true);
     assert_eq!(turn.payload["errorMessage"], "API Error: 529 overloaded");
+    assert_eq!(turn.payload["error"], json!({"code":-32603,"data":null}));
 }
 
 #[tokio::test]

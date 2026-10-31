@@ -31,16 +31,10 @@ pub(crate) fn prompt_complete(
             let stop_reason = params
                 .get("stopReason")
                 .or_else(|| params.get("stop_reason"));
-            let payload = json!({
-                "state": terminal_state(stop_reason),
-                "stopReason": stop_reason,
-                "usage": params.get("usage"),
-                "result": params.get("agentResult").or_else(|| params.get("agent_result")),
-                "errorMessage": params
-                    .get("errorMessage")
-                    .or_else(|| params.get("error"))
-                    .and_then(Value::as_str),
-            });
+            let result = params
+                .get("agentResult")
+                .or_else(|| params.get("agent_result"));
+            let payload = completion_payload(&params, stop_reason, result);
             (EventKind::TurnCompleted, payload)
         };
     MappedIncoming {
@@ -63,15 +57,12 @@ pub(crate) fn state_update(update: &Value, context: &MappingContext<'_>) -> (Eve
         Some("error") | Some("failed") => TurnStatus::Failed,
         _ => TurnStatus::Completed,
     };
-    let payload = json!({
+    let mut payload = json!({
         "state": state,
         "stopReason": update.get("stopReason"),
         "usage": update.get("usage"),
-        "errorMessage": update
-            .get("errorMessage")
-            .or_else(|| update.get("error"))
-            .and_then(Value::as_str),
     });
+    insert_turn_error(&mut payload, update);
     (EventKind::TurnCompleted, payload)
 }
 
@@ -97,15 +88,95 @@ pub(crate) fn turn_completed(update: &Value, context: &MappingContext<'_>) -> (E
     let stop_reason = update
         .get("stop_reason")
         .or_else(|| update.get("stopReason"));
-    let payload = json!({
-        "state": terminal_state(stop_reason),
+    let result = update
+        .get("agent_result")
+        .or_else(|| update.get("agentResult"));
+    (
+        EventKind::TurnCompleted,
+        completion_payload(update, stop_reason, result),
+    )
+}
+
+/// An x.ai completion. Grok's completion can beat the failed prompt's RPC
+/// error, so a failed one without error text carries its `agentResult`.
+fn completion_payload(
+    source: &Value,
+    stop_reason: Option<&Value>,
+    result: Option<&Value>,
+) -> Value {
+    let state = terminal_state(stop_reason);
+    let mut payload = json!({
+        "state": state,
         "stopReason": stop_reason,
-        "usage": update.get("usage"),
-        "result": update.get("agent_result").or_else(|| update.get("agentResult")),
-        "errorMessage": update
-            .get("errorMessage")
-            .or_else(|| update.get("error"))
-            .and_then(Value::as_str),
+        "usage": source.get("usage"),
+        "result": result,
     });
-    (EventKind::TurnCompleted, payload)
+    insert_turn_error(&mut payload, source);
+    if state == TurnStatus::Failed && payload["errorMessage"].is_null() {
+        if let Some(text) = result.and_then(non_blank) {
+            payload["errorMessage"] = Value::from(text);
+        }
+    }
+    payload
+}
+
+/// Copies the error a turn ended with: the text of the first non-blank
+/// `errorMessage`, string `error` or `error.message`, and a structured
+/// `error`'s `code` and `data` in the shape of a failed prompt RPC.
+fn insert_turn_error(payload: &mut Value, source: &Value) {
+    let error = source.get("error");
+    let message = [
+        source.get("errorMessage"),
+        error,
+        error.and_then(|error| error.get("message")),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(non_blank);
+    payload["errorMessage"] = message.map_or(Value::Null, Value::from);
+    if let Some(error) = error.filter(|error| error.is_object()) {
+        payload["error"] = json!({"code": error.get("code"), "data": error.get("data")});
+    }
+}
+
+fn non_blank(value: &Value) -> Option<&str> {
+    value
+        .as_str()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+}
+
+#[cfg(test)]
+mod turn_error_tests {
+    use super::insert_turn_error;
+    use serde_json::{json, Value};
+
+    fn turn_error(source: Value) -> Value {
+        let mut payload = json!({});
+        insert_turn_error(&mut payload, &source);
+        payload
+    }
+
+    #[test]
+    fn turn_error_reads_flat_string_and_structured_error() {
+        assert_eq!(
+            turn_error(json!({"errorMessage":"flat","error":{"message":"nested"}}))["errorMessage"],
+            "flat"
+        );
+        assert_eq!(
+            turn_error(json!({"error":"string"})),
+            json!({"errorMessage":"string"})
+        );
+        assert_eq!(
+            turn_error(
+                json!({"errorMessage":" ","error":{"code":-32000,"message":"nested","data":{"retry":false}}})
+            ),
+            json!({"errorMessage":"nested","error":{"code":-32000,"data":{"retry":false}}})
+        );
+        assert_eq!(
+            turn_error(json!({"error":{"message":"  "}})),
+            json!({"errorMessage":null,"error":{"code":null,"data":null}})
+        );
+        assert_eq!(turn_error(json!({})), json!({"errorMessage":null}));
+    }
 }

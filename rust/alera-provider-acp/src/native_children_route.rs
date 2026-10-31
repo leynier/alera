@@ -156,16 +156,6 @@ impl<T: JsonTransport> AcpProvider<T> {
         {
             event.payload["childTurnsContinue"] = Value::Bool(true);
         }
-        if event.payload.get("errorMessage").is_none_or(Value::is_null) {
-            if let Some(message) = event
-                .raw
-                .as_ref()
-                .and_then(|raw| raw.payload.pointer("/params/update/error/message"))
-                .cloned()
-            {
-                event.payload["errorMessage"] = message;
-            }
-        }
         self.children.reset_turn();
     }
 

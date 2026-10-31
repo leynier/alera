@@ -6,7 +6,7 @@ Recipe resolution, authentication, capability probing, and provider flavor behav
 
 The crate preserves executable, arguments, working directory, environment, agent identity, and authentication method from each resolved recipe. It does not copy provider implementation source or bundle provider runtimes.
 
-Known registry identities expose explicit flavor metadata for Devin, Copilot, and Mistral Vibe. The wrapper preserves native `_meta` task and stream attribution, derives child task identifiers for Copilot, and maps the Mistral retry extension and rate-limit application code to normalized warnings while retaining raw frames.
+Known registry identities expose explicit flavor metadata for Devin, Copilot, and Mistral Vibe. The wrapper preserves native `_meta` task and stream attribution, derives child task identifiers for Copilot, maps the Mistral retry extension to normalized warnings, and classifies a failed turn whose `error.code` is Mistral's rate-limit application code as `usage_limit`, whether a failed prompt RPC or an idle error reported it, while retaining raw frames.
 
 The Devin flavor installs a concrete client terminal handler before initialization and advertises the ACP terminal capability. It implements `terminal/create`, `terminal/output`, `terminal/wait_for_exit`, `terminal/kill`, and `terminal/release` through an injectable process boundary. Other registry flavors do not advertise client terminals. Filesystem capabilities remain disabled.
 

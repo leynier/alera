@@ -331,13 +331,21 @@ fn normalize_mistral(event: &mut ProviderEvent) {
     ) {
         return;
     }
-    let Some(code) = event
-        .raw
-        .as_ref()
-        .and_then(|raw| raw.payload.get("error"))
-        .and_then(|error| error.get("code"))
+    // A failureClass on a turn that did not fail is invalid; a turn's payload
+    // keeps an error object whatever its state.
+    if event.kind == EventKind::TurnCompleted && event.payload["state"] != "failed" {
+        return;
+    }
+    // An idle error's code reaches the turn's payload, not the raw frame's top level.
+    let code = event
+        .payload
+        .pointer("/error/code")
         .and_then(Value::as_i64)
-    else {
+        .or_else(|| {
+            let raw = event.raw.as_ref()?;
+            raw.payload.pointer("/error/code").and_then(Value::as_i64)
+        });
+    let Some(code) = code else {
         return;
     };
     if code == MISTRAL_RATE_LIMIT_CODE {

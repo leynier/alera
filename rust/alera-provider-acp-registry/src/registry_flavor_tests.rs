@@ -85,3 +85,38 @@ fn mistral_retry_is_a_retryable_rate_limit_warning() {
     assert_eq!(mapped.payload["appCode"], -31_001);
     assert_eq!(mapped.payload["failureClass"], "usage_limit");
 }
+
+#[test]
+fn mistral_idle_rate_limit_error_is_a_usage_limit() {
+    let mut state = RegistryFlavorState::default();
+    let mapped = normalize_event(
+        event(
+            "session/update",
+            json!({"sessionId":"root","update":{"sessionUpdate":"state_update","state":"idle","stopReason":"error","error":{"code":-31_001,"message":"Rate limit exceeded"}}}),
+            EventKind::TurnCompleted,
+            json!({"state":"failed","stopReason":"error","errorMessage":"Rate limit exceeded","error":{"code":-31_001,"data":null}}),
+        ),
+        AcpRegistryAgentFlavor::MistralVibe,
+        &mut state,
+    );
+    assert_eq!(mapped.payload["appCode"], -31_001);
+    assert_eq!(mapped.payload["failureClass"], "usage_limit");
+    assert_eq!(mapped.payload["rateLimited"], true);
+}
+
+#[test]
+fn mistral_rate_limit_code_leaves_an_unfailed_turn_unclassified() {
+    let mut state = RegistryFlavorState::default();
+    let mapped = normalize_event(
+        event(
+            "session/update",
+            json!({"sessionId":"root","update":{"sessionUpdate":"state_update","state":"idle","stopReason":"cancelled","error":{"code":-31_001,"message":"Rate limit exceeded"}}}),
+            EventKind::TurnCompleted,
+            json!({"state":"interrupted","stopReason":"cancelled","errorMessage":"Rate limit exceeded","error":{"code":-31_001,"data":null}}),
+        ),
+        AcpRegistryAgentFlavor::MistralVibe,
+        &mut state,
+    );
+    assert!(mapped.payload.get("failureClass").is_none());
+    mapped.validate().unwrap();
+}
