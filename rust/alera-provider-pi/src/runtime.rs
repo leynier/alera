@@ -5,7 +5,7 @@ use crate::{
 use alera_agent_transport::JsonTransport;
 use alera_provider_protocol::{
     EventKind, Provider, ProviderError, ProviderEvent, ProviderRefs, ProviderSession, RequestId,
-    SessionStatus, TurnInput, UserInputAnswers, UserInputQuestion,
+    SessionStatus, UserInputAnswers, UserInputQuestion,
 };
 use serde_json::{json, Map, Value};
 
@@ -416,38 +416,4 @@ fn validate_response_for_call(message: &Value, call: &PendingCall) -> Result<(),
         ));
     }
     Ok(())
-}
-
-pub(crate) fn image_inputs(input: &TurnInput) -> Result<Vec<Value>, ProviderError> {
-    let mut images = Vec::new();
-    for attachment in &input.attachments {
-        match attachment {
-            alera_provider_protocol::Attachment::Image { url } if url.starts_with("data:") => {
-                let (header, data) = url.split_once(',').ok_or_else(|| {
-                    ProviderError::Validation("Pi data image attachment is malformed".into())
-                })?;
-                let mime = header
-                    .strip_prefix("data:")
-                    .and_then(|value| value.strip_suffix(";base64"))
-                    .ok_or_else(|| {
-                        ProviderError::Unsupported(
-                            "Pi image attachments must be base64 data URLs".into(),
-                        )
-                    })?;
-                images.push(json!({ "type": "image", "data": data, "mimeType": mime }));
-            }
-            alera_provider_protocol::Attachment::Image { .. } => {
-                return Err(ProviderError::Unsupported(
-                    "Pi cannot fetch remote image URLs through the RPC adapter".into(),
-                ));
-            }
-            alera_provider_protocol::Attachment::LocalImage { .. }
-            | alera_provider_protocol::Attachment::File { .. } => {
-                return Err(ProviderError::Unsupported(
-                    "Pi file attachments require host-side materialization".into(),
-                ));
-            }
-        }
-    }
-    Ok(images)
 }

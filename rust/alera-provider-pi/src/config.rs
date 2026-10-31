@@ -1,9 +1,14 @@
-use alera_agent_transport::{ProcessConfig, DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};
+use alera_agent_transport::{ProcessConfig, DEFAULT_SHUTDOWN_TIMEOUT};
 use alera_provider_protocol::{ApprovalPolicy, McpServerSpec, RuntimeMode, SandboxMode};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Duration;
+
+/// Pi frames carry base64 images: a prompt's pasted images, their echo in
+/// message and `agent_end` events, and image tool results. Half of the frame
+/// is the budget for a prompt's inline images.
+pub const PI_MAX_FRAME_BYTES: usize = 64 * 1024 * 1024;
 
 /// Configuration for a Pi RPC process or an injected transport.
 #[derive(Clone, Debug)]
@@ -39,7 +44,7 @@ impl Default for PiProviderConfig {
             runtime_mode: RuntimeMode::ApprovalRequired,
             approval_policy: None,
             sandbox_mode: None,
-            max_frame_bytes: DEFAULT_MAX_FRAME_BYTES,
+            max_frame_bytes: PI_MAX_FRAME_BYTES,
             shutdown_timeout: DEFAULT_SHUTDOWN_TIMEOUT,
             request_timeout: Duration::from_secs(30),
             max_queued_events: 1024,

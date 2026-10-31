@@ -5,6 +5,7 @@
 //! injected transport.
 
 mod api;
+mod attachments;
 mod commands;
 mod config;
 mod event_core;
@@ -17,5 +18,5 @@ mod provider;
 mod rpc;
 mod runtime;
 
-pub use config::{PiConfig, PiProviderConfig};
+pub use config::{PiConfig, PiProviderConfig, PI_MAX_FRAME_BYTES};
 pub use provider::PiProvider;

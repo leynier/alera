@@ -1,9 +1,10 @@
+use crate::attachments::{prompt_input, PromptInput};
 use crate::mcp_extension::McpExtensionLease;
 use crate::{
     commands,
     config::PiProviderConfig,
     events, lifecycle, rpc,
-    runtime::{image_inputs, native_thread_id, state_model, user_input_payload},
+    runtime::{native_thread_id, state_model, user_input_payload},
 };
 use alera_agent_transport::{JsonLineProcess, JsonTransport};
 use alera_provider_protocol::{
@@ -244,17 +245,17 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
         }
         let compact = commands::compact_command(&input.input);
         // Like T3 Code, `/compact` ignores attachments.
-        let images = match compact {
-            Some(_) => Vec::new(),
-            None => image_inputs(&input)?,
+        let prompt = match compact {
+            Some(_) => None,
+            None => Some(prompt_input(&input, self.config.max_frame_bytes / 2).await?),
         };
         let turn_id = self.next_turn();
         self.compaction_seen = false;
         if let Some(instructions) = compact {
             self.send_compact(instructions).await?;
-        } else {
+        } else if let Some(PromptInput { message, images }) = prompt {
             let mut params = Map::new();
-            params.insert("message".into(), Value::String(input.input));
+            params.insert("message".into(), Value::String(message));
             if !images.is_empty() {
                 params.insert("images".into(), Value::Array(images));
             }
