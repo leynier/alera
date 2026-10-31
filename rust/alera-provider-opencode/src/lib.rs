@@ -11,6 +11,7 @@ mod commands;
 mod config;
 mod dispatch;
 mod events;
+mod failure;
 mod mcp;
 mod native_message_id;
 mod native_parts;

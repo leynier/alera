@@ -252,12 +252,13 @@ fn map_terminal<T: HttpTransport>(
         session.active_turn_id = None;
     }
     let mut payload = json!({ "state": state });
-    if let Some(error) = props
-        .get("error")
-        .and_then(|error| error.get("message"))
-        .and_then(Value::as_str)
-    {
-        payload["errorMessage"] = Value::String(error.to_owned());
+    let error = props.get("error");
+    if let Some(message) = error.and_then(crate::failure::error_message) {
+        payload["errorMessage"] = Value::String(message.to_owned());
+    }
+    let class = error.map(crate::failure::failure_class).unwrap_or_default();
+    if state == TurnStatus::Failed && !class.is_unknown() {
+        payload["failureClass"] = json!(class);
     }
     let mut event = ProviderEvent::new(
         opencode_kind(),
@@ -307,12 +308,20 @@ fn map_error<T: HttpTransport>(
         .and_then(Value::as_str)
         .unwrap_or("OpenCode session error")
         .to_owned();
+    let mut payload = json!({ "message": message });
+    let class = props
+        .get("error")
+        .map(crate::failure::failure_class)
+        .unwrap_or_default();
+    if !class.is_unknown() {
+        payload["failureClass"] = json!(class);
+    }
     Ok(ProviderEvent::new(
         opencode_kind(),
         provider.config.provider_instance_id.clone(),
         thread_id,
         EventKind::RuntimeError,
-        json!({ "message": message }),
+        payload,
         raw,
     ))
 }
