@@ -56,6 +56,7 @@ pub enum TransportError {
     },
 
     /// The child closed the protocol unexpectedly or exited unsuccessfully.
+    /// `stderr` is the bounded tail of its stderr with credentials masked.
     #[error("provider process exited{}{}", format_exit_code(*code), format_stderr(stderr))]
     ProcessExited { code: Option<i32>, stderr: String },
 

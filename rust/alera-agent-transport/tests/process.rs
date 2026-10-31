@@ -240,6 +240,28 @@ async fn nonzero_exit_is_explicit() {
 }
 
 #[tokio::test]
+async fn exit_error_masks_credentials_in_the_stderr_tail() {
+    let mut transport = JsonLineProcess::spawn(config()).await.unwrap();
+    transport
+        .send(json!({"op": "exit-nonzero-with-secrets"}))
+        .await
+        .unwrap();
+
+    let error = transport.recv().await.unwrap_err();
+    let TransportError::ProcessExited { code, stderr } = &error else {
+        panic!("expected a process exit, got {error:?}");
+    };
+    assert_eq!(*code, Some(7));
+    assert_eq!(
+        stderr,
+        "OPENAI_API_KEY=[redacted]\nAuthorization: Bearer [redacted]\nlogin failed\n"
+    );
+    let message = error.to_string();
+    assert!(!message.contains("fixture0123456789"), "{message}");
+    assert!(!message.contains("fixture-bearer"), "{message}");
+}
+
+#[tokio::test]
 async fn cancelled_receive_can_be_followed_by_bounded_close() {
     let mut transport = JsonLineProcess::spawn(config()).await.unwrap();
     transport.send(json!({"op": "sleep"})).await.unwrap();

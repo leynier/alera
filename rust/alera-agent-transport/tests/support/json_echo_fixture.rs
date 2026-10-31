@@ -141,6 +141,14 @@ async fn main() {
             }
             Some("exit") => return,
             Some("exit-nonzero") => std::process::exit(7),
+            Some("exit-nonzero-with-secrets") => {
+                let mut stderr = std::io::stderr();
+                stderr
+                    .write_all(b"OPENAI_API_KEY=sk-proj-fixture0123456789\nAuthorization: Bearer fixture-bearer\nlogin failed\n")
+                    .unwrap();
+                stderr.flush().unwrap();
+                std::process::exit(7);
+            }
             _ => write_json(&mut stdout, json!({"unknown": true}), true).await,
         }
     }

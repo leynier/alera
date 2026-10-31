@@ -12,12 +12,14 @@ mod mock;
 mod process;
 #[cfg(unix)]
 mod process_group;
+mod redaction;
 
 pub use error::TransportError;
 pub use framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};
 pub use managed_process::ManagedProcess;
 pub use mock::MockTransport;
 pub use process::{JsonLineProcess, ProcessConfig};
+pub use redaction::{redact_secrets, REDACTED};
 
 use async_trait::async_trait;
 

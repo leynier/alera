@@ -10,19 +10,21 @@ use alera_core::captured_process::ProcessTreeGuard;
 use alera_core::child_process::windowless_async_command;
 use alera_core::login_shell_environment::apply_login_shell_environment;
 use async_trait::async_trait;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::process::{Child, ChildStderr, ChildStdin};
+use tokio::io::AsyncWriteExt;
+use tokio::process::{Child, ChildStdin};
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::task::JoinHandle;
 
-use crate::framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT, STDERR_TAIL_BYTES};
+use crate::framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};
 #[cfg(unix)]
 use crate::process_group::ProcessGroup;
 use crate::{JsonTransport, TransportError};
 
 mod read;
+mod stderr;
 mod write;
 use read::drain_stdout;
+use stderr::{drain_stderr, StderrTail};
 use write::{FrameWriteError, PendingFrame};
 
 const READ_CHUNK_BYTES: usize = 8 * 1024;
@@ -58,47 +60,6 @@ impl Default for ProcessConfig {
             env: BTreeMap::new(),
             max_frame_bytes: DEFAULT_MAX_FRAME_BYTES,
             shutdown_timeout: DEFAULT_SHUTDOWN_TIMEOUT,
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-struct StderrTail {
-    bytes: Vec<u8>,
-}
-
-impl StderrTail {
-    fn append(&mut self, bytes: &[u8]) {
-        if bytes.len() >= STDERR_TAIL_BYTES {
-            self.bytes.clear();
-            self.bytes
-                .extend_from_slice(&bytes[bytes.len() - STDERR_TAIL_BYTES..]);
-            return;
-        }
-
-        let total = self.bytes.len() + bytes.len();
-        if total > STDERR_TAIL_BYTES {
-            self.bytes
-                .drain(..(total - STDERR_TAIL_BYTES).min(self.bytes.len()));
-        }
-        self.bytes.extend_from_slice(bytes);
-    }
-
-    fn text(&self) -> String {
-        String::from_utf8_lossy(&self.bytes).into_owned()
-    }
-}
-
-async fn drain_stderr(mut stderr: ChildStderr, tail: Arc<Mutex<StderrTail>>) {
-    let mut buffer = [0_u8; READ_CHUNK_BYTES];
-    loop {
-        match stderr.read(&mut buffer).await {
-            Ok(0) | Err(_) => break,
-            Ok(read) => {
-                if let Ok(mut tail) = tail.lock() {
-                    tail.append(&buffer[..read]);
-                }
-            }
         }
     }
 }
