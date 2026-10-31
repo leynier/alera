@@ -53,11 +53,14 @@ final class AgentChatWorkflowMember {
 
   int get index => agent.index;
 
-  /// The provider reports a settled member's duration, not its end.
+  /// When a settled member finished: the provider's reported end, else its
+  /// start plus its execution duration, which leaves out startup waits.
   DateTime? get completedAt {
+    if (status.active) return null;
+    if (agent.completedAt case final end?) return end;
     final start = agent.startedAt;
     final duration = agent.durationMs;
-    if (status.active || start == null || duration == null) return null;
+    if (start == null || duration == null) return null;
     return start.add(Duration(milliseconds: duration));
   }
 
@@ -71,7 +74,7 @@ final class AgentChatWorkflowMember {
     if (status == AgentChatWorkflowMemberStatus.completed &&
         start != null &&
         end != null) {
-      return 'Completed in ${agentChatDurationLabel(end.difference(start))}';
+      return 'Completed in ${agentChatDurationLabel(_since(start, end))}';
     }
     return status.label;
   }

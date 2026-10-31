@@ -42,6 +42,9 @@ final class const AgentChatWorkflowAgent({
   final DateTime? queuedAt,
   final DateTime? startedAt,
 
+  /// When a settled member finished, as the provider reported it.
+  final DateTime? completedAt,
+
   /// Excerpts of what the member was asked and answered.
   final String? prompt,
   final String? result,
@@ -140,6 +143,7 @@ AgentChatWorkflowAgent? _agent(AgentChatJson json) {
     durationMs: _count(json['durationMs']),
     queuedAt: _instant(json['queuedAt']),
     startedAt: _instant(json['startedAt']),
+    completedAt: _instant(json['completedAt']),
     prompt: _text(json['prompt']),
     result: _text(json['result']),
   );

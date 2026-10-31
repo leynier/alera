@@ -13,6 +13,7 @@ Map<String, Object?> _agent(
   String? phaseTitle,
   int? startedAfterSeconds,
   int? durationMs,
+  int? completedAfterMs,
   String? agentId,
 }) => <String, Object?>{
   'index': index,
@@ -26,6 +27,10 @@ Map<String, Object?> _agent(
         .add(Duration(seconds: startedAfterSeconds))
         .millisecondsSinceEpoch,
   'durationMs': ?durationMs,
+  if (completedAfterMs != null)
+    'completedAt': _start
+        .add(Duration(milliseconds: completedAfterMs))
+        .millisecondsSinceEpoch,
 };
 
 AgentChatItem _call(String status, Map<String, Object?> workflow) =>
@@ -151,6 +156,57 @@ void main() {
       guess.members.single.statusLabel(_start.add(const Duration(seconds: 7))),
       'Working 2s',
     );
+  });
+
+  test('a settled member ends when the provider says it did', () {
+    final group = _call('completed', <String, Object?>{
+      'phases': <Object?>[
+        <String, Object?>{'index': 0, 'title': 'Plan'},
+      ],
+      'agents': <Object?>[
+        _agent(
+          1,
+          'completed',
+          phase: 0,
+          startedAfterSeconds: 0,
+          durationMs: 1500,
+          completedAfterMs: 4432,
+        ),
+        _agent(
+          2,
+          'completed',
+          phase: 0,
+          startedAfterSeconds: 1,
+          durationMs: 2000,
+        ),
+        _agent(3, 'running', phase: 0),
+      ],
+    }).workflowGroup!;
+    final [reported, derived, settled] = group.phases.single.members;
+    expect(
+      reported.agent.completedAt,
+      _start.add(const Duration(milliseconds: 4432)),
+    );
+    expect(reported.completedAt, reported.agent.completedAt);
+    expect(reported.statusLabel(_start), 'Completed in 4s');
+    expect(derived.completedAt, _start.add(const Duration(seconds: 3)));
+    expect(derived.statusLabel(_start), 'Completed in 2s');
+    // A live member the settled workflow closed has no end of its own.
+    expect(settled.status, AgentChatWorkflowMemberStatus.completed);
+    expect(settled.completedAt, isNull);
+    expect(
+      group.phases.single.elapsed(_start),
+      const Duration(milliseconds: 4432),
+    );
+  });
+
+  test('a reported end before the start never reads as negative', () {
+    final member = _call('completed', <String, Object?>{
+      'agents': <Object?>[
+        _agent(1, 'completed', startedAfterSeconds: 5, completedAfterMs: 1000),
+      ],
+    }).workflowGroup!.unphased.single;
+    expect(member.statusLabel(_start), 'Completed in 1s');
   });
 
   test('a settled workflow settles the members it still lists as live', () {
