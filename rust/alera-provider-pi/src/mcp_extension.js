@@ -20,7 +20,17 @@ function safePart(value) {
 }
 
 function schema(value) {
-  return value ?? { type: "object", properties: {}, additionalProperties: true };
+  if (value === undefined || value === null) {
+    return { type: "object", properties: {}, additionalProperties: true };
+  }
+  if (typeof value !== "object" || Array.isArray(value)) return value;
+  // Zero-argument MCP tools may omit "properties", which some OpenAI-compatible
+  // servers reject. Declare it, as Pi does for its own MCP tools.
+  return {
+    ...value,
+    type: value.type ?? "object",
+    ...(value.properties === undefined ? { properties: {} } : {}),
+  };
 }
 
 function closeStream(stream) {

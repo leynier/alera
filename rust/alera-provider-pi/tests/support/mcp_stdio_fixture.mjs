@@ -33,6 +33,7 @@ if (descendant) {
       const tools = [{ name, description: name, inputSchema: { type: "object", properties: { text: { type: "string" } } } }];
       if (mode === "page-limit") tools[0].name = `echo_${page}`;
       if (mode === "invalid-schema" && page === 2) tools[0].inputSchema = [];
+      if (mode === "bare-schema") tools[0].inputSchema = page === 1 ? { type: "object" } : { required: [] };
       if (mode === "tool-limit") {
         for (let index = 0; index < 10_000; index++) tools.push({ name: `extra_${index}` });
       }

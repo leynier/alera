@@ -124,6 +124,17 @@ test("supervisor preserves backpressure, the final response, and native exit cod
   } finally { await exited.close(); await rm(second.directory, { recursive: true, force: true }); }
 });
 
+test("declares empty properties on tool schemas that omit them and keeps their other keywords", async () => {
+  const fixture = await setup("bare-schema");
+  const pi = await fakePi(fixture.path);
+  try {
+    assert.deepEqual(pi.tools.map((tool) => tool.parameters), [
+      { type: "object", properties: {} },
+      { required: [], type: "object", properties: {} },
+    ]);
+  } finally { await pi.close(); await rm(fixture.directory, { recursive: true, force: true }); }
+});
+
 for (const [mode, message] of [["repeat-cursor", /repeated cursor/], ["duplicate-tool", /duplicate tool/],
   ["page-limit", /page limit/], ["tool-limit", /tool limit/], ["invalid-schema", /invalid tool schema/]]) {
   test(`rejects ${mode} without publishing partial tools or leaving a server`, async () => {
