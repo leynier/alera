@@ -20,6 +20,8 @@ mod mapping_stream;
 mod mcp;
 #[path = "reasoning_effort.rs"]
 mod reasoning_effort;
+#[path = "request_events.rs"]
+mod request_events;
 #[path = "runtime_response.rs"]
 mod runtime_response;
 #[path = "slash_commands.rs"]
@@ -31,17 +33,17 @@ mod user_messages;
 #[path = "workflow.rs"]
 mod workflow;
 
-use alera_agent_transport::{JsonTransport, TransportError};
+use alera_agent_transport::JsonTransport;
 use alera_provider_protocol::{
     ApprovalPolicy, EventKind, InteractionMode, InterruptInput, Provider, ProviderCapabilities,
-    ProviderError, ProviderEvent, ProviderKind, ProviderRefs, ProviderSession, RawEvent,
-    RequestKind, RuntimeMode, RuntimeRequest, RuntimeResponse, SandboxMode, SessionStartInput,
-    SessionStatus, StreamKind, TurnInput, TurnStartResult,
+    ProviderError, ProviderEvent, ProviderKind, ProviderSession, RawEvent, RequestKind,
+    RuntimeMode, RuntimeRequest, RuntimeResponse, SandboxMode, SessionStartInput, SessionStatus,
+    StreamKind, TurnInput, TurnStartResult,
 };
 use async_trait::async_trait;
 use callbacks::{install_callbacks, PendingResponse, RequestNotice};
 use claude_agent_sdk::{ClaudeAgentOptions, ClaudeClient, ClaudeSdkError};
-use runtime_response::{resolved_payload, response_matches_request};
+use failure::sdk_error;
 use serde_json::{json, Value};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -52,23 +54,6 @@ const MESSAGE_SOURCE: &str = "claude.sdk.message";
 const PERMISSION_SOURCE: &str = "claude.sdk.permission";
 // SDK MCP control frames share the SDK message source.
 const MCP_SOURCE: &str = MESSAGE_SOURCE;
-
-struct BoxedTransport(Box<dyn JsonTransport>);
-
-#[async_trait]
-impl JsonTransport for BoxedTransport {
-    async fn send(&mut self, message: Value) -> Result<(), TransportError> {
-        self.0.send(message).await
-    }
-
-    async fn recv(&mut self) -> Result<Option<Value>, TransportError> {
-        self.0.recv().await
-    }
-
-    async fn close(&mut self) -> Result<(), TransportError> {
-        self.0.close().await
-    }
-}
 
 /// Configuration shared by process-backed and injected-transport providers.
 #[derive(Clone)]
@@ -121,15 +106,6 @@ pub struct ClaudeProvider {
     described_commands: bool,
     background_tasks: background_wait::BackgroundTasks,
     workflow_tasks: workflow::WorkflowTasks,
-}
-
-fn sdk_error(error: ClaudeSdkError) -> ProviderError {
-    match error {
-        ClaudeSdkError::Transport(message) => ProviderError::Protocol(message),
-        ClaudeSdkError::Closed => ProviderError::Closed,
-        ClaudeSdkError::Timeout { operation, .. } => ProviderError::Timeout { operation },
-        other => ProviderError::Protocol(other.to_string()),
-    }
 }
 
 #[async_trait]
@@ -229,8 +205,9 @@ impl Provider for ClaudeProvider {
         self.file_checkpointing = options.enable_file_checkpointing;
         *self.thread_id.lock().await = Some(input.thread_id.clone());
         let client = if let Some(transport) = self.transport.take() {
-            let client = ClaudeClient::with_transport(BoxedTransport(transport), options)
-                .map_err(sdk_error)?;
+            let client =
+                ClaudeClient::with_transport(lifecycle::BoxedTransport(transport), options)
+                    .map_err(sdk_error)?;
             client.initialize().await.map_err(sdk_error)?;
             client
         } else {
@@ -330,67 +307,7 @@ impl Provider for ClaudeProvider {
     }
 
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {
-        let request_id = response.request_id().to_string();
-        let (pending, request) = {
-            let mut pending_map = self.pending.lock().await;
-            let pending = pending_map.get(&request_id).ok_or_else(|| {
-                ProviderError::Validation(format!("unknown runtime request {request_id}"))
-            })?;
-            let request = match pending {
-                PendingResponse::Permission { request, .. }
-                | PendingResponse::Mcp { request, .. } => request.clone(),
-            };
-            if !response_matches_request(&request, &response) {
-                return Err(ProviderError::Validation(format!(
-                    "runtime response does not match request type {:?}",
-                    request.kind
-                )));
-            }
-            let pending = pending_map.remove(&request_id).ok_or_else(|| {
-                ProviderError::Validation(format!("unknown runtime request {request_id}"))
-            })?;
-            (pending, request)
-        };
-        let response_for_event = response.clone();
-        let native_request_id = match &pending {
-            PendingResponse::Permission {
-                native_request_id, ..
-            }
-            | PendingResponse::Mcp {
-                native_request_id, ..
-            } => native_request_id.clone(),
-        };
-        match pending {
-            PendingResponse::Permission { sender, .. } | PendingResponse::Mcp { sender, .. } => {
-                sender.send(response).map_err(|_| {
-                    ProviderError::InvalidState(
-                        "runtime request callback is no longer waiting".into(),
-                    )
-                })?;
-            }
-        }
-        let (kind, payload) = resolved_payload(&request, &response_for_event);
-        let source = if request.kind == RequestKind::DynamicToolCall {
-            MCP_SOURCE
-        } else {
-            PERMISSION_SOURCE
-        };
-        let mut event = self.event(
-            kind,
-            payload.clone(),
-            self.raw_from(source, "control_response", payload),
-        );
-        event.request_id = Some(request.request_id.to_string());
-        event.turn_id = request.turn_id.clone();
-        event.item_id = request.item_id.clone();
-        event.provider_refs = Some(ProviderRefs {
-            provider_turn_id: None,
-            provider_item_id: event.item_id.clone(),
-            provider_request_id: native_request_id,
-        });
-        event.validate()?;
-        self.queue(event);
-        Ok(())
+        self.respond_runtime(response).await
     }
 
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError> {
@@ -413,46 +330,13 @@ impl Provider for ClaudeProvider {
                 let message_future = client.next_message();
                 tokio::select! {
                     notice = self.request_rx.recv() => {
-                        if let Some(notice) = notice {
-                            let request_id = notice.request.request_id.to_string();
-                            let pending = self.pending.lock().await;
-                            let live = pending
-                                .get(&request_id)
-                                .is_some_and(|response| !response.is_closed());
-                            drop(pending);
-                            if !live {
-                                continue;
-                            }
-                            let request = notice.request;
-                            let (kind, payload) = if request.kind
-                                == alera_provider_protocol::RequestKind::ToolUserInput
-                            {
-                                (
-                                    EventKind::UserInputRequested,
-                                    json!({
-                                        "questions": request.questions,
-                                        "responseMode": "message",
-                                    }),
-                                )
-                            } else {
-                                (EventKind::RequestOpened, request.payload.clone())
-                            };
-                            let mut event = self
-                                .event(
-                                    kind,
-                                    payload.clone(),
-                                    self.raw_from(notice.source, "control_request", notice.raw),
-                                )
-                                .with_request(request);
-                            event.provider_refs = Some(ProviderRefs {
-                                provider_turn_id: None,
-                                provider_item_id: event.item_id.clone(),
-                                provider_request_id: notice.native_request_id,
-                            });
-                            event.validate()?;
-                            return Ok(Some(event));
+                        let Some(notice) = notice else {
+                            return Ok(None);
+                        };
+                        match self.request_opened_event(notice).await? {
+                            Some(event) => return Ok(Some(event)),
+                            None => continue,
                         }
-                        return Ok(None);
                     }
                     result = message_future => result.map_err(sdk_error)?,
                 }

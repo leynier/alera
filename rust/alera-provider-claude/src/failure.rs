@@ -1,9 +1,20 @@
-//! Claude failure classes, from the turn's typed signals: rate limit events,
-//! assistant `error` codes, and the result's HTTP status and terminal reason.
+//! Claude failures: SDK errors as provider errors, and failure classes from
+//! the turn's typed signals: rate limit events, assistant `error` codes, and
+//! the result's HTTP status and terminal reason.
 
-use alera_provider_protocol::FailureClass;
-use claude_agent_sdk::ResultMessage;
+use alera_provider_protocol::{FailureClass, ProviderError};
+use claude_agent_sdk::{ClaudeSdkError, ResultMessage};
 use std::collections::HashSet;
+
+/// The provider error an SDK failure surfaces as.
+pub(super) fn sdk_error(error: ClaudeSdkError) -> ProviderError {
+    match error {
+        ClaudeSdkError::Transport(message) => ProviderError::Protocol(message),
+        ClaudeSdkError::Closed => ProviderError::Closed,
+        ClaudeSdkError::Timeout { operation, .. } => ProviderError::Timeout { operation },
+        other => ProviderError::Protocol(other.to_string()),
+    }
+}
 
 /// What the running turn reported before its result.
 #[derive(Debug, Default)]

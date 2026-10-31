@@ -1,4 +1,23 @@
 use super::*;
+use alera_agent_transport::TransportError;
+
+/// Hands an injected transport to the SDK client, which owns it by value.
+pub(super) struct BoxedTransport(pub(super) Box<dyn JsonTransport>);
+
+#[async_trait]
+impl JsonTransport for BoxedTransport {
+    async fn send(&mut self, message: Value) -> Result<(), TransportError> {
+        self.0.send(message).await
+    }
+
+    async fn recv(&mut self) -> Result<Option<Value>, TransportError> {
+        self.0.recv().await
+    }
+
+    async fn close(&mut self) -> Result<(), TransportError> {
+        self.0.close().await
+    }
+}
 
 impl ClaudeProvider {
     /// Construct a process-backed provider. The Claude CLI is spawned when its
