@@ -7,6 +7,7 @@
 
 mod attachments;
 mod background;
+mod catalog;
 mod commands;
 mod config;
 mod dispatch;
@@ -23,6 +24,7 @@ mod skills;
 mod tool_events;
 
 pub use alera_provider_protocol;
+pub use catalog::settled_models;
 pub use config::{
     OpenCodeConfig, OpenCodeConfigSupport, OpenCodeGeneration, OpenCodeProviderConfig,
 };

@@ -17,3 +17,5 @@ A failed turn or a session error between turns carries a failure class only from
 Todo updates become the turn plan without cancelled todos: a plan step has no cancelled status, and a cancelled todo is no outstanding work.
 
 Native questions keep their `multiple` and `custom` flags; a question without `custom` accepts a typed answer, as OpenCode does.
+
+`settled_models` reads the model catalog as T3 Code's driver does. A cold 2.x server lists none or only part of its catalog at first, so the list is read every 250 ms until two non-empty reads agree, for at most 5 seconds; the latest non-empty read stands when it does not settle or a later read fails. 1.x lists its catalog once.

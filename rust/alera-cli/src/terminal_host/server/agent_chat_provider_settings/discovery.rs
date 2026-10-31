@@ -163,7 +163,8 @@ pub(crate) async fn opencode(
         let transport = ReqwestTransport::new(HttpClientConfig { base_url:config.server_url.clone().expect("resolved server"),request_timeout:SDK_TIMEOUT,max_response_bytes:1024 * 1024,..Default::default() })
             .map_err(|_| "Invalid OpenCode model endpoint.")?;
         let mut client = opencode_agent_sdk::OpenCodeClient::new(transport,config.client_config());
-        let models = client.list_models().await.map_err(|_| "OpenCode model listing failed.")?;
+        // A cold 2.x server lists part of its catalog until it settles.
+        let models = alera_provider_opencode::settled_models(&mut client).await.map_err(|_| "OpenCode model listing failed.")?;
         Ok(models.into_iter().take(MAX_MODELS).map(|model| json!({"id":format!("{}/{}",model.provider_id,model.model_id),"label":model.name.unwrap_or(model.model_id),"source":"discovered"})).collect())
     }.await;
     if let Some(child) = &mut child {
