@@ -6,6 +6,8 @@ use alera_provider_protocol::{Provider, SessionStartInput};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
@@ -144,6 +146,30 @@ pub(crate) fn result_message_with_usage(usage: Value) -> Value {
     })
 }
 
+/// A Claude config directory for one test: a fresh temp path nothing
+/// creates, so it holds no settings, tasks or transcripts until the test
+/// writes them.
+pub(crate) fn isolated_config_dir() -> PathBuf {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    std::env::temp_dir().join(format!(
+        "alera-claude-test-config-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::SeqCst)
+    ))
+}
+
+/// The default config with the CLI's `CLAUDE_CONFIG_DIR` at
+/// [isolated_config_dir], so the developer's `~/.claude` never reaches a
+/// test. The system managed settings file cannot be redirected.
+pub(crate) fn isolated_config() -> ClaudeProviderConfig {
+    let mut config = ClaudeProviderConfig::default();
+    config.options.env.insert(
+        "CLAUDE_CONFIG_DIR".into(),
+        isolated_config_dir().to_string_lossy().into_owned(),
+    );
+    config
+}
+
 pub(crate) async fn started_provider(
     incoming: impl IntoIterator<Item = Value>,
 ) -> (ClaudeProvider, ScriptedTransportHandle) {
@@ -154,9 +180,16 @@ pub(crate) async fn started_provider_with(
     incoming: impl IntoIterator<Item = Value>,
     session: SessionStartInput,
 ) -> (ClaudeProvider, ScriptedTransportHandle) {
+    started_provider_with_config(incoming, isolated_config(), session).await
+}
+
+pub(crate) async fn started_provider_with_config(
+    incoming: impl IntoIterator<Item = Value>,
+    config: ClaudeProviderConfig,
+    session: SessionStartInput,
+) -> (ClaudeProvider, ScriptedTransportHandle) {
     let (transport, handle) = ScriptedTransport::new(incoming);
-    let mut provider =
-        ClaudeProvider::with_transport(transport, ClaudeProviderConfig::default()).unwrap();
+    let mut provider = ClaudeProvider::with_transport(transport, config).unwrap();
     provider.initialize().await.unwrap();
     provider.start_session(session).await.unwrap();
     (provider, handle)

@@ -2,11 +2,12 @@
 //! redirect, so these assume the machine sets no `ANTHROPIC_BASE_URL` there.
 
 mod skill_fixtures;
+mod support;
 
 use alera_provider_claude::claude_settings_base_url;
 use skill_fixtures::{write, TempDir};
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn env(config_dir: &Path) -> BTreeMap<String, String> {
     BTreeMap::from([(
@@ -95,4 +96,18 @@ fn the_config_dir_comes_from_the_launch_env_before_its_home() {
         claude_settings_base_url(&env).as_deref(),
         Some("https://home.example")
     );
+}
+
+#[test]
+fn the_shared_test_config_never_reads_the_developer_settings() {
+    let config_dir = |config: &alera_provider_claude::ClaudeProviderConfig| {
+        PathBuf::from(&config.options.env["CLAUDE_CONFIG_DIR"])
+    };
+    let config = support::isolated_config();
+    let directory = config_dir(&config);
+
+    assert!(directory.starts_with(std::env::temp_dir()));
+    assert!(!directory.exists());
+    assert_ne!(directory, config_dir(&support::isolated_config()));
+    assert_eq!(claude_settings_base_url(&config.options.env), None);
 }
