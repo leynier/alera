@@ -153,3 +153,49 @@ async fn v2_form_request_maps_fields_and_replies_with_form_id() {
     let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
     assert_eq!(body["answer"]["choice"], "a");
 }
+
+#[tokio::test]
+async fn question_request_keeps_native_selection_flags() {
+    let transport = MockHttpTransport::new();
+    transport.push_response(response(json!({"id":"s1"})));
+    // The session start lists commands; a failed listing publishes nothing.
+    transport.push_response(HttpResponse::new(404, Vec::new()));
+    transport.push_response(response(json!({"id":"m1"})));
+    transport.push_response(response(json!({"ok":true})));
+    transport.push_stream([br#"data: {"type":"question.asked","properties":{"sessionID":"s1","id":"question-3","questions":[{"header":"Drinks","question":"Which drinks?","multiple":true,"custom":false,"options":[{"label":"Tea","description":"Hot"},{"label":"Water","description":"Cold"}]},{"header":"Notes","question":"Anything else?","options":[]}]}}
+
+"#.to_vec()]);
+    let mut provider = OpenCodeProvider::new(transport, OpenCodeProviderConfig::default());
+    provider.initialize().await.unwrap();
+    let session = provider
+        .start_session(SessionStartInput::new("thread"))
+        .await
+        .unwrap();
+    provider
+        .send_turn(TurnInput::text(session.thread_id.clone(), "order"))
+        .await
+        .unwrap();
+    let _ = provider.next_event().await.unwrap();
+    let _ = provider.next_event().await.unwrap();
+    let request = provider.next_event().await.unwrap().unwrap();
+    let questions = &request.runtime_request.as_ref().unwrap().questions;
+    assert!(questions[0].multi_select);
+    assert_eq!(questions[0].allow_custom_answer, Some(false));
+    // Without the flags, OpenCode takes one answer and a typed one.
+    assert!(!questions[1].multi_select);
+    assert_eq!(questions[1].allow_custom_answer, Some(true));
+    let mut answers = BTreeMap::new();
+    answers.insert(questions[0].id.clone(), json!(["Tea", "Water"]));
+    answers.insert(questions[1].id.clone(), json!("No ice"));
+    provider
+        .respond(RuntimeResponse::UserInput {
+            request_id: "question-3".into(),
+            answers,
+        })
+        .await
+        .unwrap();
+    let requests = provider.client().transport().captured_requests();
+    let body: serde_json::Value = serde_json::from_slice(&requests.last().unwrap().body).unwrap();
+    assert_eq!(body["answer"]["Drinks"], json!(["Tea", "Water"]));
+    assert_eq!(body["answer"]["Notes"], json!(["No ice"]));
+}

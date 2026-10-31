@@ -15,3 +15,5 @@ Turn attachments follow T3 Code's OpenCode adapters. PNG, JPEG, GIF and WebP ima
 A failed turn or a session error between turns carries a failure class only from typed native fields: a 2.x `provider.rate-limit` or `provider.quota` execution failure and a 1.x `APIError` with HTTP status 429 are `usage_limit`. A 2.x `provider.quota` answered with HTTP 402 is an empty balance, which never resets, so it keeps only OpenCode's own message. A 1.x error's message is read from its `data`.
 
 Todo updates become the turn plan without cancelled todos: a plan step has no cancelled status, and a cancelled todo is no outstanding work.
+
+Native questions keep their `multiple` and `custom` flags; a question without `custom` accepts a typed answer, as OpenCode does.

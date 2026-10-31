@@ -98,7 +98,14 @@ pub(crate) fn map_question<T: HttpTransport>(
                         .and_then(Value::as_array)
                         .map(|options| options.iter().filter_map(option).collect())
                         .unwrap_or_default(),
-                    allow_custom_answer: Some(true),
+                    // OpenCode offers a typed answer unless the question
+                    // sets `custom: false`.
+                    allow_custom_answer: Some(
+                        question
+                            .get("custom")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(true),
+                    ),
                     initial_answer: None,
                     multi_select: question
                         .get("multiple")
