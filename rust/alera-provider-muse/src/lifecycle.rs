@@ -1,3 +1,4 @@
+use crate::attachments;
 use crate::provider::MuseProvider;
 use crate::session_mcp;
 use crate::workspace;
@@ -185,6 +186,8 @@ impl Provider for MuseProvider {
                 "Muse turn options are not supported by the MSP adapter".into(),
             ));
         }
+        // Attachments are read before any native change, so a bad one fails cleanly.
+        let parts = attachments::turn_parts(&input, self.config.options.max_frame_bytes).await?;
         if let Some(model) = &input.model {
             if session.model.as_deref() != Some(model.as_str()) {
                 self.client
@@ -198,20 +201,15 @@ impl Provider for MuseProvider {
                 }
             }
         }
-        let mut parts = Vec::new();
-        if !input.input.trim().is_empty() {
-            parts.push(serde_json::json!({"type":"text","text":input.input}));
-        }
-        if !input.attachments.is_empty() {
-            return Err(ProviderError::Unsupported(
-                "Muse MSP image and file attachments require a native upload receipt".into(),
-            ));
-        }
         let ack = self
             .client
             .as_ref()
             .ok_or_else(|| ProviderError::InvalidState("Muse client unavailable".into()))?
-            .start_turn(&session.native_thread_id, parts, None)
+            .start_turn(
+                &session.native_thread_id,
+                parts.input,
+                parts.display_text.as_deref(),
+            )
             .await
             .map_err(Self::sdk_error)?;
         let native_turn_id = ack

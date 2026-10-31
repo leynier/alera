@@ -5,6 +5,7 @@
 //! session, turn, item, approval, and user-input frames to the shared provider
 //! contract.
 
+mod attachments;
 mod config;
 mod event_mapping;
 mod events;

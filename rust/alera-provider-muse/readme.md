@@ -8,6 +8,8 @@ The session's `workspaceRoot` is the chat directory's canonical path, with symli
 
 A failed turn carries a `failureClass`: `usage_limit` when Muse types the stop as a used-up subscription quota (`error.quota`), and `unknown` otherwise. The class never comes from the error message, so a quota refusal a proxy relays as plain text stays `unknown`.
 
+Turns send GIF, JPEG, PNG and WebP images, from local files or base64 data URLs, as native `image` parts. Every local attachment, including other image types and files such as PDFs, is also named by path in the prompt (`[Attached file is saved at: …]`), so the agent can open it and none is silently dropped; `displayText` keeps the typed prompt for Muse's transcript. Remote image URLs are refused, an unreadable image refuses the turn as `attachment_unreadable`, and a turn whose input would not fit one transport frame is refused before it starts, because an oversized frame closes the connection.
+
 MCP injection is advertised only while an initialized connection has granted `sessionMcp`. Injected stdio and streamable HTTP servers use required startup mode for both session creation and resume, so the host must report connection failures instead of silently dropping orchestration tools. Stdio MCP `cwd` remains unsupported by the native MSP schema and is rejected before session startup.
 
 The implementation follows `@muse-code/sdk` 1.4.6 from `meta-models/muse-code-sdk` at commit `ea88c8221d381de7cb28281be8bc6b8b1507ba72`. The upstream SDK and committed protocol declarations are MIT licensed; this crate retains the accompanying MIT notice in `LICENSE-MIT`. The external host executable is not included in the upstream source repository or package and has separate licensing.
