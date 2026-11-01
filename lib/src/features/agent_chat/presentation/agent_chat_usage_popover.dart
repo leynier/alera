@@ -98,6 +98,16 @@ class const AgentChatUsageDetails({
                   '${(fraction * 100).round()}% used, '
                   '${localizations.formatDecimal(used)} of '
                   '${localizations.formatDecimal(window)} tokens',
+              tick: usage.autoCompactFraction,
+              note: switch ((
+                usage.autoCompactFraction,
+                usage.autoCompactTokens,
+              )) {
+                (_?, final tokens?) => agentChatAutoCompactNote(
+                  localizations.formatDecimal(tokens),
+                ),
+                _ => null,
+              },
             ),
           for (final limit in usage.windows)
             _UsageMeter(
@@ -129,28 +139,54 @@ class const _UsageMeter({
   required final String label,
   required final double fraction,
   required final String detail,
+  // Where the provider compacts on its own, as a fraction of the bar.
+  final double? tick,
+  final String? note,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final clamped = fraction.clamp(0.0, 1.0);
+    final tick = this.tick;
+    final note = this.note;
     return Semantics(
-      label: '$label, $detail',
+      label: '$label, $detail${note == null ? '' : '. $note'}',
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: AleraTokens.space4,
         children: <Widget>[
           Text(label, style: theme.textTheme.bodySmall),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
-            child: LinearProgressIndicator(
-              value: clamped,
-              minHeight: AleraTokens.space4,
-              backgroundColor: AleraTokens.border,
-              color: clamped > _nearLimit
-                  ? AleraTokens.warning
-                  : AleraTokens.foregroundMuted,
+          LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
+                  child: LinearProgressIndicator(
+                    value: clamped,
+                    minHeight: AleraTokens.space4,
+                    backgroundColor: AleraTokens.border,
+                    color: clamped > _nearLimit
+                        ? AleraTokens.warning
+                        : AleraTokens.foregroundMuted,
+                  ),
+                ),
+                if (tick != null)
+                  Positioned(
+                    key: const ValueKey<String>(
+                      'agent-chat-usage-auto-compact-tick',
+                    ),
+                    left: (constraints.maxWidth * tick).clamp(
+                      0,
+                      constraints.maxWidth - 1,
+                    ),
+                    top: -AleraTokens.space2,
+                    bottom: -AleraTokens.space2,
+                    width: 1,
+                    child: const ColoredBox(color: AleraTokens.foreground),
+                  ),
+              ],
             ),
           ),
           Text(
@@ -159,6 +195,13 @@ class const _UsageMeter({
               color: AleraTokens.foregroundMuted,
             ),
           ),
+          if (note != null)
+            Text(
+              note,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: AleraTokens.foregroundMuted,
+              ),
+            ),
         ],
       ),
     );

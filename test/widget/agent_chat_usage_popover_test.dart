@@ -61,4 +61,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Weekly Limit'), findsNothing);
   });
+
+  testWidgets('marks where the provider compacts on its own', (tester) async {
+    await _pump(
+      tester,
+      const AgentChatUsage(
+        contextTokens: 50000,
+        contextWindow: 200000,
+        autoCompactTokens: 150000,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('agent-chat-usage')));
+    await tester.pumpAndSettle();
+    expect(find.text('25% used, 50,000 of 200,000 tokens'), findsOneWidget);
+    expect(
+      find.text('Compacts automatically at about 150,000 tokens.'),
+      findsOneWidget,
+    );
+    final tick = find.byKey(
+      const ValueKey<String>('agent-chat-usage-auto-compact-tick'),
+    );
+    final bar = find.byType(LinearProgressIndicator);
+    final offset = tester.getTopLeft(tick).dx - tester.getTopLeft(bar).dx;
+    expect(offset / tester.getSize(bar).width, closeTo(0.75, 0.01));
+  });
+
+  testWidgets('a compaction point past the window has no tick', (tester) async {
+    await _pump(
+      tester,
+      const AgentChatUsage(
+        contextTokens: 50000,
+        contextWindow: 200000,
+        autoCompactTokens: 250000,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('agent-chat-usage')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('agent-chat-usage-auto-compact-tick')),
+      findsNothing,
+    );
+    expect(find.textContaining('Compacts automatically'), findsNothing);
+  });
 }
