@@ -110,7 +110,7 @@ pub(crate) fn provider_traits(provider: &str) -> Option<ProviderTraits> {
             capabilities: caps(true, true, true, false, true, true),
             images: true,
             files: true,
-            runtime_modes: DEFAULT_MODE,
+            runtime_modes: &["approval-required", "auto-accept-edits", "full-access"],
             interaction_modes: &["default"],
             per_turn_model: true,
         },

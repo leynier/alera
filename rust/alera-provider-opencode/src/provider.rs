@@ -66,6 +66,10 @@ pub struct OpenCodeProvider<T: HttpTransport> {
     pub(crate) mcp_tool_ids: HashSet<String>,
     pub(crate) native_parts: crate::native_parts::NativeParts,
     pub(crate) background: Option<crate::background::BackgroundCall>,
+    /// The runtime mode the session's permission rules enforce.
+    pub(crate) runtime_mode: alera_provider_protocol::RuntimeMode,
+    /// The root session and the 1.x sub-agent sessions under it.
+    pub(crate) session_family: HashSet<String>,
 }
 
 impl<T: HttpTransport> OpenCodeProvider<T> {
@@ -85,6 +89,8 @@ impl<T: HttpTransport> OpenCodeProvider<T> {
             mcp_tool_ids: HashSet::new(),
             native_parts: Default::default(),
             background: None,
+            runtime_mode: Default::default(),
+            session_family: HashSet::new(),
         }
     }
 
@@ -215,7 +221,12 @@ impl<T: HttpTransport + Clone + 'static> Provider for OpenCodeProvider<T> {
             self.client.set_directory(directory);
         }
         crate::mcp::preflight(self, &input.mcp_servers).await?;
-        let permission_rules = crate::mcp::permission_rules(&input.mcp_servers);
+        let v2 = self.config.generation == crate::config::OpenCodeGeneration::V2;
+        let permission_rules = crate::permissions::v2_rules(
+            input.runtime_mode,
+            crate::mcp::permission_rules(&input.mcp_servers),
+        );
+        let legacy_rules = crate::permissions::legacy_rules(input.runtime_mode);
         let native = if let Some(resume) = input.resume_thread_id.as_deref() {
             let native = timed(
                 timeout,
@@ -223,14 +234,21 @@ impl<T: HttpTransport + Clone + 'static> Provider for OpenCodeProvider<T> {
                 self.client.resume_session(resume),
             )
             .await?;
-            if self.config.generation == crate::config::OpenCodeGeneration::V2
-                && !permission_rules.is_empty()
-            {
+            // The session may predate this mode; write its rules again.
+            if v2 {
                 timed(
                     timeout,
                     "session.permissions",
                     self.client
                         .update_session_permissions(&native.id, permission_rules.clone()),
+                )
+                .await?;
+            } else {
+                timed(
+                    timeout,
+                    "session.permissions",
+                    self.client
+                        .update_session_legacy_permission(&native.id, &legacy_rules),
                 )
                 .await?;
             }
@@ -246,13 +264,8 @@ impl<T: HttpTransport + Clone + 'static> Provider for OpenCodeProvider<T> {
                         .as_ref()
                         .map(|path| path.to_string_lossy().into_owned()),
                     parent_id: None,
-                    permissions: if self.config.generation == crate::config::OpenCodeGeneration::V2
-                        && !permission_rules.is_empty()
-                    {
-                        Some(permission_rules)
-                    } else {
-                        None
-                    },
+                    permissions: v2.then_some(permission_rules),
+                    legacy_permission: (!v2).then_some(legacy_rules),
                 }),
             )
             .await?
@@ -277,6 +290,8 @@ impl<T: HttpTransport + Clone + 'static> Provider for OpenCodeProvider<T> {
             cwd: input.cwd.or_else(|| self.config.cwd.clone()),
             active_turn_id: None,
         };
+        self.runtime_mode = input.runtime_mode;
+        self.session_family = HashSet::from([session.native_thread_id.clone()]);
         self.session = Some(session.clone());
         self.scoped_mcp_servers = scoped_mcp_servers;
         let mut started = ProviderEvent::new(

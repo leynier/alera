@@ -61,6 +61,12 @@ async fn started_with_resume(
     transport
         .http
         .push_response(HttpResponse::new(200, br#"{"id":"ses_native"}"#));
+    if resume {
+        // A resumed session gets the runtime mode's permission rules again.
+        transport
+            .http
+            .push_response(HttpResponse::new(200, br#"{"id":"ses_native"}"#));
+    }
     // The session start lists commands; a failed listing publishes nothing.
     transport
         .http

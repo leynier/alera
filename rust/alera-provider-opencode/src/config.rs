@@ -1,6 +1,5 @@
 use alera_provider_protocol::{
-    InteractionMode, McpServerSpec, McpTransport, ProviderError, RuntimeMode, SessionStartInput,
-    TurnInput,
+    InteractionMode, McpServerSpec, McpTransport, ProviderError, SessionStartInput, TurnInput,
 };
 use opencode_agent_sdk::{ClientConfig, Generation, McpServerConfig, OpenCodeServerConfig};
 use std::collections::BTreeMap;
@@ -155,11 +154,7 @@ pub(crate) fn map_open_code_error(error: opencode_agent_sdk::OpenCodeError) -> P
 }
 
 pub(crate) fn validate_session_options(input: &SessionStartInput) -> Result<(), ProviderError> {
-    if input.runtime_mode != RuntimeMode::ApprovalRequired {
-        return Err(ProviderError::Unsupported(
-            "OpenCode runtime mode policy is not implemented".into(),
-        ));
-    }
+    crate::permissions::validate_mode(input.runtime_mode)?;
     if input.approval_policy.is_some() {
         return Err(ProviderError::Unsupported(
             "OpenCode approval policy options are not implemented".into(),

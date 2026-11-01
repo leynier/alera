@@ -197,11 +197,11 @@ async fn unsupported_session_policy_is_rejected_before_http() {
     let mut provider = provider_with_stream(OpenCodeGeneration::V2, b"");
     provider.initialize().await.unwrap();
     let mut input = SessionStartInput::new("app-thread");
-    input.runtime_mode = RuntimeMode::FullAccess;
+    input.runtime_mode = RuntimeMode::Auto;
     let error = provider.start_session(input).await.unwrap_err();
     assert!(error
         .to_string()
-        .contains("runtime mode policy is not implemented"));
+        .contains("OpenCode has no auto runtime mode"));
     assert!(provider.client().transport().captured_requests().is_empty());
 }
 

@@ -146,6 +146,7 @@ impl<T: HttpTransport> OpenCodeProvider<T> {
         if event.event_type == "command.updated" {
             return Ok(self.commands_event().await);
         }
+        self.govern_child_session(&event).await;
         self.event_from_sdk(event).map(Some)
     }
 

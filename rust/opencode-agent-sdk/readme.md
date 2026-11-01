@@ -11,3 +11,5 @@ The referenced upstream source is MIT licensed. The OpenCode executable remains 
 The provider's operation timeout applies to HTTP control and handshake work; the SDK's incremental SSE reader keeps an open stream until a decodable event or EOF and enforces its bound per event rather than across coalesced events.
 
 `inline_file_part` builds a prompt file part whose bytes travel as a `data:` URL, so a server need not share the caller's filesystem: 1.x sends it as a `file` part with its `mime` and `filename`, 2.x as a `files` entry with its `name`.
+
+Session permission rules differ by generation. 2.x takes `PermissionRule` (`action`, `resource`, `effect`) under `permissions`; 1.x takes `LegacyPermissionRule` (`permission`, `pattern`, `action`) under `permission`, on `create_session` through `SessionRequest::legacy_permission` and on `update_session_legacy_permission`. `session_record` returns a session's full native record, so its rules can be read.

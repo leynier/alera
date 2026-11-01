@@ -41,6 +41,8 @@ pub struct SessionRequest {
     pub directory: Option<String>,
     pub parent_id: Option<String>,
     pub permissions: Option<Vec<PermissionRule>>,
+    /// OpenCode 1.x rules, sent as `permission`.
+    pub legacy_permission: Option<Vec<crate::LegacyPermissionRule>>,
 }
 
 pub struct OpenCodeClient<T: HttpTransport> {
@@ -116,6 +118,13 @@ impl<T: HttpTransport> OpenCodeClient<T> {
             body.insert(
                 "permissions".into(),
                 serde_json::to_value(permissions)
+                    .map_err(|error| OpenCodeError::protocol(error.to_string()))?,
+            );
+        }
+        if let Some(permission) = input.legacy_permission {
+            body.insert(
+                "permission".into(),
+                serde_json::to_value(permission)
                     .map_err(|error| OpenCodeError::protocol(error.to_string()))?,
             );
         }

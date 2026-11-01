@@ -94,7 +94,7 @@ impl HttpTransport for SchemaTransport {
         }
         assert!(
             (request.method == "POST" && request.path == self.route("/session"))
-                || (request.method == "GET"
+                || ((request.method == "GET" || request.method == "PATCH")
                     && request.path == self.route(&format!("/session/{NATIVE_SESSION_ID}"))),
             "unexpected scripted request: {request:?}"
         );

@@ -17,6 +17,7 @@ mod mcp;
 mod native_message_id;
 mod native_parts;
 mod part_events;
+mod permissions;
 mod provider;
 mod request_events;
 mod runtime_response;

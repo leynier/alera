@@ -59,12 +59,17 @@ async fn injects_and_removes_v2_mcp_servers_for_one_session() {
     assert_eq!(requests[0].method, "GET");
     assert_eq!(requests[0].path, "http://127.0.0.1:4096/api/mcp");
     let create: serde_json::Value = serde_json::from_slice(&requests[1].body).expect("create body");
-    assert_eq!(create["permissions"][0]["action"], "alera-*");
-    assert_eq!(create["permissions"][0]["effect"], "deny");
-    assert_eq!(create["permissions"][1]["action"], "alera_*");
-    assert_eq!(create["permissions"][1]["effect"], "deny");
-    assert_eq!(create["permissions"][2]["action"], "alera-chat-1_*");
-    assert_eq!(create["permissions"][2]["effect"], "allow");
+    // The approval-required mode's rules come first, then the chat's MCP rules.
+    assert_eq!(
+        create["permissions"][0],
+        json!({"action":"shell","resource":"*","effect":"ask"})
+    );
+    assert_eq!(create["permissions"][3]["action"], "alera-*");
+    assert_eq!(create["permissions"][3]["effect"], "deny");
+    assert_eq!(create["permissions"][4]["action"], "alera_*");
+    assert_eq!(create["permissions"][4]["effect"], "deny");
+    assert_eq!(create["permissions"][5]["action"], "alera-chat-1_*");
+    assert_eq!(create["permissions"][5]["effect"], "allow");
     assert_eq!(requests[2].method, "PUT");
     assert_eq!(
         requests[2].path,
@@ -318,12 +323,12 @@ async fn distinct_hyphen_namespace_uses_one_directory_for_preflight_and_install(
         .iter()
         .all(|request| request.path.ends_with("?directory=%2Fother%2Fproject")));
     let create: serde_json::Value = serde_json::from_slice(&requests[1].body).unwrap();
-    assert_eq!(create["permissions"][0]["action"], "alera-*");
-    assert_eq!(create["permissions"][1]["action"], "alera_*");
-    assert_eq!(create["permissions"][2]["action"], "alera_chat_*");
-    assert_eq!(create["permissions"][2]["effect"], "allow");
-    assert_eq!(create["permissions"][3]["action"], "alera-chat_*");
-    assert_eq!(create["permissions"][3]["effect"], "allow");
+    assert_eq!(create["permissions"][3]["action"], "alera-*");
+    assert_eq!(create["permissions"][4]["action"], "alera_*");
+    assert_eq!(create["permissions"][5]["action"], "alera_chat_*");
+    assert_eq!(create["permissions"][5]["effect"], "allow");
+    assert_eq!(create["permissions"][6]["action"], "alera-chat_*");
+    assert_eq!(create["permissions"][6]["effect"], "allow");
 }
 
 #[tokio::test]
