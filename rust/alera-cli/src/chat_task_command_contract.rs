@@ -84,7 +84,17 @@ fn reset() -> Value {
 
 pub(crate) fn payload_schema(operation: &str) -> Value {
     match operation {
-        "capabilities" => object(&[("workspaceId", id()), ("hostId", id())], &[]),
+        "capabilities" => object(
+            &[
+                ("workspaceId", id()),
+                ("hostId", id()),
+                (
+                    "search",
+                    json!({"type":"string","minLength":1,"maxLength":200}),
+                ),
+            ],
+            &[],
+        ),
         "list" => object(
             &[
                 ("workspaceId", id()),

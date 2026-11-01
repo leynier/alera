@@ -4,19 +4,24 @@
 //! group. Every operation goes through the chat runtime host so receipts,
 //! lineage, workspace routing, and mode ceilings stay in one implementation.
 
-use std::io::Read;
-
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use serde_json::{json, Value};
-use uuid::Uuid;
 
 use crate::chat_orchestration_commands_args::{
-    ChatAction, ChatBackgroundWaitArgs, ChatCancelArgs, ChatCommand, ChatConfigureArgs,
-    ChatDelegateArgs, ChatInterruptArgs, ChatListArgs, ChatReadArgs, ChatRequestsArgs,
-    ChatRespondArgs, ChatSendArgs, ChatTaskArgs, ChatTaskListArgs, ChatWaitArgs,
+    ChatAction, ChatBackgroundWaitArgs, ChatCancelArgs, ChatCapabilitiesArgs, ChatCommand,
+    ChatConfigureArgs, ChatDelegateArgs, ChatInterruptArgs, ChatListArgs, ChatReadArgs,
+    ChatRequestsArgs, ChatRespondArgs, ChatSendArgs, ChatTaskArgs, ChatTaskListArgs, ChatWaitArgs,
 };
 use crate::cli::RuntimeDirArgs;
 use crate::orchestration_commands::WAIT_CLIENT_GRACE_MS;
+
+#[path = "chat_orchestration_commands_input.rs"]
+mod input;
+pub(crate) use input::validate_response;
+use input::{
+    optional_text, parse_object, parse_target, read_json_source, read_text_source, request_id,
+    require_text,
+};
 
 pub(crate) const CHAT_ORCHESTRATION_CAPABILITY: &str = "chatOrchestrationV1";
 const MAX_WAIT_SECONDS: u64 = 50;
@@ -28,9 +33,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
     let action = command.action;
     let result = match action {
         ChatAction::Human(args) => crate::chat_task_commands::run(&runtime, args).await,
-        ChatAction::Capabilities => {
-            request(&runtime, "chatOrchestration.capabilities", json!({})).await
-        }
+        ChatAction::Capabilities(args) => capabilities(&runtime, args).await,
         ChatAction::List(args) => list(&runtime, args).await,
         ChatAction::Read(args) => read(&runtime, args).await,
         ChatAction::Transfers(args) => crate::chat_transfers::run(&runtime, args).await,
@@ -66,6 +69,19 @@ async fn request_with_deadline(
     deadline_ms: u64,
 ) -> Result<Value> {
     crate::chat_orchestration_request::request(runtime, verb, payload, Some(deadline_ms)).await
+}
+
+async fn capabilities(runtime: &RuntimeDirArgs, args: ChatCapabilitiesArgs) -> Result<Value> {
+    request(
+        runtime,
+        "chatOrchestration.capabilities",
+        json!({
+            "search": optional_text(args.search, "search")?,
+            "workspaceId": optional_text(args.workspace_id, "workspace-id")?,
+            "hostId": optional_text(args.host_id, "host-id")?,
+        }),
+    )
+    .await
 }
 
 async fn list(runtime: &RuntimeDirArgs, args: ChatListArgs) -> Result<Value> {
@@ -345,153 +361,6 @@ fn configure_payload(args: ChatConfigureArgs) -> Result<Value> {
         payload["reasoningEffort"] = json!(effort);
     }
     Ok(payload)
-}
-
-fn parse_target(raw: &str) -> Result<Value> {
-    let value = parse_object(raw, "target")?;
-    let object = value.as_object().expect("parse_object returns an object");
-    let keys = ["chat", "workspace", "newWorkspace"];
-    let present = keys
-        .iter()
-        .filter(|key| object.get(**key).is_some())
-        .count();
-    if present != 1 || object.len() != 1 {
-        bail!("target must contain exactly one of chat, workspace, or newWorkspace");
-    }
-    if let Some(chat) = object.get("chat") {
-        require_nested_id(chat, "chatId", "target.chat")?;
-    }
-    if let Some(workspace) = object.get("workspace") {
-        require_nested_id(workspace, "workspaceId", "target.workspace")?;
-    }
-    if let Some(workspace) = object.get("newWorkspace") {
-        let object = workspace
-            .as_object()
-            .ok_or_else(|| anyhow::anyhow!("target.newWorkspace must be an object"))?;
-        require_nested_id(workspace, "projectId", "target.newWorkspace")?;
-        require_nested_id(workspace, "hostId", "target.newWorkspace")?;
-        match object.get("mode").and_then(Value::as_str) {
-            Some("worktree") | Some("shared") => {}
-            _ => bail!("target.newWorkspace.mode must be worktree or shared"),
-        }
-        if let Some(setup) = object.get("setup").and_then(Value::as_str) {
-            if !matches!(setup, "inline" | "deferred") {
-                bail!("target.newWorkspace.setup must be inline or deferred");
-            }
-        }
-    }
-    Ok(value)
-}
-
-pub(crate) fn validate_response(response: &Value) -> Result<()> {
-    let object = response
-        .as_object()
-        .ok_or_else(|| anyhow::anyhow!("response must be a JSON object"))?;
-    let kind = object
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or_else(|| anyhow::anyhow!("response.type is required"))?;
-    match kind {
-        "approval" => match object.get("decision").and_then(Value::as_str) {
-            Some("accept")
-            | Some("acceptForSession")
-            | Some("acceptAlways")
-            | Some("decline")
-            | Some("cancel") => Ok(()),
-            _ => bail!("approval.decision is unsupported"),
-        },
-        "userInput" => {
-            if object.get("answers").is_some_and(Value::is_object) {
-                Ok(())
-            } else {
-                bail!("userInput.answers must be an object")
-            }
-        }
-        "elicitation" => match object.get("action").and_then(Value::as_str) {
-            Some("accept") | Some("decline") | Some("cancel") => Ok(()),
-            _ => bail!("elicitation.action is unsupported"),
-        },
-        "native" => {
-            if object.get("result").is_some() {
-                Ok(())
-            } else {
-                bail!("native.result is required")
-            }
-        }
-        _ => bail!("response.type must be approval, userInput, elicitation, or native"),
-    }
-}
-
-fn parse_object(raw: &str, label: &str) -> Result<Value> {
-    let value: Value =
-        serde_json::from_str(raw).with_context(|| format!("{label} is invalid JSON"))?;
-    if !value.is_object() {
-        bail!("{label} must be a JSON object");
-    }
-    Ok(value)
-}
-
-fn require_nested_id(value: &Value, key: &str, label: &str) -> Result<()> {
-    let object = value
-        .as_object()
-        .ok_or_else(|| anyhow::anyhow!("{label} must be an object"))?;
-    require_text(
-        object.get(key).and_then(Value::as_str).unwrap_or_default(),
-        &format!("{label}.{key}"),
-    )?;
-    Ok(())
-}
-
-fn require_text(value: &str, label: &str) -> Result<String> {
-    let value = value.trim();
-    if value.is_empty() {
-        bail!("{label} cannot be empty");
-    }
-    Ok(value.to_owned())
-}
-
-fn optional_text(value: Option<String>, label: &str) -> Result<Option<String>> {
-    value.map(|value| require_text(&value, label)).transpose()
-}
-
-fn request_id(value: Option<String>) -> Result<String> {
-    match value {
-        Some(value) => require_text(&value, "request-id"),
-        None => Ok(format!("cli-{}", Uuid::new_v4())),
-    }
-}
-
-fn read_text_source(
-    inline: Option<String>,
-    file: Option<&str>,
-    stdin: bool,
-    label: &str,
-) -> Result<String> {
-    let raw = if let Some(value) = inline {
-        value
-    } else if let Some(path) = file {
-        std::fs::read_to_string(path)
-            .with_context(|| format!("could not read {label} file: {path}"))?
-    } else if stdin {
-        let mut value = String::new();
-        std::io::stdin()
-            .read_to_string(&mut value)
-            .with_context(|| format!("could not read {label} from stdin"))?;
-        value
-    } else {
-        bail!("{label} is required");
-    };
-    require_text(&raw, label)
-}
-
-fn read_json_source(
-    inline: Option<String>,
-    file: Option<&str>,
-    stdin: bool,
-    label: &str,
-) -> Result<Value> {
-    let raw = read_text_source(inline, file, stdin, label)?;
-    serde_json::from_str(&raw).with_context(|| format!("{label} is invalid JSON"))
 }
 
 #[cfg(test)]

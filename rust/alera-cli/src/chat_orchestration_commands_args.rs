@@ -12,12 +12,26 @@ pub struct ChatCommand {
     pub action: ChatAction,
 }
 
+#[derive(Debug, Args)]
+pub struct ChatCapabilitiesArgs {
+    /// Find models whose id or label contains every word.
+    #[arg(long)]
+    pub search: Option<String>,
+    /// List the providers of this workspace's host.
+    #[arg(long)]
+    pub workspace_id: Option<String>,
+    /// List the providers of this host.
+    #[arg(long)]
+    pub host_id: Option<String>,
+}
+
 #[derive(Debug, Subcommand)]
 pub enum ChatAction {
     /// Submit an exact structured human task request; unavailable to bound agents.
     Human(crate::chat_task_commands::ChatHumanArgs),
-    /// Show the chat orchestration capability and supported actions.
-    Capabilities,
+    /// Show the chat orchestration capability, supported actions and
+    /// providers with a short model list each.
+    Capabilities(ChatCapabilitiesArgs),
     /// List chat orchestration tasks and child chats.
     List(ChatListArgs),
     /// Read a bounded chat transcript for a task or chat.

@@ -246,12 +246,14 @@ impl ProviderFactory for MockProviderFactory {
         _: Option<&ProviderInstanceConfig>,
         _: Option<std::path::PathBuf>,
     ) -> Option<Result<Vec<serde_json::Value>, String>> {
-        (provider == "codex").then(|| {
-            Ok(vec![json!({
+        match provider {
+            "codex" => Some(Ok(vec![json!({
                 "id": "test-model", "label": "Test Model", "reasoningEfforts": ["low", "high"],
                 "defaultReasoningEffort": "low",
-            })])
-        })
+            })])),
+            "opencode" => Some(Ok(super::capability_fixture::opencode_models())),
+            _ => None,
+        }
     }
 
     async fn validate_reasoning_effort(

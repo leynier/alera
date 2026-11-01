@@ -9,6 +9,7 @@ use crate::terminal_host::server::agent_chat_runtime::commands::ConfigureInput;
 use crate::terminal_host::server::agent_chat_runtime::AgentChatRuntime;
 
 use super::authorization::{authorize_request, modes_at_or_below, BoundChat, OrchestrationCaller};
+use super::capability_models::{shorten_models, CallerModel};
 use super::credentials::ChatCredentialLaunchHook;
 use super::job_lifecycle::{OrchestrationJobs, RequestJob};
 use super::models::OrchestrationRequest;
@@ -185,7 +186,11 @@ impl ChatOrchestrationService {
             OrchestrationRequest::Capabilities {
                 workspace_id,
                 host_id,
-            } => self.capabilities(workspace_id, host_id, caller).await,
+                search,
+            } => {
+                self.capabilities(workspace_id, host_id, search, caller)
+                    .await
+            }
             OrchestrationRequest::Delegate(input) => self.delegate(*input, caller).await,
             OrchestrationRequest::Send(input) => self.send(input, caller).await,
             OrchestrationRequest::Task {
@@ -303,6 +308,7 @@ impl ChatOrchestrationService {
         &self,
         workspace_id: Option<String>,
         host_id: Option<String>,
+        search: Option<String>,
         caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
         let mut value = self
@@ -340,11 +346,39 @@ impl ChatOrchestrationService {
                 "auto",
                 "full-access"
             ]));
+        let mut own = None;
         if let Some(bound) = &caller.bound {
             value["caller"] = json!({
                 "chatId": bound.chat_id,
                 "runtimeMode": bound.runtime_mode,
             });
+            if let Ok(snapshot) = self.runtime.snapshot(&bound.chat_id).await {
+                value["caller"]["providerInstanceId"] = snapshot["providerInstanceId"].clone();
+                value["caller"]["model"] = snapshot["session"]["model"].clone();
+                value["caller"]["reasoningEffort"] = snapshot["session"]["reasoningEffort"].clone();
+                own = Some(snapshot);
+            }
+        }
+        // Agents get a short list per provider; a person keeps the full
+        // catalog the delegate dialog needs unless they search.
+        if caller.bound.is_some() || search.is_some() {
+            let preferences = self
+                .store
+                .agent_chat_preferences()
+                .await
+                .unwrap_or(Value::Null);
+            let caller_model = own.as_ref().map(|snapshot| CallerModel {
+                provider_instance_id: snapshot["providerInstanceId"].as_str().unwrap_or_default(),
+                model: snapshot["session"]["model"].as_str(),
+            });
+            if let Some(providers) = value.get_mut("providers").and_then(Value::as_array_mut) {
+                shorten_models(
+                    providers,
+                    &preferences,
+                    caller_model.as_ref(),
+                    search.as_deref(),
+                );
+            }
         }
         Ok(value)
     }

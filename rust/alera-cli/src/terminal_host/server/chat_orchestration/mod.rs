@@ -7,6 +7,7 @@
 
 pub(super) mod authorization;
 mod cancellation;
+mod capability_models;
 mod continuation;
 mod credentials;
 mod delegate_wait;
@@ -61,6 +62,10 @@ mod background_wait_tests;
 mod cancel_admission_tests;
 #[cfg(test)]
 mod cancellation_tests;
+#[cfg(test)]
+mod capabilities_tests;
+#[cfg(test)]
+mod capability_fixture;
 #[cfg(test)]
 mod continuation_fixture;
 #[cfg(test)]

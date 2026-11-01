@@ -23,9 +23,23 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "chat_capabilities",
             "Chat Orchestration Capabilities",
-            "Show the chat orchestration actions and supported target strategies.",
-            || object(&[], &[]),
-            |_| Ok(Invocation::new("chat", &["capabilities"])),
+            "Show the chat orchestration actions, target strategies and providers. Each provider lists a few models, its pinned ones always included; omittedModels counts the rest. Pass search to find a model by id or label.",
+            || {
+                object(
+                    &[
+                        ("search", text("Words every listed model's id or label must contain.", 200)),
+                        ("workspaceId", string("List the providers of this workspace's host.")),
+                        ("hostId", string("List the providers of this host.")),
+                    ],
+                    &[],
+                )
+            },
+            |arguments| {
+                Ok(Invocation::new("chat", &["capabilities"])
+                    .option_if("--search", arguments.string("search"))
+                    .option_if("--workspace-id", arguments.string("workspaceId"))
+                    .option_if("--host-id", arguments.string("hostId")))
+            },
         ),
         read(
             "chat_list",

@@ -215,10 +215,19 @@ fn parse_statuses(payload: &Value) -> HostResult<Vec<ChatOrchestrationTaskStatus
 impl OrchestrationRequest {
     pub(crate) fn parse(verb: &str, payload: &Value) -> HostResult<Self> {
         match verb {
-            "capabilities" => Ok(Self::Capabilities {
-                workspace_id: optional_string(payload, "workspaceId")?,
-                host_id: optional_string(payload, "hostId")?,
-            }),
+            "capabilities" => {
+                let search = optional_string(payload, "search")?;
+                if search.as_ref().is_some_and(|search| {
+                    search.chars().count() > super::capability_models::CAPABILITY_SEARCH_MAX_CHARS
+                }) {
+                    return Err(HostError::format("search must be at most 200 characters"));
+                }
+                Ok(Self::Capabilities {
+                    workspace_id: optional_string(payload, "workspaceId")?,
+                    host_id: optional_string(payload, "hostId")?,
+                    search,
+                })
+            }
             "delegate" => {
                 let mode = parse_mode(payload)?;
                 Ok(Self::Delegate(Box::new(DelegateInput {

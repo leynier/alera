@@ -117,6 +117,7 @@ pub(crate) enum OrchestrationRequest {
     Capabilities {
         workspace_id: Option<String>,
         host_id: Option<String>,
+        search: Option<String>,
     },
     Delegate(Box<DelegateInput>),
     Send(SendInput),

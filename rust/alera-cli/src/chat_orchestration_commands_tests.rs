@@ -11,6 +11,15 @@ use crate::cli::{Cli, Command};
 fn chat_group_parses_the_full_action_surface() {
     let cases: &[&[&str]] = &[
         &["alera", "chat", "capabilities"],
+        &[
+            "alera",
+            "chat",
+            "capabilities",
+            "--search",
+            "gpt mini",
+            "--host-id",
+            "local",
+        ],
         &["alera", "chat", "list"],
         &["alera", "chat", "read", "--chat-id", "chat-1"],
         &[
