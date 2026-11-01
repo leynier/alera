@@ -46,6 +46,7 @@ pub(crate) fn item_id(params: &Value) -> Option<String> {
                 .get("subject")
                 .and_then(|value| value.get("toolCallId"))
         })
+        .or_else(|| params.pointer("/toolCall/toolCallId"))
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
 }

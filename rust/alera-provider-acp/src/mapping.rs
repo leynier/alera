@@ -3,6 +3,7 @@ use crate::mapping_values::{
     available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id, string,
     terminal_state, tool_event_kind, tool_payload,
 };
+use crate::permission_payload::approval_payload;
 use crate::questions::classify_request;
 use crate::session_notice::notice_payload;
 use crate::transport::PendingRequest;
@@ -326,12 +327,7 @@ fn map_request(
     let payload = if event_kind == EventKind::UserInputRequested {
         json!({"requestType": kind, "questions": questions})
     } else {
-        json!({
-            "requestType": kind,
-            "detail": request.params.get("title").or_else(|| request.params.get("description")),
-            "args": request.params.get("subject").unwrap_or(&request.params),
-            "options": request.params.get("options").cloned().unwrap_or_else(|| json!([])),
-        })
+        approval_payload(kind, &request.params)
     };
     let mut event = event(
         context,

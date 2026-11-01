@@ -24,6 +24,10 @@ Canonical `reasoningEffort` is supported only when native session `configOptions
 
 A `tool_call` or `tool_call_update` with a terminal status completes its item. `cancelled` and `canceled` settle the item as failed, as in T3 Code, so a call the agent abandons never stays running after its turn ends; `declined` keeps its own status, and an unknown status reads as in progress. The registry's Copilot flavor reports a cancelled or stopped task as `cancelled`, which the chat shows as stopped.
 
+# Permission Requests
+
+ACP lets a permission request name its tool call by id only. As in T3 Code `b2871029c9`, the adapter tracks the root session's tool calls of the running turn (at most 256, dropped on any terminal status, reset with the session and on close) and fills a root request's absent `toolCall.title`, `toolCall.rawInput` and, only for an `execute` or `command` call, `toolCall.kind`; fields the agent sent, even as null, are kept, and another session's request is never filled. An id-only command approval therefore stays a command approval, and the registry's client terminal grant still follows it. The `request.opened` payload of an approval adds `command` (`rawInput.command`, then `executable` with `args`, then a command call's first backtick span in the title, T3 Code's `extractToolCallCommand` order) and `cwd` from the raw input, its `detail` falls back to the tool call's title, and the request's item id falls back to `toolCall.toolCallId`.
+
 # Session Notices
 
 The client advertises `clientCapabilities.session.notices`, so ACP v1 agents send a `notice` session update instead of folding the message into reply text; ACP v2 needs no capability. A notice becomes `runtime.warning` with `message` (the title, then the description after a blank line), `title`, optional `description`, `severity` (default `info`) and `source: "acp.notice"`, which the chat shows as a notice while the reply keeps streaming around it. The title is trimmed and cut to 1024 characters, the description to 4096 and the severity to 64, as in T3 Code; a notice without a title stays an unknown event.

@@ -359,3 +359,69 @@ async fn escaped_terminal_output_fits_native_wire_budget_and_later_requests_succ
     remote.await.unwrap();
     provider.close().await.unwrap();
 }
+
+/// Tracks a root tool call of `kind`, then approves an id-only permission
+/// request for it, as T3 Code `b2871029c9`'s fixture does.
+async fn approve_id_only(
+    provider: &mut AcpRegistryProvider<ChannelTransport>,
+    sender: &mpsc::UnboundedSender<Value>,
+    kind: &str,
+) -> alera_provider_protocol::RequestKind {
+    sender.send(json!({"jsonrpc":"2.0", "method":"session/update", "params":{"sessionId":"native", "update":{"sessionUpdate":"tool_call", "toolCallId":"tracked", "kind":kind, "title":"Run tests", "status":"pending", "rawInput":{"command":"cargo test"}}}})).unwrap();
+    assert_eq!(
+        provider.next_event().await.unwrap().unwrap().kind,
+        EventKind::ItemStarted
+    );
+    sender.send(json!({"jsonrpc":"2.0", "id":"permit", "method":"session/request_permission", "params":{"sessionId":"native", "toolCall":{"toolCallId":"tracked"}, "options":[{"optionId":"once", "kind":"allow_once"}]}})).unwrap();
+    let event = provider.next_event().await.unwrap().unwrap();
+    let request = event.runtime_request.unwrap();
+    if kind == "execute" {
+        assert_eq!(event.payload["command"], "cargo test");
+        assert_eq!(event.payload["detail"], "Run tests");
+    }
+    provider
+        .respond(RuntimeResponse::Approval {
+            request_id: request.request_id,
+            decision: ApprovalDecision::Accept,
+            updated_input: None,
+            feedback: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        provider.next_event().await.unwrap().unwrap().kind,
+        EventKind::RequestResolved
+    );
+    request.kind
+}
+
+#[tokio::test]
+async fn an_id_only_execute_approval_grants_the_client_terminal() {
+    let (mut provider, sender, mut receiver) = start(false).await;
+    assert_eq!(
+        approve_id_only(&mut provider, &sender, "execute").await,
+        alera_provider_protocol::RequestKind::CommandExecutionApproval
+    );
+    sender.send(json!({"jsonrpc":"2.0", "id":77, "method":"terminal/create", "params":{"sessionId":"native", "command":env!("CARGO_BIN_EXE_acp-terminal-fixture"), "args":["control"]}})).unwrap();
+    let remote = tokio::spawn(async move {
+        let create = receive_id(&mut receiver, json!(77)).await;
+        assert!(create.get("error").is_none(), "{create}");
+    });
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), provider.next_event())
+            .await
+            .is_err()
+    );
+    remote.await.unwrap();
+    provider.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_id_only_approval_of_another_tool_kind_does_not_grant_the_terminal() {
+    let (mut provider, sender, receiver) = start(false).await;
+    assert_eq!(
+        approve_id_only(&mut provider, &sender, "edit").await,
+        alera_provider_protocol::RequestKind::PermissionApproval
+    );
+    assert_terminal_denied(provider, sender, receiver).await;
+}

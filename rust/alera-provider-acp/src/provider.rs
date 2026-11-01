@@ -29,6 +29,7 @@ pub struct AcpProvider<T> {
     pub(crate) initialized: bool,
     pub(crate) closed: bool,
     pub(crate) children: crate::native_children::NativeChildren,
+    pub(crate) tracked_tool_calls: crate::tracked_tool_calls::TrackedToolCalls,
     pub(crate) prompt_lifecycle: crate::prompt_lifecycle::PromptLifecycle,
 }
 #[async_trait]
@@ -225,6 +226,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         };
         self.session = Some(session.clone());
         self.children.clear();
+        self.tracked_tool_calls.reset();
         let event = ProviderEvent::new(
             self.kind(),
             self.config.provider_instance_id.clone(),
@@ -375,7 +377,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             return Ok(Some(event));
         }
         let incoming = self.client.next_incoming().await.map_err(acp_error)?;
-        let Some(incoming) = incoming else {
+        let Some(mut incoming) = incoming else {
             self.closed = true;
             self.prompt_id = None;
             if let Some(session) = self.session.as_mut() {
@@ -395,6 +397,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
                 return Ok(Some(event));
             }
         }
+        self.track_tool_calls(&mut incoming, &session);
         let provider_kind = self.kind();
         if let agent_client_protocol::AcpIncoming::Notification { params, .. } = &incoming {
             if params.get("sessionId").and_then(serde_json::Value::as_str)
@@ -460,6 +463,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         self.closed = true;
         self.pending_requests.clear();
         self.queued_events.clear();
+        self.tracked_tool_calls.reset();
         self.prompt_id = None;
         self.prompt_meta_id = None;
         if let Some(session) = self.session.as_mut() {

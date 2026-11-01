@@ -11,6 +11,7 @@ mod model_inventory;
 mod model_selection;
 mod native_children;
 mod native_children_route;
+mod permission_payload;
 mod policy;
 mod prompt_lifecycle;
 mod provider;
@@ -21,6 +22,7 @@ mod respond;
 mod runtime_response;
 mod session_notice;
 mod state;
+mod tracked_tool_calls;
 mod transport;
 
 pub use agent_client_protocol;
