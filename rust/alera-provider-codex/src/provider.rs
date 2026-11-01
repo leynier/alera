@@ -122,10 +122,10 @@ impl<T> CodexProvider<T> {
     }
 }
 
-impl CodexProvider<JsonLineProcess> {
+impl CodexProvider<crate::CodexProcess> {
     pub async fn spawn(config: CodexProviderConfig) -> Result<Self, ProviderError> {
         let process = JsonLineProcess::spawn(config.process_config()).await?;
-        Ok(Self::new(process, config))
+        Ok(Self::new(crate::CodexProcess(process), config))
     }
 }
 

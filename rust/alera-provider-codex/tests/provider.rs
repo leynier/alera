@@ -239,6 +239,30 @@ async fn user_input_response_uses_codex_question_map_shape() {
 }
 
 #[tokio::test]
+async fn an_app_server_exit_quotes_its_error_line() {
+    let mut config = config();
+    config.executable = PathBuf::from(env!("CARGO_BIN_EXE_codex-app-server-fixture"));
+    config.args.clear();
+    config.env.insert(
+        "CODEX_FIXTURE_EXIT_STDERR".into(),
+        "Error: invalid config".into(),
+    );
+    let error = match CodexProvider::spawn(config).await {
+        Ok(mut provider) => provider
+            .start_session(SessionStartInput::new("app-exit"))
+            .await
+            .unwrap_err(),
+        Err(error) => error,
+    };
+    let message = error.to_string();
+    assert!(
+        message.contains("exited with exit code 1") && message.contains("Error: invalid config"),
+        "{message}"
+    );
+    assert!(!message.contains("at startup"), "{message}");
+}
+
+#[tokio::test]
 async fn fake_subprocess_exercises_the_real_json_lines_boundary() {
     let mut config = config();
     config.executable = PathBuf::from(env!("CARGO_BIN_EXE_codex-app-server-fixture"));

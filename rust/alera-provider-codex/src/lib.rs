@@ -27,6 +27,7 @@ mod rpc;
 mod session_approvals;
 mod skills;
 mod state;
+mod stderr_excerpt;
 mod thread_config;
 mod usage;
 mod wire;
@@ -34,6 +35,7 @@ mod wire;
 pub use config::{CodexConfig, CodexProviderConfig};
 pub use provider::CodexProvider;
 pub use skills::probe_skills;
+pub use stderr_excerpt::CodexProcess;
 
 pub use alera_agent_transport::{JsonLineProcess, JsonTransport, MockTransport, ProcessConfig};
 pub use alera_provider_protocol;

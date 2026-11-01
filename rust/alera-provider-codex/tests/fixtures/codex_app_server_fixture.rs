@@ -2,6 +2,11 @@ use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 
 fn main() {
+    // An app-server that fails at startup, as a broken install does.
+    if let Ok(stderr) = std::env::var("CODEX_FIXTURE_EXIT_STDERR") {
+        eprintln!("Starting Codex\n{stderr}\n    at startup");
+        std::process::exit(1);
+    }
     let stdin = io::stdin();
     let mut stdout = io::BufWriter::new(io::stdout());
     for line in stdin.lock().lines() {
