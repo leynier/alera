@@ -56,6 +56,7 @@ pub struct CodexProvider<T> {
     pub(crate) goal: crate::goal::GoalState,
     /// The files each running file-change item changes, for its approval.
     pub(crate) file_change_paths: crate::file_change_approvals::FileChangePaths,
+    pub(crate) rate_windows: crate::usage::RateWindows,
 }
 
 impl<T> CodexProvider<T> {
@@ -88,6 +89,7 @@ impl<T> CodexProvider<T> {
             compaction_turn_id: None,
             goal: Default::default(),
             file_change_paths: Default::default(),
+            rate_windows: Default::default(),
         }
     }
 

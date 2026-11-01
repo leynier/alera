@@ -28,6 +28,7 @@ mod session_approvals;
 mod skills;
 mod state;
 mod thread_config;
+mod usage;
 mod wire;
 
 pub use config::{CodexConfig, CodexProviderConfig};

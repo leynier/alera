@@ -50,6 +50,9 @@ pub(crate) fn normalized_payload(method: &str, params: &Value) -> Result<Value, 
     if method == "account/rateLimits/updated" {
         return normalized_rate_limits(params);
     }
+    if method == "thread/tokenUsage/updated" {
+        return Ok(crate::usage::thread_token_usage(params));
+    }
     if method == "turn/completed" {
         let status = wire::nested_string(params, "turn", "status")
             .or_else(|| wire::string(params, "status"))

@@ -81,6 +81,9 @@ fn map_notification<T: JsonTransport>(
     if root {
         classify_root_failure(provider, method, &params, &mut payload);
     }
+    if kind == EventKind::AccountRateLimitsUpdated {
+        provider.report_changed_windows(&mut payload);
+    }
     if let (Some(child), Some(parent)) = (native_thread_id.as_ref(), child_parent.as_ref()) {
         let terminal = matches!(method, "turn/completed" | "turn/aborted" | "thread/closed");
         let item = matches!(
