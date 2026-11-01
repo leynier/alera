@@ -90,6 +90,14 @@ impl JsonTransport for ScriptedTransport {
                 tokio::task::yield_now().await;
                 continue;
             }
+            // A cancel lets the callback it cancels start first.
+            if self
+                .incoming
+                .front()
+                .is_some_and(|frame| frame["type"] == "control_cancel_request")
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
             if let Some(frame) = self.incoming.pop_front() {
                 return Ok(Some(frame));
             }

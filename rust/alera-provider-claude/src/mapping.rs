@@ -123,6 +123,15 @@ impl ClaudeProvider {
                 self.map_compact_boundary(payload)
             }
             "status" => self.map_status(&payload),
+            "elicitation_complete" => vec![self.event(
+                EventKind::McpStatusUpdated,
+                compact_nulls(json!({
+                    "serverName": text_field(&payload, &["mcp_server_name"]),
+                    "elicitationId": text_field(&payload, &["elicitation_id"]),
+                    "status": "elicitationComplete",
+                })),
+                raw(),
+            )],
             "informational" => self.map_informational(&payload),
             "api_retry" => self.map_api_retry(&payload),
             _ if subtype.contains("task") => self.map_native_task(&subtype, &payload),

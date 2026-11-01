@@ -260,7 +260,7 @@ async fn generic_mcp_control_request_is_dynamic_tool_call_with_raw_context() {
         "vendor_envelope": "preserve-me"
     });
     let (mut provider, handle) = started_provider([initialize_response(), request]).await;
-    assert!(!provider.capabilities().mcp_elicitation);
+    assert!(provider.capabilities().mcp_elicitation);
     provider
         .send_turn(TurnInput::text("app-thread", "mcp"))
         .await

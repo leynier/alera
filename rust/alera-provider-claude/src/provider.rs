@@ -8,6 +8,8 @@ mod canonical_payload;
 mod compaction;
 #[path = "context_usage.rs"]
 mod context_usage;
+#[path = "elicitation.rs"]
+mod elicitation;
 #[path = "failure.rs"]
 mod failure;
 #[path = "history.rs"]
@@ -143,7 +145,7 @@ impl Provider for ClaudeProvider {
             interrupt: true,
             approvals: true,
             user_input: true,
-            mcp_elicitation: false,
+            mcp_elicitation: true,
             streaming: true,
             native_turn_ids: false,
             multiple_threads: false,
@@ -344,10 +346,7 @@ impl Provider for ClaudeProvider {
     }
 
     async fn next_event(&mut self) -> Result<Option<ProviderEvent>, ProviderError> {
-        self.pending
-            .lock()
-            .await
-            .retain(|_, response| !response.is_closed());
+        self.queue_withdrawn_requests().await;
         loop {
             if let Some(event) = self.pop_validated()? {
                 return Ok(Some(event));

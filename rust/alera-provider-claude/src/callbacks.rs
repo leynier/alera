@@ -242,6 +242,14 @@ pub(crate) fn install_callbacks(
     });
     options.mcp_callback = None;
     options.mcp_callback_with_context = Some(callback);
+    super::elicitation::install_elicitation_callback(
+        options,
+        request_tx,
+        pending_ref,
+        next_request_ref,
+        thread_id_ref,
+        turn_id_ref,
+    );
 }
 
 fn permission_result(

@@ -29,14 +29,12 @@ pub(crate) fn resolved_payload(
                 "decision": decision,
             }),
         ),
-        RuntimeResponse::Elicitation {
-            action, content, ..
-        } => (
+        // Form values may hold secrets, so they never ride an event.
+        RuntimeResponse::Elicitation { action, .. } => (
             EventKind::RequestResolved,
             json!({
                 "requestType": request.kind,
                 "decision": action,
-                "resolution": content,
             }),
         ),
         RuntimeResponse::Native { result, .. } => (
