@@ -132,8 +132,23 @@ impl<T: JsonTransport> AcpProvider<T> {
     }
 
     /// Checks `model` against what the session offers before any write.
-    pub(crate) fn validate_model(&self, _model: &str) -> Result<(), ProviderError> {
-        Ok(())
+    /// Configured custom models pass; the agent validates them.
+    pub(crate) fn validate_model(&self, model: &str) -> Result<(), ProviderError> {
+        if self
+            .config
+            .custom_models
+            .iter()
+            .any(|custom| custom == model)
+        {
+            return Ok(());
+        }
+        let offered = self.model_inventory().offered();
+        let family_variants = self.config.flavor == AcpFlavor::Antigravity;
+        if model_inventory::offers_model(&offered, model, family_variants) {
+            Ok(())
+        } else {
+            Err(rejected_model(model))
+        }
     }
 
     /// Selects `model` on the live session, for probes that walk the models

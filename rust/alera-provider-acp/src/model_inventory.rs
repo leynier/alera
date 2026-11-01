@@ -25,6 +25,33 @@ pub(crate) enum ModelInventory {
     Unknown,
 }
 
+impl ModelInventory {
+    /// The model ids the session offers; empty when it lists none.
+    pub(crate) fn offered(&self) -> Vec<String> {
+        match self {
+            Self::Option { values, .. } => values.clone(),
+            Self::Legacy(state) => state.available.iter().map(|(id, _)| id.clone()).collect(),
+            Self::Capability | Self::Unknown => Vec::new(),
+        }
+    }
+}
+
+/// Whether `model` may be written to a session that offers `offered`. An
+/// empty list defers to the agent. With `family_variants`, an unlisted id
+/// that extends a listed one with `-suffix` passes too: Antigravity runtime
+/// 1.3 lists `gemini-3.8-flash` and takes `gemini-3.8-flash-high`.
+pub(crate) fn offers_model(offered: &[String], model: &str, family_variants: bool) -> bool {
+    offered.is_empty()
+        || offered.iter().any(|offered| offered == model)
+        || (family_variants
+            && offered.iter().any(|family| {
+                model
+                    .strip_prefix(family.as_str())
+                    .and_then(|rest| rest.strip_prefix('-'))
+                    .is_some_and(|variant| !variant.is_empty())
+            }))
+}
+
 /// The `id` (or `configId`) of a config option.
 pub(crate) fn option_id(option: &Value) -> Option<&str> {
     option

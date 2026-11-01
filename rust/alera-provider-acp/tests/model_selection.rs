@@ -286,3 +286,94 @@ async fn a_configured_custom_model_reaches_the_agent_when_it_is_not_listed() {
         .unwrap();
     assert_eq!(writes(&provider)[2]["params"]["value"], "private-model");
 }
+
+#[tokio::test]
+async fn an_unoffered_model_is_rejected_before_any_write_on_both_paths() {
+    for result in [
+        json!({"configOptions":[model_option("model", &["alpha", "beta"])]}),
+        json!({"models": legacy("alpha")}),
+    ] {
+        let mut provider = provider(vec![v1(), session(result)], AcpFlavor::Generic);
+        let error = provider
+            .start_session(start(Some("gamma")))
+            .await
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("did not accept the model \"gamma\""));
+        assert_eq!(methods(&provider), vec!["initialize", "session/new"]);
+    }
+}
+
+#[tokio::test]
+async fn an_empty_model_list_defers_to_the_agent() {
+    let mut provider = provider(
+        vec![
+            v2(),
+            session(json!({"configOptions":[{"id":"model","type":"select","options":[]}]})),
+            ok(3),
+        ],
+        AcpFlavor::Generic,
+    );
+    provider.start_session(start(Some("gamma"))).await.unwrap();
+    assert_eq!(writes(&provider)[2]["params"]["value"], "gamma");
+}
+
+#[tokio::test]
+async fn a_turn_with_an_unoffered_model_writes_no_prompt() {
+    let mut provider = provider(
+        vec![
+            v2(),
+            session(json!({"configOptions":[model_option("model", &["alpha", "beta"])]})),
+        ],
+        AcpFlavor::Generic,
+    );
+    provider.start_session(start(None)).await.unwrap();
+    let mut turn = TurnInput::text("app", "hello");
+    turn.model = Some("gamma".into());
+    assert!(matches!(
+        provider.send_turn(turn).await.unwrap_err(),
+        ProviderError::Rejected { .. }
+    ));
+    assert_eq!(methods(&provider), vec!["initialize", "session/new"]);
+    assert!(provider.session().unwrap().active_turn_id.is_none());
+}
+
+#[tokio::test]
+async fn a_config_option_update_narrows_the_offered_models() {
+    let mut provider = provider(
+        vec![
+            v2(),
+            session(json!({"configOptions":[model_option("model", &["alpha", "beta"])]})),
+            json!({"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"native","update":{
+                "sessionUpdate":"config_option_update",
+                "configOptions":[model_option("model", &["alpha"])]
+            }}}),
+        ],
+        AcpFlavor::Generic,
+    );
+    provider.start_session(start(None)).await.unwrap();
+    provider.next_event().await.unwrap();
+    provider.next_event().await.unwrap();
+    let mut turn = TurnInput::text("app", "hello");
+    turn.model = Some("beta".into());
+    assert!(provider.send_turn(turn).await.is_err());
+}
+
+#[tokio::test]
+async fn antigravity_takes_a_listed_familys_variant_and_the_generic_flavor_does_not() {
+    for (flavor, accepted) in [(AcpFlavor::Antigravity, true), (AcpFlavor::Generic, false)] {
+        let mut provider = provider(
+            vec![
+                v2(),
+                session(json!({"configOptions":[model_option("model", &["gemini-3.8-flash"])]})),
+                ok(3),
+            ],
+            flavor,
+        );
+        let mut input = start(Some("gemini-3.8-flash-high"));
+        input.runtime_mode = alera_provider_protocol::RuntimeMode::ApprovalRequired;
+        let result = provider.start_session(input).await;
+        assert_eq!(result.is_ok(), accepted, "{flavor:?}: {result:?}");
+    }
+}

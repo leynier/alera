@@ -1,4 +1,5 @@
 use super::*;
+
 use serde_json::json;
 
 #[test]
@@ -83,4 +84,16 @@ fn choices_flatten_option_groups() {
         vec![("a".into(), "A".into()), ("b".into(), "b".into())]
     );
     assert_eq!(current_model(&options, None).as_deref(), Some("b"));
+}
+
+#[test]
+fn offered_models_gate_writes_and_family_variants_extend_listed_ids() {
+    let offered = vec!["gemini-3.8-flash".to_owned(), "gemini-3.8".to_owned()];
+    assert!(offers_model(&[], "anything", false));
+    assert!(offers_model(&offered, "gemini-3.8", false));
+    assert!(!offers_model(&offered, "gemini-3.8-flash-high", false));
+    assert!(offers_model(&offered, "gemini-3.8-flash-high", true));
+    assert!(!offers_model(&offered, "gemini-3.8-", true));
+    assert!(!offers_model(&offered, "gemini-3.80", true));
+    assert!(!offers_model(&offered, "claude-opus", true));
 }
