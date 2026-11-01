@@ -53,6 +53,11 @@ impl ChatSession {
 
     pub(super) async fn clear_native_fork(&mut self, kind: &str) -> Result<(), String> {
         self.native_fork = None;
+        // A transcript fallback starts a fresh context: the usage copied
+        // from the fork's source no longer describes it.
+        if kind != "nativeFork" {
+            self.header.usage = None;
+        }
         self.header
             .session
             .extra

@@ -14,7 +14,7 @@ use async_trait::async_trait;
 
 const TIMESTAMP: &str = "2026-10-13T10:00:00.000Z";
 
-struct NativeBoundaryProvider;
+pub(super) struct NativeBoundaryProvider;
 
 #[async_trait]
 impl Provider for NativeBoundaryProvider {
@@ -61,7 +61,7 @@ impl Provider for NativeBoundaryProvider {
     }
 }
 
-async fn fixture() -> (tempfile::TempDir, ChatSession, Arc<MockProviderFactory>) {
+pub(super) async fn fixture() -> (tempfile::TempDir, ChatSession, Arc<MockProviderFactory>) {
     let (root, actor) = checkout_buffer_guards_tests::fixture().await;
     let store = actor.runtime_store.clone();
     let factory = Arc::new(MockProviderFactory::default());
@@ -104,7 +104,7 @@ async fn fixture() -> (tempfile::TempDir, ChatSession, Arc<MockProviderFactory>)
     (root, session, factory)
 }
 
-async fn add_turn(session: &mut ChatSession, id: &str, text: &str) {
+pub(super) async fn add_turn(session: &mut ChatSession, id: &str, text: &str) {
     session.header.upsert_turn(
         serde_json::from_value::<ChatTurn>(json!({
             "turnId": id, "status": "completed", "startedAt": TIMESTAMP, "completedAt": TIMESTAMP,

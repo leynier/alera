@@ -161,6 +161,22 @@ impl ChatSession {
         };
         if let Some(native) = native {
             record.metadata.as_mut().expect("fork metadata exists")["nativeFork"] = native;
+            // A native fork at the latest completed turn resumes that exact
+            // context, so its token usage carries over; windows do not.
+            let latest = self
+                .header
+                .turns
+                .last()
+                .is_some_and(|turn| turn.turn_id == turn_id && turn.status == "completed");
+            if let Some(tokens) = self
+                .header
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("tokens"))
+                .filter(|_| latest)
+            {
+                record.snapshot["usage"] = json!({"tokens": tokens});
+            }
         }
         record.snapshot["session"]["historyOperation"] = json!({"kind": operation_kind});
         record.snapshot[super::session_transfers::TRANSFERS_KEY] =
@@ -386,6 +402,9 @@ impl ChatSession {
     }
 }
 
+#[cfg(test)]
+#[path = "session_fork_usage_tests.rs"]
+mod fork_usage_tests;
 #[cfg(test)]
 #[path = "session_history_mutation_tests.rs"]
 mod tests;
