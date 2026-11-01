@@ -20,7 +20,9 @@ pub(crate) const PROVIDERS: [&str; 9] = [
 pub(crate) struct ProviderTraits {
     pub label: &'static str,
     pub capabilities: ProviderCapabilities,
+    /// The adapter takes image attachments.
     pub images: bool,
+    /// Non-image files reach the agent, natively or named by saved path.
     pub files: bool,
     pub runtime_modes: &'static [&'static str],
     pub interaction_modes: &'static [&'static str],
@@ -73,16 +75,16 @@ pub(crate) fn provider_traits(provider: &str) -> Option<ProviderTraits> {
             label: "Codex",
             capabilities: caps(true, true, true, true, true, true),
             images: true,
-            files: false,
+            files: true,
             runtime_modes: ALL_MODES,
             interaction_modes: &["default", "plan"],
             per_turn_model: true,
         },
         "claudeAgent" => ProviderTraits {
             label: "Claude Code",
-            capabilities: caps(true, true, true, false, false, true),
-            images: false,
-            files: false,
+            capabilities: caps(true, true, true, true, false, true),
+            images: true,
+            files: true,
             runtime_modes: ALL_MODES,
             interaction_modes: &["default", "plan"],
             per_turn_model: false,
@@ -190,6 +192,7 @@ pub(crate) fn capabilities_json(provider: &str, live: Option<&ProviderCapabiliti
         "stopSubagent": matches!(provider, "claude" | "codex"),
         "attachments": traits.as_ref().is_some_and(|t| t.images || t.files),
         "images": traits.as_ref().is_some_and(|t| t.images),
+        "files": traits.as_ref().is_some_and(|t| t.files),
         "plan": traits.as_ref().is_some_and(|t| t.interaction_modes.contains(&"plan")),
         "mcpInjection": {
             "stdio": caps.mcp_injection.stdio,
@@ -219,5 +222,22 @@ mod tests {
                 assert!(parse_runtime_mode(mode).is_some(), "{mode}");
             }
         }
+    }
+
+    #[test]
+    fn attachment_capabilities_follow_what_each_adapter_accepts() {
+        for provider in ["claudeAgent", "codex"] {
+            let capabilities = capabilities_json(provider, None);
+            assert_eq!(capabilities["attachments"], true, "{provider}");
+            assert_eq!(capabilities["images"], true, "{provider}");
+            assert_eq!(capabilities["files"], true, "{provider}");
+        }
+        let cursor = capabilities_json("cursor", None);
+        assert_eq!(cursor["images"], true);
+        assert_eq!(cursor["files"], false);
+        let grok = capabilities_json("grok", None);
+        assert_eq!(grok["attachments"], false);
+        assert_eq!(grok["files"], false);
+        assert_eq!(capabilities_json("unknown", None)["files"], false);
     }
 }
