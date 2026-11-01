@@ -62,7 +62,9 @@ Future<void> showAgentChatUsageSheet(
             crossAxisAlignment: .stretch,
             spacing: AleraTokens.space8,
             children: <Widget>[
-              if (fraction != null && used != null && window != null)
+              if (fraction != null &&
+                  used != null &&
+                  window != null) ...<Widget>[
                 AleraKeyValueRow(
                   label: 'Context Window',
                   value:
@@ -70,6 +72,22 @@ Future<void> showAgentChatUsageSheet(
                       '${localizations.formatDecimal(used)} of '
                       '${localizations.formatDecimal(window)} tokens',
                 ),
+                _ContextBar(
+                  fraction: fraction,
+                  tick: usage.autoCompactFraction,
+                ),
+                if ((usage.autoCompactFraction, usage.autoCompactTokens) case (
+                  _?,
+                  final tokens?,
+                ))
+                  Text(
+                    agentChatAutoCompactNote(
+                      localizations.formatDecimal(tokens),
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
+                  ),
+              ],
               for (final limit in usage.windows)
                 AleraKeyValueRow(
                   label: limit.label,
@@ -86,3 +104,44 @@ Future<void> showAgentChatUsageSheet(
     );
   },
 );
+
+/// The context fill as a bar, with a tick where the provider compacts on
+/// its own.
+class const _ContextBar({required final double fraction, final double? tick})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final clamped = fraction.clamp(0.0, 1.0);
+    final tick = this.tick;
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AleraTokens.radiusXs),
+            child: LinearProgressIndicator(
+              value: clamped,
+              minHeight: AleraTokens.space4,
+              backgroundColor: AleraTokens.borderSubtle,
+              color: clamped > 0.9
+                  ? AleraTokens.warning
+                  : AleraTokens.foregroundMuted,
+            ),
+          ),
+          if (tick != null)
+            Positioned(
+              key: const ValueKey<String>('agent-chat-usage-auto-compact-tick'),
+              left: (constraints.maxWidth * tick).clamp(
+                0,
+                constraints.maxWidth - 1,
+              ),
+              top: -AleraTokens.space2,
+              bottom: -AleraTokens.space2,
+              width: 1,
+              child: const ColoredBox(color: AleraTokens.foreground),
+            ),
+        ],
+      ),
+    );
+  }
+}

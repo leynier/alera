@@ -31,6 +31,7 @@ final AgentChatUsageButton _usage = AgentChatUsageButton(
   usage: AgentChatUsage(
     contextTokens: 123456,
     contextWindow: 200000,
+    autoCompactTokens: 150000,
     windows: <AgentChatUsageWindow>[
       AgentChatUsageWindow(
         id: 'session',
@@ -120,6 +121,21 @@ void main() {
       expect(
         tester.getRect(find.textContaining('12% used')).bottom,
         lessThanOrEqualTo(844 - 34),
+      );
+    });
+
+    testWidgets('the context bar marks the auto-compact point', (tester) async {
+      usePhone(tester, size: const Size(390, 844));
+      await openFromPhone(tester, trigger: _usage);
+      expect(
+        find.byKey(
+          const ValueKey<String>('agent-chat-usage-auto-compact-tick'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Compacts automatically at about 150,000 tokens.'),
+        findsOneWidget,
       );
     });
   });
