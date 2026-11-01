@@ -7,10 +7,12 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/markdown/alera_markdown_view.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_link_target.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_open.dart';
 import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_markdown_uri_policy.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_viewer_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The chat a timeline row belongs to. Provided once by the chat body so
 /// every message can open the files the agent names, so notices can say
@@ -67,19 +69,33 @@ void agentChatRememberFold(
 /// file links open the workspace file viewer, which the user asked for by
 /// tapping, so it is the one navigation a message may cause.
 class const AgentChatMarkdown({super.key, required final String text})
-    extends StatelessWidget {
+    extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) => AleraMarkdownView(
+  Widget build(BuildContext context, WidgetRef ref) => AleraMarkdownView(
     data: text,
     imageBuilder: _image,
-    onLinkTap: (url) => unawaited(openAgentChatLink(context, url)),
+    onLinkTap: (url) => unawaited(openAgentChatLink(context, url, ref: ref)),
   );
 }
 
-Future<void> openAgentChatLink(BuildContext context, String url) async {
+Future<void> openAgentChatLink(
+  BuildContext context,
+  String url, {
+  WidgetRef? ref,
+}) async {
   final scope = AgentChatScope.maybeOf(context);
   final target = agentChatLinkTarget(url, cwd: scope?.cwd);
   switch (target) {
+    case AgentChatChatLink(:final chat) when scope != null && ref != null:
+      await openMobileChatTaskChat(
+        context,
+        ref,
+        hostId: scope.hostId,
+        chatId: chat.chatId,
+        workspaceId: chat.workspaceId,
+      );
+    case AgentChatChatLink():
+      return;
     case AgentChatExternalLink(:final uri):
       await openMobileExternalBrowser(uri);
     case AgentChatWorkspaceLink(:final path, :final line):

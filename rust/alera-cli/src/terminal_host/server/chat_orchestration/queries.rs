@@ -172,7 +172,13 @@ impl ChatOrchestrationService {
                 chat["hostId"] = json!(workspace.host_id);
             }
         }
-        if let Some(chat_id) = chat["chatId"].as_str() {
+        if let Some(chat_id) = chat["chatId"].as_str().map(ToOwned::to_owned) {
+            let chat_id = chat_id.as_str();
+            chat["link"] = json!(super::chat_links::chat_link(
+                chat_id,
+                chat["workspaceId"].as_str(),
+                chat["title"].as_str(),
+            ));
             if let Some(record) = self
                 .store
                 .agent_chat(chat_id)

@@ -44,7 +44,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "chat_list",
             "List Agent Chats",
-            "List agent chats and delegated lineage visible to the credentialed caller.",
+            "List agent chats and delegated lineage visible to the credentialed caller. Each chat has a link; mention a chat by pasting its link as is.",
             || {
                 object(
                     &[
@@ -67,7 +67,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "chat_read",
             "Read Agent Chat",
-            "Read bounded user and assistant text plus canonical plans from a child chat.",
+            "Read bounded user and assistant text plus canonical plans from a child chat, with the chat's link to mention it by.",
             || {
                 object(
                     &[
@@ -164,7 +164,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
             ..execute(
             "chat_task_status",
             "Read Chat Task",
-            "Read one delegated task, its lineage, and its bounded result. Do not poll a running task that will wake this chat; its next field says so.",
+            "Read one delegated task, its lineage, its bounded result and its child chat's link. Do not poll a running task that will wake this chat; its next field says so.",
             || {
                 object(
                     &[

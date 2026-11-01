@@ -1,8 +1,14 @@
+import 'package:alera_agent_chat/alera_agent_chat.dart';
+
 /// Where a link in an agent message leads.
 sealed class const AgentChatLinkTarget();
 
 /// A web page, opened in the phone's browser.
 class const AgentChatExternalLink(final Uri uri) extends AgentChatLinkTarget;
+
+/// Another agent chat, as chat tools link it, opened on its tab.
+class const AgentChatChatLink(final AgentChatRef chat)
+    extends AgentChatLinkTarget;
 
 /// A file in the chat's workspace, opened in the workspace file viewer.
 class const AgentChatWorkspaceLink(final String path, {final int? line})
@@ -29,6 +35,9 @@ final RegExp _suffixLine = RegExp(r':(\d+)(?::\d+)?$');
 AgentChatLinkTarget? agentChatLinkTarget(String raw, {String? cwd}) {
   final value = raw.trim();
   if (value.isEmpty) return null;
+  if (agentChatRefFromLink(value) case final chat?) {
+    return AgentChatChatLink(chat);
+  }
   final uri = Uri.tryParse(value);
   final scheme = uri?.scheme.toLowerCase() ?? '';
   if ((scheme == 'http' || scheme == 'https') &&

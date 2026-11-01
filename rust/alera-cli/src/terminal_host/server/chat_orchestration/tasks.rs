@@ -101,6 +101,13 @@ pub(crate) fn task_value(task: &ChatOrchestrationTask) -> Value {
     if task.error.is_some() || task.error_code.is_some() {
         value["error"] = json!({"code": task.error_code, "message": task.error});
     }
+    if let Some(child) = &task.child_chat_id {
+        value["link"] = json!(super::chat_links::chat_link(
+            child,
+            task.workspace_id.as_deref(),
+            task.title.as_deref(),
+        ));
+    }
     value
 }
 

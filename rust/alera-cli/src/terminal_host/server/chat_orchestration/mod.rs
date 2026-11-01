@@ -8,6 +8,7 @@
 pub(super) mod authorization;
 mod cancellation;
 mod capability_models;
+mod chat_links;
 mod continuation;
 mod credentials;
 mod delegate_wait;

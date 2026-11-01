@@ -79,6 +79,22 @@ async fn new_child_in_an_existing_workspace_receives_brief_without_parent_histor
     let child = response["childChatId"].as_str().unwrap();
     assert_ne!(child, parent);
     assert_eq!(response["runtimeMode"], "auto");
+    assert_eq!(
+        response["link"],
+        format!("[Child](alera-chat://v1/{child}?workspace=ws-b)")
+    );
+    let listed = harness
+        .service
+        .handle("list", &json!({"workspaceId": "ws-b"}), &caller)
+        .await
+        .unwrap();
+    assert!(listed["chats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|chat| chat["link"].as_str().is_some_and(
+            |link| link.ends_with(&format!("(alera-chat://v1/{child}?workspace=ws-b)"))
+        )));
     let control = harness.control(child).await;
     tokio::time::timeout(TEST_DEADLINE, control.wait_turns(1))
         .await

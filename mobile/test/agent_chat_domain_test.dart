@@ -14,6 +14,14 @@ import 'support/fake_agent_chat_client.dart';
 
 void main() {
   group('agentChatLinkTarget', () {
+    test('a chat link opens that chat', () {
+      final target = agentChatLinkTarget(
+        'alera-chat://v1/chat-9?workspace=ws-2',
+      ) as AgentChatChatLink;
+      expect(target.chat.chatId, 'chat-9');
+      expect(target.chat.workspaceId, 'ws-2');
+    });
+
     test('opens web links in the browser', () {
       expect(
         agentChatLinkTarget('https://example.com/docs'),

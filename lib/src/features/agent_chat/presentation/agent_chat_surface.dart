@@ -22,6 +22,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_vie
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_view.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_link_opener.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
@@ -339,23 +340,13 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
 
   /// Agent output is untrusted: only web and mail links leave the app, and a
   /// bare path opens as a workspace file.
-  Future<void> _openLink(String link) async {
-    final uri = Uri.tryParse(link.trim());
-    if (uri == null) return;
-    if (!uri.hasScheme) return _openFile(uri.path);
-    if (!const <String>{'http', 'https', 'mailto'}.contains(uri.scheme)) {
-      AleraToast.publish(message: 'This link cannot be opened from a chat.');
-      return;
-    }
-    try {
-      await (widget.uriLauncher ?? UrlLauncherExternalUriLauncher()).open(uri);
-    } on Object catch (error) {
-      AleraToast.publish(
-        message: 'Could not open the link: $error',
-        tone: .error,
-      );
-    }
-  }
+  Future<void> _openLink(String link) => openAgentChatMessageLink(
+    context,
+    ref,
+    link,
+    openFile: _openFile,
+    launcher: widget.uriLauncher,
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -15,6 +15,7 @@ export 'src/agent_chat_goal.dart';
 export 'src/agent_chat_handoff.dart';
 export 'src/agent_chat_inputs.dart';
 export 'src/agent_chat_lifecycle_inputs.dart';
+export 'src/agent_chat_links.dart';
 export 'src/agent_chat_lifecycle_repository.dart';
 export 'src/agent_chat_item.dart';
 export 'src/agent_chat_json.dart';

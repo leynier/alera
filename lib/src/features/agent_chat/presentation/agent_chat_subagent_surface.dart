@@ -9,6 +9,7 @@ import 'package:alera/src/features/agent_chat/application/agent_chat_providers.d
 import 'package:alera/src/features/agent_chat/application/agent_chat_relationships.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_composer_settings.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_link_opener.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_bar.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_subagent_scope.dart';
@@ -16,7 +17,6 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_c
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_workflow_panel.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
-import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,16 +68,8 @@ class _AgentChatSubagentSurfaceState
     }
   }
 
-  Future<void> _openLink(String link) async {
-    final uri = Uri.tryParse(link.trim());
-    if (uri == null) return;
-    if (!uri.hasScheme) return _openFile(uri.path);
-    if (!const <String>{'http', 'https', 'mailto'}.contains(uri.scheme)) {
-      AleraToast.publish(message: 'This link cannot be opened from a chat.');
-      return;
-    }
-    await UrlLauncherExternalUriLauncher().open(uri);
-  }
+  Future<void> _openLink(String link) =>
+      openAgentChatMessageLink(context, ref, link, openFile: _openFile);
 
   @override
   Widget build(BuildContext context) {

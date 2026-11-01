@@ -17,7 +17,7 @@ const RULES: &str = "Alera orchestration, with the chat tools of the alera MCP s
 - After an async chat_delegate, follow next and end your turn: the task wakes this chat with its result. Do not poll it with chat_task_status, chat_task_wait loops, sleep, watchers, Monitor or ScheduleWakeup.
 - Stop delegates you replace or no longer need with chat_task_cancel, never chat_interrupt. When told to run fewer, cancel the extras and start no replacement.
 - A delegated child's question comes to this chat as a message: read it with chat_requests and answer it with chat_respond, or ask the user when the answer is not yours to give.
-- Given a chat id, chat_read it before you answer about it.
+- Given a chat id, chat_read it before you answer about it. Mention a chat by pasting its link from a chat or task result as is.
 - Without the chat tools, run alera chat from the shell; ALERA_CHAT_CREDENTIAL_FILE is set.
 - As a delegated child, do the work yourself and start no chat_delegate unless your task says to.";
 
