@@ -4,6 +4,7 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_card.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_question_preview_sheet.dart';
 import 'package:flutter/material.dart';
 
 /// Questions the agent asked, docked above the composer one at a time. A
@@ -243,6 +244,16 @@ class const _ChoiceRow({
                     ],
                   ),
                 ),
+                if (option.preview != null)
+                  IconButton(
+                    key: ValueKey<String>(
+                      'agent-chat-question-preview-$ordinal',
+                    ),
+                    tooltip: 'Show Preview',
+                    icon: const Icon(AleraIcons.visible),
+                    onPressed: () =>
+                        showAgentChatQuestionPreview(context, option),
+                  ),
               ],
             ),
           ),
