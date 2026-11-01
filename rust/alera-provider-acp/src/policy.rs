@@ -41,10 +41,12 @@ impl<T: JsonTransport> AcpProvider<T> {
                     "ACP agent did not advertise a mode configuration option".into(),
                 ));
             }
-            self.client
+            let result = self
+                .client
                 .set_config_option(session_id, "mode", Value::String(custom_mode))
                 .await
                 .map_err(crate::runtime_response::acp_error)?;
+            self.adopt_config_options(&result);
             return Ok(());
         }
         let native_mode = match (self.config.flavor, mode) {
@@ -66,10 +68,12 @@ impl<T: JsonTransport> AcpProvider<T> {
                 "ACP agent did not advertise a mode configuration option".into(),
             ));
         }
-        self.client
+        let result = self
+            .client
             .set_config_option(session_id, "mode", Value::String(native_mode.into()))
             .await
             .map_err(crate::runtime_response::acp_error)?;
+        self.adopt_config_options(&result);
         Ok(())
     }
 

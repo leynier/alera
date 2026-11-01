@@ -2,7 +2,7 @@ use alera_agent_transport::MockTransport;
 use alera_provider_acp_registry::{
     AcpRegistryProvider, AcpRegistryProviderConfig, AcpRegistrySource,
 };
-use alera_provider_protocol::{EventKind, Provider, SessionStartInput};
+use alera_provider_protocol::{EventKind, Provider, SessionStartInput, TurnInput};
 use serde_json::json;
 use std::path::PathBuf;
 
@@ -113,6 +113,9 @@ async fn local_recipe_preserves_agent_identity_and_supports_resume() {
     assert_eq!(session.native_thread_id, "registry-session");
     assert_eq!(session.model.as_deref(), Some("copilot-model"));
     let writes = provider.inner().client().transport().writes();
+    assert_eq!(writes[2]["method"], "session/set_config_option");
+    assert_eq!(writes[2]["params"]["configId"], "model");
+    assert_eq!(writes[2]["params"]["value"], "copilot-model");
     assert!(writes
         .iter()
         .all(|write| write["params"]["configId"] != "mode"));
@@ -120,4 +123,53 @@ async fn local_recipe_preserves_agent_identity_and_supports_resume() {
         provider.next_event().await.unwrap().unwrap().kind,
         EventKind::ThreadStarted
     );
+}
+
+#[tokio::test]
+async fn registry_turns_carrying_the_session_model_reach_the_agent() {
+    let transport = MockTransport::new([
+        json!({"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentCapabilities":{},"authMethods":[]}}),
+        json!({"jsonrpc":"2.0","id":2,"result":{
+            "sessionId":"registry-session",
+            "configOptions":[{"id":"model","type":"select","currentValue":"a","options":[{"value":"a"},{"value":"b"}]}]
+        }}),
+        json!({"jsonrpc":"2.0","id":3,"result":{}}),
+        json!({"jsonrpc":"2.0","id":4,"result":{"stopReason":"end_turn"}}),
+        json!({"jsonrpc":"2.0","id":5,"result":{}}),
+    ]);
+    let config = AcpRegistryProviderConfig {
+        source: AcpRegistrySource::Local,
+        agent_id: "custom-agent".into(),
+        executable: Some(PathBuf::from("agent")),
+        model: Some("a".into()),
+        runtime_mode: alera_provider_protocol::RuntimeMode::ApprovalRequired,
+        ..Default::default()
+    };
+    let mut provider = AcpRegistryProvider::with_transport(transport, config).unwrap();
+    provider
+        .start_session(SessionStartInput::new("app-thread"))
+        .await
+        .unwrap();
+    for (text, model) in [("one", "a"), ("two", "b")] {
+        let mut turn = TurnInput::text("app-thread", text);
+        turn.model = Some(model.into());
+        provider.send_turn(turn).await.unwrap();
+        if model == "a" {
+            while provider.next_event().await.unwrap().unwrap().kind != EventKind::TurnCompleted {}
+        }
+    }
+    let writes = provider.inner().client().transport().writes();
+    let methods: Vec<_> = writes.iter().map(|write| write["method"].clone()).collect();
+    assert_eq!(
+        methods,
+        vec![
+            "initialize",
+            "session/new",
+            "session/set_config_option",
+            "session/prompt",
+            "session/set_config_option",
+            "session/prompt"
+        ]
+    );
+    assert_eq!(writes[4]["params"]["value"], "b");
 }

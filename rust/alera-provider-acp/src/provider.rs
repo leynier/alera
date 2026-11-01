@@ -25,6 +25,7 @@ pub struct AcpProvider<T> {
     pub(crate) prompt_id: Option<AcpRequestId>,
     pub(crate) prompt_meta_id: Option<String>,
     pub(crate) session_config_options: Vec<serde_json::Value>,
+    pub(crate) session_models: Option<crate::model_inventory::LegacyModelState>,
     pub(crate) initialized: bool,
     pub(crate) closed: bool,
     pub(crate) children: crate::native_children::NativeChildren,
@@ -60,7 +61,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             streaming: true,
             native_turn_ids: false,
             multiple_threads: false,
-            model_switch: self.supports_config_option("model"),
+            model_switch: self.model_inventory() != crate::model_inventory::ModelInventory::Unknown,
             steer: false,
             snapshot: false,
             rollback: false,
@@ -200,23 +201,11 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
                 ProviderError::Protocol("ACP session response lacks sessionId".into())
             })?;
         self.session_config_options = response.config_options.clone();
+        self.session_models = crate::model_inventory::legacy_model_state(&response.raw);
         if let Some(model) = input.model.as_deref() {
-            if !self.supports_config_option("model") {
-                return Err(ProviderError::Unsupported(
-                    "ACP agent did not advertise a model configuration option".into(),
-                ));
-            }
-            let configured = self
-                .client
-                .set_model(&native_thread_id, model)
-                .await
-                .map_err(acp_error)?;
-            if let Some(options) = configured
-                .get("configOptions")
-                .and_then(serde_json::Value::as_array)
-            {
-                self.session_config_options = options.clone();
-            }
+            self.validate_model(model)?;
+            let resuming = input.resume_thread_id.is_some();
+            self.apply_model(&native_thread_id, model, resuming).await?;
         }
         self.apply_runtime_policy(&native_thread_id, runtime_mode)
             .await?;
@@ -274,20 +263,21 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
                 "ACP turn options require a provider flavor mapping".into(),
             ));
         }
-        if input.model.is_some() {
-            return Err(ProviderError::Unsupported(
-                "ACP per-turn model selection is not negotiated by this adapter".into(),
-            ));
-        }
         if input.interaction_mode != InteractionMode::Default {
             return Err(ProviderError::Unsupported(
                 "ACP per-turn interaction mode is not negotiated by this adapter".into(),
             ));
         }
+        self.apply_turn_model(&session.native_thread_id, input.model.as_deref())
+            .await?;
         if let Some(effort) = alera_provider_protocol::reasoning_effort(&input.options)? {
             self.apply_reasoning_effort(&session.native_thread_id, effort)
                 .await?;
         }
+        let model = self
+            .session
+            .as_ref()
+            .and_then(|active| active.model.clone());
         let turn_id = format!("turn:{}", Uuid::new_v4());
         let prompt_text = input.input.clone();
         let prompt_meta = (self.config.flavor == AcpFlavor::Grok)
@@ -313,7 +303,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             self.config.provider_instance_id.clone(),
             input.thread_id.clone(),
             EventKind::TurnStarted,
-            json!({"model":session.model}),
+            json!({ "model": model }),
             Some(raw(
                 "session/prompt",
                 json!({

@@ -23,6 +23,7 @@ impl<T: JsonTransport> AcpProvider<T> {
             prompt_id: None,
             prompt_meta_id: None,
             session_config_options: Vec::new(),
+            session_models: None,
             initialized: false,
             closed: false,
             children: Default::default(),

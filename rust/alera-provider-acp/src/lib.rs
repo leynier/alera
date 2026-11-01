@@ -6,6 +6,8 @@ mod mapping;
 mod mapping_turn;
 mod mapping_values;
 mod mcp;
+mod model_inventory;
+mod model_selection;
 mod native_children;
 mod native_children_route;
 mod policy;

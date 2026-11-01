@@ -1,3 +1,4 @@
+use crate::model_inventory::{option_id, select_values};
 use crate::{runtime_response::acp_error, AcpProvider};
 use alera_agent_transport::JsonTransport;
 use alera_provider_protocol::{ProviderError, ReasoningEffortCapabilities};
@@ -18,41 +19,15 @@ fn effort_option(options: &[Value]) -> Option<&Value> {
     if matches.next().is_some() || option.get("type").and_then(Value::as_str) != Some("select") {
         return None;
     }
-    option
-        .get("id")
-        .or_else(|| option.get("configId"))
-        .and_then(Value::as_str)
-        .filter(|id| !id.trim().is_empty())?;
+    option_id(option)?;
     Some(option)
-}
-
-fn values(option: &Value) -> Vec<String> {
-    fn collect(options: &[Value], values: &mut Vec<String>) {
-        for option in options {
-            if let Some(value) = option
-                .get("value")
-                .and_then(Value::as_str)
-                .filter(|value| !value.trim().is_empty())
-            {
-                if !values.iter().any(|existing| existing == value) {
-                    values.push(value.into());
-                }
-            }
-            if let Some(group) = option.get("options").and_then(Value::as_array) {
-                collect(group, values);
-            }
-        }
-    }
-    let mut result = Vec::new();
-    if let Some(options) = option.get("options").and_then(Value::as_array) {
-        collect(options, &mut result);
-    }
-    result
 }
 
 /// Only values in a provider-advertised thought-level configuration option.
 pub fn config_reasoning_efforts(options: &[Value]) -> Vec<String> {
-    effort_option(options).map(values).unwrap_or_default()
+    effort_option(options)
+        .map(select_values)
+        .unwrap_or_default()
 }
 
 pub fn default_config_reasoning_effort(options: &[Value]) -> Option<String> {
@@ -60,7 +35,7 @@ pub fn default_config_reasoning_effort(options: &[Value]) -> Option<String> {
     option
         .get("currentValue")
         .and_then(Value::as_str)
-        .filter(|current| values(option).iter().any(|value| value == current))
+        .filter(|current| select_values(option).iter().any(|value| value == current))
         .map(str::to_owned)
 }
 
@@ -89,17 +64,12 @@ impl<T: JsonTransport> AcpProvider<T> {
                 "ACP agent did not advertise an unambiguous thought-level option".into(),
             )
         })?;
-        if !values(option).iter().any(|value| value == effort) {
+        if !select_values(option).iter().any(|value| value == effort) {
             return Err(ProviderError::Unsupported(format!(
                 "ACP agent did not advertise effort {effort}"
             )));
         }
-        let id = option
-            .get("id")
-            .or_else(|| option.get("configId"))
-            .and_then(Value::as_str)
-            .expect("validated option id")
-            .to_owned();
+        let id = option_id(option).expect("validated option id").to_owned();
         let result = self
             .client
             .set_config_option(native_thread_id, &id, Value::String(effort.into()))

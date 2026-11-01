@@ -50,6 +50,9 @@ impl<T: JsonTransport> AcpProvider<T> {
         }
     }
 
+    /// Whether the session can take `mode`: a config option with that id or
+    /// category, or ACP v1's `setMode` capability. Models go through
+    /// [`AcpProvider::model_inventory`].
     pub(crate) fn supports_config_option(&self, id: &str) -> bool {
         if self.session_config_options.iter().any(|option| {
             option.get("id").and_then(|value| value.as_str()) == Some(id)
@@ -60,19 +63,12 @@ impl<T: JsonTransport> AcpProvider<T> {
         let Some(initialized) = self.client.initialized() else {
             return false;
         };
-        if initialized.generation == agent_client_protocol::AcpProtocolGeneration::V1 {
-            let capability = match id {
-                "model" => "setModel",
-                "mode" => "setMode",
-                _ => return false,
-            };
-            initialized
+        id == "mode"
+            && initialized.generation == AcpProtocolGeneration::V1
+            && (initialized
                 .capabilities
-                .supports(&["sessionCapabilities", capability])
-                || initialized.capabilities.supports(&[capability])
-        } else {
-            false
-        }
+                .supports(&["sessionCapabilities", "setMode"])
+                || initialized.capabilities.supports(&["setMode"]))
     }
 
     pub(crate) fn queue_request_resolved(

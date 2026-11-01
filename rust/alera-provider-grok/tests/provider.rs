@@ -128,3 +128,48 @@ async fn provider_delegates_acp_handshake_session_turn_and_request() {
         .await
         .expect("permission response");
 }
+
+#[tokio::test]
+async fn grok_turns_carrying_the_session_model_keep_running() {
+    let transport = MockTransport::new([
+        json!({"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentCapabilities":{},"authMethods":[]}}),
+        json!({"jsonrpc":"2.0","id":2,"result":{
+            "sessionId":"grok-session",
+            "models":{"availableModels":[{"modelId":"grok-4"},{"modelId":"grok-code"}],"currentModelId":"grok-4"}
+        }}),
+        json!({"jsonrpc":"2.0","id":3,"result":{"stopReason":"end_turn"}}),
+        json!({"jsonrpc":"2.0","id":4,"result":{}}),
+    ]);
+    let config = GrokProviderConfig {
+        model: Some("grok-4".into()),
+        runtime_mode: alera_provider_protocol::RuntimeMode::ApprovalRequired,
+        ..Default::default()
+    };
+    let mut provider = GrokProvider::with_transport(transport, config).expect("valid config");
+    provider
+        .start_session(SessionStartInput::new("app-thread"))
+        .await
+        .expect("session");
+    assert!(provider.capabilities().model_switch);
+    for (text, model) in [("one", "grok-4"), ("two", "grok-code")] {
+        let mut turn = TurnInput::text("app-thread", text);
+        turn.model = Some(model.into());
+        provider.send_turn(turn).await.expect("turn");
+        if model == "grok-4" {
+            while provider.next_event().await.unwrap().unwrap().kind != EventKind::TurnCompleted {}
+        }
+    }
+    let writes = provider.inner().client().transport().writes();
+    let methods: Vec<_> = writes.iter().map(|write| write["method"].clone()).collect();
+    assert_eq!(
+        methods,
+        vec![
+            "initialize",
+            "session/new",
+            "session/prompt",
+            "session/set_model",
+            "session/prompt"
+        ]
+    );
+    assert_eq!(writes[3]["params"]["modelId"], "grok-code");
+}
