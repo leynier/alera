@@ -22,7 +22,6 @@ pub(crate) async fn cli_models(
     let args = match provider {
         "codex" => vec!["debug", "models"],
         "pi" => vec!["--list-models"],
-        "antigravity" => vec!["models"],
         // These adapters have no verified session-free listing command.
         _ => return None,
     };
@@ -122,14 +121,6 @@ pub(crate) fn parse_cli(provider: &str, output: &str) -> Result<Vec<Value>, Stri
                 }
             }
         }
-        "antigravity" => {
-            for line in output.lines().take(MAX_MODELS + 1) {
-                let id = line.trim().trim_start_matches(['*', '-']).trim();
-                if !id.is_empty() && !id.to_lowercase().starts_with("available model") {
-                    models.push(json!({"id":id,"label":id,"source":"discovered"}));
-                }
-            }
-        }
         _ => return Err("This provider has no verified model listing.".into()),
     }
     let mut seen = std::collections::HashSet::new();
@@ -139,6 +130,30 @@ pub(crate) fn parse_cli(provider: &str, output: &str) -> Result<Vec<Value>, Stri
             .is_some_and(|id| !id.trim().is_empty() && seen.insert(id.to_owned()))
     });
     Ok(models)
+}
+
+/// The catalog entries of the models an Antigravity session offers, with
+/// each model's thinking levels as its reasoning efforts.
+pub(crate) fn antigravity(models: &[alera_provider_antigravity::AntigravityModel]) -> Vec<Value> {
+    models
+        .iter()
+        .take(MAX_MODELS)
+        .map(|model| {
+            let mut entry = json!({
+                "id": model.id,
+                "label": model.label,
+                "source": "discovered",
+                "providerDefault": model.provider_default,
+            });
+            if !model.thinking.levels.is_empty() {
+                entry["reasoningEfforts"] = json!(model.thinking.levels);
+                if let Some(default) = &model.thinking.default {
+                    entry["defaultReasoningEffort"] = json!(default);
+                }
+            }
+            entry
+        })
+        .collect()
 }
 
 pub(crate) async fn opencode(
@@ -230,13 +245,35 @@ mod tests {
                 .len(),
             1
         );
+        assert!(parse_cli("antigravity", "gemini-test").is_err());
+    }
+    #[test]
+    fn antigravity_models_carry_their_thinking_levels() {
+        use alera_provider_antigravity::{AntigravityModel, AntigravityThinking};
+        let models = antigravity(&[
+            AntigravityModel {
+                id: "gemini-3.8-flash".into(),
+                label: "Gemini 3.8 Flash".into(),
+                provider_default: true,
+                thinking: AntigravityThinking {
+                    levels: vec!["low".into(), "high".into()],
+                    default: Some("high".into()),
+                },
+            },
+            AntigravityModel {
+                id: "gpt-5".into(),
+                label: "GPT-5".into(),
+                provider_default: false,
+                thinking: AntigravityThinking::default(),
+            },
+        ]);
         assert_eq!(
-            parse_cli(
-                "antigravity",
-                "Available models\n* gemini-test\n- gemini-test"
-            )
-            .unwrap()[0]["id"],
-            "gemini-test"
+            models[0],
+            json!({"id":"gemini-3.8-flash","label":"Gemini 3.8 Flash","source":"discovered","providerDefault":true,"reasoningEfforts":["low","high"],"defaultReasoningEffort":"high"})
+        );
+        assert_eq!(
+            models[1],
+            json!({"id":"gpt-5","label":"GPT-5","source":"discovered","providerDefault":false})
         );
     }
 }

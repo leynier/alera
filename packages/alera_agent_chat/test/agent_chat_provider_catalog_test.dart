@@ -45,4 +45,30 @@ void main() {
       expect(legacy.setupRequired, isFalse);
     },
   );
+
+  test('Antigravity models carry their own thinking levels', () {
+    final models = <Object?>[
+      <String, Object?>{
+        'id': 'gemini-3.8-flash',
+        'label': 'Gemini 3.8 Flash',
+        'source': 'discovered',
+        'providerDefault': true,
+        'isDefault': false,
+        'reasoningEfforts': <String>['low', 'high'],
+        'defaultReasoningEffort': 'high',
+      },
+      <String, Object?>{
+        'id': 'claude-sonnet',
+        'label': 'Claude Sonnet',
+        'source': 'discovered',
+        'providerDefault': false,
+        'isDefault': false,
+      },
+    ].map(AgentChatModelOption.fromJson).toList();
+
+    expect(models.first.reasoningEfforts, <String>['low', 'high']);
+    expect(models.first.defaultReasoningEffort, 'high');
+    expect(models.last.reasoningEfforts, isEmpty);
+    expect(models.last.defaultReasoningEffort, isNull);
+  });
 }

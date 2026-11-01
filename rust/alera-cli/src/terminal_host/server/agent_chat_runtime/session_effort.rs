@@ -122,7 +122,7 @@ impl ChatSession {
 
 pub(super) fn session_effort_options(provider: &str, effort: Option<&str>) -> Map<String, Value> {
     let mut options = Map::new();
-    if provider == "codex" {
+    if matches!(provider, "codex" | "antigravity") {
         if let Some(effort) = effort {
             options.insert("reasoningEffort".into(), Value::String(effort.into()));
         }
@@ -132,7 +132,7 @@ pub(super) fn session_effort_options(provider: &str, effort: Option<&str>) -> Ma
 
 pub(super) fn turn_effort_options(provider: &str, effort: Option<&str>) -> Map<String, Value> {
     let mut options = Map::new();
-    if provider == "codex" {
+    if matches!(provider, "codex" | "antigravity") {
         if let Some(effort) = effort {
             options.insert("reasoningEffort".into(), Value::String(effort.into()));
         }
@@ -157,5 +157,13 @@ mod tests {
         assert!(session_effort_options("pi", Some("high")).is_empty());
         assert!(turn_effort_options("pi", Some("high")).is_empty());
         assert!(turn_effort_options("codex", None).is_empty());
+        assert_eq!(
+            session_effort_options("antigravity", Some("max"))["reasoningEffort"],
+            "max"
+        );
+        assert_eq!(
+            turn_effort_options("antigravity", Some("max"))["reasoningEffort"],
+            "max"
+        );
     }
 }

@@ -66,7 +66,7 @@ JSON-lines writes retain their frame, offset and deadline when the caller cancel
 
 ## Runtime Integration
 
-The runtime catalog exposes nine provider kinds: `codex`, `claudeAgent`, `cursor`, `grok`, `opencode`, `antigravity`, `pi`, `muse` and `acpRegistry`. The common ACP crate supplies shared implementation for its provider wrappers rather than a tenth catalog entry.
+The runtime catalog exposes nine provider kinds: `codex`, `claudeAgent`, `cursor`, `grok`, `opencode`, `antigravity`, `pi`, `muse` and `acpRegistry`. The common ACP crate supplies shared implementation for its provider wrappers rather than a tenth catalog entry. Antigravity's model catalog comes from `alera_provider_antigravity::discover_models`, a short-lived session in a private working directory whose session files it removes, cached per instance for 30 minutes; the runtime forwards a verified `reasoningEffort` to Codex and Antigravity, which writes it to the session's `thought_level` option.
 
 The host projects provider events into durable chats, turns, timeline items and pending requests. SQLite receipts make retries idempotent, committed changes carry a per-chat cursor, and clients reload a snapshot after reconnecting or detecting a gap. Historical turns live in separate rows so long chats do not grow an unbounded snapshot header. Closing a chat archives its history and stops its session; recovery and reopening are explicit operations.
 

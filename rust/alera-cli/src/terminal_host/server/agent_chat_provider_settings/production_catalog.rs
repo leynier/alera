@@ -13,6 +13,8 @@ use crate::terminal_host::server::agent_chat_provider_settings::{
 };
 use alera_provider_protocol::ProviderError;
 use std::collections::BTreeMap;
+#[path = "production_antigravity_models.rs"]
+mod antigravity_models;
 use std::path::{Path, PathBuf};
 pub(super) async fn status(
     factory: &super::ProductionProviderFactory,
@@ -141,6 +143,9 @@ pub(super) async fn models(
         Err(_) => return Some(Err("Provider launch configuration is invalid.".into())),
     };
     let result = match config {
+        ProductionConfig::Antigravity(config) => {
+            Some(antigravity_models::models(cache_key.clone(), *config).await)
+        }
         ProductionConfig::Cursor(config, bridge) => {
             Some(discovery::cursor(*config, bridge.map(|bridge| *bridge)).await)
         }
@@ -182,10 +187,15 @@ pub(super) async fn validate_effort(
     model: Option<&str>,
     effort: &str,
 ) -> Result<(), String> {
-    if !matches!(provider, "codex" | "cursor") {
+    if !matches!(provider, "codex" | "cursor" | "antigravity") {
         return Err("This agent does not support reasoning effort.".into());
     }
-    let models = match cached_effort_models(provider, instance).await {
+    let cached = if provider == "antigravity" {
+        antigravity_models::cached(&effort_cache_key(provider, instance)).await
+    } else {
+        cached_effort_models(provider, instance).await
+    };
+    let models = match cached {
         Some(models) => models,
         None => models(provider, instance, cwd)
             .await
@@ -391,6 +401,35 @@ mod tests {
         assert!(cached_auth_evidence("codex", Some(&instance))
             .await
             .is_none());
+    }
+
+    #[tokio::test]
+    async fn antigravity_effort_validation_uses_the_probed_models() {
+        let instance = ProviderInstanceConfig {
+            provider_instance_id: uuid::Uuid::new_v4().to_string(),
+            provider: "antigravity".into(),
+            ..Default::default()
+        };
+        let probed = antigravity_models::probe_once(
+            effort_cache_key("antigravity", Some(&instance)),
+            std::time::Duration::from_secs(5),
+            || async {
+                Ok(vec![
+                    json!({"id":"gemini","providerDefault":true,"reasoningEfforts":["low","high"]}),
+                    json!({"id":"claude","providerDefault":false}),
+                ])
+            },
+        )
+        .await;
+        antigravity_models::wait(probed).await.unwrap();
+        let validate = |model: Option<&'static str>, effort: &'static str| {
+            let instance = instance.clone();
+            async move { validate_effort("antigravity", Some(&instance), None, model, effort).await }
+        };
+        assert!(validate(Some("gemini"), "high").await.is_ok());
+        assert!(validate(None, "low").await.is_ok());
+        assert!(validate(Some("gemini"), "max").await.is_err());
+        assert!(validate(Some("claude"), "low").await.is_err());
     }
 
     #[tokio::test]

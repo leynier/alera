@@ -97,5 +97,5 @@ Provider-native sub-agents are separate from application-owned chat tasks. The r
 ## Known limits
 
 - Uploads require the owning host's attachment capability; there is no remote path fallback for a device-local file.
-- Reasoning effort is shown only for verified provider/model metadata; an adapter API alone does not fabricate available values.
+- Reasoning effort is shown only for verified provider/model metadata; an adapter API alone does not fabricate available values. Antigravity lists its models and each model's thinking levels from a short-lived ACP session, probed once at a time per instance, kept for 30 minutes and given 90 seconds even when the catalog stops waiting after 15; a failed probe is dropped so the next catalog request probes again. The chosen thinking level is written after the model at start and before each turn.
 - Unification with terminal orchestration remains a separate follow-up.

@@ -214,7 +214,7 @@ async fn models(
     for model in &mut models {
         model["isDefault"] =
             json!(model.get("id").and_then(Value::as_str) == default_model.as_deref());
-        if !matches!(provider, "codex" | "cursor") {
+        if !matches!(provider, "codex" | "cursor" | "antigravity") {
             if let Some(object) = model.as_object_mut() {
                 object.remove("reasoningEfforts");
                 object.remove("defaultReasoningEffort");
