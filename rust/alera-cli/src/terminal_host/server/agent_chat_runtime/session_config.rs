@@ -188,6 +188,8 @@ impl ChatSession {
         // Another agent has its own commands; it reports them once it starts.
         self.header.session.commands.clear();
         self.header.session.goal = None;
+        // Context windows and rate limits belong to the old agent's account.
+        self.header.usage = None;
         self.provider_skills = None;
         self.header.provider = provider;
         self.header.provider_instance_id = instance_id.clone();

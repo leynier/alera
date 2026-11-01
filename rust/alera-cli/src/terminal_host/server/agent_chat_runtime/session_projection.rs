@@ -145,11 +145,7 @@ impl ChatSession {
                 }
             }
             EventKind::ThreadTokenUsageUpdated => self.apply_token_usage(&event.payload),
-            EventKind::AccountRateLimitsUpdated => {
-                let windows = event.payload["limits"]["windows"].clone();
-                let usage = self.header.usage.get_or_insert_with(|| json!({}));
-                usage["windows"] = windows;
-            }
+            EventKind::AccountRateLimitsUpdated => self.apply_usage_windows(&event.payload),
             EventKind::RuntimeError => {
                 let message = event.payload["message"]
                     .as_str()
@@ -406,30 +402,6 @@ impl ChatSession {
         self.rebalance_streams(&item_id).await?;
         self.set_item_payload(&item_id, payload.as_deref()).await?;
         Ok(())
-    }
-
-    fn apply_token_usage(&mut self, usage: &Value) {
-        if !usage.is_object() {
-            return;
-        }
-        let mut tokens = json!({});
-        for (canonical, wire) in [
-            ("inputTokens", "input"),
-            ("outputTokens", "output"),
-            ("cachedInputTokens", "cached"),
-            ("reasoningTokens", "reasoning"),
-            ("contextTokens", "context"),
-            ("contextWindow", "contextWindow"),
-        ] {
-            if let Some(value) = usage.get(canonical).filter(|value| value.is_u64()) {
-                tokens[wire] = value.clone();
-            }
-        }
-        if tokens.as_object().is_some_and(|tokens| tokens.is_empty()) {
-            return;
-        }
-        let entry = self.header.usage.get_or_insert_with(|| json!({}));
-        entry["tokens"] = tokens;
     }
 
     fn add_notice(&mut self, item_type: &str, message: &str, detail: Option<&Value>) {
