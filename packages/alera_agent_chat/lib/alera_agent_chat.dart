@@ -10,6 +10,7 @@ export 'src/agent_chat_composer_triggers.dart';
 export 'src/agent_chat_context_transfer.dart';
 export 'src/agent_chat_error_message.dart';
 export 'src/agent_chat_feedback.dart';
+export 'src/agent_chat_generated_image.dart';
 export 'src/agent_chat_goal.dart';
 export 'src/agent_chat_handoff.dart';
 export 'src/agent_chat_inputs.dart';

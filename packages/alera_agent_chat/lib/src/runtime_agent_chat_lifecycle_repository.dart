@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_generated_image.dart';
 import 'package:alera_agent_chat/src/agent_chat_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
@@ -280,6 +281,33 @@ final class RuntimeAgentChatLifecycleRepository
       }),
     ),
   );
+
+  @override
+  Future<AgentChatGeneratedImageChunk> generatedImage(
+    AgentChatRef chat, {
+    required String itemId,
+    int offset = 0,
+    int? length,
+  }) async {
+    if (offset < 0) {
+      throw const FormatException('An image offset cannot be negative.');
+    }
+    if (length != null &&
+        (length <= 0 || length > agentChatGeneratedImageChunkBytes)) {
+      throw const FormatException('An image piece is 1 byte to 256 KiB.');
+    }
+    return AgentChatGeneratedImageChunk.fromJson(
+      await _request(
+        AgentChatWire.generatedImagesCapability,
+        AgentChatWire.generatedImage,
+        _scoped(chat, <String, Object?>{
+          'itemId': itemId,
+          'offset': offset,
+          'length': ?length,
+        }),
+      ),
+    );
+  }
 
   @override
   Future<String> mergeBack(

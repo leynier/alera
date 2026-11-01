@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_generated_image.dart';
 import 'package:alera_agent_chat/src/agent_chat_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_provider_skill.dart';
@@ -116,6 +117,17 @@ abstract class AgentChatLifecycleRepository {
     required String itemId,
     required int agentIndex,
   }) => Future.error(UnsupportedError('Workflow answers are unavailable.'));
+
+  /// One piece of the image the `image_generation` item [itemId] saved,
+  /// from byte [offset] and at most [length] bytes long
+  /// (`agentChatGeneratedImagesV1`). The runtime reads only the path it
+  /// recorded for that item. [loadAgentChatGeneratedImage] reads it all.
+  Future<AgentChatGeneratedImageChunk> generatedImage(
+    AgentChatRef chat, {
+    required String itemId,
+    int offset = 0,
+    int? length,
+  }) => Future.error(UnsupportedError('Generated images are unavailable.'));
 
   /// Hands this fork's work since the fork point to the chat it was forked
   /// from, for that chat's next turn (`agentChatMergeBackV1`). Answers the

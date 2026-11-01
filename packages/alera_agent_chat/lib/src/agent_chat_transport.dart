@@ -54,6 +54,10 @@ abstract final class AgentChatWire {
   /// Snapshots and changes carry `contextTransfers`: the context moved into
   /// the chat by forks, merge-backs, handoffs and delegated work.
   static const String transfersCapability = 'agentChatTransfersV1';
+
+  /// `agentChat.generatedImage` reads, in pieces, the file an
+  /// `image_generation` item saved on the host.
+  static const String generatedImagesCapability = 'agentChatGeneratedImagesV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -118,6 +122,7 @@ abstract final class AgentChatWire {
   static const String subagent = 'agentChat.subagent';
   static const String workflowScript = 'agentChat.workflowScript';
   static const String workflowAgent = 'agentChat.workflowAgent';
+  static const String generatedImage = 'agentChat.generatedImage';
   static const String stopSubagent = 'agentChat.stopSubagent';
   static const String mergeBack = 'agentChat.mergeBack';
   static const String recover = 'agentChat.recover';
