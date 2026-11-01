@@ -414,6 +414,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
             thread_id: &session.thread_id,
             native_thread_id: &session.native_thread_id,
             turn_id: session.active_turn_id.as_deref(),
+            flavor: self.config.flavor,
             prompt_id: self.prompt_id.as_ref(),
             prompt_meta_id: self.prompt_meta_id.as_deref(),
             idle_ends_turn: self

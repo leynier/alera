@@ -149,6 +149,11 @@ pub(crate) fn cancelled_response(pending: &crate::transport::PendingRequest) -> 
         | alera_provider_protocol::RequestKind::DynamicToolCall => {
             json!({"outcome":{"outcome":"cancelled"}})
         }
+        alera_provider_protocol::RequestKind::ToolUserInput
+            if pending.method == "session/request_permission" =>
+        {
+            json!({"outcome":{"outcome":"cancelled"}})
+        }
         alera_provider_protocol::RequestKind::ToolUserInput => json!({"outcome":"cancelled"}),
         alera_provider_protocol::RequestKind::McpElicitationApproval => {
             json!({"action":"cancel","content":null})

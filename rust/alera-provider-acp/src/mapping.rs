@@ -1,9 +1,9 @@
 use crate::mapping_turn::{prompt_complete, state_update, turn_completed};
 use crate::mapping_values::{
-    available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id,
-    permission_kind, string, terminal_state, tool_event_kind, tool_payload,
+    available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id, string,
+    terminal_state, tool_event_kind, tool_payload,
 };
-use crate::questions::extract_questions;
+use crate::questions::classify_request;
 use crate::session_notice::notice_payload;
 use crate::transport::PendingRequest;
 use agent_client_protocol::{AcpIncoming, AcpRequestId, RpcRequest};
@@ -24,6 +24,7 @@ pub(crate) struct MappingContext<'a> {
     pub(crate) thread_id: &'a str,
     pub(crate) native_thread_id: &'a str,
     pub(crate) turn_id: Option<&'a str>,
+    pub(crate) flavor: crate::config::AcpFlavor,
     pub(crate) prompt_id: Option<&'a AcpRequestId>,
     pub(crate) prompt_meta_id: Option<&'a str>,
     /// An idle `state_update` ends the running turn. It is false for an
@@ -283,16 +284,7 @@ fn map_request(
     request: RpcRequest,
     context: &MappingContext<'_>,
 ) -> Result<MappedIncoming, ProviderError> {
-    let kind = match request.method.as_str() {
-        "session/request_permission" => permission_kind(&request.params),
-        "ask_user" | "ask_user_question" | "x.ai/ask_user_question" | "_x.ai/ask_user_question" => {
-            RequestKind::ToolUserInput
-        }
-        "elicitation/create" | "session/elicitation" | "_session/elicitation" => {
-            RequestKind::McpElicitationApproval
-        }
-        _ => RequestKind::Unknown,
-    };
+    let (kind, questions) = classify_request(&request.method, &request.params, context.flavor);
     if kind == RequestKind::Unknown {
         let params = request.params.clone();
         let raw = request.raw.clone();
@@ -316,7 +308,6 @@ fn map_request(
         });
     }
     let logical = logical_request_id(&request.id);
-    let questions = extract_questions(&request.params);
     let runtime_request = RuntimeRequest {
         request_id: logical.clone(),
         thread_id: context.thread_id.to_owned(),

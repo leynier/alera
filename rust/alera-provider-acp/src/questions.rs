@@ -1,5 +1,36 @@
-use alera_provider_protocol::{UserInputOption, UserInputQuestion};
+use crate::antigravity_questions::antigravity_question;
+use crate::config::AcpFlavor;
+use crate::mapping_values::permission_kind;
+use alera_provider_protocol::{RequestKind, UserInputOption, UserInputQuestion};
 use serde_json::Value;
+
+/// The request kind of an agent request and the questions it asks. An
+/// Antigravity `interaction_*` permission request is a single-choice
+/// question, not an approval.
+pub(crate) fn classify_request(
+    method: &str,
+    params: &Value,
+    flavor: AcpFlavor,
+) -> (RequestKind, Vec<UserInputQuestion>) {
+    let kind = match method {
+        "session/request_permission" => {
+            if flavor == AcpFlavor::Antigravity {
+                if let Some(question) = antigravity_question(params) {
+                    return (RequestKind::ToolUserInput, vec![question]);
+                }
+            }
+            permission_kind(params)
+        }
+        "ask_user" | "ask_user_question" | "x.ai/ask_user_question" | "_x.ai/ask_user_question" => {
+            RequestKind::ToolUserInput
+        }
+        "elicitation/create" | "session/elicitation" | "_session/elicitation" => {
+            RequestKind::McpElicitationApproval
+        }
+        _ => RequestKind::Unknown,
+    };
+    (kind, extract_questions(params))
+}
 
 pub(crate) fn extract_questions(params: &Value) -> Vec<UserInputQuestion> {
     if let Some(questions) = params.get("questions").and_then(Value::as_array) {

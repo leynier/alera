@@ -1,4 +1,5 @@
 use crate::{
+    antigravity_questions::antigravity_question_response,
     config::AcpFlavor,
     runtime_response::{
         acp_error, grok_permission_response, permission_response, user_input_response,
@@ -26,7 +27,9 @@ impl<T: JsonTransport> AcpProvider<T> {
             })?;
         let wire = match response {
             RuntimeResponse::Approval { decision, .. } => {
-                if pending.method != "session/request_permission" {
+                if pending.method != "session/request_permission"
+                    || pending.kind == RequestKind::ToolUserInput
+                {
                     return Err(ProviderError::Validation(
                         "approval response does not match ACP request".into(),
                     ));
@@ -61,7 +64,11 @@ impl<T: JsonTransport> AcpProvider<T> {
                         "user-input response does not match ACP request".into(),
                     ));
                 }
-                if self.config.flavor == AcpFlavor::Grok && pending.method.contains("ask_user") {
+                if pending.method == "session/request_permission" {
+                    antigravity_question_response(&pending.params, &answers)?
+                } else if self.config.flavor == AcpFlavor::Grok
+                    && pending.method.contains("ask_user")
+                {
                     xai_user_input_response(&pending.params, answers)?
                 } else {
                     user_input_response(answers)

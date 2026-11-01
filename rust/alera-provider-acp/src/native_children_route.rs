@@ -255,6 +255,7 @@ impl<T: JsonTransport> AcpProvider<T> {
             thread_id: &session.thread_id,
             native_thread_id: child,
             turn_id: turn_id.as_deref(),
+            flavor: self.config.flavor,
             prompt_id: None,
             prompt_meta_id: None,
             idle_ends_turn: false,
