@@ -15,7 +15,7 @@ pub(crate) async fn cli_status(
     executable: &Path,
     environment: &BTreeMap<String, String>,
     probe: &dyn ProviderProbe,
-) -> (Option<String>, String) {
+) -> (Option<String>, String, Option<String>) {
     let version = match probe
         .run(ProbeCommand {
             executable: executable.into(),
@@ -28,7 +28,17 @@ pub(crate) async fn cli_status(
         Ok(output) if output.success => version(&output.stdout),
         _ => None,
     };
+    let mut label = None;
     let auth = if provider == "claudeAgent" {
+        // Claude settings set the CLI's env over the inherited one.
+        let base_url = tokio::task::spawn_blocking({
+            let environment = environment.clone();
+            move || alera_provider_claude::claude_settings_base_url(&environment)
+        })
+        .await
+        .ok()
+        .flatten()
+        .or_else(|| environment.get("ANTHROPIC_BASE_URL").cloned());
         match probe
             .run(ProbeCommand {
                 executable: executable.into(),
@@ -39,7 +49,11 @@ pub(crate) async fn cli_status(
             .await
         {
             // Claude uses a nonzero exit for a JSON loggedIn:false signal.
-            Ok(output) => claude_auth(&output.stdout).into(),
+            Ok(output) => {
+                let (auth, auth_label) = claude_auth_status(&output.stdout, base_url.as_deref());
+                label = auth_label.map(str::to_owned);
+                auth.into()
+            }
             _ => "unknown".into(),
         }
     } else if provider == "codex" {
@@ -47,7 +61,7 @@ pub(crate) async fn cli_status(
     } else {
         "unknown".into()
     };
-    (version, auth)
+    (version, auth, label)
 }
 
 fn version(output: &str) -> Option<String> {
@@ -58,15 +72,40 @@ fn version(output: &str) -> Option<String> {
         .map(|matched| matched.as_str().to_owned())
 }
 
-pub(crate) fn claude_auth(output: &str) -> &'static str {
-    match serde_json::from_str::<Value>(output)
-        .ok()
-        .and_then(|value| value["loggedIn"].as_bool())
-    {
-        Some(true) => "signedIn",
-        Some(false) => "signedOut",
-        None => "unknown",
+const CUSTOM_ENDPOINT_LABEL: &str = "Custom API endpoint";
+
+/// Claude's sign-in from `claude auth status --json`, and its label. A
+/// first-party CLI pointed at a non-Anthropic endpoint reads as signed in
+/// through a custom endpoint, since Anthropic account fields cannot verify
+/// a proxy's credentials, as T3 Code does.
+pub(crate) fn claude_auth_status(
+    output: &str,
+    base_url: Option<&str>,
+) -> (&'static str, Option<&'static str>) {
+    let Ok(status) = serde_json::from_str::<Value>(output) else {
+        return ("unknown", None);
+    };
+    let Some(logged_in) = status["loggedIn"].as_bool() else {
+        return ("unknown", None);
+    };
+    let first_party = match &status["apiProvider"] {
+        Value::Null => true,
+        Value::String(provider) => provider == "firstParty",
+        _ => false,
+    };
+    if first_party && base_url.is_some_and(custom_api_endpoint) {
+        return ("signedIn", Some(CUSTOM_ENDPOINT_LABEL));
     }
+    (if logged_in { "signedIn" } else { "signedOut" }, None)
+}
+
+fn custom_api_endpoint(url: &str) -> bool {
+    url::Url::parse(url.trim()).is_ok_and(|url| {
+        matches!(url.scheme(), "http" | "https")
+            && url
+                .host_str()
+                .is_some_and(|host| !host.is_empty() && host != "api.anthropic.com")
+    })
 }
 
 async fn codex_auth(environment: &BTreeMap<String, String>) -> &'static str {
@@ -166,11 +205,50 @@ mod tests {
     use super::*;
     #[test]
     fn only_verified_auth_json_proves_sign_in() {
+        let claude_auth = |output| claude_auth_status(output, None).0;
         assert_eq!(claude_auth(r#"{"loggedIn":true}"#), "signedIn");
         assert_eq!(claude_auth(r#"{"loggedIn":false}"#), "signedOut");
         assert_eq!(claude_auth(r#"{"apiKey":"synthetic-secret"}"#), "unknown");
         assert_eq!(claude_auth("network error"), "unknown");
         assert_eq!(version("codex-cli 1.2.3"), Some("1.2.3".into()));
+    }
+
+    #[test]
+    fn a_claude_proxy_endpoint_reads_as_a_custom_sign_in() {
+        let signed_out = r#"{"loggedIn":false,"apiProvider":"firstParty"}"#;
+        let custom = ("signedIn", Some(CUSTOM_ENDPOINT_LABEL));
+        for url in ["https://proxy.example/api", "http://localhost:8080"] {
+            assert_eq!(claude_auth_status(signed_out, Some(url)), custom, "{url}");
+        }
+        for url in [
+            "https://api.anthropic.com",
+            "https://api.anthropic.com:443",
+            "https://api.anthropic.com:8443",
+            "openrouter.ai/api",
+            "localhost:8080",
+            "ftp://proxy.example",
+            "",
+            " ",
+        ] {
+            assert_eq!(
+                claude_auth_status(signed_out, Some(url)),
+                ("signedOut", None),
+                "{url}"
+            );
+        }
+        let proxy = Some("https://proxy.example");
+        assert_eq!(
+            claude_auth_status(r#"{"loggedIn":true,"authMethod":"oauth_token"}"#, proxy),
+            custom
+        );
+        assert_eq!(
+            claude_auth_status(r#"{"loggedIn":true,"apiProvider":"bedrock"}"#, proxy),
+            ("signedIn", None)
+        );
+        assert_eq!(
+            claude_auth_status("network error", proxy),
+            ("unknown", None)
+        );
     }
 
     #[test]

@@ -172,7 +172,7 @@ class const AgentProviderStatusSummary({
     final account = auth.label;
     return account == null
         ? '$state  ·  $checked'
-        : '$state as $account  ·  $checked';
+        : '$state  ·  $account  ·  $checked';
   }
 }
 

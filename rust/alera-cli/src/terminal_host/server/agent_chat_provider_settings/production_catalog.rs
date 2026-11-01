@@ -73,11 +73,12 @@ pub(super) async fn status(
                 "codex" | "claudeAgent" | "opencode" | "grok" | "antigravity" | "pi"
             )
         {
-            let (version, auth) =
+            let (version, auth, auth_label) =
                 status::cli_status(provider, executable, &environment, &WindowlessProviderProbe)
                     .await;
             result.version = version;
             result.auth_status = auth;
+            result.auth_label = auth_label;
             if result.auth_status == "signedOut" {
                 result.available = false;
                 result.unavailable_reason = Some("Sign in to use this agent.".into());
