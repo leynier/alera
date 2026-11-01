@@ -150,12 +150,7 @@ impl ClaudeProvider {
             let reason = reason.to_ascii_lowercase();
             reason.contains("interrupt") || reason.contains("abort") || reason.contains("cancel")
         });
-        let failed = message.is_error
-            || message
-                .errors
-                .as_ref()
-                .is_some_and(|errors| !errors.is_empty())
-            || failure::result_failed_without_error(&message);
+        let failed = failure::result_failed(&message);
         let state = if interrupted {
             "interrupted"
         } else if failed {
@@ -189,15 +184,12 @@ impl ClaudeProvider {
             if let Some(usage) = message.usage.clone() {
                 terminal_payload["usage"] = usage;
             }
-            if let Some(errors) = message.errors.as_ref().filter(|errors| !errors.is_empty()) {
-                terminal_payload["errorMessage"] = Value::String(errors.join("; "));
-            } else if failed {
-                if let Some(result) = message.result.as_ref().filter(|result| !result.is_empty()) {
-                    terminal_payload["errorMessage"] = Value::String(result.clone());
-                }
-            }
             if failed {
-                terminal_payload["failureClass"] = json!(self.turn_failure.class(&message));
+                let class = self.turn_failure.class(&message);
+                if let Some(error) = failure::result_error_message(&message, class) {
+                    terminal_payload["errorMessage"] = Value::String(error);
+                }
+                terminal_payload["failureClass"] = json!(class);
             }
             if let Some(model_usage) = message.model_usage.clone() {
                 terminal_payload["modelUsage"] = model_usage;

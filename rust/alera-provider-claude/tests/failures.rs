@@ -59,10 +59,12 @@ async fn terminal(frames: Vec<Value>) -> ProviderEvent {
 
 #[tokio::test]
 async fn failed_results_are_classified_from_typed_claude_signals() {
+    const PROVIDER_TEXT: &str = "Claude could not finish";
     let cases = [
         (
             vec![result(json!({ "api_error_status": 429 }))],
             FailureClass::UsageLimit,
+            PROVIDER_TEXT,
         ),
         (
             vec![
@@ -70,6 +72,7 @@ async fn failed_results_are_classified_from_typed_claude_signals() {
                 result(json!({ "terminal_reason": "api_error" })),
             ],
             FailureClass::UsageLimit,
+            PROVIDER_TEXT,
         ),
         (
             vec![
@@ -77,8 +80,10 @@ async fn failed_results_are_classified_from_typed_claude_signals() {
                 result(json!({ "terminal_reason": "blocking_limit" })),
             ],
             FailureClass::UsageLimit,
+            PROVIDER_TEXT,
         ),
-        // A limit the CLI allowed again is no evidence.
+        // A limit the CLI allowed again is no evidence, and an api_error
+        // result's text is the last reply rather than the error.
         (
             vec![
                 rate_limit("rejected"),
@@ -86,10 +91,12 @@ async fn failed_results_are_classified_from_typed_claude_signals() {
                 result(json!({ "terminal_reason": "api_error" })),
             ],
             FailureClass::Unknown,
+            "Claude gave up after repeated API errors.",
         ),
         (
             vec![result(json!({ "terminal_reason": "prompt_too_long" }))],
             FailureClass::ContextWindowFull,
+            PROVIDER_TEXT,
         ),
         (
             vec![
@@ -97,6 +104,7 @@ async fn failed_results_are_classified_from_typed_claude_signals() {
                 result(json!({ "api_error_status": 401 })),
             ],
             FailureClass::Auth,
+            PROVIDER_TEXT,
         ),
         // Signing in again cannot grant a 403.
         (
@@ -105,15 +113,98 @@ async fn failed_results_are_classified_from_typed_claude_signals() {
                 result(json!({ "api_error_status": 403 })),
             ],
             FailureClass::Unknown,
+            PROVIDER_TEXT,
         ),
-        (vec![result(json!({}))], FailureClass::Unknown),
+        (
+            vec![result(json!({}))],
+            FailureClass::Unknown,
+            PROVIDER_TEXT,
+        ),
     ];
-    for (frames, class) in cases {
+    for (frames, class, message) in cases {
         let event = terminal(frames).await;
         assert_eq!(event.payload["state"], "failed");
         assert_eq!(event.failure_class(), class, "{}", event.payload);
-        assert_eq!(event.payload["errorMessage"], "Claude could not finish");
+        assert_eq!(event.payload["errorMessage"], message);
     }
+}
+
+#[tokio::test]
+async fn success_shaped_claude_api_errors_fail_with_the_provider_text() {
+    let long_error = format!("API Error: 400 {}", "x".repeat(600));
+    let cases = [
+        (
+            json!({
+                "is_error": false,
+                "terminal_reason": "api_error",
+                "result": "  API Error: 400 Request rejected by a safeguard.\n",
+            }),
+            Some("API Error: 400 Request rejected by a safeguard."),
+        ),
+        (
+            json!({ "terminal_reason": "api_error", "result": "I found three files." }),
+            Some("Claude gave up after repeated API errors."),
+        ),
+        (
+            json!({
+                "terminal_reason": "api_error",
+                "result": "API Error: 400 Request rejected.",
+                "errors": ["[ede_diagnostic] internal detail", "Tool execution failed: EACCES"],
+            }),
+            Some("Tool execution failed: EACCES"),
+        ),
+        (
+            json!({
+                "is_error": false,
+                "api_error_status": 529,
+                "result": "Provider failure details.",
+            }),
+            Some("Claude API is overloaded (529). Try again shortly."),
+        ),
+        (
+            json!({ "is_error": false, "terminal_reason": "model_error", "result": "" }),
+            Some("Claude stopped: the model returned an error."),
+        ),
+        (
+            json!({ "is_error": false, "terminal_reason": "budget_exhausted", "result": " " }),
+            Some("Claude stopped: the turn's token budget was exhausted."),
+        ),
+        (
+            json!({ "is_error": false, "terminal_reason": "stop_hook_prevented" }),
+            None,
+        ),
+        (
+            json!({ "is_error": false, "terminal_reason": "completed" }),
+            None,
+        ),
+        (
+            json!({ "is_error": false, "errors": ["[ede_diagnostic] x"] }),
+            None,
+        ),
+    ];
+    for (fields, message) in cases {
+        let event = terminal(vec![result(fields.clone())]).await;
+        match message {
+            Some(message) => {
+                assert_eq!(event.payload["state"], "failed", "{fields}");
+                assert_eq!(event.failure_class(), FailureClass::Unknown, "{fields}");
+                assert_eq!(event.payload["errorMessage"], message, "{fields}");
+            }
+            None => {
+                assert_eq!(event.payload["state"], "completed", "{fields}");
+                assert!(event.payload.get("failureClass").is_none(), "{fields}");
+                assert!(event.payload.get("errorMessage").is_none(), "{fields}");
+            }
+        }
+    }
+    let event = terminal(vec![result(json!({
+        "terminal_reason": "api_error",
+        "result": long_error,
+    }))])
+    .await;
+    let message = event.payload["errorMessage"].as_str().unwrap();
+    assert_eq!(message.chars().count(), 500);
+    assert!(message.starts_with("API Error: 400 x"));
 }
 
 #[tokio::test]
