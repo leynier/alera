@@ -13,3 +13,5 @@ The provider's operation timeout applies to HTTP control and handshake work; the
 `inline_file_part` builds a prompt file part whose bytes travel as a `data:` URL, so a server need not share the caller's filesystem: 1.x sends it as a `file` part with its `mime` and `filename`, 2.x as a `files` entry with its `name`.
 
 Session permission rules differ by generation. 2.x takes `PermissionRule` (`action`, `resource`, `effect`) under `permissions`; 1.x takes `LegacyPermissionRule` (`permission`, `pattern`, `action`) under `permission`, on `create_session` through `SessionRequest::legacy_permission` and on `update_session_legacy_permission`. `session_record` returns a session's full native record, so its rules can be read.
+
+`OpenCodeServer::spawn` keeps the server's stderr while it waits for the listening URL. Instances share `opencode.db`, so a start whose stderr reports `SQLITE_BUSY` or `database is locked` is tried again up to three times, 250 ms apart, as T3 Code does, and reports `OpenCodeServerError::DatabaseLocked` if the lock outlasts them; any other early exit is `Exited` and is not retried.

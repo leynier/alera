@@ -73,6 +73,18 @@ impl LineQueue {
     }
 }
 
+/// Reads a [`ManagedProcess`]'s stderr lines independently of the process.
+#[derive(Debug, Clone)]
+pub struct StderrReader(Arc<LineQueue>);
+
+impl StderrReader {
+    /// The next stderr line, or `None` at stderr EOF or once the process closes
+    /// and its queued lines are read.
+    pub async fn next_line(&self) -> Option<String> {
+        self.0.next().await
+    }
+}
+
 fn send_end(sender: &Sender<Option<String>>) {
     let _ = sender.try_send(None);
 }
@@ -370,6 +382,11 @@ impl ManagedProcess {
     /// marker cannot fill the child pipe while stdout is idle.
     pub async fn next_stderr_line(&mut self) -> Option<String> {
         self.stderr_lines.next().await
+    }
+
+    /// A handle that reads the same stderr lines while stdout is awaited.
+    pub fn stderr_reader(&self) -> StderrReader {
+        StderrReader(Arc::clone(&self.stderr_lines))
     }
 
     /// Return the operating-system process id while the child is owned.

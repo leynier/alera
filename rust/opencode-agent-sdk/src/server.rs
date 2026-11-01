@@ -14,6 +14,12 @@ const DEFAULT_HOSTNAME: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 4096;
 const DEFAULT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_STARTUP_OUTPUT: usize = 8 * 1024;
+/// OpenCode instances share `opencode.db`; a migration or WAL lock held by
+/// another instance is transient, so a locked startup is tried again.
+const DATABASE_LOCK_RETRIES: usize = 3;
+const DATABASE_LOCK_RETRY_DELAY: Duration = Duration::from_millis(250);
+/// How long trailing diagnostics may drain after the server exits.
+const EXIT_DRAIN_TIMEOUT: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone)]
 pub struct OpenCodeServerConfig {
@@ -54,6 +60,8 @@ pub enum OpenCodeServerError {
     Transport(String),
     #[error("OpenCode server exited before reporting its listening URL")]
     Exited,
+    #[error("OpenCode server exited because its shared database is locked")]
+    DatabaseLocked,
     #[error("OpenCode server startup timed out after {0:?}")]
     StartupTimeout(Duration),
     #[error("OpenCode server output did not contain a valid listening URL")]
@@ -86,7 +94,23 @@ impl std::fmt::Debug for OpenCodeServer {
 }
 
 impl OpenCodeServer {
+    /// Starts `opencode serve`. A start that fails on a locked shared
+    /// database is tried again up to three times, 250 ms apart, as T3 Code
+    /// does; configuration and executable failures are not.
     pub async fn spawn(config: OpenCodeServerConfig) -> Result<Self, OpenCodeServerError> {
+        let mut retries = 0;
+        loop {
+            match Self::spawn_once(config.clone()).await {
+                Err(OpenCodeServerError::DatabaseLocked) if retries < DATABASE_LOCK_RETRIES => {
+                    retries += 1;
+                    tokio::time::sleep(DATABASE_LOCK_RETRY_DELAY).await;
+                }
+                result => return result,
+            }
+        }
+    }
+
+    async fn spawn_once(config: OpenCodeServerConfig) -> Result<Self, OpenCodeServerError> {
         let mut args = config.args.clone();
         add_flag(&mut args, "--hostname=", &config.hostname);
         add_flag(&mut args, "--port=", &config.port.to_string());
@@ -141,22 +165,51 @@ impl OpenCodeServer {
         let deadline = Instant::now() + config.startup_timeout;
         let mut process = process;
         let mut output = String::new();
+        let mut stderr = String::new();
+        let mut stderr_open = true;
+        let stderr_reader = process.stderr_reader();
         let url = loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
                 let _ = process.close().await;
                 return Err(OpenCodeServerError::StartupTimeout(config.startup_timeout));
             }
-            let line = match tokio::time::timeout(remaining, process.next_stdout_line()).await {
-                Ok(line) => line,
+            // Stderr is kept while waiting, because it says why a start failed.
+            let next = tokio::time::timeout(remaining, async {
+                tokio::select! {
+                    line = stderr_reader.next_line(), if stderr_open => Err(line),
+                    line = process.next_stdout_line() => Ok(line),
+                }
+            })
+            .await;
+            let line = match next {
+                Ok(Ok(line)) => line,
+                Ok(Err(Some(line))) => {
+                    keep_tail(&mut stderr, &line);
+                    continue;
+                }
+                Ok(Err(None)) => {
+                    stderr_open = false;
+                    continue;
+                }
                 Err(_) => {
                     let _ = process.close().await;
                     return Err(OpenCodeServerError::StartupTimeout(config.startup_timeout));
                 }
             };
             let Some(line) = line else {
+                let drain = async {
+                    while let Some(line) = stderr_reader.next_line().await {
+                        keep_tail(&mut stderr, &line);
+                    }
+                };
+                let _ = tokio::time::timeout(EXIT_DRAIN_TIMEOUT, drain).await;
                 let _ = process.close().await;
-                return Err(OpenCodeServerError::Exited);
+                return Err(if database_locked(&stderr) {
+                    OpenCodeServerError::DatabaseLocked
+                } else {
+                    OpenCodeServerError::Exited
+                });
             };
             output.push_str(&line);
             output.push('\n');
@@ -243,6 +296,23 @@ fn add_flag(args: &mut Vec<OsString>, prefix: &str, value: &str) {
     args.push(OsString::from(format!("{prefix}{value}")));
 }
 
+fn keep_tail(tail: &mut String, line: &str) {
+    tail.push_str(line);
+    tail.push('\n');
+    if tail.len() > MAX_STARTUP_OUTPUT {
+        let mut keep_from = tail.len() - MAX_STARTUP_OUTPUT;
+        while !tail.is_char_boundary(keep_from) {
+            keep_from += 1;
+        }
+        tail.drain(..keep_from);
+    }
+}
+
+/// OpenCode reports a held `opencode.db` lock on stderr.
+fn database_locked(stderr: &str) -> bool {
+    stderr.contains("SQLITE_BUSY") || stderr.to_ascii_lowercase().contains("database is locked")
+}
+
 fn parse_server_url(line: &str) -> Option<String> {
     let lower = line.to_ascii_lowercase();
     let marker = "server listening on";
@@ -257,7 +327,17 @@ fn parse_server_url(line: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_server_url;
+    use super::{database_locked, keep_tail, parse_server_url};
+
+    #[test]
+    fn classifies_a_locked_shared_database() {
+        assert!(database_locked("Error: SQLITE_BUSY: cannot commit"));
+        assert!(database_locked("error: Database is locked\n"));
+        assert!(!database_locked("error: invalid config"));
+        let mut tail = String::new();
+        keep_tail(&mut tail, &"é".repeat(5_000));
+        assert!(tail.len() <= 8 * 1024 && tail.ends_with('\n'));
+    }
 
     #[test]
     fn parses_server_listening_marker() {

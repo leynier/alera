@@ -16,7 +16,7 @@ mod redaction;
 
 pub use error::TransportError;
 pub use framing::{DEFAULT_MAX_FRAME_BYTES, DEFAULT_SHUTDOWN_TIMEOUT};
-pub use managed_process::ManagedProcess;
+pub use managed_process::{ManagedProcess, StderrReader};
 pub use mock::MockTransport;
 pub use process::{JsonLineProcess, ProcessConfig};
 pub use redaction::{redact_secrets, REDACTED};

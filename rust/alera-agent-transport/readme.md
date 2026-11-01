@@ -8,7 +8,7 @@ Cancelled sends retain the encoded frame, accepted prefix and original deadline.
 
 `TransportError::ProcessExited` carries the last 64 KiB of the child's stderr with credentials masked by `redact_secrets`: values of keys whose name ends in a credential word (`OPENAI_API_KEY=`, `client_secret:`, `X-Auth-Token:`, `Authorization: Basic`, but not `max_tokens=`), Bearer tokens, `sk-`, GitHub and Slack tokens, HTTP user info and URL passwords. Once older output was dropped, the partial first line is dropped too, because it may hold a value cut off from its key. The alera-cli diagnostics sink applies the same rules.
 
-`ManagedProcess` separately supports line-oriented provider servers, and `MockTransport` supplies scripted frames for provider tests. Their queue behavior is separate from the JSON protocol guarantees above. `ManagedProcess` returns stderr lines unmasked, because a provider can read its startup handshake from them.
+`ManagedProcess` separately supports line-oriented provider servers, and `MockTransport` supplies scripted frames for provider tests. Their queue behavior is separate from the JSON protocol guarantees above. `ManagedProcess` returns stderr lines unmasked, because a provider can read its startup handshake from them. `ManagedProcess::stderr_reader` returns a `StderrReader` handle over the same lines, so a caller can collect stderr while it awaits stdout.
 
 Run validation from `rust/` with the pinned toolchain:
 
