@@ -65,6 +65,8 @@ class const AgentChatComposer({
   required final ValueChanged<String> onOpenFile,
   final bool canSubmit = true,
   final bool canSteer = false,
+  // The provider takes attachments, so Add Files is offered.
+  final bool canAttach = true,
 
   /// What Send does instead of sending or queueing, such as declining a
   /// pending approval.
@@ -421,7 +423,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           key: const ValueKey<String>('agent-chat-attach'),
           tooltip: 'Add Files',
           icon: AleraIcons.attach,
-          onPressed: widget.canSend ? () => unawaited(_addFiles()) : null,
+          onPressed: widget.canSend && widget.canAttach
+              ? () => unawaited(_addFiles())
+              : null,
         ),
         ?widget.chatActions,
         Expanded(

@@ -28,37 +28,41 @@ final class _Harness {
 
   TextEditingController get text => composer.textController;
 
-  Widget build({bool canInterrupt = false, bool canSteer = false}) =>
-      MaterialApp(
-        theme: buildAleraDarkTheme(),
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: AgentChatComposer(
-              controller: composer,
-              workspaceId: 'ws-1',
-              chatId: 'chat-1',
-              settings: _settings,
-              usage: const AgentChatUsage(),
-              canSend: true,
-              canSteer: canSteer,
-              busy: canInterrupt || canSteer,
-              canInterrupt: canInterrupt,
-              interrupting: false,
-              hintText: 'Message the agent',
-              promptHistory: () => history,
-              onSend: (text, _, {steer = false}) {
-                (steer ? steered : sent).add(text);
-                return true;
-              },
-              onInterrupt: () => interrupts += 1,
-              onConfigure: (_) {},
-              onChoose: (_, _) {},
-              onOpenFile: (_) {},
-            ),
-          ),
+  Widget build({
+    bool canInterrupt = false,
+    bool canSteer = false,
+    bool canAttach = true,
+  }) => MaterialApp(
+    theme: buildAleraDarkTheme(),
+    home: Scaffold(
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: AgentChatComposer(
+          controller: composer,
+          workspaceId: 'ws-1',
+          chatId: 'chat-1',
+          settings: _settings,
+          usage: const AgentChatUsage(),
+          canSend: true,
+          canSteer: canSteer,
+          canAttach: canAttach,
+          busy: canInterrupt || canSteer,
+          canInterrupt: canInterrupt,
+          interrupting: false,
+          hintText: 'Message the agent',
+          promptHistory: () => history,
+          onSend: (text, _, {steer = false}) {
+            (steer ? steered : sent).add(text);
+            return true;
+          },
+          onInterrupt: () => interrupts += 1,
+          onConfigure: (_) {},
+          onChoose: (_, _) {},
+          onOpenFile: (_) {},
         ),
-      );
+      ),
+    ),
+  );
 }
 
 Future<_Harness> _pump(
@@ -250,4 +254,22 @@ void main() {
     expect(harness.sent, <String>['Queue this']);
     expect(harness.steered, isEmpty);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('add files waits for a provider that takes attachments', (
+    tester,
+  ) async {
+    final harness = _Harness(<String>[]);
+    addTearDown(harness.composer.dispose);
+    IconButton attach() => tester.widget<IconButton>(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('agent-chat-attach')),
+        matching: find.byType(IconButton),
+        matchRoot: true,
+      ),
+    );
+    await tester.pumpWidget(harness.build(canAttach: false));
+    expect(attach().onPressed, isNull);
+    await tester.pumpWidget(harness.build());
+    expect(attach().onPressed, isNotNull);
+  });
 }

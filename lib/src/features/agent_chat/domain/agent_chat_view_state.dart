@@ -88,6 +88,9 @@ class const AgentChatViewState({
   /// Whether Mod+Enter may steer the message into the running turn.
   bool get canSteer => canSend && busy && thread!.session.capabilities.steer;
 
+  /// Whether the provider takes attachments at all.
+  bool get canAttach => canSend && thread!.session.capabilities.attachments;
+
   bool get canInterrupt =>
       live && busy && !interrupting && thread!.session.capabilities.interrupt;
 
