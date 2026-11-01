@@ -7,6 +7,7 @@
 mod claude_settings;
 mod provider;
 mod skills;
+mod transcript;
 
 pub use claude_agent_sdk::ClaudeAgentOptions;
 pub use claude_settings::claude_settings_base_url;
@@ -15,3 +16,4 @@ pub use skills::{
     claude_user_message_content, discover_skills, plan_claude_skill_dispatch,
     user_invocable_skills, ClaudeSkillDispatch,
 };
+pub use transcript::claude_session_has_no_conversation;

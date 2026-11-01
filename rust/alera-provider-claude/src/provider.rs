@@ -64,6 +64,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
+const EMPTY_SESSION_NOTICE: &str =
+    "The earlier Claude session never saved a message, so a new session continues this chat.";
 const MESSAGE_SOURCE: &str = "claude.sdk.message";
 const PERMISSION_SOURCE: &str = "claude.sdk.permission";
 // SDK MCP control frames share the SDK message source.
@@ -209,7 +211,16 @@ impl Provider for ClaudeProvider {
                 "Claude provider supports one session at a time".into(),
             ));
         }
-        let (options, stepped_down) = self.launch_options(&input)?;
+        let (mut options, stepped_down) = self.launch_options(&input)?;
+        // A session that never saved a message cannot be resumed, so a fresh
+        // one continues the chat; its id binds at init.
+        let replaced = self.fork_source_native_thread_id.is_none()
+            && options.resume.as_deref().is_some_and(|id| {
+                crate::claude_session_has_no_conversation(&options.env, options.cwd.as_deref(), id)
+            });
+        if replaced {
+            options.resume = None;
+        }
         self.session_effort = options.effort.clone();
         let plan_at_start = options.permission_mode.as_deref() == Some("plan")
             && input.options.get("interactionMode").and_then(Value::as_str) == Some("plan");
@@ -228,7 +239,7 @@ impl Provider for ClaudeProvider {
             ClaudeClient::connect(options).await.map_err(sdk_error)?
         };
         self.client = Some(client);
-        let native_thread_id = if self.fork_source_native_thread_id.is_some() {
+        let native_thread_id = if self.fork_source_native_thread_id.is_some() || replaced {
             format!("pending:{}", input.thread_id)
         } else {
             input
@@ -248,6 +259,14 @@ impl Provider for ClaudeProvider {
         };
         self.session = Some(session.clone());
         self.queue_session_events();
+        if replaced {
+            let notice = json!({ "message": EMPTY_SESSION_NOTICE });
+            self.queue(self.event(
+                EventKind::RuntimeWarning,
+                notice.clone(),
+                self.raw("session", notice),
+            ));
+        }
         self.queue_initialize_commands();
         Ok(session)
     }
