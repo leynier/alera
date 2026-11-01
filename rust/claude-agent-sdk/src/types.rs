@@ -337,6 +337,8 @@ pub struct ClaudeAgentOptions {
     pub permission_callback: Option<PermissionCallback>,
     pub mcp_callback: Option<McpCallback>,
     pub mcp_callback_with_context: Option<McpCallbackWithContext>,
+    /// Answers MCP elicitations; without it the client declines them.
+    pub elicitation_callback: Option<crate::ElicitationCallback>,
     pub stderr_callback: Option<StderrCallback>,
 }
 
@@ -389,6 +391,7 @@ impl Default for ClaudeAgentOptions {
             permission_callback: None,
             mcp_callback: None,
             mcp_callback_with_context: None,
+            elicitation_callback: None,
             stderr_callback: None,
         }
     }
@@ -411,6 +414,10 @@ impl fmt::Debug for ClaudeAgentOptions {
             .field(
                 "has_mcp_callback",
                 &(self.mcp_callback.is_some() || self.mcp_callback_with_context.is_some()),
+            )
+            .field(
+                "has_elicitation_callback",
+                &self.elicitation_callback.is_some(),
             )
             .finish()
     }

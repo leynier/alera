@@ -3,13 +3,14 @@
 //! The crate mirrors the provider-facing part of Anthropic's Python SDK while
 //! using Alera's injectable [`alera_agent_transport::JsonTransport`] boundary.
 //! `ClaudeClient` owns a reader task, routes control responses by request id,
-//! answers permission, hook, and MCP callbacks, and bounds every control and
+//! answers permission, hook, MCP and elicitation callbacks, and bounds every control and
 //! shutdown operation with a timeout. No Python runtime is required.
 //!
 //! The port intentionally excludes Python-only session storage and transcript mirroring adapters, Python MCP server objects, plugin helpers, and AnyIO runtime integration. `ClaudeAgentOptions::validate` rejects the currently unrepresentable stderr callback and non-`json_schema` output format, while the other excluded surfaces have no Rust API and therefore cannot be silently selected.
 
 mod client;
 mod control;
+mod elicitation;
 mod error;
 mod message;
 mod process;
@@ -18,6 +19,10 @@ mod rewind_files;
 mod types;
 
 pub use client::ClaudeClient;
+pub use elicitation::{
+    ElicitationAction, ElicitationCallback, ElicitationFuture, ElicitationRequest,
+    ElicitationResult,
+};
 pub use error::{ClaudeSdkError, Result};
 pub use message::{
     AssistantMessage, ContentBlock, ConversationResetMessage, DeferredToolUse, Message,

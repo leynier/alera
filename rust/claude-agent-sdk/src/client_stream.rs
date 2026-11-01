@@ -232,6 +232,14 @@ async fn handle_control_request(
             .unwrap_or_else(|| serde_json::json!({ "jsonrpc": "2.0", "result": {} }));
             Ok(serde_json::json!({ "mcp_response": response }))
         }
+        "elicitation" => match inner.elicitation_callback.clone() {
+            None => Ok(crate::ElicitationResult::decline().to_wire()),
+            Some(callback) => Ok(callback(crate::ElicitationRequest::from_control(
+                request_id, envelope, request,
+            ))
+            .await?
+            .to_wire()),
+        },
         subtype => Err(ClaudeSdkError::Unsupported(format!(
             "incoming control request subtype {subtype}"
         ))),

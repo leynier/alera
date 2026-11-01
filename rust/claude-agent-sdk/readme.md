@@ -22,6 +22,8 @@ The port covers typed stream messages, the provider CLI options that map to comm
 
 File checkpoint launch sets `CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING=true`, matching the checked Python upstream. The adapter enables `--replay-user-messages` to receive checkpoint UUIDs. See the [official checkpoint documentation](https://code.claude.com/docs/en/agent-sdk/file-checkpointing); file rewind does not alter conversation history.
 
+MCP elicitations arrive as `elicitation` control requests and go to `ClaudeAgentOptions.elicitation_callback`, which receives an `ElicitationRequest` (server name, message, `form` or `url` mode, URL, elicitation id, requested schema, title, display name, description and the control context) and answers an `ElicitationResult` written back as `{action, content?}`; content is sent only with `accept`. Without a callback the client declines, as Anthropic's TypeScript SDK 0.3.276 does without `onElicitation`. A `control_cancel_request` aborts the callback without a reply.
+
 Incoming permission callbacks expose the native request id and full envelope through `ToolPermissionContext.control`; `McpCallbackWithContext` provides the same metadata for MCP callbacks while the two-argument `McpCallback` remains available.
 
 `Query::collect` closes a one-shot stream after a result when no delegated task or non-idle session state remains; otherwise it keeps the control channel open for follow-up turns and waits for `session_state_changed: idle` or tracked task completion. `ClaudeAgentOptions::run_end_timeout` bounds that between-turn grace period and defaults to 10 minutes, matching the upstream CLI ceiling.
