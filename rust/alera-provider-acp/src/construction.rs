@@ -28,6 +28,7 @@ impl<T: JsonTransport> AcpProvider<T> {
             closed: false,
             children: Default::default(),
             tracked_tool_calls: Default::default(),
+            usage: Default::default(),
             prompt_lifecycle: Default::default(),
         }
     }

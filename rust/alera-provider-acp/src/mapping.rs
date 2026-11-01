@@ -7,6 +7,7 @@ use crate::permission_payload::approval_payload;
 use crate::questions::classify_request;
 use crate::session_notice::notice_payload;
 use crate::transport::PendingRequest;
+use crate::usage::context_usage;
 use agent_client_protocol::{AcpIncoming, AcpRequestId, RpcRequest};
 use alera_provider_protocol::{
     EventKind, ProviderError, ProviderEvent, ProviderKind, ProviderRefs, RequestKind,
@@ -181,6 +182,14 @@ fn map_notification(
         "config_option_update" | "current_mode_update" => {
             (EventKind::ThreadMetadataUpdated, update.clone(), None)
         }
+        "usage_update" => match context_usage(&update) {
+            Some(payload) => (EventKind::ThreadTokenUsageUpdated, payload, None),
+            None => (
+                EventKind::Unknown("acp.session-update.usage_update".into()),
+                update.clone(),
+                None,
+            ),
+        },
         "notice" => match notice_payload(&update) {
             Some(payload) => (EventKind::RuntimeWarning, payload, None),
             None => (

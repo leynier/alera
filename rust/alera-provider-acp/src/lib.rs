@@ -24,6 +24,7 @@ mod session_notice;
 mod state;
 mod tracked_tool_calls;
 mod transport;
+mod usage;
 
 pub use agent_client_protocol;
 pub use agent_client_protocol::{AcpClientRequestHandler, AcpRequestHandlerContext};

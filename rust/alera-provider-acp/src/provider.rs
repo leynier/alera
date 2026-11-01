@@ -30,6 +30,7 @@ pub struct AcpProvider<T> {
     pub(crate) closed: bool,
     pub(crate) children: crate::native_children::NativeChildren,
     pub(crate) tracked_tool_calls: crate::tracked_tool_calls::TrackedToolCalls,
+    pub(crate) usage: crate::usage::AcpUsageState,
     pub(crate) prompt_lifecycle: crate::prompt_lifecycle::PromptLifecycle,
 }
 #[async_trait]
@@ -227,6 +228,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         self.session = Some(session.clone());
         self.children.clear();
         self.tracked_tool_calls.reset();
+        self.usage.reset();
         let event = ProviderEvent::new(
             self.kind(),
             self.config.provider_instance_id.clone(),
@@ -434,6 +436,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         if follows {
             self.settle_root_event(&mut mapped.event);
         }
+        self.settle_usage(&mut mapped.event);
         mapped.event.validate()?;
         self.apply_mapped_state(&mapped, frame);
         if let Some(pending) = mapped.pending {
@@ -464,6 +467,7 @@ impl<T: JsonTransport> Provider for AcpProvider<T> {
         self.pending_requests.clear();
         self.queued_events.clear();
         self.tracked_tool_calls.reset();
+        self.usage.reset();
         self.prompt_id = None;
         self.prompt_meta_id = None;
         if let Some(session) = self.session.as_mut() {

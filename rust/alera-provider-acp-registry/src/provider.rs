@@ -238,7 +238,8 @@ fn acp_config(config: &AcpRegistryProviderConfig) -> AcpProviderConfig {
         session_mode: None,
         native_child_sessions: config.agent_flavor() == AcpRegistryAgentFlavor::ClaudeAgent,
         custom_models: config.custom_models.clone(),
-        reports_per_turn_prompt_usage: false,
+        // GLM's prompt response counts exactly that prompt, as in T3 Code.
+        reports_per_turn_prompt_usage: config.agent_id == "glm-acp-agent",
     }
 }
 

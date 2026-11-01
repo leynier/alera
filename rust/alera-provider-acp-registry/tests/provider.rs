@@ -189,3 +189,21 @@ fn registry_custom_models_reach_the_acp_runtime() {
         vec!["private-model".to_owned()]
     );
 }
+
+#[test]
+fn only_glm_reports_per_turn_prompt_usage() {
+    for (agent_id, per_turn) in [("glm-acp-agent", true), ("github-copilot-cli", false)] {
+        let config = AcpRegistryProviderConfig {
+            source: AcpRegistrySource::Local,
+            agent_id: agent_id.into(),
+            executable: Some(PathBuf::from("agent")),
+            ..Default::default()
+        };
+        let provider = AcpRegistryProvider::with_transport(MockTransport::new([]), config).unwrap();
+        assert_eq!(
+            provider.inner().config().reports_per_turn_prompt_usage,
+            per_turn,
+            "{agent_id}"
+        );
+    }
+}

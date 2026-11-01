@@ -130,6 +130,11 @@ impl NativeChildren {
         self.running_seen = false;
     }
 
+    /// Whether the agent delegated to any child session.
+    pub(crate) fn any_linked(&self) -> bool {
+        self.children.values().any(|child| child.call.is_some())
+    }
+
     /// Whether any linked child still works, so a failed root turn leaves
     /// its children running.
     pub(crate) fn any_running(&self) -> bool {
