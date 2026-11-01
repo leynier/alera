@@ -114,11 +114,11 @@ async fn only_compact_as_the_whole_first_word_is_the_builtin() {
     for (text, expected) in [
         (
             "/compactor now",
-            json!({ "type": "prompt", "message": "/compactor now" }),
+            json!({ "type": "prompt", "message": "/compactor now", "streamingBehavior": "steer" }),
         ),
         (
             "please /compact",
-            json!({ "type": "prompt", "message": "please /compact" }),
+            json!({ "type": "prompt", "message": "please /compact", "streamingBehavior": "steer" }),
         ),
         // JavaScript's `\s`, like Rust's, treats a no-break space as white space.
         (

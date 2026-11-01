@@ -44,6 +44,17 @@ impl<T: JsonTransport> PiProvider<T> {
         command: &str,
         params: Value,
     ) -> Result<Value, ProviderError> {
+        self.call_within(command, params, self.config.request_timeout)
+            .await
+    }
+
+    /// [`Self::call`] with its own response deadline.
+    pub(crate) async fn call_within(
+        &mut self,
+        command: &str,
+        params: Value,
+        timeout: std::time::Duration,
+    ) -> Result<Value, ProviderError> {
         let id = self.next_request_id();
         self.pending_calls.insert(
             id.clone(),
@@ -60,12 +71,7 @@ impl<T: JsonTransport> PiProvider<T> {
                 ProviderError::from(error)
             })?;
         loop {
-            let received = match tokio::time::timeout(
-                self.config.request_timeout,
-                self.transport.recv(),
-            )
-            .await
-            {
+            let received = match tokio::time::timeout(timeout, self.transport.recv()).await {
                 Ok(Ok(received)) => received,
                 Ok(Err(error)) => {
                     self.remove_pending_call(&id);

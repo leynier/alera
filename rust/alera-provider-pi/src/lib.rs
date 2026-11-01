@@ -16,6 +16,7 @@ mod mcp_extension;
 mod payload;
 mod policy;
 mod provider;
+mod queue;
 mod rpc;
 mod runtime;
 

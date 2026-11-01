@@ -256,6 +256,9 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
         } else if let Some(PromptInput { message, images }) = prompt {
             let mut params = Map::new();
             params.insert("message".into(), Value::String(message));
+            // Pi may already be streaming before Alera hears of it; like T3
+            // Code, let Pi atomically queue the prompt or start an idle run.
+            params.insert("streamingBehavior".into(), Value::String("steer".into()));
             if !images.is_empty() {
                 params.insert("images".into(), Value::Array(images));
             }
@@ -300,6 +303,7 @@ impl<T: JsonTransport> Provider for PiProvider<T> {
             }
         }
         self.interrupt_requested = true;
+        self.clear_native_queue().await;
         // Pi's abort response is only an acknowledgement. The running turn
         // remains active until the later `agent_settled` event.
         let _ = self.call("abort", Value::Object(Map::new())).await?;

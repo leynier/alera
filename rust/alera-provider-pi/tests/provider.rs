@@ -119,9 +119,14 @@ async fn overlapping_turns_are_rejected_and_interrupt_waits_for_settlement() {
     let responses = vec![
         response("alera-pi-1", "get_state", state()),
         json!({ "type": "response", "command": "prompt", "success": true }),
-        response("alera-pi-2", "abort", json!(null)),
+        response(
+            "alera-pi-2",
+            "clear_queue",
+            json!({ "steering": ["also fix the tests"], "followUp": [""] }),
+        ),
+        response("alera-pi-3", "abort", json!(null)),
         json!({ "type": "agent_settled", "aborted": true }),
-        response("alera-pi-3", "get_state", state()),
+        response("alera-pi-4", "get_state", state()),
     ];
     let mut provider = PiProvider::new(MockTransport::new(responses), config());
     provider
@@ -146,6 +151,33 @@ async fn overlapping_turns_are_rejected_and_interrupt_waits_for_settlement() {
         .await
         .unwrap();
     assert!(provider.session().unwrap().active_turn_id.is_some());
+    let commands: Vec<_> = provider
+        .transport()
+        .writes()
+        .iter()
+        .map(|write| write["type"].clone())
+        .collect();
+    // Stop clears Pi's queue before it aborts, and the prompt may queue.
+    assert_eq!(
+        commands,
+        [
+            "get_state",
+            "get_commands",
+            "prompt",
+            "clear_queue",
+            "abort"
+        ]
+    );
+    assert_eq!(
+        provider.transport().writes()[2]["streamingBehavior"],
+        "steer"
+    );
+    let notice = provider.next_event().await.unwrap().unwrap();
+    assert_eq!(notice.kind, EventKind::RuntimeWarning);
+    assert_eq!(
+        notice.payload["message"],
+        "Stop cleared 2 queued messages Pi had not read:\n\nalso fix the tests"
+    );
     let terminal = provider.next_event().await.unwrap().unwrap();
     assert_eq!(terminal.kind, EventKind::TurnCompleted);
     assert_eq!(terminal.payload["state"], "interrupted");
@@ -305,7 +337,10 @@ async fn idless_prompt_ack_does_not_collide_with_abort_response() {
     let responses = vec![
         response("alera-pi-1", "get_state", state()),
         json!({ "type": "response", "command": "prompt", "success": true }),
-        response("alera-pi-2", "abort", json!(null)),
+        // Pi before 0.84.4 rejects clear_queue; Stop still aborts.
+        json!({ "type": "response", "id": "alera-pi-2", "command": "clear_queue",
+            "success": false, "error": "Unknown command: clear_queue" }),
+        response("alera-pi-3", "abort", json!(null)),
     ];
     let mut provider = PiProvider::new(MockTransport::new(responses), config());
     provider
