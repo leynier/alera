@@ -35,6 +35,9 @@ pub(super) async fn child_turn_in(
     let final_assistant_text: Option<String> = sqlx::query_scalar(
         "SELECT json_extract(itemJson, '$.text') FROM agentChatItems \
          WHERE chatId = ? AND turnId = ? AND json_extract(itemJson, '$.type') = 'assistant_message' \
+         AND json_extract(itemJson, '$.normalized.parentItemId') IS NULL \
+         AND json_extract(itemJson, '$.normalized.continuationOf') IS NULL \
+         AND trim(coalesce(json_extract(itemJson, '$.text'), ''), ' ' || char(9, 10, 13)) != '' \
          ORDER BY seq DESC LIMIT 1",
     )
     .bind(chat_id)

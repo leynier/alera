@@ -342,3 +342,39 @@ async fn orchestration_recovers_a_completed_child_turn_outside_its_snapshot() {
         Some("Hello 😀")
     );
 }
+
+#[tokio::test]
+async fn child_turn_result_skips_subagent_continuation_and_blank_items() {
+    let (_dir, store) = store_with_workspace("ws").await;
+    let child = new_chat_id();
+    let mut initial = snapshot(&child, "ws", "child", 0);
+    initial["turns"] = json!([turn(0, "completed")]);
+    let mut main = item("main", "assistant_message", "Main answer");
+    main["turnId"] = json!("t0000");
+    let mut segment = item("main:segment:text:1", "assistant_message", " tail");
+    segment["turnId"] = json!("t0000");
+    segment["normalized"] = json!({"continuationOf": "main", "segmentIndex": 1, "stream": "text"});
+    let mut subagent = item("sub", "assistant_message", "Sub-agent answer");
+    subagent["turnId"] = json!("t0000");
+    subagent["normalized"] = json!({"parentItemId": "call"});
+    let mut blank = item("blank", "assistant_message", " \n\t");
+    blank["turnId"] = json!("t0000");
+    initial["items"] = json!([main, segment, subagent, blank]);
+    store
+        .create_agent_chat(
+            &record(&child, "ws", "child", initial),
+            &tab(&child, "ws", "child"),
+            None,
+        )
+        .await
+        .unwrap();
+    let child_turn = store
+        .chat_orchestration_child_turn(&child, "t0000")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        child_turn.final_assistant_text.as_deref(),
+        Some("Main answer")
+    );
+}

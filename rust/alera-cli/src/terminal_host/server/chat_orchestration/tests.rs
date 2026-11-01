@@ -2,7 +2,7 @@ use serde_json::json;
 
 use super::authorization::modes_at_or_below;
 use super::models::{DelegateMode, OrchestrationRequest, ParsedTarget, WaitUntil};
-use super::tasks::truncate_result;
+use super::tasks::{final_assistant_text, truncate_result};
 
 #[test]
 fn wait_defaults_to_bounded_all_wait() {
@@ -75,4 +75,22 @@ fn mode_ceiling_is_inclusive() {
         modes_at_or_below("auto"),
         vec!["approval-required", "auto-accept-edits", "auto"]
     );
+}
+
+#[test]
+fn final_assistant_text_skips_subagent_continuation_and_blank_items() {
+    let snapshot = json!({"items": [
+        {"turnId": "t1", "type": "assistant_message", "text": "Main answer", "normalized": {}},
+        {"turnId": "t1", "type": "assistant_message", "text": " tail",
+            "normalized": {"continuationOf": "main"}},
+        {"turnId": "t1", "type": "assistant_message", "text": "Sub-agent answer",
+            "normalized": {"parentItemId": "call"}},
+        {"turnId": "t1", "type": "assistant_message", "text": " \n\t", "normalized": {}},
+        {"turnId": "t2", "type": "assistant_message", "text": "Other turn", "normalized": {}},
+    ]});
+    assert_eq!(
+        final_assistant_text(&snapshot, "t1").as_deref(),
+        Some("Main answer")
+    );
+    assert_eq!(final_assistant_text(&snapshot, "t3"), None);
 }

@@ -208,17 +208,23 @@ pub(crate) fn matching_turn(snapshot: &Value, client_message_id: &str) -> Option
     Some((item_id, turn_id))
 }
 
+/// The final answer of the main agent in a turn: its last assistant message
+/// with text. Items a provider-native sub-agent reported (`parentItemId`),
+/// segments of a split message (`continuationOf`) and blank messages are not
+/// the main agent's answer.
 pub(crate) fn final_assistant_text(snapshot: &Value, turn_id: &str) -> Option<String> {
     snapshot
         .get("items")
-        .and_then(Value::as_array)
-        .and_then(|items| {
-            items.iter().rev().find(|item| {
-                item["turnId"] == turn_id
-                    && item["type"] == "assistant_message"
-                    && item.get("text").and_then(Value::as_str).is_some()
-            })
+        .and_then(Value::as_array)?
+        .iter()
+        .rev()
+        .filter(|item| item["turnId"] == turn_id && item["type"] == "assistant_message")
+        .filter(|item| {
+            let normalized = &item["normalized"];
+            normalized.get("parentItemId").is_none_or(Value::is_null)
+                && normalized.get("continuationOf").is_none_or(Value::is_null)
         })
-        .and_then(|item| item.get("text").and_then(Value::as_str))
+        .filter_map(|item| item.get("text").and_then(Value::as_str))
+        .find(|text| !text.trim().is_empty())
         .map(ToOwned::to_owned)
 }
