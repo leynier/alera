@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_action_rows.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_compacting_text.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_item_rows.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
@@ -41,7 +42,9 @@ class const AgentChatLiveWorkRow({
           child: Row(
             children: <Widget>[
               Icon(
-                current == null
+                work.compacting
+                    ? AleraIcons.contextCompact
+                    : current == null
                     ? AleraIcons.sparkles
                     : agentChatActionIcon(current.kind),
                 size: AleraTokens.space16,
@@ -53,7 +56,14 @@ class const AgentChatLiveWorkRow({
                   mainAxisSize: .min,
                   crossAxisAlignment: .start,
                   children: <Widget>[
-                    AgentChatShimmerText(text: work.label, style: style),
+                    if (work.compacting)
+                      AgentChatCompactingText(
+                        key: const ValueKey<String>('agent-chat-compacting'),
+                        since: work.compactingSince,
+                        style: style,
+                      )
+                    else
+                      AgentChatShimmerText(text: work.label, style: style),
                     if (work.reasoning case final reasoning?)
                       Text(
                         reasoning,
