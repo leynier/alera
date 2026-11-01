@@ -5,7 +5,7 @@
 //! ledger stays the source of truth, so a chat that cannot take the record
 //! (an older satellite, a chat archived meanwhile) only loses the row.
 
-use alera_core::runtime::{ChatOrchestrationTaskStatus, RuntimeStore};
+use alera_core::runtime::{ChatOrchestrationTaskStatus, ChatOrchestrationWakeEntry, RuntimeStore};
 use serde_json::{json, Value};
 
 use super::authorization::OrchestrationCaller;
@@ -51,25 +51,26 @@ pub(super) async fn record_delegated_brief(
     record(runtime, transfer).await;
 }
 
-/// The settled tasks among `task_ids` were delivered to `parent_chat_id` by
+/// The settled tasks among `entries` were delivered to `parent_chat_id` by
 /// a wake that started `turn_id` (none while the wake waits in the queue).
+/// Each entry counts with the status its cohort froze.
 pub(super) async fn record_delegated_results(
     store: &RuntimeStore,
     runtime: &dyn ChatOrchestrationRuntime,
     parent_chat_id: &str,
-    task_ids: &[String],
+    entries: &[ChatOrchestrationWakeEntry],
     turn_id: Option<&str>,
 ) {
-    for task_id in task_ids {
-        let Ok(Some(task)) = store.chat_orchestration_task(task_id).await else {
-            continue;
-        };
-        let failed = match task.status {
+    for entry in entries {
+        let failed = match entry.task_status {
             ChatOrchestrationTaskStatus::Completed => false,
             ChatOrchestrationTaskStatus::Failed
             | ChatOrchestrationTaskStatus::Interrupted
             | ChatOrchestrationTaskStatus::Cancelled => true,
             _ => continue,
+        };
+        let Ok(Some(task)) = store.chat_orchestration_task(&entry.task_id).await else {
+            continue;
         };
         let Some(child_chat_id) = task.child_chat_id.as_deref() else {
             continue;

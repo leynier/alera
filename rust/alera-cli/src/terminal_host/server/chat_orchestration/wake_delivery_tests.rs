@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use crate::terminal_host::server::agent_chat_runtime::commands::SendInput;
 
 use super::test_support::{children, human, wait_idle, TestHarness, TEST_DEADLINE};
+use super::wake_content_tests::sealed_wake_text;
 use super::wakes::deliver_next_wake;
 
 #[tokio::test]
@@ -147,18 +148,16 @@ async fn sealed_wake_replays_after_sql_reopen_without_a_second_parent_turn() {
         .iter()
         .map(|entry| entry.task_id.clone())
         .collect();
+    let text = sealed_wake_text(&harness, &sealed).await;
     harness
         .runtime
         .send(
             &parent,
             SendInput {
                 client_message_id: sealed.client_message_id.clone(),
-            text: format!(
-                "Orchestration updates are available for task IDs: {}. Read each task for its result.",
-                task_ids.join(", ")
-            ),
+                text,
                 attachments: Vec::new(),
-            delivery: "queue".into(),
+                delivery: "queue".into(),
                 model: None,
                 reasoning_effort: None,
                 interaction_mode: None,

@@ -4,10 +4,11 @@ use alera_core::runtime::RuntimeStore;
 use serde_json::{json, Value};
 
 use super::runtime::ChatOrchestrationRuntime;
-use crate::terminal_host::host_error::HostResult;
+use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::agent_chat_runtime::commands::{CallerCtx, SendInput};
 
 use super::service::OrchestrationEventSink;
+use super::wake_text::{wake_text, WakeTask};
 
 /// Seals and delivers one durable cohort only while the parent has no active
 /// turn, no background work, no pending request and no interrupt within the
@@ -41,7 +42,7 @@ pub(crate) async fn deliver_next_wake(
     let Some(wake) = store
         .seal_chat_orchestration_wake(parent_chat_id)
         .await
-        .map_err(|error| crate::terminal_host::host_error::HostError::state(error.to_string()))?
+        .map_err(|error| HostError::state(error.to_string()))?
     else {
         return Ok(false);
     };
@@ -50,10 +51,15 @@ pub(crate) async fn deliver_next_wake(
         .iter()
         .map(|entry| entry.task_id.clone())
         .collect();
-    let text = format!(
-        "Orchestration updates are available for task IDs: {}. Read each task for its result.",
-        task_ids.join(", ")
-    );
+    let mut tasks = Vec::with_capacity(wake.entries.len());
+    for entry in &wake.entries {
+        let task = store
+            .chat_orchestration_task(&entry.task_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        tasks.push(WakeTask::from_entry(entry, task.as_ref()));
+    }
+    let text = wake_text(&tasks);
     let send = runtime
         .send(
             parent_chat_id,
@@ -78,32 +84,40 @@ pub(crate) async fn deliver_next_wake(
             },
         )
         .await;
-    match send {
-        Ok(sent) => {
-            super::transfers::record_delegated_results(
-                store,
-                runtime,
-                parent_chat_id,
-                &task_ids,
-                sent.get("turnId").and_then(Value::as_str),
-            )
-            .await;
-            let delivered = store
-                .ack_chat_orchestration_wake(parent_chat_id, wake.generation)
-                .await
-                .map_err(|error| {
-                    crate::terminal_host::host_error::HostError::state(error.to_string())
-                })?;
-            for entry in delivered.entries {
-                events
-                    .changed(json!({
-                        "taskId": entry.task_id,
-                        "parentChatId": parent_chat_id,
-                    }))
-                    .await;
-            }
-            Ok(true)
+    let turn_id = match send {
+        Ok(sent) => sent
+            .get("turnId")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        // The message id already names a message: a cohort an older binary
+        // sealed with other text, or one whose rows changed since the first
+        // send. Either way the parent already has it.
+        Err(HostError::Conflict { code, .. })
+            if code == "request_conflict" || code == "request_resolved" =>
+        {
+            None
         }
-        Err(_) => Ok(false),
+        Err(_) => return Ok(false),
+    };
+    super::transfers::record_delegated_results(
+        store,
+        runtime,
+        parent_chat_id,
+        &wake.entries,
+        turn_id.as_deref(),
+    )
+    .await;
+    let delivered = store
+        .ack_chat_orchestration_wake(parent_chat_id, wake.generation)
+        .await
+        .map_err(|error| HostError::state(error.to_string()))?;
+    for entry in delivered.entries {
+        events
+            .changed(json!({
+                "taskId": entry.task_id,
+                "parentChatId": parent_chat_id,
+            }))
+            .await;
     }
+    Ok(true)
 }
