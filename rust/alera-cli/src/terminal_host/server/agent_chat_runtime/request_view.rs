@@ -1,7 +1,7 @@
 //! Projects a provider's runtime request into the client request record,
 //! offering exactly the decisions that adapter can honor.
 
-use alera_provider_protocol::{RequestKind, RuntimeRequest};
+use alera_provider_protocol::{RequestKind, RuntimeRequest, USER_INPUT_OPTION_PREVIEWS};
 use serde_json::{json, Value};
 
 use super::wire::{json, ChatRequest};
@@ -11,6 +11,10 @@ const ACCEPT_FOR_SESSION: &str = "acceptForSession";
 const ACCEPT_ALWAYS: &str = "acceptAlways";
 const DECLINE: &str = "decline";
 const CANCEL: &str = "cancel";
+
+/// Longest option preview kept, because the request record is persisted
+/// with the chat header.
+const MAX_OPTION_PREVIEW_CHARS: usize = 16_000;
 
 pub(crate) fn request_kind_wire(kind: RequestKind) -> String {
     json(&kind).as_str().unwrap_or("unknown").to_string()
@@ -79,7 +83,7 @@ pub(crate) fn build_request_view(
         command,
         cwd: lookup("cwd"),
         path: lookup("path").or_else(|| lookup("filePath")),
-        questions: request.questions.iter().map(json).collect(),
+        questions: question_views(request),
         decisions,
         elicitation: (request.kind == RequestKind::McpElicitationApproval)
             .then(|| elicitation(args, native)),
@@ -101,6 +105,38 @@ fn default_title(kind: RequestKind) -> &'static str {
         RequestKind::DynamicToolCall => "The agent called a client tool",
         RequestKind::AuthTokensRefresh => "Refresh credentials",
         RequestKind::Unknown => "The agent needs a response",
+    }
+}
+
+/// The questions, each option carrying the preview its provider sent in the
+/// payload's [USER_INPUT_OPTION_PREVIEWS] side channel.
+fn question_views(request: &RuntimeRequest) -> Vec<Value> {
+    let previews = request.payload.get(USER_INPUT_OPTION_PREVIEWS);
+    request
+        .questions
+        .iter()
+        .map(|question| {
+            let mut view = json(question);
+            let aligned = previews
+                .and_then(|previews| previews.get(&question.id))
+                .and_then(Value::as_array);
+            let options = view.get_mut("options").and_then(Value::as_array_mut);
+            if let (Some(aligned), Some(options)) = (aligned, options) {
+                for (option, preview) in options.iter_mut().zip(aligned) {
+                    if let Some(preview) = preview.as_str().filter(|text| !text.trim().is_empty()) {
+                        option["preview"] = Value::String(bounded_preview(preview));
+                    }
+                }
+            }
+            view
+        })
+        .collect()
+}
+
+fn bounded_preview(preview: &str) -> String {
+    match preview.char_indices().nth(MAX_OPTION_PREVIEW_CHARS) {
+        Some((end, _)) => preview[..end].to_string(),
+        None => preview.to_string(),
     }
 }
 
@@ -186,32 +222,5 @@ fn muse_decisions(native: &Value) -> Vec<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn acp_decisions_follow_the_offered_options() {
-        let native = json!({"options": [
-            {"kind": "allow_once", "optionId": "a"},
-            {"kind": "reject_once", "optionId": "r"},
-        ]});
-        assert_eq!(
-            approval_decisions("acpRegistry", &native),
-            vec!["accept", "decline", "cancel"]
-        );
-        let grok = json!({"options": [
-            {"kind": "allow_always", "optionId": "allow-edits-session"},
-            {"kind": "allow_always", "optionId": "forever"},
-        ]});
-        assert_eq!(
-            approval_decisions("grok", &grok),
-            vec!["acceptForSession", "acceptAlways", "cancel"]
-        );
-    }
-
-    #[test]
-    fn providers_without_session_scope_do_not_offer_it() {
-        assert!(!approval_decisions("pi", &json!({})).contains(&"acceptForSession".to_string()));
-        assert!(approval_decisions("cursor", &json!({})).is_empty());
-    }
-}
+#[path = "request_view_tests.rs"]
+mod tests;
