@@ -52,10 +52,24 @@ impl<T: JsonTransport> Provider for AntigravityProvider<T> {
         self.inner.capabilities()
     }
 
+    /// Before a session exists, the wire support: thinking levels are set
+    /// through the session's `thought_level` option at start and before a
+    /// turn, so the runtime may pass a level the catalog verified. A live
+    /// session reports its own levels.
     fn reasoning_effort_capabilities(
         &self,
     ) -> alera_provider_protocol::ReasoningEffortCapabilities {
-        self.inner.reasoning_effort_capabilities()
+        if self.inner.session().is_some() {
+            return self.inner.reasoning_effort_capabilities();
+        }
+        alera_provider_protocol::ReasoningEffortCapabilities {
+            session: true,
+            turn: true,
+            model_specific: true,
+            values: Vec::new(),
+            session_wire_field: Some("session/set_config_option {configId,value}".into()),
+            turn_wire_field: Some("session/set_config_option before session/prompt".into()),
+        }
     }
 
     fn session(&self) -> Option<&alera_provider_protocol::ProviderSession> {
