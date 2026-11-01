@@ -103,7 +103,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("mode", one_of("Wait mode.", &["async", "wait"])),
                         ("waitSeconds", clamped_integer("Bounded wait time.", 1, MAX_WAIT_SECONDS)),
                         ("agent", json!({"type": "object", "description": "Provider/model selection: providerInstanceId, model, options.reasoningEffort. A new chat defaults to this chat's provider instance, its model on the same instance, and its effort when the instance, model and host match and options is absent; options {} clears the effort."})),
-                        ("runtimeMode", one_of("Runtime policy ceiling.", RUNTIME_MODES)),
+                        ("runtimeMode", one_of("Defaults to this chat's mode; omit it unless the user asks for a supervised child. approval-required and auto-accept-edits pause the child at each approval until a person approves it in the child chat. It is not a read-only switch: state limits in the task. A mode above this chat's fails with mode_ceiling.", RUNTIME_MODES)),
                         ("interactionMode", one_of("Interaction mode.", INTERACTION_MODES)),
                     ],
                     &["task", "target"],
