@@ -61,7 +61,10 @@ fn is_question(request: &Value) -> bool {
 /// Who answers the open requests: the agent parent only when every one is a
 /// question routed to it.
 pub(super) fn input_owner(task: &ChatOrchestrationTask, requests: &[&Value]) -> &'static str {
-    if agent_parent(task).is_some() && !requests.is_empty() && requests.iter().all(|r| is_question(r)) {
+    if agent_parent(task).is_some()
+        && !requests.is_empty()
+        && requests.iter().all(|r| is_question(r))
+    {
         INPUT_OWNER_PARENT
     } else {
         INPUT_OWNER_PERSON
@@ -75,13 +78,20 @@ pub(super) fn question_text(task: &ChatOrchestrationTask, child: &str, request: 
     let title = task
         .title
         .as_deref()
-        .map(|title| format!(" ({})", title.split_whitespace().collect::<Vec<_>>().join(" ")))
+        .map(|title| {
+            format!(
+                " ({})",
+                title.split_whitespace().collect::<Vec<_>>().join(" ")
+            )
+        })
         .unwrap_or_default();
     let mut text = format!(
         "Delegated task {}{title} asked a question in chat {child} (request {request_id}).",
         task.task_id
     );
-    let questions = request["questions"].as_array().filter(|questions| !questions.is_empty());
+    let questions = request["questions"]
+        .as_array()
+        .filter(|questions| !questions.is_empty());
     match questions {
         Some(questions) => {
             for question in questions {
@@ -213,7 +223,12 @@ impl ChatOrchestrationService {
 
     /// Cancels the queued question messages from `child` in `parent` whose
     /// request is not in `keep`.
-    pub(super) async fn withdraw_questions(&self, parent: &str, child: &str, keep: &HashSet<String>) {
+    pub(super) async fn withdraw_questions(
+        &self,
+        parent: &str,
+        child: &str,
+        keep: &HashSet<String>,
+    ) {
         let Ok(snapshot) = self.runtime.snapshot(parent).await else {
             return;
         };
@@ -224,13 +239,19 @@ impl ChatOrchestrationService {
             .flatten()
             .filter_map(|entry| {
                 let request = entry["clientMessageId"].as_str()?.strip_prefix(&prefix)?;
-                (!keep.contains(request)).then(|| entry["queueId"].as_str().map(ToOwned::to_owned))?
+                (!keep.contains(request))
+                    .then(|| entry["queueId"].as_str().map(ToOwned::to_owned))?
             })
             .collect();
         for queue_id in stale {
             let _ = self
                 .runtime
-                .command(parent, ChatOp::QueueCancel { queue_id }, CallerCtx::runtime(), None)
+                .command(
+                    parent,
+                    ChatOp::QueueCancel { queue_id },
+                    CallerCtx::runtime(),
+                    None,
+                )
                 .await;
         }
     }
@@ -241,7 +262,8 @@ impl ChatOrchestrationService {
             return;
         };
         if let (Some(parent), Some(child)) = (&task.parent_chat_id, &task.child_chat_id) {
-            self.withdraw_questions(parent, child, &HashSet::new()).await;
+            self.withdraw_questions(parent, child, &HashSet::new())
+                .await;
         }
     }
 

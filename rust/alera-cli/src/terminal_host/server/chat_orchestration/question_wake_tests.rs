@@ -25,8 +25,16 @@ async fn busy_parent(harness: &TestHarness) -> Busy {
     Busy { parent, agent }
 }
 
-async fn delegate(harness: &TestHarness, caller: &OrchestrationCaller, notify: &str, parent: Option<&str>) -> (String, String) {
-    let mut payload = delegate_payload(&format!("ask-{notify}"), json!({"workspace": {"workspaceId": "ws-a"}}));
+async fn delegate(
+    harness: &TestHarness,
+    caller: &OrchestrationCaller,
+    notify: &str,
+    parent: Option<&str>,
+) -> (String, String) {
+    let mut payload = delegate_payload(
+        &format!("ask-{notify}"),
+        json!({"workspace": {"workspaceId": "ws-a"}}),
+    );
     payload["notify"] = json!(notify);
     if let Some(parent) = parent {
         payload["parentChatId"] = json!(parent);
@@ -46,7 +54,11 @@ async fn queued_questions(harness: &TestHarness, parent: &str) -> Vec<Value> {
         .as_array()
         .unwrap()
         .iter()
-        .filter(|entry| entry["clientMessageId"].as_str().is_some_and(|id| id.starts_with(PREFIX)))
+        .filter(|entry| {
+            entry["clientMessageId"]
+                .as_str()
+                .is_some_and(|id| id.starts_with(PREFIX))
+        })
         .cloned()
         .collect()
 }
@@ -86,7 +98,10 @@ async fn a_question_reaches_the_agent_parent_once_without_flagging_the_person() 
     let harness = TestHarness::new().await;
     let busy = busy_parent(&harness).await;
     let (task, child) = delegate(&harness, &busy.agent, "always", None).await;
-    harness.control(&child).await.request_input(1, "native-question");
+    harness
+        .control(&child)
+        .await
+        .request_input(1, "native-question");
     harness.task_status(&task, Status::NeedsInput).await;
     let queued = wait_for_questions(&harness, &busy.parent, 1).await;
     let request = child_request(&harness, &child).await;
@@ -102,12 +117,14 @@ async fn a_question_reaches_the_agent_parent_once_without_flagging_the_person() 
     assert!(text.contains("Question choice: Which target?"), "{text}");
     assert!(text.contains("chat_respond"));
     assert_eq!(input_owner(&harness, &task).await, "parent");
-    assert!(!harness
-        .store
-        .agent_chat_attention(&busy.parent)
-        .await
-        .unwrap()
-        .child_needs_input);
+    assert!(
+        !harness
+            .store
+            .agent_chat_attention(&busy.parent)
+            .await
+            .unwrap()
+            .child_needs_input
+    );
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(queued_questions(&harness, &busy.parent).await.len(), 1);
     assert!(harness
@@ -124,17 +141,22 @@ async fn an_approval_still_flags_the_person_and_sends_nothing() {
     let harness = TestHarness::new().await;
     let busy = busy_parent(&harness).await;
     let (task, child) = delegate(&harness, &busy.agent, "always", None).await;
-    harness.control(&child).await.request_approval(1, "native-approval");
+    harness
+        .control(&child)
+        .await
+        .request_approval(1, "native-approval");
     harness.task_status(&task, Status::NeedsInput).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(queued_questions(&harness, &busy.parent).await.is_empty());
     assert_eq!(input_owner(&harness, &task).await, "person");
-    assert!(harness
-        .store
-        .agent_chat_attention(&busy.parent)
-        .await
-        .unwrap()
-        .child_needs_input);
+    assert!(
+        harness
+            .store
+            .agent_chat_attention(&busy.parent)
+            .await
+            .unwrap()
+            .child_needs_input
+    );
     harness.finish().await;
 }
 
@@ -171,7 +193,10 @@ async fn a_cancelled_task_withdraws_its_pending_question() {
     let harness = TestHarness::new().await;
     let busy = busy_parent(&harness).await;
     let (task, child) = delegate(&harness, &busy.agent, "always", None).await;
-    harness.control(&child).await.request_input(1, "native-question");
+    harness
+        .control(&child)
+        .await
+        .request_input(1, "native-question");
     wait_for_questions(&harness, &busy.parent, 1).await;
     harness
         .service
@@ -208,11 +233,13 @@ async fn notify_never_and_person_owned_tasks_keep_flagging_and_send_nothing() {
     assert!(queued_questions(&harness, &busy.parent).await.is_empty());
     assert_eq!(input_owner(&harness, &silent).await, "person");
     assert_eq!(input_owner(&harness, &person).await, "person");
-    assert!(harness
-        .store
-        .agent_chat_attention(&busy.parent)
-        .await
-        .unwrap()
-        .child_needs_input);
+    assert!(
+        harness
+            .store
+            .agent_chat_attention(&busy.parent)
+            .await
+            .unwrap()
+            .child_needs_input
+    );
     harness.finish().await;
 }

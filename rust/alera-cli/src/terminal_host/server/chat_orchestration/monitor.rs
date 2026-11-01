@@ -86,7 +86,12 @@ impl ChatOrchestrationService {
         });
     }
 
-    async fn monitor_task(&self, task_id: String, child_chat_id: String, client_message_id: String) {
+    async fn monitor_task(
+        &self,
+        task_id: String,
+        child_chat_id: String,
+        client_message_id: String,
+    ) {
         self.follow_task(&task_id, child_chat_id, client_message_id)
             .await;
         if !self.jobs.is_closed() {

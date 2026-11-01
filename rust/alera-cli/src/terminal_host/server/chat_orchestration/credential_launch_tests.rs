@@ -62,5 +62,10 @@ async fn injected_mcp_launch_parses_the_real_cli_with_its_runtime_and_credential
         launch.env.get("ALERA_CHAT_CREDENTIAL_FILE")
     );
     assert!(serve.chat_credential_file.is_some());
+    assert_eq!(
+        launch.instructions,
+        super::instructions::orchestration_instruction_sections(&launch.provider)
+    );
+    assert!(launch.instructions[0].contains("chat_delegate"));
     harness.finish().await;
 }

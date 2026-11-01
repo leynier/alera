@@ -72,7 +72,13 @@ async fn child_summary_counts_only_open_tasks_and_keeps_input_and_failure_signal
         .set_chat_orchestration_input_owner("input", INPUT_OWNER_PERSON)
         .await
         .unwrap();
-    assert!(store.agent_chat_attention(&id).await.unwrap().child_needs_input);
+    assert!(
+        store
+            .agent_chat_attention(&id)
+            .await
+            .unwrap()
+            .child_needs_input
+    );
     store.mark_agent_chat_read(&id, 0).await.unwrap();
     store.archive_agent_chat(&id).await.unwrap();
     sqlx::query("DELETE FROM agentChatSessions WHERE chatId = ?")

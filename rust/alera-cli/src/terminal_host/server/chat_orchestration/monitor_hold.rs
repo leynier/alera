@@ -32,7 +32,11 @@ pub(super) type Quiet = Option<(Instant, Value)>;
 
 /// Open requests of the head turn; while the task is held, requests with no
 /// turn count too.
-pub(super) fn pending_requests<'a>(snapshot: &'a Value, turn_id: &str, held: bool) -> Vec<&'a Value> {
+pub(super) fn pending_requests<'a>(
+    snapshot: &'a Value,
+    turn_id: &str,
+    held: bool,
+) -> Vec<&'a Value> {
     snapshot["pendingRequests"]
         .as_array()
         .into_iter()

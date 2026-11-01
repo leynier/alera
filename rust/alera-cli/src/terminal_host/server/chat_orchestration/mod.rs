@@ -13,6 +13,7 @@ mod delegate_wait;
 mod delegation;
 mod delegation_options;
 mod followups;
+mod instructions;
 mod job_lifecycle;
 mod lineage;
 mod messages;

@@ -66,7 +66,7 @@ pub(super) fn build_config(
         }
         "claudeAgent" => {
             reject_args("Claude Code", instance)?;
-            let config = alera_provider_claude::ClaudeProviderConfig {
+            let mut config = alera_provider_claude::ClaudeProviderConfig {
                 provider_instance_id: launch.provider_instance_id.clone(),
                 options: alera_provider_claude::ClaudeAgentOptions {
                     cli_path: executable,
@@ -76,6 +76,14 @@ pub(super) fn build_config(
                     ..Default::default()
                 },
             };
+            // Orchestration instructions ride next to the provider's own
+            // system prompt; a fork clones these options.
+            if !launch.instructions.is_empty() {
+                config.options.extra_args.insert(
+                    "append-system-prompt".into(),
+                    Some(launch.instructions.join("\n\n")),
+                );
+            }
             Ok(ProductionConfig::Claude(Box::new(config)))
         }
         "cursor" => connections::cursor(launch, env, model),

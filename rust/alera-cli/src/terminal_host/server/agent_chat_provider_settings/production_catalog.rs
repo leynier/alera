@@ -242,6 +242,7 @@ pub(super) fn probe_launch(
         instance: instance.cloned(),
         mcp_servers: Vec::new(),
         env: BTreeMap::new(),
+        instructions: Vec::new(),
     }
 }
 

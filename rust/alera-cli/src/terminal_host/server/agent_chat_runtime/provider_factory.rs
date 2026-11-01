@@ -104,6 +104,9 @@ pub(crate) struct ProviderLaunch {
     pub mcp_servers: Vec<McpServerSpec>,
     /// Filled by launch hooks: extra process environment for this chat.
     pub env: BTreeMap<String, String>,
+    /// Filled by launch hooks: orchestration instruction sections the
+    /// provider receives with its session (`production_instructions`).
+    pub instructions: Vec<String>,
 }
 
 /// Runs before every provider spawn so other host modules can attach

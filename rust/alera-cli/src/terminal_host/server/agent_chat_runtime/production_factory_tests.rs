@@ -29,6 +29,7 @@ fn launch(provider: &str) -> ProviderLaunch {
             ("SHARED".into(), "hook".into()),
             ("ALERA_CHAT_ID".into(), "chat".into()),
         ]),
+        instructions: Vec::new(),
     }
 }
 
@@ -86,6 +87,18 @@ fn all_nine_builders_preserve_identity_model_cwd_and_environment() {
                 assert_eq!(config.options.env, environment(&launch));
                 assert_eq!(config.provider_instance_id, launch.provider_instance_id);
                 assert!(config.options.permission_mode.is_none());
+                assert!(config.options.extra_args.is_empty());
+                let mut instructed = launch.clone();
+                instructed.instructions = vec!["First.".into(), "Second.".into()];
+                let ProductionConfig::Claude(config) =
+                    build_config(&instructed, &environment(&instructed)).unwrap()
+                else {
+                    panic!("claude");
+                };
+                assert_eq!(
+                    config.options.extra_args.get("append-system-prompt"),
+                    Some(&Some("First.\n\nSecond.".to_owned()))
+                );
             }
             ProductionConfig::Cursor(config, Some(bridge)) => {
                 assert_process(

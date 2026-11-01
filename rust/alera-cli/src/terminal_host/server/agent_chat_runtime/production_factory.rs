@@ -15,6 +15,8 @@ use super::provider_factory::{
 #[cfg(test)]
 #[path = "production_factory_acp_tests.rs"]
 mod acp_tests;
+#[path = "production_instructions.rs"]
+mod instructions;
 #[path = "production_launch_config.rs"]
 mod launch_config;
 #[path = "production_opencode_generation.rs"]
@@ -36,9 +38,8 @@ use inspection::resolve_instance;
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ProductionProviderFactory;
 
-#[async_trait]
-impl ProviderFactory for ProductionProviderFactory {
-    async fn spawn(&self, launch: &ProviderLaunch) -> Result<BoxedProvider, ProviderError> {
+impl ProductionProviderFactory {
+    async fn spawn_adapter(launch: &ProviderLaunch) -> Result<BoxedProvider, ProviderError> {
         let mut launch = launch.clone();
         launch.instance = resolve_instance(launch.instance.as_ref()).await?;
         let launch = &launch;
@@ -94,7 +95,20 @@ impl ProviderFactory for ProductionProviderFactory {
             }
         }
     }
+}
 
+#[async_trait]
+impl ProviderFactory for ProductionProviderFactory {
+    /// The adapter, wrapped outermost so orchestration instructions reach
+    /// providers without a system prompt flag.
+    async fn spawn(&self, launch: &ProviderLaunch) -> Result<BoxedProvider, ProviderError> {
+        let provider = Self::spawn_adapter(launch).await?;
+        Ok(instructions::instructed(
+            provider,
+            &launch.provider,
+            &launch.instructions,
+        ))
+    }
     async fn availability(
         &self,
         provider: &str,
@@ -120,6 +134,7 @@ impl ProviderFactory for ProductionProviderFactory {
             instance: instance.cloned(),
             mcp_servers: Vec::new(),
             env: BTreeMap::new(),
+            instructions: Vec::new(),
         };
         let executable =
             match build_config(&launch, &environment).map_err(|error| error.to_string())? {

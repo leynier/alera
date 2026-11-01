@@ -77,6 +77,7 @@ fn launch() -> ProviderLaunch {
         }),
         mcp_servers: Vec::new(),
         env: BTreeMap::new(),
+        instructions: Vec::new(),
     }
 }
 

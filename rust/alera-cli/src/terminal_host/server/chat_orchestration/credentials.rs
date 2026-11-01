@@ -199,6 +199,9 @@ impl ProviderLaunchHook for ChatCredentialLaunchHook {
             },
         });
         launch.env.insert(CREDENTIAL_ENV.into(), credential_path);
+        // Assigned, not extended: a second prepare leaves one copy.
+        launch.instructions =
+            super::instructions::orchestration_instruction_sections(&launch.provider);
         Ok(())
     }
 

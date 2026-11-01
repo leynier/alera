@@ -92,6 +92,7 @@ impl ChatSession {
             instance: self.deps.instances.find(&self.header.provider_instance_id),
             mcp_servers: Vec::new(),
             env: Default::default(),
+            instructions: Vec::new(),
         };
         let hooks = self
             .deps
