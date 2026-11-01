@@ -284,10 +284,10 @@ fn normalize_copilot_task_tool(
     });
     if terminal {
         payload["status"] = Value::String(
-            if status == "failed" {
-                "failed"
-            } else {
-                "completed"
+            match status {
+                "failed" => "failed",
+                "cancelled" | "stopped" => "cancelled",
+                _ => "completed",
             }
             .into(),
         );

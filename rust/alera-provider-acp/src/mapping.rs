@@ -1,7 +1,7 @@
 use crate::mapping_turn::{prompt_complete, state_update, turn_completed};
 use crate::mapping_values::{
     available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id,
-    permission_kind, string, terminal_state, tool_payload,
+    permission_kind, string, terminal_state, tool_event_kind, tool_payload,
 };
 use crate::questions::extract_questions;
 use crate::transport::PendingRequest;
@@ -151,14 +151,7 @@ fn map_notification(
             string(update.get("terminalId")),
         ),
         "tool_call" | "tool_call_update" => {
-            let status = update.get("status").and_then(Value::as_str);
-            let kind = if status == Some("completed") || status == Some("failed") {
-                EventKind::ItemCompleted
-            } else if name == "tool_call" {
-                EventKind::ItemStarted
-            } else {
-                EventKind::ItemUpdated
-            };
+            let kind = tool_event_kind(name, &update);
             let is_mcp = is_mcp_tool_call(&update) || is_mcp_tool_call(&params);
             (
                 kind,

@@ -1,7 +1,7 @@
 use agent_client_protocol::AcpRequestId;
 use alera_provider_protocol::{
-    CanonicalItemType, ItemStatus, ProviderSlashCommand, ProviderSlashCommandsUpdate, RequestKind,
-    TurnStatus,
+    CanonicalItemType, EventKind, ItemStatus, ProviderSlashCommand, ProviderSlashCommandsUpdate,
+    RequestKind, TurnStatus,
 };
 use serde_json::{json, Value};
 
@@ -86,12 +86,7 @@ pub(crate) fn tool_payload(update: &Value, is_mcp: bool) -> Value {
     };
     json!({
         "itemType": item_type,
-        "status": update.get("status").and_then(Value::as_str).map(|status| match status {
-            "completed" => ItemStatus::Completed,
-            "failed" => ItemStatus::Failed,
-            "declined" => ItemStatus::Declined,
-            _ => ItemStatus::InProgress,
-        }),
+        "status": tool_status(update),
         "title": update.get("title").and_then(Value::as_str),
         "detail": update
             .get("content")
@@ -99,6 +94,30 @@ pub(crate) fn tool_payload(update: &Value, is_mcp: bool) -> Value {
             .or_else(|| update.get("detail").and_then(Value::as_str)),
         "data": update,
     })
+}
+
+/// The item status of a tool call update. A cancelled call settles as failed,
+/// as in T3 Code, so it never stays running after its turn ends.
+pub(crate) fn tool_status(update: &Value) -> Option<ItemStatus> {
+    let status = update.get("status").and_then(Value::as_str)?;
+    Some(match status {
+        "completed" => ItemStatus::Completed,
+        "failed" | "cancelled" | "canceled" => ItemStatus::Failed,
+        "declined" => ItemStatus::Declined,
+        _ => ItemStatus::InProgress,
+    })
+}
+
+/// The event kind of a `tool_call` or `tool_call_update` named `name`: any
+/// terminal status completes the item.
+pub(crate) fn tool_event_kind(name: &str, update: &Value) -> EventKind {
+    match tool_status(update) {
+        Some(ItemStatus::Completed | ItemStatus::Failed | ItemStatus::Declined) => {
+            EventKind::ItemCompleted
+        }
+        _ if name == "tool_call" => EventKind::ItemStarted,
+        _ => EventKind::ItemUpdated,
+    }
 }
 
 pub(crate) fn is_mcp_tool_call(value: &Value) -> bool {
@@ -171,6 +190,50 @@ mod permission_tests {
         assert_eq!(
             permission_kind(&json!({"toolCall":{"kind":"read"}})),
             RequestKind::PermissionApproval
+        );
+    }
+}
+
+#[cfg(test)]
+mod tool_status_tests {
+    use super::{tool_event_kind, tool_status};
+    use alera_provider_protocol::{EventKind, ItemStatus};
+    use serde_json::json;
+
+    #[test]
+    fn cancelled_tool_calls_settle_as_failed() {
+        for status in ["cancelled", "canceled", "failed"] {
+            let update = json!({"status": status});
+            assert_eq!(tool_status(&update), Some(ItemStatus::Failed));
+            assert_eq!(
+                tool_event_kind("tool_call_update", &update),
+                EventKind::ItemCompleted
+            );
+        }
+    }
+
+    #[test]
+    fn other_statuses_keep_their_meaning() {
+        assert_eq!(
+            tool_status(&json!({"status":"declined"})),
+            Some(ItemStatus::Declined)
+        );
+        assert_eq!(
+            tool_status(&json!({"status":"pending"})),
+            Some(ItemStatus::InProgress)
+        );
+        assert_eq!(tool_status(&json!({})), None);
+        assert_eq!(
+            tool_event_kind("tool_call", &json!({"status":"pending"})),
+            EventKind::ItemStarted
+        );
+        assert_eq!(
+            tool_event_kind("tool_call_update", &json!({"status":"in_progress"})),
+            EventKind::ItemUpdated
+        );
+        assert_eq!(
+            tool_event_kind("tool_call", &json!({"status":"declined"})),
+            EventKind::ItemCompleted
         );
     }
 }

@@ -69,6 +69,29 @@ fn copilot_session_event_routes_following_chunk() {
 }
 
 #[test]
+fn copilot_cancelled_task_reports_cancelled() {
+    let params = json!({"update": {
+        "sessionUpdate":"tool_call_update",
+        "toolCallId":"task-1",
+        "status":"cancelled",
+        "rawInput":{"agent_type":"explore","prompt":"inspect","description":"Inspect"}
+    }});
+    let mut state = RegistryFlavorState::default();
+    let mapped = normalize_event(
+        event(
+            "session/update",
+            params,
+            EventKind::ItemCompleted,
+            json!({"itemType":"dynamicToolCall","status":"failed","data":{}}),
+        ),
+        AcpRegistryAgentFlavor::Copilot,
+        &mut state,
+    );
+    assert_eq!(mapped.kind, EventKind::TaskCompleted);
+    assert_eq!(mapped.payload["status"], "cancelled");
+}
+
+#[test]
 fn mistral_retry_is_a_retryable_rate_limit_warning() {
     let mut state = RegistryFlavorState::default();
     let mapped = normalize_event(
