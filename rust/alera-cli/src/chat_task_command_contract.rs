@@ -70,6 +70,11 @@ fn choices(values: &[&str]) -> Value {
 fn number(minimum: u64, maximum: u64) -> Value {
     json!({"type":"integer", "minimum":minimum, "maximum":maximum})
 }
+/// A limit whose larger values use the ceiling (`clamp_limits`), so only
+/// the floor is part of the schema.
+fn at_least(minimum: u64) -> Value {
+    json!({"type":"integer", "minimum":minimum})
+}
 fn texts(minimum: u64) -> Value {
     json!({"type":"array", "items":id(), "minItems":minimum, "maxItems":200})
 }
@@ -89,7 +94,7 @@ pub(crate) fn payload_schema(operation: &str) -> Value {
             ],
             &[],
         ),
-        "read" => object(&[("chatId", id()), ("limit", number(1, 200))], &["chatId"]),
+        "read" => object(&[("chatId", id()), ("limit", at_least(1))], &["chatId"]),
         "task" | "acknowledge" => object(&[("taskId", id())], &["taskId"]),
         "task-list" => {
             let mut statuses = texts(0);
@@ -113,7 +118,7 @@ pub(crate) fn payload_schema(operation: &str) -> Value {
                     ("hostId", id()),
                     ("statuses", statuses),
                     ("attention", boolean()),
-                    ("limit", number(1, 200)),
+                    ("limit", at_least(1)),
                     ("cursor", number(0, i64::MAX as u64)),
                 ],
                 &[],
@@ -122,7 +127,7 @@ pub(crate) fn payload_schema(operation: &str) -> Value {
         "wait" => object(
             &[
                 ("taskIds", texts(1)),
-                ("waitSeconds", number(1, 50)),
+                ("waitSeconds", at_least(1)),
                 ("until", choices(&["any", "all"])),
             ],
             &["taskIds"],
@@ -144,7 +149,7 @@ pub(crate) fn payload_schema(operation: &str) -> Value {
                 ("role", id()),
                 ("notify", choices(&["always", "settled_only", "never"])),
                 ("mode", choices(&["async", "wait"])),
-                ("waitSeconds", number(1, 50)),
+                ("waitSeconds", at_least(1)),
                 ("agent", agent_schema()),
                 ("runtimeMode", choices(RUNTIME_MODES)),
                 ("interactionMode", choices(&["default", "plan"])),

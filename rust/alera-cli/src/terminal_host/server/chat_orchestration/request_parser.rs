@@ -71,19 +71,16 @@ fn parse_notify(payload: &Value, mode: DelegateMode) -> HostResult<ChatOrchestra
     }
 }
 
+/// A wait longer than `MAX_WAIT_SECONDS` waits that long; `null` is the
+/// default.
 fn parse_wait_seconds(payload: &Value, default: u64) -> HostResult<u64> {
-    let value = match payload.get("waitSeconds") {
+    let value = match payload.get("waitSeconds").filter(|value| !value.is_null()) {
         None => default,
         Some(value) => value
             .as_u64()
             .ok_or_else(|| HostError::format("waitSeconds must be a non-negative integer"))?,
     };
-    if value > MAX_WAIT_SECONDS {
-        return Err(HostError::format(format!(
-            "waitSeconds cannot exceed {MAX_WAIT_SECONDS}"
-        )));
-    }
-    Ok(value)
+    Ok(value.min(MAX_WAIT_SECONDS))
 }
 
 fn parse_mode(payload: &Value) -> HostResult<DelegateMode> {
@@ -101,7 +98,7 @@ fn parse_mode(payload: &Value) -> HostResult<DelegateMode> {
 }
 
 fn parse_agent(payload: &Value) -> HostResult<AgentChoice> {
-    let Some(agent) = payload.get("agent") else {
+    let Some(agent) = payload.get("agent").filter(|agent| !agent.is_null()) else {
         return Ok(AgentChoice {
             provider_instance_id: None,
             model: None,
@@ -114,7 +111,10 @@ fn parse_agent(payload: &Value) -> HostResult<AgentChoice> {
     Ok(AgentChoice {
         provider_instance_id: optional_string(agent, "providerInstanceId")?,
         model: optional_string(agent, "model")?,
-        options: agent.get("options").cloned(),
+        options: agent
+            .get("options")
+            .filter(|options| !options.is_null())
+            .cloned(),
     })
 }
 
@@ -194,7 +194,7 @@ fn parse_target(payload: &Value) -> HostResult<ParsedTarget> {
 }
 
 fn parse_statuses(payload: &Value) -> HostResult<Vec<ChatOrchestrationTaskStatus>> {
-    let Some(values) = payload.get("statuses") else {
+    let Some(values) = payload.get("statuses").filter(|values| !values.is_null()) else {
         return Ok(Vec::new());
     };
     let values = values
@@ -266,6 +266,8 @@ impl OrchestrationRequest {
                 Ok(Self::Task {
                     task_id: required_string(payload, "taskId")?,
                     acknowledge,
+                    // A provided id stays strict, null included: an
+                    // acknowledgement never falls back to the legacy form.
                     request_id: if acknowledge && payload.get("requestId").is_some() {
                         Some(request_id(payload)?)
                     } else {
@@ -282,7 +284,10 @@ impl OrchestrationRequest {
                 host_id: optional_string(payload, "hostId")?,
                 statuses: parse_statuses(payload)?,
                 attention: payload.get("attention").and_then(Value::as_bool),
-                limit: payload.get("limit").and_then(Value::as_i64),
+                limit: payload
+                    .get("limit")
+                    .and_then(Value::as_i64)
+                    .map(|limit| limit.min(200)),
                 cursor: payload.get("cursor").and_then(Value::as_i64),
             })),
             "wait" => {

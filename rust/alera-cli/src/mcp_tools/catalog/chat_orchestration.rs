@@ -12,7 +12,7 @@ use super::chat_schema::{
     object_json, object_json_optional, target_schema, INTERACTION_MODES, RUNTIME_MODES,
 };
 use super::{execute, read};
-use crate::mcp_tools::schema::{boolean, integer, object, one_of, string, text};
+use crate::mcp_tools::schema::{boolean, clamped_integer, object, one_of, string, text};
 use crate::mcp_tools::{Invocation, ToolInputError, ToolSpec, MAX_WAIT_SECONDS};
 
 const DELIVERY_MODES: &[&str] = &["auto", "queue"];
@@ -58,7 +58,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 object(
                     &[
                         ("chatId", string("Chat id.")),
-                        ("limit", integer("Maximum entries.", 1, 200)),
+                        ("limit", clamped_integer("Maximum entries.", 1, 200)),
                     ],
                     &["chatId"],
                 )
@@ -68,7 +68,9 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option("--chat-id", arguments.required("chatId")?)
                     .option_if(
                         "--limit",
-                        arguments.integer("limit").map(|value| value.to_string()),
+                        arguments
+                            .integer_at_most("limit", 200)
+                            .map(|value| value.to_string()),
                     ))
             },
         ),
@@ -85,7 +87,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("role", string("Optional role label.")),
                         ("notify", one_of("Completion notification policy: always and settled_only wake this chat with the result; never does not, so read it with chat_task_status.", NOTIFY_MODES)),
                         ("mode", one_of("Wait mode.", &["async", "wait"])),
-                        ("waitSeconds", integer("Bounded wait time.", 1, MAX_WAIT_SECONDS)),
+                        ("waitSeconds", clamped_integer("Bounded wait time.", 1, MAX_WAIT_SECONDS)),
                         ("agent", json!({"type": "object", "description": "Provider/model selection."})),
                         ("runtimeMode", one_of("Runtime policy ceiling.", RUNTIME_MODES)),
                         ("interactionMode", one_of("Interaction mode.", INTERACTION_MODES)),
@@ -106,8 +108,8 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option_if(
                         "--wait-seconds",
                         arguments
-                            .integer("waitSeconds")
-                            .map(|value| value.min(MAX_WAIT_SECONDS).to_string()),
+                            .integer_at_most("waitSeconds", MAX_WAIT_SECONDS)
+                            .map(|value| value.to_string()),
                     )
                     .option_if("--agent", object_json_optional(arguments, "agent")?)
                     .option_if("--runtime-mode", arguments.string("runtimeMode"))
@@ -183,7 +185,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                                 "description": "Task ids to wait for."
                             }),
                         ),
-                        ("timeoutSeconds", integer("Wait time.", 1, MAX_WAIT_SECONDS)),
+                        ("timeoutSeconds", clamped_integer("Wait time.", 1, MAX_WAIT_SECONDS)),
                         ("until", one_of("Return when any or all tasks settle.", &["any", "all"])),
                     ],
                     &["taskIds"],
@@ -201,8 +203,8 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .option_if(
                         "--timeout-seconds",
                         arguments
-                            .integer("timeoutSeconds")
-                            .map(|value| value.min(MAX_WAIT_SECONDS).to_string()),
+                            .integer_at_most("timeoutSeconds", MAX_WAIT_SECONDS)
+                            .map(|value| value.to_string()),
                     )
                     .option_if("--until", arguments.string("until")))
             },
@@ -225,7 +227,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                             json!({"type":"array", "items":{"type":"string"}}),
                         ),
                         ("attention", boolean("Only tasks needing attention.")),
-                        ("limit", integer("Maximum tasks.", 1, 200)),
+                        ("limit", clamped_integer("Maximum tasks.", 1, 200)),
                         (
                             "cursor",
                             json!({
@@ -253,7 +255,9 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                     .flag_if("--attention", arguments.flag("attention"))
                     .option_if(
                         "--limit",
-                        arguments.integer("limit").map(|value| value.to_string()),
+                        arguments
+                            .integer_at_most("limit", 200)
+                            .map(|value| value.to_string()),
                     )
                     .option_if(
                         "--cursor",

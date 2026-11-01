@@ -82,7 +82,9 @@ fn human_reads_have_bounded_defaults_and_cannot_acknowledge() {
     assert_eq!(tasks["parentChatId"], "p");
     assert!(extra_capabilities("tasks.list", &tasks).is_empty());
     assert!(validate("task", &json!({"taskId":"t","acknowledge":true})).is_err());
-    assert!(validate("read", &json!({"chatId":"c","limit":201})).is_err());
+    assert!(validate("read", &json!({"chatId":"c","limit":0})).is_err());
+    let clamped = prepare(args("read", &json!({"chatId":"c","limit":201}))).unwrap();
+    assert_eq!(clamped["limit"], 200);
     assert!(validate("task-list", &json!({"cursor":-1})).is_err());
     assert!(validate("requests", &json!({})).is_err());
 }
@@ -101,7 +103,9 @@ fn wait_and_delegate_wait_keep_the_cli_deadline_within_the_bound() {
         Some(2000 + WAIT_CLIENT_GRACE_MS)
     );
     assert!(validate("wait", &json!({"taskIds":[]})).is_err());
-    assert!(validate("wait", &json!({"taskIds":["t"],"waitSeconds":51})).is_err());
+    assert!(validate("wait", &json!({"taskIds":["t"],"waitSeconds":0})).is_err());
+    let clamped = prepare(args("wait", &json!({"taskIds":["t"],"waitSeconds":51}))).unwrap();
+    assert_eq!(clamped["waitSeconds"], 50);
 }
 
 #[test]

@@ -14,7 +14,7 @@ pub(crate) struct ToolArguments {
 
 impl ToolArguments {
     pub(crate) fn parse(arguments: &Value, schema: &Value) -> Result<Self, ToolInputError> {
-        let values = match arguments {
+        let mut values = match arguments {
             Value::Null => Map::new(),
             Value::Object(values) => values.clone(),
             _ => return Err(ToolInputError("Tool arguments must be an object.".into())),
@@ -23,6 +23,14 @@ impl ToolArguments {
             .as_object()
             .cloned()
             .unwrap_or_default();
+        // `null` for a property that cannot be null means "not given"; a
+        // required one is then reported missing below.
+        values.retain(|name, value| {
+            !value.is_null()
+                || properties
+                    .get(name)
+                    .is_some_and(|property| allows_null(property))
+        });
         for (name, value) in &values {
             let Some(property) = properties.get(name) else {
                 return Err(ToolInputError(format!("Unknown argument `{name}`.")));
@@ -70,6 +78,11 @@ impl ToolArguments {
         self.values.get(name).and_then(Value::as_u64)
     }
 
+    /// An integer the schema only floors, with anything above `max` as `max`.
+    pub(crate) fn integer_at_most(&self, name: &str, max: u64) -> Option<u64> {
+        self.integer(name).map(|value| value.min(max))
+    }
+
     /// A JSON object argument, such as a definition sent to the CLI on stdin.
     pub(crate) fn object(&self, name: &str) -> Option<&Map<String, Value>> {
         self.values.get(name).and_then(Value::as_object)
@@ -86,6 +99,17 @@ impl ToolArguments {
                     .map(str::to_owned)
                     .collect()
             })
+    }
+}
+
+fn allows_null(schema: &Value) -> bool {
+    match &schema["type"] {
+        Value::String(kind) => kind == "null",
+        Value::Array(kinds) => kinds.iter().any(|kind| kind == "null"),
+        _ => schema["oneOf"]
+            .as_array()
+            .or_else(|| schema["anyOf"].as_array())
+            .is_some_and(|options| options.iter().any(allows_null)),
     }
 }
 

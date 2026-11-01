@@ -70,6 +70,7 @@ pub(crate) fn prepare(args: ChatHumanArgs) -> Result<Value> {
             bail!("requestId must be a nonempty string");
         }
     }
+    crate::chat_task_payload_validation::normalize(operation, &mut payload);
     crate::chat_task_payload_validation::validate(operation, &payload)?;
     let object = payload.as_object_mut().expect("payload remains an object");
     if matches!(operation.as_str(), "read" | "task-list") {

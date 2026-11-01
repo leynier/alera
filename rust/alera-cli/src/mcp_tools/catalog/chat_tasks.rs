@@ -38,12 +38,13 @@ pub(super) fn tools() -> Vec<ToolSpec> {
 
 fn build(arguments: &ToolArguments) -> Result<Invocation, ToolInputError> {
     let operation = arguments.required("operation")?;
-    let payload = Value::Object(
+    let mut payload = Value::Object(
         arguments
             .object("payload")
             .ok_or_else(|| ToolInputError("payload must be an object".into()))?
             .clone(),
     );
+    crate::chat_task_payload_validation::normalize(&operation, &mut payload);
     crate::chat_task_payload_validation::validate(&operation, &payload)
         .map_err(|error| ToolInputError(error.to_string()))?;
     Ok(Invocation::new("chat", &["human", &operation])

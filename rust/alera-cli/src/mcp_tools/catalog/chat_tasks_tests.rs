@@ -115,3 +115,51 @@ fn public_acknowledgement_preserves_the_explicit_retry_key() {
         json!({"taskId":"t"})
     );
 }
+
+#[test]
+fn human_payloads_clamp_limits_and_drop_null_optionals() {
+    let query = tools().into_iter().next().unwrap();
+    let body = |operation: &str, payload: Value| {
+        let invocation = query
+            .invocation(&json!({"operation": operation, "payload": payload}))
+            .unwrap();
+        serde_json::from_str::<Value>(invocation.stdin.as_deref().unwrap()).unwrap()
+    };
+    assert_eq!(
+        body("read", json!({"chatId": "c", "limit": 900})),
+        json!({"chatId": "c", "limit": 200})
+    );
+    assert_eq!(
+        body(
+            "wait",
+            json!({"taskIds": ["t"], "waitSeconds": 600, "until": null})
+        ),
+        json!({"taskIds": ["t"], "waitSeconds": 50})
+    );
+    assert_eq!(
+        body("task-list", json!({"limit": null, "statuses": null})),
+        json!({})
+    );
+    assert!(query
+        .invocation(&json!({"operation": "read", "payload": {"chatId": "c", "limit": 0}}))
+        .is_err());
+    let delegate = tools().into_iter().nth(1).unwrap();
+    let invocation = delegate
+        .invocation(&json!({"operation": "delegate", "payload": {"task": "t",
+            "target": {"workspace": {"workspaceId": "w"}}, "agent": {"options": null},
+            "title": null}}))
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(invocation.stdin.as_deref().unwrap()).unwrap(),
+        json!({"task": "t", "target": {"workspace": {"workspaceId": "w"}}, "agent": {}})
+    );
+    // Configure keeps its explicit null resets.
+    let control = tools().into_iter().nth(3).unwrap();
+    let invocation = control
+        .invocation(&json!({"operation": "configure", "payload": {"chatId": "c", "model": null}}))
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(invocation.stdin.as_deref().unwrap()).unwrap(),
+        json!({"chatId": "c", "model": null})
+    );
+}

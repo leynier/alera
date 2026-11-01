@@ -40,12 +40,14 @@ fn async_delegate_defaults_to_zero_wait_and_explicit_target() {
 }
 
 #[test]
-fn wait_rejects_values_over_host_ceiling_and_multiple_targets() {
-    assert!(OrchestrationRequest::parse(
-        "wait",
-        &json!({"taskIds": ["task-1"], "waitSeconds": 51}),
-    )
-    .is_err());
+fn wait_clamps_values_over_host_ceiling_and_rejects_multiple_targets() {
+    let OrchestrationRequest::Wait(input) =
+        OrchestrationRequest::parse("wait", &json!({"taskIds": ["task-1"], "waitSeconds": 51}))
+            .unwrap()
+    else {
+        panic!("expected wait request");
+    };
+    assert_eq!(input.wait_seconds, 50);
     assert!(OrchestrationRequest::parse(
         "delegate",
         &json!({

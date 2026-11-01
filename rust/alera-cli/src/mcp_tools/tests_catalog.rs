@@ -302,3 +302,76 @@ fn reading_tools_are_marked_idempotent() {
         );
     }
 }
+
+/// `null` for an optional argument is the same call as leaving it out; a
+/// required one set to `null` is missing.
+#[test]
+fn every_optional_argument_accepts_null_like_omission() {
+    let outcome = |tool: &ToolSpec, arguments: &Value| match tool.invocation(arguments) {
+        Ok(invocation) => Ok(cli_argv(invocation)),
+        Err(error) => Err(error.to_string()),
+    };
+    for tool in catalog().into_iter().chain(catalog::chat_tools()) {
+        let all = sample_arguments(&tool, true);
+        let required = tool.schema()["required"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        for key in all.as_object().into_iter().flatten().map(|(key, _)| key) {
+            let mut omitted = all.clone();
+            omitted.as_object_mut().unwrap().remove(key);
+            let mut nulled = all.clone();
+            nulled[key] = Value::Null;
+            if required.iter().any(|value| value == key) {
+                let error = outcome(&tool, &nulled).unwrap_err();
+                assert!(error.contains("Missing"), "{} {key}: {error}", tool.name);
+            } else {
+                assert_eq!(
+                    outcome(&tool, &nulled),
+                    outcome(&tool, &omitted),
+                    "{} {key}",
+                    tool.name
+                );
+            }
+        }
+    }
+}
+
+/// An oversized limit or wait is clamped to a value the CLI accepts.
+#[test]
+fn oversized_chat_integers_clamp_to_values_the_cli_accepts() {
+    for (name, arguments, flag) in [
+        (
+            "chat_read",
+            json!({"chatId": "c", "limit": 5000}),
+            "--limit=200",
+        ),
+        ("chat_task_list", json!({"limit": 5000}), "--limit=200"),
+        (
+            "chat_delegate",
+            json!({"task": "t", "target": {"workspace": {"workspaceId": "w"}},
+                "mode": "wait", "waitSeconds": 600}),
+            "--wait-seconds=50",
+        ),
+        (
+            "chat_task_wait",
+            json!({"taskIds": ["t"], "timeoutSeconds": 600}),
+            "--timeout-seconds=50",
+        ),
+    ] {
+        let tool = catalog::chat_tools()
+            .into_iter()
+            .find(|tool| tool.name == name)
+            .unwrap();
+        assert!(tool.schema().to_string().contains("larger values use"));
+        let argv = cli_argv(tool.invocation(&arguments).unwrap());
+        assert!(argv.iter().any(|arg| arg == flag), "{name}: {argv:?}");
+        Cli::try_parse_from(&argv).unwrap();
+    }
+    let below = catalog::chat_tools()
+        .into_iter()
+        .find(|tool| tool.name == "chat_read")
+        .unwrap()
+        .invocation(&json!({"chatId": "c", "limit": 0}));
+    assert!(below.is_err());
+}

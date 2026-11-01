@@ -290,6 +290,7 @@ async fn bounded_wait_supports_zero_fifty_any_and_all_without_restarting_inferen
     assert!(controls
         .iter()
         .all(|control| control.turns.lock().unwrap().len() == 1));
+    // A longer wait waits the ceiling; these tasks are already settled.
     let too_long = harness
         .service
         .handle(
@@ -298,8 +299,8 @@ async fn bounded_wait_supports_zero_fifty_any_and_all_without_restarting_inferen
             &human("desktop"),
         )
         .await
-        .unwrap_err();
-    assert!(too_long.wire_message().contains("50"));
+        .unwrap();
+    assert_eq!(too_long["timedOut"], false);
     harness.finish().await;
 }
 

@@ -5,6 +5,38 @@ use serde_json::Value;
 
 use crate::chat_task_command_contract::{payload_schema, OPERATIONS};
 
+/// Applies what the schema leaves to the caller before validation: `null`
+/// for a property that cannot be null is dropped as if not given, and a
+/// limit or wait above its ceiling uses the ceiling.
+pub(crate) fn normalize(operation: &str, payload: &mut Value) {
+    let schema = payload_schema(operation);
+    drop_null_optionals(payload, &schema);
+    if let Some(agent) = payload.get_mut("agent") {
+        drop_null_optionals(agent, &schema["properties"]["agent"]);
+    }
+    for (key, max) in [("limit", 200), ("waitSeconds", 50)] {
+        if let Some(value) = payload.get_mut(key) {
+            if value.as_u64().is_some_and(|number| number > max) {
+                *value = Value::from(max);
+            }
+        }
+    }
+}
+
+fn drop_null_optionals(value: &mut Value, schema: &Value) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    object.retain(|name, value| {
+        !value.is_null()
+            || match &schema["properties"][name.as_str()]["type"] {
+                Value::Array(kinds) => kinds.iter().any(|kind| kind == "null"),
+                Value::String(kind) => kind == "null",
+                _ => false,
+            }
+    });
+}
+
 pub(crate) fn validate(operation: &str, payload: &Value) -> Result<()> {
     if !OPERATIONS.contains(&operation) {
         bail!("Unknown human chat-task operation.");

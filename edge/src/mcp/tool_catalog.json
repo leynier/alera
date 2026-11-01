@@ -984,7 +984,6 @@
                     "type": "string"
                   },
                   "limit": {
-                    "maximum": 200,
                     "minimum": 1,
                     "type": "integer"
                   }
@@ -1056,7 +1055,6 @@
                     "type": "string"
                   },
                   "limit": {
-                    "maximum": 200,
                     "minimum": 1,
                     "type": "integer"
                   },
@@ -1136,7 +1134,6 @@
                     "type": "string"
                   },
                   "waitSeconds": {
-                    "maximum": 50,
                     "minimum": 1,
                     "type": "integer"
                   }
@@ -1445,7 +1442,6 @@
                     "type": "string"
                   },
                   "waitSeconds": {
-                    "maximum": 50,
                     "minimum": 1,
                     "type": "integer"
                   }
