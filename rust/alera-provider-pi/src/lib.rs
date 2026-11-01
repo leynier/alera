@@ -10,6 +10,7 @@ mod commands;
 mod config;
 mod event_core;
 mod events;
+mod extension_requests;
 mod lifecycle;
 mod mcp_extension;
 mod payload;

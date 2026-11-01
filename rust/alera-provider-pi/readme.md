@@ -12,6 +12,8 @@ A prompt names every attachment by its saved path in T3 Code's `[Attached file "
 
 Extension `confirm`, `select`, `input`, and `editor` requests retain their native id and full record. Responses use the native wire shape with top-level `confirmed`, `value`, or `cancelled` fields. The adapter always injects its permission extension, including when no MCP servers are configured. Its public `tool_call` hook enforces approval-required/on-request behavior before tool execution. Only verified Pi built-in read, grep, find, ls, and tool-search tools bypass confirmation. Other built-in tools and all extension/MCP tools require explicit approval; decline, cancellation, timeout, unavailable UI, and shutdown block the call. External tool names and read-only annotations cannot grant a bypass. Other runtime modes, approval policies, and sandbox policies remain unsupported.
 
+As in T3 Code, an extension `notify` request becomes a `runtime.warning` notice rather than a tool call.
+
 ## mcp bridge
 
 Pi does not provide an MCP boundary in its RPC protocol, so this crate ships a small extension asset that uses Pi's public `registerTool` API. Configure `PiProviderConfig::mcp_servers` before `PiProvider::spawn`; each stdio server is serialized into a private file and the process receives `--extension` plus that file path. `SessionStartInput::mcp_servers` is host-owned metadata and, when present, must match the launch configuration because extensions are loaded before a session starts.

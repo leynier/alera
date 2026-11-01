@@ -70,14 +70,13 @@ async fn startup_notification_preserves_native_records_and_allows_turn_completio
         state_response("alera-pi-2"),
     ]);
     start_session(&mut provider).await;
+    // Like T3 Code, a notification is a notice, not a tool call.
     let event = next_valid_event(&mut provider).await;
-    assert_eq!(event.kind, EventKind::ItemCompleted);
-    let payload: ItemLifecyclePayload = serde_json::from_value(event.payload.clone()).unwrap();
-    assert_eq!(payload.item_type, CanonicalItemType::DynamicToolCall);
-    assert_eq!(payload.status, Some(ItemStatus::Completed));
-    assert_eq!(payload.title.as_deref(), Some("notify"));
-    assert_eq!(payload.detail.as_deref(), Some("Extension ready"));
-    assert_eq!(payload.data, Some(notification.clone()));
+    assert_eq!(event.kind, EventKind::RuntimeWarning);
+    assert_eq!(event.payload["message"], "Extension ready");
+    assert_eq!(event.payload["notifyType"], "info");
+    assert_eq!(event.payload["detail"], notification);
+    assert!(event.item_id.is_none());
     assert_eq!(event.raw.unwrap().payload, notification);
     assert!(event.turn_id.is_none());
     let unknown = next_valid_event(&mut provider).await;
