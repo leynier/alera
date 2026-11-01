@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 mod catalog;
 pub(crate) mod commands;
 pub(crate) mod events;
+mod generated_image_files;
+mod generated_image_reader;
 mod handoff;
 mod header;
 mod host_events;

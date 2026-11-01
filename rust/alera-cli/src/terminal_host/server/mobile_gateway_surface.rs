@@ -83,6 +83,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatGoalV1",
     "agentChatAcpChildSessionsV1",
     "agentChatWorkflowsV1",
+    "agentChatGeneratedImagesV1",
     "agentChatTransfersV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
@@ -184,6 +185,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.create"
             | "agentChat.snapshot"
             | "agentChat.payload"
+            | "agentChat.generatedImage"
             | "agentChat.history"
             | "agentChat.send"
             | "agentChat.attachment.start"

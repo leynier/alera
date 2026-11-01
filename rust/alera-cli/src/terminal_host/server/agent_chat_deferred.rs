@@ -93,6 +93,7 @@ pub(super) async fn dispatch(
         }
         "agentChat.snapshot" => runtime.snapshot(&required_string(payload, "chatId")?).await,
         "agentChat.payload" => runtime.payload(payload).await,
+        "agentChat.generatedImage" => runtime.generated_image(payload).await,
         "agentChat.history" => {
             let chat_id = required_string(payload, "chatId")?;
             let before = payload
