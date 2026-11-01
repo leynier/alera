@@ -20,6 +20,7 @@ mod part_events;
 mod permissions;
 mod provider;
 mod request_events;
+mod retry_events;
 mod runtime_response;
 mod skills;
 mod tool_events;

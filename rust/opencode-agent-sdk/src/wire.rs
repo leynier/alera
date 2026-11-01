@@ -143,6 +143,7 @@ pub(crate) fn is_unknown_v2(event_type: &str) -> bool {
         "session.compaction.ended",
         "session.compaction.failed",
         "session.usage.updated",
+        "session.retry.scheduled",
         "session.message.content.updated",
         "permission.asked",
         "permission.replied",

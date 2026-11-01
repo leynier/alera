@@ -142,6 +142,14 @@ pub(crate) fn map_event<T: HttpTransport>(
         }
         "session.error" => map_error(provider, &props, &thread_id, raw)?,
         "session.compacted" => map_compaction(&props, &thread_id, app_turn_id.clone(), raw)?,
+        "session.retry.scheduled" => crate::retry_events::map_retry(
+            provider,
+            &event.payload,
+            &props,
+            &thread_id,
+            app_turn_id.clone(),
+            raw,
+        ),
         "todo.updated" => map_plan(&props, &thread_id, app_turn_id.clone(), raw)?,
         "session.created" | "session.updated" => map_thread(&props, &thread_id, raw)?,
         "session.deleted" => map_thread_state(&props, &thread_id, "closed", raw)?,
