@@ -121,6 +121,7 @@ impl ClaudeProvider {
                 )]
             }
             "compact_boundary" | "compactboundary" | "context_compaction" => {
+                self.attachment_budget.observe_compaction(&payload);
                 self.map_compact_boundary(payload)
             }
             "status" => self.map_status(&payload),

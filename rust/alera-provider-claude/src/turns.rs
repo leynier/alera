@@ -11,11 +11,6 @@ impl ClaudeProvider {
         input: TurnInput,
     ) -> Result<TurnStartResult, ProviderError> {
         input.validate()?;
-        if !input.attachments.is_empty() {
-            return Err(ProviderError::Unsupported(
-                "Claude Code turns do not support provider attachments".into(),
-            ));
-        }
         if input.options.keys().any(|key| key != "appUserItemId") {
             return Err(ProviderError::Unsupported(
                 "Claude Code turn options are not supported by this adapter".into(),
@@ -72,10 +67,19 @@ impl ClaudeProvider {
             ));
         }
         let environment = SkillEnvironment::new(&self.config.options, session.cwd.as_deref());
-        let content = user_message_content(&input.input, environment).await;
+        let budget = self.attachment_budget;
+        let (text, attached) = (input.input.clone(), input.attachments.clone());
+        let prepared = tokio::task::spawn_blocking(move || {
+            attachments::prepare_prompt(&text, &attached, budget)
+        })
+        .await
+        .map_err(|error| {
+            ProviderError::Protocol(format!("Claude attachment preparation failed: {error}"))
+        })??;
+        let content = user_message_content(&prepared.text, prepared.media, environment).await;
         // Claude echoes the blocks it received, so correlation uses their text.
         let submitted_prompt =
-            user_messages::prompt_text(&content).unwrap_or_else(|| input.input.clone());
+            user_messages::prompt_text(&content).unwrap_or_else(|| prepared.text.clone());
         self.apply_interaction_mode(input.interaction_mode).await?;
         let next_turn = self.next_turn + 1;
         let turn_id = format!("turn:claude:{next_turn}");
@@ -104,10 +108,7 @@ impl ClaudeProvider {
             .client
             .as_ref()
             .expect("client checked before turn state setup")
-            .send_user_message(UserPrompt {
-                content,
-                ..UserPrompt::text(String::new())
-            })
+            .send_user_message(UserPrompt::content(content))
             .await;
         if let Err(error) = send_result {
             *self.active_turn_id.lock().await = previous_active_turn_id.clone();
@@ -126,6 +127,7 @@ impl ClaudeProvider {
             return Err(sdk_error(error));
         }
         self.next_turn = next_turn;
+        self.attachment_budget.commit(prepared.used);
         self.turn_failure = Default::default();
         self.turn_signals = Default::default();
         self.turn_signals.compact_command =
@@ -177,12 +179,19 @@ impl ClaudeProvider {
 /// The prompt with a `$name` mention dispatched as Claude's `/name` command.
 /// Skills are discovered again for every send, as T3 Code does, so a skill
 /// added or switched off mid-session takes effect.
-async fn user_message_content(text: &str, environment: SkillEnvironment) -> Value {
+async fn user_message_content(
+    text: &str,
+    media: Option<Vec<Value>>,
+    environment: SkillEnvironment,
+) -> Value {
     if skill_mentions(text).is_empty() {
-        return Value::String(text.to_string());
+        return match media {
+            None => Value::String(text.to_string()),
+            Some(media) => claude_user_message_content(text, Some(media), &HashMap::new()),
+        };
     }
     let skills = tokio::task::spawn_blocking(move || discover(&environment))
         .await
         .unwrap_or_default();
-    claude_user_message_content(text, None, &user_invocable_skills(skills))
+    claude_user_message_content(text, media, &user_invocable_skills(skills))
 }

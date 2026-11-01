@@ -8,7 +8,15 @@ pub(super) struct UserPromptCorrelation {
 }
 
 impl ClaudeProvider {
-    pub(super) fn map_user_message(&mut self, message: UserMessage) -> ProviderEvent {
+    pub(super) fn map_user_message(&mut self, mut message: UserMessage) -> ProviderEvent {
+        super::attachments::redact_media(&mut message.content);
+        if let Some(content) = message
+            .raw
+            .get_mut("message")
+            .and_then(|message| message.get_mut("content"))
+        {
+            super::attachments::redact_media(content);
+        }
         let native_user_id = message
             .uuid
             .as_deref()
@@ -86,10 +94,12 @@ pub(super) fn prompt_text(content: &Value) -> Option<String> {
     let blocks = content.as_array()?;
     let mut text = String::new();
     for block in blocks {
-        if block.get("type").and_then(Value::as_str) != Some("text") {
-            return None;
+        match block.get("type").and_then(Value::as_str) {
+            Some("text") => text.push_str(block.get("text")?.as_str()?),
+            // The prompt's own attachments.
+            Some("image" | "document") => {}
+            _ => return None,
         }
-        text.push_str(block.get("text")?.as_str()?);
     }
     Some(text)
 }

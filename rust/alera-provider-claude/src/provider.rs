@@ -1,3 +1,5 @@
+#[path = "attachments.rs"]
+mod attachments;
 #[path = "background_wait.rs"]
 mod background_wait;
 #[path = "callbacks.rs"]
@@ -129,6 +131,8 @@ pub struct ClaudeProvider {
     turn_signals: turn_signals::TurnSignals,
     task_tools: task_list::TaskTools,
     command_output: command_output::tail::CommandOutputTails,
+    // What the conversation retains of the image and PDF budget.
+    attachment_budget: attachments::AttachmentBudget,
     context_usage: context_usage::ContextUsage,
 }
 
@@ -226,6 +230,12 @@ impl Provider for ClaudeProvider {
         if replaced {
             options.resume = None;
         }
+        // A resumed or forked conversation may already hold documents.
+        self.attachment_budget = if options.resume.is_some() {
+            attachments::AttachmentBudget::inherited()
+        } else {
+            Default::default()
+        };
         self.session_effort = options.effort.clone();
         let plan_at_start = options.permission_mode.as_deref() == Some("plan")
             && input.options.get("interactionMode").and_then(Value::as_str) == Some("plan");

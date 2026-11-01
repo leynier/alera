@@ -260,6 +260,7 @@ dependencies = [
  "alera-agent-transport",
  "alera-provider-protocol",
  "async-trait",
+ "base64 0.23.1",
  "chrono",
  "claude-agent-sdk",
  "libc",

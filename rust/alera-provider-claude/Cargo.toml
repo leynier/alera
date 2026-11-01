@@ -9,6 +9,7 @@ alera-agent-transport = { path = "../alera-agent-transport" }
 alera-provider-protocol = { path = "../alera-provider-protocol" }
 claude-agent-sdk = { path = "../claude-agent-sdk" }
 async-trait = "0.1.92"
+base64 = "0.23.1"
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 serde_json = "1.0.151"
 tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "sync", "time"] }
