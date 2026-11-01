@@ -132,7 +132,12 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
     });
     let starts = host.inputs("thread/start");
     assert_eq!(starts.len(), 1);
-    let specification = &starts[0]["message"]["params"]["config"]["mcp_servers"]["alera"];
+    let config = &starts[0]["message"]["params"]["config"];
+    // A dotted key keeps the servers Codex was launched with.
+    assert!(config.get("mcp_servers").is_none());
+    assert_eq!(config["tools.update_plan.enabled"], true);
+    assert_eq!(config["mcp_optional_startup_grace_ms"], 10_000);
+    let specification = &config["mcp_servers.alera"];
     assert_eq!(specification["command"], env!("CARGO_BIN_EXE_alera"));
     let mut mcp = McpChild::start(&host, specification);
     let initialized = mcp

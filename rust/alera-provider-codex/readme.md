@@ -1,8 +1,10 @@
 # provider adapter scope
 
-This crate maps the shared provider contract to the app-server JSONL boundary. Host-owned MCP servers are projected into `thread/start` and `thread/resume` under `config.mcp_servers`: stdio uses `command`, `args`, and `env`, while HTTP uses `url` and `http_headers`.
+This crate maps the shared provider contract to the app-server JSONL boundary. Host-owned MCP servers are projected into `thread/start`, `thread/resume` and `thread/fork` as one dotted `config["mcp_servers.<name>"]` key per server: stdio uses `command`, `args`, and `env`, while HTTP uses `url` and `http_headers`. Codex writes a request override at its final path segment, so a whole `mcp_servers` table would replace the servers Codex was launched with (`codex app-server -c mcp_servers.x.command=...`); a dotted key adds only its own server. The nested `config.mcp_servers` table is used instead when the caller already sends that table, or when a server name contains a `.`, which Codex would split into a path.
 
-Injected server names cannot replace caller-owned entries. The native boundary does not represent a stdio working directory, so a spec that supplies one is rejected before a native request is sent. Secret environment values and headers are passed to the native process but are not copied into provider events or debug output.
+Every thread request also sends `config["tools.update_plan.enabled"] = true`, because Codex 0.152 made the `update_plan` checklist tool opt-in and a turn without it never reports plan progress, and `config.mcp_optional_startup_grace_ms = 10000`, so Codex waits up to 10 s instead of 1 s for MCP servers before the first model request. A caller value for either setting wins: any dotted `tools.update_plan` key or nested `tools.update_plan` entry keeps update_plan as given, and a nested caller `tools` table receives `update_plan` inside it.
+
+Injected server names cannot replace caller-owned entries, whether the caller names them in a nested table or with dotted `mcp_servers.<name>` keys. The native boundary does not represent a stdio working directory, so a spec that supplies one is rejected before a native request is sent. Secret environment values and headers are passed to the native process but are not copied into provider events or debug output.
 
 The MCP projection is covered by transport-backed lifecycle tests for new and resumed threads, collisions, and unsupported fields.
 

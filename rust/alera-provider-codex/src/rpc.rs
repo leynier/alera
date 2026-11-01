@@ -121,6 +121,7 @@ impl<T: JsonTransport> CodexProvider<T> {
             "approvalsReviewer".into(),
             Value::String(defaults.approvals_reviewer.to_owned()),
         );
+        crate::thread_config::apply_defaults(&mut params)?;
         crate::mcp::merge_thread_config(&mut params, &input.mcp_servers)?;
         Ok(params)
     }

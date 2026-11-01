@@ -3,9 +3,15 @@ use serde_json::{json, Map, Value};
 
 /// Merge host-owned MCP servers into the app-server's thread config.
 ///
-/// Codex reads these values from `config.mcp_servers`, while the outer
-/// `thread/start` and `thread/resume` params retain their normal fields. An
-/// existing server name is a configuration conflict: silently replacing a
+/// Each server goes in as its own dotted `mcp_servers.<name>` key. Codex
+/// writes a request override at its final path segment, so a whole
+/// `mcp_servers` table would replace the servers a user started Codex with
+/// (`codex app-server -c mcp_servers.x.command=...`), while a dotted key adds
+/// only this server. The nested table is kept when the caller already sends
+/// one, since mixing both forms makes the result depend on override order,
+/// and when a name contains a `.`, which Codex would split into a path.
+///
+/// An existing server name is a configuration conflict: silently replacing a
 /// caller-owned server could redirect tool traffic to an unexpected process.
 pub(crate) fn merge_thread_config(
     params: &mut Map<String, Value>,
@@ -30,24 +36,48 @@ pub(crate) fn merge_thread_config(
     let config = config.as_object_mut().ok_or_else(|| {
         ProviderError::Validation("Codex thread config must be a JSON object".into())
     })?;
-    let mcp_servers = config
-        .entry("mcp_servers")
-        .or_insert_with(|| Value::Object(Map::new()));
-    let mcp_servers = mcp_servers.as_object_mut().ok_or_else(|| {
-        ProviderError::Validation("Codex config.mcp_servers must be a JSON object".into())
-    })?;
-
+    let caller_table = match config.get("mcp_servers") {
+        None => None,
+        Some(Value::Object(table)) => Some(table),
+        Some(_) => {
+            return Err(ProviderError::Validation(
+                "Codex config.mcp_servers must be a JSON object".into(),
+            ))
+        }
+    };
     for (name, _) in &projected {
-        if mcp_servers.contains_key(name) {
+        let dotted = dotted_key(name);
+        let nested_prefix = format!("{dotted}.");
+        if caller_table.is_some_and(|table| table.contains_key(name))
+            || config
+                .keys()
+                .any(|key| *key == dotted || key.starts_with(&nested_prefix))
+        {
             return Err(ProviderError::Validation(format!(
                 "Codex MCP server name collides with caller config: {name}"
             )));
         }
     }
+    let nested = caller_table.is_some() || projected.iter().any(|(name, _)| name.contains('.'));
+    if !nested {
+        for (name, value) in projected {
+            config.insert(dotted_key(&name), value);
+        }
+        return Ok(());
+    }
+    let mcp_servers = config
+        .entry("mcp_servers")
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .expect("config.mcp_servers was checked to be an object");
     for (name, value) in projected {
         mcp_servers.insert(name, value);
     }
     Ok(())
+}
+
+fn dotted_key(name: &str) -> String {
+    format!("mcp_servers.{name}")
 }
 
 fn project_server(server: &McpServerSpec) -> Result<(String, Value), ProviderError> {

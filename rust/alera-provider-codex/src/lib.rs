@@ -26,6 +26,7 @@ mod rpc;
 mod session_approvals;
 mod skills;
 mod state;
+mod thread_config;
 mod wire;
 
 pub use config::{CodexConfig, CodexProviderConfig};
