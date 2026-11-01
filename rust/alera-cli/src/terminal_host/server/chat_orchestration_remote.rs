@@ -266,20 +266,27 @@ impl ChatOrchestrationRuntime for RoutedChatRuntime {
         &self,
         chat_id: &str,
         turn_id: &str,
+        start_turn_id: Option<&str>,
     ) -> HostResult<Option<ChatOrchestrationChildTurn>> {
         if let Some(workspace_id) = self.remote_chat_workspace(chat_id).await? {
             let value = self
                 .remote_command(
                     &workspace_id,
-                    json!({"operation": "childTurn", "chatId": chat_id, "turnId": turn_id}),
+                    json!({"operation": "childTurn", "chatId": chat_id, "turnId": turn_id,
+                        "startTurnId": start_turn_id}),
                 )
                 .await?;
             return Ok((!value.is_null()).then(|| ChatOrchestrationChildTurn {
                 turn_status: value["turnStatus"].as_str().map(str::to_owned),
                 final_assistant_text: value["finalAssistantText"].as_str().map(str::to_owned),
+                turn_origin: value["turnOrigin"].as_str().map(str::to_owned),
+                message_origin: value
+                    .get("messageOrigin")
+                    .filter(|origin| origin.is_object())
+                    .cloned(),
             }));
         }
-        self.local.child_turn(chat_id, turn_id).await
+        self.local.child_turn(chat_id, turn_id, start_turn_id).await
     }
 
     fn subscribe(&self) -> broadcast::Receiver<ChatRuntimeEvent> {
@@ -299,7 +306,7 @@ pub(crate) async fn handle_internal_runtime(
         "command" => runtime.command(&text(payload, "chatId")?, operation_wire::decode_operation(payload)?, decode(payload, "caller")?, decode_optional(payload, "receipt")?).await,
         "validateBinding" => local.validate_binding(&BoundChat { chat_id: text(payload, "chatId")?, generation: payload["generation"].as_i64().filter(|generation| *generation > 0).ok_or_else(invalid_binding)?, credential_hash: text(payload, "credentialHash")?, runtime_mode: "approval-required".into(), origin_host_id: None }).await,
         "turnForClientMessage" => Ok(local.turn_for_client_message(&text(payload, "chatId")?, &text(payload, "clientMessageId")?).await?.unwrap_or(Value::Null)),
-        "childTurn" => Ok(local.child_turn(&text(payload, "chatId")?, &text(payload, "turnId")?).await?.map(|turn| json!({"turnStatus": turn.turn_status, "finalAssistantText": turn.final_assistant_text})).unwrap_or(Value::Null)),
+        "childTurn" => Ok(local.child_turn(&text(payload, "chatId")?, &text(payload, "turnId")?, payload["startTurnId"].as_str()).await?.map(|turn| json!({"turnStatus": turn.turn_status, "finalAssistantText": turn.final_assistant_text, "turnOrigin": turn.turn_origin, "messageOrigin": turn.message_origin})).unwrap_or(Value::Null)),
         _ => Err(HostError::format("Unknown internal chat operation.")),
     }
 }

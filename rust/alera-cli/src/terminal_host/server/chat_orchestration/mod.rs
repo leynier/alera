@@ -7,15 +7,18 @@
 
 pub(super) mod authorization;
 mod cancellation;
+mod continuation;
 mod credentials;
 mod delegate_wait;
 mod delegation;
 mod delegation_options;
+mod followups;
 mod job_lifecycle;
 mod lineage;
 mod messages;
 mod models;
 mod monitor;
+mod monitor_hold;
 mod native_operation_guard;
 pub(crate) mod operation_wire;
 mod operations;
@@ -49,11 +52,15 @@ pub(crate) const MAX_WAIT_SECONDS: u64 = 50;
 #[cfg(test)]
 mod authorization_tests;
 #[cfg(test)]
+mod background_completion_tests;
+#[cfg(test)]
 mod background_wait_tests;
 #[cfg(test)]
 mod cancel_admission_tests;
 #[cfg(test)]
 mod cancellation_tests;
+#[cfg(test)]
+mod continuation_fixture;
 #[cfg(test)]
 mod control_admission_tests;
 #[cfg(test)]

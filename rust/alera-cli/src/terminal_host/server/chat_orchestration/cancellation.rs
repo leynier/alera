@@ -10,6 +10,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::agent_chat_runtime::commands::{CallerCtx, ChatOp};
 
 use super::authorization::{require_lineage_for_task, OrchestrationCaller};
+use super::continuation::moved_head;
 use super::queries::runtime_receipt_key;
 use super::service::ChatOrchestrationService;
 use super::tasks::{task_value, transition_status};
@@ -129,8 +130,21 @@ impl ChatOrchestrationService {
 
     pub(super) async fn stop_task_input(&self, task: &ChatOrchestrationTask) -> HostResult<bool> {
         let active_owned_turn = if let Some(chat_id) = &task.child_chat_id {
-            let mut operation = ChatOp::CancelMessage {
-                client_message_id: format!("chat-orchestration-task:{}", task.task_id),
+            // A follow-up or a task past its first turn stops its head turn.
+            let head = moved_head(task);
+            if let Some(head) = head {
+                let snapshot = self.runtime.snapshot(chat_id).await?;
+                if snapshot["session"]["activeTurnId"].as_str() != Some(head) {
+                    return Ok(false);
+                }
+            }
+            let mut operation = match head {
+                Some(head) => ChatOp::Interrupt {
+                    turn_id: Some(head.to_owned()),
+                },
+                None => ChatOp::CancelMessage {
+                    client_message_id: format!("chat-orchestration-task:{}", task.task_id),
+                },
             };
             let options = task.launch_options.as_ref();
             match options.and_then(|options| options["cancellationPolicy"].as_str()) {
@@ -164,6 +178,9 @@ impl ChatOrchestrationService {
                 .runtime
                 .command(chat_id, operation, CallerCtx::runtime(), Some(key))
                 .await?;
+            if head.is_some() {
+                return Ok(true);
+            }
             response
                 .get("turnId")
                 .and_then(Value::as_str)

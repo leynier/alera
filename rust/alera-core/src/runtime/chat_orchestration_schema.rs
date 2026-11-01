@@ -59,6 +59,8 @@ const TABLES: &[&str] = &[
      ON chatOrchestrationTasks(projectId, sequence);",
     "CREATE INDEX IF NOT EXISTS chatOrchestrationTasksStatusIdx \
      ON chatOrchestrationTasks(status);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS chatOrchestrationTasksFollowupTurnIdx \
+     ON chatOrchestrationTasks(childChatId, childTurnId) WHERE kind = 'followup';",
     "CREATE TABLE IF NOT EXISTS chatOrchestrationWakeCounters (
         parentChatId TEXT PRIMARY KEY,
         generation INTEGER NOT NULL

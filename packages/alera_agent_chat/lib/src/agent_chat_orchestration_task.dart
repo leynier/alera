@@ -44,15 +44,19 @@ enum AgentChatTaskStatus(final String wire) {
   };
 }
 
-/// A delegation, or a message that expects a reply.
+/// A delegation, a message that expects a reply, or a follow-up: work a
+/// delegated child did after its task settled.
 enum AgentChatTaskKind(final String wire) {
   delegate('delegate'),
-  message('message');
+  message('message'),
+  followup('followup');
 
   static AgentChatTaskKind fromJson(Object? value) =>
-      agentChatWireToken(value) == 'message'
-      ? AgentChatTaskKind.message
-      : AgentChatTaskKind.delegate;
+      switch (agentChatWireToken(value)) {
+        'message' => AgentChatTaskKind.message,
+        'followup' => AgentChatTaskKind.followup,
+        _ => AgentChatTaskKind.delegate,
+      };
 }
 
 /// Whether the parent chat is woken when the task settles.

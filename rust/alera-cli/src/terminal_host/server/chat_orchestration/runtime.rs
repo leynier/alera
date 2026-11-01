@@ -56,10 +56,13 @@ pub(crate) trait ChatOrchestrationRuntime: Send + Sync {
         chat_id: &str,
         client_message_id: &str,
     ) -> HostResult<Option<Value>>;
+    /// `turn_id`'s recorded state, with the result of the chain from
+    /// `start_turn_id` (the turn alone without one).
     async fn child_turn(
         &self,
         chat_id: &str,
         turn_id: &str,
+        start_turn_id: Option<&str>,
     ) -> HostResult<Option<ChatOrchestrationChildTurn>>;
     fn subscribe(&self) -> broadcast::Receiver<ChatRuntimeEvent>;
 }
@@ -151,9 +154,10 @@ impl ChatOrchestrationRuntime for LocalChatOrchestrationRuntime {
         &self,
         chat_id: &str,
         turn_id: &str,
+        start_turn_id: Option<&str>,
     ) -> HostResult<Option<ChatOrchestrationChildTurn>> {
         self.store
-            .chat_orchestration_child_turn(chat_id, turn_id)
+            .chat_orchestration_child_chain(chat_id, start_turn_id, turn_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))
     }

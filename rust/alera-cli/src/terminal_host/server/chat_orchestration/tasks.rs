@@ -73,6 +73,9 @@ pub(crate) fn task_value(task: &ChatOrchestrationTask) -> Value {
                 value[key] = option.clone();
             }
         }
+        if let Some(original) = options.get(alera_core::runtime::FOLLOWUP_OF_KEY) {
+            value["followupOf"] = original.clone();
+        }
     }
     if !result_text.is_empty() || task.result_text.is_some() {
         value["result"] = json!({

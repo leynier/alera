@@ -12,6 +12,11 @@ use super::chat_orchestration_delivery::ChatOrchestrationWake;
 
 pub const CHAT_ORCHESTRATION_SCHEMA_VERSION_KEY: &str = "chatOrchestration.schemaVersion";
 pub const CHAT_ORCHESTRATION_SCHEMA_VERSION: i64 = 1;
+/// `launchOptions` key naming the turn a task's chain of child turns started
+/// with, once the task moved past it to a continuation turn.
+pub const CHAIN_START_TURN_KEY: &str = "chainStartTurnId";
+/// `launchOptions` key naming the task a `followup` continues.
+pub const FOLLOWUP_OF_KEY: &str = "followupOfTaskId";
 /// Final assistant text kept on a task; the parent reads the chat for more.
 pub const CHAT_ORCHESTRATION_RESULT_MAX_BYTES: usize = 64 * 1024;
 pub const CHAT_ORCHESTRATION_BRIEF_MAX_BYTES: usize = 256 * 1024;

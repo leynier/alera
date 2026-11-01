@@ -109,6 +109,12 @@ pub struct ChatOrchestrationChildTurn {
     /// `running`, `completed`, `failed`, `interrupted`, `cancelled`; `None`
     /// when the chat has no turn with that id.
     pub turn_status: Option<String>,
-    /// Text of the turn's last assistant message, untruncated.
+    /// Text of the main agent's last non-blank assistant message in the
+    /// turn, or across the chain from its start turn, untruncated.
     pub final_assistant_text: Option<String>,
+    /// The turn's own origin (`turnJson.$.origin`), such as
+    /// `backgroundContinuation` or `goalContinuation`.
+    pub turn_origin: Option<String>,
+    /// `normalized.origin` of the turn's first user message.
+    pub message_origin: Option<serde_json::Value>,
 }

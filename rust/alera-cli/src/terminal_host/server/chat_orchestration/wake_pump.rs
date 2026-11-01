@@ -5,7 +5,9 @@
 //! retries every owed parent when a chat's session, requests or native
 //! operation change, when a chat list changes, when the subscription lags,
 //! when something nudges it, and on a slow sweep. Startup seeds the set from
-//! the store, so cohorts left by a restart are delivered too.
+//! the store, so cohorts left by a restart are delivered too. The same
+//! subscription opens follow-ups for turns a child starts after its task
+//! settled (`followups`).
 
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -110,6 +112,9 @@ impl ChatOrchestrationService {
             tokio::select! {
                 event = events.recv() => match event {
                     Ok(ChatRuntimeEvent::Changed { chat_id, delta, .. }) => {
+                        if let Some(turn) = active_turn(&delta) {
+                            self.open_followup(&chat_id, turn).await;
+                        }
                         if self.wake_pump.is_owed(&chat_id) && wake_relevant(&delta) && !busy(&delta) {
                             self.pump_parent_wake(&chat_id).await;
                         }
@@ -226,10 +231,15 @@ fn wake_relevant(delta: &Value) -> bool {
         .any(|key| delta.get(key).is_some())
 }
 
-/// A change whose session still shows the parent busy cannot deliver.
-fn busy(delta: &Value) -> bool {
+/// The turn a change's session shows running.
+fn active_turn(delta: &Value) -> Option<&str> {
     delta
         .get("session")
         .and_then(|session| session.get("activeTurnId"))
-        .is_some_and(|turn| !turn.is_null())
+        .and_then(Value::as_str)
+}
+
+/// A change whose session still shows the parent busy cannot deliver.
+fn busy(delta: &Value) -> bool {
+    active_turn(delta).is_some()
 }

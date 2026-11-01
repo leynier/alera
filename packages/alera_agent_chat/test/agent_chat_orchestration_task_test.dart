@@ -73,6 +73,15 @@ void main() {
     expect(agentChatTaskPlaceLabel(task), 'Alera / docs · Build Box');
   });
 
+  test('reads a follow-up task and labels it', () {
+    final task = AgentChatTask.fromJson(
+      _wireTask(<String, Object?>{'kind': 'followup'}),
+    );
+    expect(task.kind, AgentChatTaskKind.followup);
+    expect(agentChatTaskKindLabel(task.kind), 'Follow-up');
+    expect(agentChatTaskOriginLabel(task), 'Continued for Planner');
+  });
+
   test('accepts the delivery alias and camelCase tokens', () {
     final task = AgentChatTask.fromJson(
       _wireTask(<String, Object?>{

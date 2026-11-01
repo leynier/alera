@@ -44,6 +44,7 @@ String? agentChatTaskAttentionLabel(AgentChatTask task) =>
 String agentChatTaskKindLabel(AgentChatTaskKind kind) => switch (kind) {
   AgentChatTaskKind.delegate => 'Delegated Task',
   AgentChatTaskKind.message => 'Message',
+  AgentChatTaskKind.followup => 'Follow-up',
 };
 
 String agentChatWorkspaceModeLabel(AgentChatWorkspaceMode mode) =>
@@ -141,9 +142,11 @@ String agentChatTaskOriginLabel(AgentChatTask task, {String? parentTitle}) {
   if (task.parentChatId != null) {
     final parent =
         parentTitle ?? task.labels.parentChatTitle ?? 'a parent chat';
-    return task.kind == .delegate
-        ? 'Delegated by $parent'
-        : 'Sent by $parent, reply expected';
+    return switch (task.kind) {
+      .delegate => 'Delegated by $parent',
+      .followup => 'Continued for $parent',
+      .message => 'Sent by $parent, reply expected',
+    };
   }
   if (task.kind == .message) return 'Sent by you, reply expected';
   return switch (task.actor?.split(':').first) {

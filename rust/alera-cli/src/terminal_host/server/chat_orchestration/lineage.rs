@@ -33,6 +33,10 @@ impl ChatOrchestrationService {
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?;
             for task in page.tasks {
+                // A held task's continuation turn, or a follow-up's turn.
+                if task.child_turn_id.as_deref() == Some(active_turn) {
+                    return Ok(Some(task.task_id));
+                }
                 let turn = self
                     .runtime
                     .turn_for_client_message(

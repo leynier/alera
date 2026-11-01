@@ -254,7 +254,7 @@ async fn durable_remote_turns_are_available_beyond_the_live_snapshot_window() {
         .unwrap();
     assert_eq!(turn["turnId"], "old-turn");
     let durable = runtime
-        .child_turn("remote-chat", "old-turn")
+        .child_turn("remote-chat", "old-turn", None)
         .await
         .unwrap()
         .unwrap();

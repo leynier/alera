@@ -15,16 +15,22 @@ use super::{RuntimeStore, LOCAL_HOST_ID};
 
 use ChatOrchestrationTaskStatus as Status;
 
+/// The recorded state of `turn_id`, with the result of the chain that
+/// starts at `start_turn_id` (the turn itself without one).
 pub(super) async fn child_turn_in(
     connection: &mut SqliteConnection,
     chat_id: &str,
     turn_id: &str,
+    start_turn_id: Option<&str>,
 ) -> Result<Option<ChatOrchestrationChildTurn>> {
     let session = sqlx::query(
         "SELECT (SELECT status FROM agentChatTurns t \
-             WHERE t.chatId = agentChatSessions.chatId AND t.turnId = ?) AS turnStatus \
+             WHERE t.chatId = agentChatSessions.chatId AND t.turnId = ?) AS turnStatus, \
+             (SELECT json_extract(turnJson, '$.origin') FROM agentChatTurns t \
+             WHERE t.chatId = agentChatSessions.chatId AND t.turnId = ?) AS turnOrigin \
          FROM agentChatSessions WHERE chatId = ?",
     )
+    .bind(turn_id)
     .bind(turn_id)
     .bind(chat_id)
     .fetch_optional(&mut *connection)
@@ -32,13 +38,38 @@ pub(super) async fn child_turn_in(
     let Some(session) = session else {
         return Ok(None);
     };
+    // The chain is every turn from its start to `turn_id`; a start this chat
+    // does not know falls back to the turn alone.
     let final_assistant_text: Option<String> = sqlx::query_scalar(
         "SELECT json_extract(itemJson, '$.text') FROM agentChatItems \
-         WHERE chatId = ? AND turnId = ? AND json_extract(itemJson, '$.type') = 'assistant_message' \
+         WHERE chatId = ? AND turnId IN ( \
+             SELECT turnId FROM agentChatTurns WHERE chatId = ? AND seq BETWEEN \
+                 COALESCE((SELECT seq FROM agentChatTurns WHERE chatId = ? AND turnId = ?), \
+                     (SELECT seq FROM agentChatTurns WHERE chatId = ? AND turnId = ?)) \
+                 AND (SELECT seq FROM agentChatTurns WHERE chatId = ? AND turnId = ?) \
+             UNION SELECT ?) \
+         AND json_extract(itemJson, '$.type') = 'assistant_message' \
          AND json_extract(itemJson, '$.normalized.parentItemId') IS NULL \
          AND json_extract(itemJson, '$.normalized.continuationOf') IS NULL \
          AND trim(coalesce(json_extract(itemJson, '$.text'), ''), ' ' || char(9, 10, 13)) != '' \
          ORDER BY seq DESC LIMIT 1",
+    )
+    .bind(chat_id)
+    .bind(chat_id)
+    .bind(chat_id)
+    .bind(start_turn_id.unwrap_or(turn_id))
+    .bind(chat_id)
+    .bind(turn_id)
+    .bind(chat_id)
+    .bind(turn_id)
+    .bind(turn_id)
+    .fetch_optional(&mut *connection)
+    .await?
+    .flatten();
+    let message_origin: Option<String> = sqlx::query_scalar(
+        "SELECT json_extract(itemJson, '$.normalized.origin') FROM agentChatItems \
+         WHERE chatId = ? AND turnId = ? AND json_extract(itemJson, '$.type') = 'user_message' \
+         ORDER BY seq ASC LIMIT 1",
     )
     .bind(chat_id)
     .bind(turn_id)
@@ -48,7 +79,18 @@ pub(super) async fn child_turn_in(
     Ok(Some(ChatOrchestrationChildTurn {
         turn_status: session.try_get("turnStatus")?,
         final_assistant_text,
+        turn_origin: session.try_get("turnOrigin")?,
+        message_origin: message_origin.and_then(|origin| serde_json::from_str(&origin).ok()),
     }))
+}
+
+/// Where a task's chain of child turns starts, once it moved past the turn
+/// its brief started.
+pub(super) fn chain_start(task: &ChatOrchestrationTask) -> Option<&str> {
+    task.launch_options
+        .as_ref()
+        .and_then(|options| options.get(CHAIN_START_TURN_KEY))
+        .and_then(serde_json::Value::as_str)
 }
 
 fn is_local(task: &ChatOrchestrationTask) -> bool {
@@ -107,8 +149,22 @@ impl RuntimeStore {
     ) -> Result<Option<ChatOrchestrationChildTurn>> {
         require_id("chatId", chat_id)?;
         require_id("turnId", turn_id)?;
+        self.chat_orchestration_child_chain(chat_id, None, turn_id)
+            .await
+    }
+
+    /// The recorded state of `turn_id`, with the newest main answer across
+    /// the chain from `start_turn_id` to it.
+    pub async fn chat_orchestration_child_chain(
+        &self,
+        chat_id: &str,
+        start_turn_id: Option<&str>,
+        turn_id: &str,
+    ) -> Result<Option<ChatOrchestrationChildTurn>> {
+        require_id("chatId", chat_id)?;
+        require_id("turnId", turn_id)?;
         let mut connection = self.pool().acquire().await?;
-        child_turn_in(&mut connection, chat_id, turn_id).await
+        child_turn_in(&mut connection, chat_id, turn_id, start_turn_id).await
     }
 
     /// Run once by the runtime owner after `recover_agent_chats` and before
@@ -153,9 +209,9 @@ impl RuntimeStore {
             }
             let mut connection = self.pool().acquire().await?;
             let child = match (&task.child_chat_id, &task.child_turn_id) {
-                (Some(chat_id), Some(turn_id)) => {
-                    Some(child_turn_in(&mut connection, chat_id, turn_id).await?)
-                }
+                (Some(chat_id), Some(turn_id)) => Some(
+                    child_turn_in(&mut connection, chat_id, turn_id, chain_start(&task)).await?,
+                ),
                 (Some(chat_id), None) => {
                     let exists: Option<i64> =
                         sqlx::query_scalar("SELECT 1 FROM agentChatSessions WHERE chatId = ?")

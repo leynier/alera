@@ -196,8 +196,9 @@ impl ChatOrchestrationRuntime for PausedChatRuntime {
         &self,
         chat_id: &str,
         turn_id: &str,
+        start_turn_id: Option<&str>,
     ) -> HostResult<Option<ChatOrchestrationChildTurn>> {
-        self.inner.child_turn(chat_id, turn_id).await
+        self.inner.child_turn(chat_id, turn_id, start_turn_id).await
     }
     fn subscribe(&self) -> broadcast::Receiver<ChatRuntimeEvent> {
         self.inner.subscribe()

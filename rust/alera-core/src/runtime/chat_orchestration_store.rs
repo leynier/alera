@@ -19,7 +19,7 @@ pub fn new_chat_orchestration_task_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
-fn validate_new_task(task: &NewChatOrchestrationTask) -> Result<()> {
+pub(super) fn validate_new_task(task: &NewChatOrchestrationTask) -> Result<()> {
     require_id("taskId", &task.task_id)?;
     require_id("callerScope", &task.caller_scope)?;
     require_optional_id("parentTaskId", task.parent_task_id.as_deref())?;
@@ -64,7 +64,7 @@ fn validate_new_task(task: &NewChatOrchestrationTask) -> Result<()> {
     Ok(())
 }
 
-async fn insert_task_in(
+pub(super) async fn insert_task_in(
     connection: &mut SqliteConnection,
     task: &NewChatOrchestrationTask,
 ) -> Result<ChatOrchestrationTask> {

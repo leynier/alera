@@ -378,3 +378,49 @@ async fn child_turn_result_skips_subagent_continuation_and_blank_items() {
         Some("Main answer")
     );
 }
+
+#[tokio::test]
+async fn a_child_chain_takes_the_newest_answer_across_its_turns() {
+    let (_dir, store) = store_with_workspace("ws").await;
+    let child = new_chat_id();
+    let mut initial = snapshot(&child, "ws", "child", 0);
+    let mut continuation = turn(1, "completed");
+    continuation["origin"] = json!("backgroundContinuation");
+    initial["turns"] = json!([turn(0, "completed"), continuation, turn(2, "completed")]);
+    let mut first = item("first", "assistant_message", "First answer");
+    first["turnId"] = json!("t0000");
+    let mut wake = item("wake", "user_message", "Helper finished.");
+    wake["turnId"] = json!("t0001");
+    wake["normalized"] = json!({"origin": {"kind": "subagentWake", "taskIds": ["helper"]}});
+    let mut blank = item("blank", "assistant_message", " ");
+    blank["turnId"] = json!("t0001");
+    let mut later = item("later", "assistant_message", "Unrelated turn");
+    later["turnId"] = json!("t0002");
+    initial["items"] = json!([first, wake, blank, later]);
+    store
+        .create_agent_chat(
+            &record(&child, "ws", "child", initial),
+            &tab(&child, "ws", "child"),
+            None,
+        )
+        .await
+        .unwrap();
+    let alone = store
+        .chat_orchestration_child_turn(&child, "t0001")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(alone.final_assistant_text, None);
+    assert_eq!(alone.turn_origin.as_deref(), Some("backgroundContinuation"));
+    assert_eq!(
+        alone.message_origin,
+        Some(json!({"kind": "subagentWake", "taskIds": ["helper"]}))
+    );
+    let chain = store
+        .chat_orchestration_child_chain(&child, Some("t0000"), "t0001")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(chain.final_assistant_text.as_deref(), Some("First answer"));
+    assert_eq!(chain.turn_status.as_deref(), Some("completed"));
+}

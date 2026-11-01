@@ -4,6 +4,8 @@ use crate::terminal_host::host_error::HostError;
 use alera_core::runtime::ChatOrchestrationTaskStatus;
 use serde_json::json;
 
+use super::continuation::{chain_start, chain_turns, moved_head};
+use super::monitor_hold::{pending_requests, HoldStep};
 use super::service::ChatOrchestrationService;
 use super::tasks::{final_assistant_text, matching_turn, parse_turn_status, transition_status};
 use super::wakes::deliver_next_wake;
@@ -89,6 +91,7 @@ impl ChatOrchestrationService {
         child_chat_id: String,
         client_message_id: String,
     ) {
+        let mut quiet = None;
         loop {
             let mut task = match self.store.chat_orchestration_task(&task_id).await {
                 Ok(Some(task)) => task,
@@ -143,17 +146,21 @@ impl ChatOrchestrationService {
                     return;
                 }
             };
-            let owned_turn = self
-                .runtime
-                .turn_for_client_message(&child_chat_id, &client_message_id)
-                .await
-                .ok()
-                .flatten();
-            let turn_id = owned_turn
-                .as_ref()
-                .and_then(|turn| turn["turnId"].as_str())
-                .map(ToOwned::to_owned)
-                .or_else(|| matching_turn(&snapshot, &client_message_id).map(|(_, turn)| turn));
+            // A task that moved along continuation turns, and a follow-up,
+            // follow their stored head; otherwise the brief's message names
+            // the turn.
+            let turn_id = match moved_head(&task) {
+                Some(head) => Some(head.to_owned()),
+                None => self
+                    .runtime
+                    .turn_for_client_message(&child_chat_id, &client_message_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .and_then(|turn| turn["turnId"].as_str().map(ToOwned::to_owned))
+                    .or_else(|| matching_turn(&snapshot, &client_message_id).map(|(_, turn)| turn))
+                    .or_else(|| task.child_turn_id.clone()),
+            };
             let Some(turn_id) = turn_id else {
                 tokio::time::sleep(TASK_POLL).await;
                 continue;
@@ -181,18 +188,9 @@ impl ChatOrchestrationService {
                     return;
                 }
             }
-            let pending = snapshot["pendingRequests"]
-                .as_array()
-                .map(|requests| {
-                    requests
-                        .iter()
-                        .filter(|request| request["turnId"] == turn_id)
-                        .count()
-                })
-                .unwrap_or(0);
             let durable_turn = self
                 .runtime
-                .child_turn(&child_chat_id, &turn_id)
+                .child_turn(&child_chat_id, &turn_id, chain_start(&task))
                 .await
                 .ok()
                 .flatten();
@@ -200,54 +198,49 @@ impl ChatOrchestrationService {
                 .as_ref()
                 .and_then(|turn| turn.turn_status.clone())
                 .or_else(|| parse_turn_status(&snapshot, &turn_id));
-            if pending > 0
-                && status.as_deref() == Some("running")
-                && task.status == ChatOrchestrationTaskStatus::Running
-            {
-                let transition = transition_status(
-                    ChatOrchestrationTaskStatus::Running,
+            // A completed head may still be held for the child's leftover
+            // work; requests without a turn then belong to the task too.
+            let holdable = status.as_deref() == Some("completed")
+                && task.status != ChatOrchestrationTaskStatus::CancelRequested;
+            let open = status.as_deref() == Some("running") || holdable;
+            let pending = pending_requests(&snapshot, &turn_id, holdable);
+            if pending > 0 && open && task.status == ChatOrchestrationTaskStatus::Running {
+                self.move_task(
+                    &task_id,
+                    &child_chat_id,
+                    &turn_id,
+                    task.status,
                     ChatOrchestrationTaskStatus::NeedsInput,
-                    Some(child_chat_id.clone()),
-                    Some(turn_id.clone()),
-                    None,
-                    None,
-                    None,
-                );
-                if let Ok(alera_core::runtime::ChatOrchestrationTransitionOutcome::Applied {
-                    task,
-                    ..
-                }) = self
-                    .store
-                    .transition_chat_orchestration_task(&task_id, &transition)
-                    .await
-                {
-                    self.emit_change(&task).await;
-                }
+                )
+                .await;
                 tokio::time::sleep(TASK_POLL).await;
                 continue;
             }
-            if pending == 0
-                && task.status == ChatOrchestrationTaskStatus::NeedsInput
-                && status.as_deref() == Some("running")
-            {
-                let transition = transition_status(
-                    ChatOrchestrationTaskStatus::NeedsInput,
+            if pending == 0 && open && task.status == ChatOrchestrationTaskStatus::NeedsInput {
+                self.move_task(
+                    &task_id,
+                    &child_chat_id,
+                    &turn_id,
+                    task.status,
                     ChatOrchestrationTaskStatus::Running,
-                    Some(child_chat_id.clone()),
-                    Some(turn_id.clone()),
-                    None,
-                    None,
-                    None,
-                );
-                if let Ok(alera_core::runtime::ChatOrchestrationTransitionOutcome::Applied {
-                    task,
-                    ..
-                }) = self
-                    .store
-                    .transition_chat_orchestration_task(&task_id, &transition)
+                )
+                .await;
+            }
+            if holdable {
+                if pending > 0 {
+                    tokio::time::sleep(TASK_POLL).await;
+                    continue;
+                }
+                match self
+                    .hold_completed_head(&task, &child_chat_id, &turn_id, &snapshot, &mut quiet)
                     .await
                 {
-                    self.emit_change(&task).await;
+                    HoldStep::Advanced => continue,
+                    HoldStep::Hold => {
+                        tokio::time::sleep(TASK_POLL).await;
+                        continue;
+                    }
+                    HoldStep::Settle => {}
                 }
             }
             let Some(status) = status else {
@@ -272,7 +265,12 @@ impl ChatOrchestrationService {
             let result_text = durable_turn
                 .as_ref()
                 .and_then(|turn| turn.final_assistant_text.clone())
-                .or_else(|| final_assistant_text(&snapshot, &turn_id));
+                .or_else(|| {
+                    chain_turns(&snapshot, chain_start(&task), &turn_id)
+                        .iter()
+                        .rev()
+                        .find_map(|turn| final_assistant_text(&snapshot, turn))
+                });
             let error_message = snapshot["turns"]
                 .as_array()
                 .and_then(|turns| turns.iter().find(|turn| turn["turnId"] == turn_id))
@@ -306,6 +304,34 @@ impl ChatOrchestrationService {
                 _ => {}
             }
             tokio::time::sleep(TASK_POLL).await;
+        }
+    }
+
+    async fn move_task(
+        &self,
+        task_id: &str,
+        child_chat_id: &str,
+        turn_id: &str,
+        from: ChatOrchestrationTaskStatus,
+        to: ChatOrchestrationTaskStatus,
+    ) {
+        let transition = transition_status(
+            from,
+            to,
+            Some(child_chat_id.to_owned()),
+            Some(turn_id.to_owned()),
+            None,
+            None,
+            None,
+        );
+        if let Ok(alera_core::runtime::ChatOrchestrationTransitionOutcome::Applied {
+            task, ..
+        }) = self
+            .store
+            .transition_chat_orchestration_task(task_id, &transition)
+            .await
+        {
+            self.emit_change(&task).await;
         }
     }
 
