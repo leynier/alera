@@ -348,6 +348,7 @@ class _AgentChatQuestionCardState extends State<AgentChatQuestionCard> {
                     number: index + 1,
                     label: option.label,
                     description: option.description,
+                    preview: option.preview,
                     selected: selections.contains(index),
                     advances: !question.multiSelect,
                     onTap: canAnswer ? () => _choose(question, index) : null,

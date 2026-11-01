@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/forms/alera_ime_composition_key_guard.da
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_question_option_preview.dart';
 import 'package:flutter/material.dart';
 
 /// One row of a question's answer list: a numbered circle, or an [icon] for
@@ -17,6 +18,8 @@ class const AgentChatQuestionOptionRow({
   final int? number,
   final IconData? icon,
   final String description = '',
+  // Markdown shown on request under the description.
+  final String? preview,
   final bool selected = false,
   final bool advances = true,
   final bool muted = false,
@@ -87,6 +90,8 @@ class _AgentChatQuestionOptionRowState
                             ),
                           ),
                         ],
+                        if (widget.preview case final preview?)
+                          AgentChatQuestionOptionPreview(preview: preview),
                       ],
                     ),
                   ),
