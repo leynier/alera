@@ -255,6 +255,9 @@ pub struct ResultMessage {
     pub terminal_reason: Option<String>,
     #[serde(default)]
     pub origin: Option<Value>,
+    /// The local slash command this result reports, such as `compact`.
+    #[serde(default)]
+    pub local_command: Option<String>,
     #[serde(skip)]
     pub raw: Value,
 }

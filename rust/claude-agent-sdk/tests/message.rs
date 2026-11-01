@@ -81,3 +81,19 @@ fn reads_the_assistant_error_code_from_the_envelope() {
     };
     assert_eq!(message.error.as_deref(), Some("authentication_failed"));
 }
+
+#[test]
+fn reads_the_local_command_a_result_reports() {
+    let wire = json!({
+        "type": "result",
+        "subtype": "success",
+        "session_id": "session-1",
+        "is_error": false,
+        "result": "Not enough messages to compact.",
+        "local_command": "compact"
+    });
+    let Message::Result(result) = Message::from_value(wire) else {
+        panic!("expected result message");
+    };
+    assert_eq!(result.local_command.as_deref(), Some("compact"));
+}
