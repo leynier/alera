@@ -7,7 +7,7 @@ use super::{
 };
 use crate::terminal_host::server::agent_chat_provider_settings::{
     credentials::{ProviderCredentialStore, ProviderSecrets},
-    discovery,
+    discovery, pi_status,
     probe::WindowlessProviderProbe,
     status,
 };
@@ -38,6 +38,7 @@ pub(super) async fn status(
         version: None,
         auth_status: "unknown".into(),
         unavailable_reason: availability.err(),
+        auth_label: None,
         setup: serde_json::json!([]),
     };
     if setup_required {
@@ -80,6 +81,17 @@ pub(super) async fn status(
             if result.auth_status == "signedOut" {
                 result.available = false;
                 result.unavailable_reason = Some("Sign in to use this agent.".into());
+            }
+            if let ProductionConfig::Pi(config) = &config {
+                // Other Pi models still work, so this explains without blocking.
+                result.auth_label = pi_status::pi_model_note(
+                    executable,
+                    &config.args,
+                    &environment,
+                    result.version.as_deref(),
+                    &WindowlessProviderProbe,
+                )
+                .await;
             }
         }
     } else if let ProductionConfig::Cursor(config, None) = &config {

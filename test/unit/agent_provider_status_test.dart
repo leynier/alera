@@ -51,6 +51,21 @@ void main() {
       );
     });
 
+    test('an unverified provider shows the host explanation', () {
+      final status = agentProviderStatusOf(
+        row(
+          auth: const AgentChatProviderAuth(
+            label: 'Pi default (xai/grok-5) has no credentials configured.',
+          ),
+        ),
+      );
+      expect(status.kind, AgentProviderStatusKind.unknownSignIn);
+      expect(
+        status.detail,
+        'Pi default (xai/grok-5) has no credentials configured.',
+      );
+    });
+
     test('a verified sign-out asks for sign-in', () {
       expect(
         agentProviderStatusOf(

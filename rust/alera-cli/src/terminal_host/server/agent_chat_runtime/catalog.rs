@@ -119,6 +119,7 @@ async fn entry(
         version: None,
         auth_status: "unknown".into(),
         unavailable_reason: Some("Agent status check timed out.".into()),
+        auth_label: None,
         setup: json!([]),
     });
     let (models, source, models_error) = models(
@@ -155,7 +156,7 @@ async fn entry(
         "custom":instance.as_ref().is_some_and(|instance| !PROVIDERS.contains(&instance.provider_instance_id.as_str())),
         "enabled":enabled,"available":enabled && status.available,"setupRequired":status.setup_required,"installed":status.installed,"version":status.version,
         "unavailableReason":if enabled { status.unavailable_reason } else { Some("This agent is turned off.".into()) },
-        "checkedAt":checked_at,"auth":{"status":status.auth_status,"checkedAt":auth_checked_at.unwrap_or_else(|| checked_at.clone())},"setup":status.setup,
+        "checkedAt":checked_at,"auth":{"status":status.auth_status,"label":status.auth_label,"checkedAt":auth_checked_at.unwrap_or_else(|| checked_at.clone())},"setup":status.setup,
         "models":models,"modelsSource":source,"modelsError":models_error,
         "defaultModel":instance.as_ref().and_then(|instance| instance.default_model.clone()),
         "capabilities":capabilities,"capabilitiesSource":"adapterExpected","mcpInjectionSource":mcp_injection_source(&provider),

@@ -81,11 +81,14 @@ AgentProviderStatus agentProviderStatusOf(
       detail: auth.label ?? 'Installed and signed in.',
     );
   }
-  return const AgentProviderStatus(
+  // The host may explain an unverified state, such as a Pi default model
+  // whose provider has no credentials.
+  return AgentProviderStatus(
     kind: .unknownSignIn,
     detail:
+        auth.label ??
         'Installed, but sign-in could not be verified. A chat may ask you to '
-        'sign in.',
+            'sign in.',
   );
 }
 

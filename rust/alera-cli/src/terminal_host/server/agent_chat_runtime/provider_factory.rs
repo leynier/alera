@@ -83,6 +83,8 @@ pub(crate) struct ProviderStatus {
     pub version: Option<String>,
     pub auth_status: String,
     pub unavailable_reason: Option<String>,
+    /// The provider's own explanation of its sign-in or model state.
+    pub auth_label: Option<String>,
     pub setup: Value,
 }
 
@@ -145,6 +147,7 @@ pub(crate) trait ProviderFactory: Send + Sync + 'static {
             version: None,
             auth_status: "unknown".into(),
             unavailable_reason: availability.err(),
+            auth_label: None,
             setup: Value::Null,
         }
     }

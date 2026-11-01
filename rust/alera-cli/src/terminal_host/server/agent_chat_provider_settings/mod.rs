@@ -4,6 +4,7 @@ pub(crate) mod credentials;
 pub(crate) mod discovery;
 mod envelope;
 mod migration;
+pub(crate) mod pi_status;
 mod preferences;
 pub(crate) mod probe;
 pub(crate) mod setup;
