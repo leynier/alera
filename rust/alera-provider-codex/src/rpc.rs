@@ -240,24 +240,25 @@ impl<T: JsonTransport> CodexProvider<T> {
 }
 
 pub(crate) fn native_input(input: &TurnInput) -> Result<Vec<Value>, ProviderError> {
+    // Codex only expands `$name`; composers accept any currency sigil. Paths
+    // are appended afterwards so a sigil in a file name stays verbatim.
+    let text = alera_provider_protocol::text_with_attachment_paths(
+        &alera_provider_protocol::dollar_skill_mentions(&input.input),
+        &input.attachments,
+    );
     let mut values = Vec::new();
-    if !input.input.is_empty() {
-        // Codex only expands `$name`; composers accept any currency sigil.
-        let text = alera_provider_protocol::dollar_skill_mentions(&input.input);
+    if !text.is_empty() {
         values.push(json!({ "type": "text", "text": text }));
     }
     for attachment in &input.attachments {
-        values.push(match attachment {
-            Attachment::Image { url } => json!({ "type": "image", "url": url }),
+        match attachment {
+            Attachment::Image { url } => values.push(json!({ "type": "image", "url": url })),
             Attachment::LocalImage { path } => {
-                json!({ "type": "localImage", "path": path.to_string_lossy() })
+                values.push(json!({ "type": "localImage", "path": path.to_string_lossy() }))
             }
-            Attachment::File { .. } => {
-                return Err(ProviderError::Unsupported(
-                    "Codex app-server does not support file attachments".into(),
-                ))
-            }
-        });
+            // Named in the text above; Codex reads it with its own tools.
+            Attachment::File { .. } => {}
+        }
     }
     Ok(values)
 }

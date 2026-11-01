@@ -2,7 +2,7 @@ mod support;
 
 use alera_provider_codex::{CodexProvider, CodexProviderConfig, MockTransport};
 use alera_provider_protocol::{
-    Attachment, InteractionMode, Provider, ProviderError, RuntimeMode, SessionStartInput, TurnInput,
+    Attachment, InteractionMode, Provider, RuntimeMode, SessionStartInput, TurnInput,
 };
 use serde_json::{json, Value};
 
@@ -148,21 +148,35 @@ async fn default_turn_without_a_model_omits_collaboration_mode() {
 }
 
 #[tokio::test]
-async fn unsupported_file_attachment_fails_before_turn_start() {
-    let transport = MockTransport::new([initialize_response(1), thread_response(2, "native-file")]);
+async fn file_attachments_are_named_by_saved_path_and_images_stay_native() {
+    let transport = MockTransport::new([
+        initialize_response(1),
+        thread_response(2, "native-file"),
+        json!({ "id": 3, "result": { "turn": { "id": "native-turn-file" } } }),
+    ]);
     let mut provider = CodexProvider::new(transport, config());
     provider
         .start_session(SessionStartInput::new("app-file"))
         .await
         .unwrap();
-    let mut turn = TurnInput::text("app-file", "attach");
+    let mut turn = TurnInput::text("app-file", "Review");
     turn.attachments.push(Attachment::File {
-        path: "/tmp/file.txt".into(),
-        name: None,
+        path: "/rt/u.data.pdf".into(),
+        name: Some("spec.pdf".into()),
     });
-    assert!(matches!(
-        provider.send_turn(turn).await,
-        Err(ProviderError::Unsupported(_))
-    ));
-    assert_eq!(provider.transport().writes().len(), 3);
+    turn.attachments.push(Attachment::LocalImage {
+        path: "/w/shot.png".into(),
+    });
+    provider.send_turn(turn).await.unwrap();
+    let writes = provider.transport().writes();
+    assert_eq!(
+        writes[3]["params"]["input"],
+        json!([
+            {
+                "type": "text",
+                "text": "Review\n\n[Attached file \"spec.pdf\" is saved at: /rt/u.data.pdf]\n\n[Attached image \"shot.png\" is saved at: /w/shot.png]"
+            },
+            { "type": "localImage", "path": "/w/shot.png" }
+        ])
+    );
 }
