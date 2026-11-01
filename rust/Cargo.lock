@@ -93,6 +93,7 @@ dependencies = [
  "alera-core",
  "async-trait",
  "libc",
+ "regex",
  "serde_json",
  "thiserror 2.0.20",
  "tokio",
