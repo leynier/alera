@@ -93,6 +93,7 @@ impl ClaudeProvider {
             workflow_tasks: Default::default(),
             turn_signals: Default::default(),
             task_tools: Default::default(),
+            command_output: Default::default(),
             context_usage,
         })
     }

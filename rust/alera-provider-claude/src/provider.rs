@@ -4,6 +4,8 @@ mod background_wait;
 mod callbacks;
 #[path = "canonical_payload.rs"]
 mod canonical_payload;
+#[path = "command_output.rs"]
+mod command_output;
 #[path = "compaction.rs"]
 mod compaction;
 #[path = "context_usage.rs"]
@@ -126,6 +128,7 @@ pub struct ClaudeProvider {
     workflow_tasks: workflow::WorkflowTasks,
     turn_signals: turn_signals::TurnSignals,
     task_tools: task_list::TaskTools,
+    command_output: command_output::tail::CommandOutputTails,
     context_usage: context_usage::ContextUsage,
 }
 
@@ -230,6 +233,9 @@ impl Provider for ClaudeProvider {
         self.permission =
             permission_mode::LaunchPermission::new(&options, plan_at_start, stepped_down);
         self.file_checkpointing = options.enable_file_checkpointing;
+        self.command_output = command_output::tail::CommandOutputTails::new(
+            command_output::tail::task_output_root(&options.env),
+        );
         *self.thread_id.lock().await = Some(input.thread_id.clone());
         let client = if let Some(transport) = self.transport.take() {
             let client =
@@ -360,6 +366,8 @@ impl Provider for ClaudeProvider {
                     .as_ref()
                     .ok_or_else(|| ProviderError::InvalidState("session has not started".into()))?;
                 let message_future = client.next_message();
+                let poll_at = tokio::time::Instant::from_std(self.command_output.next_poll());
+                let tailing = self.command_output.is_active();
                 tokio::select! {
                     notice = self.request_rx.recv() => {
                         let Some(notice) = notice else {
@@ -371,6 +379,11 @@ impl Provider for ClaudeProvider {
                         }
                     }
                     result = message_future => result.map_err(sdk_error)?,
+                    _ = tokio::time::sleep_until(poll_at), if tailing => {
+                        let output = self.poll_command_output();
+                        self.queued_events.extend(output);
+                        continue;
+                    }
                 }
             };
             if let Some(message) = message {
@@ -387,6 +400,7 @@ impl Provider for ClaudeProvider {
             return Ok(());
         }
         self.pending.lock().await.clear();
+        self.command_output.clear();
         self.pending_user_prompt = None;
         self.background_tasks.clear();
         if let Some(client) = &self.client {

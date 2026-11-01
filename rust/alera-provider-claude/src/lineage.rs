@@ -86,6 +86,17 @@ impl ClaudeProvider {
         if kind == EventKind::TaskCompleted && normalized.get("status").is_none() {
             normalized["status"] = json!(canonical_payload::completed_task_status(payload));
         }
-        vec![self.event(kind, normalized, raw)]
+        let backgrounded = payload
+            .get("patch")
+            .and_then(|patch| patch.get("is_backgrounded"))
+            == Some(&Value::Bool(true));
+        let mut events = Vec::new();
+        if kind == EventKind::TaskStarted {
+            self.start_command_output(&task_id, payload);
+        } else if kind == EventKind::TaskCompleted || backgrounded {
+            events.extend(self.stop_task_output(&task_id));
+        }
+        events.push(self.event(kind, normalized, raw));
+        events
     }
 }

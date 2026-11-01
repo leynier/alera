@@ -82,6 +82,7 @@ impl ClaudeProvider {
                     ));
                 }
                 ContentBlock::ToolResult(block) => {
+                    events.extend(self.stop_command_output_of(&block.tool_use_id));
                     let item_type = self
                         .open_items
                         .remove(&block.tool_use_id)

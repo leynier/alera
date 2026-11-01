@@ -262,6 +262,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "claude-agent-sdk",
+ "libc",
  "serde_json",
  "tokio",
  "uuid",

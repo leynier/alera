@@ -31,7 +31,8 @@ impl ClaudeProvider {
             Message::User(message) => {
                 let handles = self.workflow_handles_event(&message);
                 let plans = self.task_plan_events(&message);
-                let mut events = vec![self.map_user_message(message)];
+                let mut events = self.tool_result_events(&message);
+                events.push(self.map_user_message(message));
                 events.extend(handles);
                 events.extend(plans);
                 events
@@ -274,7 +275,7 @@ impl ClaudeProvider {
         }
         self.attach_context_usage(&mut terminal_payload, message.model_usage.as_ref());
         // Items the turn ended during settle before its terminal event.
-        let mut events = Vec::new();
+        let mut events = self.stop_all_command_output();
         events.extend(self.settle_compaction(interrupted, message.result.as_deref()));
         events.extend(self.settle_api_retry(interrupted, class));
         events.push(self.event_for_turn(

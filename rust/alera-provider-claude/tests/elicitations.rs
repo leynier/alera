@@ -78,7 +78,12 @@ async fn a_form_elicitation_opens_the_generic_request_and_sends_the_form() {
     assert_eq!(event.payload["requestedSchema"], schema);
     assert_eq!(event.payload["title"], "Reviewer");
     assert_eq!(
-        event.provider_refs.as_ref().unwrap().provider_request_id.as_deref(),
+        event
+            .provider_refs
+            .as_ref()
+            .unwrap()
+            .provider_request_id
+            .as_deref(),
         Some("elicit-native")
     );
     let reply = answer(
