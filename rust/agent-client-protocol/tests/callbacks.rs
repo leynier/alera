@@ -366,6 +366,10 @@ async fn only_terminal_service_handlers_advertise_terminal_support() {
             client.transport().writes()[0]["params"]["clientCapabilities"]["terminal"],
             terminal
         );
+        assert_eq!(
+            client.transport().writes()[0]["params"]["clientCapabilities"]["session"],
+            json!({"list": null, "notices": {}})
+        );
     }
 }
 

@@ -4,6 +4,7 @@ use crate::mapping_values::{
     permission_kind, string, terminal_state, tool_event_kind, tool_payload,
 };
 use crate::questions::extract_questions;
+use crate::session_notice::notice_payload;
 use crate::transport::PendingRequest;
 use agent_client_protocol::{AcpIncoming, AcpRequestId, RpcRequest};
 use alera_provider_protocol::{
@@ -178,6 +179,14 @@ fn map_notification(
         "config_option_update" | "current_mode_update" => {
             (EventKind::ThreadMetadataUpdated, update.clone(), None)
         }
+        "notice" => match notice_payload(&update) {
+            Some(payload) => (EventKind::RuntimeWarning, payload, None),
+            None => (
+                EventKind::Unknown("acp.session-update.notice".into()),
+                update.clone(),
+                None,
+            ),
+        },
         "compaction_update" | "compaction_summary_chunk" => (
             EventKind::ItemUpdated,
             json!({"itemType":"context_compaction","data":update}),

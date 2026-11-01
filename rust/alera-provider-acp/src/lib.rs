@@ -16,6 +16,7 @@ mod reasoning_effort;
 mod registry_commands;
 mod respond;
 mod runtime_response;
+mod session_notice;
 mod state;
 mod transport;
 

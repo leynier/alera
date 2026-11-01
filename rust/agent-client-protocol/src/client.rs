@@ -146,7 +146,9 @@ impl<T: JsonTransport> AcpClient<T> {
             "clientCapabilities": {
                 "fs": {"readTextFile": false, "writeTextFile": false},
                 "terminal": self.request_handler.as_ref().is_some_and(|handler| handler.supports_terminal()),
-                "session": {"list": null},
+                // ACP v1 agents send session notices only to clients that
+                // advertise them; v2 needs no capability.
+                "session": {"list": null, "notices": {}},
                 "elicitation": {"form": {}, "url": {}}
             },
             "clientInfo": {"name": client_name, "version": client_version}
