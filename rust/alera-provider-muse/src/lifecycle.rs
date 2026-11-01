@@ -154,6 +154,7 @@ impl Provider for MuseProvider {
         };
         self.queue_event(self.event_session_started(&session))?;
         self.queue_event(self.event_thread_started(&session))?;
+        self.approval_mode = mode;
         self.session = Some(session.clone());
         Ok(session)
     }
@@ -295,17 +296,22 @@ impl Provider for MuseProvider {
         if let Some(event) = self.queued_events.pop_front() {
             return Ok(Some(event));
         }
-        let frame = self
-            .client
-            .as_ref()
-            .ok_or_else(|| ProviderError::InvalidState("Muse client unavailable".into()))?
-            .next_frame()
-            .await
-            .map_err(Self::sdk_error)?;
-        let Some(frame) = frame else {
-            return Ok(None);
-        };
-        self.handle_frame(frame).await
+        // A frame the adapter settles itself yields no event; read the next.
+        loop {
+            let frame = self
+                .client
+                .as_ref()
+                .ok_or_else(|| ProviderError::InvalidState("Muse client unavailable".into()))?
+                .next_frame()
+                .await
+                .map_err(Self::sdk_error)?;
+            let Some(frame) = frame else {
+                return Ok(None);
+            };
+            if let Some(event) = self.handle_frame(frame).await? {
+                return Ok(Some(event));
+            }
+        }
     }
 
     async fn close(&mut self) -> Result<(), ProviderError> {

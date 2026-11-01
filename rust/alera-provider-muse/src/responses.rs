@@ -9,6 +9,17 @@ impl MuseProvider {
         request: PendingRequest,
         decision: ApprovalDecision,
     ) -> Result<(), ProviderError> {
+        self.decide_approval(&request, decision).await?;
+        self.pending.remove(&request.logical_id);
+        Ok(())
+    }
+
+    /// Sends `approval/decide` with the offered choice for `decision`.
+    pub(crate) async fn decide_approval(
+        &mut self,
+        request: &PendingRequest,
+        decision: ApprovalDecision,
+    ) -> Result<(), ProviderError> {
         let Some(choices) = request
             .params
             .get("availableChoices")
@@ -59,7 +70,6 @@ impl MuseProvider {
             .command("approval/decide", params, None)
             .await
             .map_err(Self::sdk_error)?;
-        self.pending.remove(&request.logical_id);
         Ok(())
     }
 

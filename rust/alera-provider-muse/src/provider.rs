@@ -16,6 +16,10 @@ pub struct MuseProvider {
     pub(crate) session: Option<ProviderSession>,
     pub(crate) pending: HashMap<RequestId, PendingRequest>,
     pub(crate) queued_events: VecDeque<ProviderEvent>,
+    /// The session's MSP approval mode.
+    pub(crate) approval_mode: Option<&'static str>,
+    /// Child approvals answered without the person, by approval stage.
+    pub(crate) auto_approved: HashMap<RequestId, Value>,
 }
 
 impl MuseProvider {
@@ -30,6 +34,8 @@ impl MuseProvider {
             session: None,
             pending: HashMap::new(),
             queued_events: VecDeque::new(),
+            approval_mode: None,
+            auto_approved: HashMap::new(),
         })
     }
 
@@ -214,6 +220,9 @@ impl MuseProvider {
                                 .unwrap_or_else(|| RequestId::String(value.to_string())),
                             _ => RequestId::String(id.to_string()),
                         };
+                        if self.auto_approved.remove(&request_id).is_some() {
+                            return Ok(None);
+                        }
                         self.pending.remove(&request_id);
                     }
                 }
@@ -224,6 +233,7 @@ impl MuseProvider {
                             session.active_turn_id = None;
                         }
                         self.pending.clear();
+                        self.auto_approved.clear();
                     }
                     EventKind::SessionStateChanged | EventKind::ThreadStateChanged => {
                         if let Some(session) = &mut self.session {
@@ -279,6 +289,9 @@ impl MuseProvider {
                         .respond_server_request(wire_id, Value::Object(Map::new()))
                         .await
                         .map_err(Self::sdk_error)?;
+                }
+                if self.auto_approve_child(&pending).await {
+                    return Ok(None);
                 }
                 event
                     .provider_refs

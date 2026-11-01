@@ -6,6 +6,7 @@
 //! contract.
 
 mod attachments;
+mod child_approvals;
 mod config;
 mod event_mapping;
 mod events;
