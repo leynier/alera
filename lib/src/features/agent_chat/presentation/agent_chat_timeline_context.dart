@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 /// dock, not from timeline rows.
 final class const AgentChatTimelineActions({
   required final String chatId,
+
+  /// The chat's workspace, for host reads such as generated image previews.
+  final String? workspaceId,
   required final ValueChanged<String> onRetrySend,
   required final ValueChanged<String> onEditSend,
   required final ValueChanged<String> onOpenLink,
@@ -30,7 +33,16 @@ final class const AgentChatTimelineActions({
   /// rewind to the provider's checkpoint.
   final ValueChanged<String>? onNativeRewindTurn,
   final ValueChanged<String>? onRewindFilesTurn,
-});
+}) {
+  /// The chat, when its workspace is known.
+  AgentChatRef? get chat => switch (workspaceId) {
+    final workspaceId? => AgentChatRef(
+      chatId: chatId,
+      workspaceId: workspaceId,
+    ),
+    null => null,
+  };
+}
 
 /// Which collapsible rows the user opened or closed, by row key. Kept above
 /// the lazily built list so a row scrolled out of view and back keeps its

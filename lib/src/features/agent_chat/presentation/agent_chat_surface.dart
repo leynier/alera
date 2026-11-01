@@ -268,6 +268,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
     required String? implementablePlanId,
   }) => AgentChatTimelineActions(
     chatId: widget.chatId,
+    workspaceId: widget.workspace.id,
     onRetrySend: (id) => unawaited(_controller.retrySend(id)),
     onEditSend: _editFailedSend,
     onOpenLink: (link) => unawaited(_openLink(link)),

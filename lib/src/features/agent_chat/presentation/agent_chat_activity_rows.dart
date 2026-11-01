@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_generated_image_preview.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_item_details.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_views.dart';
@@ -27,11 +28,13 @@ class const AgentChatActivityRowView({
           action: actions.single,
           expansion: expansion,
           onOpenFile: this.actions.onOpenFile,
+          chat: this.actions.chat,
         ),
       final AgentChatActionGroupRow group => _ActionGroup(
         group: group,
         expansion: expansion,
         onOpenFile: actions.onOpenFile,
+        chat: actions.chat,
       ),
       AgentChatItemRow(:final item) => AgentChatItemRowView(
         item: item,
@@ -120,6 +123,7 @@ class const AgentChatItemRowView({
         ),
         expansion: expansion,
         onOpenFile: actions.onOpenFile,
+        chat: actions.chat,
       ),
     };
   }
@@ -264,6 +268,7 @@ class const _ActionGroup({
   required final AgentChatActionGroupRow group,
   required final AgentChatExpansion expansion,
   required final ValueChanged<String> onOpenFile,
+  required final AgentChatRef? chat,
 }) extends StatefulWidget {
   @override
   State<_ActionGroup> createState() => _ActionGroupState();
@@ -310,6 +315,7 @@ class _ActionGroupState extends State<_ActionGroup> {
                     action: action,
                     expansion: widget.expansion,
                     onOpenFile: widget.onOpenFile,
+                    chat: widget.chat,
                   ),
               ],
             ),
@@ -324,6 +330,7 @@ class const _ActionRow({
   required final AgentChatWorkedAction action,
   required final AgentChatExpansion expansion,
   required final ValueChanged<String> onOpenFile,
+  required final AgentChatRef? chat,
 }) extends StatefulWidget {
   @override
   State<_ActionRow> createState() => _ActionRowState();
@@ -356,6 +363,12 @@ class _ActionRowState extends State<_ActionRow> {
                 )
               : null,
         ),
+        if (_previewsImage(item, widget.chat) case final chat?)
+          AgentChatGeneratedImagePreview(
+            chat: chat,
+            item: item,
+            onOpenFile: widget.onOpenFile,
+          ),
         if (expanded)
           Container(
             width: double.infinity,
@@ -379,6 +392,15 @@ class _ActionRowState extends State<_ActionRow> {
     );
   }
 }
+
+/// The chat to read [item]'s generated image from, when it saved one.
+AgentChatRef? _previewsImage(AgentChatItem item, AgentChatRef? chat) =>
+    item.type == AgentChatItemType.imageGeneration &&
+        !item.isInProgress &&
+        !item.isFailed &&
+        item.imagePath != null
+    ? chat
+    : null;
 
 class const _RowHeader({
   super.key,

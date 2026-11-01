@@ -41,6 +41,7 @@ class _AgentChatSubagentSurfaceState
   final AgentChatExpansion _expansion = AgentChatExpansion();
   late final AgentChatTimelineActions _actions = AgentChatTimelineActions(
     chatId: widget.chatId,
+    workspaceId: widget.workspace.id,
     onRetrySend: (_) {},
     onEditSend: (_) {},
     onOpenLink: (link) => unawaited(_openLink(link)),
