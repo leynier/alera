@@ -144,6 +144,7 @@ impl ClaudeProvider {
             payload.clone(),
             self.raw("turn", payload),
         ));
+        self.queue_permission_notice();
         Ok(TurnStartResult {
             thread_id: input.thread_id,
             turn_id,
@@ -158,17 +159,16 @@ impl ClaudeProvider {
         if plan == self.plan_interaction.load(Ordering::SeqCst) {
             return Ok(());
         }
-        let permission_mode = if plan {
-            "plan"
+        if plan {
+            self.client
+                .as_ref()
+                .ok_or_else(|| ProviderError::InvalidState("session client is unavailable".into()))?
+                .set_permission_mode("plan")
+                .await
+                .map_err(sdk_error)?;
         } else {
-            self.base_permission_mode.as_deref().unwrap_or("default")
-        };
-        self.client
-            .as_ref()
-            .ok_or_else(|| ProviderError::InvalidState("session client is unavailable".into()))?
-            .set_permission_mode(permission_mode)
-            .await
-            .map_err(sdk_error)?;
+            self.restore_launch_permission_mode().await?;
+        }
         self.plan_interaction.store(plan, Ordering::SeqCst);
         Ok(())
     }

@@ -82,7 +82,7 @@ impl ClaudeProvider {
             open_items: HashMap::new(),
             stream_items: HashMap::new(),
             session_effort: None,
-            base_permission_mode: None,
+            permission: Default::default(),
             plan_interaction: Arc::new(AtomicBool::new(false)),
             file_checkpointing: false,
             fork_source_native_thread_id: None,
@@ -96,10 +96,20 @@ impl ClaudeProvider {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn build_options(
         &self,
         input: &SessionStartInput,
     ) -> Result<ClaudeAgentOptions, ProviderError> {
+        self.launch_options(input).map(|(options, _)| options)
+    }
+
+    /// The launch options, and whether Full Access stepped down because
+    /// Claude's settings disable bypass.
+    pub(super) fn launch_options(
+        &self,
+        input: &SessionStartInput,
+    ) -> Result<(ClaudeAgentOptions, bool), ProviderError> {
         if matches!(input.sandbox_mode, Some(SandboxMode::ReadOnly)) {
             return Err(ProviderError::Unsupported(
                 "Claude Code does not expose a read-only filesystem sandbox".into(),
@@ -218,6 +228,7 @@ impl ClaudeProvider {
                 options.permission_mode = Some(mode.into());
             }
         }
+        let stepped_down = super::permission_mode::step_down_bypass(&mut options);
         install_callbacks(
             &mut options,
             &self.request_tx,
@@ -227,7 +238,7 @@ impl ClaudeProvider {
             &self.active_turn_id,
             &self.plan_interaction,
         );
-        Ok(options)
+        Ok((options, stepped_down))
     }
 
     pub(super) fn raw(&self, message_type: impl Into<String>, payload: Value) -> RawEvent {
@@ -362,6 +373,14 @@ mod tests {
     fn full_access_overrides_configured_default_permission_mode() {
         let mut config = ClaudeProviderConfig::default();
         config.options.permission_mode = Some("default".into());
+        // Claude settings can disable bypass, so none are read here.
+        config.options.env.insert(
+            "CLAUDE_CONFIG_DIR".into(),
+            std::env::temp_dir()
+                .join("alera-claude-no-config")
+                .to_string_lossy()
+                .into_owned(),
+        );
         let provider = ClaudeProvider::new(config).unwrap();
         let input = SessionStartInput {
             runtime_mode: RuntimeMode::FullAccess,

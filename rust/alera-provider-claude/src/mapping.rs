@@ -79,6 +79,9 @@ impl ClaudeProvider {
                 self.set_native_thread(&native);
             }
         }
+        let permission_notice = matches!(subtype.as_str(), "init" | "initialize")
+            .then(|| self.adopt_reported_permission_mode(&payload))
+            .flatten();
         let raw = || self.raw(subtype.clone(), payload.clone());
         match subtype.as_str() {
             "init" | "initialize" => {
@@ -89,6 +92,7 @@ impl ClaudeProvider {
                     raw(),
                 )];
                 events.extend(commands);
+                events.extend(permission_notice);
                 events
             }
             "session_state_changed" | "session-state-changed" => {
