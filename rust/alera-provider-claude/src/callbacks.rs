@@ -4,6 +4,9 @@ use claude_agent_sdk::{McpCallbackWithContext, PermissionCallback, PermissionRes
 use tokio::sync::oneshot;
 use tokio::time::{timeout, Duration};
 
+#[path = "user_input_questions.rs"]
+mod user_input_questions;
+
 const CALLBACK_TIMEOUT: Duration = Duration::from_secs(300);
 const PLAN_CAPTURED_MESSAGE: &str = "The plan was shown to the user as a proposed plan. Stop here and wait: the user will reply with feedback or ask for the implementation in a later turn.";
 
@@ -77,31 +80,10 @@ pub(crate) fn install_callbacks(
             } else {
                 RequestKind::PermissionApproval
             };
-            let questions = if request_kind == RequestKind::ToolUserInput {
-                input
-                    .get("questions")
-                    .and_then(Value::as_array)
-                    .map(|values| {
-                        values
-                            .iter()
-                            .enumerate()
-                            .filter_map(|(index, value)| {
-                                let mut object = value.as_object()?.clone();
-                                let stable_id = object
-                                    .get("id")
-                                    .and_then(Value::as_str)
-                                    .or_else(|| object.get("header").and_then(Value::as_str))
-                                    .or_else(|| object.get("question").and_then(Value::as_str))
-                                    .map(str::to_owned)
-                                    .unwrap_or_else(|| format!("question-{index}"));
-                                object.insert("id".into(), Value::String(stable_id));
-                                serde_json::from_value(Value::Object(object)).ok()
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
+            let (questions, previews) = if request_kind == RequestKind::ToolUserInput {
+                user_input_questions::claude_questions(&input)
             } else {
-                Vec::new()
+                (Vec::new(), None)
             };
             let native_request_id = nonempty_string(&context.control.request_id);
             let raw = nonnull_raw(&context.control.raw, &input);
@@ -115,6 +97,9 @@ pub(crate) fn install_callbacks(
                 "context": context_value,
                 "requestType": request_kind,
             });
+            if let Some(previews) = previews {
+                payload[alera_provider_protocol::USER_INPUT_OPTION_PREVIEWS] = previews;
+            }
             if let Some(reason) = approval_reason(&context) {
                 payload["reason"] = Value::String(reason);
             }

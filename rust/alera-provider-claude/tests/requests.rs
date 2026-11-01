@@ -203,6 +203,50 @@ async fn ask_user_question_without_native_id_gets_stable_question_id() {
 }
 
 #[tokio::test]
+async fn ask_user_question_keeps_previews_and_questions_with_blank_descriptions() {
+    let preview = "```ts\nconst enabled = true;\n```";
+    let request = json!({
+        "type": "control_request",
+        "request_id": "question-native-id",
+        "request": {
+            "subtype": "can_use_tool",
+            "tool_name": "AskUserQuestion",
+            "input": {
+                "questions": [{
+                    "header": "Choice",
+                    "question": "Which one?",
+                    "options": [
+                        {"label": "Plain"},
+                        {"label": "Previewed", "description": "With code", "preview": preview}
+                    ]
+                }]
+            }
+        }
+    });
+    let (mut provider, _handle) = started_provider([initialize_response(), request]).await;
+    provider
+        .send_turn(TurnInput::text("app-thread", "question"))
+        .await
+        .unwrap();
+    let event = loop {
+        let event = provider.next_event().await.unwrap().unwrap();
+        if event.kind == EventKind::UserInputRequested {
+            break event;
+        }
+    };
+    event.validate().unwrap();
+    let runtime_request = event.runtime_request.unwrap();
+    let question = &runtime_request.questions[0];
+    assert_eq!(question.id, "Choice");
+    assert_eq!(question.options.len(), 2);
+    assert_eq!(question.options[0].description, "");
+    assert_eq!(
+        runtime_request.payload["optionPreviews"]["Choice"],
+        json!([null, preview])
+    );
+}
+
+#[tokio::test]
 async fn generic_mcp_control_request_is_dynamic_tool_call_with_raw_context() {
     let request = json!({
         "type": "control_request",
