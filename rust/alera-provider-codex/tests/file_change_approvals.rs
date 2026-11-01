@@ -56,7 +56,11 @@ async fn file_change_approvals_list_the_files_their_item_changes() {
             ),
             approval(10, "patch", json!({})),
             approval(11, "unknown", json!({ "grantRoot": "/repo" })),
-            approval(12, "reasoned", json!({ "reason": "  Needs write access  " })),
+            approval(
+                12,
+                "reasoned",
+                json!({ "reason": "  Needs write access  " }),
+            ),
             started("many", Value::Array(many)),
             approval(13, "many", json!({})),
         ]),
