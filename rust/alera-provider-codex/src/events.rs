@@ -52,6 +52,7 @@ fn map_notification<T: JsonTransport>(
     let native_thread_id = thread_id(&params);
     let native_turn_id = turn_id(&params);
     let native_item_id = item_id(&params);
+    provider.file_change_paths.observe(method, &params);
     let mut kind = notification_kind(method, &params);
     let mut payload = normalized_payload(method, &params)?;
     if let Some(task) = crate::lineage::native_task(&params)? {
@@ -211,12 +212,21 @@ fn map_request<T: JsonTransport>(
     } else {
         EventKind::RequestOpened
     };
+    let mut payload = request_payload(kind, &params, &questions);
+    if matches!(
+        kind,
+        RequestKind::FileChangeApproval | RequestKind::ApplyPatchApproval
+    ) {
+        if let Some(detail) = provider.file_change_paths.approval_detail(method, &params) {
+            payload["detail"] = Value::String(detail);
+        }
+    }
     let mut event = ProviderEvent::new(
         alera_provider_protocol::ProviderKind::Codex,
         provider.config.instance_id.clone(),
         app_thread_id,
         event_kind,
-        request_payload(kind, &params, &questions),
+        payload,
         Some(raw_event(method, "request", message)),
     )
     .with_request(request);

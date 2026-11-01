@@ -8,7 +8,8 @@
 
 use crate::provider::CodexProvider;
 use crate::wire;
-use alera_provider_protocol::ApprovalDecision;
+use alera_agent_transport::JsonTransport;
+use alera_provider_protocol::{ApprovalDecision, ProviderError};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
@@ -97,5 +98,32 @@ impl<T> CodexProvider<T> {
             native_thread_id,
             kind,
         })
+    }
+}
+
+impl<T: JsonTransport> CodexProvider<T> {
+    /// Answers an approval the session allowance already covers, without
+    /// surfacing it. Returns whether the message was consumed.
+    pub(crate) async fn answer_allowed_request(
+        &mut self,
+        message: &Value,
+    ) -> Result<bool, ProviderError> {
+        let (Some(id), Some(method)) = (message.get("id"), wire::method(message)) else {
+            return Ok(false);
+        };
+        let params = wire::params(message);
+        let Some(grant) = self.allowance_grant(method, &params) else {
+            return Ok(false);
+        };
+        if !self
+            .session_approvals
+            .allows(&grant.native_thread_id, grant.kind)
+        {
+            return Ok(false);
+        }
+        let rpc_id = wire::request_id(id)?;
+        let result = allowed_result(method);
+        self.transport.send(wire::response(&rpc_id, result)).await?;
+        Ok(true)
     }
 }

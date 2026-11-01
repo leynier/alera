@@ -1,5 +1,5 @@
 use crate::config::CodexProviderConfig;
-use crate::{events, responses, wire};
+use crate::{events, wire};
 use alera_agent_transport::{JsonLineProcess, JsonTransport};
 use alera_provider_protocol::{
     ApprovalPolicy, InterruptInput, Provider, ProviderCapabilities, ProviderError, ProviderKind,
@@ -7,7 +7,7 @@ use alera_provider_protocol::{
     TurnInput, TurnStartResult,
 };
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 pub(crate) struct PendingRequest {
@@ -54,30 +54,8 @@ pub struct CodexProvider<T> {
     /// The native turn the last `/compact` runs in, which cannot be steered.
     pub(crate) compaction_turn_id: Option<String>,
     pub(crate) goal: crate::goal::GoalState,
-}
-
-impl<T: JsonTransport> CodexProvider<T> {
-    /// Answers an approval the session allowance already covers, without
-    /// surfacing it. Returns whether the message was consumed.
-    async fn answer_allowed_request(&mut self, message: &Value) -> Result<bool, ProviderError> {
-        let (Some(id), Some(method)) = (message.get("id"), wire::method(message)) else {
-            return Ok(false);
-        };
-        let params = wire::params(message);
-        let Some(grant) = self.allowance_grant(method, &params) else {
-            return Ok(false);
-        };
-        if !self
-            .session_approvals
-            .allows(&grant.native_thread_id, grant.kind)
-        {
-            return Ok(false);
-        }
-        let rpc_id = wire::request_id(id)?;
-        let result = crate::session_approvals::allowed_result(method);
-        self.transport.send(wire::response(&rpc_id, result)).await?;
-        Ok(true)
-    }
+    /// The files each running file-change item changes, for its approval.
+    pub(crate) file_change_paths: crate::file_change_approvals::FileChangePaths,
 }
 
 impl<T> CodexProvider<T> {
@@ -109,6 +87,7 @@ impl<T> CodexProvider<T> {
             abandoned_responses: HashSet::new(),
             compaction_turn_id: None,
             goal: Default::default(),
+            file_change_paths: Default::default(),
         }
     }
 
@@ -328,86 +307,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
     }
 
     async fn respond(&mut self, response: RuntimeResponse) -> Result<(), ProviderError> {
-        self.ensure_open()?;
-        let request_id = response.request_id().clone();
-        let (rpc_id, method, allowance) = self
-            .pending_requests
-            .get(&request_id)
-            .ok_or_else(|| ProviderError::InvalidState("unknown Codex runtime request id".into()))
-            .map(|pending| {
-                (
-                    pending.rpc_id.clone(),
-                    pending.method.clone(),
-                    pending.allowance.clone(),
-                )
-            })?;
-        let method = method.as_str();
-        let matches_method = match &response {
-            RuntimeResponse::Native { .. } => true,
-            RuntimeResponse::Approval { .. } => matches!(
-                method,
-                "item/commandExecution/requestApproval"
-                    | "item/fileChange/requestApproval"
-                    | "item/permissions/requestApproval"
-                    | "execCommandApproval"
-                    | "applyPatchApproval"
-            ),
-            RuntimeResponse::UserInput { .. } => method == "item/tool/requestUserInput",
-            RuntimeResponse::Elicitation { .. } => method == "mcpServer/elicitation/request",
-        };
-        if !matches_method {
-            return Err(ProviderError::Validation(
-                "Codex runtime response variant does not match the pending request".into(),
-            ));
-        }
-        let result = match response {
-            RuntimeResponse::Approval {
-                decision,
-                updated_input,
-                ..
-            } => {
-                if let Some(grant) = &allowance {
-                    self.session_approvals.record(grant, decision);
-                }
-                responses::approval_result(method, decision, updated_input)
-            }
-            RuntimeResponse::UserInput { answers, .. } => responses::user_input_result(answers),
-            RuntimeResponse::Elicitation {
-                action, content, ..
-            } => responses::elicitation_result(action, content)?,
-            RuntimeResponse::Native { result, .. } => result,
-        };
-        if method == "mcpServer/elicitation/request" {
-            if result.get("action").is_none() {
-                return Err(ProviderError::Validation(
-                    "MCP elicitation requires an action response".into(),
-                ));
-            }
-            let Some(content) = result.get("content") else {
-                return Err(ProviderError::Validation(
-                    "MCP elicitation response requires content".into(),
-                ));
-            };
-            if !content.is_null() && !content.is_object() {
-                return Err(ProviderError::Validation(
-                    "MCP elicitation content must be null or an object".into(),
-                ));
-            }
-        }
-        self.transport.send(wire::response(&rpc_id, result)).await?;
-        self.pending_requests.remove(&request_id);
-        if self.pending_requests.is_empty() {
-            if let Some(session) = self.session.as_mut() {
-                if session.status == SessionStatus::Waiting {
-                    session.status = if session.active_turn_id.is_some() {
-                        SessionStatus::Running
-                    } else {
-                        SessionStatus::Ready
-                    };
-                }
-            }
-        }
-        Ok(())
+        self.respond_runtime(response).await
     }
 
     async fn next_event(

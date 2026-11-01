@@ -11,6 +11,7 @@ mod config;
 mod events;
 mod failure;
 mod feedback;
+mod file_change_approvals;
 mod goal;
 mod goal_command;
 mod goal_hold;
