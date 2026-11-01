@@ -234,39 +234,6 @@ fn a_quota_command_inherits_when_the_shell_cannot_be_probed() {
 }
 
 #[test]
-fn preserves_gpt_acronym_and_uses_normal_hyphens() {
-    let snapshot = parse_tui_snapshot(
-        "antigravity",
-        "default",
-        "Antigravity",
-        "claude and gpt models\nWeekly limit\n75% left",
-    );
-    assert_eq!(snapshot.buckets.len(), 1);
-    assert_eq!(snapshot.buckets[0].name, "Claude And GPT Models - Weekly");
-}
-
-#[test]
-fn detects_complete_antigravity_usage_without_fixed_delay() {
-    let complete = [
-        "Gemini Models",
-        "Weekly limit",
-        "99% left",
-        "5 hour limit",
-        "100% left",
-        "Claude and GPT Models",
-        "Weekly limit",
-        "75% left",
-        "5 hour limit",
-        "100% left",
-    ]
-    .join("\n");
-    assert!(antigravity_usage_complete(&complete));
-    assert!(!antigravity_usage_complete(
-        "Gemini Models\nWeekly limit\n99% left"
-    ));
-}
-
-#[test]
 fn redacts_bearer_and_api_keys() {
     let redacted = redact_error("Bearer sk-example-secret-value-1234567890");
     assert!(!redacted.contains("secret-value"));

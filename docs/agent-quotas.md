@@ -74,7 +74,7 @@ A Claude account with no usable OAuth credentials reports which of these it hit,
 ## Provider Data Sources
 
 - Claude prefers scoped Keychain or credential-file OAuth data and the official usage endpoint. A hidden PTY `/usage` scrape runs only when the user chooses **Try With TUI** for that profile.
-- Antigravity scrapes its official interactive usage command in a hidden PTY on normal snapshot and refresh paths.
+- Antigravity runs `agy -p "/usage"`, which prints one tab-separated line per bucket (group, label, remaining percent, UTC reset time), on normal snapshot and refresh paths. Buckets are named `Group - 5 Hour` or `Group - Weekly`, including per-model groups such as `Gemini 4 Argon - Weekly`; a label with another window keeps its own text and its reset. As in T3 Code, an untouched bucket (100% remaining) whose reset falls within a minute of the request time plus its window reports a rolling reset rather than a real one, so it shows no reset time.
 - Codex first queries the authenticated `wham/usage` backend used by Codex itself, including reset-credit metadata, and falls back to the read-only app-server rate-limit method. Older app-server responses are enriched from the reset-credit endpoint when possible.
 - Kimi calls its usage endpoint with the API key from the configured host environment variable, which defaults to `KIMI_API_KEY`.
 - Grok reads its existing local login metadata and calls its usage endpoint.

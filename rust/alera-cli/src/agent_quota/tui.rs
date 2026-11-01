@@ -1,28 +1,3 @@
-async fn fetch_tui_provider(
-    provider: &str,
-    display_name: &str,
-    command: &str,
-    slash_command: &str,
-) -> QuotaSnapshot {
-    let completion = if provider == "antigravity" {
-        TuiCompletion::Antigravity
-    } else {
-        TuiCompletion::Generic
-    };
-    match run_tui_command(
-        command,
-        &[],
-        slash_command,
-        BTreeMap::new(),
-        completion,
-    )
-    .await
-    {
-        Ok(output) => parse_tui_snapshot(provider, "default", display_name, &output),
-        Err(error) => command_error_snapshot(provider, "default", display_name, error),
-    }
-}
-
 fn command_error_snapshot(
     provider: &str,
     account_id: &str,
@@ -40,7 +15,6 @@ fn command_error_snapshot(
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TuiCompletion {
     Generic,
-    Antigravity,
 }
 
 /// Environment for a quota CLI, or `None` when the shell could not be probed
@@ -162,10 +136,6 @@ async fn run_tui_command(
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     let settled = match completion {
-                        TuiCompletion::Antigravity => {
-                            last_data.elapsed() > Duration::from_millis(300)
-                                && antigravity_usage_complete(&String::from_utf8_lossy(&output))
-                        }
                         TuiCompletion::Generic => {
                             started.elapsed() > Duration::from_secs(4)
                                 && output.len() > 100
@@ -188,23 +158,6 @@ async fn run_tui_command(
     .context("Quota PTY task failed")?
 }
 
-fn antigravity_usage_complete(output: &str) -> bool {
-    const EXPECTED_BUCKETS: [&str; 4] = [
-        "Gemini Models - Weekly",
-        "Gemini Models - 5 Hour",
-        "Claude And GPT Models - Weekly",
-        "Claude And GPT Models - 5 Hour",
-    ];
-    let snapshot = parse_tui_snapshot("antigravity", "default", "Antigravity", output);
-    snapshot.status == "ok"
-        && EXPECTED_BUCKETS.iter().all(|expected| {
-            snapshot
-                .buckets
-                .iter()
-                .any(|bucket| bucket.name == *expected)
-        })
-}
-
 fn parse_tui_snapshot(
     provider: &str,
     account_id: &str,
@@ -216,7 +169,6 @@ fn parse_tui_snapshot(
     let mut windows = Vec::new();
     let mut buckets = Vec::new();
     let mut current_label: Option<String> = None;
-    let mut current_group: Option<String> = None;
     for raw_line in clean.lines() {
         let line = raw_line.split_whitespace().collect::<Vec<_>>().join(" ");
         if line.len() < 3 {
@@ -227,10 +179,6 @@ fn parse_tui_snapshot(
             current_label = Some("5 Hour".to_string());
         } else if lower.contains("weekly limit") {
             current_label = Some("Weekly".to_string());
-        }
-        if provider == "antigravity" && lower.ends_with("models") {
-            current_group = Some(title_case_words(&line));
-            continue;
         }
         let Some(captures) = percent_re.captures(&line) else {
             continue;
@@ -245,7 +193,7 @@ fn parse_tui_snapshot(
             .unwrap_or_default();
         let used_percent = if suffix == "used" {
             raw_percent
-        } else if suffix == "left" || suffix == "remaining" || provider == "antigravity" {
+        } else if suffix == "left" || suffix == "remaining" {
             100.0 - raw_percent
         } else {
             raw_percent
@@ -266,21 +214,7 @@ fn parse_tui_snapshot(
             None
         };
         let reset_description = extract_reset_description(&line);
-        if provider == "antigravity" {
-            let label = current_label.clone().unwrap_or_else(|| "Quota".to_string());
-            let name = current_group
-                .as_ref()
-                .map(|group| format!("{group} - {label}"))
-                .unwrap_or(label);
-            buckets.retain(|bucket: &QuotaBucket| bucket.name != name);
-            buckets.push(QuotaBucket {
-                name,
-                used_percent,
-                window_minutes,
-                resets_at: None,
-                reset_description,
-            });
-        } else if window_minutes.is_none() {
+        if window_minutes.is_none() {
             buckets.push(QuotaBucket {
                 name: line
                     .replace(captures.get(0).unwrap().as_str(), "")
