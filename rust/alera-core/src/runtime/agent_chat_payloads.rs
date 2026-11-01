@@ -61,6 +61,25 @@ impl RuntimeStore {
         Ok(ids)
     }
 
+    /// One stored item of [chat_id], as committed. An unknown chat or item
+    /// is `NotFound` with its id.
+    pub async fn agent_chat_item_in_chat(&self, chat_id: &str, item_id: &str) -> Result<Value> {
+        require_chat_id(chat_id)?;
+        require_id("itemId", item_id)?;
+        let mut tx = self.pool().begin().await?;
+        require_session_row_in(&mut tx, chat_id).await?;
+        let item: Option<String> = sqlx::query_scalar(
+            "SELECT itemJson FROM agentChatItems WHERE chatId = ? AND itemId = ?",
+        )
+        .bind(chat_id)
+        .bind(item_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        let item = item.ok_or_else(|| AgentChatStoreError::NotFound(item_id.into()))?;
+        Ok(serde_json::from_str(&item)?)
+    }
+
     /// Reads JSON linked by the head's payloadRef, never an arbitrary chunk id.
     /// Concatenating pages in index order reconstructs the exact retained JSON.
     pub async fn agent_chat_payload(

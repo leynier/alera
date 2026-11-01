@@ -373,3 +373,27 @@ async fn malformed_payload_references_and_missing_identity_return_domain_errors(
 
 #[path = "agent_chat_payload_revision_tests.rs"]
 mod revision_tests;
+
+#[tokio::test]
+async fn a_stored_item_is_read_only_from_its_own_chat() {
+    let (_dir, store) = store_with_workspace("ws").await;
+    let mut image = item("image", "image_generation", "Generated image");
+    image["normalized"]["imagePath"] = json!("/codex/a.png");
+    let chat_id = create_items(&store, "tab", vec![image], Vec::new()).await;
+    let other = create_items(&store, "other", Vec::new(), Vec::new()).await;
+    let stored = store
+        .agent_chat_item_in_chat(&chat_id, "image")
+        .await
+        .unwrap();
+    assert_eq!(stored["normalized"]["imagePath"], "/codex/a.png");
+    for (chat, item) in [(other.as_str(), "image"), (chat_id.as_str(), "missing")] {
+        let error = store.agent_chat_item_in_chat(chat, item).await.unwrap_err();
+        assert!(
+            matches!(
+                error.downcast_ref::<AgentChatStoreError>(),
+                Some(AgentChatStoreError::NotFound(id)) if id == item
+            ),
+            "{error:#}"
+        );
+    }
+}
