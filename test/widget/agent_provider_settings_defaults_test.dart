@@ -51,6 +51,18 @@ void main() {
       checkedAt: checkedAt,
       unavailableReason: 'Choose an ACP agent to launch.',
     ),
+    AgentChatProviderInstance(
+      id: 'antigravity',
+      provider: 'antigravity',
+      label: 'Antigravity',
+      available: false,
+      installed: false,
+      checkedAt: checkedAt,
+      unavailableReason:
+          'The Antigravity ACP runtime (agy_acp_server) was not found. Set a '
+          'custom ACP executable path in Providers Settings. The Antigravity '
+          'app, IDE, and agy CLI are separate installations.',
+    ),
   ];
 
   AgentChatProviderInstanceEnvelope envelope(
@@ -265,5 +277,20 @@ void main() {
     );
     expect(find.text('Found on PATH'), findsOneWidget);
     expect(find.text('Command or full path'), findsNothing);
+  });
+
+  testWidgets('Antigravity names the ACP runtime it looks for', (tester) async {
+    await pumpPane(tester, initialProviderInstanceId: 'antigravity');
+
+    expect(
+      find.text(
+        'Leave empty to find the Antigravity ACP runtime (agy_acp_server) on '
+        'the host PATH. The Antigravity app, IDE, and agy CLI are separate '
+        'installations and do not provide it.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('agy_acp_server on PATH'), findsOneWidget);
+    expect(find.text('Found on PATH'), findsNothing);
   });
 }

@@ -53,3 +53,22 @@ fn acp_wrappers_receive_custom_and_default_models() {
         assert_eq!(models, EXPECTED, "{provider}");
     }
 }
+
+#[tokio::test]
+async fn a_missing_antigravity_runtime_is_named_in_the_catalog() {
+    let instance = ProviderInstanceConfig {
+        provider_instance_id: "antigravity-missing".into(),
+        provider: "antigravity".into(),
+        executable: Some("/nonexistent/alera-test/agy_acp_server.par".into()),
+        ..Default::default()
+    };
+    let status = ProductionProviderFactory
+        .status("antigravity", Some(&instance))
+        .await;
+    assert!(!status.available);
+    assert_eq!(status.installed, Some(false));
+    assert_eq!(
+        status.unavailable_reason.as_deref(),
+        Some(alera_provider_antigravity::MISSING_RUNTIME_MESSAGE)
+    );
+}

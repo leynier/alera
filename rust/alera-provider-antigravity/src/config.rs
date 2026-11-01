@@ -11,6 +11,10 @@ pub const FORCE_FILE_STORAGE_ENV: &str = "AGY_ACP_FORCE_FILE_STORAGE";
 /// The client identity sent in `initialize`. Antigravity offers its Claude
 /// and GPT models only to allowlisted clients such as Zed, so Alera
 /// identifies as Zed, as T3 Code does. See the readme for the risk.
+/// Why an Antigravity chat cannot start when its runtime is missing. It names
+/// no path, and keeps "not found" so the runtime still reads it as a missing
+/// provider.
+pub const MISSING_RUNTIME_MESSAGE: &str = "The Antigravity ACP runtime (agy_acp_server) was not found. Set a custom ACP executable path in Providers Settings. The Antigravity app, IDE, and agy CLI are separate installations.";
 pub const ANTIGRAVITY_CLIENT_NAME: &str = "zed";
 pub const ANTIGRAVITY_CLIENT_VERSION: &str = "0.0.0";
 

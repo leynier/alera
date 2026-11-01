@@ -69,3 +69,36 @@ fn linux_profile_uid_and_environment_are_explicit() {
         Some(&OsString::from("custom"))
     );
 }
+
+#[tokio::test]
+async fn a_missing_runtime_is_named_without_its_path() {
+    let config = alera_provider_antigravity::AntigravityProviderConfig {
+        executable: std::path::PathBuf::from("/nonexistent/alera-test/agy_acp_server.par"),
+        ..Default::default()
+    };
+    let Err(error) = alera_provider_antigravity::AntigravityProvider::spawn(config).await else {
+        panic!("a missing runtime cannot start");
+    };
+    let message = error.to_string();
+    assert!(message.contains(alera_provider_antigravity::MISSING_RUNTIME_MESSAGE));
+    assert!(message.contains("not found"));
+    assert!(!message.contains("/nonexistent"));
+}
+
+#[tokio::test]
+async fn other_spawn_failures_keep_their_transport_error() {
+    let config = alera_provider_antigravity::AntigravityProviderConfig {
+        executable: std::env::temp_dir(),
+        ..Default::default()
+    };
+    let Err(error) = alera_provider_antigravity::AntigravityProvider::spawn(config).await else {
+        panic!("a directory cannot start");
+    };
+    assert!(
+        matches!(
+            error,
+            alera_provider_antigravity::alera_provider_protocol::ProviderError::Transport(_)
+        ),
+        "{error:?}"
+    );
+}

@@ -1,8 +1,8 @@
 use crate::{
     AntigravityProviderConfig, ANTIGRAVITY_AUTH_METHOD, ANTIGRAVITY_CLIENT_NAME,
-    ANTIGRAVITY_CLIENT_VERSION,
+    ANTIGRAVITY_CLIENT_VERSION, MISSING_RUNTIME_MESSAGE,
 };
-use alera_agent_transport::{JsonLineProcess, JsonTransport, ProcessConfig};
+use alera_agent_transport::{JsonLineProcess, JsonTransport, ProcessConfig, TransportError};
 use alera_provider_acp::{AcpFlavor, AcpProvider, AcpProviderConfig};
 use alera_provider_protocol::RuntimeMode;
 use alera_provider_protocol::{Provider, ProviderError, ProviderKind};
@@ -37,7 +37,9 @@ impl<T: JsonTransport> AntigravityProvider<T> {
 impl AntigravityProvider<JsonLineProcess> {
     pub async fn spawn(config: AntigravityProviderConfig) -> Result<Self, ProviderError> {
         config.validate()?;
-        let process = JsonLineProcess::spawn(process_config(&config)).await?;
+        let process = JsonLineProcess::spawn(process_config(&config))
+            .await
+            .map_err(spawn_error)?;
         Self::with_transport(process, config)
     }
 }
@@ -119,6 +121,17 @@ impl<T: JsonTransport> Provider for AntigravityProvider<T> {
 
     async fn close(&mut self) -> Result<(), ProviderError> {
         self.inner.close().await
+    }
+}
+
+/// A runtime that is not installed reads as the named missing runtime;
+/// other spawn failures keep their transport error.
+pub fn spawn_error(error: TransportError) -> ProviderError {
+    match error {
+        TransportError::Spawn { source, .. } if source.kind() == std::io::ErrorKind::NotFound => {
+            ProviderError::Unsupported(MISSING_RUNTIME_MESSAGE.into())
+        }
+        error => ProviderError::Transport(error),
     }
 }
 

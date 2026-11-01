@@ -113,6 +113,13 @@ class const AgentProviderLaunchGroup({
             'host PATH or a full path.',
         hint: 'Command or full path',
       ),
+      'antigravity' => (
+        description:
+            'Leave empty to find the Antigravity ACP runtime (agy_acp_server) '
+            'on the host PATH. The Antigravity app, IDE, and agy CLI are '
+            'separate installations and do not provide it.',
+        hint: 'agy_acp_server on PATH',
+      ),
       _ => (
         description: 'Leave empty to find it on the host PATH.',
         hint: 'Found on PATH',

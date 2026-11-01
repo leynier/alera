@@ -67,7 +67,11 @@ pub(super) async fn status(
         result.installed = Some(executable_available(Some(executable), "", &environment).is_ok());
         if result.installed == Some(false) {
             result.available = false;
-            result.unavailable_reason = Some("Provider executable is unavailable.".into());
+            result.unavailable_reason = Some(if provider == "antigravity" {
+                alera_provider_antigravity::MISSING_RUNTIME_MESSAGE.into()
+            } else {
+                "Provider executable is unavailable.".into()
+            });
         }
         if result.installed == Some(true)
             && matches!(
