@@ -268,6 +268,7 @@ class _AgentChatTabViewState extends ConsumerState<AgentChatTabView>
       ref,
       widget.hostId,
       remoteWorkspace: widget.remoteWorkspace,
+      capabilities: capabilities,
     );
     if (sources.isEmpty) return null;
     return () => unawaited(_pickAttachments(sources));

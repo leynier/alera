@@ -19,13 +19,25 @@ class const AgentChatAttachmentSources({
   final MobileCodexWorkspaceClient? files,
   final MobileCodexWorkspaceClient? workspaceFiles,
   final AgentChatAttachmentUploader? uploads,
+
+  /// What the chat's provider takes; an older runtime reports neither, so
+  /// both stay offered.
+  final bool allowImages = true,
+  final bool allowFiles = true,
 }) {
   /// New hosts route uploads to the chat owner. Older hosts retain paired
   /// host uploads for workspaces that live on that host.
-  factory read(WidgetRef ref, String hostId, {required bool remoteWorkspace}) {
+  factory read(
+    WidgetRef ref,
+    String hostId, {
+    required bool remoteWorkspace,
+    AgentChatCapabilities? capabilities,
+  }) {
     final Object? client = ref.read(workspaceClientProvider(hostId)).value;
     final legacyUploads = !remoteWorkspace;
     return AgentChatAttachmentSources(
+      allowImages: capabilities?.images ?? true,
+      allowFiles: capabilities?.files ?? true,
       uploads:
           client is MobileAgentChatClient &&
               client.runtimeCapabilities.contains(
@@ -53,11 +65,13 @@ class const AgentChatAttachmentSources({
     );
   }
 
-  bool get isEmpty =>
-      images == null &&
-      files == null &&
-      workspaceFiles == null &&
-      uploads == null;
+  bool get offersImages => allowImages && (images != null || uploads != null);
+
+  bool get offersFiles => allowFiles && (files != null || uploads != null);
+
+  bool get offersWorkspaceFiles => allowFiles && workspaceFiles != null;
+
+  bool get isEmpty => !offersImages && !offersFiles && !offersWorkspaceFiles;
 }
 
 /// Picks and uploads attachments for a chat's composer.
@@ -82,9 +96,9 @@ Future<void> pickAgentChatAttachments(
   final messenger = ScaffoldMessenger.maybeOf(context);
   final source = await showPromptAttachmentSheet(
     context,
-    allowPhotoLibrary: sources.images != null || sources.uploads != null,
-    allowFiles: sources.files != null || sources.uploads != null,
-    allowWorkspaceFile: sources.workspaceFiles != null,
+    allowPhotoLibrary: sources.offersImages,
+    allowFiles: sources.offersFiles,
+    allowWorkspaceFile: sources.offersWorkspaceFiles,
   );
   if (source == null || !context.mounted) return;
   void add(AgentChatDraftAttachment attachment) =>

@@ -69,8 +69,9 @@ final class _GatedChunks {
 }
 
 Future<(FakeAgentChatClient, _GatedChunks)> _pumpChat(
-  WidgetTester tester,
-) async {
+  WidgetTester tester, {
+  bool files = true,
+}) async {
   final client = FakeAgentChatClient(
     capabilities: <String>{
       'agentChatV1',
@@ -78,8 +79,9 @@ Future<(FakeAgentChatClient, _GatedChunks)> _pumpChat(
     },
   );
   final chunks = _GatedChunks();
-  client.handlers['agentChat.snapshot'] = (_) =>
-      agentChatSnapshot(session: agentChatSession(attachments: true));
+  client.handlers['agentChat.snapshot'] = (_) => agentChatSnapshot(
+    session: agentChatSession(attachments: true, files: files),
+  );
   client.handlers[AgentChatWire.attachmentStart] = (payload) =>
       <String, Object?>{
         'uploadId': payload['uploadId'],
@@ -221,5 +223,13 @@ void main() {
     await tester.tap(find.byTooltip('Dismiss'));
     await tester.pump();
     expect(find.text('The attachment did not upload.'), findsNothing);
+  });
+
+  testWidgets('an images-only provider offers no files', (tester) async {
+    await _pumpChat(tester, files: false);
+    await tester.tap(find.byTooltip('Add Attachment'));
+    await tester.pumpAndSettle();
+    expect(find.text('Photo Library'), findsOneWidget);
+    expect(find.text('Files'), findsNothing);
   });
 }
