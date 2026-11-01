@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tool_details.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_generated_image_preview.dart';
 import 'package:flutter/material.dart';
 
 /// A group of tool, command and file actions under one summary line.
@@ -161,6 +162,8 @@ class _AgentChatActionRowViewState extends State<AgentChatActionRowView> {
             ),
           ),
         ),
+        if (agentChatShowsGeneratedImage(item))
+          AgentChatGeneratedImagePreview(item: item),
         if (_expanded)
           Padding(
             padding: const EdgeInsets.only(
