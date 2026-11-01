@@ -225,4 +225,59 @@ void main() {
     await repository.send(input);
     expect(transport.requests.single.$2['parentChatId'], 'parent');
   });
+
+  test(
+    'the dock headline names one task, or counts several and the newest',
+    () {
+      final running = AgentChatTask(
+        id: 'a',
+        status: .running,
+        title: 'Fix the parser',
+        createdAt: _now,
+        updatedAt: _now,
+      );
+      final newer = AgentChatTask(
+        id: 'b',
+        status: .running,
+        title: 'Write the tests',
+        createdAt: _now,
+        updatedAt: _now.add(const Duration(minutes: 1)),
+      );
+      expect(agentChatTaskDockHeadline(<AgentChatTask>[], waiting: false), (
+        title: 'Tasks',
+        detail: null,
+      ));
+      expect(
+        agentChatTaskDockHeadline(<AgentChatTask>[running], waiting: false),
+        (title: 'Running Fix the parser', detail: null),
+      );
+      expect(
+        agentChatTaskDockHeadline(<AgentChatTask>[running], waiting: true),
+        (title: 'Waiting on Fix the parser', detail: null),
+      );
+      expect(
+        agentChatTaskDockHeadline(<AgentChatTask>[
+          AgentChatTask(
+            id: 'c',
+            status: .needsInput,
+            title: 'Ask',
+            createdAt: _now,
+            updatedAt: _now,
+          ),
+        ], waiting: true),
+        (title: 'Ask needs input', detail: null),
+      );
+      expect(
+        agentChatTaskDockHeadline(<AgentChatTask>[
+          running,
+          newer,
+          _task('done', .completed),
+        ], waiting: true),
+        (
+          title: 'Waiting on 2 tasks · 2 running · 1 done',
+          detail: 'Write the tests',
+        ),
+      );
+    },
+  );
 }

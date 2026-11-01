@@ -284,6 +284,18 @@ void main() {
   });
 
   group('transitions', () {
+    test('a turn that only waits on its tasks never reads as finished', () {
+      final transitions = ChatAttentionTransitions(now: () => _at);
+      final working = _entry('a', status: AgentChatSessionStatus.running);
+      transitions.next(<String, ChatAttentionEntry>{'a': working});
+      final waiting = working.withBlockedOnTaskWait(true);
+      expect(waiting.level, ChatAttentionLevel.waitingOnTasks);
+      expect(
+        transitions.next(<String, ChatAttentionEntry>{'a': waiting}),
+        isEmpty,
+      );
+    });
+
     test('the first sight of a chat never notifies', () {
       final transitions = ChatAttentionTransitions(now: () => _at);
       expect(

@@ -201,10 +201,24 @@ void main() {
       const ChatTasksForChat(chatId: 'chat-parent'),
     );
     expect(
-      find.text('Tasks · 1 running · 1 needs input · 1 done'),
+      find.text('Waiting on 2 tasks · 1 running · 1 needs input · 1 done'),
       findsOneWidget,
     );
-    expect(find.text('Review the parser'), findsNothing);
+    // Collapsed, the newest open task stands in for the rows.
+    expect(
+      find.byKey(const ValueKey<String>('chatTaskDockDetail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>).value.startsWith(
+              'chatTaskDockRow:',
+            ),
+      ),
+      findsNothing,
+    );
     expect(
       find.text('Task needs input: Approve the migration'),
       findsOneWidget,
@@ -212,7 +226,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey<String>('chatTaskDockToggle')));
     await tester.pumpAndSettle();
-    expect(find.text('Review the parser'), findsOneWidget);
+    expect(find.text('Review the parser'), findsWidgets);
     expect(find.text('Write the changelog'), findsOneWidget);
     expect(container.read(chatTaskDockExpansionProvider), {'chat-parent'});
     expect(workbench.actions, isEmpty);
@@ -235,7 +249,7 @@ void main() {
       findsNothing,
     );
     expect(
-      find.text('Tasks · 1 running · 1 needs input · 1 done'),
+      find.text('Waiting on 2 tasks · 1 running · 1 needs input · 1 done'),
       findsOneWidget,
     );
   });

@@ -26,6 +26,12 @@ class const ChatTasksForChat({
   super.key,
   required final String chatId,
   final bool parentHasPendingRequest = false,
+
+  /// The chat's turn only waits on its delegated tasks.
+  final bool blockedOnTaskWait = false,
+
+  /// The chat runs a turn.
+  final bool busy = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<ChatTasksForChat> createState() => _ChatTasksForChatState();
@@ -148,6 +154,15 @@ class _ChatTasksForChatState extends ConsumerState<ChatTasksForChat> {
           now: ref.watch(agentChatClockProvider),
           placeOf: _place,
           stopping: _stopping,
+          // Blocked on a wait, or idle while tasks that will wake it run.
+          waiting:
+              widget.blockedOnTaskWait ||
+              (!widget.busy &&
+                  tasks.any(
+                    (task) =>
+                        !task.status.settled &&
+                        task.notify != AgentChatTaskNotify.never,
+                  )),
           actions: ChatTaskDockActions(
             onView: (task) => navigation.openChatTask(task.id),
             onStop: (task) => unawaited(_stop(task)),

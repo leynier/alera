@@ -33,6 +33,7 @@ export 'src/agent_chat_orchestration_actions.dart';
 export 'src/agent_chat_orchestration_catalog.dart';
 export 'src/agent_chat_orchestration_delegate_draft.dart';
 export 'src/agent_chat_orchestration_dock.dart';
+export 'src/agent_chat_task_wait.dart';
 export 'src/agent_chat_orchestration_inputs.dart';
 export 'src/agent_chat_orchestration_labels.dart';
 export 'src/agent_chat_orchestration_query.dart';

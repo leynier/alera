@@ -68,3 +68,42 @@ Duration agentChatTaskElapsed(AgentChatTask task, DateTime now) {
   final elapsed = end.difference(task.createdAt);
   return elapsed.isNegative ? Duration.zero : elapsed;
 }
+
+/// The dock's collapsed line. [waiting] says the chat waits on its tasks: a
+/// turn blocked on a wait, or no turn while notifying tasks run.
+typedef AgentChatTaskDockHeadline = ({String title, String? detail});
+
+AgentChatTaskDockHeadline agentChatTaskDockHeadline(
+  Iterable<AgentChatTask> tasks, {
+  required bool waiting,
+}) {
+  final summary = AgentChatTaskDockSummary.of(tasks);
+  final open = tasks.where((task) => !task.status.settled).toList();
+  if (open.isEmpty) {
+    return (title: agentChatTaskDockSummaryLabel(summary), detail: null);
+  }
+  if (open.length == 1) {
+    final task = open.single;
+    final name = task.displayTitle;
+    final asks = task.status == .needsInput || task.attention == .needsInput;
+    return (
+      title: asks
+          ? '$name needs input'
+          : waiting
+          ? 'Waiting on $name'
+          : 'Running $name',
+      detail: null,
+    );
+  }
+  // Tasks report no progress text, so the newest open task's title stands
+  // in for what is happening now.
+  final newest = open.reduce(
+    (left, right) => right.updatedAt.isAfter(left.updatedAt) ? right : left,
+  );
+  final counts = agentChatTaskDockSummaryLabel(summary)
+      .substring('Tasks'.length);
+  return (
+    title: '${waiting ? 'Waiting on' : 'Running'} ${open.length} tasks$counts',
+    detail: newest.displayTitle,
+  );
+}

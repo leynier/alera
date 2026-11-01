@@ -370,6 +370,11 @@ class const AgentChatTabBody({
                       chatId: chatId,
                       hostId: hostId,
                       parentHasPendingRequest: requests.isNotEmpty,
+                      blockedOnTaskWait: agentChatBlockedOnTaskWait(
+                        view.session,
+                        view.thread.items,
+                      ),
+                      busy: view.turnActive,
                     )
                   : null,
               composer: AgentChatComposer(

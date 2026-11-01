@@ -18,6 +18,7 @@ typedef _ChatState = ({AgentChatSessionStatus status, bool hasPendingRequests});
 @riverpod
 class AgentChatWorkspaceActivity extends _$AgentChatWorkspaceActivity {
   final Map<String, _ChatState> _chats = <String, _ChatState>{};
+  final AgentChatTaskWaitFold _waits = AgentChatTaskWaitFold();
   int _generation = 0;
 
   @override
@@ -57,6 +58,7 @@ class AgentChatWorkspaceActivity extends _$AgentChatWorkspaceActivity {
       if (!await repository.supported()) return;
       final chats = await repository.list(workspaceId: workspaceId);
       if (!ref.mounted || generation != _generation) return;
+      _waits.forget();
       _chats
         ..clear()
         ..addEntries(<MapEntry<String, _ChatState>>[
@@ -75,7 +77,11 @@ class AgentChatWorkspaceActivity extends _$AgentChatWorkspaceActivity {
 
   void _apply(AgentChatChange change) {
     if (!ref.mounted) return;
-    if (change.session == null && change.requests == null) return;
+    final blockedChanged = _waits.apply(change);
+    if (change.session == null && change.requests == null) {
+      if (blockedChanged) _publish();
+      return;
+    }
     final current =
         _chats[change.chatId] ??
         (status: AgentChatSessionStatus.ready, hasPendingRequests: false);
@@ -92,6 +98,7 @@ class AgentChatWorkspaceActivity extends _$AgentChatWorkspaceActivity {
           entry.key: agentChatTabActivity(
             entry.value.status,
             hasPendingRequests: entry.value.hasPendingRequests,
+            blockedOnTaskWait: _waits.blocked(entry.key),
           ),
       },
     );

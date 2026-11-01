@@ -30,6 +30,9 @@ class const ChatTaskDockView({
   required final ChatTaskDockActions actions,
   final Set<String> stopping = const <String>{},
   final int maxRows = defaultMaxRows,
+
+  /// The chat waits on these tasks rather than running alongside them.
+  final bool waiting = false,
 }) extends StatelessWidget {
   static const int defaultMaxRows = 5;
 
@@ -37,7 +40,7 @@ class const ChatTaskDockView({
   Widget build(BuildContext context) {
     if (tasks.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
-    final summary = AgentChatTaskDockSummary.of(tasks);
+    final headline = agentChatTaskDockHeadline(tasks, waiting: waiting);
     final ordered = agentChatTaskDockOrder(tasks);
     final shown = ordered.take(maxRows).toList(growable: false);
     final more = ordered.length - shown.length;
@@ -80,15 +83,30 @@ class const ChatTaskDockView({
                       color: AleraTokens.foregroundMuted,
                     ),
                     const SizedBox(width: AleraTokens.space6),
-                    Expanded(
+                    Flexible(
                       child: Text(
-                        agentChatTaskDockSummaryLabel(summary),
+                        headline.title,
                         key: const ValueKey<String>('chatTaskDockSummary'),
                         maxLines: 1,
                         overflow: .ellipsis,
                         style: muted,
                       ),
                     ),
+                    if (headline.detail case final detail?) ...<Widget>[
+                      const SizedBox(width: AleraTokens.space6),
+                      Expanded(
+                        child: Text(
+                          detail,
+                          key: const ValueKey<String>('chatTaskDockDetail'),
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: muted?.copyWith(
+                            color: AleraTokens.foregroundFaint,
+                          ),
+                        ),
+                      ),
+                    ] else
+                      const Spacer(),
                   ],
                 ),
               ),

@@ -32,6 +32,10 @@ class const ChatAttentionEntry({
   final bool childNeedsInput = false,
   final bool unread = false,
   final String? parentChatId,
+
+  /// The chat's turn runs but only waits on the tasks it delegated
+  /// (`agentChatBlockedOnTaskWait`).
+  final bool blockedOnTaskWait = false,
 }) {
   factory fromSummary(AgentChatSummary summary) => ChatAttentionEntry(
     chatId: summary.chatId,
@@ -51,8 +55,20 @@ class const ChatAttentionEntry({
   ChatAttentionLevel get level =>
       childNeedsInput ? ChatAttentionLevel.needsInput : ownLevel;
 
-  /// [level] without a delegated child's request.
+  /// [level] without a delegated child's request. A turn that only waits on
+  /// delegated tasks reads as waiting on them, not as working.
   ChatAttentionLevel get ownLevel {
+    final work = workLevel;
+    return work == ChatAttentionLevel.working &&
+            blockedOnTaskWait &&
+            status == AgentChatSessionStatus.running
+        ? ChatAttentionLevel.waitingOnTasks
+        : work;
+  }
+
+  /// The level by the chat's turns alone, for notices and reloads keyed to
+  /// a turn ending: a wait on delegated tasks is still working here.
+  ChatAttentionLevel get workLevel {
     if (hasPendingRequests || status == AgentChatSessionStatus.waiting) {
       return ChatAttentionLevel.needsInput;
     }
@@ -95,7 +111,28 @@ class const ChatAttentionEntry({
         childNeedsInput: childNeedsInput,
         unread: unread,
         parentChatId: parentChatId,
+        blockedOnTaskWait: blockedOnTaskWait,
       );
+
+  /// The entry with [blocked] as its wait on delegated tasks.
+  ChatAttentionEntry withBlockedOnTaskWait(bool blocked) =>
+      blocked == blockedOnTaskWait
+      ? this
+      : ChatAttentionEntry(
+          chatId: chatId,
+          workspaceId: workspaceId,
+          title: title,
+          updatedAt: updatedAt,
+          tabId: tabId,
+          provider: provider,
+          status: status,
+          hasPendingRequests: hasPendingRequests,
+          openChildTaskCount: openChildTaskCount,
+          childNeedsInput: childNeedsInput,
+          unread: unread,
+          parentChatId: parentChatId,
+          blockedOnTaskWait: blocked,
+        );
 
   /// The entry with child task counts from the live task lists.
   ChatAttentionEntry withChildren(ChatTaskChildren children) =>
@@ -115,6 +152,7 @@ class const ChatAttentionEntry({
           childNeedsInput: children.needsInput,
           unread: unread,
           parentChatId: parentChatId,
+          blockedOnTaskWait: blockedOnTaskWait,
         );
 
   @override
@@ -131,7 +169,8 @@ class const ChatAttentionEntry({
       other.openChildTaskCount == openChildTaskCount &&
       other.childNeedsInput == childNeedsInput &&
       other.unread == unread &&
-      other.parentChatId == parentChatId;
+      other.parentChatId == parentChatId &&
+      other.blockedOnTaskWait == blockedOnTaskWait;
 
   @override
   int get hashCode => Object.hash(
@@ -147,6 +186,7 @@ class const ChatAttentionEntry({
     childNeedsInput,
     unread,
     parentChatId,
+    blockedOnTaskWait,
   );
 }
 

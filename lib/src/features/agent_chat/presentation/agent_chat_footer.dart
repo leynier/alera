@@ -84,6 +84,13 @@ class const AgentChatFooter({
           provider: state.thread?.provider ?? '',
           providerInstanceId: state.thread?.providerInstanceId ?? '',
           usage: state.thread?.usage ?? const AgentChatUsage(),
+          blockedOnTaskWait: switch (state.thread) {
+            final thread? => agentChatBlockedOnTaskWait(
+              thread.session,
+              thread.items,
+            ),
+            null => false,
+          },
         ),
       ),
     );
@@ -263,6 +270,8 @@ class const AgentChatFooter({
               child: ChatTasksForChat(
                 chatId: chatId,
                 parentHasPendingRequest: view.requests.isNotEmpty,
+                blockedOnTaskWait: view.blockedOnTaskWait,
+                busy: view.session?.busy ?? false,
               ),
             ),
             if (docks.isNotEmpty)

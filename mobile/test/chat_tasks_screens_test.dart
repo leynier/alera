@@ -254,17 +254,24 @@ void main() {
       find.byKey(const ValueKey<String>('chatTaskOutcome:task-done')),
       findsOneWidget,
     );
-    expect(find.text('Tasks · 1 running · 1 needs input'), findsOneWidget);
+    expect(
+      find.text('Waiting on 2 tasks · 1 running · 1 needs input'),
+      findsOneWidget,
+    );
     expect(
       find.text('Task needs input: Approve the migration'),
       findsOneWidget,
     );
-    expect(find.text('Review the parser'), findsNothing);
+    // Collapsed, the newest open task stands in for the rows.
+    expect(
+      find.byKey(const ValueKey<String>('chatTaskDockDetail')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey<String>('chatTaskDockToggle')));
     await tester.pumpAndSettle();
-    expect(find.text('Review the parser'), findsOneWidget);
-    expect(find.text('Approve the migration'), findsOneWidget);
+    expect(find.text('Review the parser'), findsWidgets);
+    expect(find.text('Approve the migration'), findsWidgets);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('chatTaskNoticeView:task-done')),
@@ -292,7 +299,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Tasks · 1 running · 1 needs input'), findsOneWidget);
+    expect(
+      find.text('Waiting on 2 tasks · 1 running · 1 needs input'),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey<String>('chatTaskInputBanner:task-input')),
       findsNothing,

@@ -32,7 +32,9 @@ final class ChatAttentionTransitions {
     _levels.removeWhere((chatId, _) => !entries.containsKey(chatId));
     for (final entry in entries.values) {
       final previous = _levels[entry.chatId];
-      final level = entry.level;
+      // A turn that waits on delegated tasks still works: no notice until
+      // the turn itself ends.
+      final level = entry.workLevel;
       _levels[entry.chatId] = level;
       if (previous == null || previous == level) continue;
       final notice = switch (level) {

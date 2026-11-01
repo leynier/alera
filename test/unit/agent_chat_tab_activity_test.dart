@@ -146,4 +146,22 @@ void main() {
       AgentChatTabActivity.idle,
     );
   });
+
+  test('a turn that only waits on delegated tasks reads as waiting', () {
+    expect(
+      agentChatTabActivity(
+        AgentChatSessionStatus.running,
+        blockedOnTaskWait: true,
+      ),
+      AgentChatTabActivity.waitingOnTasks,
+    );
+    expect(
+      agentChatTabActivity(
+        AgentChatSessionStatus.running,
+        hasPendingRequests: true,
+        blockedOnTaskWait: true,
+      ),
+      AgentChatTabActivity.needsInput,
+    );
+  });
 }

@@ -30,6 +30,9 @@ class const ChatTaskDockView({
   required final ChatTaskDockActions actions,
   final Set<String> stopping = const <String>{},
   final int maxRows = defaultMaxRows,
+
+  /// The chat waits on these tasks rather than running alongside them.
+  final bool waiting = false,
 }) extends StatelessWidget {
   static const int defaultMaxRows = 5;
 
@@ -82,13 +85,11 @@ class const ChatTaskDockView({
                       ),
                       const SizedBox(width: AleraTokens.spaceSm),
                       Expanded(
-                        child: Text(
-                          agentChatTaskDockSummaryLabel(
-                            AgentChatTaskDockSummary.of(tasks),
+                        child: _Headline(
+                          headline: agentChatTaskDockHeadline(
+                            tasks,
+                            waiting: waiting,
                           ),
-                          key: const ValueKey<String>('chatTaskDockSummary'),
-                          maxLines: 1,
-                          overflow: .ellipsis,
                           style: muted,
                         ),
                       ),
@@ -123,6 +124,36 @@ class const ChatTaskDockView({
       ),
     );
   }
+}
+
+/// The collapsed line: what the tasks are doing, and the newest open task
+/// when several run.
+class const _Headline({
+  required final AgentChatTaskDockHeadline headline,
+  final TextStyle? style,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: .start,
+    mainAxisSize: .min,
+    children: <Widget>[
+      Text(
+        headline.title,
+        key: const ValueKey<String>('chatTaskDockSummary'),
+        maxLines: 1,
+        overflow: .ellipsis,
+        style: style,
+      ),
+      if (headline.detail case final detail?)
+        Text(
+          detail,
+          key: const ValueKey<String>('chatTaskDockDetail'),
+          maxLines: 1,
+          overflow: .ellipsis,
+          style: style?.copyWith(color: AleraTokens.foregroundFaint),
+        ),
+    ],
+  );
 }
 
 class const _DockRow({

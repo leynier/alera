@@ -4,6 +4,7 @@ import 'package:alera_agent_chat/src/agent_chat_attention_entry.dart';
 import 'package:alera_agent_chat/src/agent_chat_change.dart';
 import 'package:alera_agent_chat/src/agent_chat_orchestration_wire.dart';
 import 'package:alera_agent_chat/src/agent_chat_repository.dart';
+import 'package:alera_agent_chat/src/agent_chat_task_wait.dart';
 import 'package:alera_agent_chat/src/agent_chat_transport.dart';
 
 /// Every unarchived chat a runtime lists, across workspaces, so workspace
@@ -42,7 +43,10 @@ final class AgentChatAttentionTracker {
     'requests',
     'title',
     'archived',
+    'items',
   ];
+
+  final AgentChatTaskWaitFold _waits = AgentChatTaskWaitFold();
 
   Map<String, ChatAttentionEntry> get entries =>
       Map<String, ChatAttentionEntry>.unmodifiableOf(_entries);
@@ -81,6 +85,9 @@ final class AgentChatAttentionTracker {
       if (!await _repository.supported()) return;
       final chats = await _repository.list();
       if (_disposed || generation != _generation) return;
+      // The list carries no items: a chat already waiting reads as working
+      // until its next tool change.
+      _waits.forget();
       _entries
         ..clear()
         ..addEntries(<MapEntry<String, ChatAttentionEntry>>[
@@ -107,6 +114,7 @@ final class AgentChatAttentionTracker {
       _scheduleReload();
       return;
     }
+    _waits.apply(change);
     final current = _entries[change.chatId];
     if (current == null) {
       if (change.session != null) _scheduleReload();
@@ -117,14 +125,16 @@ final class AgentChatAttentionTracker {
       _publish();
       return;
     }
-    final next = current.folded(change, _clock());
+    final next = current
+        .folded(change, _clock())
+        .withBlockedOnTaskWait(_waits.blocked(change.chatId));
     if (next == current) return;
     _entries[change.chatId] = next;
     _publish();
     // A turn that settled may have left an unread result or finished the
     // last child task; only the runtime's list knows.
-    if (current.level == ChatAttentionLevel.working &&
-        next.level != ChatAttentionLevel.working) {
+    if (current.workLevel == ChatAttentionLevel.working &&
+        next.workLevel != ChatAttentionLevel.working) {
       _scheduleReload();
     }
   }

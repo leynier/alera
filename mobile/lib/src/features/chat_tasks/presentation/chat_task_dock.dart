@@ -21,6 +21,12 @@ class const ChatTasksForChat({
   required final String chatId,
   required final String hostId,
   final bool parentHasPendingRequest = false,
+
+  /// The chat's turn only waits on its delegated tasks.
+  final bool blockedOnTaskWait = false,
+
+  /// The chat runs a turn.
+  final bool busy = false,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<ChatTasksForChat> createState() => _ChatTasksForChatState();
@@ -139,6 +145,15 @@ class _ChatTasksForChatState extends ConsumerState<ChatTasksForChat> {
           // The runtime names the place, so the dock costs no extra reads.
           placeOf: agentChatTaskPlaceLabel,
           stopping: _stopping,
+          // Blocked on a wait, or idle while tasks that will wake it run.
+          waiting:
+              widget.blockedOnTaskWait ||
+              (!widget.busy &&
+                  tasks.any(
+                    (task) =>
+                        !task.status.settled &&
+                        task.notify != AgentChatTaskNotify.never,
+                  )),
           actions: ChatTaskDockActions(
             onView: (task) =>
                 unawaited(openChatTaskDetail(context, _hostId, task.id)),

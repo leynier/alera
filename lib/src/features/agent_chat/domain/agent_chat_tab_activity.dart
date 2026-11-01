@@ -22,6 +22,7 @@ AgentChatTabActivity agentChatTabActivity(
   bool hasPendingRequests = false,
   bool childNeedsInput = false,
   bool waitingOnTasks = false,
+  bool blockedOnTaskWait = false,
 }) {
   if (hasPendingRequests ||
       childNeedsInput ||
@@ -30,6 +31,9 @@ AgentChatTabActivity agentChatTabActivity(
   }
   return switch (status) {
     AgentChatSessionStatus.error => AgentChatTabActivity.failed,
+    // A turn that only waits on its delegated tasks is waiting on them.
+    AgentChatSessionStatus.running when blockedOnTaskWait =>
+      AgentChatTabActivity.waitingOnTasks,
     AgentChatSessionStatus.starting ||
     AgentChatSessionStatus.running => AgentChatTabActivity.working,
     _ when waitingOnTasks => AgentChatTabActivity.waitingOnTasks,
