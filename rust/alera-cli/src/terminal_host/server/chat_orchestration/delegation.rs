@@ -1,4 +1,5 @@
 use super::authorization::{enforce_mode_ceiling, OrchestrationCaller};
+use super::delegation_inheritance::{effort_refused, ChildEffort};
 use super::delegation_options::delegation_effort;
 use super::messages::task_message_origin;
 use super::models::{DelegateInput, DelegateMode, ParsedTarget};
@@ -23,7 +24,7 @@ use serde_json::{json, Value};
 impl ChatOrchestrationService {
     pub(super) async fn delegate(
         &self,
-        input: DelegateInput,
+        mut input: DelegateInput,
         caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
         let mut payload = json!({
@@ -58,6 +59,7 @@ impl ChatOrchestrationService {
             destination,
         )
         .await?;
+        let child_effort = self.inherit_agent(&mut input, caller).await?;
         let mut runtime_mode = enforce_mode_ceiling(caller, input.runtime_mode.as_deref())?;
         let reasoning_effort = delegation_effort(input.agent.options.as_ref())?;
         let mut turn_model = None;
@@ -111,6 +113,7 @@ impl ChatOrchestrationService {
         let task_id = new_chat_orchestration_task_id();
         let launch_options = {
             let mut value = task_launch_options(&input);
+            child_effort.record(&mut value);
             if let Value::Object(map) = &mut value {
                 map.insert("runtimeMode".into(), json!(runtime_mode));
                 if input.mode == DelegateMode::Wait {
@@ -230,6 +233,7 @@ impl ChatOrchestrationService {
                         &task_id,
                         &runtime_mode,
                         parent_chat_id.as_deref(),
+                        &child_effort,
                     )
                     .await
                 {
@@ -410,6 +414,43 @@ impl ChatOrchestrationService {
         task_id: &str,
         runtime_mode: &str,
         parent_chat_id: Option<&str>,
+        effort: &ChildEffort,
+    ) -> HostResult<String> {
+        let created = self
+            .create_child_chat_with(
+                target,
+                input,
+                task_id,
+                runtime_mode,
+                parent_chat_id,
+                effort.effort.clone(),
+            )
+            .await;
+        match created {
+            // An inherited effort the target refuses is dropped once.
+            Err(error) if effort.inherited() && effort_refused(&error) => {
+                self.create_child_chat_with(
+                    target,
+                    input,
+                    task_id,
+                    runtime_mode,
+                    parent_chat_id,
+                    None,
+                )
+                .await
+            }
+            created => created,
+        }
+    }
+
+    async fn create_child_chat_with(
+        &self,
+        target: &ResolvedChatTarget,
+        input: &DelegateInput,
+        task_id: &str,
+        runtime_mode: &str,
+        parent_chat_id: Option<&str>,
+        reasoning_effort: Option<String>,
     ) -> HostResult<String> {
         let instance = input.agent.provider_instance_id.clone().ok_or_else(|| {
             HostError::conflict(
@@ -432,7 +473,7 @@ impl ChatOrchestrationService {
                     provider: None,
                     provider_instance_id: Some(instance),
                     model: input.agent.model.clone(),
-                    reasoning_effort: delegation_effort(input.agent.options.as_ref())?,
+                    reasoning_effort,
                     runtime_mode: Some(runtime_mode.to_owned()),
                     interaction_mode: input.interaction_mode.clone(),
                     title: input.title.clone(),

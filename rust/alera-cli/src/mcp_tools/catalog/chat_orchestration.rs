@@ -102,7 +102,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("notify", one_of("Completion notification policy: always and settled_only wake this chat with the result; never does not, so read it with chat_task_status.", NOTIFY_MODES)),
                         ("mode", one_of("Wait mode.", &["async", "wait"])),
                         ("waitSeconds", clamped_integer("Bounded wait time.", 1, MAX_WAIT_SECONDS)),
-                        ("agent", json!({"type": "object", "description": "Provider/model selection."})),
+                        ("agent", json!({"type": "object", "description": "Provider/model selection: providerInstanceId, model, options.reasoningEffort. A new chat defaults to this chat's provider instance, its model on the same instance, and its effort when the instance, model and host match and options is absent; options {} clears the effort."})),
                         ("runtimeMode", one_of("Runtime policy ceiling.", RUNTIME_MODES)),
                         ("interactionMode", one_of("Interaction mode.", INTERACTION_MODES)),
                     ],

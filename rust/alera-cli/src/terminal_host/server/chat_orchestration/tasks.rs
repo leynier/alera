@@ -75,7 +75,14 @@ pub(crate) fn task_value(task: &ChatOrchestrationTask) -> Value {
         });
     }
     if let Some(options) = &task.launch_options {
-        for key in ["provider", "providerInstanceId", "model", "runtimeMode"] {
+        for key in [
+            "provider",
+            "providerInstanceId",
+            "model",
+            "runtimeMode",
+            "reasoningEffort",
+            "reasoningEffortSource",
+        ] {
             if let Some(option) = options.get(key) {
                 value[key] = option.clone();
             }

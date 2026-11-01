@@ -12,6 +12,7 @@ mod continuation;
 mod credentials;
 mod delegate_wait;
 mod delegation;
+mod delegation_inheritance;
 mod delegation_options;
 mod followups;
 mod instructions;
@@ -78,6 +79,8 @@ mod delegate_wait_tests;
 mod delegation_tests;
 #[cfg(test)]
 mod effort_configuration_tests;
+#[cfg(test)]
+mod effort_inheritance_tests;
 #[cfg(test)]
 mod frozen_receipt_replay_tests;
 #[cfg(test)]

@@ -122,13 +122,16 @@ async fn delegation_effort_reaches_create_and_existing_turn_without_escalating_m
         )
         .await
         .unwrap();
-    assert!(harness
-        .service
-        .runtime
-        .snapshot(default_child["childChatId"].as_str().unwrap())
-        .await
-        .unwrap()["session"]["reasoningEffort"]
-        .is_null());
+    // Same instance, model and host: the child inherits the parent's effort.
+    assert_eq!(
+        harness
+            .service
+            .runtime
+            .snapshot(default_child["childChatId"].as_str().unwrap())
+            .await
+            .unwrap()["session"]["reasoningEffort"],
+        "high"
+    );
     for (index, target) in [
         json!({"workspace":{"workspaceId":"ws-a"}}),
         json!({"workspace":{"workspaceId":"ws-b"}}),
