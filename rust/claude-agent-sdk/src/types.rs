@@ -313,6 +313,9 @@ pub struct ClaudeAgentOptions {
     pub add_dirs: Vec<PathBuf>,
     pub env: BTreeMap<String, String>,
     pub extra_args: BTreeMap<String, Option<String>>,
+    /// The largest encoded frame in either direction. A write over it closes
+    /// the transport, so raise it before sending base64 image or document
+    /// blocks.
     pub max_buffer_size: usize,
     pub shutdown_timeout: Duration,
     pub initialize_timeout: Duration,

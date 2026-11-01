@@ -433,6 +433,15 @@ impl UserPrompt {
         }
     }
 
+    /// A prompt with prebuilt content: a string or an array of content
+    /// blocks, such as text, image and document blocks.
+    pub fn content(content: Value) -> Self {
+        Self {
+            content,
+            ..Self::text(String::new())
+        }
+    }
+
     pub fn to_wire(&self, verbatim: bool) -> Value {
         let mut message = Map::new();
         message.insert("role".into(), Value::String("user".into()));
