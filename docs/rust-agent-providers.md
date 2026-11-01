@@ -28,7 +28,7 @@ Copyright notices remain in the corresponding license files. MIT licenses for cl
 | `agent-client-protocol`, `alera-provider-acp` | ACP client and common adapter runtime. |
 | `alera-provider-grok` | Grok ACP launch/auth/policy configuration and adapter. |
 | `alera-provider-antigravity` | Antigravity ACP launch/profile/auth/policy configuration and adapter; identifies as Zed so the runtime offers its Claude and GPT models (see its readme for the risk). |
-| `alera-provider-acp-registry` | Configurable ACP agent recipes and adapter. |
+| `alera-provider-acp-registry` | Configurable ACP agent recipes and adapter, including Vercel fx (`fx acp`) in its `ask` mode. |
 | `muse-agent-sdk`, `alera-provider-muse` | MSP client port and Muse adapter. |
 | `opencode-agent-sdk`, `alera-provider-opencode` | OpenCode HTTP/SSE client port and adapter. |
 | `cursor-agent-sdk`, `alera-provider-cursor` | Connect bridge client and Cursor adapter. |

@@ -40,6 +40,9 @@ pub enum AcpRegistryAgentFlavor {
     /// Claude Agent (`claude-agent-acp`), whose ACP v2 preview runs
     /// sub-agents as native child sessions.
     ClaudeAgent,
+    /// Vercel's fx (`fx acp`), whose Supervised mode is its `ask` session
+    /// mode.
+    Fx,
 }
 
 impl AcpRegistryAgentFlavor {
@@ -54,6 +57,9 @@ impl AcpRegistryAgentFlavor {
         }
         if normalized == "mistral-vibe" {
             return Self::MistralVibe;
+        }
+        if normalized == "fx" {
+            return Self::Fx;
         }
         if normalized == "claude-acp"
             || (source == AcpRegistrySource::Local
@@ -206,7 +212,33 @@ impl AcpRegistryProviderConfig {
     }
 
     pub fn agent_flavor(&self) -> AcpRegistryAgentFlavor {
-        AcpRegistryAgentFlavor::for_recipe(self.source, &self.agent_id, self.executable.as_deref())
+        let flavor = AcpRegistryAgentFlavor::for_recipe(
+            self.source,
+            &self.agent_id,
+            self.executable.as_deref(),
+        );
+        if flavor == AcpRegistryAgentFlavor::Generic && self.is_local_fx() {
+            AcpRegistryAgentFlavor::Fx
+        } else {
+            flavor
+        }
+    }
+
+    /// A local `fx` launched with an `acp` argument. The argument tells it
+    /// apart from the unrelated `fx` JSON viewer.
+    fn is_local_fx(&self) -> bool {
+        self.source == AcpRegistrySource::Local
+            && self
+                .executable
+                .as_deref()
+                .and_then(|path| path.file_name())
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    ["fx", "fx.exe", "fx.cmd"]
+                        .iter()
+                        .any(|known| name.eq_ignore_ascii_case(known))
+                })
+            && self.args.iter().any(|arg| arg == "acp")
     }
 
     pub fn from_recipe(recipe: AcpRegistryRecipe) -> Result<Self, ProviderError> {

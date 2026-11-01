@@ -235,7 +235,9 @@ fn acp_config(config: &AcpRegistryProviderConfig) -> AcpProviderConfig {
         runtime_mode: RuntimeMode::ApprovalRequired,
         request_timeout: config.request_timeout,
         max_queued_events: 1024,
-        session_mode: None,
+        // fx runs Supervised as its `ask` mode, written after new, load and
+        // resume, as T3 Code's `fxSessionModeForPolicy` does.
+        session_mode: (config.agent_flavor() == AcpRegistryAgentFlavor::Fx).then(|| "ask".into()),
         native_child_sessions: config.agent_flavor() == AcpRegistryAgentFlavor::ClaudeAgent,
         custom_models: config.custom_models.clone(),
         // GLM's prompt response counts exactly that prompt, as in T3 Code.

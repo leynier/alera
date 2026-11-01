@@ -72,3 +72,23 @@ async fn a_missing_antigravity_runtime_is_named_in_the_catalog() {
         Some(alera_provider_antigravity::MISSING_RUNTIME_MESSAGE)
     );
 }
+
+#[test]
+fn an_fx_acp_agent_launches_with_the_fx_flavor() {
+    let mut launch = launch("acpRegistry");
+    let instance = launch.instance.as_mut().unwrap();
+    instance.executable = Some("fx".into());
+    instance.args = Some(vec!["acp".into()]);
+    instance
+        .options
+        .insert("agentId".into(), serde_json::json!("fx"));
+    let ProductionConfig::Registry(config) = build_config(&launch, &BTreeMap::new()).unwrap()
+    else {
+        panic!("an ACP agent launches through the registry");
+    };
+    assert_eq!(
+        config.agent_flavor(),
+        alera_provider_acp_registry::AcpRegistryAgentFlavor::Fx
+    );
+    assert_eq!(config.args, vec![std::ffi::OsString::from("acp")]);
+}

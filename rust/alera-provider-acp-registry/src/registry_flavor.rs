@@ -35,7 +35,9 @@ pub(crate) fn normalize_event(
         AcpRegistryAgentFlavor::Devin => normalize_devin(&mut event),
         AcpRegistryAgentFlavor::Copilot => normalize_copilot(&mut event, &mut state.copilot),
         AcpRegistryAgentFlavor::MistralVibe => normalize_mistral(&mut event),
-        AcpRegistryAgentFlavor::ClaudeAgent | AcpRegistryAgentFlavor::Generic => {}
+        AcpRegistryAgentFlavor::ClaudeAgent
+        | AcpRegistryAgentFlavor::Fx
+        | AcpRegistryAgentFlavor::Generic => {}
     }
     event
 }
