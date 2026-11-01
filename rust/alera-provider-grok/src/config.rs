@@ -24,6 +24,9 @@ pub struct GrokProviderConfig {
     pub env: BTreeMap<OsString, OsString>,
     pub instance_id: String,
     pub model: Option<String>,
+    /// Model ids configured for the instance, written even when Grok does
+    /// not list them.
+    pub custom_models: Vec<String>,
     pub auth_method: GrokAuthMethod,
     pub runtime_mode: RuntimeMode,
     pub request_timeout: Duration,
@@ -39,6 +42,7 @@ impl Default for GrokProviderConfig {
             env: BTreeMap::new(),
             instance_id: "grok-default".to_owned(),
             model: None,
+            custom_models: Vec::new(),
             auth_method: GrokAuthMethod::default(),
             runtime_mode: RuntimeMode::ApprovalRequired,
             request_timeout: Duration::from_secs(120),

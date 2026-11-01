@@ -12,6 +12,9 @@ use super::provider_factory::{
     BoxedProvider, ProviderFactory, ProviderInstanceConfig, ProviderLaunch, ProviderStatus,
 };
 
+#[cfg(test)]
+#[path = "production_factory_acp_tests.rs"]
+mod acp_tests;
 #[path = "production_launch_config.rs"]
 mod launch_config;
 #[path = "production_opencode_generation.rs"]

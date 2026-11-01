@@ -263,3 +263,26 @@ async fn grok_v1_model_selection_keeps_session_set_model() {
     provider.start_session(start(Some("beta"))).await.unwrap();
     assert_eq!(writes(&provider)[2]["method"], "session/set_model");
 }
+
+#[tokio::test]
+async fn a_configured_custom_model_reaches_the_agent_when_it_is_not_listed() {
+    let mut provider = AcpProvider::with_transport(
+        MockTransport::new(vec![
+            v2(),
+            session(json!({"configOptions":[model_option("model", &["alpha", "beta"])]})),
+            ok(3),
+        ]),
+        AcpProviderConfig {
+            provider: ProviderKind::Other("acp".into()),
+            provider_instance_id: "models".into(),
+            custom_models: vec!["private-model".into()],
+            request_timeout: Duration::from_millis(200),
+            ..AcpProviderConfig::default()
+        },
+    );
+    provider
+        .start_session(start(Some("private-model")))
+        .await
+        .unwrap();
+    assert_eq!(writes(&provider)[2]["params"]["value"], "private-model");
+}

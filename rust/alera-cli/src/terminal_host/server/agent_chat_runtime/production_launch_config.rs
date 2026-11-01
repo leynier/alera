@@ -87,6 +87,7 @@ pub(super) fn build_config(
             config.env = os_env;
             config.instance_id = launch.provider_instance_id.clone();
             config.model = model;
+            config.custom_models = configured_models(instance);
             config.runtime_mode = launch.runtime_mode;
             if let Some(method) = option_string(instance, "authMethod")? {
                 config.auth_method =
@@ -107,6 +108,7 @@ pub(super) fn build_config(
             config.env = os_env;
             config.instance_id = launch.provider_instance_id.clone();
             config.model = model;
+            config.custom_models = configured_models(instance);
             config.runtime_mode = launch.runtime_mode;
             config.profile_dir = option_string(instance, "profileDir")?.map(PathBuf::from);
             if let Some(method) = option_string(instance, "authMethodId")? {
@@ -126,9 +128,7 @@ pub(super) fn build_config(
             config.env = os_env;
             config.auth_method_id = option_string(instance, "authMethodId")?;
             config.instance_id = launch.provider_instance_id.clone();
-            config.custom_models = instance
-                .map(|value| value.models.clone())
-                .unwrap_or_default();
+            config.custom_models = configured_models(instance);
             config.model = model;
             config.runtime_mode = launch.runtime_mode;
             config.validate()?;
@@ -305,4 +305,21 @@ pub(super) fn validate_external_process_options(
         return Err(ProviderError::Unsupported(format!("An external {provider} endpoint cannot apply executable, args, or environment overrides; configure a locally managed process")));
     }
     Ok(())
+}
+
+/// The instance's configured models and its default model, without
+/// duplicates: the ids an ACP agent takes even when its session does not list
+/// them.
+pub(super) fn configured_models(instance: Option<&ProviderInstanceConfig>) -> Vec<String> {
+    let mut models: Vec<String> = Vec::new();
+    let Some(instance) = instance else {
+        return models;
+    };
+    for model in instance.models.iter().chain(instance.default_model.iter()) {
+        let model = model.trim();
+        if !model.is_empty() && !models.iter().any(|existing| existing == model) {
+            models.push(model.to_owned());
+        }
+    }
+    models
 }

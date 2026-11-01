@@ -173,3 +173,19 @@ async fn registry_turns_carrying_the_session_model_reach_the_agent() {
     );
     assert_eq!(writes[4]["params"]["value"], "b");
 }
+
+#[test]
+fn registry_custom_models_reach_the_acp_runtime() {
+    let config = AcpRegistryProviderConfig {
+        source: AcpRegistrySource::Local,
+        agent_id: "custom-agent".into(),
+        executable: Some(PathBuf::from("agent")),
+        custom_models: vec!["private-model".into()],
+        ..Default::default()
+    };
+    let provider = AcpRegistryProvider::with_transport(MockTransport::new([]), config).unwrap();
+    assert_eq!(
+        provider.inner().config().custom_models,
+        vec!["private-model".to_owned()]
+    );
+}

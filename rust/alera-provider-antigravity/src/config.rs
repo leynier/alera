@@ -46,6 +46,9 @@ pub struct AntigravityProviderConfig {
     pub auth_method_id: String,
     pub instance_id: String,
     pub model: Option<String>,
+    /// Model ids configured for the instance, written even when the session
+    /// does not list them.
+    pub custom_models: Vec<String>,
     pub runtime_mode: RuntimeMode,
     pub permission_mode: AntigravityPermissionMode,
     pub request_timeout: Duration,
@@ -64,6 +67,7 @@ impl Default for AntigravityProviderConfig {
             auth_method_id: ANTIGRAVITY_AUTH_METHOD.to_owned(),
             instance_id: "antigravity-default".to_owned(),
             model: None,
+            custom_models: Vec::new(),
             runtime_mode: RuntimeMode::ApprovalRequired,
             permission_mode: AntigravityPermissionMode::Default,
             request_timeout: Duration::from_secs(120),

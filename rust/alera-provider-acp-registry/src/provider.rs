@@ -237,6 +237,8 @@ fn acp_config(config: &AcpRegistryProviderConfig) -> AcpProviderConfig {
         max_queued_events: 1024,
         session_mode: None,
         native_child_sessions: config.agent_flavor() == AcpRegistryAgentFlavor::ClaudeAgent,
+        custom_models: config.custom_models.clone(),
+        reports_per_turn_prompt_usage: false,
     }
 }
 

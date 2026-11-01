@@ -68,6 +68,13 @@ pub struct AcpProviderConfig {
     /// sessions (Claude Agent's `subagent_update` and `session_message`) as
     /// sub-agents. Takes effect only when the agent negotiates ACP v2.
     pub native_child_sessions: bool,
+    /// Model ids the user configured for this instance. They are written even
+    /// when the session does not list them; the agent validates them.
+    pub custom_models: Vec<String>,
+    /// The prompt response's `usage` covers exactly that prompt, so it is
+    /// the turn's token usage. ACP leaves usage semantics open, so this is
+    /// opt-in per agent.
+    pub reports_per_turn_prompt_usage: bool,
 }
 
 impl Default for AcpProviderConfig {
@@ -86,6 +93,8 @@ impl Default for AcpProviderConfig {
             max_queued_events: 1024,
             session_mode: None,
             native_child_sessions: false,
+            custom_models: Vec::new(),
+            reports_per_turn_prompt_usage: false,
         }
     }
 }
