@@ -10,23 +10,23 @@ Bound agents can read, delegate to, and message chats across known projects and 
 
 ## Choose A Target And Delegate
 
-- `chat_capabilities` lists providers, orchestration support and reasons, runtime modes, and the caller's ceiling. Check support before choosing a provider.
-- `chat_list` discovers chats with optional `workspaceId`, `projectId`, `hostId`, and `includeArchived` filters. Use exact chat, project, workspace, and provider instance ids from the listings.
-- `chat_read` returns user and assistant text plus canonical plans. `limit` defaults to 100, accepts 1 to 200 entries, and the result reports truncation. Hidden reasoning and credentials are excluded.
+- `chat_capabilities` lists providers, orchestration support and reasons, runtime modes, and the caller's ceiling. Check support before choosing a provider. Each provider lists a few models, pinned ones always, and `omittedModels` counts the rest; pass `search` to find a model by id or label. `caller` holds your own provider instance, model and effort.
+- `chat_list` discovers chats with optional `workspaceId`, `projectId`, `hostId`, and `includeArchived` filters. Use exact chat, project, workspace, and provider instance ids from the listings. Each chat carries `link`; mention a chat by pasting its link as is.
+- `chat_read` returns user and assistant text plus canonical plans. `limit` defaults to 100 and reads at most 200 entries; the result reports truncation. Hidden reasoning and credentials are excluded.
 - `chat_transfers` lists the context moved into a chat, newest first: forks, merge-backs, provider handoffs, delegated briefs and delegated results, with each record's kind, source and target chat, status and task. Omit `chatId` for your own chat.
 - `chat_delegate` starts a durable task with a brief in `task` and exactly one `target`. The child receives only that brief, not its parent's conversation. It returns task, chat and workspace ids; keep them for retries and follow-up.
 
 Targets are `{"chat":{"chatId":"..."}}` for an existing chat, `{"workspace":{"workspaceId":"..."}}` for a new chat in an existing workspace, or `{"newWorkspace":{"projectId":"...","hostId":"local|<ssh-id>","mode":"worktree|shared"}}` for a new workspace. New workspaces use the existing managed/shared workspace API. Their optional fields are `branch`, `sourceBranch`, `reuseExistingBranch`, `name`, `parentWorkspaceId`, and `setup` (`inline` or `deferred`, default `inline`). Name project and host explicitly.
 
-Optional delegation fields are `title`, `role`, `agent` (`providerInstanceId`, optional `model` and `options`), `runtimeMode`, `interactionMode`, `notify`, `mode`, and `waitSeconds`. Runtime modes are `approval-required`, `auto-accept-edits`, `auto`, and `full-access`; none may exceed the caller's ceiling. Interaction modes are `default` and `plan`. Configure an idle existing chat before delegating with a different provider or mode.
+Optional delegation fields are `title`, `role`, `agent` (`providerInstanceId`, optional `model` and `options`), `runtimeMode`, `interactionMode`, `notify`, `mode`, and `waitSeconds`. Runtime modes are `approval-required`, `auto-accept-edits`, `auto`, and `full-access`; the child defaults to your mode and none may exceed it. Omit `runtimeMode` unless the user asks for a supervised child: a supervised child pauses at each approval until a person approves it in the child chat, and the mode is no read-only switch, so state limits in the task. A new chat defaults to your provider instance, your model on it, and your effort when instance, model and host match and `agent.options` is absent; `options: {}` clears the effort. Interaction modes are `default` and `plan`. Configure an idle existing chat before delegating with a different provider or mode.
 
-`mode` defaults to `async`; `wait` waits for at most 50 seconds. `notify` is `always`, `settled_only`, or `never`; async defaults to `always`. A timed-out wait leaves the task running. Follow it by id instead of delegating again. Neither delegation nor messages changes the user's selected workspace or tab.
+`mode` defaults to `async`; `wait` waits for at most 50 seconds, and a longer `waitSeconds` waits 50. After an async delegation, follow `next` and end your turn: the task wakes this chat with its result. Do not poll it. `notify` is `always`, `settled_only`, or `never`; async defaults to `always`. A timed-out wait leaves the task running. Follow it by id instead of delegating again. Neither delegation nor messages changes the user's selected workspace or tab.
 
 ## Follow Work And Send Messages
 
 - `chat_task_status` reads a task's lineage, state and bounded final result. `acknowledge:true` marks a delivered result as read; supply stable `clientRequestId` for the updated host's durable acknowledgement receipt. The ID is accepted only with acknowledgement; omission preserves legacy no-ID behavior. Because this mixed tool can acknowledge, it advertises execute access rather than read-only. Completion follows the child's settled turn, not the initial request acknowledgement.
-- `chat_task_wait` waits for `taskIds`, with `until` `any` or `all` (default `all`) and `timeoutSeconds` from 1 to 50 (default 50). Repeat with the same ids while work continues.
-- `chat_task_list` filters by `parentChatId`, `childChatId`, `rootTaskId`, `projectId`, `workspaceId`, `hostId`, `statuses`, or `attention`. Without `parentChatId`, `childChatId` or `rootTaskId` it lists only the tasks your own chat delegated, because several chats in one workspace each own their delegations; name another lineage to read it, marked `readOnly`. `limit` defaults to 100 and accepts 1 to 200; pass `nextCursor` back as `cursor` for the next page.
+- `chat_task_wait` waits for `taskIds`, with `until` `any` or `all` (default `all`) and `timeoutSeconds` up to 50 (default 50). Use it only when this turn cannot go on without the result; otherwise end your turn and the task wakes this chat.
+- `chat_task_list` filters by `parentChatId`, `childChatId`, `rootTaskId`, `projectId`, `workspaceId`, `hostId`, `statuses`, or `attention`. Without `parentChatId`, `childChatId` or `rootTaskId` it lists only the tasks your own chat delegated, because several chats in one workspace each own their delegations; name another lineage to read it, marked `readOnly`. `limit` defaults to 100 and reads at most 200; pass `nextCursor` back as `cursor` for the next page.
 - `chat_send` sends `message` to `chatId`. `delivery` is `auto` (default) or `queue`, which waits behind an active turn. `expectReply` creates a message task whose settled result can notify the sender.
 
 ## Wait On Your Own Background Work
@@ -35,7 +35,7 @@ Optional delegation fields are `title`, `role`, `agent` (`providerInstanceId`, o
 
 A Codex chat whose turn already completed is resumed by the runtime when one of its direct sub-agents finishes, with an automated message carrying the sub-agent's outcome and final answer. A running or queued turn reads the result natively instead.
 
-Follow-up delegation creates a new task even when it reuses a chat. Completion notifications queue behind a parent's active turn and identify task ids; read results separately. Open child requests set a task to `needs_input`.
+Follow-up delegation creates a new task even when it reuses a chat. A task settles only once its child stops working, including background work and tasks the child delegated, with the main agent's last answer. A turn the child runs after its task settled opens a follow-up task that wakes you again. Completion notifications wait until your chat is idle and carry each settled result within a shared budget; read a cut result with `chat_read`. Open child requests set a task to `needs_input`; a child's question arrives as a message to answer with `chat_requests` and `chat_respond`, or to take to the user. Optional arguments set to `null` count as left out.
 
 ## Control Owned Work
 

@@ -22,8 +22,8 @@ const SKILLS: &[(&str, &str)] = &[
 const DIGESTS: &[(&str, i64, &str)] = &[
     (
         "alera-cli",
-        12,
-        "9138448445c40a28128f15f0998a38cd148400d7c391fd350777b4ac28cbae97",
+        13,
+        "8185a913a3871f4a9d085414dd1b0a749d89cce13b423208f15d3fbf12e3ee39",
     ),
     (
         "alera-orchestration",

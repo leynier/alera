@@ -10,7 +10,7 @@ Each call takes `{operation,payload}` with an exact operation-specific body. The
 
 | Operation | Payload | Result |
 | --- | --- | --- |
-| `capabilities` | Optional `workspaceId,hostId` | Provider orchestration support and runtime ceilings. |
+| `capabilities` | Optional `workspaceId,hostId,search` | Provider orchestration support and runtime ceilings; `search` lists only matching models. |
 | `list` | Optional `workspaceId,projectId,hostId,includeArchived` | Human-visible chats with lineage. |
 | `read` | `chatId,limit?` | Bounded user/assistant text and plans; hidden reasoning and credentials excluded. |
 | `task` | `taskId` | One task, its lineage, state, and bounded result; never acknowledges. |
@@ -18,7 +18,7 @@ Each call takes `{operation,payload}` with an exact operation-specific body. The
 | `wait` | `taskIds,waitSeconds?,until?` | Current tasks and timeout state; work can remain running. |
 | `requests` | `chatId` or `taskId` | Open approval, input, and elicitation requests. |
 
-Read and task-list limits default to 100 and accept 1 to 200. Cursor is a nonnegative integer returned by the runtime. Wait accepts 1 to 200 task IDs, defaults to 50 seconds and `until:all`, and accepts `waitSeconds` from 1 to 50 with `until:any|all`. Repeat a bounded wait with the same IDs while work continues. Read tools reject acknowledgement writes.
+Read and task-list limits default to 100 and read at most 200; a larger limit uses 200. Cursor is a nonnegative integer returned by the runtime. Wait accepts 1 to 200 task IDs, defaults to 50 seconds and `until:all`, and waits at most 50 seconds with `until:any|all`. Nothing wakes this caller, so repeat a bounded wait with the same IDs while work continues. Optional fields set to `null` count as left out. Read tools reject acknowledgement writes.
 
 ## Delegate And Send
 
