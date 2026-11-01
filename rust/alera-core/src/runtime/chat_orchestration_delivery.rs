@@ -118,3 +118,24 @@ pub struct ChatOrchestrationChildTurn {
     /// `normalized.origin` of the turn's first user message.
     pub message_origin: Option<serde_json::Value>,
 }
+
+/// A child turn that may open a follow-up of the child's latest task.
+#[derive(Debug, Clone)]
+pub struct ChatOrchestrationFollowup {
+    pub task_id: String,
+    pub followup_of: String,
+    pub child_chat_id: String,
+    pub child_turn_id: String,
+    /// What started the turn, for the follow-up's brief.
+    pub origin: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum ChatOrchestrationFollowupOutcome {
+    Created(Box<ChatOrchestrationTask>),
+    /// A task already owns the turn.
+    Exists,
+    /// The task it would follow is unsettled, has no parent, was stopped by
+    /// its parent's person, or the child already works on another task.
+    Refused,
+}

@@ -17,6 +17,12 @@ pub const CHAT_ORCHESTRATION_SCHEMA_VERSION: i64 = 1;
 pub const CHAIN_START_TURN_KEY: &str = "chainStartTurnId";
 /// `launchOptions` key naming the task a `followup` continues.
 pub const FOLLOWUP_OF_KEY: &str = "followupOfTaskId";
+/// `launchOptions` key naming who answers a task's open input:
+/// `INPUT_OWNER_PARENT` for questions routed to its agent parent, else
+/// `INPUT_OWNER_PERSON`.
+pub const INPUT_OWNER_KEY: &str = "inputOwner";
+pub const INPUT_OWNER_PARENT: &str = "parent";
+pub const INPUT_OWNER_PERSON: &str = "person";
 /// Final assistant text kept on a task; the parent reads the chat for more.
 pub const CHAT_ORCHESTRATION_RESULT_MAX_BYTES: usize = 64 * 1024;
 pub const CHAT_ORCHESTRATION_BRIEF_MAX_BYTES: usize = 256 * 1024;

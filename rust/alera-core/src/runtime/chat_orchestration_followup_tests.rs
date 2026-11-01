@@ -1,7 +1,7 @@
 use serde_json::json;
 
-use super::agent_chat_test_support::store_with_workspace;
-use super::*;
+use super::super::agent_chat_test_support::store_with_workspace;
+use super::super::*;
 
 async fn settled_task(
     store: &RuntimeStore,

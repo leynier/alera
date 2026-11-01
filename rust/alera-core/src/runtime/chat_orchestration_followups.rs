@@ -8,33 +8,21 @@ use anyhow::Result;
 use chrono::Utc;
 use serde_json::{json, Value};
 
+use super::chat_orchestration_delivery::{
+    ChatOrchestrationFollowup, ChatOrchestrationFollowupOutcome,
+};
 use super::chat_orchestration_models::*;
 use super::chat_orchestration_rows::{require_id, require_task_in, task_from_row, TASK_COLUMNS};
 use super::chat_orchestration_store::{insert_task_in, transition_in, validate_new_task};
 use super::{format_timestamp, RuntimeStore};
 
+#[path = "chat_orchestration_input_owner.rs"]
+mod input_owner;
+#[cfg(test)]
+#[path = "chat_orchestration_followup_tests.rs"]
+mod tests;
+
 const UNSETTLED: &str = "('preparing', 'running', 'needs_input', 'cancel_requested')";
-
-/// A child turn that may open a follow-up of the child's latest task.
-#[derive(Debug, Clone)]
-pub struct ChatOrchestrationFollowup {
-    pub task_id: String,
-    pub followup_of: String,
-    pub child_chat_id: String,
-    pub child_turn_id: String,
-    /// What started the turn, for the follow-up's brief.
-    pub origin: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum ChatOrchestrationFollowupOutcome {
-    Created(Box<ChatOrchestrationTask>),
-    /// A task already owns the turn.
-    Exists,
-    /// The task it would follow is unsettled, has no parent, was stopped by
-    /// its parent's person, or the child already works on another task.
-    Refused,
-}
 
 fn parent_stopped(task: &ChatOrchestrationTask) -> bool {
     task.launch_options
