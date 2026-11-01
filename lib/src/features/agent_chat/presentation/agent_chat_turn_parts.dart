@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_activity_rows.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_compacting_text.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_timeline_context.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -205,7 +206,9 @@ class const AgentChatLiveWorkRow({
             child: Row(
               children: <Widget>[
                 Icon(
-                  current == null
+                  live.compacting
+                      ? AleraIcons.contextCompact
+                      : current == null
                       ? AleraIcons.ai
                       : agentChatWorkedActionIcon(current.kind),
                   size: AleraTokens.iconMd,
@@ -213,12 +216,18 @@ class const AgentChatLiveWorkRow({
                 ),
                 const SizedBox(width: AleraTokens.space8),
                 Flexible(
-                  child: AleraShimmerText(
-                    text: live.label,
-                    style: style,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: live.compacting
+                      ? AgentChatCompactingText(
+                          key: const ValueKey<String>('agent-chat-compacting'),
+                          since: live.compactingSince,
+                          style: style,
+                        )
+                      : AleraShimmerText(
+                          text: live.label,
+                          style: style,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                 ),
               ],
             ),
