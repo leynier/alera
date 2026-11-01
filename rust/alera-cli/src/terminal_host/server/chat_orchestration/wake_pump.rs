@@ -33,6 +33,9 @@ const RUNTIME_RESTARTED: &str = "runtimeRestarted";
 
 pub(crate) struct WakePump {
     owed: Mutex<HashSet<String>>,
+    /// Tasks a `delegate` with `mode: wait` is waiting on right now; such a
+    /// wait returns the task's question itself.
+    live_waits: Mutex<HashSet<String>>,
     nudge: mpsc::UnboundedSender<()>,
     nudges: Mutex<Option<mpsc::UnboundedReceiver<()>>>,
 }
@@ -42,6 +45,7 @@ impl Default for WakePump {
         let (nudge, nudges) = mpsc::unbounded_channel();
         Self {
             owed: Mutex::default(),
+            live_waits: Mutex::default(),
             nudge,
             nudges: Mutex::new(Some(nudges)),
         }
@@ -56,6 +60,24 @@ impl WakePump {
             .expect("wake pump lock")
             .insert(parent.to_owned());
         let _ = self.nudge.send(());
+    }
+
+    pub(super) fn begin_wait(self: &std::sync::Arc<Self>, task_id: &str) -> LiveWait {
+        self.live_waits
+            .lock()
+            .expect("wake pump lock")
+            .insert(task_id.to_owned());
+        LiveWait {
+            pump: self.clone(),
+            task_id: task_id.to_owned(),
+        }
+    }
+
+    pub(super) fn wait_is_live(&self, task_id: &str) -> bool {
+        self.live_waits
+            .lock()
+            .expect("wake pump lock")
+            .contains(task_id)
     }
 
     fn owed(&self) -> Vec<String> {
@@ -76,6 +98,20 @@ impl WakePump {
 
     pub(super) fn is_owed(&self, parent: &str) -> bool {
         self.owed.lock().expect("wake pump lock").contains(parent)
+    }
+}
+
+/// Marks a task's bounded wait live until it is dropped.
+pub(super) struct LiveWait {
+    pump: std::sync::Arc<WakePump>,
+    task_id: String,
+}
+
+impl Drop for LiveWait {
+    fn drop(&mut self) {
+        if let Ok(mut waits) = self.pump.live_waits.lock() {
+            waits.remove(&self.task_id);
+        }
     }
 }
 

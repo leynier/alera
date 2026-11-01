@@ -56,6 +56,8 @@ class _AutomatedInputState extends State<_AutomatedInput> {
     final origin = widget.origin;
     final tasks = origin.taskIds.length;
     final label = switch (origin.kind) {
+      AgentChatItemOriginKind.orchestrationWake when origin.asksQuestion =>
+        'A delegated task asked a question',
       AgentChatItemOriginKind.orchestrationWake =>
         tasks == 1
             ? 'A delegated task finished'

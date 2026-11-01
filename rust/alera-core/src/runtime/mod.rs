@@ -76,6 +76,7 @@ mod chat_orchestration_delivery;
 #[cfg(test)]
 mod chat_orchestration_followup_tests;
 mod chat_orchestration_followups;
+mod chat_orchestration_input_owner;
 mod chat_orchestration_lineage;
 mod chat_orchestration_models;
 mod chat_orchestration_parent_stop;
@@ -98,6 +99,9 @@ pub use chat_orchestration_credentials::{
     hash_chat_orchestration_credential, new_chat_orchestration_credential_secret,
 };
 pub use chat_orchestration_delivery::*;
+pub use chat_orchestration_input_owner::{
+    INPUT_OWNER_KEY, INPUT_OWNER_PARENT, INPUT_OWNER_PERSON,
+};
 pub use chat_orchestration_followups::{
     ChatOrchestrationFollowup, ChatOrchestrationFollowupOutcome,
 };

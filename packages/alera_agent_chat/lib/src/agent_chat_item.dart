@@ -225,6 +225,7 @@ class const AgentChatItemOrigin({
   required final AgentChatItemOriginKind kind,
   final String? senderChatId,
   final List<String> taskIds = const <String>[],
+  final List<String> requestIds = const <String>[],
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -232,11 +233,17 @@ class const AgentChatItemOrigin({
       kind: AgentChatItemOriginKind.fromJson(json['kind']),
       senderChatId: agentChatJsonString(json['senderChatId']),
       taskIds: agentChatJsonStringList(json['taskIds']),
+      requestIds: agentChatJsonStringList(json['requestIds']),
     );
   }
 
   /// Whether an agent or the runtime, rather than a person, sent it.
   bool get automated => kind != AgentChatItemOriginKind.user;
+
+  /// A delegated task's question routed to this chat, not a finished task.
+  bool get asksQuestion =>
+      kind == AgentChatItemOriginKind.orchestrationWake &&
+      requestIds.isNotEmpty;
 }
 
 /// One timeline row. Identity is [id], allocated by the runtime, so a stream

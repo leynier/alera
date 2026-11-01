@@ -100,7 +100,8 @@ impl RuntimeStore {
         ).bind(chat_id).bind(read_cursor).fetch_one(&mut *tx).await?;
         let children = sqlx::query(
             "SELECT COALESCE(SUM(status IN ('preparing', 'running', 'needs_input', 'cancel_requested')), 0) AS openCount, \
-             COALESCE(MAX(status = 'needs_input'), 0) AS needsInput, \
+             COALESCE(MAX(status = 'needs_input' AND COALESCE(json_extract(launchOptionsJson, \
+                 '$.inputOwner'), 'person') <> 'parent'), 0) AS needsInput, \
              COALESCE(MAX(status IN ('failed', 'interrupted')), 0) AS failed \
              FROM chatOrchestrationTasks WHERE parentChatId = ?",
         ).bind(chat_id).fetch_one(&mut *tx).await?;

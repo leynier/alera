@@ -106,6 +106,7 @@ impl ChatOrchestrationService {
                         "kind":item["normalized"]["origin"]["kind"],
                         "senderChatId":item["normalized"]["origin"]["senderChatId"],
                         "taskIds":item["normalized"]["origin"]["taskIds"],
+                        "requestIds":item["normalized"]["origin"]["requestIds"],
                     },
                 })
             })

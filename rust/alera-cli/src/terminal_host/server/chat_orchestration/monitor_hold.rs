@@ -32,19 +32,16 @@ pub(super) type Quiet = Option<(Instant, Value)>;
 
 /// Open requests of the head turn; while the task is held, requests with no
 /// turn count too.
-pub(super) fn pending_requests(snapshot: &Value, turn_id: &str, held: bool) -> usize {
+pub(super) fn pending_requests<'a>(snapshot: &'a Value, turn_id: &str, held: bool) -> Vec<&'a Value> {
     snapshot["pendingRequests"]
         .as_array()
-        .map(|requests| {
-            requests
-                .iter()
-                .filter(|request| {
-                    request["turnId"] == turn_id
-                        || (held && request.get("turnId").is_none_or(Value::is_null))
-                })
-                .count()
+        .into_iter()
+        .flatten()
+        .filter(|request| {
+            request["turnId"] == turn_id
+                || (held && request.get("turnId").is_none_or(Value::is_null))
         })
-        .unwrap_or(0)
+        .collect()
 }
 
 impl ChatOrchestrationService {

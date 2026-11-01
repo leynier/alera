@@ -10,6 +10,7 @@ AgentChatTask _task(
   String? parent = 'chat-parent',
   String? child,
   AgentChatTaskAttention attention = AgentChatTaskAttention.none,
+  AgentChatTaskInputOwner inputOwner = AgentChatTaskInputOwner.person,
 }) => AgentChatTask(
   id: id,
   status: status,
@@ -18,6 +19,7 @@ AgentChatTask _task(
   parentChatId: parent,
   childChatId: child ?? 'chat-$id',
   attention: attention,
+  inputOwner: inputOwner,
 );
 
 void main() {
@@ -49,6 +51,21 @@ void main() {
     expect(activities['chat-parent']!.waitingOnTasks, isTrue);
     expect(activities['chat-parent']!.childNeedsInput, isTrue);
     expect(activities['chat-other'], const ChatTaskParentActivity(open: 1));
+  });
+
+  test('a question routed to the agent parent does not wait on a person', () {
+    final asked = _task(
+      'asked',
+      AgentChatTaskStatus.needsInput,
+      attention: AgentChatTaskAttention.needsInput,
+      inputOwner: AgentChatTaskInputOwner.parent,
+    );
+    final activities = chatTaskParentActivities(
+      open: <AgentChatTask>[asked],
+      attention: <AgentChatTask>[asked],
+    );
+    expect(activities['chat-parent'], const ChatTaskParentActivity(open: 1));
+    expect(activities['chat-parent']!.childNeedsInput, isFalse);
   });
 
   test('tasks a person owns belong to no chat', () {

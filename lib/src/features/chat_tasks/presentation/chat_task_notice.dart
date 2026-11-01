@@ -36,6 +36,10 @@ class const ChatTaskOriginNotice({
     final sender = origin.senderChatId;
     final taskId = origin.taskIds.firstOrNull;
     return switch (origin.kind) {
+      // A question is not a finished task: name the task, claim no outcome.
+      AgentChatItemOriginKind.orchestrationWake
+          when origin.asksQuestion && taskId != null =>
+        _TaskOrigin(taskId: taskId),
       AgentChatItemOriginKind.orchestrationWake => Column(
         crossAxisAlignment: .stretch,
         mainAxisSize: .min,

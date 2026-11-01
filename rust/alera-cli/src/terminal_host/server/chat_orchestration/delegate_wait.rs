@@ -18,6 +18,7 @@ impl ChatOrchestrationService {
         caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
         let deadline = tokio::time::Instant::now() + Duration::from_secs(wait_seconds);
+        let _live = self.wake_pump.begin_wait(task_id);
         loop {
             let task = self
                 .store

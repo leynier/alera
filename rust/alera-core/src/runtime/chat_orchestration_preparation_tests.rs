@@ -240,7 +240,7 @@ pub(super) async fn move_task(
 }
 
 #[tokio::test]
-async fn an_open_cohort_keeps_only_the_latest_status_of_each_task() {
+async fn an_open_cohort_keeps_only_the_settled_status_of_each_task() {
     let (_directory, store) = store_with_workspace("ws").await;
     create(&store, "cohort-task").await;
     store
@@ -263,7 +263,7 @@ async fn an_open_cohort_keeps_only_the_latest_status_of_each_task() {
 }
 
 #[tokio::test]
-async fn an_older_needs_input_wake_does_not_acknowledge_a_new_completed_result() {
+async fn a_question_owes_no_wake_and_the_later_result_does() {
     let (_directory, store) = store_with_workspace("ws").await;
     create(&store, "revised-task").await;
     store
@@ -273,32 +273,20 @@ async fn an_older_needs_input_wake_does_not_acknowledge_a_new_completed_result()
     use ChatOrchestrationTaskStatus as Status;
     move_task(&store, "revised-task", Status::Preparing, Status::Running).await;
     move_task(&store, "revised-task", Status::Running, Status::NeedsInput).await;
-    let earlier = store
+    // Questions reach an agent parent as messages, never as a wake.
+    assert!(store
         .seal_chat_orchestration_wake("parent")
         .await
         .unwrap()
-        .unwrap();
+        .is_none());
     move_task(&store, "revised-task", Status::NeedsInput, Status::Running).await;
     move_task(&store, "revised-task", Status::Running, Status::Completed).await;
-    store
-        .ack_chat_orchestration_wake("parent", earlier.generation)
-        .await
-        .unwrap();
-    assert_eq!(
-        store
-            .chat_orchestration_task("revised-task")
-            .await
-            .unwrap()
-            .unwrap()
-            .result_delivery,
-        ChatOrchestrationResultDelivery::Pending
-    );
     let completed = store
         .seal_chat_orchestration_wake("parent")
         .await
         .unwrap()
         .unwrap();
-    assert!(completed.generation > earlier.generation);
+    assert_eq!(completed.entries[0].task_status, Status::Completed);
     store
         .ack_chat_orchestration_wake("parent", completed.generation)
         .await

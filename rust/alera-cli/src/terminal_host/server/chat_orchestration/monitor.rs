@@ -6,6 +6,7 @@ use serde_json::json;
 
 use super::continuation::{chain_start, chain_turns, moved_head};
 use super::monitor_hold::{pending_requests, HoldStep};
+use super::question_wakes::Questions;
 use super::service::ChatOrchestrationService;
 use super::tasks::{final_assistant_text, matching_turn, parse_turn_status, transition_status};
 use super::wakes::deliver_next_wake;
@@ -85,13 +86,18 @@ impl ChatOrchestrationService {
         });
     }
 
-    async fn monitor_task(
-        &self,
-        task_id: String,
-        child_chat_id: String,
-        client_message_id: String,
-    ) {
+    async fn monitor_task(&self, task_id: String, child_chat_id: String, client_message_id: String) {
+        self.follow_task(&task_id, child_chat_id, client_message_id)
+            .await;
+        if !self.jobs.is_closed() {
+            self.withdraw_task_questions(&task_id).await;
+        }
+    }
+
+    async fn follow_task(&self, task_id: &str, child_chat_id: String, client_message_id: String) {
+        let task_id = task_id.to_owned();
         let mut quiet = None;
+        let mut questions = Questions::default();
         loop {
             let mut task = match self.store.chat_orchestration_task(&task_id).await {
                 Ok(Some(task)) => task,
@@ -203,7 +209,15 @@ impl ChatOrchestrationService {
             let holdable = status.as_deref() == Some("completed")
                 && task.status != ChatOrchestrationTaskStatus::CancelRequested;
             let open = status.as_deref() == Some("running") || holdable;
-            let pending = pending_requests(&snapshot, &turn_id, holdable);
+            let requests = pending_requests(&snapshot, &turn_id, holdable);
+            let pending = requests.len();
+            if task.status == ChatOrchestrationTaskStatus::NeedsInput
+                || (pending > 0 && open && task.status == ChatOrchestrationTaskStatus::Running)
+            {
+                self.set_input_owner(&task, &requests).await;
+            }
+            self.route_questions(&task, &child_chat_id, &requests, &mut questions)
+                .await;
             if pending > 0 && open && task.status == ChatOrchestrationTaskStatus::Running {
                 self.move_task(
                     &task_id,

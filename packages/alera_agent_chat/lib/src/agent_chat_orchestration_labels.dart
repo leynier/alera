@@ -122,6 +122,8 @@ String agentChatTaskPlaceLabel(
 String agentChatOriginHeading(
   AgentChatItemOrigin origin,
 ) => switch (origin.kind) {
+  .orchestrationWake when origin.asksQuestion =>
+    'A delegated task asked a question',
   .orchestrationWake =>
     origin.taskIds.isEmpty
         ? 'Resumed after delegated work finished'

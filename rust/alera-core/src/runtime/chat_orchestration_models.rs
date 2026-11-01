@@ -148,7 +148,8 @@ impl ChatOrchestrationTaskKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChatOrchestrationNotify {
-    /// Wake the parent on settlement and when the child needs input.
+    /// Wake the parent when the task settles. A question the child asks
+    /// reaches an agent parent as its own message instead of a wake.
     Always,
     SettledOnly,
     Never,
@@ -169,14 +170,13 @@ impl ChatOrchestrationNotify {
             .find(|notify| notify.as_str() == value)
     }
 
-    /// Whether moving into `status` owes the parent a wake.
+    /// Whether moving into `status` owes the parent a wake: only a settle
+    /// does. `always` and `settled_only` differ in what a timed-out wait
+    /// restores, not in what wakes.
     pub fn wakes_on(self, status: ChatOrchestrationTaskStatus) -> bool {
         match self {
             Self::Never => false,
-            Self::SettledOnly => status.is_terminal(),
-            Self::Always => {
-                status.is_terminal() || status == ChatOrchestrationTaskStatus::NeedsInput
-            }
+            Self::SettledOnly | Self::Always => status.is_terminal(),
         }
     }
 }

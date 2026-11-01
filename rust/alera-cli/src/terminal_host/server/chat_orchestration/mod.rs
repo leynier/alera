@@ -24,6 +24,7 @@ pub(crate) mod operation_wire;
 mod operations;
 mod parent;
 mod queries;
+mod question_wakes;
 mod request_admission;
 mod request_parser;
 mod runtime;
@@ -87,6 +88,8 @@ mod paused_runtime_fixture;
 mod person_parent_tests;
 #[cfg(test)]
 mod preparation_failure_tests;
+#[cfg(test)]
+mod question_wake_tests;
 #[cfg(test)]
 mod restart_recovery_tests;
 #[cfg(test)]

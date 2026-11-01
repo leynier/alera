@@ -65,6 +65,9 @@ impl ServerActor {
             .chat_tracker
             .new_task_revision(task_id, task.revision)
             || !task.needs_attention()
+            // The agent parent answers its own child's questions.
+            || (task.status == ChatOrchestrationTaskStatus::NeedsInput
+                && task.input_owned_by_parent())
             || !self.chat_attention_push_enabled().await
         {
             return;

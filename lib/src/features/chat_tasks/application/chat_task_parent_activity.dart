@@ -57,9 +57,11 @@ Map<String, ChatTaskParentActivity> chatTaskParentActivities({
     final parent = task.parentChatId;
     if (parent == null) continue;
     final (opened, waiting, failed) = counts[parent] ?? (0, 0, 0);
+    // The agent parent answers its own child's questions.
     final needsInput =
-        task.status == AgentChatTaskStatus.needsInput ||
-        task.attention == AgentChatTaskAttention.needsInput;
+        task.inputOwner != AgentChatTaskInputOwner.parent &&
+        (task.status == AgentChatTaskStatus.needsInput ||
+            task.attention == AgentChatTaskAttention.needsInput);
     counts[parent] = (
       opened + (task.status.settled ? 0 : 1),
       waiting + (needsInput ? 1 : 0),

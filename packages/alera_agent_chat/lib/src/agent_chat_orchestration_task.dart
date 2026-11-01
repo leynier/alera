@@ -59,6 +59,18 @@ enum AgentChatTaskKind(final String wire) {
       };
 }
 
+/// Who answers a task's open input: its agent parent, for a question routed
+/// to it, or a person.
+enum AgentChatTaskInputOwner(final String wire) {
+  person('person'),
+  parent('parent');
+
+  static AgentChatTaskInputOwner fromJson(Object? value) =>
+      agentChatWireToken(value) == 'parent'
+      ? AgentChatTaskInputOwner.parent
+      : AgentChatTaskInputOwner.person;
+}
+
 /// Whether the parent chat is woken when the task settles.
 enum AgentChatTaskNotify(final String wire) {
   always('always'),
@@ -172,6 +184,7 @@ class const AgentChatTask({
   final AgentChatTaskNotify? notify,
   final AgentChatTaskAttention attention = AgentChatTaskAttention.none,
   final int pendingRequestCount = 0,
+  final AgentChatTaskInputOwner inputOwner = AgentChatTaskInputOwner.person,
   final AgentChatTaskDelivery delivery = AgentChatTaskDelivery.pending,
   final AgentChatTaskResult? result,
   final AgentChatTaskFailure? failure,
@@ -222,6 +235,7 @@ class const AgentChatTask({
       notify: AgentChatTaskNotify.tryParse(json['notify']),
       attention: _attention(json, status, delivery),
       pendingRequestCount: agentChatJsonInt(json['pendingRequestCount']) ?? 0,
+      inputOwner: AgentChatTaskInputOwner.fromJson(json['inputOwner']),
       delivery: delivery,
       result: json['result'] == null
           ? null

@@ -174,3 +174,47 @@ async fn delegate_wait_returns_needs_input_without_spending_the_fifty_second_bud
     assert_eq!(result["attention"], true);
     harness.finish().await;
 }
+
+#[tokio::test]
+async fn a_question_a_wait_returned_reaches_the_parent_agent_after_the_wait() {
+    let mut harness = TestHarness::new().await;
+    let parent = harness.create_chat("ws-a", "auto").await;
+    harness
+        .send_human(&parent, "parent", "Wait for a child that asks.")
+        .await;
+    let caller = harness.agent(&parent).await;
+    let service = harness.service.clone();
+    let delegation = tokio::spawn(async move {
+        service
+            .handle("delegate", &wait_payload("asks-during-wait", 50), &caller)
+            .await
+    });
+    let (task_id, child) = prepared_child(&mut harness).await;
+    let control = harness.control(&child).await;
+    tokio::time::timeout(TEST_DEADLINE, control.wait_turns(1))
+        .await
+        .unwrap();
+    control.request_input(1, "native-wait-question");
+    let result = tokio::time::timeout(TEST_DEADLINE, delegation)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(result["status"], "needs_input");
+    tokio::time::timeout(TEST_DEADLINE, async {
+        loop {
+            let snapshot = harness.runtime.snapshot(&parent).await.unwrap();
+            let queued = snapshot["queue"].as_array().unwrap().iter().any(|entry| {
+                entry["origin"]["taskIds"][0] == task_id.as_str()
+                    && entry["origin"]["requestIds"].is_array()
+            });
+            if queued {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the question was queued for the parent after its wait returned");
+    harness.finish().await;
+}

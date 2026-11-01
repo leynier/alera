@@ -62,6 +62,13 @@ void main() {
     expect(task.delivery, AgentChatTaskDelivery.notified);
     expect(task.attention, AgentChatTaskAttention.needsInput);
     expect(task.pendingRequestCount, 2);
+    expect(task.inputOwner, AgentChatTaskInputOwner.person);
+    expect(
+      AgentChatTask.fromJson(
+        _wireTask(<String, Object?>{'inputOwner': 'parent'}),
+      ).inputOwner,
+      AgentChatTaskInputOwner.parent,
+    );
     expect(task.runtimeMode, AgentChatRuntimeMode.autoAcceptEdits);
     expect(task.labels.childChatTitle, 'Docs Writer');
     expect(task.ownedByPerson, isFalse);

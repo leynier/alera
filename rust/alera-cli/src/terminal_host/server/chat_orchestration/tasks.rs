@@ -67,6 +67,13 @@ pub(crate) fn task_value(task: &ChatOrchestrationTask) -> Value {
             "failed"
         });
     }
+    if task.status == ChatOrchestrationTaskStatus::NeedsInput {
+        value["inputOwner"] = json!(if task.input_owned_by_parent() {
+            alera_core::runtime::INPUT_OWNER_PARENT
+        } else {
+            alera_core::runtime::INPUT_OWNER_PERSON
+        });
+    }
     if let Some(options) = &task.launch_options {
         for key in ["provider", "providerInstanceId", "model", "runtimeMode"] {
             if let Some(option) = options.get(key) {

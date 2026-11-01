@@ -400,9 +400,9 @@ impl RuntimeStore {
         row.as_ref().map(task_from_row).transpose()
     }
 
-    /// Conditional status change committed before it returns. A settled or
-    /// `needs_input` move joins the parent's open wake cohort in the same
-    /// transaction when the task's `notify` asks for it.
+    /// Conditional status change committed before it returns. A settle
+    /// joins the parent's open wake cohort in the same transaction when the
+    /// task's `notify` asks for it.
     pub async fn transition_chat_orchestration_task(
         &self,
         task_id: &str,

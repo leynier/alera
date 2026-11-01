@@ -60,6 +60,19 @@ async fn child_summary_counts_only_open_tasks_and_keeps_input_and_failure_signal
     assert_eq!(summary.open_child_task_count, 2);
     assert!(summary.child_needs_input);
     assert!(summary.child_failed);
+    // A question routed to the agent parent is not the person's to answer.
+    store
+        .set_chat_orchestration_input_owner("input", INPUT_OWNER_PARENT)
+        .await
+        .unwrap();
+    let summary = store.agent_chat_attention(&id).await.unwrap();
+    assert_eq!(summary.open_child_task_count, 2);
+    assert!(!summary.child_needs_input);
+    store
+        .set_chat_orchestration_input_owner("input", INPUT_OWNER_PERSON)
+        .await
+        .unwrap();
+    assert!(store.agent_chat_attention(&id).await.unwrap().child_needs_input);
     store.mark_agent_chat_read(&id, 0).await.unwrap();
     store.archive_agent_chat(&id).await.unwrap();
     sqlx::query("DELETE FROM agentChatSessions WHERE chatId = ?")
