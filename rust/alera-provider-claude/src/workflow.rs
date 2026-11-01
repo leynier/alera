@@ -66,10 +66,17 @@ fn parse_phase(entry: &Value) -> Option<WorkflowPhase> {
 }
 
 fn parse_agent(entry: &Value) -> Option<WorkflowAgent> {
+    let state = agent_state(text(entry.get("state")));
+    // A settled member's last progress is its wall-clock end; its duration
+    // leaves out startup waits.
+    let settled = matches!(
+        state,
+        WorkflowAgentState::Completed | WorkflowAgentState::Failed
+    );
     Some(WorkflowAgent {
         index: count(entry.get("index"))?,
         label: text(entry.get("label"))?,
-        state: agent_state(text(entry.get("state"))),
+        state,
         agent_id: text(entry.get("agentId")),
         phase_index: count(entry.get("phaseIndex")),
         phase_title: text(entry.get("phaseTitle")),
@@ -80,7 +87,9 @@ fn parse_agent(entry: &Value) -> Option<WorkflowAgent> {
         duration_ms: count(entry.get("durationMs")),
         queued_at: timestamp(entry.get("queuedAt")),
         started_at: timestamp(entry.get("startedAt")),
-        completed_at: None,
+        completed_at: settled
+            .then(|| timestamp(entry.get("lastProgressAt")))
+            .flatten(),
         prompt: preview(entry.get("promptPreview")),
         result: preview(entry.get("resultPreview")),
     })

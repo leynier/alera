@@ -70,8 +70,12 @@ fn provider_states_and_member_metrics_map_to_the_t3_shape() {
                     "attempt": 2, "tokens": 71_141, "toolCalls": 3, "durationMs": 1277,
                     "startedAt": 1_700_000_000_000_u64, "queuedAt": 1_699_999_999_000_u64,
                     "promptPreview": "Reply with exactly: A1", "resultPreview": "A1",
+                    "lastProgressAt": 1_700_000_004_432_u64,
                 })),
-                agent(json!({"index": 2, "label": "alpha:two", "state": "queued"})),
+                agent(json!({
+                    "index": 2, "label": "alpha:two", "state": "queued", "lastProgressAt": 1000,
+                })),
+                agent(json!({"index": 3, "state": "progress", "lastProgressAt": 2000})),
             ],
             None,
         ),
@@ -87,10 +91,14 @@ fn provider_states_and_member_metrics_map_to_the_t3_shape() {
             "phaseIndex": 1, "phaseTitle": "Alpha", "model": "claude-opus-5[1m]",
             "attempt": 2, "totalTokens": 71_141, "toolCalls": 3, "durationMs": 1277,
             "queuedAt": 1_699_999_999_000_u64, "startedAt": 1_700_000_000_000_u64,
+            "completedAt": 1_700_000_004_432_u64,
             "prompt": "Reply with exactly: A1", "result": "A1",
         })
     );
     assert_eq!(value["agents"][1]["state"], "queued");
+    // Only a settled member has an end.
+    assert!(value["agents"][1].get("completedAt").is_none());
+    assert!(value["agents"][2].get("completedAt").is_none());
 }
 
 #[test]
@@ -138,9 +146,10 @@ fn timestamps_outside_the_date_range_are_dropped() {
     let workflow = frame(
         &snapshot_frame(
             vec![
-                agent(
-                    json!({"startedAt": 8_640_000_000_000_001_u64, "queuedAt": MAX_SAFE_INTEGER}),
-                ),
+                agent(json!({
+                    "startedAt": 8_640_000_000_000_001_u64, "queuedAt": MAX_SAFE_INTEGER,
+                    "state": "done", "lastProgressAt": 8_640_000_000_000_001_u64,
+                })),
                 agent(json!({"index": 2, "startedAt": 8_640_000_000_000_000_u64, "queuedAt": 0})),
                 agent(json!({"index": 3, "startedAt": -5, "tokens": 1.5, "attempt": 2.0})),
             ],
@@ -151,6 +160,7 @@ fn timestamps_outside_the_date_range_are_dropped() {
     .unwrap();
     assert_eq!(workflow.agents[0].started_at, None);
     assert_eq!(workflow.agents[0].queued_at, None);
+    assert_eq!(workflow.agents[0].completed_at, None);
     assert_eq!(workflow.agents[1].started_at, Some(8_640_000_000_000_000));
     assert_eq!(workflow.agents[1].queued_at, Some(0));
     assert_eq!(workflow.agents[2].started_at, None);
