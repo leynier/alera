@@ -59,7 +59,8 @@ async fn note(
 }
 
 const XAI_DEFAULT: &str = r#"{"defaultProvider":"xai","defaultModel":"grok-5"}"#;
-const MISSING: &str = r#"{"status":"not_ready","provider":"xai","reason":"credentials_not_configured"}"#;
+const MISSING: &str =
+    r#"{"status":"not_ready","provider":"xai","reason":"credentials_not_configured"}"#;
 
 #[tokio::test]
 async fn a_default_with_listed_models_needs_no_note() {
@@ -74,7 +75,9 @@ async fn a_default_with_listed_models_needs_no_note() {
 async fn an_empty_listing_means_no_usable_models() {
     let probe = FakeProbe::new("provider model context\n", MISSING);
     assert_eq!(
-        note(&probe, &[], XAI_DEFAULT, Some("1.4.0")).await.as_deref(),
+        note(&probe, &[], XAI_DEFAULT, Some("1.4.0"))
+            .await
+            .as_deref(),
         Some(NO_MODELS)
     );
 }
@@ -82,14 +85,23 @@ async fn an_empty_listing_means_no_usable_models() {
 #[tokio::test]
 async fn auth_check_explains_missing_credentials() {
     let probe = FakeProbe::new(LISTING, MISSING);
-    let message = note(&probe, &[], XAI_DEFAULT, Some("v0.84.1")).await.unwrap();
+    let message = note(&probe, &[], XAI_DEFAULT, Some("v0.84.1"))
+        .await
+        .unwrap();
     assert!(
         message.starts_with("Pi default (xai/grok-5) has no credentials configured for xai."),
         "{message}"
     );
     assert_eq!(
         probe.calls.lock().unwrap()[1],
-        ["auth", "check", "--provider", "xai", "--json", "--no-refresh"]
+        [
+            "auth",
+            "check",
+            "--provider",
+            "xai",
+            "--json",
+            "--no-refresh"
+        ]
     );
 }
 
@@ -110,7 +122,10 @@ async fn falls_back_without_auth_check_support_or_with_a_launch_key() {
     }
     let probe = FakeProbe::new(LISTING, r#"{"reason":"provider_not_found"}"#);
     let message = note(&probe, &[], XAI_DEFAULT, Some("1.4.0")).await.unwrap();
-    assert!(message.contains("which has no available models"), "{message}");
+    assert!(
+        message.contains("which has no available models"),
+        "{message}"
+    );
 }
 
 #[tokio::test]
@@ -126,5 +141,8 @@ async fn launch_arguments_override_the_settings_default() {
         })
     );
     assert_eq!(launch_default(&["--model".into(), "bare".into()]), None);
-    assert_eq!(parse_settings(&serde_json::json!({"defaultModel": "x"})), None);
+    assert_eq!(
+        parse_settings(&serde_json::json!({"defaultModel": "x"})),
+        None
+    );
 }

@@ -64,7 +64,9 @@ pub(crate) async fn pi_model_note(
     );
     // Auth check cannot see extension providers or a runtime --api-key, so it
     // only refines Pi's own verdict, and is skipped when the arguments give a key.
-    if !version.and_then(semver).is_some_and(|v| v >= AUTH_CHECK_VERSION)
+    if !version
+        .and_then(semver)
+        .is_some_and(|v| v >= AUTH_CHECK_VERSION)
         || args.iter().any(|arg| arg == "--api-key")
     {
         return Some(unavailable);
