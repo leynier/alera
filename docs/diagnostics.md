@@ -26,7 +26,7 @@ Rotation is by size, not by date, so the disk cost stays predictable whether the
 
 Secrets are masked in the sink, not at the call sites, so a new log line cannot forget to do it. Two mechanisms:
 
-- Pattern matching for `token=`, `secret=`, `password=`, `apiKey=`, `authorization=`, `deviceToken=` and `Bearer <value>`.
+- Pattern matching for `token=`, `secret=`, `password=`, `apiKey=`, `authorization=`, `deviceToken=` and `Bearer <value>`. The runtime also masks compound key names that end in a credential word (`OPENAI_API_KEY=`, `client_secret:`, `X-Auth-Token:`, but not `max_tokens=`), `sk-`, GitHub and Slack tokens, and URL passwords, with the same rules the agent transport applies to the stderr tail of a provider exit error.
 - Literal registration: the desktop registers the runtime host token when it launches the sidecar, the sidecar registers its own control token, and mobile registers its device token. This catches a secret logged with no recognizable key beside it.
 
 The same redaction runs on Sentry events, because those are built from the raw throwable rather than from the log line.
