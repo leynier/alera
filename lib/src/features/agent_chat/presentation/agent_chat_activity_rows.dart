@@ -436,6 +436,7 @@ IconData agentChatWorkedActionIcon(AgentChatWorkedActionKind kind) =>
       AgentChatWorkedActionKind.edit => AleraIcons.edit,
       AgentChatWorkedActionKind.read => AleraIcons.read,
       AgentChatWorkedActionKind.viewImage => AleraIcons.viewImage,
+      AgentChatWorkedActionKind.generateImage => AleraIcons.viewImage,
       AgentChatWorkedActionKind.listFiles => AleraIcons.file,
       AgentChatWorkedActionKind.search => AleraIcons.search,
       AgentChatWorkedActionKind.webSearch => AleraIcons.public,

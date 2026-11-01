@@ -179,6 +179,7 @@ IconData agentChatActionIcon(AgentChatWorkedActionKind kind) => switch (kind) {
   AgentChatWorkedActionKind.edit => AleraIcons.edit,
   AgentChatWorkedActionKind.read => AleraIcons.file,
   AgentChatWorkedActionKind.viewImage => AleraIcons.viewImage,
+  AgentChatWorkedActionKind.generateImage => AleraIcons.viewImage,
   AgentChatWorkedActionKind.listFiles => AleraIcons.listView,
   AgentChatWorkedActionKind.search => AleraIcons.search,
   AgentChatWorkedActionKind.webSearch => AleraIcons.public,
