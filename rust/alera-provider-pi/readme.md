@@ -14,6 +14,8 @@ Extension `confirm`, `select`, `input`, and `editor` requests retain their nativ
 
 As in T3 Code, an extension `notify` request becomes a `runtime.warning` notice rather than a tool call.
 
+Pi loads project settings, extensions, skills, prompts, MCP servers and system prompt files only from a folder trusted in Pi, and RPC mode has no trust prompt. As in T3 Code, the injected extension therefore checks trust on each Pi session's first turn and, for an untrusted folder, sends a warning notice that explains how to trust it with `/trust` in an interactive Pi run. Launch arguments with `--no-approve` (`-na`) keep project resources off without the notice, and a Pi whose extension context has no `isProjectTrusted` is left alone.
+
 ## mcp bridge
 
 Pi does not provide an MCP boundary in its RPC protocol, so this crate ships a small extension asset that uses Pi's public `registerTool` API. Configure `PiProviderConfig::mcp_servers` before `PiProvider::spawn`; each stdio server is serialized into a private file and the process receives `--extension` plus that file path. `SessionStartInput::mcp_servers` is host-owned metadata and, when present, must match the launch configuration because extensions are loaded before a session starts.
@@ -28,7 +30,7 @@ Only stdio injection is supported. HTTP servers are rejected at launch/session v
 
 The bridge follows the extension API and MCP framing used by `reference_projects/t3code/packages/provider-pi/src/server/mcpExtensionSource.ts`; the Rust adapter does not bundle a Pi executable or an MCP server implementation.
 
-Run the deterministic Node regressions with `node --test rust/alera-provider-pi/tests/mcp_extension.test.mjs`. Set `ALERA_PI_EXTENSION_LOADER` to an installed Pi `dist/core/extensions/loader.js` path to additionally validate its public factory loader and a real built-in write tool without model inference. Set `ALERA_PI_CLI` to its `dist/cli.js` path to verify abrupt SIGKILL cleanup through a real, isolated Pi RPC process; no prompt or model call is sent. Set `ALERA_PI_BUN_RUNTIME` to a Bun executable to verify Bun IPC and a temporary compiled Bun host. The local verification used Pi 1.2.0 and Bun 1.4.3. Windows process-tree behavior is implemented but requires validation on Windows.
+Run the deterministic Node regressions with `node --test rust/alera-provider-pi/tests/mcp_extension.test.mjs rust/alera-provider-pi/tests/project_trust_extension.test.mjs`. Set `ALERA_PI_EXTENSION_LOADER` to an installed Pi `dist/core/extensions/loader.js` path to additionally validate its public factory loader and a real built-in write tool without model inference. Set `ALERA_PI_CLI` to its `dist/cli.js` path to verify abrupt SIGKILL cleanup through a real, isolated Pi RPC process; no prompt or model call is sent. Set `ALERA_PI_BUN_RUNTIME` to a Bun executable to verify Bun IPC and a temporary compiled Bun host. The local verification used Pi 1.2.0 and Bun 1.4.3. Windows process-tree behavior is implemented but requires validation on Windows.
 
 ## upstream provenance
 

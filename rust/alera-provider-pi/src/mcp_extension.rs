@@ -46,6 +46,10 @@ impl McpExtensionLease {
                 PERMISSION_SOURCE.as_bytes(),
             )?;
             write_private(
+                &directory.join("project_trust_extension.mjs"),
+                PROJECT_TRUST_SOURCE.as_bytes(),
+            )?;
+            write_private(
                 &directory.join("skill_mentions_extension.mjs"),
                 SKILL_MENTIONS_SOURCE.as_bytes(),
             )?;
@@ -153,6 +157,7 @@ pub(crate) const EXTENSION_SOURCE: &str = include_str!("mcp_extension.js");
 const PROCESS_TREE_SOURCE: &str = include_str!("mcp_process_tree.mjs");
 const SUPERVISOR_SOURCE: &str = include_str!("mcp_stdio_supervisor.mjs");
 const PERMISSION_SOURCE: &str = include_str!("permission_extension.mjs");
+const PROJECT_TRUST_SOURCE: &str = include_str!("project_trust_extension.mjs");
 const SKILL_MENTIONS_SOURCE: &str = include_str!("skill_mentions_extension.mjs");
 
 #[cfg(test)]
@@ -228,6 +233,7 @@ mod tests {
         assert!(directory.join("mcp_stdio_supervisor.mjs").exists());
         assert!(directory.join("permission_extension.mjs").exists());
         assert!(directory.join("skill_mentions_extension.mjs").exists());
+        assert!(directory.join("project_trust_extension.mjs").exists());
         drop(lease);
         assert!(!extension_path.exists());
         assert!(!spec_path.exists());
