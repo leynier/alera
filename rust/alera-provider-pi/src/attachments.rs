@@ -55,7 +55,7 @@ pub(crate) async fn prompt_input(
                     path.display()
                 ),
             },
-            Attachment::File { path } => saved("file", path, None),
+            Attachment::File { path, .. } => saved("file", path, None),
         };
         message = if message.is_empty() {
             context

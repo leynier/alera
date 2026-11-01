@@ -40,7 +40,7 @@ pub(crate) async fn turn_parts(
                 let data = read_image(path, limit.saturating_sub(image_bytes)).await?;
                 (media_type, data)
             }
-            Attachment::File { path } => {
+            Attachment::File { path, .. } => {
                 append_path(&mut text, "file", path);
                 continue;
             }

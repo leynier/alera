@@ -109,8 +109,14 @@ async fn legacy_sends_images_pdfs_and_plain_text_as_typed_file_parts() {
             "",
             vec![
                 Attachment::LocalImage { path: image },
-                Attachment::File { path: pdf },
-                Attachment::File { path: text },
+                Attachment::File {
+                    path: pdf,
+                    name: None,
+                },
+                Attachment::File {
+                    path: text,
+                    name: None,
+                },
             ],
         ))
         .await
@@ -147,8 +153,12 @@ async fn other_types_ride_only_as_their_path() {
             vec![
                 Attachment::File {
                     path: markdown.clone(),
+                    name: None,
                 },
-                Attachment::File { path: html.clone() },
+                Attachment::File {
+                    path: html.clone(),
+                    name: None,
+                },
                 Attachment::LocalImage {
                     path: bitmap.clone(),
                 },

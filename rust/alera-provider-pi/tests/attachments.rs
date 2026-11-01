@@ -112,6 +112,7 @@ async fn files_and_unreadable_images_are_named_instead_of_failing_the_turn() {
         vec![
             Attachment::File {
                 path: notes.clone(),
+                name: None,
             },
             Attachment::LocalImage {
                 path: missing.clone(),

@@ -38,7 +38,7 @@ pub(crate) async fn prompt_parts(input: &TurnInput) -> Result<Vec<Value>, Provid
                 continue;
             }
             Attachment::LocalImage { path } => (path, "image"),
-            Attachment::File { path } => (path, "file"),
+            Attachment::File { path, .. } => (path, "file"),
         };
         match local_file_part(path).await? {
             Some(part) => files.push(part),

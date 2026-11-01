@@ -82,6 +82,7 @@ async fn sends_images_natively_and_names_every_local_attachment_by_path() {
                 },
                 Attachment::File {
                     path: document.clone(),
+                    name: None,
                 },
             ],
         ))
