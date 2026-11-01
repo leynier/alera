@@ -183,6 +183,12 @@ class const _ElicitationActions({
       children: <Widget>[
         if (elicitation.message.trim().isNotEmpty)
           AgentChatMarkdown(text: elicitation.message),
+        if (elicitation.shape == .unsupported)
+          Text(
+            'This request cannot be filled in here.',
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
+          ),
         if (elicitation.hasSupportedForm)
           AgentChatElicitationForm(
             elicitation: elicitation,
@@ -207,7 +213,9 @@ class const _ElicitationActions({
                 ),
                 label: const Text('Open Link'),
               )
-            else if (!elicitation.hasSupportedForm)
+            // Accepting a form nobody could fill in would send the server
+            // nothing it asked for, so only a confirmation offers Accept.
+            else if (elicitation.shape == .confirmation)
               FilledButton(
                 onPressed: enabled ? () => _answer(.accept) : null,
                 child: const Text('Accept'),
