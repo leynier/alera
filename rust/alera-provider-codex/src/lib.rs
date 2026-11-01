@@ -16,6 +16,7 @@ mod goal;
 mod goal_command;
 mod goal_hold;
 mod history;
+mod image_generation;
 mod lineage;
 mod mcp;
 mod payloads;

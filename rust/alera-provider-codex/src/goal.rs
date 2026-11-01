@@ -125,7 +125,7 @@ fn turn_id(params: &Value) -> Option<String> {
 }
 
 impl<T> CodexProvider<T> {
-    fn root_thread<'a>(&self, params: &'a Value) -> Option<&'a str> {
+    pub(crate) fn root_thread<'a>(&self, params: &'a Value) -> Option<&'a str> {
         let thread = params.get("threadId").and_then(Value::as_str)?;
         self.session
             .as_ref()

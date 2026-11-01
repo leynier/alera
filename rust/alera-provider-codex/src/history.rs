@@ -210,6 +210,12 @@ impl<T: JsonTransport> CodexProvider<T> {
                     .into(),
             ));
         }
+        if self.image_hold_active() {
+            return Err(ProviderError::InvalidState(
+                "Codex is still generating images for this turn. Send the message again once it finishes."
+                    .into(),
+            ));
+        }
         if session.thread_id != input.thread_id
             || expected_turn_id.trim().is_empty()
             || session.active_turn_id.as_deref() != Some(expected_turn_id)

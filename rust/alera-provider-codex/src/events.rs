@@ -25,7 +25,8 @@ pub(crate) fn map_message<T: JsonTransport>(
         return Ok(None);
     }
     let event = map_notification(provider, &method, params.clone(), message)?;
-    Ok(provider.apply_goal_notification(&method, &params, event))
+    let event = provider.apply_goal_notification(&method, &params, event);
+    Ok(event.and_then(|event| provider.apply_image_notification(&method, &params, event)))
 }
 
 /// The event of a notification Alera makes up for a turn that never reaches

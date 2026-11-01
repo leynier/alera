@@ -57,6 +57,7 @@ pub struct CodexProvider<T> {
     /// The files each running file-change item changes, for its approval.
     pub(crate) file_change_paths: crate::file_change_approvals::FileChangePaths,
     pub(crate) rate_windows: crate::usage::RateWindows,
+    pub(crate) images: crate::image_generation::ImageWork,
 }
 
 impl<T> CodexProvider<T> {
@@ -90,6 +91,7 @@ impl<T> CodexProvider<T> {
             goal: Default::default(),
             file_change_paths: Default::default(),
             rate_windows: Default::default(),
+            images: Default::default(),
         }
     }
 
@@ -287,6 +289,10 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         {
             return Ok(());
         }
+        // The native turn already ended; only its images were rendering.
+        if self.release_image_hold() {
+            return Ok(());
+        }
         let goal_work = self.goal.working();
         let Some(turn_id) = self.stop_goal_work(requested).await? else {
             if goal_work {
@@ -336,6 +342,9 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
                     self.release_goal_hold();
                     continue;
                 }
+                if self.release_image_hold() {
+                    continue;
+                }
                 return Ok(None);
             };
             if self.absorb_skills_message(&message) {
@@ -373,6 +382,7 @@ impl<T: JsonTransport> Provider for CodexProvider<T> {
         self.abandoned_responses.clear();
         self.compaction_turn_id = None;
         self.goal.reset();
+        self.images = Default::default();
         self.terminal_event_pending = false;
         self.clear_children();
         self.turn_failure_class = None;

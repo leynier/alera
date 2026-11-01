@@ -17,6 +17,9 @@ pub(crate) fn normalized_payload(method: &str, params: &Value) -> Result<Value, 
             "delta": delta,
         }));
     }
+    if let Some(payload) = crate::image_generation::item_payload(method, params) {
+        return Ok(payload);
+    }
     if matches!(
         method,
         "item/started"
@@ -416,6 +419,7 @@ fn canonical_item_type(value: &str) -> CanonicalItemType {
         "collabAgentToolCall" => CanonicalItemType::CollabAgentToolCall,
         "webSearch" => CanonicalItemType::WebSearch,
         "imageView" => CanonicalItemType::ImageView,
+        "imageGeneration" => CanonicalItemType::ImageGeneration,
         "reviewEntered" => CanonicalItemType::ReviewEntered,
         "reviewExited" => CanonicalItemType::ReviewExited,
         "contextCompaction" => CanonicalItemType::ContextCompaction,
