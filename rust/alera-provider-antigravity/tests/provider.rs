@@ -134,3 +134,25 @@ async fn skill_mentions_reach_antigravity_unchanged() {
         .expect("prompt request");
     assert_eq!(prompt["params"]["prompt"][0]["text"], "$review fix it");
 }
+
+#[tokio::test]
+async fn initialize_identifies_as_zed_without_client_file_access() {
+    let transport = MockTransport::new([
+        json!({"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentCapabilities":{},
+            "authMethods":[{"id":"oauth-personal","name":"Personal OAuth"}]}}),
+        json!({"jsonrpc":"2.0","id":2,"result":{}}),
+    ]);
+    let mut provider =
+        AntigravityProvider::with_transport(transport, AntigravityProviderConfig::default())
+            .unwrap();
+    provider.initialize().await.unwrap();
+    let initialize = &provider.inner().client().transport().writes()[0];
+    assert_eq!(initialize["method"], "initialize");
+    let zed = json!({"name":"zed","version":"0.0.0"});
+    assert_eq!(initialize["params"]["clientInfo"], zed);
+    assert_eq!(initialize["params"]["info"], zed);
+    assert_eq!(
+        initialize["params"]["clientCapabilities"]["fs"],
+        json!({"readTextFile":false,"writeTextFile":false})
+    );
+}

@@ -1,4 +1,7 @@
-use crate::{AntigravityProviderConfig, ANTIGRAVITY_AUTH_METHOD};
+use crate::{
+    AntigravityProviderConfig, ANTIGRAVITY_AUTH_METHOD, ANTIGRAVITY_CLIENT_NAME,
+    ANTIGRAVITY_CLIENT_VERSION,
+};
 use alera_agent_transport::{JsonLineProcess, JsonTransport, ProcessConfig};
 use alera_provider_acp::{AcpFlavor, AcpProvider, AcpProviderConfig};
 use alera_provider_protocol::RuntimeMode;
@@ -110,8 +113,8 @@ fn acp_config(config: &AntigravityProviderConfig) -> AcpProviderConfig {
         provider: ProviderKind::Other("antigravity".into()),
         provider_instance_id: config.instance_id.clone(),
         process: process_config(config),
-        client_name: "alera".into(),
-        client_version: env!("CARGO_PKG_VERSION").into(),
+        client_name: ANTIGRAVITY_CLIENT_NAME.into(),
+        client_version: ANTIGRAVITY_CLIENT_VERSION.into(),
         auth_method: Some(if config.auth_method_id.trim().is_empty() {
             ANTIGRAVITY_AUTH_METHOD.to_owned()
         } else {

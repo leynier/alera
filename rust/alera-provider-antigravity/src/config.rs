@@ -8,6 +8,11 @@ use std::time::Duration;
 pub const ANTIGRAVITY_AUTH_METHOD: &str = "oauth-personal";
 pub const GEMINI_HOME_ENV: &str = "GEMINI_HOME";
 pub const FORCE_FILE_STORAGE_ENV: &str = "AGY_ACP_FORCE_FILE_STORAGE";
+/// The client identity sent in `initialize`. Antigravity offers its Claude
+/// and GPT models only to allowlisted clients such as Zed, so Alera
+/// identifies as Zed, as T3 Code does. See the readme for the risk.
+pub const ANTIGRAVITY_CLIENT_NAME: &str = "zed";
+pub const ANTIGRAVITY_CLIENT_VERSION: &str = "0.0.0";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
