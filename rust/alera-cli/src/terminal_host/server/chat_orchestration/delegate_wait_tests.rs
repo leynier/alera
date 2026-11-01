@@ -99,6 +99,7 @@ async fn zero_second_delegate_wait_restores_notifications_and_later_completion_o
     .unwrap()
     .unwrap();
     assert_eq!(result["timedOut"], true);
+    assert_eq!(result["next"], super::task_next::RUNNING_TASK_NEXT);
     let task_id = result["taskId"].as_str().unwrap();
     assert_eq!(
         harness
@@ -169,6 +170,7 @@ async fn delegate_wait_returns_needs_input_without_spending_the_fifty_second_bud
         .unwrap();
     assert_eq!(result["status"], "needs_input");
     assert_eq!(result["timedOut"], false);
+    assert!(result.get("next").is_none());
     assert_eq!(result["attention"], true);
     harness.finish().await;
 }

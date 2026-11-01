@@ -896,7 +896,7 @@
         "readOnlyHint": true,
         "title": "Read Chat Tasks"
       },
-      "description": "Read human-visible chat capabilities, chats, bounded transcript, task status, task pages, open requests, or wait up to 50 seconds. This tool never acknowledges results.",
+      "description": "Read human-visible chat capabilities, chats, bounded transcript, task status, task pages, open requests, or wait up to 50 seconds. Nothing wakes this caller, so wait again to keep waiting. This tool never acknowledges results.",
       "inputSchema": {
         "additionalProperties": false,
         "oneOf": [

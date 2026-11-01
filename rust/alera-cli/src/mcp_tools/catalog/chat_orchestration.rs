@@ -75,7 +75,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         execute(
             "chat_delegate",
             "Delegate To Agent Chat",
-            "Delegate a brief to an existing child chat, an existing workspace, or a new workspace. The child receives only this brief.",
+            "Delegate a brief to an existing child chat, an existing workspace, or a new workspace. The child receives only this brief. With mode async the task's completion wakes this chat with its result: follow next and end your turn instead of waiting or polling.",
             || {
                 object(
                     &[
@@ -83,7 +83,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                         ("target", target_schema()),
                         ("title", string("Optional task title.")),
                         ("role", string("Optional role label.")),
-                        ("notify", one_of("Completion notification policy.", NOTIFY_MODES)),
+                        ("notify", one_of("Completion notification policy: always and settled_only wake this chat with the result; never does not, so read it with chat_task_status.", NOTIFY_MODES)),
                         ("mode", one_of("Wait mode.", &["async", "wait"])),
                         ("waitSeconds", integer("Bounded wait time.", 1, MAX_WAIT_SECONDS)),
                         ("agent", json!({"type": "object", "description": "Provider/model selection."})),
@@ -148,7 +148,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
             ..execute(
             "chat_task_status",
             "Read Chat Task",
-            "Read one delegated task, its lineage, and its bounded result.",
+            "Read one delegated task, its lineage, and its bounded result. Do not poll a running task that will wake this chat; its next field says so.",
             || {
                 object(
                     &[
@@ -170,7 +170,7 @@ pub(super) fn tools() -> Vec<ToolSpec> {
         read(
             "chat_task_wait",
             "Wait For Chat Task",
-            "Wait for one or more tasks for at most 50 seconds, then call again with the same ids.",
+            "Wait for one or more tasks for at most 50 seconds. Use it only when this turn cannot go on without the result; a delegated task wakes this chat when it settles, so otherwise end your turn.",
             || {
                 object(
                     &[

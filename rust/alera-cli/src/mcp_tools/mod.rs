@@ -16,6 +16,8 @@ mod subscriptions;
 mod tests;
 #[cfg(test)]
 mod tests_catalog;
+#[cfg(test)]
+mod tests_chat_guidance;
 
 use std::time::Duration;
 

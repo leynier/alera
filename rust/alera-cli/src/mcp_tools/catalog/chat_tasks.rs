@@ -9,7 +9,7 @@ use crate::mcp_tools::{Invocation, ToolArguments, ToolInputError, ToolSpec};
 pub(super) fn tools() -> Vec<ToolSpec> {
     let mut query = read(
         "chat_task_query", "Read Chat Tasks",
-        "Read human-visible chat capabilities, chats, bounded transcript, task status, task pages, open requests, or wait up to 50 seconds. This tool never acknowledges results.",
+        "Read human-visible chat capabilities, chats, bounded transcript, task status, task pages, open requests, or wait up to 50 seconds. Nothing wakes this caller, so wait again to keep waiting. This tool never acknowledges results.",
         || tool_schema(QUERY_OPERATIONS), build,
     );
     query.timeout_seconds = WAIT_TIMEOUT;

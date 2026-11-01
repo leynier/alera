@@ -16,7 +16,7 @@ use crate::mcp_settings::McpAccess;
 
 pub(crate) const PROTOCOL_VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
 pub(crate) const INSTRUCTIONS: &str = "Alera runs coding agents in workspaces (Git worktrees) and orchestrates them. Start with list_projects, list_workspaces, and list_agent_profiles. Use start_agent_workspace or delegate_task to start work, then wait_for_task, read_terminal, or ask_agent with wait_for_reply to follow it. Waits return after at most 50 seconds; call them again to keep waiting.";
-const CHAT_INSTRUCTIONS: &str = "You are bound to one live agent chat. Use list_projects and list_workspaces to choose a target, then chat_delegate with a brief-only task. Reuse clientRequestId on retries, use chat_task_wait for at most 50 seconds, and read results with chat_task_status. You may read, message and delegate across known projects and hosts within your runtime mode ceiling. Interrupting, responding, configuring and cancelling are limited to your descendant lineage.";
+pub(crate) const CHAT_INSTRUCTIONS: &str = "You are bound to one live agent chat. Use list_projects and list_workspaces to choose a target, then chat_delegate with a brief-only task. Reuse clientRequestId on retries. Delegated tasks wake this chat with their results: follow next and end your turn. Never poll them with chat_task_status, chat_task_wait, sleep, watchers or Monitor; use chat_task_wait only when this turn cannot go on without the result. You may read, message and delegate across known projects and hosts within your runtime mode ceiling. Interrupting, responding, configuring and cancelling are limited to your descendant lineage.";
 const MAX_CONCURRENT_CALLS: usize = 4;
 
 type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;

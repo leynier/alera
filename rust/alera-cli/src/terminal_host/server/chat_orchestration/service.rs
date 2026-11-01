@@ -15,6 +15,7 @@ use super::models::OrchestrationRequest;
 use super::request_admission::RequestAdmission;
 use super::runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
 use super::targets::ChatTargetResolver;
+use super::task_next::{add_next, add_wait_next};
 use super::wake_pump::WakePump;
 
 pub(super) const TASK_ORIGIN: &str = "chatMessage";
@@ -192,11 +193,29 @@ impl ChatOrchestrationService {
                 acknowledge,
                 request_id,
             } => {
-                self.task_request(&task_id, acknowledge, request_id.as_deref(), caller)
-                    .await
+                let mut response = self
+                    .task_request(&task_id, acknowledge, request_id.as_deref(), caller)
+                    .await?;
+                if !acknowledge {
+                    if let Ok(Some(task)) = self.store.chat_orchestration_task(&task_id).await {
+                        add_next(&mut response, &task, caller);
+                    }
+                }
+                Ok(response)
             }
             OrchestrationRequest::TasksList(input) => self.tasks_list(input, caller).await,
-            OrchestrationRequest::Wait(input) => self.wait(input, caller).await,
+            OrchestrationRequest::Wait(input) => {
+                let task_ids = input.task_ids.clone();
+                let mut response = self.wait(input, caller).await?;
+                let mut tasks = Vec::with_capacity(task_ids.len());
+                for task_id in &task_ids {
+                    if let Ok(Some(task)) = self.store.chat_orchestration_task(task_id).await {
+                        tasks.push(task);
+                    }
+                }
+                add_wait_next(&mut response, &tasks, caller);
+                Ok(response)
+            }
             OrchestrationRequest::Cancel {
                 task_id,
                 request_id,

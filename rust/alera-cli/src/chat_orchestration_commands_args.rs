@@ -33,7 +33,8 @@ pub enum ChatAction {
     /// List delegated tasks, including lineage and delivery state.
     #[command(name = "task-list")]
     TaskList(ChatTaskListArgs),
-    /// Wait for a task for at most 50 seconds.
+    /// Wait for a task for at most 50 seconds; nothing wakes a terminal, so
+    /// run it again to keep waiting.
     Wait(ChatWaitArgs),
     /// Cancel a task and its descendants.
     Cancel(ChatCancelArgs),

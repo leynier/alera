@@ -3,7 +3,9 @@ use std::time::Duration;
 use alera_core::runtime::{ChatOrchestrationNotify, ChatOrchestrationTaskStatus};
 use serde_json::Value;
 
+use super::authorization::OrchestrationCaller;
 use super::service::ChatOrchestrationService;
+use super::task_next::add_next;
 use super::tasks::task_value;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -13,6 +15,7 @@ impl ChatOrchestrationService {
         task_id: &str,
         wait_seconds: u64,
         notify: ChatOrchestrationNotify,
+        caller: &OrchestrationCaller,
     ) -> HostResult<Value> {
         let deadline = tokio::time::Instant::now() + Duration::from_secs(wait_seconds);
         loop {
@@ -49,6 +52,9 @@ impl ChatOrchestrationService {
                 self.deliver_task_wake(&task).await;
                 let mut response = task_value(&task);
                 response["timedOut"] = serde_json::json!(timed_out);
+                if timed_out {
+                    add_next(&mut response, &task, caller);
+                }
                 return Ok(response);
             }
             tokio::time::sleep(Duration::from_millis(100)).await;

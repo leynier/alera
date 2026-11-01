@@ -341,12 +341,13 @@ impl ChatOrchestrationService {
         response["taskId"] = json!(task_id);
         if input.mode == DelegateMode::Wait {
             let response = self
-                .wait_for_delegate(&task_id, input.wait_seconds, input.notify)
+                .wait_for_delegate(&task_id, input.wait_seconds, input.notify, caller)
                 .await?;
             return self
                 .finalize_task_receipt(&receipt, &initial, response)
                 .await;
         }
+        super::task_next::add_next(&mut response, &task, caller);
         self.finalize_task_receipt(&receipt, &initial, response)
             .await
     }
