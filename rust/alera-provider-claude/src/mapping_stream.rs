@@ -58,6 +58,8 @@ impl ClaudeProvider {
                     ));
                 }
                 ContentBlock::ToolUse(block) => {
+                    self.task_tools
+                        .remember(&block.id, &block.name, &block.input);
                     if block.name == "TodoWrite" && parent_tool_use_id.is_none() {
                         if let Some(todos) =
                             block.input.get("todos").filter(|todos| todos.is_array())

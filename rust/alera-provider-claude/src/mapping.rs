@@ -30,8 +30,10 @@ impl ClaudeProvider {
             Message::System(message) => self.map_system(message),
             Message::User(message) => {
                 let handles = self.workflow_handles_event(&message);
+                let plans = self.task_plan_events(&message);
                 let mut events = vec![self.map_user_message(message)];
                 events.extend(handles);
+                events.extend(plans);
                 events
             }
             Message::ConversationReset(message) => {

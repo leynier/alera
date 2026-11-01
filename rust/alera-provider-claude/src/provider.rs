@@ -36,6 +36,8 @@ mod runtime_response;
 mod slash_commands;
 #[path = "system_notices.rs"]
 mod system_notices;
+#[path = "task_list.rs"]
+mod task_list;
 #[path = "turn_signals.rs"]
 mod turn_signals;
 #[path = "turns.rs"]
@@ -119,6 +121,7 @@ pub struct ClaudeProvider {
     background_tasks: background_wait::BackgroundTasks,
     workflow_tasks: workflow::WorkflowTasks,
     turn_signals: turn_signals::TurnSignals,
+    task_tools: task_list::TaskTools,
     context_usage: context_usage::ContextUsage,
 }
 
