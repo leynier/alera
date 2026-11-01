@@ -116,6 +116,7 @@ pub async fn run_terminal_host_server(
             tracing::warn!("chat orchestration startup recovery unavailable: {error}");
         }
     }
+    chat_orchestration.start_wake_pump();
     let shutdown_signal = spawn_termination_listener(inbox.clone());
     let watch_ticker = pull_request_watch_runtime::spawn(inbox.clone());
     let event_forwarder =

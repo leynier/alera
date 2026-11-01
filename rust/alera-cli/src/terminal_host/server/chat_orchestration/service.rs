@@ -15,6 +15,7 @@ use super::models::OrchestrationRequest;
 use super::request_admission::RequestAdmission;
 use super::runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
 use super::targets::ChatTargetResolver;
+use super::wake_pump::WakePump;
 
 pub(super) const TASK_ORIGIN: &str = "chatMessage";
 
@@ -39,6 +40,7 @@ pub(crate) struct ChatOrchestrationService {
     pub(super) events: Arc<dyn OrchestrationEventSink>,
     pub(super) admission: Arc<RequestAdmission>,
     pub(super) jobs: Arc<OrchestrationJobs>,
+    pub(super) wake_pump: Arc<WakePump>,
 }
 
 impl ChatOrchestrationService {
@@ -56,6 +58,7 @@ impl ChatOrchestrationService {
             events: Arc::new(NullOrchestrationEventSink),
             admission: Arc::new(RequestAdmission::default()),
             jobs: Arc::default(),
+            wake_pump: Arc::default(),
         }
     }
 

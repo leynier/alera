@@ -317,8 +317,14 @@ impl ChatOrchestrationService {
             return;
         }
         if let Some(parent) = &task.parent_chat_id {
-            let _ =
-                deliver_next_wake(&self.store, self.runtime.as_ref(), parent, &self.events).await;
+            // A busy or unreachable parent is owed the wake; the pump
+            // delivers it once the parent goes idle.
+            if !matches!(
+                deliver_next_wake(&self.store, self.runtime.as_ref(), parent, &self.events).await,
+                Ok(true)
+            ) {
+                self.wake_pump.owe(parent);
+            }
         }
     }
 

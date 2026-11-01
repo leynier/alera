@@ -30,6 +30,7 @@ mod targets;
 mod task_acknowledgement;
 mod tasks;
 mod transfers;
+mod wake_pump;
 mod wakes;
 
 pub(crate) use authorization::{BoundChat, OrchestrationCaller};
@@ -99,3 +100,5 @@ mod transfers_tests;
 mod turn_lifecycle_tests;
 #[cfg(test)]
 mod wake_delivery_tests;
+#[cfg(test)]
+mod wake_pump_tests;

@@ -3,46 +3,8 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::server::agent_chat_runtime::commands::SendInput;
 
-use super::delegation_tests::delegate_payload;
-use super::test_support::{human, TestHarness, TEST_DEADLINE};
+use super::test_support::{children, human, wait_idle, TestHarness, TEST_DEADLINE};
 use super::wakes::deliver_next_wake;
-
-async fn children(harness: &TestHarness, parent: &str, count: usize) -> Vec<(String, String)> {
-    let caller = harness.agent(parent).await;
-    let mut children = Vec::new();
-    for index in 0..count {
-        let mut payload = delegate_payload(
-            &format!("cohort-{index}"),
-            json!({"workspace": {"workspaceId": "ws-a"}}),
-        );
-        payload["notify"] = json!("always");
-        let response = harness
-            .service
-            .handle("delegate", &payload, &caller)
-            .await
-            .unwrap();
-        let child = response["childChatId"].as_str().unwrap().to_owned();
-        let control = harness.control(&child).await;
-        tokio::time::timeout(TEST_DEADLINE, control.wait_turns(1))
-            .await
-            .unwrap();
-        children.push((response["taskId"].as_str().unwrap().to_owned(), child));
-    }
-    children
-}
-
-async fn wait_idle(harness: &TestHarness, chat: &str) {
-    tokio::time::timeout(TEST_DEADLINE, async {
-        loop {
-            if harness.runtime.snapshot(chat).await.unwrap()["session"]["activeTurnId"].is_null() {
-                break;
-            }
-            tokio::task::yield_now().await;
-        }
-    })
-    .await
-    .unwrap();
-}
 
 #[tokio::test]
 async fn simultaneous_results_merge_and_acknowledgement_withdraws_only_its_entry() {

@@ -10,8 +10,10 @@ use crate::terminal_host::server::agent_chat_runtime::commands::{CallerCtx, Send
 use super::service::OrchestrationEventSink;
 
 /// Seals and delivers one durable cohort only while the parent has no active
-/// turn or pending request. A queued result is still a successful delivery:
-/// the chat runtime owns it durably and will not interrupt the parent's turn.
+/// turn, no background work, no pending request and no interrupt within the
+/// stop grace. A queued result is still
+/// a successful delivery: the chat runtime owns it durably and will not
+/// interrupt the parent's turn.
 pub(crate) async fn deliver_next_wake(
     store: &RuntimeStore,
     runtime: &dyn ChatOrchestrationRuntime,
@@ -20,9 +22,15 @@ pub(crate) async fn deliver_next_wake(
 ) -> HostResult<bool> {
     let snapshot = runtime.snapshot(parent_chat_id).await?;
     let session = snapshot.get("session").cloned().unwrap_or(Value::Null);
-    if session
+    let active_turn = session
         .get("activeTurnId")
-        .is_some_and(|value| !value.is_null())
+        .is_some_and(|value| !value.is_null());
+    // A running session without a turn is busy with background work or
+    // between goal turns; a wake now would start a turn in the middle of it.
+    let background = session.get("status").and_then(Value::as_str) == Some("running");
+    if active_turn
+        || background
+        || super::wake_pump::stop_grace_left(&snapshot, chrono::Utc::now()).is_some()
         || snapshot
             .get("pendingRequests")
             .and_then(Value::as_array)

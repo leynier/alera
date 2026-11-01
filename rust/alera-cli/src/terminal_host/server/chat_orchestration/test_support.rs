@@ -220,6 +220,13 @@ impl TestHarness {
         .unwrap_or_else(|_| panic!("task {task_id} did not reach {status:?}"));
     }
 
+    /// Starts the wake pump with a short sweep. Tests that deliver wakes by
+    /// hand leave it off.
+    pub fn start_wake_pump(&self) {
+        self.service
+            .start_wake_pump_every(Duration::from_millis(200));
+    }
+
     pub async fn finish(self) {
         assert!(self.service.shutdown().await);
         self.runtime.shutdown().await;
@@ -350,4 +357,46 @@ impl OrchestrationEventSink for CommittedEventSink {
             .expect("task must exist before publishing its invalidation");
         let _ = self.sender.send((change, task.status));
     }
+}
+
+/// Delegates `count` children from `parent` as its agent, each notifying it.
+pub(super) async fn children(
+    harness: &TestHarness,
+    parent: &str,
+    count: usize,
+) -> Vec<(String, String)> {
+    let caller = harness.agent(parent).await;
+    let mut children = Vec::new();
+    for index in 0..count {
+        let mut payload = super::delegation_tests::delegate_payload(
+            &format!("cohort-{index}"),
+            json!({"workspace": {"workspaceId": "ws-a"}}),
+        );
+        payload["notify"] = json!("always");
+        let response = harness
+            .service
+            .handle("delegate", &payload, &caller)
+            .await
+            .unwrap();
+        let child = response["childChatId"].as_str().unwrap().to_owned();
+        let control = harness.control(&child).await;
+        tokio::time::timeout(TEST_DEADLINE, control.wait_turns(1))
+            .await
+            .unwrap();
+        children.push((response["taskId"].as_str().unwrap().to_owned(), child));
+    }
+    children
+}
+
+pub(super) async fn wait_idle(harness: &TestHarness, chat: &str) {
+    tokio::time::timeout(TEST_DEADLINE, async {
+        loop {
+            if harness.runtime.snapshot(chat).await.unwrap()["session"]["activeTurnId"].is_null() {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
 }
