@@ -32,7 +32,7 @@ const FIELD_ALIASES: &[(&str, &[&str])] = &[
     ("result", &["result", "rawOutput"]),
     ("query", &["query"]),
     ("url", &["url"]),
-    ("imagePath", &["imagePath", "path"]),
+    ("imagePath", &["imagePath", "path", "savedPath"]),
     ("planSteps", &["planSteps", "plan", "steps"]),
     ("explanation", &["explanation"]),
 ];
@@ -42,8 +42,14 @@ pub(crate) fn normalized_fields(item_type: &str, data: &Value) -> Map<String, Va
     let Some(object) = data.as_object() else {
         return normalized;
     };
+    let image = matches!(item_type, "image_view" | "image_generation");
     for (field, aliases) in FIELD_ALIASES {
-        if *field == "imagePath" && item_type != "image_view" {
+        if *field == "imagePath" && !image {
+            continue;
+        }
+        // A generated image's result is the encoded image itself; clients
+        // load the saved file instead.
+        if *field == "result" && item_type == "image_generation" {
             continue;
         }
         if let Some(value) = aliases
@@ -139,6 +145,39 @@ mod tests {
         assert_eq!(normalized["command"], "git status");
         assert_eq!(normalized["cwd"], "/w");
         assert_eq!(normalized["exitCode"], 0);
+    }
+
+    #[test]
+    fn generated_images_expose_their_saved_path_but_not_their_bytes() {
+        let data = json!({"savedPath": "/codex/generated_images/a.png", "result": "aW1hZ2U="});
+        let normalized = normalized_fields("image_generation", &data);
+        assert_eq!(normalized["imagePath"], "/codex/generated_images/a.png");
+        assert!(!normalized.contains_key("result"));
+        let viewed = normalized_fields("image_view", &json!({"path": "/w/a.png"}));
+        assert_eq!(viewed["imagePath"], "/w/a.png");
+        let tool = normalized_fields("dynamic_tool_call", &json!({"savedPath": "/w/a.png"}));
+        assert!(!tool.contains_key("imagePath"));
+    }
+
+    #[test]
+    fn claude_task_lists_become_plan_steps() {
+        let data = json!({"plan": [
+            {"id": "1", "content": "Inspect", "status": "in_progress", "activeForm": "Inspecting"},
+            {"id": "2", "content": "Fix", "status": "pending", "blockedBy": ["1"]},
+            {"id": "3", "content": "Read", "status": "completed"},
+        ]});
+        assert_eq!(
+            normalized_fields("plan", &data)["planSteps"],
+            json!([
+                {"step": "Inspect", "status": "inProgress"},
+                {"step": "Fix", "status": "pending"},
+                {"step": "Read", "status": "completed"},
+            ])
+        );
+        assert_eq!(
+            normalized_fields("plan", &json!({"plan": []}))["planSteps"],
+            json!([])
+        );
     }
 
     #[test]
