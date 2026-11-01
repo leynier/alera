@@ -50,6 +50,15 @@ impl ClaudeProvider {
         transport: Option<Box<dyn JsonTransport>>,
     ) -> Result<Self, ProviderError> {
         let (request_tx, request_rx) = mpsc::channel(32);
+        // The CLI inherits the configured env over the process env.
+        let context_usage = super::context_usage::ContextUsage::from_env(|key| {
+            config
+                .options
+                .env
+                .get(key)
+                .cloned()
+                .or_else(|| std::env::var(key).ok())
+        });
         Ok(Self {
             config,
             transport,
@@ -82,6 +91,8 @@ impl ClaudeProvider {
             described_commands: false,
             background_tasks: Default::default(),
             workflow_tasks: Default::default(),
+            turn_signals: Default::default(),
+            context_usage,
         })
     }
 

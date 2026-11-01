@@ -256,3 +256,44 @@ async fn sub_agent_tasks_are_awaited_and_background_commands_are_not() {
     assert_eq!(tasks[2].kind, EventKind::TaskCompleted);
     assert!(tasks[2].payload.get("awaited").is_none());
 }
+
+#[tokio::test]
+async fn a_compact_the_usage_limit_stopped_fails_the_turn() {
+    let error =
+        "Error during compaction: You've hit your session limit · resets 5:20pm (Europe/Berlin).";
+    let compaction = |outcome: &str| {
+        json!({
+            "type": "system", "subtype": "status", "session_id": "native-session",
+            "status": null, "compact_result": outcome, "compact_error": error,
+        })
+    };
+    let blocked = || {
+        json!({
+            "type": "rate_limit_event", "uuid": "rate-1", "session_id": "native-session",
+            "rate_limit_info": { "status": "rejected", "rateLimitType": "five_hour" }
+        })
+    };
+    let done = |command: bool| {
+        let mut done = result(json!({ "is_error": false, "result": "" }));
+        if command {
+            done["local_command"] = json!("compact");
+        }
+        done
+    };
+    let cases = [
+        (vec![blocked(), compaction("failed"), done(true)], true),
+        (vec![compaction("failed"), done(true)], false),
+        (vec![blocked(), compaction("success"), done(true)], false),
+        (vec![blocked(), compaction("failed"), done(false)], false),
+    ];
+    for (frames, fails) in cases {
+        let event = terminal(frames).await;
+        if fails {
+            assert_eq!(event.payload["state"], "failed");
+            assert_eq!(event.failure_class(), FailureClass::UsageLimit);
+            assert_eq!(event.payload["errorMessage"], error);
+        } else {
+            assert_eq!(event.payload["state"], "completed", "{}", event.payload);
+        }
+    }
+}

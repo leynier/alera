@@ -73,7 +73,12 @@ pub(super) fn rate_limit_window(payload: &Value) -> Option<Value> {
         value if value.contains("hour") || value.contains("session") => ("session", None, None),
         _ => ("other", None, None),
     };
-    let raw_utilization = info.get("utilization").and_then(Value::as_f64)?;
+    let raw_utilization = match info.get("utilization").and_then(Value::as_f64) {
+        Some(utilization) => utilization,
+        // A rejection is the whole window, used until it resets.
+        None if blocked_without_overage(info) => 100.0,
+        None => return None,
+    };
     let used_percent = if raw_utilization <= 1.0 {
         raw_utilization * 100.0
     } else {
@@ -106,6 +111,16 @@ pub(super) fn rate_limit_window(payload: &Value) -> Option<Value> {
         window["resetsAt"] = Value::String(resets_at);
     }
     Some(window)
+}
+
+/// A rejected limit that no overage covers, so requests wait for its reset.
+pub(super) fn blocked_without_overage(info: &Value) -> bool {
+    let text = |key: &str| info.get(key).and_then(Value::as_str);
+    let flag = |key: &str| info.get(key).and_then(Value::as_bool) == Some(true);
+    text("status") == Some("rejected")
+        && !matches!(text("overageStatus"), Some("allowed" | "allowed_warning"))
+        && !flag("isUsingOverage")
+        && !flag("overageInUse")
 }
 
 fn epoch_seconds_iso(value: &Value) -> Option<String> {

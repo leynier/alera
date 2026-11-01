@@ -127,6 +127,9 @@ impl ClaudeProvider {
         }
         self.next_turn = next_turn;
         self.turn_failure = Default::default();
+        self.turn_signals = Default::default();
+        self.turn_signals.compact_command =
+            input.attachments.is_empty() && input.input.trim().eq_ignore_ascii_case("/compact");
         self.pending_user_prompt = Some(user_messages::UserPromptCorrelation {
             turn_id: turn_id.clone(),
             app_user_item_id,

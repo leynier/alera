@@ -23,6 +23,8 @@ pub(super) struct TurnFailureEvidence {
     rejected_rate_limits: HashSet<String>,
     assistant_rate_limited: bool,
     auth_failed: bool,
+    /// The latest compaction result: `Some(error)` when it failed.
+    compaction_failure: Option<Option<String>>,
 }
 
 impl TurnFailureEvidence {
@@ -47,6 +49,35 @@ impl TurnFailureEvidence {
         }
     }
 
+    pub(super) fn compaction_result(&mut self, outcome: &str, error: Option<&str>) {
+        match outcome {
+            "failed" => self.compaction_failure = Some(error.map(str::to_owned)),
+            "success" => self.compaction_failure = None,
+            _ => {}
+        }
+    }
+
+    /// A `/compact` the usage limit stopped, as T3 Code 499c9ee68b: the CLI
+    /// ends it with a success result, so the compaction error is the
+    /// failure. Returns that error, if the compaction gave one.
+    pub(super) fn limited_compaction(&self, result: &ResultMessage) -> Option<Option<&str>> {
+        let compact =
+            result.subtype == "success" && result.local_command.as_deref() == Some("compact");
+        if !compact || !self.usage_limited(result) {
+            return None;
+        }
+        self.compaction_failure.as_ref().map(Option::as_deref)
+    }
+
+    fn usage_limited(&self, result: &ResultMessage) -> bool {
+        let status = result.api_error_status;
+        let reason = result.terminal_reason.as_deref();
+        (!self.rejected_rate_limits.is_empty() || self.assistant_rate_limited)
+            && !self.auth_failed
+            && status.is_none_or(|status| status == 429)
+            && reason.is_none_or(|reason| matches!(reason, "api_error" | "blocking_limit"))
+    }
+
     pub(super) fn class(&self, result: &ResultMessage) -> FailureClass {
         let status = result.api_error_status;
         let reason = result.terminal_reason.as_deref();
@@ -55,10 +86,7 @@ impl TurnFailureEvidence {
         if status == Some(401) || (self.auth_failed && status != Some(403)) {
             return FailureClass::Auth;
         }
-        let limited = (!self.rejected_rate_limits.is_empty() || self.assistant_rate_limited)
-            && status.is_none_or(|status| status == 429)
-            && reason.is_none_or(|reason| matches!(reason, "api_error" | "blocking_limit"));
-        if status == Some(429) || limited {
+        if status == Some(429) || self.usage_limited(result) {
             return FailureClass::UsageLimit;
         }
         // The CLI also ends a turn with blocking_limit once the context

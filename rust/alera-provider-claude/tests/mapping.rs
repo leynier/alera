@@ -164,18 +164,25 @@ async fn result_usage_includes_cached_input_tokens_and_preserves_rate_limits() {
 }
 
 #[tokio::test]
-async fn rate_limit_without_utilization_is_a_warning_without_fabricated_usage() {
-    let (mut provider, _handle) = started_provider([
-        initialize_response(),
+async fn rate_limits_without_utilization_fill_only_a_blocked_window() {
+    let event = |status: &str, overage: &str| {
         json!({
             "type": "rate_limit_event",
             "uuid": "rate-2",
             "session_id": "native-session",
             "rate_limit_info": {
-                "status": "rejected",
-                "rateLimitType": "five_hour"
+                "status": status,
+                "rateLimitType": "five_hour",
+                "resetsAt": 1_893_456_000,
+                "overageStatus": overage
             }
-        }),
+        })
+    };
+    let (mut provider, _handle) = started_provider([
+        initialize_response(),
+        event("rejected", "rejected"),
+        event("rejected", "allowed"),
+        event("allowed_warning", "rejected"),
     ])
     .await;
     let _ = provider.next_event().await.unwrap();
@@ -185,13 +192,64 @@ async fn rate_limit_without_utilization_is_a_warning_without_fabricated_usage() 
         .await
         .unwrap();
     let _ = provider.next_event().await.unwrap();
-    let warning = provider.next_event().await.unwrap().unwrap();
-    assert_eq!(warning.kind, EventKind::RuntimeWarning);
-    assert_eq!(
-        warning.payload["message"],
-        "Claude rate limit event did not contain a usable window"
-    );
-    assert!(warning.raw.unwrap().payload["rate_limit_info"]["utilization"].is_null());
+    let blocked = provider.next_event().await.unwrap().unwrap();
+    assert_eq!(blocked.kind, EventKind::AccountRateLimitsUpdated);
+    let window = &blocked.payload["limits"]["windows"][0];
+    assert_eq!(window["usedPercent"], 100.0);
+    assert_eq!(window["resetsAt"], "2030-01-01T00:00:00+00:00");
+    // Overage covers the limit, and an allowed limit reports no fill.
+    for _ in 0..2 {
+        let warning = provider.next_event().await.unwrap().unwrap();
+        assert_eq!(warning.kind, EventKind::RuntimeWarning);
+        assert_eq!(
+            warning.payload["message"],
+            "Claude rate limit event did not contain a usable window"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_blocked_assistant_frame_reports_its_limit_window() {
+    let (mut provider, _handle) = started_provider([
+        initialize_response(),
+        json!({
+            "type": "assistant",
+            "session_id": "native-session",
+            "error": "rate_limit",
+            "api_error_params": {
+                "rate_limit_info": {
+                    "status": "rejected",
+                    "rateLimitType": "seven_day",
+                    "resetsAt": 1_893_456_000,
+                    "overageStatus": "rejected"
+                }
+            },
+            "message": { "id": "msg-1", "model": "m", "content": [] }
+        }),
+        result_message(true, Some("api_error")),
+    ])
+    .await;
+    let _ = provider.next_event().await.unwrap();
+    let _ = provider.next_event().await.unwrap();
+    provider
+        .send_turn(TurnInput::text("app-thread", "rate"))
+        .await
+        .unwrap();
+    let mut window = None;
+    loop {
+        let event = provider.next_event().await.unwrap().unwrap();
+        if event.kind == EventKind::AccountRateLimitsUpdated {
+            window = Some(event.payload["limits"]["windows"][0].clone());
+        }
+        if event.kind == EventKind::TurnCompleted {
+            assert_eq!(event.payload["failureClass"], "usage_limit");
+            break;
+        }
+    }
+    let window = window.expect("the blocked frame reports its window");
+    assert_eq!(window["id"], "seven_day");
+    assert_eq!(window["usedPercent"], 100.0);
+    assert_eq!(window["resetsAt"], "2030-01-01T00:00:00+00:00");
 }
 
 #[tokio::test]
@@ -227,6 +285,9 @@ async fn system_lifecycle_states_are_canonical_and_unknown_raw_is_retained() {
     assert_eq!(state.kind, EventKind::SessionStateChanged);
     assert_eq!(state.payload["state"], "ready");
     assert_eq!(state.raw.unwrap().payload["vendor_state"]["kept"], true);
+    let item = provider.next_event().await.unwrap().unwrap();
+    assert_eq!(item.kind, EventKind::ItemCompleted);
+    assert_eq!(item.payload["itemType"], "context_compaction");
     let compacted = provider.next_event().await.unwrap().unwrap();
     assert_eq!(compacted.kind, EventKind::ThreadStateChanged);
     assert_eq!(compacted.payload["state"], "compacted");

@@ -4,6 +4,10 @@ mod background_wait;
 mod callbacks;
 #[path = "canonical_payload.rs"]
 mod canonical_payload;
+#[path = "compaction.rs"]
+mod compaction;
+#[path = "context_usage.rs"]
+mod context_usage;
 #[path = "failure.rs"]
 mod failure;
 #[path = "history.rs"]
@@ -18,6 +22,8 @@ mod mapping;
 mod mapping_stream;
 #[path = "mcp.rs"]
 mod mcp;
+#[path = "progress_text.rs"]
+mod progress_text;
 #[path = "reasoning_effort.rs"]
 mod reasoning_effort;
 #[path = "request_events.rs"]
@@ -26,6 +32,10 @@ mod request_events;
 mod runtime_response;
 #[path = "slash_commands.rs"]
 mod slash_commands;
+#[path = "system_notices.rs"]
+mod system_notices;
+#[path = "turn_signals.rs"]
+mod turn_signals;
 #[path = "turns.rs"]
 mod turns;
 #[path = "user_messages.rs"]
@@ -106,6 +116,8 @@ pub struct ClaudeProvider {
     described_commands: bool,
     background_tasks: background_wait::BackgroundTasks,
     workflow_tasks: workflow::WorkflowTasks,
+    turn_signals: turn_signals::TurnSignals,
+    context_usage: context_usage::ContextUsage,
 }
 
 #[async_trait]

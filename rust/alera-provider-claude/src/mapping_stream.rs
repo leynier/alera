@@ -16,7 +16,13 @@ impl ClaudeProvider {
         let parent_tool_use_id = message.parent_tool_use_id.clone();
         let suppress_text = self.take_streamed_text(message.message_id.as_deref());
         let suppress_thinking = self.take_streamed_thinking(message.message_id.as_deref());
+        let usage_event = self.assistant_context_usage(&message);
+        let limit_event = self.assistant_rate_limit(&raw);
         for block in message.content {
+            if !matches!(block, ContentBlock::Thinking(_)) {
+                let tool_use = matches!(block, ContentBlock::ToolUse(_));
+                events.extend(self.non_thinking_block(tool_use, message.message_id.as_deref()));
+            }
             match block {
                 ContentBlock::Text(block) if !suppress_text => events.push(self.content_event(
                     StreamKind::AssistantText,
@@ -25,11 +31,11 @@ impl ClaudeProvider {
                     message.message_id.clone(),
                 )),
                 ContentBlock::Thinking(block) if !suppress_thinking => {
-                    events.push(self.content_event(
-                        StreamKind::ReasoningText,
+                    events.extend(self.thinking_block(
+                        &message.model,
+                        message.message_id.as_deref(),
                         block.thinking,
-                        self.raw("assistant", raw.clone()),
-                        message.message_id.clone(),
+                        &raw,
                     ))
                 }
                 ContentBlock::Text(_) | ContentBlock::Thinking(_) => {}
@@ -126,7 +132,7 @@ impl ClaudeProvider {
                 )),
             }
         }
-        if events.is_empty() {
+        if events.is_empty() && !self.holds_thinking() {
             events.push(self.event(
                 EventKind::ItemUpdated,
                 json!({ "itemType": "assistant_message", "status": "completed", "data": raw.clone() }),
@@ -145,10 +151,13 @@ impl ClaudeProvider {
                 });
             }
         }
+        // Account-level reports carry no message or task references.
+        events.extend(usage_event);
+        events.extend(limit_event);
         events
     }
 
-    fn content_event(
+    pub(super) fn content_event(
         &self,
         stream_kind: StreamKind,
         delta: String,
@@ -242,7 +251,14 @@ impl ClaudeProvider {
 
     pub(crate) fn map_stream(&mut self, message: StreamEvent) -> Vec<ProviderEvent> {
         let event = message.event.clone();
-        let raw = self.raw("stream_event", message.raw);
+        let usage_event = self.stream_context_usage(&event, message.parent_tool_use_id.as_deref());
+        let mut events = self.map_stream_event(event, message.raw);
+        events.extend(usage_event);
+        events
+    }
+
+    fn map_stream_event(&mut self, event: Value, raw: Value) -> Vec<ProviderEvent> {
+        let raw = self.raw("stream_event", raw);
         if event.get("type").and_then(Value::as_str) == Some("message_start") {
             self.stream_message_id = event
                 .get("message")

@@ -4,6 +4,24 @@ use claude_agent_sdk::{Message, ResultMessage};
 
 impl ClaudeProvider {
     pub(crate) fn map_message(&mut self, message: Message) -> Vec<ProviderEvent> {
+        if let Message::Assistant(message) = message {
+            if self.is_compact_echo(&message) {
+                return Vec::new();
+            }
+            let mut events = Vec::new();
+            if message.error.is_none() {
+                events.extend(self.recover_api_retry());
+            }
+            events.extend(self.map_assistant(message));
+            return events;
+        }
+        // A held thinking block shows before any other frame.
+        let mut events = self.release_held_thinking();
+        events.extend(self.map_other_message(message));
+        events
+    }
+
+    fn map_other_message(&mut self, message: Message) -> Vec<ProviderEvent> {
         match message {
             Message::Assistant(message) => self.map_assistant(message),
             Message::StreamEvent(message) => self.map_stream(message),
@@ -95,11 +113,12 @@ impl ClaudeProvider {
                     raw(),
                 )]
             }
-            "compact_boundary" | "compactboundary" | "context_compaction" => vec![self.event(
-                EventKind::ThreadStateChanged,
-                json!({ "state": "compacted", "detail": payload }),
-                raw(),
-            )],
+            "compact_boundary" | "compactboundary" | "context_compaction" => {
+                self.map_compact_boundary(payload)
+            }
+            "status" => self.map_status(&payload),
+            "informational" => self.map_informational(&payload),
+            "api_retry" => self.map_api_retry(&payload),
             _ if subtype.contains("task") => self.map_native_task(&subtype, &payload),
             _ => vec![self.event(
                 EventKind::RuntimeWarning,
@@ -136,6 +155,26 @@ impl ClaudeProvider {
         )]
     }
 
+    /// A blocked assistant frame repeats its limit in
+    /// `api_error_params.rate_limit_info` while the CLI throttles unchanged
+    /// `rate_limit_event`s, so its reset time still reaches the usage view.
+    pub(super) fn assistant_rate_limit(&mut self, raw: &Value) -> Option<ProviderEvent> {
+        let info = [raw, raw.get("message").unwrap_or(&Value::Null)]
+            .into_iter()
+            .find_map(|frame| frame.get("api_error_params")?.get("rate_limit_info"))
+            .filter(|info| blocked_without_overage(info))?;
+        self.turn_failure.rate_limit(
+            "rejected",
+            info.get("rateLimitType").and_then(Value::as_str),
+        );
+        let window = rate_limit_window(info)?;
+        Some(self.event(
+            EventKind::AccountRateLimitsUpdated,
+            json!({ "limits": { "windows": [window] } }),
+            self.raw("assistant", raw.clone()),
+        ))
+    }
+
     fn map_result(&mut self, message: ResultMessage) -> Vec<ProviderEvent> {
         self.pending_user_prompt = None;
         if !message.session_id.is_empty() {
@@ -150,7 +189,13 @@ impl ClaudeProvider {
             let reason = reason.to_ascii_lowercase();
             reason.contains("interrupt") || reason.contains("abort") || reason.contains("cancel")
         });
-        let failed = failure::result_failed(&message);
+        // A /compact the usage limit stopped ends with a success result.
+        let limited_compaction = (!interrupted)
+            .then(|| self.turn_failure.limited_compaction(&message))
+            .flatten()
+            .map(|error| error.map(str::to_owned));
+        let failed = failure::result_failed(&message) || limited_compaction.is_some();
+        let class = failed.then(|| self.turn_failure.class(&message));
         let state = if interrupted {
             "interrupted"
         } else if failed {
@@ -184,9 +229,12 @@ impl ClaudeProvider {
             if let Some(usage) = message.usage.clone() {
                 terminal_payload["usage"] = usage;
             }
-            if failed {
-                let class = self.turn_failure.class(&message);
-                if let Some(error) = failure::result_error_message(&message, class) {
+            if let Some(class) = class {
+                let error = limited_compaction
+                    .clone()
+                    .flatten()
+                    .or_else(|| failure::result_error_message(&message, class));
+                if let Some(error) = error {
                     terminal_payload["errorMessage"] = Value::String(error);
                 }
                 terminal_payload["failureClass"] = json!(class);
@@ -209,12 +257,17 @@ impl ClaudeProvider {
                     .unwrap_or_else(|| "interrupt".into()),
             );
         }
-        let event = self.event_for_turn(
+        self.attach_context_usage(&mut terminal_payload, message.model_usage.as_ref());
+        // Items the turn ended during settle before its terminal event.
+        let mut events = Vec::new();
+        events.extend(self.settle_compaction(interrupted, message.result.as_deref()));
+        events.extend(self.settle_api_retry(interrupted, class));
+        events.push(self.event_for_turn(
             kind,
             turn_id,
             terminal_payload,
             self.raw("result", message.raw),
-        );
+        ));
         if let Some(session) = &mut self.session {
             session.status = SessionStatus::Ready;
             session.active_turn_id = None;
@@ -223,6 +276,7 @@ impl ClaudeProvider {
             *active = None;
         }
         self.turn_failure = Default::default();
+        self.turn_signals = Default::default();
         self.streamed_text_message_ids.clear();
         self.streamed_thinking_message_ids.clear();
         self.streamed_text_unscoped = false;
@@ -230,7 +284,7 @@ impl ClaudeProvider {
         self.stream_message_id = None;
         self.open_items.clear();
         self.stream_items.clear();
-        vec![event]
+        events
     }
 }
 
