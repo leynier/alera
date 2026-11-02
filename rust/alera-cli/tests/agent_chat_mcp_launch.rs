@@ -172,10 +172,18 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
     assert!(names.contains(&"request_secret"));
     assert!(names.contains(&"watch_pull_request"));
     assert!(names.contains(&"chat_transfers"));
-    assert!(names
-        .iter()
-        .all(|name| name.starts_with("chat_")
-            || matches!(*name, "list_projects" | "list_workspaces")));
+    assert!(names.iter().all(|name| name.starts_with("chat_")
+        || matches!(
+            *name,
+            "list_projects"
+                | "list_workspaces"
+                | "request_secret"
+                | "link_pull_request"
+                | "unlink_pull_request"
+                | "list_chat_pull_requests"
+                | "watch_pull_request"
+                | "unwatch_pull_request"
+        )));
     assert!(names.contains(&"chat_read"));
     let arguments = json!({"name": "chat_read", "arguments": {"chatId": chat}});
     let inactive = mcp.request("tools/call", arguments.clone()).await;
