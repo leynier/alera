@@ -36,15 +36,21 @@ fn masks_credentials_and_url_secrets_in_provider_failures() {
 
     assert!(redacted.contains("https://[redacted]@example.test/path"));
     assert!(redacted.contains("Authorization: Bearer [redacted]"));
-    for secret in [
+    for (index, secret) in [
         "bearer-secret",
         "user:pass",
         "url-secret",
         "json-secret",
         "key-secret",
         "sk-abcdefghijklmnop",
-    ] {
-        assert!(!redacted.contains(secret), "{secret} leaked: {redacted}");
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert!(
+            !redacted.contains(secret),
+            "fixture secret #{index} was not redacted"
+        );
     }
 }
 
@@ -71,7 +77,7 @@ fn masks_prefixed_tokens_and_header_credentials() {
 
     assert!(redacted.contains("Authorization: Basic [redacted]"));
     assert!(redacted.contains("x-api-key: [redacted]"));
-    for secret in [
+    for (index, secret) in [
         "sk-proj-",
         "sk-svcacct-",
         "abcdefghijklmnopqrstuvwxyz012345",
@@ -80,8 +86,14 @@ fn masks_prefixed_tokens_and_header_credentials() {
         "xoxb-",
         "dXNlcjpwYXNz",
         "ant-api-key-value",
-    ] {
-        assert!(!redacted.contains(secret), "{secret} leaked: {redacted}");
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert!(
+            !redacted.contains(secret),
+            "fixture secret #{index} was not redacted"
+        );
     }
 }
 
