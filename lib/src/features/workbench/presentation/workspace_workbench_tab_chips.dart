@@ -222,6 +222,7 @@ enum _TabMenuAction {
   closeRight,
   changeTitle,
   generateTitle,
+  regenerateTitle,
 }
 
 class const _WorkspaceTabLeadingIcon({

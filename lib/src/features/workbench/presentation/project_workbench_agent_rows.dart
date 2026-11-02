@@ -39,11 +39,13 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        // The menu acts on a terminal agent: asking it, its run, its title.
-        onSecondaryTapDown: chat != null
-            ? null
-            : (details) =>
-                  unawaited(_openContextMenu(context, details.globalPosition)),
+        // A terminal agent's menu asks it, opens its run or titles it; a
+        // chat's menu regenerates its title.
+        onSecondaryTapDown: (details) => unawaited(
+          chat != null
+              ? _openChatContextMenu(context, details.globalPosition)
+              : _openContextMenu(context, details.globalPosition),
+        ),
         child: AleraActiveRail(
           active: isActive,
           child: AnimatedContainer(
@@ -135,6 +137,47 @@ class _AgentRunRowState extends ConsumerState<_AgentRunRow> {
         ),
       ),
     );
+  }
+
+  Future<void> _openChatContextMenu(
+    BuildContext context,
+    Offset globalPosition,
+  ) async {
+    final chatId = _tab.agentChatId;
+    if (chatId == null) return;
+    final available = await agentChatTitleGenerationAvailable(ref);
+    if (!available || !mounted || !context.mounted) return;
+    final chat = AgentChatRef(chatId: chatId, workspaceId: _tab.workspaceId);
+    final generating = agentChatTitleGenerating(ref, chat);
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(globalPosition, globalPosition),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<String>>[
+        AleraDropdownEntry<String>(
+          value: 'regenerateTitle',
+          label: generating
+              ? agentChatRegeneratingTitleLabel
+              : agentChatRegenerateTitleLabel,
+          enabled: !generating,
+          leading: const Icon(AleraIcons.ai, size: 16),
+        ),
+      ],
+    );
+    if (selected != 'regenerateTitle') return;
+    try {
+      await regenerateAgentChatTitle(ref, chat);
+    } on Object catch (error, stackTrace) {
+      showActionFailure(
+        action: 'regenerate title',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> _openContextMenu(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_title_actions.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_tab_hover.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
@@ -42,6 +43,7 @@ import 'package:alera/src/features/workbench/presentation/workbench_drop_zones.d
     as drop_zones;
 import 'package:alera/src/features/workbench/presentation/workbench_split_glyphs.dart';
 import 'package:flutter/gestures.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 
 part 'workspace_workbench_layout_view.dart';

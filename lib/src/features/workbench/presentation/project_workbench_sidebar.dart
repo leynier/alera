@@ -15,6 +15,7 @@ import 'package:alera/src/design_system/surfaces/alera_active_rail.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
 import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_title_actions.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
@@ -67,6 +68,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_removal_laun
 import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_lifecycle_launchers.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';

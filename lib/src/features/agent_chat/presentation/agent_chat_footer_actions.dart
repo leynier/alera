@@ -8,18 +8,26 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_title_actions.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_approval_history.dart';
 import 'package:alera/src/features/chat_tasks/application/chat_task_providers.dart';
 import 'package:alera/src/features/chat_tasks/presentation/chat_task_chat_actions.dart';
+import 'package:alera/src/features/error_reporting/presentation/action_failure_toast.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum _ChatAction { delegate, sendToChat, approvalHistory, fileCheckpointing }
+enum _ChatAction {
+  delegate,
+  sendToChat,
+  approvalHistory,
+  fileCheckpointing,
+  regenerateTitle,
+}
 
 /// The chat's overflow beside Add Files: Delegate Task and Send To Chat,
-/// Approval History, and File Checkpointing, each only where the runtime and
-/// the agent offer it. Hidden when none applies.
+/// Approval History, File Checkpointing and Regenerate Title, each only where
+/// the runtime and the agent offer it. Hidden when none applies.
 class const AgentChatActionsMenu({
   super.key,
   required final String chatId,
@@ -43,6 +51,8 @@ class const AgentChatActionsMenu({
                   .fileCheckpointing ??
               false,
           checkpointing: state.thread?.session.fileCheckpointing ?? false,
+          titled: !(state.thread?.neverSent ?? true),
+          generatingTitle: state.thread?.titleGeneration?.generating ?? false,
         ),
       ),
     );
@@ -51,7 +61,9 @@ class const AgentChatActionsMenu({
     final checkpoints =
         view.checkpointsSupported &&
         capability(AgentChatWire.fileCheckpointsCapability);
-    if (!tasks && !approvalHistory && !checkpoints) {
+    final titles =
+        view.titled && capability(AgentChatWire.titleGenerationCapability);
+    if (!tasks && !approvalHistory && !checkpoints && !titles) {
       return const SizedBox.shrink();
     }
     return Builder(
@@ -85,6 +97,15 @@ class const AgentChatActionsMenu({
                 description: view.idle ? null : 'Available once this turn ends',
                 selected: view.checkpointing,
                 enabled: view.idle,
+              ),
+            if (titles)
+              AleraDropdownEntry<_ChatAction>(
+                key: const ValueKey<String>('agent-chat-regenerate-title'),
+                value: _ChatAction.regenerateTitle,
+                label: view.generatingTitle
+                    ? agentChatRegeneratingTitleLabel
+                    : agentChatRegenerateTitleLabel,
+                enabled: !view.generatingTitle,
               ),
           ], checkpointing: view.checkpointing),
         ),
@@ -134,6 +155,19 @@ class const AgentChatActionsMenu({
         );
       case _ChatAction.fileCheckpointing:
         await _toggleCheckpointing(context, ref, enable: !checkpointing);
+      case _ChatAction.regenerateTitle:
+        try {
+          await regenerateAgentChatTitle(
+            ref,
+            AgentChatRef(chatId: chatId, workspaceId: workspaceId),
+          );
+        } on Object catch (error, stackTrace) {
+          showActionFailure(
+            action: 'regenerate title',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
     }
   }
 

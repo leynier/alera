@@ -26,6 +26,7 @@ Future<void> _pumpWorkbenchView(
   bool agentTitlesAvailable = false,
   bool singleSurface = false,
   String? singleTabId,
+  List<Override> overrides = const <Override>[],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -33,6 +34,7 @@ Future<void> _pumpWorkbenchView(
         agentTitleAvailableProvider.overrideWith(
           (ref) async => agentTitlesAvailable,
         ),
+        ...overrides,
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -171,8 +173,10 @@ WorkspaceTabRecord _tab(
   String? filePath,
   bool mermanPreview = false,
   bool preview = false,
+  String? chatId,
 }) {
   final payload = <String, Object?>{
+    'chatId': ?chatId,
     workspaceTabFilePathPayloadKey: ?filePath,
     if (mermanPreview)
       workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,

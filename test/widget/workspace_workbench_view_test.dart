@@ -1,5 +1,6 @@
 // ignore_for_file: library_private_types_in_public_api
 
+import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -14,11 +15,16 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/fake_agent_chat_repository.dart';
 
 part 'workspace_workbench_view_helper_test_cases.dart';
 part 'workspace_workbench_view_pane_focus_test_cases.dart';
@@ -28,6 +34,7 @@ part 'workspace_workbench_view_tab_test_cases.dart';
 part 'workspace_workbench_view_preview_tab_test_cases.dart';
 part 'workspace_workbench_view_test_harness.dart';
 part 'workspace_workbench_view_panel_test_cases.dart';
+part 'workspace_workbench_view_chat_tab_test_cases.dart';
 
 late _FakeTerminalRuntime terminalRuntime;
 late List<String?> createdTabs;
@@ -62,5 +69,6 @@ void main() {
     _registerWorkspaceWorkbenchViewTabTests();
     _registerWorkspaceWorkbenchViewPreviewTabTests();
     _registerWorkspaceWorkbenchViewTabDropTests();
+    _registerWorkspaceWorkbenchViewChatTabTests();
   });
 }

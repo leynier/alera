@@ -24,15 +24,28 @@ final class _NativeHistory extends AgentChatNativeHistoryRepository {
   }
 }
 
-/// A runtime that offers file checkpoints and nothing else optional.
+/// A runtime that offers file checkpoints, and AI titles when [titles].
 final class _Lifecycle extends AgentChatLifecycleRepository
     implements AgentChatNativeHistoryAccess {
+  _Lifecycle({this.titles = false});
+
+  final bool titles;
+  final List<bool> regenerated = <bool>[];
+
   @override
   final _NativeHistory nativeHistory = _NativeHistory();
 
   @override
   Future<bool> supports(String capability) async =>
-      capability == AgentChatWire.fileCheckpointsCapability;
+      capability == AgentChatWire.fileCheckpointsCapability ||
+      (titles && capability == AgentChatWire.titleGenerationCapability);
+
+  @override
+  Future<void> regenerateTitle(
+    AgentChatRef chat, {
+    required String requestId,
+    bool replaceUserTitle = false,
+  }) async => regenerated.add(replaceUserTitle);
 }
 
 const Map<String, Object?> _checkpointCapabilities = <String, Object?>{
@@ -40,15 +53,28 @@ const Map<String, Object?> _checkpointCapabilities = <String, Object?>{
   'nativeHistory': <String, Object?>{'fileCheckpointing': true},
 };
 
-Future<_Lifecycle> _pump(WidgetTester tester, {bool busy = false}) async {
-  final lifecycle = _Lifecycle();
+Future<_Lifecycle> _pump(
+  WidgetTester tester, {
+  bool busy = false,
+  bool titles = false,
+  bool generatingTitle = false,
+}) async {
+  final lifecycle = _Lifecycle(titles: titles);
   final repository = FakeAgentChatRepository()
     ..snapshots.add(
-      () => agentChatSnapshotFixture(
-        status: busy ? 'running' : 'ready',
-        activeTurnId: busy ? 'turn-1' : null,
-        capabilities: _checkpointCapabilities,
-      ),
+      () =>
+          agentChatSnapshotFixture(
+            status: busy ? 'running' : 'ready',
+            activeTurnId: busy ? 'turn-1' : null,
+            capabilities: _checkpointCapabilities,
+            turns: <Map<String, Object?>>[
+              <String, Object?>{'turnId': 'turn-0', 'status': 'completed'},
+            ],
+          ).copyWith(
+            titleGeneration: generatingTitle
+                ? const AgentChatTitleGeneration(status: 'generating')
+                : null,
+          ),
     );
   var nextId = 0;
   await tester.pumpWidget(
@@ -115,5 +141,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Turn On File Checkpointing?'), findsNothing);
     expect(lifecycle.nativeHistory.configured, isEmpty);
+  });
+
+  testWidgets(
+    'Regenerate Title asks for a title that may replace the user one',
+    (tester) async {
+      final lifecycle = await _pump(tester, titles: true);
+      await _openMenu(tester);
+      await tester.tap(find.text('Regenerate Title'));
+      await tester.pumpAndSettle();
+      expect(lifecycle.regenerated, <bool>[true]);
+    },
+  );
+
+  testWidgets('a running title job reads Regenerating and cannot restart', (
+    tester,
+  ) async {
+    final lifecycle = await _pump(tester, titles: true, generatingTitle: true);
+    await _openMenu(tester);
+    expect(find.text('Regenerating Title…'), findsOneWidget);
+    await tester.tap(find.text('Regenerating Title…'));
+    await tester.pumpAndSettle();
+    expect(lifecycle.regenerated, isEmpty);
+  });
+
+  testWidgets('without the capability the menu offers no title action', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await _openMenu(tester);
+    expect(find.text('Regenerate Title'), findsNothing);
   });
 }
