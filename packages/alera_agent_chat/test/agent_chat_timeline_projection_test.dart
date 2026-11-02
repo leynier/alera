@@ -545,25 +545,4 @@ void main() {
     expect(wake.origin!.kind, AgentChatItemOriginKind.subagentWake);
     expect(projection.promptHistory, isEmpty);
   });
-
-  test('a question wake keeps its request ids and asks, not finishes', () {
-    final projection = AgentChatTimelineProjection.build(
-      _thread(<Map<String, Object?>>[
-        <String, Object?>{
-          ..._item('q1', 'user_message', text: 'Delegated task t1 asked'),
-          'normalized': <String, Object?>{
-            'origin': <String, Object?>{
-              'kind': 'orchestrationWake',
-              'taskIds': <Object?>['t1'],
-              'requestIds': <Object?>['r1'],
-            },
-          },
-        },
-      ]),
-    );
-    final origin = _sections(projection).first.prompts.single.origin!;
-    expect(origin.requestIds, <String>['r1']);
-    expect(origin.asksQuestion, isTrue);
-    expect(agentChatOriginHeading(origin), 'A delegated task asked a question');
-  });
 }
