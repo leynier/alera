@@ -110,6 +110,11 @@ enum AgentChatRequestKind {
   toolUserInput,
   dynamicToolCall,
   authTokensRefresh,
+
+  /// A masked secret card the host opened for `request_secret`
+  /// (`agentChatSecretRequestsV1`). Only a person answers it, through
+  /// `agentChat.secret.provide`; the value never reaches the chat.
+  secretInput,
   unknown;
 
   static AgentChatRequestKind fromJson(Object? value) => agentChatWireEnum(
@@ -131,6 +136,8 @@ enum AgentChatRequestKind {
   bool get isUserInput => this == AgentChatRequestKind.toolUserInput;
 
   bool get isElicitation => this == AgentChatRequestKind.mcpElicitationApproval;
+
+  bool get isSecretInput => this == AgentChatRequestKind.secretInput;
 }
 
 enum AgentChatApprovalDecision(this.wire) {

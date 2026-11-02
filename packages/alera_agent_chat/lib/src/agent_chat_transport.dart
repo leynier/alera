@@ -67,6 +67,11 @@ abstract final class AgentChatWire {
   /// Snapshots carry `titleGeneration`, `titleSource` may be `generated`, and
   /// `agentChat.regenerateTitle` asks AI Assist for a new title.
   static const String titleGenerationCapability = 'agentChatTitleGenerationV1';
+
+  /// Requests may be `secret_input` cards (`masked: true`) that a person
+  /// answers with `agentChat.secret.provide`; the value never enters the
+  /// chat, its history or its snapshots.
+  static const String secretRequestsCapability = 'agentChatSecretRequestsV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -130,6 +135,7 @@ abstract final class AgentChatWire {
   static const String configure = 'agentChat.configure';
   static const String rename = 'agentChat.rename';
   static const String regenerateTitle = 'agentChat.regenerateTitle';
+  static const String provideSecret = 'agentChat.secret.provide';
   static const String subagent = 'agentChat.subagent';
   static const String workflowScript = 'agentChat.workflowScript';
   static const String workflowAgent = 'agentChat.workflowAgent';

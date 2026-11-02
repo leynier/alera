@@ -166,6 +166,12 @@ class const AgentChatRequest({
   /// The provider that asked is gone (the runtime restarted), so the answer
   /// reaches the agent as a new message (`answerBy: message`).
   final bool answerByMessage = false,
+
+  /// The card takes a masked value (`secret_input`).
+  final bool masked = false,
+
+  /// The secret card's field hint, when the agent gave one.
+  final String? placeholder,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -206,6 +212,12 @@ class const AgentChatRequest({
         json['fullAccessOverride'],
       ),
       answerByMessage: agentChatJsonString(json['answerBy']) == 'message',
+      masked: agentChatJsonBool(json['masked']),
+      placeholder: questions.isEmpty
+          ? null
+          : agentChatJsonString(
+              agentChatJsonMap(questions.first)['placeholder'],
+            ),
     );
   }
 
@@ -214,6 +226,9 @@ class const AgentChatRequest({
   bool get isApproval => kind.isApproval;
 
   bool get isElicitation => kind.isElicitation;
+
+  /// A secret card, answered through `agentChat.secret.provide`.
+  bool get isSecret => kind.isSecretInput;
 
   /// Decisions offered by the runtime. An approval that names none still lets
   /// the user allow or decline, which every approval-capable provider honors.

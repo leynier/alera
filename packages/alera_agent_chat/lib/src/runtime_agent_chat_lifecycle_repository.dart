@@ -258,6 +258,21 @@ final class RuntimeAgentChatLifecycleRepository
   );
 
   @override
+  Future<void> provideSecret(
+    AgentChatRef chat, {
+    required String runtimeRequestId,
+    String? value,
+  }) => _request(
+    AgentChatWire.secretRequestsCapability,
+    AgentChatWire.provideSecret,
+    _scoped(chat, <String, Object?>{
+      'runtimeRequestId': runtimeRequestId,
+      'action': value == null ? 'decline' : 'save',
+      'value': ?value,
+    }),
+  );
+
+  @override
   Future<void> forceStop(
     AgentChatRef chat, {
     required String requestId,

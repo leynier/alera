@@ -114,6 +114,14 @@ abstract class AgentChatLifecycleRepository {
     bool replaceUserTitle = false,
   }) => Future.error(UnsupportedError('Title generation is unavailable.'));
 
+  /// Answers a masked secret card (`agentChatSecretRequestsV1`): saves
+  /// [value], or declines when [value] is null. Only a person calls this.
+  Future<void> provideSecret(
+    AgentChatRef chat, {
+    required String runtimeRequestId,
+    String? value,
+  }) => Future.error(UnsupportedError('Secret requests are unavailable.'));
+
   /// Stops the running sub-agent the call [itemId] started.
   Future<void> stopSubagent(
     AgentChatRef chat, {

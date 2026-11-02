@@ -82,6 +82,7 @@ String agentChatRequestKindTitle(AgentChatRequestKind kind) => switch (kind) {
   .permissionApproval => 'Permission Request',
   .mcpElicitationApproval => 'Input Requested',
   .toolUserInput => 'Question',
+  .secretInput => 'Secret Requested',
   _ => kind.isApproval ? 'Approval Required' : 'The Agent Is Waiting',
 };
 
