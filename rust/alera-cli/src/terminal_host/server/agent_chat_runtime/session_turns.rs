@@ -351,10 +351,13 @@ impl ChatSession {
         if status == "failed" {
             self.header.session.error_message = error_message;
         }
+        let title_job = self.prepare_auto_title().await;
         let _ = self.flush().await;
         self.items
             .retain(|_, item| item.turn_id.as_deref() != Some(turn_id.as_str()));
-        self.maybe_generate_title().await;
+        if let Some(job) = title_job {
+            self.spawn_title_job(job);
+        }
     }
 
     /// Starts the oldest queued message once nothing runs.

@@ -37,10 +37,17 @@ fn first_turn(desktop: &mut Socket, chat: &str) -> Value {
     );
     desktop.wait_snapshot(chat, |snapshot| {
         snapshot["session"]["status"] == "ready"
+            && title_settled(snapshot)
             && snapshot["turns"]
                 .as_array()
                 .is_some_and(|turns| turns.len() == 1 && turns[0]["status"] == "completed")
     })
+}
+
+/// The first turn's AI title job ends with one more snapshot event, so
+/// cursor arithmetic starts after it settles.
+fn title_settled(snapshot: &Value) -> bool {
+    snapshot["titleGeneration"]["status"] != "generating"
 }
 
 fn envelope_snapshot<'a>(response: &'a Value, chat: &str) -> &'a Value {
@@ -351,6 +358,7 @@ fn bound_orchestration_configure_envelopes_its_guarded_operation_once() {
     let child = delegated["childChatId"].as_str().unwrap();
     let before = desktop.wait_snapshot(child, |snapshot| {
         snapshot["session"]["status"] == "ready"
+            && title_settled(snapshot)
             && snapshot["turns"].as_array().is_some_and(|turns| {
                 !turns.is_empty() && turns.iter().all(|turn| turn["status"] == "completed")
             })

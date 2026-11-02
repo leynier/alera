@@ -38,32 +38,31 @@ pub(super) fn fork_source_title(metadata: Option<&Value>) -> Option<String> {
 }
 
 impl ChatSession {
-    /// After a turn ended: the one automatic attempt of a new chat. Older
-    /// chats without title state are never renamed by a later setting.
-    pub(super) async fn maybe_generate_title(&mut self) {
-        let Some(generator) = self.deps.titles.clone() else {
-            return;
-        };
+    /// Before the turn-end flush: decides the one automatic attempt of a new
+    /// chat and records it in the header, so the snapshot that ends the turn
+    /// already carries it. Spawn the returned job after that flush, so it
+    /// reads the finished turn. Older chats without title state are never
+    /// renamed by a later setting.
+    pub(super) async fn prepare_auto_title(&mut self) -> Option<ChatTitleJob> {
+        let generator = self.deps.titles.clone()?;
         if self.header.archived
             || !matches!(self.header.title_source.as_str(), "default" | "derived")
         {
-            return;
+            return None;
         }
         let mut state = match &self.header.title_generation {
-            Some(state) if state.auto_attempted || state.is_generating() => return,
+            Some(state) if state.auto_attempted || state.is_generating() => return None,
             Some(state) => state.clone(),
             None if self.header.turns.len() <= 1 => TitleGeneration::default(),
-            None => return,
+            None => return None,
         };
         state.auto_attempted = true;
         if !generator.automatic_enabled().await {
             state.status = "idle".into();
             self.header.title_generation = Some(state);
-            let _ = self.flush().await;
-            return;
+            return None;
         }
-        self.start_title_job(state, "auto", false);
-        let _ = self.flush().await;
+        Some(self.mark_title_job(state, "auto", false))
     }
 
     pub(super) async fn regenerate_title(&mut self, replace_user_title: bool) -> HostResult<Value> {
@@ -99,15 +98,18 @@ impl ChatSession {
         Ok(json!({"titleGeneration": to_json(&self.header.title_generation)}))
     }
 
-    fn start_title_job(
+    fn start_title_job(&mut self, state: TitleGeneration, mode: &str, replace_user_title: bool) {
+        let job = self.mark_title_job(state, mode, replace_user_title);
+        self.spawn_title_job(job);
+    }
+
+    /// Records a `generating` state for a new job and describes that job.
+    fn mark_title_job(
         &mut self,
         mut state: TitleGeneration,
         mode: &str,
         replace_user_title: bool,
-    ) {
-        let Some(generator) = self.deps.titles.clone() else {
-            return;
-        };
+    ) -> ChatTitleJob {
         let job_id = new_id("title");
         state.status = "generating".into();
         state.mode = Some(mode.into());
@@ -119,11 +121,17 @@ impl ChatSession {
             .fork_source_turn_id
             .clone()
             .map(|turn_id| (self.fork_source_title.clone().unwrap_or_default(), turn_id));
-        let job = ChatTitleJob {
+        ChatTitleJob {
             chat_id: self.header.chat_id.clone(),
             job_id,
             previous_title: (mode == "regenerate").then(|| self.header.title.clone()),
             fork,
+        }
+    }
+
+    pub(super) fn spawn_title_job(&mut self, job: ChatTitleJob) {
+        let Some(generator) = self.deps.titles.clone() else {
+            return;
         };
         self.cancel_title_job();
         self.title_job_cancel = Some(spawn_chat_title_job(
