@@ -2,7 +2,9 @@
 //! every local task left unsettled is settled from what its child chat
 //! recorded, or marked interrupted (cancelled when a cancel was pending).
 //! Nothing is sent to a model again. Credentials are all revoked, because
-//! each one belonged to a provider launch that no longer exists.
+//! each one belonged to a provider launch that no longer exists. A task
+//! waiting on input whose child kept the question as `answerBy: "message"`
+//! keeps waiting: the answer, a new message, carries the task on.
 
 use anyhow::Result;
 use sqlx::{Row, SqliteConnection};
@@ -91,6 +93,27 @@ pub(super) fn chain_start(task: &ChatOrchestrationTask) -> Option<&str> {
         .as_ref()
         .and_then(|options| options.get(CHAIN_START_TURN_KEY))
         .and_then(serde_json::Value::as_str)
+}
+
+/// Whether the task's child chat keeps a question of the task's turn to be
+/// answered by message.
+async fn awaits_answer_in(
+    connection: &mut SqliteConnection,
+    task: &ChatOrchestrationTask,
+) -> Result<bool> {
+    let (Some(chat_id), Some(turn_id)) = (&task.child_chat_id, &task.child_turn_id) else {
+        return Ok(false);
+    };
+    let found: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM agentChatSessions s, json_each(s.snapshotJson, '$.pendingRequests') r \
+         WHERE s.chatId = ? AND json_extract(r.value, '$.answerBy') = 'message' \
+         AND json_extract(r.value, '$.turnId') = ? LIMIT 1",
+    )
+    .bind(chat_id)
+    .bind(turn_id)
+    .fetch_optional(&mut *connection)
+    .await?;
+    Ok(found.is_some())
 }
 
 fn is_local(task: &ChatOrchestrationTask) -> bool {
@@ -208,6 +231,11 @@ impl RuntimeStore {
                 continue;
             }
             let mut connection = self.pool().acquire().await?;
+            if task.status == Status::NeedsInput && awaits_answer_in(&mut connection, &task).await?
+            {
+                recovery.awaiting_answer.push(task);
+                continue;
+            }
             let child = match (&task.child_chat_id, &task.child_turn_id) {
                 (Some(chat_id), Some(turn_id)) => Some(
                     child_turn_in(&mut connection, chat_id, turn_id, chain_start(&task)).await?,

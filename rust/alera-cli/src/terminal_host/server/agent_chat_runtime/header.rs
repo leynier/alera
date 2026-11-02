@@ -37,6 +37,9 @@ pub(crate) struct SessionView {
     /// reported it; absent when none is set.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub goal: Option<ProviderGoal>,
+    /// The Stop that reached the running turn (`agentChatForceStopV1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<super::session_stop::StopView>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }

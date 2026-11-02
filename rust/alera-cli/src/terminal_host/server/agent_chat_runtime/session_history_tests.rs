@@ -56,6 +56,7 @@ async fn session_fixture() -> (tempfile::TempDir, ChatSession) {
         activity: Arc::new(ChatActivity::default()),
         instances,
         flush_delay: Duration::ZERO,
+        stop_timing: Default::default(),
     };
     let session = ChatSession::load(created["chatId"].as_str().unwrap(), deps)
         .await

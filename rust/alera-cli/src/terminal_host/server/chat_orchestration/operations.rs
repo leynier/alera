@@ -182,9 +182,40 @@ impl ChatOrchestrationService {
             .runtime
             .command(&chat_id, operation, caller.ctx.clone(), Some(key))
             .await?;
+        self.rearm_after_answer(&chat_id, &result).await;
         self.record_receipt(caller, "respond", &request_id, payload, result.clone())
             .await?;
         Ok(result)
+    }
+
+    /// A question answered by message started a new turn in the child:
+    /// the child's task follows that turn, under a monitor again.
+    async fn rearm_after_answer(&self, chat_id: &str, result: &Value) {
+        if result["answeredBy"] != "message" {
+            return;
+        }
+        let Ok(Some(task)) = self
+            .store
+            .latest_chat_orchestration_task_for_child(chat_id)
+            .await
+        else {
+            return;
+        };
+        if task.status.is_terminal() {
+            return;
+        }
+        if let (Some(head), Some(next)) =
+            (result["answeredTurnId"].as_str(), result["turnId"].as_str())
+        {
+            if task.child_turn_id.as_deref() == Some(head) {
+                let _ = self.advance_head(&task, head, next).await;
+            }
+        }
+        self.spawn_task_monitor(
+            task.task_id.clone(),
+            chat_id.to_owned(),
+            format!("chat-orchestration-task:{}", task.task_id),
+        );
     }
 
     pub(super) async fn configure(

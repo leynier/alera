@@ -28,6 +28,9 @@ pub(crate) struct MockProviderControl {
     pub background_tasks: Mutex<Option<Vec<String>>>,
     /// Sub-agent task ids the runtime asked to stop.
     pub stopped_subagents: Mutex<Vec<String>>,
+    /// The next interrupts never answer, as a provider that stopped
+    /// responding.
+    pub hang_interrupt: std::sync::atomic::AtomicBool,
     pub changed: Notify,
 }
 
@@ -216,6 +219,7 @@ impl ProviderFactory for MockProviderFactory {
             interrupts: Mutex::new(Vec::new()),
             background_tasks: Mutex::new(None),
             stopped_subagents: Mutex::new(Vec::new()),
+            hang_interrupt: Default::default(),
             responses: Mutex::new(Vec::new()),
             changed: Notify::new(),
         });
@@ -371,6 +375,13 @@ impl Provider for MockProvider {
         Ok(())
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
+        if self
+            .control
+            .hang_interrupt
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return std::future::pending().await;
+        }
         let native_turn = self.control.turns.lock().unwrap().len();
         self.control.interrupts.lock().unwrap().push(input);
         self.control.event(

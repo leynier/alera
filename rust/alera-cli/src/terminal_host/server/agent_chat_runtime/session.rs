@@ -46,6 +46,7 @@ pub(crate) struct SessionDeps {
     pub activity: Arc<ChatActivity>,
     pub instances: Arc<InstanceDirectory>,
     pub flush_delay: Duration,
+    pub stop_timing: super::session_stop::StopTiming,
 }
 
 pub(super) type StartupResult = Result<(BoxedProvider, ProviderSession), String>;
@@ -107,6 +108,10 @@ pub(crate) struct ChatSession {
     /// The running turn a stop reached. It reads as running until the
     /// provider ends it, but input steered into it would never be read.
     pub(super) stopping_turn: Option<String>,
+    /// When the Stop of [stopping_turn] reads as unresponsive.
+    pub(super) stop_deadline: Option<Instant>,
+    /// What the turn a stop reached records when it ends interrupted.
+    pub(super) stop_notice: Option<super::session_stop::StopNotice>,
     pub(super) native_ids: HashMap<(String, String), String>,
     pub(super) open_requests: Vec<OpenRequest>,
     /// Native background work the agent resumes from (`task.*.awaited`, or
@@ -130,6 +135,7 @@ enum Next {
     Started(Result<StartupResult, oneshot::error::RecvError>),
     Event(Box<Result<Option<ProviderEvent>, ProviderError>>),
     Flush,
+    StopDeadline,
 }
 
 impl ChatSession {
@@ -231,6 +237,8 @@ impl ChatSession {
             notices: Vec::new(),
             goal_continuing: false,
             stopping_turn: None,
+            stop_deadline: None,
+            stop_notice: None,
             busy_flag: false,
             live_flag: false,
             closed: false,
@@ -248,6 +256,7 @@ impl ChatSession {
             let poll_events = self.events_armed && self.provider.is_some();
             let has_startup = self.startup.is_some();
             let deadline = self.pending.deadline;
+            let stop_deadline = self.stop_deadline;
             let next = {
                 let provider = self.provider.as_mut();
                 let startup = self.startup.as_mut();
@@ -262,6 +271,9 @@ impl ChatSession {
                     }
                     _ = tokio::time::sleep_until(deadline.unwrap_or_else(Instant::now)), if deadline.is_some() => {
                         Next::Flush
+                    }
+                    _ = tokio::time::sleep_until(stop_deadline.unwrap_or_else(Instant::now)), if stop_deadline.is_some() => {
+                        Next::StopDeadline
                     }
                 }
             };
@@ -286,6 +298,7 @@ impl ChatSession {
                 Next::Flush => {
                     let _ = self.flush().await;
                 }
+                Next::StopDeadline => self.stop_deadline_passed().await,
             }
         }
         self.live_flag_set(false);
@@ -297,7 +310,7 @@ impl ChatSession {
             .as_ref()
             .is_some_and(super::session_native_history_recovery::native_operation_freezes)
             || self.header.session.active_turn_id.is_some()
-            || !self.header.pending_requests.is_empty()
+            || self.has_live_requests()
             || !self.header.queue.is_empty()
             || self.startup.is_some()
             || self.deferred_turn.is_some()

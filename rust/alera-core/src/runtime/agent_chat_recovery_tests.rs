@@ -197,3 +197,45 @@ async fn an_errored_session_keeps_its_status_through_recovery() {
     assert_eq!(chat.snapshot["recovery"]["canResume"], false);
     assert_eq!(chat.snapshot["items"][0]["status"], "failed");
 }
+
+#[tokio::test]
+async fn restart_recovery_keeps_questions_answerable_by_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    add_workspace(&store, "ws").await;
+    let chat_id = create_chat(&store, "ws", "tab").await;
+    let (cursor, mut next) = next_snapshot(&store, &chat_id).await;
+    next["session"] = session("waiting");
+    next["session"]["activeTurnId"] = json!("t1");
+    next["session"]["stop"] = json!({"turnId": "t1", "requestedAt": "2026-11-02T00:00:00.000Z"});
+    next["turns"] = json!([{"turnId": "t1", "status": "running"}]);
+    let question = json!({"requestId": "q1", "kind": "tool_user_input", "turnId": "t1",
+        "questions": [{"id": "target", "question": "Which target?"}]});
+    next["pendingRequests"] = json!([
+        question,
+        {"requestId": "q2", "kind": "tool_user_input", "turnId": "t1",
+            "questions": [{"id": "blank", "question": " "}]},
+        {"requestId": "q3", "kind": "command_execution_approval", "turnId": "t1"},
+    ]);
+    let delta = json!({"session": next["session"], "turns": next["turns"],
+        "requests": next["pendingRequests"]});
+    store
+        .commit_agent_chat(&chat_id, cursor, &next, &delta, None)
+        .await
+        .unwrap();
+
+    let outcomes = store.recover_agent_chats().await.unwrap();
+    assert_eq!(outcomes.len(), 1);
+    assert_eq!(outcomes[0].expired_request_ids, ["q2", "q3"]);
+    let snapshot = store.agent_chat(&chat_id).await.unwrap().unwrap().snapshot;
+    let mut kept = question.clone();
+    kept["answerBy"] = json!("message");
+    assert_eq!(snapshot["pendingRequests"], json!([kept]));
+    assert!(snapshot["session"].get("stop").is_none());
+    assert_eq!(snapshot["turns"][0]["status"], "interrupted");
+    let events = store.agent_chat_events(&chat_id, 1, 10).await.unwrap();
+    assert_eq!(events.events[0].delta["requests"], json!([kept]));
+
+    // A kept question alone never needs recovery again.
+    assert!(store.recover_agent_chats().await.unwrap().is_empty());
+}

@@ -325,7 +325,7 @@ impl ChatSession {
         self.events_armed = false;
         let turn_running =
             self.header.session.active_turn_id.is_some() && self.deferred_turn.is_none();
-        if turn_running || !self.header.pending_requests.is_empty() {
+        if turn_running || self.has_live_requests() {
             self.provider_failed("The provider stopped reporting events.".into())
                 .await;
         }

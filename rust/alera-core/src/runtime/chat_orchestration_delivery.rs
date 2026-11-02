@@ -98,6 +98,9 @@ pub struct ChatOrchestrationRecovery {
     /// Non-terminal tasks whose child runs on another host; the hub
     /// reconciles them over the host link.
     pub remote: Vec<ChatOrchestrationTask>,
+    /// Local tasks left waiting for input: their child chat kept a question
+    /// it asked as `answerBy: "message"`, which a new message answers.
+    pub awaiting_answer: Vec<ChatOrchestrationTask>,
     /// Pending and sealed wakes to (re)deliver once their parent is idle.
     pub wakes: Vec<ChatOrchestrationWake>,
     pub revoked_credentials: u64,

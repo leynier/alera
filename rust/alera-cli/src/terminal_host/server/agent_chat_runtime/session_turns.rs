@@ -1,6 +1,6 @@
 //! Starting, interrupting and finishing turns, and draining the queue.
 
-use alera_provider_protocol::{FailureClass, InteractionMode, InterruptInput, TurnInput};
+use alera_provider_protocol::{FailureClass, InteractionMode, TurnInput};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -274,36 +274,6 @@ impl ChatSession {
         }
     }
 
-    /// Stops the running turn. With none running, it stops the background
-    /// work earlier turns left instead.
-    pub(super) async fn interrupt(&mut self, turn_id: Option<&str>) -> HostResult<Value> {
-        let Some(active) = self.header.session.active_turn_id.clone() else {
-            let stopped = self.stop_background_work().await;
-            return Ok(json!({"acknowledged": true, "interrupted": stopped}));
-        };
-        if turn_id.is_some_and(|id| id != active) {
-            return Err(conflict("turnNotActive", "That turn is no longer running."));
-        }
-        if self.deferred_turn.take().is_some() || self.provider.is_none() {
-            self.cancel_startup().await;
-            self.revoke_launch_credentials("interrupted").await;
-            self.finish_turn("interrupted", None, Some("interrupted".into()))
-                .await;
-            return Ok(json!({"acknowledged": true, "interrupted": true}));
-        }
-        let provider = self.provider.as_mut().expect("provider is running");
-        provider
-            .interrupt(InterruptInput {
-                thread_id: self.header.chat_id.clone(),
-                turn_id: self.provider_turn_id.clone(),
-            })
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.stopping_turn = Some(active);
-        self.events_armed = true;
-        Ok(json!({"acknowledged": true, "interrupted": true}))
-    }
-
     pub(super) async fn finish_turn(
         &mut self,
         status: &str,
@@ -327,6 +297,7 @@ impl ChatSession {
         let Some(turn_id) = self.header.session.active_turn_id.take() else {
             return;
         };
+        let notice = self.clear_stop().filter(|_| status == "interrupted");
         if let Some(turn) = self.header.turn_mut(&turn_id) {
             turn.status = status.into();
             turn.completed_at = Some(now());
@@ -334,10 +305,13 @@ impl ChatSession {
             turn.failure_class =
                 (status == "failed" && !failure_class.is_unknown()).then_some(failure_class);
             turn.reason = reason;
+            if let Some(notice) = notice {
+                turn.reason = Some(notice.reason.into());
+                turn.error_message = Some(notice.message.into());
+            }
         }
         self.provider_turn_id = None;
         self.deferred_turn = None;
-        self.stopping_turn = None;
         // A marker still pending here never reached a provider.
         self.settle_handoff(&turn_id, "failed");
         let open: Vec<String> = self
@@ -385,7 +359,7 @@ impl ChatSession {
     /// Starts the oldest queued message once nothing runs.
     pub(super) async fn drain_queue(&mut self) {
         if self.header.session.active_turn_id.is_some()
-            || !self.header.pending_requests.is_empty()
+            || self.has_live_requests()
             || self.startup.is_some()
             || self.header.queue.is_empty()
         {

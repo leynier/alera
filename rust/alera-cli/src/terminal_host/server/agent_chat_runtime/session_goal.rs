@@ -3,7 +3,7 @@
 //! that a goal command never joins a running turn.
 
 use alera_provider_protocol::{parse_goal_command, ProviderEvent, ProviderGoalUpdate};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::HostResult;
 
@@ -15,6 +15,8 @@ use super::wire::ChatTurn;
 
 /// `ChatTurn.origin` of a turn the agent started for its goal.
 pub(super) const GOAL_CONTINUATION_ORIGIN: &str = "goalContinuation";
+/// What a compaction a steer stopped ends with.
+pub(super) const COMPACTION_SKIPPED: &str = "Skipped compaction to send a queued message";
 
 impl ChatSession {
     pub(super) fn apply_goal_update(&mut self, event: &ProviderEvent) {
@@ -139,8 +141,46 @@ impl ChatSession {
         Ok(Ok(response))
     }
 
+    /// A steer while `/compact` runs: a compacting turn takes no input, so
+    /// the message goes first in the queue and the compaction is stopped,
+    /// ending with the notice [COMPACTION_SKIPPED]. The message waits for the
+    /// turn to end when the stop fails. [queue_id] names a queued message
+    /// being promoted; otherwise [input] is queued first.
+    pub(super) async fn skip_compaction_for(
+        &mut self,
+        input: Option<SendInput>,
+        queue_id: Option<&str>,
+        ctx: &CallerCtx,
+    ) -> Value {
+        let response = match input {
+            Some(input) => self.enqueue(input, ctx),
+            None => json!({"delivery": "queued", "queueId": queue_id}),
+        };
+        let queue_id = response["queueId"].as_str().unwrap_or_default();
+        if let Some(index) = self
+            .header
+            .queue
+            .iter()
+            .position(|entry| entry.queue_id == queue_id)
+        {
+            let entry = self.header.queue.remove(index);
+            self.header.queue.insert(0, entry);
+        }
+        self.stop_notice = Some(super::session_stop::StopNotice {
+            reason: "compactionSkipped",
+            message: COMPACTION_SKIPPED,
+        });
+        if let Err(error) = self.interrupt(None).await {
+            self.stop_notice = None;
+            tracing::warn!(chat_id = %self.header.chat_id, error = %error, "a steer could not stop the compaction");
+        }
+        // A turn that never reached a provider ends here, not through events.
+        self.drain_queue().await;
+        response
+    }
+
     /// T3 Code never stops a context compaction for a goal command.
-    fn active_turn_is_compaction(&self) -> bool {
+    pub(super) fn active_turn_is_compaction(&self) -> bool {
         let Some(turn_id) = self.header.session.active_turn_id.as_deref() else {
             return false;
         };

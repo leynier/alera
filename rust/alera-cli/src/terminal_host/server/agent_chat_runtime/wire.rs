@@ -159,6 +159,10 @@ pub(crate) struct ChatRequest {
     /// Why a full-access session still asked: `ask_rule` or `provider_check`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub full_access_override: Option<String>,
+    /// `message` for a question whose provider callback is gone (after a
+    /// runtime restart): its answer is sent as a new user message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub answer_by: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

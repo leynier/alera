@@ -270,6 +270,7 @@ mod tests {
     "agentChatWorkflowsV1",
     "agentChatGeneratedImagesV1",
     "agentChatTransfersV1",
+    "agentChatForceStopV1",
                 "chatOrchestrationV1",
                 "workspaceDetailsV1",
                 "gitOperationsProgressV1",

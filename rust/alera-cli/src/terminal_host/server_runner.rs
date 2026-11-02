@@ -111,6 +111,7 @@ pub async fn run_terminal_host_server(
         Ok(recovery) => {
             seed_remote_chat_routes(&remote_agent_chats, &recovery.remote);
             chat_orchestration.resume_task_monitors(&recovery.remote);
+            chat_orchestration.resume_task_monitors(&recovery.awaiting_answer);
         }
         Err(error) => {
             tracing::warn!("chat orchestration startup recovery unavailable: {error}");

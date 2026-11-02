@@ -24,7 +24,7 @@ impl ChatSession {
             ));
         }
         if self.header.session.active_turn_id.is_some()
-            || !self.header.pending_requests.is_empty()
+            || self.has_live_requests()
             || !self.header.queue.is_empty()
             || self.startup.is_some()
             || self.deferred_turn.is_some()

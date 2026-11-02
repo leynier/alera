@@ -62,6 +62,7 @@ async fn host_flush_persists_hidden_payload_rows_and_broadcasts_every_cursor_wit
         activity: Arc::new(ChatActivity::default()),
         instances,
         flush_delay: Duration::ZERO,
+        stop_timing: Default::default(),
     };
     let mut session = ChatSession::load(chat_id, deps.clone()).await.unwrap();
     let mut head = ChatItem::new(

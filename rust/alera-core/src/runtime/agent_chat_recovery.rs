@@ -4,7 +4,10 @@
 //! settle, and `recovery {kind, message, canResume, canRestart}` says what
 //! the user can do next. Nothing is re-sent to a model; queued user input
 //! (user messages and any host field outside the canonical ones) stays for
-//! an explicit resume or send.
+//! an explicit resume or send. A question the agent asked (`tool_user_input`
+//! with question texts) stays pending as `answerBy: "message"`: its answer
+//! reaches the agent as a new user message, so such questions alone never
+//! need recovery.
 
 #[cfg(test)]
 #[path = "agent_chat_recovery_tests.rs"]
@@ -23,11 +26,38 @@ use super::agent_chat_validation::parse_header;
 use super::{format_timestamp, RuntimeStore};
 
 const USER_MESSAGE: &str = "user_message";
+const QUESTION_KIND: &str = "tool_user_input";
+/// `answerBy` of a question answered by a new user message.
+pub const AGENT_CHAT_ANSWER_BY_MESSAGE: &str = "message";
+
+fn answered_by_message(request: &AgentChatRequest) -> bool {
+    request.extra.get("answerBy").and_then(Value::as_str) == Some(AGENT_CHAT_ANSWER_BY_MESSAGE)
+}
+
+/// A question whose every entry has text survives the lost callback.
+fn answerable_by_message(request: &AgentChatRequest) -> bool {
+    let questions = request.extra.get("questions").and_then(Value::as_array);
+    request.kind == QUESTION_KIND
+        && questions.is_some_and(|questions| {
+            !questions.is_empty()
+                && questions.iter().all(|question| {
+                    question.get("id").and_then(Value::as_str).is_some()
+                        && question
+                            .get("question")
+                            .and_then(Value::as_str)
+                            .is_some_and(|text| !text.trim().is_empty())
+                })
+        })
+}
 
 fn needs_recovery(snapshot: &AgentChatSnapshot) -> bool {
     snapshot.session.status.is_live()
         || snapshot.session.active_turn_id.is_some()
-        || !snapshot.pending_requests.is_empty()
+        || snapshot.session.extra.contains_key("stop")
+        || snapshot
+            .pending_requests
+            .iter()
+            .any(|request| !answered_by_message(request))
         || snapshot.turns.iter().any(|turn| turn.status == "running")
 }
 
@@ -39,7 +69,8 @@ impl RuntimeStore {
             "SELECT DISTINCT s.chatId FROM agentChatSessions s \
              WHERE json_extract(s.snapshotJson, '$.session.status') IN ('starting', 'ready', 'running', 'waiting') \
              OR json_extract(s.snapshotJson, '$.session.activeTurnId') IS NOT NULL \
-             OR json_array_length(s.snapshotJson, '$.pendingRequests') > 0 \
+             OR EXISTS (SELECT 1 FROM json_each(s.snapshotJson, '$.pendingRequests') r \
+                 WHERE json_extract(r.value, '$.answerBy') IS NOT 'message') \
              OR EXISTS (SELECT 1 FROM agentChatTurns t \
                  WHERE t.chatId = s.chatId AND t.status = 'running') \
              OR EXISTS (SELECT 1 FROM agentChatItems i WHERE i.chatId = s.chatId \
@@ -119,11 +150,23 @@ impl RuntimeStore {
         if snapshot.session.status != AgentChatSessionStatus::Error {
             snapshot.session.status = AgentChatSessionStatus::Stopped;
         }
-        let expired: Vec<String> = snapshot
-            .pending_requests
-            .drain(..)
-            .map(|request| request.request_id)
-            .collect();
+        // The Stop of a turn that no longer runs.
+        snapshot.session.extra.remove("stop");
+        let mut expired = Vec::new();
+        let mut kept = Vec::new();
+        for mut request in snapshot.pending_requests.drain(..) {
+            if answered_by_message(&request) || answerable_by_message(&request) {
+                request.extra.insert(
+                    "answerBy".into(),
+                    Value::String(AGENT_CHAT_ANSWER_BY_MESSAGE.into()),
+                );
+                kept.push(request);
+            } else {
+                expired.push(request.request_id);
+            }
+        }
+        let requests_changed = !expired.is_empty() || kept != stored.pending_requests;
+        snapshot.pending_requests = kept;
         // Resuming needs both a provider thread to resume and a provider that
         // says it can; a thread id alone proves neither.
         let can_resume = row.native_thread_id.is_some()
@@ -163,7 +206,7 @@ impl RuntimeStore {
 
         let delta = AgentChatDelta {
             items: (!items.is_empty()).then_some(items),
-            requests: (!expired.is_empty()).then(Vec::new),
+            requests: requests_changed.then(|| snapshot.pending_requests.clone()),
             session: (snapshot.session != stored.session).then(|| snapshot.session.clone()),
             turns: (!turns.is_empty()).then_some(turns),
             recovery: Some(Some(recovery)),

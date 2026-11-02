@@ -95,6 +95,8 @@ impl ChatSession {
         let response = if input.delivery == "steer" && self.turn_stopping() {
             // Queued behind the stopped turn instead of steered into it.
             self.enqueue(input, ctx)
+        } else if input.delivery == "steer" && self.active_turn_is_compaction() {
+            self.skip_compaction_for(Some(input), None, ctx).await
         } else if input.delivery == "steer" {
             self.steer_message(input, ctx).await?
         } else {
@@ -122,7 +124,7 @@ impl ChatSession {
     /// A turn runs, waits on the user, or earlier messages wait ahead.
     fn must_queue(&self) -> bool {
         self.header.session.active_turn_id.is_some()
-            || !self.header.pending_requests.is_empty()
+            || self.has_live_requests()
             || !self.header.queue.is_empty()
             || self.deferred_turn.is_some()
     }

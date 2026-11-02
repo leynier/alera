@@ -13,7 +13,9 @@ use alera_core::runtime::{
 use serde_json::Value;
 use tokio::time::Instant;
 
-use super::continuation::{child_leftover_work, is_continuation, next_turn_after};
+use super::continuation::{
+    answers_question_of, child_leftover_work, is_continuation, next_turn_after,
+};
 use super::service::ChatOrchestrationService;
 
 /// How long a child must stay without leftover work, with its cursor
@@ -48,7 +50,55 @@ pub(super) fn pending_requests<'a>(
         .collect()
 }
 
+/// A question whose answer reaches the child as a new user message.
+pub(super) fn answered_by_message(request: &Value) -> bool {
+    request["answerBy"] == "message"
+}
+
 impl ChatOrchestrationService {
+    /// The head ended while a question waited for its answer by message;
+    /// the turn that answer started carries the task on. `Settle` when the
+    /// next turn, if any, answers no question of the head.
+    pub(super) async fn follow_question_answer(
+        &self,
+        task: &ChatOrchestrationTask,
+        child_chat_id: &str,
+        head: &str,
+        snapshot: &Value,
+    ) -> HoldStep {
+        let Some(next) = next_turn_after(snapshot, head) else {
+            return HoldStep::Settle;
+        };
+        let Ok(Some(turn)) = self.runtime.child_turn(child_chat_id, &next, None).await else {
+            // Not recorded yet; it may still be the answer.
+            return HoldStep::Hold;
+        };
+        if !answers_question_of(&turn, head) {
+            return HoldStep::Settle;
+        }
+        self.advance_head(task, head, &next).await
+    }
+
+    /// Moves the task's head from `head` to `next`.
+    pub(super) async fn advance_head(
+        &self,
+        task: &ChatOrchestrationTask,
+        head: &str,
+        next: &str,
+    ) -> HoldStep {
+        match self
+            .store
+            .advance_chat_orchestration_task_turn(&task.task_id, head, next)
+            .await
+        {
+            Ok(Some(task)) => {
+                self.emit_change(&task).await;
+                HoldStep::Advanced
+            }
+            _ => HoldStep::Hold,
+        }
+    }
+
     pub(super) async fn hold_completed_head(
         &self,
         task: &ChatOrchestrationTask,
@@ -65,17 +115,7 @@ impl ChatOrchestrationService {
             if !is_continuation(&turn) {
                 return HoldStep::Settle;
             }
-            return match self
-                .store
-                .advance_chat_orchestration_task_turn(&task.task_id, head, &next)
-                .await
-            {
-                Ok(Some(task)) => {
-                    self.emit_change(&task).await;
-                    HoldStep::Advanced
-                }
-                _ => HoldStep::Hold,
-            };
+            return self.advance_head(task, head, &next).await;
         }
         if child_leftover_work(snapshot) || self.owes_child_wakes(child_chat_id).await {
             *quiet = None;

@@ -119,6 +119,9 @@ impl ChatSession {
             ));
         };
         let row = self.header.pending_requests[index].clone();
+        if row.answer_by.as_deref() == Some(ANSWER_BY_MESSAGE) {
+            return self.answer_by_message(row, response, ctx).await;
+        }
         let Some(open) = self
             .open_requests
             .iter()
@@ -131,21 +134,14 @@ impl ChatSession {
             ));
         };
         let native = native_response(&row, open.native, &response)?;
+        let deadline = self.deps.stop_timing.control;
         let Some(provider) = self.provider.as_mut() else {
             return Err(conflict(
                 "request_resolved",
                 "The provider for this request is no longer running.",
             ));
         };
-        provider
-            .respond(native)
-            .await
-            .map_err(|error| match error {
-                alera_provider_protocol::ProviderError::Unsupported(message) => {
-                    unsupported(message)
-                }
-                other => HostError::state(other.to_string()),
-            })?;
+        super::session_stop::within(deadline, provider.respond(native)).await?;
         self.events_armed = true;
         self.record_request_history(&row, "resolved", Some(&response), Some(&ctx.actor));
         self.header.pending_requests.remove(index);
@@ -214,12 +210,18 @@ impl ChatSession {
         Ok(())
     }
 
+    /// Expires the provider's open requests of `turn_id`, or all of them.
+    /// A question answered by message outlives its provider and its turn.
     pub(super) fn expire_requests_of_turn(&mut self, turn_id: Option<&str>) {
+        let expires = |request: &ChatRequest| {
+            request.answer_by.as_deref() != Some(ANSWER_BY_MESSAGE)
+                && turn_id.is_none_or(|id| request.turn_id.as_deref() == Some(id))
+        };
         let expired: Vec<_> = self
             .header
             .pending_requests
             .iter()
-            .filter(|request| turn_id.is_none_or(|id| request.turn_id.as_deref() == Some(id)))
+            .filter(|request| expires(request))
             .cloned()
             .collect();
         for request in expired {
@@ -227,7 +229,7 @@ impl ChatSession {
         }
         self.header
             .pending_requests
-            .retain(|request| turn_id.is_some_and(|id| request.turn_id.as_deref() != Some(id)));
+            .retain(|request| !expires(request));
         self.open_requests.retain(|request| {
             self.header
                 .pending_requests
@@ -237,8 +239,17 @@ impl ChatSession {
         self.refresh_waiting_status();
     }
 
-    fn refresh_waiting_status(&mut self) {
-        if self.header.pending_requests.is_empty() && self.header.session.status == "waiting" {
+    /// Whether the live provider waits on a request. A question answered by
+    /// message waits on nobody, so it never holds the chat or its queue.
+    pub(super) fn has_live_requests(&self) -> bool {
+        self.header
+            .pending_requests
+            .iter()
+            .any(|request| request.answer_by.as_deref() != Some(ANSWER_BY_MESSAGE))
+    }
+
+    pub(super) fn refresh_waiting_status(&mut self) {
+        if !self.has_live_requests() && self.header.session.status == "waiting" {
             self.set_status(if self.header.session.active_turn_id.is_some() {
                 "running"
             } else {
@@ -247,6 +258,9 @@ impl ChatSession {
         }
     }
 }
+
+/// `ChatRequest.answer_by` of a question answered by a new user message.
+pub(super) const ANSWER_BY_MESSAGE: &str = "message";
 
 /// The approvals a redirecting send was based on are no longer the pending
 /// ones.

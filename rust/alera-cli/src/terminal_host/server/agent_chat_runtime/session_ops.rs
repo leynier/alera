@@ -247,6 +247,7 @@ impl ChatSession {
             } => {
                 let requested_mode = match operation.as_ref() {
                     ChatOp::Interrupt { .. }
+                    | ChatOp::ForceStop { .. }
                     | ChatOp::Respond { .. }
                     | ChatOp::CancelMessage { .. } => None,
                     ChatOp::Configure(input) => input.runtime_mode.as_deref(),
@@ -259,6 +260,7 @@ impl ChatSession {
                 self.ensure_mode_ceiling(&runtime_mode_ceiling, requested_mode)?;
                 match *operation {
                     ChatOp::Interrupt { turn_id } => self.interrupt(turn_id.as_deref()).await,
+                    ChatOp::ForceStop { turn_id } => self.force_stop(turn_id.as_deref()).await,
                     ChatOp::Respond {
                         runtime_request_id,
                         response,
@@ -282,6 +284,7 @@ impl ChatSession {
                 self.cancel_message(&client_message_id).await
             }
             ChatOp::Interrupt { turn_id } => self.interrupt(turn_id.as_deref()).await,
+            ChatOp::ForceStop { turn_id } => self.force_stop(turn_id.as_deref()).await,
             ChatOp::AwaitBackgroundTasks { task_ids, awaited } => {
                 self.await_background_tasks(task_ids, awaited).await
             }

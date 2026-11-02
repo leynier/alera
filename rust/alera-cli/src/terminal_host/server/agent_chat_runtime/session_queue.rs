@@ -109,7 +109,7 @@ impl ChatSession {
         &mut self,
         queue_id: &str,
         turn_id: &str,
-        _ctx: &CallerCtx,
+        caller: &CallerCtx,
     ) -> HostResult<Value> {
         if self.header.session.active_turn_id.as_deref() != Some(turn_id) {
             return Err(conflict("turnNotActive", "That turn is no longer running."));
@@ -120,6 +120,9 @@ impl ChatSession {
             .iter()
             .position(|entry| entry.queue_id == queue_id)
             .ok_or_else(|| conflict("queueNotFound", "That message is no longer queued."))?;
+        if self.active_turn_is_compaction() && self.stopping_turn.as_deref() != Some(turn_id) {
+            return Ok(self.skip_compaction_for(None, Some(queue_id), caller).await);
+        }
         let entry = self.header.queue[index].clone();
         let ctx = CallerCtx {
             scope: "runtime".into(),
@@ -170,7 +173,7 @@ impl ChatSession {
         if self.stopping_turn.as_deref() == Some(turn_id.as_str()) {
             return Err(conflict("turnStopping", "The running turn is stopping."));
         }
-        if !self.header.pending_requests.is_empty() {
+        if self.has_live_requests() {
             return Err(conflict(
                 "request_pending",
                 "Answer the pending request before steering.",
@@ -213,14 +216,17 @@ impl ChatSession {
         let item_id = item.item_id.clone();
         let segments =
             segment_complete_item(item, STREAM_TEXT, &input.text).map_err(HostError::state)?;
+        let deadline = self.deps.stop_timing.control;
+        let thread_id = self.header.chat_id.clone();
         let provider = self
             .provider
             .as_mut()
             .ok_or_else(|| conflict("turnNotActive", "The provider stopped."))?;
-        provider
-            .steer_turn(
+        super::session_stop::within(
+            deadline,
+            provider.steer_turn(
                 TurnInput {
-                    thread_id: self.header.chat_id.clone(),
+                    thread_id,
                     input: input.text,
                     attachments: provider_attachments(&input.attachments),
                     model: None,
@@ -228,14 +234,9 @@ impl ChatSession {
                     options: Default::default(),
                 },
                 &native_turn,
-            )
-            .await
-            .map_err(|error| match error {
-                alera_provider_protocol::ProviderError::Unsupported(message) => {
-                    unsupported(message)
-                }
-                other => HostError::state(other.to_string()),
-            })?;
+            ),
+        )
+        .await?;
         for segment in segments {
             self.insert_item(segment);
         }

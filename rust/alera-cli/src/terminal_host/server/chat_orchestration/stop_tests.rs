@@ -167,3 +167,42 @@ async fn a_caller_that_stops_the_descendants_itself_opts_out() {
     harness.task_status(&task, Status::Cancelled).await;
     harness.finish().await;
 }
+
+#[tokio::test]
+async fn a_child_that_does_not_stop_in_time_is_recorded_and_the_next_one_still_stops() {
+    let harness = TestHarness::new().await;
+    let parent = harness.create_chat("ws-a", "auto").await;
+    let person = human("desktop");
+    let (hung, hung_child) = delegate(&harness, &person, "hung", Some(&parent)).await;
+    let (next, _) = delegate(&harness, &person, "next", Some(&parent)).await;
+    harness
+        .control(&hung_child)
+        .await
+        .hang_interrupt
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    let service = harness
+        .service
+        .clone()
+        .with_child_stop_deadline(Duration::from_secs(1));
+    let stopped = tokio::time::timeout(
+        TEST_DEADLINE,
+        service.stop_delegated_tasks(&parent, "desktop"),
+    )
+    .await
+    .expect("the cascade waited on the hung child")
+    .unwrap();
+    let errors = stopped["errors"].as_array().unwrap();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error["taskId"] == hung.as_str() && error["code"] == "stopTimedOut"),
+        "{errors:?}"
+    );
+    assert!(stopped["cancelledTaskIds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|task| task == next.as_str()));
+    harness.task_status(&next, Status::Cancelled).await;
+    harness.finish().await;
+}

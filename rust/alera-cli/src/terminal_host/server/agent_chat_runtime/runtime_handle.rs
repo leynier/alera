@@ -81,6 +81,7 @@ impl AgentChatRuntime {
             activity: Arc::new(ChatActivity::default()),
             instances,
             flush_delay: DEFAULT_FLUSH_DELAY,
+            stop_timing: Default::default(),
         };
         Self {
             inner: Arc::new(Inner {
@@ -98,6 +99,17 @@ impl AgentChatRuntime {
             .ok()
             .expect("runtime is not shared yet");
         inner.deps.flush_delay = delay;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_stop_timing(self, timing: super::session_stop::StopTiming) -> Self {
+        let mut inner = Arc::try_unwrap(self.inner)
+            .ok()
+            .expect("runtime is not shared yet");
+        inner.deps.stop_timing = timing;
         Self {
             inner: Arc::new(inner),
         }

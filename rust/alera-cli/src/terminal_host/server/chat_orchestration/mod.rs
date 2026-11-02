@@ -99,6 +99,8 @@ mod person_parent_tests;
 #[cfg(test)]
 mod preparation_failure_tests;
 #[cfg(test)]
+mod question_restart_tests;
+#[cfg(test)]
 mod question_wake_tests;
 #[cfg(test)]
 mod restart_recovery_tests;

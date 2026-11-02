@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::terminal_host::host_error::HostError;
@@ -5,13 +7,42 @@ use alera_core::runtime::ChatOrchestrationTaskStatus;
 use serde_json::json;
 
 use super::continuation::{chain_start, chain_turns, moved_head};
-use super::monitor_hold::{pending_requests, HoldStep};
+use super::monitor_hold::{answered_by_message, pending_requests, HoldStep};
 use super::question_wakes::Questions;
 use super::service::ChatOrchestrationService;
 use super::tasks::{final_assistant_text, matching_turn, parse_turn_status, transition_status};
 use super::wakes::deliver_next_wake;
 
 const TASK_POLL: Duration = Duration::from_millis(100);
+
+type Monitored = Arc<Mutex<HashSet<String>>>;
+
+/// A task's claim on its one monitor, released when the monitor ends or
+/// never starts.
+struct MonitorGuard {
+    monitored: Monitored,
+    task_id: String,
+}
+
+impl MonitorGuard {
+    fn claim(monitored: &Monitored, task_id: &str) -> Option<Self> {
+        let mut tasks = monitored.lock().unwrap_or_else(|error| error.into_inner());
+        tasks.insert(task_id.to_owned()).then(|| Self {
+            monitored: monitored.clone(),
+            task_id: task_id.to_owned(),
+        })
+    }
+}
+
+impl Drop for MonitorGuard {
+    fn drop(&mut self) {
+        let mut tasks = self
+            .monitored
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        tasks.remove(&self.task_id);
+    }
+}
 
 impl ChatOrchestrationService {
     pub(crate) fn resume_task_monitors(
@@ -72,14 +103,19 @@ impl ChatOrchestrationService {
         }
     }
 
+    /// Follows `task_id` until it settles, unless a monitor already does.
     pub(super) fn spawn_task_monitor(
         &self,
         task_id: String,
         child_chat_id: String,
         client_message_id: String,
     ) {
+        let Some(guard) = MonitorGuard::claim(&self.monitored, &task_id) else {
+            return;
+        };
         let service = self.clone();
         let _ = self.jobs.spawn(async move {
+            let _guard = guard;
             service
                 .monitor_task(task_id, child_chat_id, client_message_id)
                 .await;
@@ -213,8 +249,12 @@ impl ChatOrchestrationService {
             // work; requests without a turn then belong to the task too.
             let holdable = status.as_deref() == Some("completed")
                 && task.status != ChatOrchestrationTaskStatus::CancelRequested;
-            let open = status.as_deref() == Some("running") || holdable;
             let requests = pending_requests(&snapshot, &turn_id, holdable);
+            // A question answered by message outlives its turn (the runtime
+            // restarted while it waited): the task waits for the answer.
+            let awaits_answer = task.status != ChatOrchestrationTaskStatus::CancelRequested
+                && requests.iter().any(|request| answered_by_message(request));
+            let open = status.as_deref() == Some("running") || holdable || awaits_answer;
             let pending = requests.len();
             if task.status == ChatOrchestrationTaskStatus::NeedsInput
                 || (pending > 0 && open && task.status == ChatOrchestrationTaskStatus::Running)
@@ -252,6 +292,23 @@ impl ChatOrchestrationService {
                 }
                 match self
                     .hold_completed_head(&task, &child_chat_id, &turn_id, &snapshot, &mut quiet)
+                    .await
+                {
+                    HoldStep::Advanced => continue,
+                    HoldStep::Hold => {
+                        tokio::time::sleep(TASK_POLL).await;
+                        continue;
+                    }
+                    HoldStep::Settle => {}
+                }
+            }
+            if awaits_answer {
+                tokio::time::sleep(TASK_POLL).await;
+                continue;
+            }
+            if !holdable && status.as_deref().is_some_and(|status| status != "running") {
+                match self
+                    .follow_question_answer(&task, &child_chat_id, &turn_id, &snapshot)
                     .await
                 {
                     HoldStep::Advanced => continue,

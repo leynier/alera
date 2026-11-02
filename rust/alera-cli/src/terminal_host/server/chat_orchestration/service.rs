@@ -43,6 +43,10 @@ pub(crate) struct ChatOrchestrationService {
     pub(super) admission: Arc<RequestAdmission>,
     pub(super) jobs: Arc<OrchestrationJobs>,
     pub(super) wake_pump: Arc<WakePump>,
+    /// Tasks a monitor follows, so a re-armed task never gets two.
+    pub(super) monitored: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
+    /// How long one delegated task may take to stop when its parent stops.
+    pub(super) child_stop_deadline: std::time::Duration,
 }
 
 impl ChatOrchestrationService {
@@ -61,7 +65,15 @@ impl ChatOrchestrationService {
             admission: Arc::new(RequestAdmission::default()),
             jobs: Arc::default(),
             wake_pump: Arc::default(),
+            monitored: Arc::default(),
+            child_stop_deadline: super::stop::CHILD_STOP_DEADLINE,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_child_stop_deadline(mut self, deadline: std::time::Duration) -> Self {
+        self.child_stop_deadline = deadline;
+        self
     }
 
     pub(crate) fn with_runtime(mut self, runtime: Arc<dyn ChatOrchestrationRuntime>) -> Self {

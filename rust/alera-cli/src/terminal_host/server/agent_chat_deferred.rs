@@ -338,14 +338,18 @@ pub(super) async fn dispatch(
                 )
                 .await
         }
-        "agentChat.interrupt" => {
+        "agentChat.interrupt" | "agentChat.forceStop" => {
             let request_id = required_string(payload, "requestId")?;
+            let turn_id = optional_string(payload, "turnId")?;
+            let operation = if request_type == "agentChat.forceStop" {
+                ChatOp::ForceStop { turn_id }
+            } else {
+                ChatOp::Interrupt { turn_id }
+            };
             runtime
                 .command(
                     &required_string(payload, "chatId")?,
-                    ChatOp::Interrupt {
-                        turn_id: optional_string(payload, "turnId")?,
-                    },
+                    operation,
                     ctx,
                     Some(receipt(&request_id, request_type, payload)),
                 )

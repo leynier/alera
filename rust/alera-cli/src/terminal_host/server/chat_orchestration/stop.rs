@@ -2,7 +2,10 @@
 //! chat's own turn, or the background work earlier turns left, is
 //! interrupted, every delegated task the chat owns is cancelled with its
 //! descendants, and the chat's pending wakes are dropped, so stopped children
-//! cannot start it again.
+//! cannot start it again. Each task gets [CHILD_STOP_DEADLINE] to stop; one
+//! that hangs is recorded as `stopTimedOut` and the next one still stops.
+
+use std::time::Duration;
 
 use serde_json::{json, Value};
 
@@ -10,6 +13,9 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::agent_chat_runtime::commands::{CallerCtx, ChatOp, ReceiptKey};
 
 use super::service::ChatOrchestrationService;
+
+/// How long one delegated task, with its descendants, may take to stop.
+pub(crate) const CHILD_STOP_DEADLINE: Duration = Duration::from_secs(30);
 
 impl ChatOrchestrationService {
     /// Interrupts `chat_id`, then stops the delegated tasks under it with
@@ -79,13 +85,29 @@ impl ChatOrchestrationService {
         let mut cancelled = Vec::new();
         let mut errors = Vec::new();
         for task_id in stop.task_ids {
-            match self.cancel_lineage(&task_id, caller_scope, None).await {
-                Ok((task_ids, task_errors)) => {
+            let stopped = tokio::time::timeout(
+                self.child_stop_deadline,
+                self.cancel_lineage(&task_id, caller_scope, None),
+            )
+            .await;
+            match stopped {
+                Ok(Ok((task_ids, task_errors))) => {
                     cancelled.extend(task_ids);
                     errors.extend(task_errors);
                 }
-                Err(error) => {
+                Ok(Err(error)) => {
                     errors.push(json!({"taskId": task_id, "error": error.wire_message()}));
+                }
+                Err(_) => {
+                    tracing::warn!(chat_id, task_id, "a delegated task did not stop in time");
+                    errors.push(json!({
+                        "taskId": task_id,
+                        "code": "stopTimedOut",
+                        "error": format!(
+                            "The task did not stop within {} seconds.",
+                            self.child_stop_deadline.as_secs()
+                        ),
+                    }));
                 }
             }
         }
@@ -102,14 +124,16 @@ pub(crate) struct DelegatedTasksStop {
 }
 
 impl DelegatedTasksStop {
-    /// Some for an `agentChat.interrupt` of a chat by a person.
+    /// Some for an `agentChat.interrupt` or `agentChat.forceStop` of a chat
+    /// by a person.
     pub(crate) fn for_request(
         service: Option<&ChatOrchestrationService>,
         verb: &str,
         payload: &Value,
         ctx: &CallerCtx,
     ) -> Option<Self> {
-        if verb != "agentChat.interrupt" || ctx.scope == "runtime" {
+        if !matches!(verb, "agentChat.interrupt" | "agentChat.forceStop") || ctx.scope == "runtime"
+        {
             return None;
         }
         Some(Self {

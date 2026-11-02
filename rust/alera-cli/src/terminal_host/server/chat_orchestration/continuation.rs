@@ -13,6 +13,9 @@ use serde_json::Value;
 pub(super) const GOAL_CONTINUATION_ORIGIN: &str = "goalContinuation";
 const SUBAGENT_WAKE: &str = "subagentWake";
 const ORCHESTRATION_WAKE: &str = "orchestrationWake";
+/// A user message that answers a question by message
+/// (`agent_chat_runtime::session_question_answers`).
+const QUESTION_ANSWER: &str = "questionAnswer";
 
 fn message_kind(turn: &ChatOrchestrationChildTurn) -> Option<&str> {
     turn.message_origin
@@ -28,7 +31,21 @@ pub(super) fn is_continuation(turn: &ChatOrchestrationChildTurn) -> bool {
     matches!(
         turn.turn_origin.as_deref(),
         Some(BACKGROUND_CONTINUATION_ORIGIN | GOAL_CONTINUATION_ORIGIN)
-    ) || matches!(message_kind(turn), Some(SUBAGENT_WAKE | ORCHESTRATION_WAKE))
+    ) || matches!(
+        message_kind(turn),
+        Some(SUBAGENT_WAKE | ORCHESTRATION_WAKE | QUESTION_ANSWER)
+    )
+}
+
+/// Whether `turn` was started by the answer to a question `head` asked.
+pub(super) fn answers_question_of(turn: &ChatOrchestrationChildTurn, head: &str) -> bool {
+    message_kind(turn) == Some(QUESTION_ANSWER)
+        && turn
+            .message_origin
+            .as_ref()
+            .and_then(|origin| origin.get("answeredTurnId"))
+            .and_then(Value::as_str)
+            == Some(head)
 }
 
 /// What a turn after a settled task is, when it opens a follow-up for the
@@ -47,6 +64,7 @@ pub(super) fn followup_origin(
     match message_kind(turn)? {
         SUBAGENT_WAKE => Some("a sub-agent finished"),
         ORCHESTRATION_WAKE => Some("its delegated tasks reported"),
+        QUESTION_ANSWER => Some("its question was answered"),
         "user" => Some("a person's message"),
         "chatMessage"
             if origin.get("senderChatId").and_then(Value::as_str) == Some(parent_chat_id)

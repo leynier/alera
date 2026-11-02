@@ -128,6 +128,70 @@ pub(super) fn validated_answers(
     Ok(validated)
 }
 
+/// The user message that answers questions by message: `question\nanswer`
+/// per answered question, a list joined with `, `, blocks apart by a blank
+/// line. Every key names a question; each answer is nonblank text or a list
+/// of nonblank texts, and only a question stored with `required: false`
+/// may go unanswered or be answered `""`.
+pub(super) fn message_answer_text(
+    questions: &[Value],
+    answers: &Map<String, Value>,
+) -> HostResult<String> {
+    let id_of = |question: &Value| {
+        question
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    };
+    if let Some(unknown) = answers.keys().find(|id| {
+        !questions
+            .iter()
+            .any(|q| id_of(q).as_deref() == Some(id.as_str()))
+    }) {
+        return Err(invalid(format!(
+            "This request asks no question {unknown:?}."
+        )));
+    }
+    let mut blocks = Vec::new();
+    for question in questions {
+        let Some(id) = id_of(question) else {
+            continue;
+        };
+        let values = match answers.get(&id) {
+            Some(answer) => answer_values(&id, answer)?,
+            None => Vec::new(),
+        };
+        let given: Vec<&str> = values.iter().map(|value| value.trim()).collect();
+        if given.iter().all(|value| value.is_empty()) {
+            if question.get("required") == Some(&Value::Bool(false)) && given.len() <= 1 {
+                continue;
+            }
+            return Err(invalid(format!("Answer the question {id:?}.")));
+        }
+        if given.iter().any(|value| value.is_empty()) {
+            return Err(invalid(format!(
+                "Every answer to the question {id:?} needs text."
+            )));
+        }
+        let prompt = question
+            .get("question")
+            .and_then(Value::as_str)
+            .filter(|text| !text.trim().is_empty())
+            .or_else(|| question.get("header").and_then(Value::as_str))
+            .unwrap_or(id.as_str())
+            .trim();
+        blocks.push(format!("{prompt}\n{}", given.join(", ")));
+    }
+    if blocks.is_empty() {
+        return Err(invalid("Enter an answer before sending.".into()));
+    }
+    Ok(blocks.join("\n\n"))
+}
+
+#[cfg(test)]
+#[path = "request_answers_message_tests.rs"]
+mod message_tests;
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;

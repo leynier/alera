@@ -85,6 +85,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatWorkflowsV1",
     "agentChatGeneratedImagesV1",
     "agentChatTransfersV1",
+    "agentChatForceStopV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
@@ -193,6 +194,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.attachment.complete"
             | "agentChat.attachment.cancel"
             | "agentChat.interrupt"
+            | "agentChat.forceStop"
             | "agentChat.feedback"
             | "agentChat.respond"
             | "agentChat.configure"

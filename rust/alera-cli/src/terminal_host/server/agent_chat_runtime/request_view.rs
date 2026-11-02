@@ -91,6 +91,7 @@ pub(crate) fn build_request_view(
         supports_feedback: request.supports_feedback && is_approval(request.kind),
         full_access_override: lookup("fullAccessOverride")
             .filter(|value| matches!(value.as_str(), "ask_rule" | "provider_check")),
+        answer_by: None,
     }
 }
 

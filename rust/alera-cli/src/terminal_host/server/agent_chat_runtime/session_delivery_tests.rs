@@ -30,6 +30,8 @@ mod redirect;
 mod skills;
 #[path = "session_stop_tests.rs"]
 mod stop;
+#[path = "session_stop_deadline_tests.rs"]
+mod stop_deadline;
 #[path = "session_subagent_tests.rs"]
 mod subagents;
 #[path = "session_transfer_tests.rs"]

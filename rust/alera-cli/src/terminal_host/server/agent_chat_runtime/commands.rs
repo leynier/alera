@@ -191,6 +191,11 @@ pub(crate) enum ChatOp {
     Interrupt {
         turn_id: Option<String>,
     },
+    /// Drop the provider of a chat whose agent ignores Stop and end the
+    /// running turn (`agentChatForceStopV1`).
+    ForceStop {
+        turn_id: Option<String>,
+    },
     /// The transcript of the provider-native sub-agent a call started.
     SubagentTranscript {
         item_id: String,

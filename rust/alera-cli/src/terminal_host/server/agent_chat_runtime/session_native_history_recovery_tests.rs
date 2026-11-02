@@ -248,6 +248,7 @@ async fn prepared_fixture() -> (TestHarness, ChatSession, AgentChatNativeOperati
         activity: Arc::new(ChatActivity::default()),
         instances: Arc::new(InstanceDirectory::default()),
         flush_delay: Duration::ZERO,
+        stop_timing: Default::default(),
     };
     let mut session = ChatSession::load(&chat_id, deps).await.unwrap();
     let stamp = "2026-10-13T10:00:00.000Z";

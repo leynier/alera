@@ -39,6 +39,10 @@ pub(super) struct Recorded {
     /// takes a while to stop.
     pub(super) hold_interrupt: AtomicBool,
     pub(super) held_interrupts: Mutex<Vec<InterruptInput>>,
+    /// Interrupts and steers never answer, as a provider that stopped
+    /// responding.
+    pub(super) hang_interrupt: AtomicBool,
+    pub(super) hang_steer: AtomicBool,
     pub(super) send_gate: Mutex<Option<Arc<SendGate>>>,
     pub(super) feedback: Mutex<Vec<FeedbackUploadInput>>,
     /// The next feedback upload fails with this instead of answering.
@@ -174,6 +178,9 @@ impl Provider for RecordingProvider {
         self.inner.send_turn(input).await
     }
     async fn steer_turn(&mut self, input: TurnInput, expected: &str) -> Result<(), ProviderError> {
+        if self.recorded.hang_steer.load(Ordering::SeqCst) {
+            return std::future::pending().await;
+        }
         self.recorded
             .steers
             .lock()
@@ -227,6 +234,9 @@ impl Provider for RecordingProvider {
         self.inner.stop_subagent(task_id).await
     }
     async fn interrupt(&mut self, input: InterruptInput) -> Result<(), ProviderError> {
+        if self.recorded.hang_interrupt.load(Ordering::SeqCst) {
+            return std::future::pending().await;
+        }
         if self.recorded.hold_interrupt.load(Ordering::SeqCst) {
             self.recorded.held_interrupts.lock().unwrap().push(input);
             return Ok(());
@@ -245,6 +255,13 @@ impl Provider for RecordingProvider {
 }
 
 pub(super) async fn fixture() -> (TestHarness, AgentChatRuntime, Arc<RecordingFactory>) {
+    fixture_timed(Default::default()).await
+}
+
+/// A fixture whose provider calls and Stop deadlines take `timing`.
+pub(super) async fn fixture_timed(
+    timing: super::super::session_stop::StopTiming,
+) -> (TestHarness, AgentChatRuntime, Arc<RecordingFactory>) {
     let harness = TestHarness::new().await;
     let factory = Arc::new(RecordingFactory::default());
     let runtime = AgentChatRuntime::new(
@@ -254,7 +271,8 @@ pub(super) async fn fixture() -> (TestHarness, AgentChatRuntime, Arc<RecordingFa
         Box::new(NullSink),
         Arc::new(InstanceDirectory::default()),
     )
-    .with_flush_delay(Duration::ZERO);
+    .with_flush_delay(Duration::ZERO)
+    .with_stop_timing(timing);
     (harness, runtime, factory)
 }
 
