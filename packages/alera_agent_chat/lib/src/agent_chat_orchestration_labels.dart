@@ -134,6 +134,7 @@ String agentChatOriginHeading(
         : 'Resumed after a sub-agent finished',
   .chatMessage =>
     origin.taskIds.isNotEmpty ? 'Task' : 'Message from another chat',
+  .pullRequestWatch => 'Pull request update',
   .user => 'Message',
 };
 

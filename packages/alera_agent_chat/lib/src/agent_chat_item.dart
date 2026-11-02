@@ -208,7 +208,12 @@ enum AgentChatItemOriginKind {
   /// The runtime resumed the agent because a native sub-agent it started
   /// finished after its turn ended. [AgentChatItemOrigin.taskIds] are the
   /// provider's task ids, not chat tasks.
-  subagentWake;
+  subagentWake,
+
+  /// A watched pull request changed (`chatOrchestrationPullRequestsV1`):
+  /// the host told the chat about failed or passed checks, new comments or
+  /// a conflict.
+  pullRequestWatch;
 
   static AgentChatItemOriginKind fromJson(Object? value) => agentChatWireEnum(
     value,

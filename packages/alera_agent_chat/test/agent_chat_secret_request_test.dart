@@ -74,6 +74,14 @@ void main() {
     expect(response.toJson().containsKey('value'), isFalse);
     expect(response.toString().contains('synthetic'), isFalse);
   });
+  test('a pull request watch notice is an automated origin', () {
+    final origin = AgentChatItemOrigin.fromJson(<String, Object?>{
+      'kind': 'pullRequestWatch',
+    });
+    expect(origin.kind, AgentChatItemOriginKind.pullRequestWatch);
+    expect(origin.automated, isTrue);
+    expect(agentChatOriginHeading(origin), 'Pull request update');
+  });
 }
 
 final class _Legacy extends AgentChatLifecycleRepository {}
