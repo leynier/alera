@@ -59,6 +59,7 @@ mod session_skills;
 mod session_snapshot;
 mod session_stop;
 mod session_subagents;
+mod session_titles;
 pub(crate) mod session_transfers;
 mod session_turn_admission;
 mod session_turns;

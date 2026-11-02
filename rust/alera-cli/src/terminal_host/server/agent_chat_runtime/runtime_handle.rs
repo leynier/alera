@@ -82,6 +82,7 @@ impl AgentChatRuntime {
             instances,
             flush_delay: DEFAULT_FLUSH_DELAY,
             stop_timing: Default::default(),
+            titles: None,
         };
         Self {
             inner: Arc::new(Inner {
@@ -110,6 +111,20 @@ impl AgentChatRuntime {
             .ok()
             .expect("runtime is not shared yet");
         inner.deps.stop_timing = timing;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
+    /// Turns on AI chat titles. Called before the runtime is shared.
+    pub(crate) fn with_title_generator(
+        self,
+        titles: Arc<dyn super::super::agent_chat_title_jobs::ChatTitleGenerator>,
+    ) -> Self {
+        let mut inner = Arc::try_unwrap(self.inner)
+            .ok()
+            .expect("runtime is not shared yet");
+        inner.deps.titles = Some(titles);
         Self {
             inner: Arc::new(inner),
         }
@@ -150,10 +165,11 @@ impl AgentChatRuntime {
         if let Some(sender) = self.live_sender(chat_id) {
             return Ok(sender);
         }
-        let session = ChatSession::load(chat_id, self.inner.deps.clone())
+        let mut session = ChatSession::load(chat_id, self.inner.deps.clone())
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         let (tx, rx) = mpsc::channel(SESSION_QUEUE);
+        session.mailbox = Some(tx.downgrade());
         tokio::spawn(session.run(rx));
         self.inner
             .sessions

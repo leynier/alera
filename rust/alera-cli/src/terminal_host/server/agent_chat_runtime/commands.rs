@@ -238,6 +238,18 @@ pub(crate) enum ChatOp {
     Rename {
         title: String,
     },
+    /// Ask AI Assist for a new title (`agentChat.regenerateTitle`). Only a
+    /// person's request may replace a title a person set.
+    RegenerateTitle {
+        replace_user_title: bool,
+    },
+    /// Host-only: what the title job `job_id` produced. It lands only while
+    /// that job is still the chat's pending one, and never over a title a
+    /// person set unless a person asked for the job.
+    ApplyGeneratedTitle {
+        job_id: String,
+        result: Result<String, String>,
+    },
     Recover {
         mode: Option<String>,
     },

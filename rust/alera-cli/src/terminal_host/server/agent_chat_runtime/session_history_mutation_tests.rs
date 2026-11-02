@@ -98,6 +98,7 @@ pub(super) async fn fixture() -> (tempfile::TempDir, ChatSession, Arc<MockProvid
             instances,
             flush_delay: Duration::ZERO,
             stop_timing: Default::default(),
+            titles: None,
         },
     )
     .await

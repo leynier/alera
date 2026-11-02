@@ -441,6 +441,7 @@ impl ChatSession {
 
     /// Graceful host shutdown: commit, close the process, end the actor.
     pub(super) async fn shutdown(&mut self) {
+        self.cancel_title_job();
         let _ = self.flush().await;
         self.cancel_startup().await;
         self.revoke_launch_credentials("shutdown").await;

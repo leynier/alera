@@ -71,7 +71,13 @@ pub async fn run_terminal_host_server(
             inbox.clone(),
         )),
         agent_chat_instances,
-    );
+    )
+    .with_title_generator(Arc::new(
+        super::agent_chat_title_jobs::AiAssistChatTitles::new(
+            runtime_store.clone(),
+            runtime_dir.clone(),
+        ),
+    ));
     let chat_credentials = super::chat_orchestration::ChatCredentialLaunchHook::new(
         runtime_store.clone(),
         runtime_dir.clone(),

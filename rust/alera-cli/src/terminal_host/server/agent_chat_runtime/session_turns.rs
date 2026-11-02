@@ -354,6 +354,7 @@ impl ChatSession {
         let _ = self.flush().await;
         self.items
             .retain(|_, item| item.turn_id.as_deref() != Some(turn_id.as_str()));
+        self.maybe_generate_title().await;
     }
 
     /// Starts the oldest queued message once nothing runs.

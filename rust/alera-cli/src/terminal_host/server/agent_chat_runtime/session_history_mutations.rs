@@ -24,22 +24,27 @@ fn fork_record(
     tab_id: &str,
     title: Option<&str>,
 ) -> HostResult<AgentChatRecord> {
-    let title = title
+    let named = title
         .map(str::trim)
         .filter(|title| !title.is_empty())
-        .map(|title| title.chars().take(200).collect::<String>())
-        .unwrap_or_else(|| {
-            let original = source.title.trim().chars().take(190).collect::<String>();
-            if original.is_empty() {
-                "Agent Chat Fork".into()
-            } else {
-                format!("{original} Fork")
-            }
-        });
+        .map(|title| title.chars().take(200).collect::<String>());
+    // A fork named by its caller keeps that name; otherwise its first turn
+    // generates one from the inherited history (the fork title variant).
+    let title_source = if named.is_some() { "user" } else { "derived" };
+    let title = named.unwrap_or_else(|| {
+        let original = source.title.trim().chars().take(190).collect::<String>();
+        if original.is_empty() {
+            "Agent Chat Fork".into()
+        } else {
+            format!("{original} Fork")
+        }
+    });
     let header = Header::from_snapshot(json!({
         "chatId": chat_id, "workspaceId": source.workspace_id, "tabId": tab_id,
         "providerInstanceId": source.provider_instance_id, "provider": source.provider,
-        "title": title, "titleSource": "user", "cursor": 0,
+        "title": title, "titleSource": title_source, "cursor": 0,
+        // The source's pending title job completes only on the source chat.
+        "titleGeneration": {"status": "idle"},
         "session": {
             "status": "stopped", "model": source.session.model,
             "reasoningEffort": source.session.reasoning_effort,
@@ -67,7 +72,7 @@ fn fork_record(
         updated_at: stamp,
         metadata: Some(json!({
             "originKind": "transcriptFork", "forkedFromChatId": source.chat_id,
-            "forkedFromTurnId": turn_id,
+            "forkedFromTurnId": turn_id, "forkedFromTitle": source.title,
         })),
         snapshot: header.to_snapshot(),
     })

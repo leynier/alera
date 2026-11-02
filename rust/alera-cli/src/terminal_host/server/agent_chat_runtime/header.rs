@@ -63,6 +63,9 @@ pub(crate) struct Header {
         skip_serializing_if = "legacy_title_source"
     )]
     pub title_source: String,
+    /// The AI title job of this chat (`agentChatTitleGenerationV1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title_generation: Option<TitleGeneration>,
     pub cursor: i64,
     pub session: SessionView,
     #[serde(default)]
@@ -83,6 +86,34 @@ pub(crate) struct Header {
     pub lineage: Option<Value>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
+}
+
+/// Where a chat's AI title job stands. `generating` is never restored after
+/// a restart: the job it names ran in the process that stopped.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TitleGeneration {
+    /// `idle`, `generating` or `failed`.
+    pub status: String,
+    /// `auto` for the first-turn title, `regenerate` when someone asked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
+    /// A person asked for this job, so it may replace a title they set.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub replace_user_title: bool,
+    /// The one automatic attempt already ran (or was declined).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub auto_attempted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+impl TitleGeneration {
+    pub(crate) fn is_generating(&self) -> bool {
+        self.status == "generating"
+    }
 }
 
 fn default_title_source() -> String {
@@ -176,6 +207,15 @@ pub(crate) fn header_delta(old: &Header, new: &Header) -> Map<String, Value> {
         delta.insert(
             "titleSource".into(),
             Value::String(new.title_source.clone()),
+        );
+    }
+    if old.title_generation != new.title_generation {
+        delta.insert(
+            "titleGeneration".into(),
+            new.title_generation
+                .as_ref()
+                .map(json)
+                .unwrap_or(Value::Null),
         );
     }
     if old.usage != new.usage {

@@ -47,6 +47,8 @@ pub(crate) struct SessionDeps {
     pub instances: Arc<InstanceDirectory>,
     pub flush_delay: Duration,
     pub stop_timing: super::session_stop::StopTiming,
+    /// AI titles (`agentChatTitleGenerationV1`); `None` turns them off.
+    pub titles: Option<Arc<dyn super::super::agent_chat_title_jobs::ChatTitleGenerator>>,
 }
 
 pub(super) type StartupResult = Result<(BoxedProvider, ProviderSession), String>;
@@ -69,6 +71,10 @@ pub(crate) struct ChatSession {
     pub(super) native_thread: Option<String>,
     pub(super) native_fork: Option<super::session_native_fork::NativeForkPlan>,
     pub(super) fork_source_turn_id: Option<String>,
+    pub(super) fork_source_title: Option<String>,
+    /// The actor's own mailbox, for background jobs that report back.
+    pub(super) mailbox: Option<mpsc::WeakSender<ChatEnvelope>>,
+    pub(super) title_job_cancel: Option<oneshot::Sender<()>>,
     pub(super) startup_forking: bool,
     pub(super) native_operation: Option<alera_core::runtime::AgentChatNativeOperation>,
     /// What the store holds at `committed.cursor`.
@@ -173,6 +179,7 @@ impl ChatSession {
         header.cursor = record.cursor;
         header.tab_id = record.tab_id.clone();
         header.archived = header.archived || record.archived;
+        super::session_titles::forget_stale_job(&mut header);
         if header.session.cwd.is_none() {
             if let Some(workspace) = deps
                 .tabs
@@ -210,6 +217,9 @@ impl ChatSession {
                 .and_then(|metadata| metadata.get("forkedFromTurnId"))
                 .and_then(Value::as_str)
                 .map(str::to_string),
+            fork_source_title: super::session_titles::fork_source_title(record.metadata.as_ref()),
+            mailbox: None,
+            title_job_cancel: None,
             startup_forking: false,
             native_operation: None,
             committed,

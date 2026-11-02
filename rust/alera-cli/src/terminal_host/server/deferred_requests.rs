@@ -61,6 +61,12 @@ impl ServerActor {
             return Ok(true);
         }
         if self
+            .try_start_chat_tab_rename(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
+        if self
             .try_start_local_agent_chat_request(client_id, request_id, request_type, payload)
             .await?
         {

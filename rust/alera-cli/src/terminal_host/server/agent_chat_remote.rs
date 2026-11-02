@@ -371,6 +371,7 @@ impl RemoteChatRouter {
                 | "agentChat.reopen"
                 | "agentChat.close"
                 | "agentChat.rename"
+                | "agentChat.regenerateTitle"
                 | "agentChat.configure"
         ) {
             if let Err(error) = self.sync_workspace(&workspace_id).await {

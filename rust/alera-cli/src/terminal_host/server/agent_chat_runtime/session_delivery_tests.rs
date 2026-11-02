@@ -34,6 +34,8 @@ mod stop;
 mod stop_deadline;
 #[path = "session_subagent_tests.rs"]
 mod subagents;
+#[path = "session_titles_tests.rs"]
+mod titles;
 #[path = "session_transfer_tests.rs"]
 mod transfers;
 #[path = "session_turn_input_tests.rs"]

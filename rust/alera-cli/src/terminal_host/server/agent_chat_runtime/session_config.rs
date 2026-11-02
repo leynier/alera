@@ -310,6 +310,7 @@ impl ChatSession {
     pub(super) async fn close_chat(&mut self) -> HostResult<Value> {
         if !self.header.archived {
             self.stop_provider("closed", "The chat was closed.").await;
+            self.abandon_title_job();
             self.header.queue.clear();
             self.header.archived = true;
             self.header.recovery = None;

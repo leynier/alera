@@ -399,6 +399,18 @@ fn capability_opt_in_and_chat_credentials_enforce_socket_visibility_and_permissi
             && event["payload"]["chatId"] == chat
             && event["payload"]["delta"]["title"] == "Visible Chat"
     });
+    // Renaming the chat's tab (desktop tab menu, CLI `tab rename`, MCP
+    // `rename_tab`) renames the chat, so its header follows.
+    let renamed = desktop.ok(
+        "tab.rename",
+        json!({"id": tab, "title": "Renamed From Tab"}),
+    );
+    assert_eq!(renamed["title"], "Renamed From Tab");
+    desktop.wait_event(|event| {
+        event["event"] == "agentChatChanged"
+            && event["payload"]["chatId"] == chat
+            && event["payload"]["delta"]["title"] == "Renamed From Tab"
+    });
     for legacy in [&mut no_kinds, &mut no_capability, &mut bound] {
         legacy.ok("status.get", json!({}));
     }

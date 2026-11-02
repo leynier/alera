@@ -201,6 +201,7 @@ impl ChatSession {
                 | ChatOp::WorkflowScript { .. }
                 | ChatOp::WorkflowAgent { .. }
                 | ChatOp::Rename { .. }
+                | ChatOp::ApplyGeneratedTitle { .. }
                 | ChatOp::Reopen { .. }
                 | ChatOp::Close
                 | ChatOp::Stop
@@ -305,6 +306,12 @@ impl ChatSession {
             ChatOp::Feedback { reason } => self.upload_feedback(reason).await,
             ChatOp::Configure(input) => self.configure(input).await,
             ChatOp::Rename { title } => self.rename(title).await,
+            ChatOp::RegenerateTitle { replace_user_title } => {
+                self.regenerate_title(replace_user_title).await
+            }
+            ChatOp::ApplyGeneratedTitle { job_id, result } => {
+                self.apply_generated_title(&job_id, result).await
+            }
             ChatOp::Recover { mode } => self.recover(mode.as_deref()).await,
             ChatOp::Close => self.close_chat().await,
             ChatOp::Reopen { tab_id } => self.reopen(tab_id).await,
@@ -388,6 +395,7 @@ impl ChatSession {
             return Err(HostError::format("title must not be empty"));
         }
         self.header.title_source = "user".into();
+        self.abandon_title_job();
         if title != self.header.title {
             self.header.title = title.clone();
             if !self.header.archived {

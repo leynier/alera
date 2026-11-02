@@ -86,6 +86,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatGeneratedImagesV1",
     "agentChatTransfersV1",
     "agentChatForceStopV1",
+    "agentChatTitleGenerationV1",
     "chatOrchestrationV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
@@ -199,6 +200,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentChat.respond"
             | "agentChat.configure"
             | "agentChat.rename"
+            | "agentChat.regenerateTitle"
             | "agentChat.recover"
             | "agentChat.close"
             | "agentChat.reopen"

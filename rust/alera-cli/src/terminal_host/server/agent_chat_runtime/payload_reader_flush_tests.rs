@@ -63,6 +63,7 @@ async fn host_flush_persists_hidden_payload_rows_and_broadcasts_every_cursor_wit
         instances,
         flush_delay: Duration::ZERO,
         stop_timing: Default::default(),
+        titles: None,
     };
     let mut session = ChatSession::load(chat_id, deps.clone()).await.unwrap();
     let mut head = ChatItem::new(

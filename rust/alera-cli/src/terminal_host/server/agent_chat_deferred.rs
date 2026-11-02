@@ -424,6 +424,22 @@ pub(super) async fn dispatch(
                 )
                 .await
         }
+        "agentChat.regenerateTitle" => {
+            let request_id = required_string(payload, "requestId")?;
+            // Only a person's explicit request replaces a title a person set.
+            let replace_user_title = payload
+                .get("replaceUserTitle")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            runtime
+                .command(
+                    &required_string(payload, "chatId")?,
+                    ChatOp::RegenerateTitle { replace_user_title },
+                    ctx,
+                    Some(receipt(&request_id, request_type, payload)),
+                )
+                .await
+        }
         "agentChat.recover" => {
             let request_id = required_string(payload, "requestId")?;
             runtime
