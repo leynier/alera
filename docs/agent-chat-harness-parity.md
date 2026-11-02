@@ -111,3 +111,9 @@ Alera ports T3 Code's late-2026 fixes for its ACP providers (the shared adapter,
 Vercel's fx runs through the ACP Agent recipe: executable `fx`, arguments `acp`, agent id `fx`, after `fx login`. Alera runs it in its `ask` mode for Supervised chats, as T3 Code does.
 
 Not ported: Grok background-command ordering (`91a9196d64`), which depends on T3 Code's deferred finalization that Alera does not have; Droid question forms (`4296624ddf`); a live per-session model list in the composer; and Antigravity's static model list, version pin and file system changes, which do not apply to Alera.
+
+## Stop, Force Stop And Restart-Safe Questions
+
+Alera ports T3 Code's late-2026 Stop work: Stop always completes because every call to the agent during a turn has a deadline, an agent that ignores Stop for 15 seconds can be force stopped (`agentChatForceStopV1`), each delegated task gets 30 seconds to stop in the cascade, a steer during `/compact` skips the compaction, and questions asked before a runtime restart stay answerable by message. The runtime contract is in the runtime [readme](../rust/alera-cli/src/terminal_host/server/agent_chat_runtime/readme.md#stop-and-force-stop).
+
+Differences: T3 refuses to kill a provider process other working threads share; Alera runs one provider per chat, so Force stop always drops only that chat's provider, and an external OpenCode server or Cursor bridge only loses Alera's client. The desktop also offers Force stop 15 seconds after its own Stop when the runtime's mark does not arrive.
