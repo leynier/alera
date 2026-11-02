@@ -10,7 +10,7 @@ use sqlx::Row;
 
 use super::RuntimeStore;
 
-pub(super) const AGENT_CHAT_PULL_REQUEST_SCHEMA: &[&str] = &[
+pub(in crate::runtime) const AGENT_CHAT_PULL_REQUEST_SCHEMA: &[&str] = &[
     "CREATE TABLE IF NOT EXISTS agentChatPullRequests (
         chatId TEXT NOT NULL,
         provider TEXT NOT NULL,

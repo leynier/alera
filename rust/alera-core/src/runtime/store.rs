@@ -213,7 +213,7 @@ impl RuntimeStore {
         // this feature's schema.
         self.migrate_chat_orchestration().await?;
         self.migrate_agent_chats().await?;
-        for statement in super::agent_chat_pull_request_store::AGENT_CHAT_PULL_REQUEST_SCHEMA {
+        for statement in super::pull_request_watch_store::chat::AGENT_CHAT_PULL_REQUEST_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
         self.migrate_agent_native_sessions().await?;
