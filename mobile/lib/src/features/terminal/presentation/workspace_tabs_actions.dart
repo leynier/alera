@@ -68,6 +68,29 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
                 )
                 .value ??
             false);
+    final chatTitles =
+        tab.isAgentChat &&
+        chatId != null &&
+        (ref
+                .read(
+                  agentChatCapabilityProvider(
+                    widget.hostId,
+                    AgentChatWire.titleGenerationCapability,
+                  ),
+                )
+                .value ??
+            false);
+    // Only a chat the phone already follows says whether a job runs; reading
+    // the controller of any other chat would start syncing it.
+    final chatController = chatId == null
+        ? null
+        : agentChatControllerProvider(widget.hostId, tab.workspaceId, chatId);
+    final regenerating =
+        chatTitles &&
+        chatController != null &&
+        ref.exists(chatController) &&
+        (ref.read(chatController).value?.thread.titleGeneration?.generating ??
+            false);
     final action = await showAleraActionSheet<_TabAction>(
       context,
       entries: <AleraActionSheetEntry<_TabAction>>[
@@ -93,6 +116,13 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
                 : 'Generate Title',
             leading: const Icon(AleraIcons.generate),
             enabled: !generating,
+          ),
+        if (chatTitles)
+          AleraActionSheetEntry<_TabAction>(
+            value: .regenerateChatTitle,
+            label: regenerating ? 'Regenerating Title…' : 'Regenerate Title',
+            leading: const Icon(AleraIcons.generate),
+            enabled: !regenerating,
           ),
         if (approvalHistory)
           const AleraActionSheetEntry<_TabAction>(
@@ -134,6 +164,8 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
         }
       case _TabAction.generateTitle:
         await _generateTitle(tab);
+      case _TabAction.regenerateChatTitle when chatId != null:
+        await _regenerateChatTitle(tab.workspaceId, chatId);
       case _TabAction.rename:
         await _renameTab(tab);
       case _TabAction.close:
@@ -173,12 +205,36 @@ extension _WorkspaceTabsActions on _WorkspaceTabsScreenState {
               ),
         );
       case _TabAction.delegateTask ||
+          _TabAction.regenerateChatTitle ||
           _TabAction.sendToChat ||
           _TabAction.lineage ||
           _TabAction.approvalHistory:
         break;
       case null:
         break;
+    }
+  }
+
+  Future<void> _regenerateChatTitle(String workspaceId, String chatId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final actions = await ref.read(
+        agentChatTabActionsProvider(widget.hostId).future,
+      );
+      await actions.regenerateTitle(workspaceId: workspaceId, chatId: chatId);
+    } on Object catch (error, stackTrace) {
+      _WorkspaceTabsScreenState._logger.warning(
+        'Could not regenerate the chat title.',
+        error,
+        stackTrace,
+      );
+      if (messenger.mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(actionFailureMessage('regenerate title', error)),
+          ),
+        );
+      }
     }
   }
 
@@ -211,6 +267,7 @@ enum _TabAction {
   viewRun,
   rename,
   generateTitle,
+  regenerateChatTitle,
   approvalHistory,
   lineage,
   delegateTask,

@@ -109,6 +109,18 @@ class AgentChatTabActions(
     requestId: const Uuid().v4(),
     title: title.trim(),
   );
+
+  /// A person asked for a new AI title (`agentChatTitleGenerationV1`), so it
+  /// may replace a title they chose. The runtime generates it in the
+  /// background and the chat's `titleGeneration` reports it.
+  Future<void> regenerateTitle({
+    required String workspaceId,
+    required String chatId,
+  }) => _repository.lifecycle.regenerateTitle(
+    AgentChatRef(chatId: chatId, workspaceId: workspaceId),
+    requestId: const Uuid().v4(),
+    replaceUserTitle: true,
+  );
 }
 
 @riverpod
