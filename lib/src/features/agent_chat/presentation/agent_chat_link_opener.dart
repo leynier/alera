@@ -21,6 +21,7 @@ Future<void> openAgentChatMessageLink(
       ref,
       chatId: chat.chatId,
       workspaceId: chat.workspaceId,
+      reopenArchived: false,
     );
   }
   final uri = Uri.tryParse(link.trim());

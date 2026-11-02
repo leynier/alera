@@ -50,20 +50,32 @@ Future<void> openChatTaskWorkspace(
 }
 
 /// Selects the chat's tab in its workspace. An archived chat has no tab, so
-/// the press reopens it first; the person asked to see that chat.
+/// the press reopens it first; the person asked to see that chat. With
+/// [reopenArchived] false, as for a link inside an agent message, an archived
+/// chat stays archived and the press only says so.
 Future<void> openChatTaskChat(
   BuildContext context,
   WidgetRef ref, {
   required String chatId,
   required String workspaceId,
+  bool reopenArchived = true,
 }) async {
   if (_placeOf(ref, workspaceId) == null) {
     _fail(context, 'The workspace of this chat is not available in Alera.');
     return;
   }
   try {
-    final tabId = await _chatTabId(ref, chatId, workspaceId);
+    final (tabId, archived) = await _chatTabId(
+      ref,
+      chatId,
+      workspaceId,
+      reopenArchived: reopenArchived,
+    );
     if (!context.mounted) return;
+    if (archived) {
+      _fail(context, 'This chat is archived. Reopen it from its workspace.');
+      return;
+    }
     if (tabId == null) {
       _fail(context, 'This chat no longer exists on the runtime.');
       return;
@@ -80,15 +92,17 @@ Future<void> openChatTaskChat(
   if (context.mounted) ref.read(activityNavigationProvider.notifier).close();
 }
 
-Future<String?> _chatTabId(
+/// The chat's tab id, and whether the chat stayed archived instead.
+Future<(String?, bool)> _chatTabId(
   WidgetRef ref,
   String chatId,
-  String workspaceId,
-) async {
+  String workspaceId, {
+  required bool reopenArchived,
+}) async {
   for (final tab
       in ref.read(workbenchControllerProvider).tabsFor(workspaceId)) {
     if (tab.kind == WorkspaceTabKind.agentChat && tab.agentChatId == chatId) {
-      return tab.id;
+      return (tab.id, false);
     }
   }
   final repository = ref.read(agentChatRepositoryProvider);
@@ -97,13 +111,16 @@ Future<String?> _chatTabId(
     includeArchived: true,
   );
   final summary = chats.where((chat) => chat.chatId == chatId).firstOrNull;
-  if (summary == null) return null;
-  if (!summary.archived && summary.tabId != null) return summary.tabId;
+  if (summary == null) return (null, false);
+  if (!summary.archived && summary.tabId != null) {
+    return (summary.tabId, false);
+  }
+  if (summary.archived && !reopenArchived) return (null, true);
   final reopened = await repository.reopen(
     AgentChatRef(chatId: chatId, workspaceId: workspaceId),
     requestId: ref.read(agentChatIdGeneratorProvider)(),
   );
-  return reopened.tabId;
+  return (reopened.tabId, false);
 }
 
 void _fail(BuildContext context, String message) =>
