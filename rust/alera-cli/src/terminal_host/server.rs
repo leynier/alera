@@ -134,6 +134,10 @@ pub(crate) mod chat_orchestration;
 mod chat_orchestration_events;
 mod chat_orchestration_remote;
 mod chat_orchestration_requests;
+mod chat_pull_request_notices;
+#[cfg(test)]
+mod chat_pull_request_notices_tests;
+mod chat_pull_request_watch;
 mod chatgpt_credentials;
 mod chatgpt_inference;
 mod chatgpt_oauth;

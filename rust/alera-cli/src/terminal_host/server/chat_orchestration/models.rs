@@ -190,6 +190,12 @@ pub(crate) enum OrchestrationRequest {
     ReadSecret {
         secret_ref: String,
     },
+    /// A pull request linked to a chat (`chatOrchestrationPullRequestsV1`).
+    PullRequest {
+        action: PullRequestAction,
+        chat_id: Option<String>,
+        url: Option<String>,
+    },
     /// The context transfers recorded in a chat (`agentChatTransfersV1`).
     Transfers {
         chat_id: Option<String>,
@@ -200,4 +206,13 @@ pub(crate) enum OrchestrationRequest {
         host_id: Option<String>,
         include_archived: bool,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PullRequestAction {
+    Link,
+    Unlink,
+    List,
+    Watch,
+    Unwatch,
 }

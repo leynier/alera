@@ -397,6 +397,25 @@ impl OrchestrationRequest {
                 placeholder: optional_string(payload, "placeholder")?,
                 delivery: optional_string(payload, "delivery")?,
             }),
+            "linkPullRequest" | "unlinkPullRequest" | "listPullRequests" | "watchPullRequest"
+            | "unwatchPullRequest" => {
+                let action = match verb {
+                    "linkPullRequest" => PullRequestAction::Link,
+                    "unlinkPullRequest" => PullRequestAction::Unlink,
+                    "listPullRequests" => PullRequestAction::List,
+                    "watchPullRequest" => PullRequestAction::Watch,
+                    _ => PullRequestAction::Unwatch,
+                };
+                let url = optional_string(payload, "url")?;
+                if action != PullRequestAction::List && url.is_none() {
+                    return Err(HostError::format("url is required"));
+                }
+                Ok(Self::PullRequest {
+                    action,
+                    chat_id: optional_string(payload, "chatId")?,
+                    url,
+                })
+            }
             "readSecret" => Ok(Self::ReadSecret {
                 secret_ref: required_string(payload, "secretRef")?,
             }),

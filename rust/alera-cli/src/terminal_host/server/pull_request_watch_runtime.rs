@@ -19,6 +19,8 @@ pub(super) struct WatchRuntime {
     polls: Arc<tokio::sync::Semaphore>,
     /// When expired chat secrets were last deleted.
     pub(super) secrets_swept: Option<std::time::Instant>,
+    /// Whether a pass over the chat pull request watches runs.
+    pub(super) chat_watches: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Default for WatchRuntime {
@@ -29,6 +31,7 @@ impl Default for WatchRuntime {
             jobs: HashMap::new(),
             polls: Arc::new(tokio::sync::Semaphore::new(4)),
             secrets_swept: None,
+            chat_watches: Arc::default(),
         }
     }
 }
@@ -68,6 +71,8 @@ impl ServerActor {
     pub(super) async fn poll_pull_request_watches(&mut self) {
         self.pull_request_watches.tick_pending = false;
         self.sweep_chat_secrets();
+        let chat_watches = self.pull_request_watches.chat_watches.clone();
+        self.poll_chat_pull_request_watches(&chat_watches);
         let watches = match self.runtime_store.list_pull_request_watches().await {
             Ok(watches) => watches,
             Err(error) => {

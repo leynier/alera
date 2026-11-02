@@ -73,6 +73,9 @@ pub enum ChatAction {
     RequestSecret(crate::chat_secret_commands::ChatRequestSecretArgs),
     /// Use a secret a person provided (`secret read --ref <ref>`).
     Secret(crate::chat_secret_commands::ChatSecretArgs),
+    /// Link, list, watch or unwatch the chat's pull requests.
+    #[command(name = "pr")]
+    PullRequest(crate::chat_pull_request_commands::ChatPullRequestArgs),
 }
 
 #[derive(Debug, Args)]

@@ -27,6 +27,7 @@ mod native_operation_guard;
 pub(crate) mod operation_wire;
 mod operations;
 mod parent;
+pub(crate) mod pull_requests;
 mod queries;
 mod question_wakes;
 mod request_admission;
@@ -103,6 +104,8 @@ mod paused_runtime_fixture;
 mod person_parent_tests;
 #[cfg(test)]
 mod preparation_failure_tests;
+#[cfg(test)]
+mod pull_request_tests;
 #[cfg(test)]
 mod question_restart_tests;
 #[cfg(test)]

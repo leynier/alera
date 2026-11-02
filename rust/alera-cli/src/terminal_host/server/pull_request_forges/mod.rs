@@ -55,7 +55,7 @@ pub(crate) use model::{preferred_merge_method, MergeMethod};
 pub(crate) use provider::CommentSource as ForgeCommentSource;
 pub(crate) use provider::{CreateInput, ForgeProvider};
 pub(crate) use runner::{ForgeRunner, WorkspaceRunner};
-pub(crate) use snapshot::{load_snapshot, snapshot_forge};
+pub(crate) use snapshot::{load_review_snapshot, load_snapshot, snapshot_forge};
 pub(crate) use stack_requests::{handle_stack_request, is_stack_verb};
 pub(crate) use summaries::forge_project_summaries;
 

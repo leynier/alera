@@ -341,6 +341,21 @@ impl ChatOrchestrationService {
             OrchestrationRequest::ReadSecret { secret_ref } => {
                 self.read_secret(&secret_ref, caller).await
             }
+            OrchestrationRequest::PullRequest {
+                action,
+                chat_id,
+                url,
+            } => {
+                use super::models::PullRequestAction as Action;
+                let url = url.unwrap_or_default();
+                match action {
+                    Action::Link => self.link_pull_request(chat_id, &url, caller).await,
+                    Action::Unlink => self.unlink_pull_request(chat_id, &url, caller).await,
+                    Action::List => self.list_pull_requests(chat_id, caller).await,
+                    Action::Watch => self.watch_pull_request(chat_id, &url, true, caller).await,
+                    Action::Unwatch => self.watch_pull_request(chat_id, &url, false, caller).await,
+                }
+            }
             OrchestrationRequest::UpdateTitle {
                 chat_id,
                 request_id,

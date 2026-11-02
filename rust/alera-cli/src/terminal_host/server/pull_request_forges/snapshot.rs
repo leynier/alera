@@ -109,6 +109,31 @@ pub(crate) async fn load_snapshot(
     Ok(snapshot)
 }
 
+/// Review `number` of the workspace's repository with its checks and
+/// comments, whatever branch the workspace has: what a chat's pull request
+/// watch reads (`chatOrchestrationPullRequestsV1`).
+pub(crate) async fn load_review_snapshot(
+    store: &RuntimeStore,
+    workspace: &Workspace,
+    number: i64,
+) -> HostResult<Value> {
+    let remote = read_workspace_remote(store, workspace).await?;
+    let (Some(identity), Some(remote_url)) = (remote.identity, remote.remote_url) else {
+        return Ok(json!({"authStatus": "undetectable", "review": null}));
+    };
+    let kind = identity.kind;
+    let forge = build_forge(identity, &remote_url, &workspace.path, None);
+    let auth = forge.auth_status().await?;
+    if auth != AuthStatus::Authenticated {
+        return Ok(json!({"provider": kind.wire(), "authStatus": auth.wire(), "review": null}));
+    }
+    let review = match forge.review_by_number(number).await? {
+        Some(review) => review_with_activity(forge.as_ref(), review.to_json()).await,
+        None => Value::Null,
+    };
+    Ok(json!({"provider": kind.wire(), "authStatus": auth.wire(), "review": review}))
+}
+
 async fn review_with_activity(forge: &dyn ForgeProvider, mut review: Value) -> Value {
     let number = review["number"].as_i64().unwrap_or(0);
     let (checks, (comments, truncated)) =

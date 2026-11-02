@@ -59,6 +59,9 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
             crate::chat_secret_commands::request_secret(&runtime, args).await
         }
         ChatAction::Secret(_) => unreachable!("handled above"),
+        ChatAction::PullRequest(args) => {
+            crate::chat_pull_request_commands::run(&runtime, args).await
+        }
     };
     match result {
         Ok(value) => {

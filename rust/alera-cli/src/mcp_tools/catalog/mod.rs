@@ -10,6 +10,7 @@ mod automations;
 mod automations_manage;
 mod chat_orchestration;
 mod chat_orchestration_control;
+mod chat_pull_requests;
 mod chat_schema;
 mod chat_secrets;
 mod chat_tasks;
@@ -170,6 +171,7 @@ pub(super) fn chat_tools() -> Vec<ToolSpec> {
     tools.extend(chat_orchestration_control::tools());
     tools.extend(chat_transfers::tools());
     tools.extend(chat_secrets::tools());
+    tools.extend(chat_pull_requests::tools());
     tools.extend(
         projects::tools()
             .into_iter()
