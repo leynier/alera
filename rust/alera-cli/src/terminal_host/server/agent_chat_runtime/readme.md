@@ -15,6 +15,7 @@ Runtime-host chat sessions over the Rust provider adapters (`alera-provider-*`).
 - `agentChatTransfersV1` means the snapshot and `agentChatChanged` deltas carry `contextTransfers`: the context moved into the chat, oldest first (see [Context transfers](#context-transfers)).
 - `agentChatForceStopV1` means `session.stop` carries the Stop the running turn received and adds `agentChat.forceStop` (see [Stop and Force stop](#stop-and-force-stop)).
 - `agentChatTitleGenerationV1` means the snapshot and `agentChatChanged` deltas carry `titleGeneration`, `titleSource` may be `generated`, and adds `agentChat.regenerateTitle` and `chatOrchestration.updateTitle` (see [AI titles](#ai-titles)).
+- `agentChatSecretRequestsV1` means a pending request may be `secret_input` with `masked: true` and `answerBy: host`: the host opened it itself (`ChatOp::OpenRuntimeRequest`, no native provider request) for `chatOrchestration.requestSecret`, and only `agentChat.secret.provide` answers it (`ChatOp::ResolveRuntimeRequest`); `agentChat.respond` refuses it. The value goes to the chat orchestration secret broker and never through this actor, its history, its snapshots or a receipt; the history keeps only the outcome. The request expires with its turn. Messages may carry `origin.kind = pullRequestWatch` (`chatOrchestrationPullRequestsV1`).
 - Native verbs use `agentChatNativeRewindV1`, `agentChatRewindFilesV1`, `agentChatFileCheckpointsV1` and `agentChatNativeHistoryV1`. Global wire support is separate from the session's verified native capabilities and exact available boundaries.
 
 ## Verbs
@@ -42,6 +43,7 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 | `agentChat.feedback` | `{requestId, chatId, reason?}` | `{feedbackId}` (`agentChatFeedbackV1`; see below) |
 | `agentChat.configure` | `{requestId, chatId, provider?, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` |
 | `agentChat.rename` | `{requestId, chatId, title}` | `{title}` (`tab.rename` of the chat's tab does the same) |
+| `agentChat.secret.provide` | `{chatId, runtimeRequestId, action: save\|decline, value?}` | `{status}` (`agentChatSecretRequestsV1`; a person's answer to a `secret_input` card, sent to the secret broker; no receipt, so a repeat fails with `request_resolved`) |
 | `agentChat.regenerateTitle` | `{requestId, chatId, replaceUserTitle?}` | `{titleGeneration}` (`agentChatTitleGenerationV1`; the job runs in the background, see [AI titles](#ai-titles)) |
 | `agentChat.recover` | `{requestId, chatId, mode?: resume\|restart}` | `{snapshot}` |
 | `agentChat.close` | `{requestId, chatId}` | `{archived: bool, discarded?: bool}` |

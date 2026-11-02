@@ -51,6 +51,10 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, 
 | `chatOrchestration.requests` | `{taskId?, chatId?}` | `{requests: [{chatId, taskId?, request}]}` |
 | `chatOrchestration.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |
 | `chatOrchestration.configure` | `{requestId, chatId, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` (as `agentChat.configure`) |
+| `chatOrchestration.requestSecret` | `{label, reason, placeholder?, delivery?: file\|ref}` or `{secretRequestId}` | `{status: saved, delivery, file\|secretRef}`, `{status: declined\|cancelled}` or, after 45 s, `{status: pending, requestId, next}` (`agentChatSecretRequestsV1`; bound callers only, on their own chat during a live turn; see `secrets.rs`) |
+| `chatOrchestration.readSecret` | `{secretRef}` | `{value}` once (`alera chat secret read`; a bound agent reads only refs saved for its own chat; never from mobile) |
+| `chatOrchestration.linkPullRequest`, `unlinkPullRequest`, `watchPullRequest`, `unwatchPullRequest` | `{url, chatId?}` | `{provider, repository, number, url, alreadyLinked\|wasLinked\|watching, wasWatching, next?}` (`chatOrchestrationPullRequestsV1`; the bound chat or one it delegated; a delegated child cannot watch, `childCannotWatch`) |
+| `chatOrchestration.listPullRequests` | `{chatId?}` | `{pullRequests}` |
 | `chatOrchestration.updateTitle` | `{requestId, chatId?, title?, regenerate?}` | `{applied, title}` for a rename, `{titleGeneration}` for a regeneration (`agentChatTitleGenerationV1`; exactly one of `title` and `regenerate: true`; a bound caller's own chat when `chatId` is omitted, otherwise a chat it owns; a bound agent's title counts as `generated` and never replaces a title a person set, which fails with `titleSetByUser`) |
 | `chatOrchestration.read` | `{chatId, limit?}` | `{chat, messages, plans, truncated}` |
 | `chatOrchestration.list` | `{workspaceId?, projectId?, hostId?, includeArchived?}` | `{chats}` |

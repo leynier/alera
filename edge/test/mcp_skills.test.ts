@@ -8,10 +8,19 @@ import { mcpHarness } from './mcp_fixture';
 
 const EDGE_TOOLS = ['list_runtimes', LIST_SKILLS_TOOL, READ_SKILL_TOOL];
 // Chat tools belong to the injected credential-bound server, not the edge.
-const CHAT_TOOL_SOURCE = ['chat_orchestration.rs', 'chat_orchestration_control.rs', 'chat_transfers.rs']
+const CHAT_TOOL_SOURCE = [
+  'chat_orchestration.rs',
+  'chat_orchestration_control.rs',
+  'chat_transfers.rs',
+  'chat_secrets.rs',
+  'chat_pull_requests.rs',
+]
   .map((name) => readFileSync(new NodeURL(`../../rust/alera-cli/src/mcp_tools/catalog/${name}`, import.meta.url), 'utf8'))
   .join('\n');
-const CHAT_TOOLS = [...CHAT_TOOL_SOURCE.matchAll(/\b(?:read|execute|admin)\(\s*"(chat_[a-z_]+)"/g)].map((match) => match[1]);
+const CHAT_TOOLS = [...CHAT_TOOL_SOURCE.matchAll(/\b(?:read|execute|admin)\(\s*"([a-z][a-z_]+)"/g)].map((match) => match[1]);
+// The chat catalog reuses T3 Code's pull request tool names; in a chat they act
+// on the chat's links, in the runtime catalog on a workspace's.
+const SHARED_TOOL_NAMES = new Set(['link_pull_request', 'unlink_pull_request']);
 // Snake case error codes and enum values in the skills, not tools.
 const NON_TOOL_TERMS = new Set([
   'not_found',
@@ -54,7 +63,7 @@ describe('MCP skill catalog', () => {
   test('chat-bound tools stay out of the public runtime catalog', () => {
     expect(CHAT_TOOLS.length).toBeGreaterThan(0);
     expect(new Set(CHAT_TOOLS).size).toBe(CHAT_TOOLS.length);
-    expect(CHAT_TOOLS.filter((name) => RUNTIME_TOOLS.has(name))).toEqual([]);
+    expect(CHAT_TOOLS.filter((name) => RUNTIME_TOOLS.has(name) && !SHARED_TOOL_NAMES.has(name))).toEqual([]);
     expect([...RUNTIME_TOOLS.keys()].filter((name) => name.startsWith('chat_')).sort()).toEqual([
       'chat_task_control', 'chat_task_delegate', 'chat_task_query', 'chat_task_send',
     ]);

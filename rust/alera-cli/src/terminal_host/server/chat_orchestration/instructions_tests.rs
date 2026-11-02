@@ -63,11 +63,14 @@ fn the_rules_say_to_end_the_turn_and_never_to_poll() {
 #[test]
 fn claude_learns_its_native_agent_and_how_to_load_the_tools() {
     let sections = orchestration_instruction_sections("claudeAgent");
-    assert_eq!(sections.len(), 2);
+    assert_eq!(sections.len(), 3);
     assert!(sections[0].contains("Agent with run_in_background:false"));
-    assert!(sections[1].starts_with("The alera chat tools are deferred."));
-    assert!(sections[1].contains("ToolSearch select:mcp__alera__chat_capabilities"));
+    assert!(sections[1].contains("request_secret"));
+    assert!(sections[1].contains("Delegated children never watch."));
+    assert!(sections[2].starts_with("The alera chat tools are deferred."));
+    assert!(sections[2].contains("ToolSearch select:mcp__alera__chat_capabilities"));
+    assert!(sections[2].contains("mcp__alera__watch_pull_request"));
     let cursor = orchestration_instruction_sections("cursor");
-    assert_eq!(cursor.len(), 1);
+    assert_eq!(cursor.len(), 2);
     assert!(!cursor[0].contains("spawn_agent"));
 }
