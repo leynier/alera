@@ -229,6 +229,18 @@ pub(crate) enum ChatOp {
         runtime_request_id: String,
         response: Value,
     },
+    /// Host-only: open a request no native provider request backs
+    /// (`secret_input`). Its answer never passes through the actor.
+    OpenRuntimeRequest(super::session_runtime_requests::RuntimeRequestInput),
+    /// Host-only: settle a request [ChatOp::OpenRuntimeRequest] opened.
+    ResolveRuntimeRequest {
+        runtime_request_id: String,
+        outcome: String,
+    },
+    /// Host-only: whether a host-owned request is still pending.
+    RuntimeRequestState {
+        runtime_request_id: String,
+    },
     /// `/feedback`: upload the native thread and the agent's logs to its
     /// vendor, after the person confirmed it on the client.
     Feedback {
@@ -284,6 +296,7 @@ impl ChatOp {
                 | ChatOp::WorkflowScript { .. }
                 | ChatOp::WorkflowAgent { .. }
                 | ChatOp::MergeBackSource
+                | ChatOp::RuntimeRequestState { .. }
         )
     }
 }

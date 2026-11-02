@@ -34,6 +34,8 @@ pub(crate) const AGENT_CHAT_EXPERIENCE_CAPABILITIES: &[&str] = &[
     "agentChatTransfersV1",
     "agentChatForceStopV1",
     "agentChatTitleGenerationV1",
+    "agentChatSecretRequestsV1",
+    "chatOrchestrationPullRequestsV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
 ];

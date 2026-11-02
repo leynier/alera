@@ -390,6 +390,16 @@ impl OrchestrationRequest {
                     title,
                 })
             }
+            "requestSecret" => Ok(Self::RequestSecret {
+                secret_request_id: optional_string(payload, "secretRequestId")?,
+                label: optional_string(payload, "label")?,
+                reason: optional_string(payload, "reason")?,
+                placeholder: optional_string(payload, "placeholder")?,
+                delivery: optional_string(payload, "delivery")?,
+            }),
+            "readSecret" => Ok(Self::ReadSecret {
+                secret_ref: required_string(payload, "secretRef")?,
+            }),
             "transfers" => Ok(Self::Transfers {
                 chat_id: optional_string(payload, "chatId")?,
             }),

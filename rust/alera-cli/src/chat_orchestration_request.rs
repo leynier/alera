@@ -26,6 +26,9 @@ pub(crate) fn extra_capabilities(verb: &str, payload: &Value) -> Vec<&'static st
     if verb == "updateTitle" {
         capabilities.push(TITLE_GENERATION_CAPABILITY);
     }
+    if matches!(verb, "requestSecret" | "readSecret") {
+        capabilities.push(crate::chat_secret_commands::SECRET_REQUESTS_CAPABILITY);
+    }
     capabilities
 }
 

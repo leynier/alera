@@ -100,6 +100,13 @@ impl TestHarness {
             credentials,
         )
         .with_runtime(routed)
+        .with_secrets(Arc::new(
+            super::ChatSecretBroker::new(super::SecretVault::new(
+                Arc::new(MemorySecrets::default()),
+                directory.path().join("chat-secrets"),
+            ))
+            .with_wait(Duration::from_millis(200)),
+        ))
         .with_events(Arc::new(CommittedEventSink {
             store: store.clone(),
             sender,
@@ -399,4 +406,30 @@ pub(super) async fn wait_idle(harness: &TestHarness, chat: &str) {
     })
     .await
     .unwrap();
+}
+
+/// An in-memory provider-secret store, so tests never touch a keyring.
+#[derive(Default)]
+pub(crate) struct MemorySecrets(Mutex<std::collections::HashMap<String, String>>);
+
+#[async_trait]
+impl crate::terminal_host::server::agent_chat_provider_settings::credentials::ProviderSecrets
+    for MemorySecrets
+{
+    async fn load(&self, reference: &str) -> HostResult<Option<String>> {
+        Ok(self.0.lock().unwrap().get(reference).cloned())
+    }
+
+    async fn save(&self, reference: &str, value: &str) -> HostResult<()> {
+        self.0
+            .lock()
+            .unwrap()
+            .insert(reference.to_owned(), value.to_owned());
+        Ok(())
+    }
+
+    async fn clear(&self, reference: &str) -> HostResult<()> {
+        self.0.lock().unwrap().remove(reference);
+        Ok(())
+    }
 }

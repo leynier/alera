@@ -55,6 +55,7 @@ mod agent_chat_relationship_requests;
 mod agent_chat_remote;
 mod agent_chat_requests;
 mod agent_chat_runtime;
+mod agent_chat_secret_requests;
 mod agent_chat_tab_rename;
 mod agent_chat_title_jobs;
 mod agent_chat_title_prompt;

@@ -107,6 +107,17 @@ pub async fn run_terminal_host_server(
         chat_credentials,
     )
     .with_runtime(routed_chat_runtime)
+    .with_secrets(Arc::new(super::chat_orchestration::ChatSecretBroker::new(
+        super::chat_orchestration::SecretVault::new(
+            Arc::new(
+                super::agent_chat_provider_settings::credentials::ProviderCredentialStore::new(
+                    &runtime_dir,
+                    account_push.service.runtime_id(),
+                ),
+            ),
+            runtime_dir.join("chat-secrets"),
+        ),
+    )))
     .with_events(Arc::new(
         super::chat_orchestration_events::HostOrchestrationEventSink::new(inbox.clone()),
     ));

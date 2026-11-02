@@ -177,6 +177,19 @@ pub(crate) enum OrchestrationRequest {
         /// `None` regenerates the title with AI Assist.
         title: Option<String>,
     },
+    /// Ask a person for a secret in a masked card
+    /// (`agentChatSecretRequestsV1`), or keep waiting on one already asked.
+    RequestSecret {
+        secret_request_id: Option<String>,
+        label: Option<String>,
+        reason: Option<String>,
+        placeholder: Option<String>,
+        delivery: Option<String>,
+    },
+    /// Spend a one-use `secretRef` (`alera chat secret read`).
+    ReadSecret {
+        secret_ref: String,
+    },
     /// The context transfers recorded in a chat (`agentChatTransfersV1`).
     Transfers {
         chat_id: Option<String>,

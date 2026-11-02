@@ -200,6 +200,7 @@ impl ChatSession {
                 | ChatOp::SubagentTranscript { .. }
                 | ChatOp::WorkflowScript { .. }
                 | ChatOp::WorkflowAgent { .. }
+                | ChatOp::RuntimeRequestState { .. }
                 | ChatOp::Rename { .. }
                 | ChatOp::ApplyGeneratedTitle { .. }
                 | ChatOp::Reopen { .. }
@@ -303,6 +304,14 @@ impl ChatSession {
                 runtime_request_id,
                 response,
             } => self.respond(&runtime_request_id, response, ctx).await,
+            ChatOp::OpenRuntimeRequest(input) => self.open_runtime_request(input),
+            ChatOp::ResolveRuntimeRequest {
+                runtime_request_id,
+                outcome,
+            } => self.resolve_runtime_request(&runtime_request_id, &outcome, ctx),
+            ChatOp::RuntimeRequestState { runtime_request_id } => {
+                Ok(self.runtime_request_state(&runtime_request_id))
+            }
             ChatOp::Feedback { reason } => self.upload_feedback(reason).await,
             ChatOp::Configure(input) => self.configure(input).await,
             ChatOp::Rename { title } => self.rename(title).await,

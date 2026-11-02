@@ -67,6 +67,12 @@ pub enum ChatAction {
     /// title with AI Assist. A title a person set stays theirs.
     #[command(name = "update-title")]
     UpdateTitle(ChatUpdateTitleArgs),
+    /// Ask a person for a secret in a masked card and wait for it. Only a
+    /// person answers, from desktop or mobile.
+    #[command(name = "request-secret")]
+    RequestSecret(crate::chat_secret_commands::ChatRequestSecretArgs),
+    /// Use a secret a person provided (`secret read --ref <ref>`).
+    Secret(crate::chat_secret_commands::ChatSecretArgs),
 }
 
 #[derive(Debug, Args)]

@@ -21,6 +21,15 @@ impl ServerActor {
         self.require_auth(client_id)?;
         self.require_request_allowed(client_id, request_type)?;
         let ctx = self.agent_chat_caller(client_id);
+        if self.try_start_secret_provide(
+            client_id,
+            request_id,
+            request_type,
+            payload,
+            ctx.clone(),
+        )? {
+            return Ok(true);
+        }
         if self
             .try_start_chat_attachment_request(
                 client_id,
@@ -126,6 +135,9 @@ impl ServerActor {
         payload: &Value,
         ctx: CallerCtx,
     ) -> HostResult<Value> {
+        if request_type == super::agent_chat_secret_requests::SECRET_PROVIDE_VERB {
+            return self.provide_secret_inline(payload, ctx).await;
+        }
         if super::agent_chat_attachment_requests::handles(request_type) {
             return self
                 .handle_chat_attachment_request(client_id, request_type, payload, &ctx)

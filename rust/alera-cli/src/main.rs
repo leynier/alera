@@ -16,6 +16,7 @@ mod automation_ssh_precheck;
 mod chat_orchestration_commands;
 mod chat_orchestration_commands_args;
 mod chat_orchestration_request;
+mod chat_secret_commands;
 mod chat_task_command_contract;
 mod chat_task_commands;
 mod chat_task_payload_validation;

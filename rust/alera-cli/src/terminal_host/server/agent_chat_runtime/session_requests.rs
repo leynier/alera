@@ -119,6 +119,13 @@ impl ChatSession {
             ));
         };
         let row = self.header.pending_requests[index].clone();
+        if row.answer_by.as_deref() == Some(super::session_runtime_requests::ANSWER_BY_HOST) {
+            // A secret card is answered only by a person in the app, through
+            // `agentChat.secret.provide`; never by `respond` or a parent agent.
+            return Err(unsupported(
+                "Only a person can answer this request, from the app.",
+            ));
+        }
         if row.answer_by.as_deref() == Some(ANSWER_BY_MESSAGE) {
             return self.answer_by_message(row, response, ctx).await;
         }

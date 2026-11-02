@@ -92,6 +92,7 @@ pub(crate) fn build_request_view(
         full_access_override: lookup("fullAccessOverride")
             .filter(|value| matches!(value.as_str(), "ask_rule" | "provider_check")),
         answer_by: None,
+        masked: false,
     }
 }
 

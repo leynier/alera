@@ -31,7 +31,12 @@ const MAX_BACKGROUND_TASK_IDS: usize = 20;
 pub(crate) async fn run(command: ChatCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
-    let action = command.action;
+    let action = match command.action {
+        ChatAction::Secret(args) => {
+            return crate::chat_secret_commands::secret(&runtime, args).await
+        }
+        action => action,
+    };
     let result = match action {
         ChatAction::Human(args) => crate::chat_task_commands::run(&runtime, args).await,
         ChatAction::Capabilities(args) => capabilities(&runtime, args).await,
@@ -50,6 +55,10 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
         ChatAction::Respond(args) => respond(&runtime, args).await,
         ChatAction::Configure(args) => configure(&runtime, args).await,
         ChatAction::UpdateTitle(args) => update_title(&runtime, args).await,
+        ChatAction::RequestSecret(args) => {
+            crate::chat_secret_commands::request_secret(&runtime, args).await
+        }
+        ChatAction::Secret(_) => unreachable!("handled above"),
     };
     match result {
         Ok(value) => {

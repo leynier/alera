@@ -47,6 +47,8 @@ pub(crate) struct ChatOrchestrationService {
     pub(super) monitored: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
     /// How long one delegated task may take to stop when its parent stops.
     pub(super) child_stop_deadline: std::time::Duration,
+    /// Secret requests (`agentChatSecretRequestsV1`); off without a store.
+    pub(super) secrets: Option<Arc<super::secrets::ChatSecretBroker>>,
 }
 
 impl ChatOrchestrationService {
@@ -67,6 +69,19 @@ impl ChatOrchestrationService {
             wake_pump: Arc::default(),
             monitored: Arc::default(),
             child_stop_deadline: super::stop::CHILD_STOP_DEADLINE,
+            secrets: None,
+        }
+    }
+
+    pub(crate) fn with_secrets(mut self, secrets: Arc<super::secrets::ChatSecretBroker>) -> Self {
+        self.secrets = Some(secrets);
+        self
+    }
+
+    /// Deletes expired secret refs and files.
+    pub(crate) async fn sweep_secrets(&self) {
+        if let Some(secrets) = &self.secrets {
+            secrets.vault.sweep().await;
         }
     }
 
@@ -304,6 +319,28 @@ impl ChatOrchestrationService {
             }
             OrchestrationRequest::Read { chat_id, limit } => self.read(chat_id, limit).await,
             OrchestrationRequest::Transfers { chat_id } => self.transfers(chat_id, caller).await,
+            OrchestrationRequest::RequestSecret {
+                secret_request_id,
+                label,
+                reason,
+                placeholder,
+                delivery,
+            } => {
+                self.request_secret(
+                    super::secrets::SecretAsk {
+                        request_id: secret_request_id,
+                        label,
+                        reason,
+                        placeholder,
+                        delivery,
+                    },
+                    caller,
+                )
+                .await
+            }
+            OrchestrationRequest::ReadSecret { secret_ref } => {
+                self.read_secret(&secret_ref, caller).await
+            }
             OrchestrationRequest::UpdateTitle {
                 chat_id,
                 request_id,

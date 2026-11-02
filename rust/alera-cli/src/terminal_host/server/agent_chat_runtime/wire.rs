@@ -163,6 +163,10 @@ pub(crate) struct ChatRequest {
     /// runtime restart): its answer is sent as a new user message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub answer_by: Option<String>,
+    /// The card takes a masked value (`secret_input`); the value itself
+    /// never reaches the chat.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub masked: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

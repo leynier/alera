@@ -272,6 +272,8 @@ mod tests {
     "agentChatTransfersV1",
     "agentChatForceStopV1",
     "agentChatTitleGenerationV1",
+    "agentChatSecretRequestsV1",
+    "chatOrchestrationPullRequestsV1",
                 "chatOrchestrationV1",
                 "workspaceDetailsV1",
                 "gitOperationsProgressV1",
