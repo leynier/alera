@@ -35,7 +35,7 @@ The scope and actor always come from the connection; payload fields such as `act
 
 ## Verbs
 
-Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, `configure`, and `task` with `acknowledge: true`) carry `requestId`. Receipts are keyed by `(scope, verb, requestId)` plus a canonical payload digest: the same payload replays the stored response, a different one fails with `request_conflict`. A task acknowledgement's digest contains its task id and acknowledgement action, and its bound lineage is checked before replay. New CLI and MCP acknowledgement mutations must send a request id. Legacy `task {acknowledge: true}` without `requestId` remains supported as an idempotent state update, but does not store a receipt or guarantee stable response replay or request-id conflicts. Plain task queries never acknowledge a result or record a receipt.
+Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, `configure`, `updateTitle`, and `task` with `acknowledge: true`) carry `requestId`. Receipts are keyed by `(scope, verb, requestId)` plus a canonical payload digest: the same payload replays the stored response, a different one fails with `request_conflict`. A task acknowledgement's digest contains its task id and acknowledgement action, and its bound lineage is checked before replay. New CLI and MCP acknowledgement mutations must send a request id. Legacy `task {acknowledge: true}` without `requestId` remains supported as an idempotent state update, but does not store a receipt or guarantee stable response replay or request-id conflicts. Plain task queries never acknowledge a result or record a receipt.
 
 | Verb | Payload | Result |
 | --- | --- | --- |
@@ -51,6 +51,7 @@ Receipt-backed mutations (`delegate`, `send`, `cancel`, `interrupt`, `respond`, 
 | `chatOrchestration.requests` | `{taskId?, chatId?}` | `{requests: [{chatId, taskId?, request}]}` |
 | `chatOrchestration.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}` |
 | `chatOrchestration.configure` | `{requestId, chatId, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` (as `agentChat.configure`) |
+| `chatOrchestration.updateTitle` | `{requestId, chatId?, title?, regenerate?}` | `{applied, title}` for a rename, `{titleGeneration}` for a regeneration (`agentChatTitleGenerationV1`; exactly one of `title` and `regenerate: true`; a bound caller's own chat when `chatId` is omitted, otherwise a chat it owns; a bound agent's title counts as `generated` and never replaces a title a person set, which fails with `titleSetByUser`) |
 | `chatOrchestration.read` | `{chatId, limit?}` | `{chat, messages, plans, truncated}` |
 | `chatOrchestration.list` | `{workspaceId?, projectId?, hostId?, includeArchived?}` | `{chats}` |
 | `chatOrchestration.transfers` | `{chatId?}` (a bound agent defaults to its own chat) | `{chatId, transfers: [{transferId, kind, sourceChatId, targetChatId, status, sourceTitle?, taskId?, error?, createdAt, consumedAt?}]}` newest first (`agentChatTransfersV1`) |

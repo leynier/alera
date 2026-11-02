@@ -14,6 +14,7 @@ Runtime-host chat sessions over the Rust provider adapters (`alera-provider-*`).
 - `agentChatWorkflowsV1` means a sub-agent may carry `normalized.subagent.workflow` (a provider-native workflow, Claude Code's `local_workflow`) and adds `agentChat.workflowScript` and `agentChat.workflowAgent`, which read the run's script and one member's answers from the files the provider keeps for it.
 - `agentChatTransfersV1` means the snapshot and `agentChatChanged` deltas carry `contextTransfers`: the context moved into the chat, oldest first (see [Context transfers](#context-transfers)).
 - `agentChatForceStopV1` means `session.stop` carries the Stop the running turn received and adds `agentChat.forceStop` (see [Stop and Force stop](#stop-and-force-stop)).
+- `agentChatTitleGenerationV1` means the snapshot and `agentChatChanged` deltas carry `titleGeneration`, `titleSource` may be `generated`, and adds `agentChat.regenerateTitle` and `chatOrchestration.updateTitle` (see [AI titles](#ai-titles)).
 - Native verbs use `agentChatNativeRewindV1`, `agentChatRewindFilesV1`, `agentChatFileCheckpointsV1` and `agentChatNativeHistoryV1`. Global wire support is separate from the session's verified native capabilities and exact available boundaries.
 
 ## Verbs
@@ -40,7 +41,8 @@ Every mutation carries a client `requestId` (string, unique per caller). The rec
 | `agentChat.respond` | `{requestId, chatId, runtimeRequestId, response}` | `{resolved: true}`; a question answered by message (`answerBy: message`) answers `{resolved: true, answeredBy: "message", answeredTurnId?, delivery?, turnId?, queueId?, itemId?, dismissed?}` |
 | `agentChat.feedback` | `{requestId, chatId, reason?}` | `{feedbackId}` (`agentChatFeedbackV1`; see below) |
 | `agentChat.configure` | `{requestId, chatId, provider?, providerInstanceId?, model?, reasoningEffort?, runtimeMode?, interactionMode?}` | `{snapshot}` |
-| `agentChat.rename` | `{requestId, chatId, title}` | `{title}` |
+| `agentChat.rename` | `{requestId, chatId, title}` | `{title}` (`tab.rename` of the chat's tab does the same) |
+| `agentChat.regenerateTitle` | `{requestId, chatId, replaceUserTitle?}` | `{titleGeneration}` (`agentChatTitleGenerationV1`; the job runs in the background, see [AI titles](#ai-titles)) |
 | `agentChat.recover` | `{requestId, chatId, mode?: resume\|restart}` | `{snapshot}` |
 | `agentChat.close` | `{requestId, chatId}` | `{archived: bool, discarded?: bool}` |
 | `agentChat.fork` | `{requestId, chatId, turnId, title?}` | `{chatId, tabId, snapshot, operationKind, filesystemChangesReverted: false}` |
@@ -96,7 +98,7 @@ A provider-native sub-agent is not a chat: its items live in the parent chat und
 
 ## Additive lifecycle contract
 
-`agentChatDeferredStartV1` means creation persists the chat and its tab with `session.status: stopped` and no recovery. A never-sent chat has no items, turns or native session; `recover` on it is a snapshot read. Its first send commits the prompt before provider startup, runs every launch hook before spawning and derives `title` from the first non-empty prompt line, trimmed to 200 characters. `titleSource: default|derived|user` prevents an automatic title from overwriting a rename. Switching a never-sent chat relabels only an untouched default title.
+`agentChatDeferredStartV1` means creation persists the chat and its tab with `session.status: stopped` and no recovery. A never-sent chat has no items, turns or native session; `recover` on it is a snapshot read. Its first send commits the prompt before provider startup, runs every launch hook before spawning and derives `title` from the first non-empty prompt line, trimmed to 200 characters. `titleSource: default|derived|generated|user` prevents an automatic title from overwriting a rename. Switching a never-sent chat relabels only an untouched default title.
 
 `agentChatUnselectedDraftV1` permits creation without a selection. Public `provider` and `providerInstanceId` are null; the store's internal sentinel is never presented as an agent. `send` answers `providerRequired` until configure sets the first selection. No native process or recovery runs for an unselected draft. Close checks durable items, turns, native identity, pending requests, queue and task linkage before discard; the detached close receipt survives deletion so a retry returns the same result.
 
@@ -130,7 +132,7 @@ Large redacted native data is retained in hidden payload rows rather than discar
 
 ## Shapes
 
-`Snapshot {chatId, workspaceId, tabId, providerInstanceId: string|null, provider: string|null, title, titleSource: default|derived|user, archived, cursor, session, turns[], items[], pendingRequests[], queue[], usage?, recovery?, lineage?, historyBefore?}`
+`Snapshot {chatId, workspaceId, tabId, providerInstanceId: string|null, provider: string|null, title, titleSource: default|derived|generated|user, titleGeneration?, archived, cursor, session, turns[], items[], pendingRequests[], queue[], usage?, recovery?, lineage?, historyBefore?}`
 
 `session {status: starting|ready|running|waiting|stopped|error, model?, runtimeMode, interactionMode, activeTurnId?, cwd?, generation, commands?, goal?, stop? {turnId, requestedAt, unresponsiveAt?}, capabilities {resume, interrupt, approvals, userInput, mcpElicitation, streaming, modelSwitch, steer, fork, rollback, attachments, images, plan}, errorMessage?}`. `runtimeMode`: `approval-required|auto-accept-edits|auto|full-access`; `interactionMode`: `default|plan`. With no turn running, a live session stays `running` while native background work the agent resumes from is still open (`task.*` events with `awaited: true`: native sub-agents, not background commands, plus background commands the agent marked through `chat_background_wait`); it returns to `ready` when that work ends. A completed turn leaves such work open, and so does a failed turn whose provider reports `childTurnsContinue`; any other failed or stopped turn ends the work it started. This never holds the queue: the next queued message starts as soon as the turn ends. When a child whose `task.completed` carries `wakesParent` (a direct Codex sub-agent) finishes after the turn that started it completed, and nothing runs, waits on the user, starts or is queued, the runtime starts a parent turn whose `user_message` has `origin {kind: subagentWake, taskIds: [<task id>]}` and text `Subagent <completed|failed>: <label>` followed by the child's final answer (at most 64 KiB). A running or queued turn receives the result natively instead, so children finishing together resume the parent once; children of a turn that failed, was interrupted or was cancelled never resume it. `agentChat.interrupt` with no turn running stops that leftover work: each running native sub-agent of the live provider process is asked to stop (`Provider::stop_subagent`, bounded) and settles `stopped`, every awaited task is dropped (a background command that cannot stop this way no longer holds the chat), the session returns to `ready`, and nothing those children report afterwards resumes the parent; the answer's `interrupted` says whether there was any. The actor snapshot (not the stored one) also carries `backgroundSubagentsRunning`: true while a live provider has an awaited native sub-agent running after its turn ended, which keeps that chat's credential able to call chat tools. Restart needs nothing extra: native children die with their provider process, and a resume already admitted is an ordinary durable turn.
 
@@ -169,6 +171,16 @@ Every provider call the actor makes during a turn has a deadline (`StopTiming`):
 A steer (`delivery: steer`, or `agentChat.queueSteer`) while the running turn is a `/compact` cannot reach a compacting agent: the message goes first in the queue, the compaction is interrupted, and the turn ends `interrupted` with `reason: compactionSkipped` and `errorMessage: "Skipped compaction to send a queued message"`; the answer is `{delivery: queued, queueId}`. A failed interrupt leaves the message waiting for the turn to end.
 
 Host shutdown is deferred while any chat has a running turn, an open request or queued input. Idle chats behave like detached terminals. A real shutdown closes providers gracefully.
+
+## AI titles
+
+With `agentChatTitleGenerationV1`, AI Assist titles chats the way T3 Code titles threads: 3-8 words, fewer than 40 characters, naming the subject and outcome. The prompt is `agent_chat_title_prompt.rs`; it treats the conversation as untrusted data and adds the person's `agentTitle` preferences. A background job (`agent_chat_title_jobs.rs`) reads the stored conversation, calls AI Assist's `agentTitle` operation and posts `ApplyGeneratedTitle` back to the session actor, which never waits on it.
+
+- When the first turn of a chat ends and its `titleSource` is `default` or `derived`, the chat makes one attempt, only if AI Assist and `autoGenerateAgentTitles` are on. The attempt is recorded (`titleGeneration.autoAttempted`) even when the setting is off, so a later setting change never renames an older chat. Chats from before this capability have no `titleGeneration` and are never titled automatically after their first turn.
+- A generated title replaces only a title whose source is `default`, `derived` or `generated`, and sets `titleSource: generated`. A title a person set (`user`) is replaced only by a regeneration that person asked for (`agentChat.regenerateTitle` with `replaceUserTitle: true`). A rename while a job runs drops the job.
+- `titleGeneration` is `{status: idle|generating|failed, mode?: auto|regenerate, jobId?, replaceUserTitle?, autoAttempted?, errorMessage?}`. Clients show "Regenerating…" while `status` is `generating`. A restart turns a stale `generating` back to `idle`.
+- A fork without a caller-given title starts as `"<source title> Fork"` with `titleSource: derived` and an idle `titleGeneration`: a pending regeneration of the source is not inherited. Its first turn titles it with the fork variant, which reads the inherited conversation and the source title and names the new direction.
+- `chatOrchestration.updateTitle` `{requestId, chatId?, title? | regenerate: true}` (MCP `chat_update_title`, CLI `alera chat update-title`) lets a chat-bound agent rename or regenerate its own chat, or a chat it owns through delegation. An agent's title counts as `generated`, and an agent can never replace a person's title.
 
 ## Remote workspaces
 

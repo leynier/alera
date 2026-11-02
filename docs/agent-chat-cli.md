@@ -20,7 +20,7 @@ Every mutation carries `requestId`. Pass `--request-id <stable-id>` before the f
 | `payload` | `chatId`, `itemId`, `index?`, `limit?` | Explicitly load retained native data in bounded pages; `index` starts at zero. |
 | `send` | `chatId`, `text?`, `attachments?`, `delivery?`, `model?`, `reasoningEffort?`, `interactionMode?`, `clientMessageId?` | Require text or attachments. Delivery is `auto`, `queue`, or native `steer`. |
 | `configure` | `chatId`, at least one of `provider`, `providerInstanceId`, `model`, `reasoningEffort`, `runtimeMode`, `interactionMode` | Change selection without starting the selected provider. |
-| `rename` | `chatId`, `title` | Persist a user title. |
+| `rename` | `chatId`, `title` | Persist a user title. `alera tab rename` on the chat's tab does the same. |
 | `interrupt` | `chatId`, `turnId?` | Interrupt the active turn without archiving. |
 | `respond` | `chatId`, `runtimeRequestId`, `response` | Use exactly the decisions and response shape the runtime offered. |
 | `recover` | `chatId`, `mode?` | Recover using a supported mode; never-sent drafts remain stopped. |

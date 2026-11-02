@@ -15,7 +15,7 @@ All mutations accept `--request-id <stable-id>`; choose it before the first atte
 - `snapshot --chat-id <id>` reads state. `history` additionally needs the returned `before` token. `payload` needs `itemId` and optional nonnegative `index`. History, native payload, and approval-history pages default to 100, accept `--limit <1-500>`, and can be capped lower by the host.
 - `send` needs text or validated attachments in its payload; `delivery` is `auto`, `queue`, or native `steer`.
 - `configure` needs at least one of `provider`, `providerInstanceId`, `model`, `reasoningEffort`, `runtimeMode`, and `interactionMode`. Omit model on create/send for the provider default. On configure, omission preserves it; `--reset-model` or `model:null` resets it. `reasoningEffort:null` resets effort. Never send empty IDs; effort needs actual provider/model support and `agentChatEffortV1`.
-- `rename` takes `title`; `interrupt` optionally takes `turnId`; `respond` takes `runtimeRequestId` and the exact offered `response`. `recover` takes optional supported `mode`. `close` discards a never-sent draft, otherwise archives it; `reopen` restores an archived chat.
+- `rename` takes `title` (`alera tab rename` on a chat tab renames the chat too); `interrupt` optionally takes `turnId`; `respond` takes `runtimeRequestId` and the exact offered `response`. `recover` takes optional supported `mode`. `close` discards a never-sent draft, otherwise archives it; `reopen` restores an archived chat.
 
 Create, configure, recover, and close require `agentChatDeferredStartV1`. Acceptance proves persistence/admission, not provider authentication, inference success, or completion. Background work never selects a workspace/tab.
 

@@ -11,7 +11,7 @@
 `list_tabs` lists a workspace's tabs, including terminal and agent tabs.
 
 - `create_tab` opens a terminal tab, optionally running a command.
-- `rename_tab` renames one, and `generate_tab_title` names an agent tab from its conversation with AI Assist.
+- `rename_tab` renames one (on an agent chat tab it renames the chat), and `generate_tab_title` names an agent tab from its conversation with AI Assist.
 - `close_tab` closes a tab and ends its session.
 - `link_agent_to_tab` binds a running agent conversation to a tab again when the tab stopped showing the agent's status.
 
