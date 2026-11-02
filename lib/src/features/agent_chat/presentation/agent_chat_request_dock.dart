@@ -7,6 +7,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_elicitatio
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_question_card.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_cards.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_pager.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_secret_card.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_typing_guard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_registry.dart';
@@ -259,6 +260,19 @@ class _AgentChatRequestDockState extends ConsumerState<AgentChatRequestDock> {
         enabled: widget.enabled,
         takeFocus: _carryFocus,
         onRespond: widget.onRespond,
+      );
+    }
+    if (request.isSecret) {
+      return SingleChildScrollView(
+        child: AgentChatSecretCard(
+          key: ValueKey<_DraftKey>(key),
+          request: request,
+          responding: responding,
+          enabled: widget.enabled,
+          takeFocus: _carryFocus,
+          onProvide: (value) =>
+              widget.onRespond(request, AgentChatSecretResponse(value)),
+        ),
       );
     }
     final Widget card;
