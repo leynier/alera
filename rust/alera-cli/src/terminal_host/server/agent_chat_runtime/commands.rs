@@ -238,6 +238,11 @@ pub(crate) enum ChatOp {
     Rename {
         title: String,
     },
+    /// A bound agent's rename (`chatOrchestration.updateTitle`): refused
+    /// over a title a person set, and replaceable by later generated titles.
+    RenameByAgent {
+        title: String,
+    },
     /// Ask AI Assist for a new title (`agentChat.regenerateTitle`). Only a
     /// person's request may replace a title a person set.
     RegenerateTitle {

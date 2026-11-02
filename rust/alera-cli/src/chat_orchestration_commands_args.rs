@@ -63,6 +63,10 @@ pub enum ChatAction {
     Respond(ChatRespondArgs),
     /// Change an idle chat's provider, model, or interaction policy.
     Configure(ChatConfigureArgs),
+    /// Rename the bound chat (or an owned child chat), or regenerate its
+    /// title with AI Assist. A title a person set stays theirs.
+    #[command(name = "update-title")]
+    UpdateTitle(ChatUpdateTitleArgs),
 }
 
 #[derive(Debug, Args)]
@@ -282,6 +286,22 @@ pub struct ChatInterruptArgs {
     pub chat_id: String,
     #[arg(long = "turn-id")]
     pub turn_id: Option<String>,
+    #[arg(long = "request-id")]
+    pub request_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[command(group(clap::ArgGroup::new("change").required(true).args(["title", "regenerate"])))]
+pub struct ChatUpdateTitleArgs {
+    /// The chat to rename; the bound chat when omitted.
+    #[arg(long = "chat-id")]
+    pub chat_id: Option<String>,
+    /// The new title.
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Generate a new title from the conversation instead.
+    #[arg(long)]
+    pub regenerate: bool,
     #[arg(long = "request-id")]
     pub request_id: Option<String>,
 }

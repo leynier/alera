@@ -74,6 +74,21 @@ fn chat_group_parses_the_full_action_surface() {
             "--model",
             "model-1",
         ],
+        &[
+            "alera",
+            "chat",
+            "update-title",
+            "--title",
+            "Login Crash Fix",
+        ],
+        &[
+            "alera",
+            "chat",
+            "update-title",
+            "--chat-id",
+            "chat-2",
+            "--regenerate",
+        ],
     ];
     for args in cases {
         let command = Cli::try_parse_from(*args).unwrap().command;
@@ -242,4 +257,21 @@ fn acknowledgement_preserves_explicit_retry_ids_and_legacy_omission() {
         "read-1"
     ])
     .is_err());
+}
+
+#[test]
+fn update_title_takes_exactly_one_change() {
+    for args in [
+        &["alera", "chat", "update-title"][..],
+        &[
+            "alera",
+            "chat",
+            "update-title",
+            "--title",
+            "A",
+            "--regenerate",
+        ][..],
+    ] {
+        assert!(Cli::try_parse_from(args).is_err(), "{args:?}");
+    }
 }

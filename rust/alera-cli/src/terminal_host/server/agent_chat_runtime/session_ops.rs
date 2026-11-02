@@ -306,6 +306,7 @@ impl ChatSession {
             ChatOp::Feedback { reason } => self.upload_feedback(reason).await,
             ChatOp::Configure(input) => self.configure(input).await,
             ChatOp::Rename { title } => self.rename(title).await,
+            ChatOp::RenameByAgent { title } => self.rename_by_agent(title).await,
             ChatOp::RegenerateTitle { replace_user_title } => {
                 self.regenerate_title(replace_user_title).await
             }

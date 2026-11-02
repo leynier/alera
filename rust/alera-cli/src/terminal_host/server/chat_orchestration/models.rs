@@ -169,6 +169,14 @@ pub(crate) enum OrchestrationRequest {
         chat_id: String,
         limit: usize,
     },
+    /// Rename or regenerate a chat's title (`agentChatTitleGenerationV1`);
+    /// the bound caller's own chat when `chat_id` is omitted.
+    UpdateTitle {
+        chat_id: Option<String>,
+        request_id: String,
+        /// `None` regenerates the title with AI Assist.
+        title: Option<String>,
+    },
     /// The context transfers recorded in a chat (`agentChatTransfersV1`).
     Transfers {
         chat_id: Option<String>,

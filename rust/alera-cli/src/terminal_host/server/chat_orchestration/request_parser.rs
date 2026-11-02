@@ -372,6 +372,24 @@ impl OrchestrationRequest {
                     .unwrap_or(100)
                     .clamp(1, 200) as usize,
             }),
+            "updateTitle" => {
+                let title = optional_string(payload, "title")?;
+                let regenerate = match payload.get("regenerate") {
+                    None | Some(Value::Null) => false,
+                    Some(Value::Bool(regenerate)) => *regenerate,
+                    Some(_) => return Err(HostError::format("regenerate must be a boolean")),
+                };
+                if title.is_some() == regenerate {
+                    return Err(HostError::format(
+                        "updateTitle takes either a title or regenerate: true",
+                    ));
+                }
+                Ok(Self::UpdateTitle {
+                    chat_id: optional_string(payload, "chatId")?,
+                    request_id: request_id(payload)?,
+                    title,
+                })
+            }
             "transfers" => Ok(Self::Transfers {
                 chat_id: optional_string(payload, "chatId")?,
             }),

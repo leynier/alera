@@ -4,7 +4,7 @@
 
 use serde_json::{json, Value};
 
-use crate::terminal_host::host_error::HostResult;
+use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::super::agent_chat_title_jobs::{spawn_chat_title_job, ChatTitleJob};
 use super::commands::conflict;
@@ -188,6 +188,26 @@ impl ChatSession {
         if !replaceable || title.is_empty() {
             return Ok(json!({"applied": false}));
         }
+        Ok(self.set_generated_title(title).await)
+    }
+
+    /// A bound agent names its chat: never over a person's title.
+    pub(super) async fn rename_by_agent(&mut self, title: String) -> HostResult<Value> {
+        if self.header.title_source == "user" {
+            return Err(conflict(
+                "titleSetByUser",
+                "A person set this chat's title. Only a person can change it.",
+            ));
+        }
+        let title = title.trim().chars().take(200).collect::<String>();
+        if title.is_empty() {
+            return Err(HostError::format("title must not be empty"));
+        }
+        self.abandon_title_job();
+        Ok(self.set_generated_title(title).await)
+    }
+
+    async fn set_generated_title(&mut self, title: String) -> Value {
         self.header.title_source = "generated".into();
         if title != self.header.title {
             self.header.title = title.clone();
@@ -200,6 +220,6 @@ impl ChatSession {
             }
             self.notify_chats();
         }
-        Ok(json!({"applied": true, "title": title}))
+        json!({"applied": true, "title": title})
     }
 }

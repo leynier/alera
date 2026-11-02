@@ -259,6 +259,7 @@ fn chat_catalog_uses_the_chat_wire_verbs_and_bounded_wait() {
         "chat_requests",
         "chat_respond",
         "chat_configure",
+        "chat_update_title",
     ]
     .into_iter()
     .collect::<HashSet<_>>();

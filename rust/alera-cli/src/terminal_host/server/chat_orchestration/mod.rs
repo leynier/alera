@@ -38,6 +38,7 @@ mod targets;
 mod task_acknowledgement;
 mod task_next;
 mod tasks;
+mod titles;
 mod transfers;
 mod wake_pump;
 mod wake_text;
@@ -120,6 +121,8 @@ mod task_next_tests;
 pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod title_update_tests;
 #[cfg(test)]
 mod transfers_tests;
 #[cfg(test)]

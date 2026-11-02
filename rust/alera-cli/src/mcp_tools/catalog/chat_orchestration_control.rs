@@ -1,6 +1,6 @@
 //! The injected chat tools that steer delegated work after it starts: cancel
 //! a task, interrupt a turn, mark background work, answer a child chat's open
-//! requests, and configure a child chat. Like the rest of the `chat_*`
+//! requests, configure a child chat, and name a chat. Like the rest of the `chat_*`
 //! catalog, every call is bound to the credentialed caller chat.
 
 use serde_json::json;
@@ -48,6 +48,40 @@ pub(super) fn tools() -> Vec<ToolSpec> {
                 Ok(Invocation::new("chat", &["interrupt"])
                     .option("--chat-id", arguments.required("chatId")?)
                     .option_if("--turn-id", arguments.string("turnId")))
+            },
+        ),
+        execute(
+            "chat_update_title",
+            "Update Chat Title",
+            "Rename this chat, or regenerate its title from the conversation with AI Assist. Give a short title of 3-8 words that names the work's subject. Omit chatId for this chat; another chat must be one you delegated. A title the person set is theirs: both actions refuse to replace it.",
+            || {
+                object(
+                    &[
+                        ("chatId", string("Chat id; this chat when omitted.")),
+                        ("title", string("The new title. Omit it to regenerate.")),
+                        (
+                            "regenerate",
+                            boolean("Generate a new title from the conversation instead."),
+                        ),
+                    ],
+                    &[],
+                )
+            },
+            |arguments| {
+                let invocation = Invocation::new("chat", &["update-title"])
+                    .option_if("--chat-id", arguments.string("chatId"));
+                if arguments.optional_flag("regenerate") == Some(true) {
+                    if arguments.string("title").is_some() {
+                        return Err(ToolInputError(
+                            "Pass either title or regenerate, not both.".into(),
+                        ));
+                    }
+                    return Ok(invocation.flag("--regenerate"));
+                }
+                let title = arguments.string("title").ok_or_else(|| {
+                    ToolInputError("Pass a title, or regenerate: true.".into())
+                })?;
+                Ok(invocation.option("--title", title))
             },
         ),
         ToolSpec {

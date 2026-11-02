@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 use crate::chat_orchestration_commands_args::{
     ChatAction, ChatBackgroundWaitArgs, ChatCancelArgs, ChatCapabilitiesArgs, ChatCommand,
     ChatConfigureArgs, ChatDelegateArgs, ChatInterruptArgs, ChatListArgs, ChatReadArgs,
-    ChatRequestsArgs, ChatRespondArgs, ChatSendArgs, ChatTaskArgs, ChatTaskListArgs, ChatWaitArgs,
+    ChatRequestsArgs, ChatRespondArgs, ChatSendArgs, ChatTaskArgs, ChatTaskListArgs,
+    ChatUpdateTitleArgs, ChatWaitArgs,
 };
 use crate::cli::RuntimeDirArgs;
 use crate::orchestration_commands::WAIT_CLIENT_GRACE_MS;
@@ -48,6 +49,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
         ChatAction::Requests(args) => requests(&runtime, args).await,
         ChatAction::Respond(args) => respond(&runtime, args).await,
         ChatAction::Configure(args) => configure(&runtime, args).await,
+        ChatAction::UpdateTitle(args) => update_title(&runtime, args).await,
     };
     match result {
         Ok(value) => {
@@ -281,6 +283,22 @@ async fn interrupt(runtime: &RuntimeDirArgs, args: ChatInterruptArgs) -> Result<
         }),
     )
     .await
+}
+
+async fn update_title(runtime: &RuntimeDirArgs, args: ChatUpdateTitleArgs) -> Result<Value> {
+    let mut payload = json!({"requestId": request_id(args.request_id)?});
+    if let Some(chat_id) = optional_text(args.chat_id, "chat-id")? {
+        payload["chatId"] = json!(chat_id);
+    }
+    if args.regenerate {
+        payload["regenerate"] = json!(true);
+    } else {
+        payload["title"] = json!(require_text(
+            args.title.as_deref().unwrap_or_default(),
+            "title"
+        )?);
+    }
+    request(runtime, "chatOrchestration.updateTitle", payload).await
 }
 
 async fn background_wait(runtime: &RuntimeDirArgs, args: ChatBackgroundWaitArgs) -> Result<Value> {

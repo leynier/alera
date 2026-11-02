@@ -246,6 +246,10 @@ pub(crate) async fn authorize_request(
                 authorize_target_chat(&caller, runtime, chat_id).await?;
             }
         }
+        OrchestrationRequest::UpdateTitle { chat_id, .. } => {
+            let chat_id = super::titles::title_target(&caller, chat_id.as_deref())?;
+            require_lineage_for_chat(&caller, store, &chat_id).await?;
+        }
         OrchestrationRequest::Cancel { task_id, .. } => {
             require_lineage_for_task(&caller, store, task_id).await?;
             if caller.bound.is_some() {

@@ -23,8 +23,14 @@ pub(crate) fn extra_capabilities(verb: &str, payload: &Value) -> Vec<&'static st
     {
         capabilities.push(EFFORT_CAPABILITY);
     }
+    if verb == "updateTitle" {
+        capabilities.push(TITLE_GENERATION_CAPABILITY);
+    }
     capabilities
 }
+
+/// `chatOrchestration.updateTitle` and `agentChat.regenerateTitle`.
+pub(crate) const TITLE_GENERATION_CAPABILITY: &str = "agentChatTitleGenerationV1";
 
 pub(crate) async fn request(
     runtime: &RuntimeDirArgs,
