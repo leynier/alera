@@ -78,7 +78,7 @@ final class AgentChatWorkspaceActivityProvider
 }
 
 String _$agentChatWorkspaceActivityHash() =>
-    r'2c6c3f8b98d86f3d03ab7d796ddef93d6f1823bc';
+    r'3a3b09ff7597428e64659b013177d9fb45d61581';
 
 /// The activity of every chat in a workspace, so a chat tab that is not open
 /// still shows that its agent is working or waits on the person. Seeded from
