@@ -152,6 +152,9 @@ mod automation_recovery_store;
 mod automation_schedule;
 mod automation_store;
 pub use automation_authoring::{automation_cursor, automation_from_input};
+mod agent_chat_pull_request_store;
+#[cfg(test)]
+mod agent_chat_pull_request_store_tests;
 mod automation_templates;
 mod checkout_models;
 mod checkout_relocation_reservations;
@@ -416,6 +419,7 @@ mod workspace_transfer_layout;
 mod worktree_setup_models;
 pub use relocation_setup_store::RelocationSetupReceipt;
 
+pub use agent_chat_pull_request_store::AgentChatPullRequest;
 pub use agent_profile_launch_receipt_store::*;
 pub use agent_profile_models::*;
 pub use agent_quota_settings_models::*;
