@@ -111,4 +111,3 @@ Alera ports T3 Code's late-2026 fixes for its ACP providers (the shared adapter,
 Vercel's fx runs through the ACP Agent recipe: executable `fx`, arguments `acp`, agent id `fx`, after `fx login`. Alera runs it in its `ask` mode for Supervised chats, as T3 Code does.
 
 Not ported: Grok background-command ordering (`91a9196d64`), which depends on T3 Code's deferred finalization that Alera does not have; Droid question forms (`4296624ddf`); a live per-session model list in the composer; and Antigravity's static model list, version pin and file system changes, which do not apply to Alera.
-
