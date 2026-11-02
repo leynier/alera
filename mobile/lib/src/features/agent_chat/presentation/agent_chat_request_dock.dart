@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_question_card.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_request_card.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_secret_card.dart';
 import 'package:flutter/material.dart';
 
 /// When the person last typed into this chat, so a request that arrives
@@ -142,7 +143,14 @@ class _AgentChatRequestDockState extends State<AgentChatRequestDock> {
               onPrevious: index > 0 ? () => _page(-1) : null,
               onNext: index < requests.length - 1 ? () => _page(1) : null,
             ),
-          if (request.isQuestion)
+          if (request.isSecret)
+            AgentChatSecretCard(
+              key: ValueKey<String>('secret-${request.id}'),
+              request: request,
+              enabled: enabled,
+              onRespond: widget.onRespond,
+            )
+          else if (request.isQuestion)
             AgentChatQuestionCard(
               key: ValueKey<String>('question-${request.id}'),
               request: request,
