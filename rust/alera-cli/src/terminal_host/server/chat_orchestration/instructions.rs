@@ -34,6 +34,9 @@ pub(crate) fn orchestration_instruction_sections(provider: &str) -> Vec<String> 
     if provider == "claudeAgent" {
         sections.push(CLAUDE_TOOLS.to_owned());
     }
+    debug_assert!(sections
+        .iter()
+        .all(|section| section.len() <= INSTRUCTION_SECTION_MAX_BYTES));
     sections
 }
 

@@ -26,10 +26,7 @@ impl ToolArguments {
         // `null` for a property that cannot be null means "not given"; a
         // required one is then reported missing below.
         values.retain(|name, value| {
-            !value.is_null()
-                || properties
-                    .get(name)
-                    .is_some_and(|property| allows_null(property))
+            !value.is_null() || properties.get(name).is_some_and(allows_null)
         });
         for (name, value) in &values {
             let Some(property) = properties.get(name) else {
