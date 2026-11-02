@@ -237,14 +237,20 @@ final class RuntimeAgentChatRepository
     required String requestId,
     required String runtimeRequestId,
     required AgentChatResponse response,
-  }) => _request(
-    AgentChatWire.respond,
-    _scoped(chat, <String, Object?>{
-      'requestId': requestId,
-      'runtimeRequestId': runtimeRequestId,
-      'response': response.toJson(),
-    }),
-  );
+  }) => response is AgentChatSecretResponse
+      ? lifecycle.provideSecret(
+          chat,
+          runtimeRequestId: runtimeRequestId,
+          value: response.value,
+        )
+      : _request(
+          AgentChatWire.respond,
+          _scoped(chat, <String, Object?>{
+            'requestId': requestId,
+            'runtimeRequestId': runtimeRequestId,
+            'response': response.toJson(),
+          }),
+        );
 
   @override
   Future<AgentChatSnapshot> configure(

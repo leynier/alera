@@ -168,6 +168,25 @@ final class AgentChatElicitationResponse extends AgentChatResponse {
   };
 }
 
+/// A person's answer to a masked secret card (`agentChatSecretRequestsV1`):
+/// [value] saves it, null declines. The repository sends it with
+/// `agentChat.secret.provide`, never `agentChat.respond`, and [toJson]
+/// leaves the value out so it can never reach a log or a receipt.
+final class AgentChatSecretResponse extends AgentChatResponse {
+  const AgentChatSecretResponse(this.value);
+
+  final String? value;
+
+  @override
+  AgentChatJson toJson() => <String, Object?>{
+    'type': 'secret',
+    'action': value == null ? 'decline' : 'save',
+  };
+
+  @override
+  String toString() => 'AgentChatSecretResponse(${toJson()['action']})';
+}
+
 /// `agentChat.configure`: settings for the chat's next turn; only present
 /// fields change. Another [provider] or [providerInstanceId] moves the chat,
 /// with its history, to a new session of that provider; the runtime refuses

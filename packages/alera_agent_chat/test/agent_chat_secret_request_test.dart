@@ -55,6 +55,25 @@ void main() {
     expect(payload.containsKey('value'), isFalse);
     expect(AgentChatWire.secretRequestsCapability, 'agentChatSecretRequestsV1');
   });
+
+  test('a secret response goes to the provide verb, not respond', () async {
+    final transport = AgentChatContractTransport()
+      ..capabilities.add(AgentChatWire.secretRequestsCapability);
+    addTearDown(transport.controller.close);
+    final repository = RuntimeAgentChatRepository(transport);
+    const response = AgentChatSecretResponse('synthetic-test-value');
+    await repository.respond(
+      _chat,
+      requestId: 'r',
+      runtimeRequestId: 'request-1',
+      response: response,
+    );
+    final (verb, payload) = transport.requests.single;
+    expect(verb, 'agentChat.secret.provide');
+    expect(payload['action'], 'save');
+    expect(response.toJson().containsKey('value'), isFalse);
+    expect(response.toString().contains('synthetic'), isFalse);
+  });
 }
 
 final class _Legacy extends AgentChatLifecycleRepository {}
