@@ -10,6 +10,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_lin
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_preview_sheet.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_subagent_actions.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_open.dart';
+import 'package:alera_mobile/src/features/workbench/application/mobile_chat_agent_presence.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -65,10 +66,15 @@ class _AgentChatLineageSheetState extends ConsumerState<AgentChatLineageSheet> {
     final threads = capability(AgentChatWire.subagentThreadsCapability);
     final mergeBack = capability(AgentChatWire.mergeBackCapability);
     final chats = ref.watch(agentChatRelatedChatsProvider(chat.hostId));
+    final waiting = ref.watch(
+      mobileChatAttentionEntriesProvider(chat.hostId)
+          .select(chatAttentionWaitingChatIds),
+    );
     final relationships = AgentChatRelationships.build(
       chatId: chat.chatId,
       chats: chats.value ?? const <AgentChatSummary>[],
       items: calls,
+      waitingChatIds: waiting,
     );
     final transfers = agentChatTransferRelations(
       chatId: chat.chatId,
@@ -87,6 +93,7 @@ class _AgentChatLineageSheetState extends ConsumerState<AgentChatLineageSheet> {
       relation: relation,
       chat: chat,
       chats: chats.value ?? const <AgentChatSummary>[],
+      waiting: waiting.contains(relation.chatId),
       canOpenSubagent: threads,
       onMergeBack:
           mergeBack && idle && relation.kind == AgentChatRelationKind.forkSource
@@ -147,6 +154,7 @@ class const _RelationTile({
   required final AgentChatRelation relation,
   required final AgentChatSubagentChat chat,
   required final List<AgentChatSummary> chats,
+  required final bool waiting,
   required final bool canOpenSubagent,
   final VoidCallback? onMergeBack,
 }) extends ConsumerWidget {
@@ -216,6 +224,7 @@ class const _RelationTile({
                     .firstOrNull,
                 fallbackTitle: relation.title,
                 relation: relation.kind.label,
+                waiting: waiting,
                 providerLabel: agentChatPreviewProviderLabel,
               )
             : AgentChatPreview.subagent(

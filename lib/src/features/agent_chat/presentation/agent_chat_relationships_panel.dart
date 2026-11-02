@@ -40,6 +40,9 @@ class const AgentChatRelationshipsPanel({
   /// cards of the rows.
   final List<AgentChatSummary> chats = const <AgentChatSummary>[],
   final String provider = '',
+
+  /// The chats blocked on their own delegated tasks, which read "Waiting".
+  final Set<String> waitingChatIds = const <String>{},
 }) extends StatefulWidget {
   @override
   State<AgentChatRelationshipsPanel> createState() =>
@@ -164,6 +167,7 @@ class _AgentChatRelationshipsPanelState
       widget.chats.where((chat) => chat.chatId == relation.chatId).firstOrNull,
       fallbackTitle: relation.title,
       relation: relation.kind.label,
+      waiting: widget.waitingChatIds.contains(relation.chatId),
       providerLabel: agentChatProviderFallbackLabel,
     );
   }

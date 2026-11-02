@@ -301,3 +301,12 @@ Map<String, ChatWorkspaceAttention> chatWorkspaceAttentionOf(
     },
   );
 }
+
+/// The chats among [entries] whose running turn only waits on delegated
+/// tasks, for Lineage and chat previews to read "Waiting".
+Set<String> chatAttentionWaitingChatIds(
+  Map<String, ChatAttentionEntry> entries,
+) => <String>{
+  for (final entry in entries.values)
+    if (entry.blockedOnTaskWait) entry.chatId,
+};

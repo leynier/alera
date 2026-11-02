@@ -46,6 +46,22 @@ void main() {
     expect(preview.lines[2].tone, AgentChatPreviewTone.working);
   });
 
+  test('a running chat blocked on delegated tasks previews as waiting', () {
+    final waiting = AgentChatPreview.chat(
+      _chat(status: 'running'),
+      fallbackTitle: 'Chat',
+      waiting: true,
+      now: _now,
+    );
+    expect(_texts(waiting), contains('Waiting'));
+    final working = AgentChatPreview.chat(
+      _chat(status: 'running'),
+      fallbackTitle: 'Chat',
+      now: _now,
+    );
+    expect(_texts(working), contains('Working'));
+  });
+
   test('a chat this device cannot see keeps its fallback title', () {
     final preview = AgentChatPreview.chat(null, fallbackTitle: 'Parent Chat');
     expect(preview.title, 'Parent Chat');

@@ -82,6 +82,23 @@ void main() {
     expect(relationships.failedPreviousCount, 2);
   });
 
+  test('a delegated chat blocked on its own tasks reads waiting', () {
+    final relationships = AgentChatRelationships.build(
+      chatId: 'me',
+      chats: <AgentChatSummary>[
+        _chat('me'),
+        _chat('helper', parent: 'me', status: 'running'),
+        _chat('idle-helper', parent: 'me'),
+      ],
+      waitingChatIds: <String>{'helper', 'idle-helper'},
+    );
+    final helper = relationships.active.single;
+    expect(helper.chatId, 'helper');
+    expect(helper.statusLabel, 'Waiting');
+    expect(relationships.runningCount, 1);
+    expect(relationships.previous.single.statusLabel, 'Idle');
+  });
+
   test('a missing parent stays listed but cannot open', () {
     final relationships = AgentChatRelationships.build(
       chatId: 'me',

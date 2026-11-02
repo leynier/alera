@@ -1,6 +1,7 @@
 import 'package:alera/src/features/agent_chat/application/agent_chat_relationships.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_preview_card.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,11 +21,17 @@ class const AgentChatTabHover({
         const <AgentChatSummary>[];
     final chat = chats.where((chat) => chat.chatId == chatId).firstOrNull;
     if (chat == null) return child;
+    final waiting = ref.watch(
+      chatAttentionEntriesProvider.select(
+        (entries) => entries[chatId]?.blockedOnTaskWait ?? false,
+      ),
+    );
     return AgentChatPreviewHover(
       preview: AgentChatPreview.chat(
         chat,
         fallbackTitle: 'Agent Chat',
         relation: agentChatOriginLabel(chat, chats),
+        waiting: waiting,
         providerLabel: agentChatProviderFallbackLabel,
       ),
       child: child,

@@ -39,10 +39,12 @@ final class const AgentChatPreview({
 }) {
   /// A related chat: its agent, state and last activity. [relation] names
   /// how it relates to the chat on screen ("Fork", "Parent Chat").
+  /// [waiting] marks a working chat blocked on its delegated tasks.
   factory chat(
     AgentChatSummary? chat, {
     required String fallbackTitle,
     String? relation,
+    bool waiting = false,
     String Function(String provider) providerLabel = _identity,
     DateTime? now,
   }) {
@@ -63,7 +65,7 @@ final class const AgentChatPreview({
           )
         else ...<AgentChatPreviewLine>[
           _agent(chat.provider, chat.model, null, providerLabel),
-          _chatStatus(chat),
+          _chatStatus(chat, waiting: waiting),
           AgentChatPreviewLine(
             glyph: AgentChatPreviewGlyph.time,
             text: 'Updated ${agentChatRelativeTime(chat.updatedAt, now)}',
@@ -194,7 +196,10 @@ AgentChatPreviewLine _agent(
   );
 }
 
-AgentChatPreviewLine _chatStatus(AgentChatSummary chat) {
+AgentChatPreviewLine _chatStatus(
+  AgentChatSummary chat, {
+  required bool waiting,
+}) {
   final working =
       chat.busy ||
       chat.status == AgentChatSessionStatus.running ||
@@ -205,7 +210,10 @@ AgentChatPreviewLine _chatStatus(AgentChatSummary chat) {
       'Needs Input',
       AgentChatPreviewTone.working,
     ),
-    _ when working => ('Working', AgentChatPreviewTone.working),
+    _ when working => (
+      waiting ? 'Waiting' : 'Working',
+      AgentChatPreviewTone.working,
+    ),
     _ when chat.status == AgentChatSessionStatus.error => (
       'Failed',
       AgentChatPreviewTone.error,

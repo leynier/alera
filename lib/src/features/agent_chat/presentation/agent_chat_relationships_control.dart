@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/surfaces/alera_popover.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_relationships.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_relationships_panel.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,10 +60,14 @@ class _AgentChatRelationshipsControlState
     final chats =
         ref.watch(agentChatRelatedChatsProvider).value ??
         const <AgentChatSummary>[];
+    final waiting = ref.watch(
+      chatAttentionEntriesProvider.select(chatAttentionWaitingChatIds),
+    );
     final relationships = AgentChatRelationships.build(
       chatId: widget.chatId,
       chats: chats,
       items: calls,
+      waitingChatIds: waiting,
     );
     final transfers = agentChatTransferRelations(
       chatId: widget.chatId,
@@ -82,6 +87,7 @@ class _AgentChatRelationshipsControlState
         actions: widget.actions(relationships, close),
         transfers: transfers,
         chats: chats,
+        waitingChatIds: waiting,
         provider: provider,
       ),
       child: Material(

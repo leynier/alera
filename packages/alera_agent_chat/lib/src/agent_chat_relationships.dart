@@ -65,7 +65,8 @@ final class const AgentChatRelation({
 /// The chat's parent, fork source, delegated chats, forks and native
 /// sub-agents, grouped the way T3 Code's lineage panel groups them: related
 /// chats first (parents pinned), then agents still working, then previous
-/// agents.
+/// agents. A chat in `waitingChatIds` is blocked on its own delegated tasks:
+/// it reads "Waiting" and stays among the active agents.
 final class AgentChatRelationships {
   AgentChatRelationships._(this.related, this.active, this.previous);
 
@@ -73,6 +74,7 @@ final class AgentChatRelationships {
     required String chatId,
     required List<AgentChatSummary> chats,
     Iterable<AgentChatItem> items = const <AgentChatItem>[],
+    Set<String> waitingChatIds = const <String>{},
   }) {
     final byId = <String, AgentChatSummary>{
       for (final chat in chats) chat.chatId: chat,
@@ -88,7 +90,9 @@ final class AgentChatRelationships {
         kind: kind,
         chatId: id,
         title: _title(chat?.title, fallback: kind.label),
-        statusLabel: chat == null ? 'Unavailable' : _chatStatus(chat),
+        statusLabel: chat == null
+            ? 'Unavailable'
+            : _chatStatus(chat, waiting: waitingChatIds.contains(id)),
         active: working,
         failed: chat?.status == AgentChatSessionStatus.error,
         missing: chat == null || chat.archived,
@@ -176,10 +180,10 @@ bool _working(AgentChatSummary chat) =>
     chat.status == AgentChatSessionStatus.waiting ||
     chat.pendingRequestCount > 0;
 
-String _chatStatus(AgentChatSummary chat) {
+String _chatStatus(AgentChatSummary chat, {required bool waiting}) {
   if (chat.archived) return 'Archived';
   if (chat.pendingRequestCount > 0) return 'Needs Input';
-  if (_working(chat)) return 'Working';
+  if (_working(chat)) return waiting ? 'Waiting' : 'Working';
   return switch (chat.status) {
     AgentChatSessionStatus.error => 'Failed',
     AgentChatSessionStatus.starting => 'Starting',

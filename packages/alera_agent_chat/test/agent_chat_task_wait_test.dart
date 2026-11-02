@@ -127,5 +127,12 @@ void main() {
       entry.withBlockedOnTaskWait(false).level,
       ChatAttentionLevel.working,
     );
+    expect(
+      chatAttentionWaitingChatIds(<String, ChatAttentionEntry>{
+        'chat': entry,
+        'other': entry.withBlockedOnTaskWait(false),
+      }),
+      <String>{'chat'},
+    );
   });
 }
