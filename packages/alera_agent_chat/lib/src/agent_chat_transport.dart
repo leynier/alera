@@ -63,6 +63,10 @@ abstract final class AgentChatWire {
   /// `unresponsiveAt` when the agent ignores it, and `agentChat.forceStop`
   /// ends that turn by stopping the agent's process.
   static const String forceStopCapability = 'agentChatForceStopV1';
+
+  /// Snapshots carry `titleGeneration`, `titleSource` may be `generated`, and
+  /// `agentChat.regenerateTitle` asks AI Assist for a new title.
+  static const String titleGenerationCapability = 'agentChatTitleGenerationV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -125,6 +129,7 @@ abstract final class AgentChatWire {
   static const String feedback = 'agentChat.feedback';
   static const String configure = 'agentChat.configure';
   static const String rename = 'agentChat.rename';
+  static const String regenerateTitle = 'agentChat.regenerateTitle';
   static const String subagent = 'agentChat.subagent';
   static const String workflowScript = 'agentChat.workflowScript';
   static const String workflowAgent = 'agentChat.workflowAgent';

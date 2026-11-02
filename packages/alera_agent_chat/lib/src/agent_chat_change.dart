@@ -58,6 +58,8 @@ class const AgentChatChange({
   final AgentChatUsage? usage,
   final String? title,
   final AgentChatTitleSource? titleSource,
+  final bool hasTitleGeneration = false,
+  final AgentChatTitleGeneration? titleGeneration,
   final String? provider,
   final String? providerInstanceId,
   final bool? archived,
@@ -101,6 +103,10 @@ class const AgentChatChange({
       titleSource: delta.containsKey('titleSource')
           ? AgentChatTitleSource.fromJson(delta['titleSource'])
           : null,
+      hasTitleGeneration: delta.containsKey('titleGeneration'),
+      titleGeneration: agentChatTitleGenerationFromJson(
+        delta['titleGeneration'],
+      ),
       provider: agentChatJsonString(delta['provider']),
       providerInstanceId: agentChatJsonString(delta['providerInstanceId']),
       archived: delta['archived'] is bool ? delta['archived']! as bool : null,

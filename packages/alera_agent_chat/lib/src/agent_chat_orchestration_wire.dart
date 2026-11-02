@@ -23,6 +23,7 @@ abstract final class AgentChatOrchestrationWire {
   static const String requests = 'chatOrchestration.requests';
   static const String respond = 'chatOrchestration.respond';
   static const String configure = 'chatOrchestration.configure';
+  static const String updateTitle = 'chatOrchestration.updateTitle';
   static const String read = 'chatOrchestration.read';
   static const String list = 'chatOrchestration.list';
 

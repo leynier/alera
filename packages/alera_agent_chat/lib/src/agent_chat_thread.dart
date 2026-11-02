@@ -6,6 +6,7 @@ import 'package:alera_agent_chat/src/agent_chat_queue_entry.dart';
 import 'package:alera_agent_chat/src/agent_chat_request.dart';
 import 'package:alera_agent_chat/src/agent_chat_session.dart';
 import 'package:alera_agent_chat/src/agent_chat_snapshot.dart';
+import 'package:alera_agent_chat/src/agent_chat_title_source.dart';
 
 sealed class AgentChatApplyOutcome {
   const AgentChatApplyOutcome();
@@ -62,6 +63,8 @@ final class AgentChatThread {
   String get provider => snapshot.provider;
   String get providerInstanceId => snapshot.providerInstanceId;
   String get title => snapshot.title;
+  AgentChatTitleSource get titleSource => snapshot.titleSource;
+  AgentChatTitleGeneration? get titleGeneration => snapshot.titleGeneration;
   bool get archived => snapshot.archived;
   bool get neverSent => snapshot.neverSent;
   AgentChatSession get session => snapshot.session;
@@ -146,6 +149,9 @@ final class AgentChatThread {
           providerInstanceId: change.providerInstanceId,
           title: change.title,
           titleSource: change.titleSource,
+          titleGeneration: change.hasTitleGeneration
+              ? change.titleGeneration
+              : titleGeneration,
           archived: change.archived,
           session: change.session,
           turns: change.turns.isEmpty ? null : _mergeTurns(turns, change.turns),

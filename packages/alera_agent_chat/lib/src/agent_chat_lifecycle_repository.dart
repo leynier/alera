@@ -105,6 +105,15 @@ abstract class AgentChatLifecycleRepository {
     String? turnId,
   }) => Future.error(UnsupportedError('Force stop is unavailable.'));
 
+  /// Asks AI Assist for a new title (`agentChatTitleGenerationV1`). Only a
+  /// person's explicit request sets [replaceUserTitle], which lets the new
+  /// title replace one the person chose.
+  Future<void> regenerateTitle(
+    AgentChatRef chat, {
+    required String requestId,
+    bool replaceUserTitle = false,
+  }) => Future.error(UnsupportedError('Title generation is unavailable.'));
+
   /// Stops the running sub-agent the call [itemId] started.
   Future<void> stopSubagent(
     AgentChatRef chat, {

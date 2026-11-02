@@ -244,6 +244,20 @@ final class RuntimeAgentChatLifecycleRepository
   );
 
   @override
+  Future<void> regenerateTitle(
+    AgentChatRef chat, {
+    required String requestId,
+    bool replaceUserTitle = false,
+  }) => _request(
+    AgentChatWire.titleGenerationCapability,
+    AgentChatWire.regenerateTitle,
+    _scoped(chat, <String, Object?>{
+      'requestId': requestId,
+      'replaceUserTitle': replaceUserTitle,
+    }),
+  );
+
+  @override
   Future<void> forceStop(
     AgentChatRef chat, {
     required String requestId,

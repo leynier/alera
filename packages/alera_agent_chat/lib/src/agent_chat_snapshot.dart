@@ -18,6 +18,10 @@ class const AgentChatSnapshot({
   final String providerInstanceId = '',
   final String title = '',
   final AgentChatTitleSource titleSource = AgentChatTitleSource.defaultLabel,
+
+  /// The chat's AI title job, absent before one ran
+  /// (`agentChatTitleGenerationV1`).
+  final AgentChatTitleGeneration? titleGeneration,
   final bool archived = false,
   final AgentChatSession session = const AgentChatSession(),
   final List<AgentChatTurn> turns = const <AgentChatTurn>[],
@@ -49,6 +53,9 @@ class const AgentChatSnapshot({
       providerInstanceId: agentChatJsonText(json['providerInstanceId']),
       title: agentChatJsonText(json['title']),
       titleSource: AgentChatTitleSource.fromJson(json['titleSource']),
+      titleGeneration: agentChatTitleGenerationFromJson(
+        json['titleGeneration'],
+      ),
       archived: agentChatJsonBool(json['archived']),
       session: AgentChatSession.fromJson(json['session']),
       turns: agentChatTurnsFromJson(json['turns']),
@@ -72,6 +79,7 @@ class const AgentChatSnapshot({
     String? providerInstanceId,
     String? title,
     AgentChatTitleSource? titleSource,
+    Object? titleGeneration = _unchanged,
     bool? archived,
     AgentChatSession? session,
     List<AgentChatTurn>? turns,
@@ -92,6 +100,9 @@ class const AgentChatSnapshot({
     providerInstanceId: providerInstanceId ?? this.providerInstanceId,
     title: title ?? this.title,
     titleSource: titleSource ?? this.titleSource,
+    titleGeneration: identical(titleGeneration, _unchanged)
+        ? this.titleGeneration
+        : titleGeneration as AgentChatTitleGeneration?,
     archived: archived ?? this.archived,
     session: session ?? this.session,
     turns: turns ?? this.turns,
