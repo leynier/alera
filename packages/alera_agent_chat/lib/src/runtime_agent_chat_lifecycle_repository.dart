@@ -244,6 +244,17 @@ final class RuntimeAgentChatLifecycleRepository
   );
 
   @override
+  Future<void> forceStop(
+    AgentChatRef chat, {
+    required String requestId,
+    String? turnId,
+  }) => _request(
+    AgentChatWire.forceStopCapability,
+    AgentChatWire.forceStop,
+    _scoped(chat, <String, Object?>{'requestId': requestId, 'turnId': ?turnId}),
+  );
+
+  @override
   Future<void> stopSubagent(
     AgentChatRef chat, {
     required String requestId,

@@ -113,3 +113,8 @@ bool agentChatRequestMayTakeFocus({
     sentOrBlurred ||
     lastKeystroke == null ||
     now.difference(lastKeystroke) >= agentChatTypingIdle;
+
+/// Under a question whose provider is gone (`answerBy: message`): the answer
+/// reaches the agent as a new message.
+const String agentChatAnswerByMessageNote =
+    'The runtime restarted, so your answer goes to the agent as a new message.';

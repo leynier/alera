@@ -57,6 +57,9 @@ class const AgentChatComposer({
   required final ValueChanged<AgentChatDraftAttachment> onRemoveAttachment,
   required final VoidCallback onSend,
   required final VoidCallback onStop,
+
+  /// Force stop, offered in place of Stop once the agent ignored it.
+  final VoidCallback? onForceStop,
   final VoidCallback? onSteer,
   final Widget? settings,
 
@@ -214,9 +217,19 @@ class const AgentChatComposer({
                               child: settings ?? const SizedBox.shrink(),
                             ),
                           ),
-                          if (turnActive && canInterrupt)
+                          if (turnActive && onForceStop != null)
                             IconButton(
-                              tooltip: 'Stop',
+                              key: const ValueKey<String>(
+                                'agent-chat-force-stop',
+                              ),
+                              tooltip: 'Force Stop',
+                              onPressed: enabled ? onForceStop : null,
+                              color: AleraTokens.error,
+                              icon: const Icon(AleraIcons.stop),
+                            )
+                          else if (turnActive && canInterrupt)
+                            IconButton(
+                              tooltip: interrupting ? 'Stopping…' : 'Stop',
                               onPressed: enabled && !interrupting
                                   ? onStop
                                   : null,

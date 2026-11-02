@@ -54,6 +54,15 @@ class AgentChatViewState {
       session.activeTurnId != null ||
       session.status == AgentChatSessionStatus.running;
 
+  /// A Stop from this phone or another client reached the running turn and
+  /// the agent has not ignored it yet: the Stop control spins.
+  bool get stopping =>
+      turnActive &&
+      !session.stopUnresponsive &&
+      (interrupting ||
+          (session.stop != null &&
+              session.stop!.turnId == session.activeTurnId));
+
   /// Nothing was ever sent, so the agent and model change freely and the
   /// chat shows its ready state rather than a stopped session.
   bool get neverSent => thread.snapshot.neverSent && outbox.isEmpty;

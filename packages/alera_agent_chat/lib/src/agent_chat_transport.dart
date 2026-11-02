@@ -58,6 +58,11 @@ abstract final class AgentChatWire {
   /// `agentChat.generatedImage` reads, in pieces, the file an
   /// `image_generation` item saved on the host.
   static const String generatedImagesCapability = 'agentChatGeneratedImagesV1';
+
+  /// Sessions carry the `stop` a running turn received, marked
+  /// `unresponsiveAt` when the agent ignores it, and `agentChat.forceStop`
+  /// ends that turn by stopping the agent's process.
+  static const String forceStopCapability = 'agentChatForceStopV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.
@@ -115,6 +120,7 @@ abstract final class AgentChatWire {
   static const String turnDiff = 'agentChat.turnDiff';
   static const String skills = 'agentChat.skills';
   static const String interrupt = 'agentChat.interrupt';
+  static const String forceStop = 'agentChat.forceStop';
   static const String respond = 'agentChat.respond';
   static const String feedback = 'agentChat.feedback';
   static const String configure = 'agentChat.configure';

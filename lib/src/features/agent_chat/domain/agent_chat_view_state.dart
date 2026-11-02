@@ -40,6 +40,12 @@ class const AgentChatViewState({
   final Set<String> cancellingQueueIds = const <String>{},
   final Set<String> preparingAttachmentIds = const <String>{},
   final bool interrupting = false,
+
+  /// This client's Stop went unanswered for [agentChatForceStopAfter].
+  final bool stopExpired = false,
+
+  /// A Force stop is on its way to the runtime.
+  final bool forceStopping = false,
   final bool loadingHistory = false,
   final bool configuring = false,
   final bool recovering = false,
@@ -91,8 +97,22 @@ class const AgentChatViewState({
   /// Whether the provider takes attachments at all.
   bool get canAttach => canSend && thread!.session.capabilities.attachments;
 
+  /// The running turn received a Stop (from this client or the runtime's
+  /// `session.stop`) that the agent has neither honored nor ignored for
+  /// long: the Stop control reads Stopping….
+  bool get stopping {
+    if (!busy || stopUnresponsive) return false;
+    final session = thread!.session;
+    return interrupting || session.stop?.turnId == session.activeTurnId;
+  }
+
+  /// The agent ignored the Stop: Force stop is offered where the runtime
+  /// supports it, and Stop again elsewhere.
+  bool get stopUnresponsive =>
+      busy && (thread!.session.stopUnresponsive || stopExpired);
+
   bool get canInterrupt =>
-      live && busy && !interrupting && thread!.session.capabilities.interrupt;
+      live && busy && !stopping && thread!.session.capabilities.interrupt;
 
   /// Provider and mode changes wait for an idle session with nothing open,
   /// which is when the runtime accepts them.
@@ -113,6 +133,8 @@ class const AgentChatViewState({
     Set<String>? cancellingQueueIds,
     Set<String>? preparingAttachmentIds,
     bool? interrupting,
+    bool? stopExpired,
+    bool? forceStopping,
     bool? loadingHistory,
     bool? configuring,
     bool? recovering,
@@ -132,6 +154,8 @@ class const AgentChatViewState({
     preparingAttachmentIds:
         preparingAttachmentIds ?? this.preparingAttachmentIds,
     interrupting: interrupting ?? this.interrupting,
+    stopExpired: stopExpired ?? this.stopExpired,
+    forceStopping: forceStopping ?? this.forceStopping,
     loadingHistory: loadingHistory ?? this.loadingHistory,
     configuring: configuring ?? this.configuring,
     recovering: recovering ?? this.recovering,
@@ -151,3 +175,7 @@ class const AgentChatViewState({
 }
 
 const Object _unchanged = Object();
+
+/// How long a Stop may go unanswered before Force stop is offered, matching
+/// the runtime's own deadline.
+const Duration agentChatForceStopAfter = Duration(seconds: 15);

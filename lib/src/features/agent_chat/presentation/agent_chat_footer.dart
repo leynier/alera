@@ -71,7 +71,8 @@ class const AgentChatFooter({
           canSteer: state.canSteer,
           canAttach: state.canAttach,
           canInterrupt: state.canInterrupt,
-          interrupting: state.interrupting,
+          interrupting: state.stopping,
+          forceStop: state.stopUnresponsive && !state.forceStopping,
           configuring: state.configuring,
           canSwitchProvider: state.canSwitchProvider,
           switchBlockedReason: state.providerSwitchBlockedReason,
@@ -109,6 +110,13 @@ class const AgentChatFooter({
     final goalOffered =
         ref
             .watch(agentChatCapabilityProvider(AgentChatWire.goalCapability))
+            .value ??
+        false;
+    final forceStopSupported =
+        ref
+            .watch(
+              agentChatCapabilityProvider(AgentChatWire.forceStopCapability),
+            )
             .value ??
         false;
     final catalogProvider = agentChatProviderCatalogProvider(workspace.id);
@@ -359,6 +367,9 @@ class const AgentChatFooter({
                   return false;
                 },
                 onInterrupt: () => unawaited(controller.interrupt()),
+                onForceStop: forceStopSupported && view.forceStop
+                    ? () => unawaited(controller.forceStop())
+                    : null,
                 onConfigure: (configuration) =>
                     unawaited(controller.configure(configuration)),
                 onChoose: (pick, label) =>

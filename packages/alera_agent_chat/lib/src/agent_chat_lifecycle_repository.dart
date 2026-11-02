@@ -96,6 +96,15 @@ abstract class AgentChatLifecycleRepository {
   }) =>
       Future.error(UnsupportedError('Sub-agent transcripts are unavailable.'));
 
+  /// Ends the running turn of a chat whose agent ignored Stop by stopping
+  /// the agent's process (`agentChatForceStopV1`); the chat stays
+  /// resumable and its queue is emptied.
+  Future<void> forceStop(
+    AgentChatRef chat, {
+    required String requestId,
+    String? turnId,
+  }) => Future.error(UnsupportedError('Force stop is unavailable.'));
+
   /// Stops the running sub-agent the call [itemId] started.
   Future<void> stopSubagent(
     AgentChatRef chat, {

@@ -102,7 +102,7 @@ class _AgentChatShortcutTargetState
     final queue = thread.queue;
     switch (shortcut) {
       case AgentChatShortcut.stop:
-        if (!state.canInterrupt || state.interrupting) return false;
+        if (!state.canInterrupt) return false;
         unawaited(controller.interrupt());
       case AgentChatShortcut.steerNextQueued:
         if (queue.isEmpty ||

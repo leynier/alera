@@ -162,6 +162,10 @@ class const AgentChatRequest({
   final AgentChatJson payload = const <String, Object?>{},
   final bool supportsFeedback = false,
   final AgentChatFullAccessOverride? fullAccessOverride,
+
+  /// The provider that asked is gone (the runtime restarted), so the answer
+  /// reaches the agent as a new message (`answerBy: message`).
+  final bool answerByMessage = false,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -201,6 +205,7 @@ class const AgentChatRequest({
       fullAccessOverride: AgentChatFullAccessOverride.tryParse(
         json['fullAccessOverride'],
       ),
+      answerByMessage: agentChatJsonString(json['answerBy']) == 'message',
     );
   }
 

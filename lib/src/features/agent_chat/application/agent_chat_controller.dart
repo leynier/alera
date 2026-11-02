@@ -12,10 +12,6 @@ part 'agent_chat_controller.g.dart';
 part 'agent_chat_controller_actions.dart';
 part 'agent_chat_controller_delivery.dart';
 
-// The runtime ends an interrupted turn through events; this only bounds how
-// long the Stop control stays disabled if that never arrives.
-const Duration _interruptSettleTimeout = Duration(seconds: 3);
-
 /// One chat as the desktop renders it: a runtime snapshot kept current by
 /// cursor-ordered changes, plus this client's in-flight actions.
 @riverpod
@@ -191,6 +187,7 @@ class AgentChatController extends _$AgentChatController
         state = state.copyWith(
           removed: true,
           interrupting: false,
+          stopExpired: false,
           pendingModel: null,
         );
     }
@@ -221,6 +218,7 @@ class AgentChatController extends _$AgentChatController
         state.interrupting &&
         interruptedTurn != null &&
         thread.session.activeTurnId == interruptedTurn;
+    final stopExpired = interrupting && state.stopExpired;
     if (!interrupting) _interruptTimer?.cancel();
     state = state.copyWith(
       phase: phase,
@@ -235,6 +233,7 @@ class AgentChatController extends _$AgentChatController
       respondingRequestIds: _retained(state.respondingRequestIds, pendingIds),
       cancellingQueueIds: _retained(state.cancellingQueueIds, queueIds),
       interrupting: interrupting,
+      stopExpired: stopExpired,
     );
     if (wasBusy && !state.busy) _applyPendingModel();
   }
@@ -257,18 +256,40 @@ class AgentChatController extends _$AgentChatController
   Future<void> interrupt() async {
     final turnId = state.thread?.session.activeTurnId;
     if (!state.canInterrupt || turnId == null) return;
-    state = state.copyWith(interrupting: true, actionError: null);
+    state = state.copyWith(
+      interrupting: true,
+      stopExpired: false,
+      actionError: null,
+    );
     _interruptTimer?.cancel();
-    _interruptTimer = Timer(_interruptSettleTimeout, () {
-      if (ref.mounted) state = state.copyWith(interrupting: false);
+    // The runtime ends a stopped turn through events and marks a Stop the
+    // agent ignores; this offers Force stop when that mark never comes.
+    _interruptTimer = Timer(agentChatForceStopAfter, () {
+      if (ref.mounted && state.interrupting) {
+        state = state.copyWith(stopExpired: true);
+      }
     });
     await _guard(
       () => _repository.interrupt(_chat, requestId: _nextId(), turnId: turnId),
       onError: () {
         _interruptTimer?.cancel();
-        state = state.copyWith(interrupting: false);
+        state = state.copyWith(interrupting: false, stopExpired: false);
       },
     );
+  }
+
+  /// Ends the running turn of an agent that ignored Stop by stopping its
+  /// process (`agentChatForceStopV1`).
+  Future<void> forceStop() async {
+    final turnId = state.thread?.session.activeTurnId;
+    if (!state.stopUnresponsive || state.forceStopping || turnId == null) {
+      return;
+    }
+    state = state.copyWith(forceStopping: true, actionError: null);
+    await _guard(
+      () => _lifecycle.forceStop(_chat, requestId: _nextId(), turnId: turnId),
+    );
+    if (ref.mounted) state = state.copyWith(forceStopping: false);
   }
 
   /// Whether the runtime took the answer.

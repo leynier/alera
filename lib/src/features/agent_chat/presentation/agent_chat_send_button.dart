@@ -4,9 +4,10 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// The composer's round action: Stop while a turn runs with an empty draft,
-/// otherwise Send, whose tooltip says whether the message sends, queues or
-/// steers.
+/// The composer's round action: Stop while a turn runs with an empty draft
+/// (Stopping… once pressed, Force stop when [onForceStop] is given because
+/// the agent ignored it), otherwise Send, whose tooltip says whether the
+/// message sends, queues or steers.
 class const AgentChatSendOrStopButton({
   super.key,
   required final bool hasDraft,
@@ -17,14 +18,27 @@ class const AgentChatSendOrStopButton({
   required final bool interrupting,
   required final VoidCallback onSend,
   required final VoidCallback onInterrupt,
+  final VoidCallback? onForceStop,
   final String? sendLabel,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    if (busy && !hasDraft && onForceStop != null) {
+      return AleraIconButton(
+        key: const ValueKey<String>('agent-chat-force-stop'),
+        tooltip: 'Force Stop: the agent did not stop',
+        icon: AleraIcons.stop,
+        iconColor: AleraTokens.onAccent,
+        backgroundColor: AleraTokens.error,
+        borderRadius: AleraTokens.radiusPill,
+        minSize: AleraTokens.space32,
+        onPressed: onForceStop,
+      );
+    }
     if (busy && !hasDraft) {
       return AleraIconButton(
         key: const ValueKey<String>('agent-chat-stop'),
-        tooltip: interrupting ? 'Stopping' : 'Stop',
+        tooltip: interrupting ? 'Stopping…' : 'Stop',
         icon: AleraIcons.stop,
         iconColor: AleraTokens.onAccent,
         backgroundColor: canInterrupt && !interrupting

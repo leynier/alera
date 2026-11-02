@@ -61,6 +61,9 @@ class const AgentChatComposer({
   required final AgentChatSendCallback onSend,
   required final VoidCallback onInterrupt,
   required final ValueChanged<AgentChatConfiguration> onConfigure,
+
+  /// Force stop, offered once the agent ignored Stop.
+  final VoidCallback? onForceStop,
   required final AgentChatChooseCallback onChoose,
   required final ValueChanged<String> onOpenFile,
   final bool canSubmit = true,
@@ -480,6 +483,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           sendLabel: _editing ? 'Save Queued Message' : widget.sendLabel,
           onSend: _send,
           onInterrupt: widget.onInterrupt,
+          onForceStop: widget.onForceStop,
         ),
       ],
     ),

@@ -343,6 +343,16 @@ class _AgentChatQuestionCardState extends State<AgentChatQuestionCard> {
                     ),
                   ),
                 ),
+                if (widget.request.answerByMessage)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+                    child: Text(
+                      agentChatAnswerByMessageNote,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                  ),
                 for (final (index, option) in question.options.indexed)
                   AgentChatQuestionOptionRow(
                     number: index + 1,

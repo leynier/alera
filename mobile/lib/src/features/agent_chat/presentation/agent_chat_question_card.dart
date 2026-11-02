@@ -98,6 +98,14 @@ class _AgentChatQuestionCardState extends State<AgentChatQuestionCard> {
               padding: const EdgeInsets.only(bottom: AleraTokens.space6),
               child: Text(question.question),
             ),
+          if (widget.request.answerByMessage)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+              child: Text(
+                agentChatAnswerByMessageNote,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
           for (final (index, option) in question.options.indexed)
             _ChoiceRow(
               ordinal: index + 1,

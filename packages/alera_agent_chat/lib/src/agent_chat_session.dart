@@ -55,6 +55,27 @@ class const AgentChatCapabilities({
   }
 }
 
+/// The Stop a running turn received (`agentChatForceStopV1`). Once
+/// [unresponsiveAt] is set the agent ignored it, and Force stop is offered.
+class const AgentChatStop({
+  required final String turnId,
+  final DateTime? requestedAt,
+  final DateTime? unresponsiveAt,
+}) {
+  static AgentChatStop? tryParse(Object? value) {
+    final json = agentChatJsonMap(value);
+    final turnId = agentChatJsonString(json['turnId']);
+    if (turnId == null) return null;
+    return AgentChatStop(
+      turnId: turnId,
+      requestedAt: agentChatJsonDate(json['requestedAt']),
+      unresponsiveAt: agentChatJsonDate(json['unresponsiveAt']),
+    );
+  }
+
+  bool get unresponsive => unresponsiveAt != null;
+}
+
 class const AgentChatSession({
   final AgentChatSessionStatus status = AgentChatSessionStatus.starting,
   final String? model,
@@ -76,6 +97,9 @@ class const AgentChatSession({
 
   /// The objective the provider keeps working toward, when one is set.
   final AgentChatGoal? goal,
+
+  /// The Stop the running turn received, until that turn ends.
+  final AgentChatStop? stop,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -97,10 +121,17 @@ class const AgentChatSession({
       generation: agentChatJsonInt(json['generation']) ?? 0,
       commands: agentChatProviderCommandsFromJson(json['commands']),
       goal: AgentChatGoal.tryParse(json['goal']),
+      stop: AgentChatStop.tryParse(json['stop']),
     );
   }
 
   bool get busy => activeTurnId != null;
+
+  /// The running turn's Stop went unanswered, so Force stop is the way out.
+  bool get stopUnresponsive {
+    final stop = this.stop;
+    return stop != null && stop.unresponsive && stop.turnId == activeTurnId;
+  }
 }
 
 class const AgentChatTurn({

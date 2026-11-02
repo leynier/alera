@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_feedback.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_force_stop.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_view_memory.dart';
 import 'package:alera_mobile/src/features/agent_chat/domain/agent_chat_availability.dart';
@@ -406,7 +407,7 @@ class const AgentChatTabBody({
                 ),
                 turnActive: view.turnActive,
                 canInterrupt: view.session.capabilities.interrupt,
-                interrupting: view.interrupting,
+                interrupting: view.stopping,
                 // An upload lands in the stored draft, which would end the
                 // edit; the queued message keeps its own attachments anyway.
                 onAttach: handlers.queuedEdit.isEditing
@@ -425,6 +426,25 @@ class const AgentChatTabBody({
                     controller.interrupt,
                   ),
                 ),
+                onForceStop:
+                    agentChatOffersForceStop(
+                      view,
+                      supported: runtimeOffers(
+                        AgentChatWire.forceStopCapability,
+                      ),
+                    )
+                    ? () => unawaited(
+                        handlers.run(
+                          'Could not force stop the agent.',
+                          () async => forceStopAgentChat(
+                            await ref.read(
+                              agentChatRepositoryProvider(hostId).future,
+                            ),
+                            view,
+                          ),
+                        ),
+                      )
+                    : null,
                 settings: controls,
                 suggestions: AgentChatComposerMenuHost(
                   skills: skills,
