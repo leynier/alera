@@ -33,9 +33,8 @@ class MobileRuntimeAutomationRepository(final MobileAutomationClient _client) {
       _client.runtimeCapabilities.contains(automationReuseCapability);
 
   /// Whether the runtime runs agent chat targets and interval schedules.
-  bool get supportsAgentChatTarget => _client.runtimeCapabilities.contains(
-    automationAgentChatTargetCapability,
-  );
+  bool get supportsAgentChatTarget =>
+      _client.runtimeCapabilities.contains(automationAgentChatTargetCapability);
 
   Future<List<AutomationRecord>> list() async {
     try {

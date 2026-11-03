@@ -3,7 +3,7 @@
 
 use chrono::{DateTime, Duration, Utc};
 
-use super::AutomationOccurrence;
+use super::super::AutomationOccurrence;
 
 /// The shortest interval a schedule may repeat at.
 pub const AUTOMATION_MIN_INTERVAL_SECONDS: i64 = 60;

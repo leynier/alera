@@ -6,6 +6,10 @@ use chrono_tz::Tz;
 
 use super::{AutomationOccurrence, AutomationSchedule};
 
+#[path = "automation_schedule_interval.rs"]
+mod automation_schedule_interval;
+pub use automation_schedule_interval::{fixed_time_cron, AUTOMATION_MIN_INTERVAL_SECONDS};
+
 const MAX_CRON_SCAN_MINUTES: i64 = 9 * 366 * 24 * 60;
 pub const AUTOMATION_CRON_MAX_BYTES: usize = 2 * 1024;
 
@@ -259,7 +263,7 @@ pub fn next_occurrence(
         AutomationSchedule::Interval {
             every_seconds,
             anchor,
-        } => Ok(Some(super::automation_schedule_interval::next_interval(
+        } => Ok(Some(automation_schedule_interval::next_interval(
             automation_id,
             *every_seconds,
             *anchor,
@@ -293,7 +297,7 @@ pub fn validate_schedule(schedule: &AutomationSchedule) -> Result<(), String> {
             }
         }
         AutomationSchedule::Interval { every_seconds, .. } => {
-            super::automation_schedule_interval::validate_interval(*every_seconds)?;
+            automation_schedule_interval::validate_interval(*every_seconds)?;
         }
     }
     Ok(())
