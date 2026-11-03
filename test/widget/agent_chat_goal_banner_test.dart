@@ -132,6 +132,17 @@ void main() {
     expect(find.byKey(_clear), findsOneWidget);
   });
 
+  testWidgets('a token count that rounds to a million reads 1m', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      goal: _goal('paused', tokensUsed: 999600, tokenBudget: 1000000),
+    );
+    expect(find.text('Goal paused · 1m / 1m tokens'), findsOneWidget);
+    expect(find.textContaining('1000k'), findsNothing);
+  });
+
   testWidgets('an active goal is pursued while the chat works', (tester) async {
     await _pump(tester, goal: _goal('active'), busy: true);
     expect(find.text('Pursuing goal'), findsOneWidget);

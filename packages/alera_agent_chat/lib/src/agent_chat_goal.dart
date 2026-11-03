@@ -85,7 +85,9 @@ class const AgentChatGoalPresentation({
 /// "950", "12k", "1.5m": a token count as the goal banner shows it.
 String agentChatGoalTokenLabel(int tokens) {
   if (tokens < 1000) return '$tokens';
-  if (tokens < 1000000) return '${(tokens / 1000).round()}k';
+  final thousands = (tokens / 1000).round();
+  // 999,500 rounds to 1000 thousands, which reads as "1m", not "1000k".
+  if (thousands < 1000) return '${thousands}k';
   final millions = (tokens / 1000000).toStringAsFixed(1);
   return '${millions.endsWith('.0') ? millions.substring(0, millions.length - 2) : millions}m';
 }
