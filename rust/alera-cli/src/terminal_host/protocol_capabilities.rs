@@ -287,3 +287,8 @@ pub const RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY: &str = "automatio
 // answers `automation.unbind`. Additive, so it never bumps the protocol
 // version; clients hide reuse controls without it.
 pub const RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY: &str = "automationReuseV1";
+// Advertised once definitions may carry the `agentChat` target and the
+// `interval` schedule, and runs may carry `chatId` and `clientMessageId`.
+// Additive; clients without it show such automations as unknown.
+pub const RUNTIME_HOST_AUTOMATION_AGENT_CHAT_TARGET_CAPABILITY: &str =
+    "automationAgentChatTargetV1";

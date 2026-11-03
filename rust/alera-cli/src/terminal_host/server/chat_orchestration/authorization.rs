@@ -221,6 +221,29 @@ pub(crate) async fn require_lineage_for_task(
     ))
 }
 
+/// A run started now skips the schedule a person agreed to, so an agent may
+/// start one only from a full-access chat in the default interaction mode.
+pub(crate) async fn require_run_now_caller(
+    caller: &OrchestrationCaller,
+    runtime: &dyn ChatOrchestrationRuntime,
+) -> HostResult<()> {
+    let Some(bound) = &caller.bound else {
+        return Ok(());
+    };
+    let snapshot = runtime.snapshot(&bound.chat_id).await?;
+    let interaction = snapshot["session"]["interactionMode"]
+        .as_str()
+        .unwrap_or("default");
+    if mode_rank(&bound.runtime_mode) != Some(MODE_FULL) || interaction != "default" {
+        return Err(HostError::conflict(
+            "runNowNotAllowed",
+            "run_scheduled_task_now needs a full-access chat in the default interaction mode. Ask the person to run it from the Automations screen instead.",
+            serde_json::json!({"runtimeMode": bound.runtime_mode, "interactionMode": interaction}),
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) async fn authorize_request(
     caller: &OrchestrationCaller,
     store: &RuntimeStore,
@@ -249,6 +272,15 @@ pub(crate) async fn authorize_request(
         OrchestrationRequest::UpdateTitle { chat_id, .. } => {
             let chat_id = super::titles::title_target(&caller, chat_id.as_deref())?;
             require_lineage_for_chat(&caller, store, &chat_id).await?;
+        }
+        OrchestrationRequest::ScheduleTask(input) => {
+            // A person names the chat a task runs in; an agent uses its own.
+            if let (None, Some(chat_id)) = (&caller.bound, input.chat_id.as_deref()) {
+                authorize_target_chat(&caller, runtime, chat_id).await?;
+            }
+        }
+        OrchestrationRequest::RunScheduledTaskNow { .. } => {
+            require_run_now_caller(&caller, runtime).await?;
         }
         OrchestrationRequest::Cancel { task_id, .. } => {
             require_lineage_for_task(&caller, store, task_id).await?;

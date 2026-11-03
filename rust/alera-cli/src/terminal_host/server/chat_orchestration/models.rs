@@ -196,6 +196,18 @@ pub(crate) enum OrchestrationRequest {
         chat_id: Option<String>,
         url: Option<String>,
     },
+    /// Create or update a scheduled task (`chatOrchestrationSchedulesV1`).
+    ScheduleTask(Box<super::schedule_input::ScheduleTaskInput>),
+    ListScheduledTasks {
+        chat_id: Option<String>,
+        project_id: Option<String>,
+    },
+    DeleteScheduledTask {
+        scheduled_task_id: String,
+    },
+    RunScheduledTaskNow {
+        scheduled_task_id: String,
+    },
     /// The context transfers recorded in a chat (`agentChatTransfersV1`).
     Transfers {
         chat_id: Option<String>,

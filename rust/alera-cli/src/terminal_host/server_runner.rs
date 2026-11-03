@@ -120,7 +120,10 @@ pub async fn run_terminal_host_server(
     )))
     .with_events(Arc::new(
         super::chat_orchestration_events::HostOrchestrationEventSink::new(inbox.clone()),
-    ));
+    ))
+    .with_schedules(Arc::new(super::chat_schedule_host::InboxScheduleHost::new(
+        inbox.clone(),
+    )));
     if let Err(error) = agent_chat_runtime.recover_after_restart().await {
         tracing::warn!("agent chat startup recovery unavailable: {error}");
     }

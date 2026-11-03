@@ -49,6 +49,8 @@ pub(crate) struct ChatOrchestrationService {
     pub(super) child_stop_deadline: std::time::Duration,
     /// Secret requests (`agentChatSecretRequestsV1`); off without a store.
     pub(super) secrets: Option<Arc<super::secrets::ChatSecretBroker>>,
+    /// Scheduled tasks (`chatOrchestrationSchedulesV1`); off without a host.
+    pub(super) schedules: Option<Arc<dyn super::schedules::ScheduleHost>>,
 }
 
 impl ChatOrchestrationService {
@@ -70,7 +72,13 @@ impl ChatOrchestrationService {
             monitored: Arc::default(),
             child_stop_deadline: super::stop::CHILD_STOP_DEADLINE,
             secrets: None,
+            schedules: None,
         }
+    }
+
+    pub(crate) fn with_schedules(mut self, host: Arc<dyn super::schedules::ScheduleHost>) -> Self {
+        self.schedules = Some(host);
+        self
     }
 
     pub(crate) fn with_secrets(mut self, secrets: Arc<super::secrets::ChatSecretBroker>) -> Self {
@@ -340,6 +348,18 @@ impl ChatOrchestrationService {
             }
             OrchestrationRequest::ReadSecret { secret_ref } => {
                 self.read_secret(&secret_ref, caller).await
+            }
+            OrchestrationRequest::ScheduleTask(input) => self.schedule_task(*input, caller).await,
+            OrchestrationRequest::ListScheduledTasks {
+                chat_id,
+                project_id,
+            } => self.list_scheduled_tasks(chat_id, project_id, caller).await,
+            OrchestrationRequest::DeleteScheduledTask { scheduled_task_id } => {
+                self.delete_scheduled_task(&scheduled_task_id, caller).await
+            }
+            OrchestrationRequest::RunScheduledTaskNow { scheduled_task_id } => {
+                self.run_scheduled_task_now(&scheduled_task_id, caller)
+                    .await
             }
             OrchestrationRequest::PullRequest {
                 action,

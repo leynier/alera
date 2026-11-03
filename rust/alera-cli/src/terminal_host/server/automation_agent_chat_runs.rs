@@ -33,6 +33,11 @@ pub(crate) enum AgentChatRunEvent {
         status: String,
         error: Option<String>,
     },
+    /// A scheduled task verb (`chatOrchestrationSchedulesV1`) for the actor.
+    Schedule {
+        op: super::chat_orchestration::ScheduleOp,
+        reply: tokio::sync::oneshot::Sender<HostResult<Value>>,
+    },
 }
 
 impl AgentChatRunEvent {
@@ -54,6 +59,12 @@ impl AgentChatRunEvent {
                     + status.len()
                     + error.as_ref().map_or(0, String::len)
             }
+            Self::Schedule { op, .. } => match op {
+                super::chat_orchestration::ScheduleOp::Save { definition, .. } => {
+                    serde_json::to_vec(definition).map_or(0, |bytes| bytes.len())
+                }
+                _ => 256,
+            },
         }
     }
 }
@@ -256,6 +267,10 @@ impl ServerActor {
             } => {
                 self.finish_agent_chat_run(&run_id, &client_message_id, &status, error)
                     .await
+            }
+            AgentChatRunEvent::Schedule { op, reply } => {
+                let result = Box::pin(self.apply_schedule_op(op)).await;
+                let _ = reply.send(result);
             }
         }
     }

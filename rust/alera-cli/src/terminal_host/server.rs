@@ -140,6 +140,7 @@ mod chat_pull_request_notices;
 #[cfg(test)]
 mod chat_pull_request_notices_tests;
 mod chat_pull_request_watch;
+mod chat_schedule_host;
 mod chatgpt_credentials;
 mod chatgpt_inference;
 mod chatgpt_oauth;

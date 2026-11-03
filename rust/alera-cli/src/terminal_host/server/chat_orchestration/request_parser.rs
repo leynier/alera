@@ -416,6 +416,19 @@ impl OrchestrationRequest {
                     url,
                 })
             }
+            "scheduleTask" => Ok(Self::ScheduleTask(Box::new(
+                super::schedule_input::parse_schedule_task(payload)?,
+            ))),
+            "listScheduledTasks" => Ok(Self::ListScheduledTasks {
+                chat_id: optional_string(payload, "chatId")?,
+                project_id: optional_string(payload, "projectId")?,
+            }),
+            "deleteScheduledTask" => Ok(Self::DeleteScheduledTask {
+                scheduled_task_id: super::schedule_input::scheduled_task_id(payload)?,
+            }),
+            "runScheduledTaskNow" => Ok(Self::RunScheduledTaskNow {
+                scheduled_task_id: super::schedule_input::scheduled_task_id(payload)?,
+            }),
             "readSecret" => Ok(Self::ReadSecret {
                 secret_ref: required_string(payload, "secretRef")?,
             }),

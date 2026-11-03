@@ -33,6 +33,9 @@ mod question_wakes;
 mod request_admission;
 mod request_parser;
 mod runtime;
+pub(crate) mod schedule_input;
+mod schedule_views;
+pub(crate) mod schedules;
 mod secret_store;
 pub(crate) mod secrets;
 mod service;
@@ -50,6 +53,7 @@ mod wakes;
 pub(crate) use authorization::{BoundChat, OrchestrationCaller};
 pub(crate) use credentials::ChatCredentialLaunchHook;
 pub(crate) use runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
+pub(crate) use schedules::{ScheduleHost, ScheduleOp};
 pub(crate) use secret_store::SecretVault;
 pub(crate) use secrets::ChatSecretBroker;
 pub(crate) use service::{ChatOrchestrationService, OrchestrationEventSink};
@@ -114,6 +118,8 @@ mod question_wake_tests;
 mod restart_recovery_tests;
 #[cfg(test)]
 mod satellite_fixture;
+#[cfg(test)]
+mod schedule_tests;
 #[cfg(test)]
 mod secret_request_tests;
 #[cfg(test)]
