@@ -268,6 +268,15 @@ fn tool_event<T: JsonTransport>(
     if let Some(detail) = tool_detail(&message) {
         payload["detail"] = Value::String(detail);
     }
+    // Pi tags every phase of a call made through `ctx.executeTool()`, such as
+    // from a codemode script, so an update that arrives first still nests.
+    if let Some(caller) = message
+        .get("parentToolCallId")
+        .and_then(Value::as_str)
+        .filter(|caller| !caller.trim().is_empty() && *caller != native_id)
+    {
+        payload["parentToolCallId"] = Value::String(caller.to_owned());
+    }
     Ok(event_with_item(
         provider,
         kind,

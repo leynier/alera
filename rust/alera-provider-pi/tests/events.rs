@@ -257,3 +257,62 @@ async fn builtins_keep_canonical_categories_and_tool_errors_keep_failed_status()
         }
     }
 }
+
+#[tokio::test]
+async fn tools_called_through_another_tool_name_their_caller() {
+    let caller = json!({
+        "type": "tool_execution_start",
+        "toolCallId": "call_code",
+        "toolName": "codemode",
+        "args": { "code": "await read({ path: 'a.ts' })" }
+    });
+    // Pi tags every phase, so an update that arrives before its start still
+    // names the caller.
+    let nested = [
+        (
+            json!({
+                "type": "tool_execution_update",
+                "partialResult": { "content": [] }
+            }),
+            EventKind::ItemUpdated,
+            ItemStatus::InProgress,
+        ),
+        (
+            json!({ "type": "tool_execution_start", "args": { "path": "a.ts" } }),
+            EventKind::ItemStarted,
+            ItemStatus::InProgress,
+        ),
+        (
+            json!({
+                "type": "tool_execution_end",
+                "isError": true,
+                "result": { "content": [{ "type": "text", "text": "ENOENT" }] }
+            }),
+            EventKind::ItemCompleted,
+            ItemStatus::Failed,
+        ),
+    ];
+    let mut records = vec![state_response("alera-pi-1"), caller];
+    for (phase, _, _) in &nested {
+        let mut record = phase.clone();
+        record["toolCallId"] = json!("call_code/1");
+        record["toolName"] = json!("read");
+        record["parentToolCallId"] = json!("call_code");
+        records.push(record);
+    }
+    let mut provider = provider(records);
+    start_session(&mut provider).await;
+    let event = next_valid_event(&mut provider).await;
+    assert_eq!(event.item_id.as_deref(), Some("call_code"));
+    assert!(event.payload.get("parentToolCallId").is_none());
+    for (_, kind, status) in nested {
+        let event = next_valid_event(&mut provider).await;
+        assert_eq!(event.kind, kind);
+        assert_eq!(event.item_id.as_deref(), Some("call_code/1"));
+        assert_eq!(event.payload["parentToolCallId"], "call_code");
+        // A nested call is not a sub-agent's work.
+        assert!(event.payload.get("parentToolUseId").is_none());
+        let payload: ItemLifecyclePayload = serde_json::from_value(event.payload).unwrap();
+        assert_eq!(payload.status, Some(status));
+    }
+}
