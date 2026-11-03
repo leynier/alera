@@ -52,6 +52,7 @@ export 'src/agent_chat_provider_skill.dart';
 export 'src/agent_chat_provider_settings.dart';
 export 'src/agent_chat_provider_status.dart';
 export 'src/agent_chat_message_burst.dart';
+export 'src/agent_chat_usage_fallback.dart';
 export 'src/agent_chat_message_media.dart';
 export 'src/agent_chat_message_sender.dart';
 export 'src/agent_chat_queue_entry.dart';

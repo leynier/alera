@@ -2,6 +2,7 @@ import 'package:alera/src/features/agent_chat/application/agent_chat_composer_dr
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_direct_open.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_usage_fallback.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -80,8 +81,10 @@ void main() {
   late _Workbench workbench;
   late ProviderContainer container;
   late int nextId;
+  var readings = const <AgentChatUsageReading>[];
 
   setUp(() {
+    readings = const <AgentChatUsageReading>[];
     repository = FakeAgentChatRepository()
       ..providerCatalog = const <AgentChatProviderInstance>[_codex]
       ..createResult = AgentChatOpenResult(
@@ -101,6 +104,9 @@ void main() {
         agentChatSettingsRepositoryProvider.overrideWithValue(settings),
         agentChatIdGeneratorProvider.overrideWithValue(() => 'id-${nextId++}'),
         workbenchControllerProvider.overrideWith(() => workbench),
+        agentChatClockProvider.overrideWithValue(() => _now),
+        agentChatUsageReadingsProvider(_workspace.hostId)
+            .overrideWith((ref) => readings),
       ],
     );
   });
@@ -208,5 +214,72 @@ void main() {
     expect(await open(), AgentChatDirectOpenOutcome.skipped);
     expect(await first, AgentChatDirectOpenOutcome.created);
     expect(creates(), hasLength(1));
+  });
+
+  group('a default agent out of usage', () {
+    const claude = AgentChatProviderInstance(
+      id: 'claude',
+      provider: 'claudeAgent',
+      label: 'Claude',
+    );
+    AgentChatUsageReading reading(String provider, double used) =>
+        AgentChatUsageReading(
+          provider: provider,
+          meters: <AgentChatUsageMeter>[
+            AgentChatUsageMeter(
+              usedPercent: used,
+              resetsAt: _now.add(const Duration(hours: 2)),
+            ),
+          ],
+        );
+
+    test('gives way to the next agent with usage left', () async {
+      repository.providerCatalog = const <AgentChatProviderInstance>[
+        _codex,
+        claude,
+      ];
+      readings = <AgentChatUsageReading>[
+        reading('codex', 100),
+        reading('claude', 40),
+      ];
+      expect(await open(), AgentChatDirectOpenOutcome.created);
+      expect(creates().single.providerInstanceId, 'claude');
+      final notice = container.read(agentChatUsageFallbacksProvider)['chat-9'];
+      expect(notice?.title, 'Using Claude');
+      expect(notice?.detail, 'Codex is out of usage');
+      expect(notice?.resetsAt, _now.add(const Duration(hours: 2)));
+    });
+
+    test('keeps a project default even when it is out of usage', () async {
+      repository.providerCatalog = const <AgentChatProviderInstance>[
+        _codex,
+        claude,
+      ];
+      settings
+        ..preferencesEnabled = true
+        ..preferencesValue = const AgentChatPreferences(
+          projectDefaults: <String, AgentChatSelection>{
+            'project-1': AgentChatSelection(providerInstanceId: 'codex'),
+          },
+        );
+      readings = <AgentChatUsageReading>[reading('codex', 100)];
+      await open();
+      expect(creates().single.providerInstanceId, 'codex');
+      expect(container.read(agentChatUsageFallbacksProvider), isEmpty);
+    });
+
+    test('stays when every other agent is out of usage too', () async {
+      repository.providerCatalog = const <AgentChatProviderInstance>[
+        _codex,
+        claude,
+      ];
+      readings = <AgentChatUsageReading>[
+        reading('codex', 100),
+        reading('claude', 100),
+      ];
+      await open();
+      expect(creates().single.providerInstanceId, 'codex');
+      expect(container.read(agentChatUsageFallbacksProvider), isEmpty);
+    });
   });
 }

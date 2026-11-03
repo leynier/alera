@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_chat/application/agent_chat_composer_co
 import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_usage_fallback.dart';
 import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -106,6 +107,10 @@ final class AgentChatDirectOpener {
             ),
       );
       _createRequestIds.remove(workspace.id);
+      if (selection.fallback case final fallback?) {
+        read(agentChatUsageFallbacksProvider.notifier)
+            .record(result.chatId, fallback);
+      }
       if (draft != null && !draft.isEmpty) {
         read(agentChatComposerDraftsProvider).write(
           result.chatId,
@@ -302,10 +307,11 @@ final class AgentChatDirectOpener {
     return tab.id;
   }
 
-  /// The agent and model a new chat starts with, as a one-field record so a
-  /// runtime that keeps unselected drafts can be told "none". `null` means
-  /// nothing can be created and the person has been told why.
-  Future<(AgentChatSelection?,)?> _resolve(
+  /// The agent and model a new chat starts with, as a record so a runtime
+  /// that keeps unselected drafts can be told "none". `null` means nothing
+  /// can be created and the person has been told why. A default agent out of
+  /// usage gives way to the next one with usage left, named by `fallback`.
+  Future<(AgentChatSelection?, {AgentChatUsageFallback? fallback})?> _resolve(
     AgentChatProviderReader read,
     AgentChatProviderExists exists,
     Workspace workspace,
@@ -352,7 +358,18 @@ final class AgentChatDirectOpener {
       defaultSelection: chain[2],
       rememberedSelection: chain[3],
     );
-    if (resolved != null) return (resolved,);
+    if (resolved != null) {
+      final readings = read(agentChatUsageReadingsProvider(workspace.hostId));
+      final now = read(agentChatClockProvider)();
+      final fallback = agentChatUsageFallback(
+        resolved: resolved,
+        providers: catalog,
+        explicit: <AgentChatSelection?>[chain[0], chain[1]],
+        limitOf: (provider) =>
+            agentChatUsageLimit(readings, provider, now: now),
+      );
+      return (fallback?.selection ?? resolved, fallback: fallback);
+    }
     // A known agent that cannot start yet still gets its chat: the chip
     // shows why and offers the provider settings.
     final enabled = <String>{
@@ -371,11 +388,11 @@ final class AgentChatDirectOpener {
               (instance) => AgentChatSelection(providerInstanceId: instance.id),
             )
             .firstOrNull;
-    if (known != null) return (known,);
+    if (known != null) return (known, fallback: null);
     if (await read(agentChatLifecycleRepositoryProvider)
         .supports(AgentChatWire.unselectedDraftCapability)
         .catchError((Object _) => false)) {
-      return (null,);
+      return (null, fallback: null);
     }
     AleraToast.publish(
       message: 'No agent is available on this runtime.',

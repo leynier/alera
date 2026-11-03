@@ -25,6 +25,8 @@ import 'package:alera/src/features/chat_tasks/presentation/chat_task_dock.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_usage_fallback.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_usage_fallback_notice.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -180,6 +182,9 @@ class const AgentChatFooter({
       for (final request in view.requests)
         if (!request.isApproval) request,
     ];
+    final usageFallback = ref.watch(
+      agentChatUsageFallbacksProvider.select((all) => all.containsKey(chatId)),
+    );
     final docks = <Widget>[
       if (view.nativeOperation case final AgentChatNativeOperation operation)
         AgentChatNativeOperationNotice(
@@ -211,6 +216,8 @@ class const AgentChatFooter({
               unawaited(controller.recover(AgentChatRecoverMode.restart)),
         ),
       if (!view.live) const AgentChatReconnectingBanner(),
+      if (usageFallback && view.neverSent)
+        AgentChatUsageFallbackNotice(chatId: chatId),
       if (docked.isNotEmpty)
         AgentChatRequestDock(
           key: ValueKey<String>('agent-chat-requests-$chatId'),
