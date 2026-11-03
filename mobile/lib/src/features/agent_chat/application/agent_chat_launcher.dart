@@ -4,6 +4,7 @@ import 'package:alera_agent_chat/alera_agent_chat.dart'
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_draft_store.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_request_ids.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_usage_fallback.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 /// `Ref.read` and `WidgetRef.read` alike.
@@ -41,6 +42,11 @@ class AgentChatLauncher({
   required final Future<List<AgentChatProviderInstance>> _providers,
   required final Future<AgentChatPreferences?> _preferences,
   required final Future<bool> _unselectedSupported,
+
+  /// The host's quota readings, for a default agent out of usage.
+  final List<AgentChatUsageReading> _usage = const <AgentChatUsageReading>[],
+  final void Function(String chatId, AgentChatUsageFallback fallback)?
+  _onFallback,
 }) {
   Future<AgentChatLaunchOutcome> open({
     required String workspaceId,
@@ -73,6 +79,19 @@ class AgentChatLauncher({
       launchingSelection: launchingSelection,
       launchingWorkspaceId: launchingWorkspaceId,
     );
+    final now = DateTime.now();
+    final fallback = selection == null
+        ? null
+        : agentChatUsageFallback(
+            resolved: selection,
+            providers: providers,
+            explicit: <AgentChatSelection?>[
+              if (projectId != null) preferences.projectDefaults[projectId],
+              if (workspaceId == launchingWorkspaceId) launchingSelection,
+            ],
+            limitOf: (provider) =>
+                agentChatUsageLimit(_usage, provider, now: now),
+          );
     final unselected =
         selection == null &&
         await _unselectedSupported.then(
@@ -83,7 +102,7 @@ class AgentChatLauncher({
     final requestId = _requestIds.claimCreate(_hostId, workspaceId);
     try {
       final result = await _repository.create(
-        selection?.createInput(
+        (fallback?.selection ?? selection)?.createInput(
               requestId: requestId,
               workspaceId: workspaceId,
             ) ??
@@ -94,6 +113,7 @@ class AgentChatLauncher({
       );
       _requestIds.settleCreate(_hostId, workspaceId);
       _drafts.activate(_hostId, result.chatId, workspaceId: workspaceId);
+      if (fallback != null) _onFallback?.call(result.chatId, fallback);
       return AgentChatLaunchOpened(chatId: result.chatId, tabId: result.tabId);
     } on AgentChatConnectionException {
       // The create may have landed; the next press replays its receipt.
@@ -208,5 +228,9 @@ Future<AgentChatLauncher> agentChatLauncherFor(
     providers: providers,
     preferences: preferences,
     unselectedSupported: unselected,
+    usage: read(agentChatUsageReadingsProvider(hostId)),
+    onFallback: (chatId, fallback) =>
+        read(agentChatUsageFallbacksProvider.notifier)
+            .record(hostId, chatId, fallback),
   );
 }
