@@ -144,7 +144,7 @@ bool _rowHolds(
   bool Function(AgentChatItem item) holds,
 ) => switch (row) {
   AgentChatActionGroupRow(:final actions) => actions.any(
-    (action) => holds(action.item),
+    (action) => action.anyItem(holds),
   ),
   AgentChatItemRow(:final item) => holds(item),
   AgentChatSubagentRow(:final call) => holds(call),

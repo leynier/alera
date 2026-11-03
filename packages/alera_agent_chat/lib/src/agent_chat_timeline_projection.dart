@@ -17,6 +17,7 @@ import 'package:alera_agent_chat/src/agent_chat_worked_actions.dart';
 
 part 'agent_chat_timeline_projection_entries.dart';
 part 'agent_chat_timeline_projection_history.dart';
+part 'agent_chat_timeline_projection_nested_calls.dart';
 part 'agent_chat_timeline_projection_segments.dart';
 part 'agent_chat_timeline_projection_subagent_thread.dart';
 part 'agent_chat_timeline_projection_subagents.dart';
@@ -97,8 +98,13 @@ final class AgentChatTurnSection {
     // A sub-agent's own items, text included, belong under its call rather
     // than in the main agent's work or answer.
     final subagents = _subagentChildren(items);
+    // Calls a tool made through another call sit under their caller.
+    final nested = _nestedCalls(items);
     final childIds = <String>{
-      for (final children in subagents.values)
+      for (final children in <List<AgentChatItem>>[
+        ...subagents.values,
+        ...nested.values,
+      ])
         for (final child in children) child.id,
     };
     for (final item in items) {
@@ -141,6 +147,7 @@ final class AgentChatTurnSection {
             index: index,
             slice: slice,
             subagents: subagents,
+            nested: nested,
             // Work before a steer is over even while the turn runs.
             outcome: index == slices.length - 1
                 ? outcome
@@ -266,6 +273,8 @@ List<AgentChatActivityRow> _activityRows(
   List<AgentChatItem> items, [
   Map<String, List<AgentChatItem>> subagents =
       const <String, List<AgentChatItem>>{},
+  Map<String, List<AgentChatItem>> nested =
+      const <String, List<AgentChatItem>>{},
 ]) {
   final rows = <AgentChatActivityRow>[];
   var group = <AgentChatWorkedAction>[];
@@ -281,12 +290,16 @@ List<AgentChatActivityRow> _activityRows(
       rows.add(
         AgentChatSubagentRow(
           item,
-          _activityRows(subagents[item.id] ?? const <AgentChatItem>[]),
+          _activityRows(
+            subagents[item.id] ?? const <AgentChatItem>[],
+            const <String, List<AgentChatItem>>{},
+            nested,
+          ),
           childCount: subagents[item.id]?.length ?? 0,
         ),
       );
     } else if (item.type.isActivity && item.type != AgentChatItemType.unknown) {
-      group.add(AgentChatWorkedAction.fromItem(item));
+      group.add(_actionWithNested(item, nested));
     } else {
       flush();
       rows.add(AgentChatItemRow(item));

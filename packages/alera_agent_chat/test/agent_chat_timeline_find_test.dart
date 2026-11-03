@@ -129,4 +129,28 @@ void main() {
     expect(agentChatFindMatches(projection, '   '), isEmpty);
     expect(agentChatFindMatches(projection, 'secrets'), isEmpty);
   });
+
+  test('finds a call made through another call under its caller', () {
+    final projection = _projection(<Map<String, Object?>>[
+      _item('u1', 'user_message', text: 'Go'),
+      _item(
+        'code',
+        'dynamic_tool_call',
+        normalized: <String, Object?>{'toolName': 'codemode'},
+      ),
+      _item(
+        'code/1',
+        'dynamic_tool_call',
+        normalized: <String, Object?>{
+          'toolName': 'needle_tool',
+          'parentItemId': 'code',
+        },
+      ),
+      _item('a1', 'assistant_message', text: 'Done'),
+    ]);
+    final matches = agentChatFindMatches(projection, 'needle');
+    expect(matches.map((match) => match.targetKey), <String>[
+      'activity-actions-code',
+    ]);
+  });
 }

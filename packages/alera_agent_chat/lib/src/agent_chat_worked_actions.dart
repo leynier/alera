@@ -22,8 +22,15 @@ class const AgentChatWorkedAction({
   required final AgentChatWorkedActionKind kind,
   required final String label,
   final int count = 1,
+
+  /// Calls this one made through itself (a Pi codemode script's tool
+  /// calls), in timeline order. Both apps draw them under it.
+  final List<AgentChatWorkedAction> nested = const <AgentChatWorkedAction>[],
 }) {
-  factory fromItem(AgentChatItem item) {
+  factory fromItem(
+    AgentChatItem item, {
+    List<AgentChatWorkedAction> nested = const <AgentChatWorkedAction>[],
+  }) {
     final kind = agentChatWorkedActionKind(item);
     return AgentChatWorkedAction(
       item: item,
@@ -32,8 +39,13 @@ class const AgentChatWorkedAction({
       count: kind == AgentChatWorkedActionKind.edit && item.changes.length > 1
           ? item.changes.length
           : 1,
+      nested: nested,
     );
   }
+
+  /// Whether this action's item or a call nested under it satisfies [test].
+  bool anyItem(bool Function(AgentChatItem item) test) =>
+      test(item) || nested.any((call) => call.anyItem(test));
 }
 
 AgentChatWorkedActionKind agentChatWorkedActionKind(AgentChatItem item) {

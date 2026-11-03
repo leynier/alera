@@ -26,6 +26,7 @@ final class AgentChatTurnSegment {
     required int index,
     required _SegmentSlice slice,
     required Map<String, List<AgentChatItem>> subagents,
+    required Map<String, List<AgentChatItem>> nested,
     required AgentChatTurnOutcome outcome,
   }) {
     final items = slice.items;
@@ -55,7 +56,7 @@ final class AgentChatTurnSegment {
       index: index,
       steers: List<AgentChatItem>.unmodifiable(slice.steers),
       activity: List<AgentChatActivityRow>.unmodifiable(
-        _activityRows(activityItems, subagents),
+        _activityRows(activityItems, subagents, nested),
       ),
       answers: List<AgentChatItem>.unmodifiable(answers),
       outcome: outcome,

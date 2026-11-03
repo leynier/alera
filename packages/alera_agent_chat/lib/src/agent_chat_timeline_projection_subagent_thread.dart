@@ -106,7 +106,7 @@ final class AgentChatSubagentTimeline {
     return AgentChatSubagentTimeline._(
       call,
       List<AgentChatActivityRow>.unmodifiable(
-        _activityRows(direct, _subagentChildren(joined)),
+        _activityRows(direct, _subagentChildren(joined), _nestedCalls(joined)),
       ),
       joined.length,
     );
