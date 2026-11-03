@@ -2,7 +2,9 @@
 //! main agent (Claude's Task tool, Codex's collab agent call). Its items name
 //! that call through `normalized.parentItemId`, and the provider's task
 //! events keep the call's `normalized.subagent` status current, so clients
-//! can show each sub-agent under the call that started it.
+//! can show each sub-agent under the call that started it. A call one tool
+//! made through another (Pi's codemode, `parentToolCallId`) links to its
+//! caller the same way, but the caller stays an ordinary call.
 
 use alera_provider_protocol::{EventKind, ProviderEvent};
 use serde_json::{json, Value};
@@ -36,10 +38,15 @@ fn subagent_status(event: &ProviderEvent) -> &'static str {
 }
 
 impl ChatSession {
-    /// Points a sub-agent's item at the tool call that started it.
+    /// Points a sub-agent's item at the tool call that started it, and a
+    /// nested call at the call that made it.
     pub(super) async fn link_subagent_item(&mut self, item_id: &str, event: &ProviderEvent) {
-        let Some(native_call) = nonempty(event.payload.get("parentToolUseId")) else {
-            return;
+        let (native_call, subagent) = match nonempty(event.payload.get("parentToolUseId")) {
+            Some(call) => (call, true),
+            None => match nonempty(event.payload.get("parentToolCallId")) {
+                Some(call) => (call, false),
+                None => return,
+            },
         };
         if event.item_id.as_deref() == Some(native_call) {
             return;
@@ -70,6 +77,9 @@ impl ChatSession {
             if changed {
                 self.pending.item(item_id);
             }
+        }
+        if !subagent {
+            return;
         }
         // A call with work under it is a sub-agent even before the provider
         // reports the task itself.

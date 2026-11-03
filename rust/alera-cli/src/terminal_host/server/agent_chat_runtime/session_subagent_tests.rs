@@ -226,3 +226,52 @@ async fn a_fork_merges_back_into_its_source_for_the_next_turn() {
     runtime.shutdown().await;
     harness.finish().await;
 }
+
+#[tokio::test]
+async fn a_tool_called_through_another_tool_nests_under_an_ordinary_caller() {
+    let (harness, runtime, factory) = fixture().await;
+    let chat = create(&runtime, None).await;
+    send(&runtime, &chat, "first", "Run a script").await;
+    let control = provider_control(&factory, &chat).await;
+    control.wait_turns(1).await;
+    control.item_event(
+        EventKind::ItemStarted,
+        1,
+        "call_code",
+        json!({"itemType": "dynamic_tool_call", "status": "inProgress", "title": "codemode"}),
+    );
+    // Pi tags every phase, so an update that arrives before its start nests.
+    for (kind, status) in [
+        (EventKind::ItemUpdated, "inProgress"),
+        (EventKind::ItemStarted, "inProgress"),
+        (EventKind::ItemCompleted, "failed"),
+    ] {
+        control.item_event(
+            kind,
+            1,
+            "call_code/1",
+            json!({
+                "itemType": "dynamic_tool_call", "status": status, "title": "read",
+                "parentToolCallId": "call_code",
+            }),
+        );
+    }
+    let nested = item_where(&runtime, &chat, |item| {
+        item["title"] == "read" && item["status"] == "failed"
+    })
+    .await;
+    let caller = item_where(&runtime, &chat, |item| item["title"] == "codemode").await;
+    assert_eq!(
+        nested["normalized"]["parentItemId"],
+        caller["itemId"].clone()
+    );
+    assert_eq!(nested["turnId"], caller["turnId"]);
+    // The caller is an ordinary call, not a sub-agent.
+    assert!(caller["normalized"].get("parentItemId").is_none());
+    assert!(caller["normalized"].get("subagent").is_none());
+    finish_turn(&runtime, &factory, &chat, 1).await;
+    let caller = item_where(&runtime, &chat, |item| item["title"] == "codemode").await;
+    assert!(caller["normalized"].get("subagent").is_none());
+    runtime.shutdown().await;
+    harness.finish().await;
+}
