@@ -57,7 +57,9 @@ impl ServerActor {
             }
             // A reusing automation returns to its bound target on its own,
             // and the reuse preface already describes the previous run.
-            if definition.reuse_policy.reuses() {
+            // An agent chat run posts into its chat again, so neither needs
+            // a fresh tab.
+            if definition.reuse_policy.reuses() || definition.target.agent_chat().is_some() {
                 return self
                     .start_manual_run(client_id, payload, actor, definition, Some(previous))
                     .await;

@@ -76,6 +76,8 @@ pub enum ChatAction {
     /// Link, list, watch or unwatch the chat's pull requests.
     #[command(name = "pr")]
     PullRequest(crate::chat_pull_request_commands::ChatPullRequestArgs),
+    /// Create, list, delete or run scheduled tasks that post into a chat.
+    Schedule(crate::chat_schedule_commands::ChatScheduleArgs),
 }
 
 #[derive(Debug, Args)]

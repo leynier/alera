@@ -62,6 +62,7 @@ pub(crate) async fn run(command: ChatCommand) -> i32 {
         ChatAction::PullRequest(args) => {
             crate::chat_pull_request_commands::run(&runtime, args).await
         }
+        ChatAction::Schedule(args) => crate::chat_schedule_commands::run(&runtime, args).await,
     };
     match result {
         Ok(value) => {

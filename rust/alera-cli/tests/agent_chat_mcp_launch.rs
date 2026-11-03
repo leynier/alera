@@ -166,11 +166,12 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(names.len(), 24);
+    assert_eq!(names.len(), 28);
     assert!(names.contains(&"chat_background_wait"));
     assert!(names.contains(&"chat_update_title"));
     assert!(names.contains(&"request_secret"));
     assert!(names.contains(&"watch_pull_request"));
+    assert!(names.contains(&"schedule_task"));
     assert!(names.contains(&"chat_transfers"));
     assert!(names.iter().all(|name| name.starts_with("chat_")
         || matches!(
@@ -183,6 +184,10 @@ async fn injected_mcp_child_handshakes_and_reads_only_during_its_bound_live_turn
                 | "list_chat_pull_requests"
                 | "watch_pull_request"
                 | "unwatch_pull_request"
+                | "schedule_task"
+                | "list_scheduled_tasks"
+                | "delete_scheduled_task"
+                | "run_scheduled_task_now"
         )));
     assert!(names.contains(&"chat_read"));
     let arguments = json!({"name": "chat_read", "arguments": {"chatId": chat}});

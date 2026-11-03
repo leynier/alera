@@ -29,6 +29,12 @@ pub(crate) fn extra_capabilities(verb: &str, payload: &Value) -> Vec<&'static st
     if verb.ends_with("PullRequest") || verb == "listPullRequests" {
         capabilities.push(crate::chat_pull_request_commands::PULL_REQUESTS_CAPABILITY);
     }
+    if matches!(
+        verb,
+        "scheduleTask" | "listScheduledTasks" | "deleteScheduledTask" | "runScheduledTaskNow"
+    ) {
+        capabilities.push(crate::chat_schedule_commands::SCHEDULES_CAPABILITY);
+    }
     if matches!(verb, "requestSecret" | "readSecret") {
         capabilities.push(crate::chat_secret_commands::SECRET_REQUESTS_CAPABILITY);
     }
