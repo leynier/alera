@@ -24,9 +24,11 @@ use super::service::ChatOrchestrationService;
 /// What the host does for a scheduled task verb.
 #[derive(Debug)]
 pub(crate) enum ScheduleOp {
-    /// Validates and stores a definition; answers the saved definition.
+    /// Validates and stores a definition, then moves an existing one to
+    /// `state` when given; answers the saved definition.
     Save {
         definition: Box<AutomationDefinition>,
+        state: Option<AutomationState>,
         actor: AutomationActor,
     },
     /// Moves the automation to the trash; answers the trashed definition.
@@ -226,13 +228,6 @@ impl ChatOrchestrationService {
                     definition.schedule = automation_schedule(schedule, now)?;
                     definition.schedule_cursor_at = Some(now);
                 }
-                if let Some(enabled) = input.enabled {
-                    definition.state = if enabled {
-                        AutomationState::Active
-                    } else {
-                        AutomationState::Paused
-                    };
-                }
                 if let Some(bind) = input.bind_to_current_chat {
                     definition.target = target(bind);
                 } else if let AutomationTarget::AgentChat {
@@ -289,9 +284,15 @@ impl ChatOrchestrationService {
                 definition
             }
         };
+        let state = match (&input.scheduled_task_id, input.enabled) {
+            (Some(_), Some(true)) => Some(AutomationState::Active),
+            (Some(_), Some(false)) => Some(AutomationState::Paused),
+            _ => None,
+        };
         let saved = host
             .apply(ScheduleOp::Save {
                 definition: Box::new(definition),
+                state,
                 actor,
             })
             .await?;

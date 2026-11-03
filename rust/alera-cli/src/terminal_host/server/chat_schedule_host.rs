@@ -45,9 +45,11 @@ impl ScheduleHost for InboxScheduleHost {
 impl ServerActor {
     pub(super) async fn apply_schedule_op(&mut self, op: ScheduleOp) -> HostResult<Value> {
         match op {
-            ScheduleOp::Save { definition, actor } => {
-                self.save_scheduled_task(*definition, actor).await
-            }
+            ScheduleOp::Save {
+                definition,
+                state,
+                actor,
+            } => self.save_scheduled_task(*definition, state, actor).await,
             ScheduleOp::Trash { id, actor } => {
                 self.automation_state_request(
                     NO_CLIENT,
@@ -66,9 +68,18 @@ impl ServerActor {
 
     async fn save_scheduled_task(
         &mut self,
-        definition: AutomationDefinition,
+        mut definition: AutomationDefinition,
+        state: Option<AutomationState>,
         actor: alera_core::runtime::AutomationActor,
     ) -> HostResult<Value> {
+        let existing = self
+            .runtime_store
+            .find_automation(&definition.id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        if let Some(existing) = &existing {
+            definition.state = state.unwrap_or(existing.state);
+        }
         if definition.target.agent_chat().is_none() {
             return Err(HostError::state(
                 "A scheduled task needs an agent chat target",
@@ -88,7 +99,7 @@ impl ServerActor {
         }
         let saved = self
             .runtime_store
-            .upsert_automation(definition, actor)
+            .upsert_automation(definition.clone(), actor.clone())
             .await
             .map_err(|error| HostError::format(error.to_string()))?;
         self.automations_active = self
@@ -98,6 +109,18 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         self.automation_wake.notify_one();
         self.broadcast_automation_changed(Some(&saved.id));
+        if existing.is_some() && definition.state != saved.state {
+            // The store keeps a saved definition's state; a change goes
+            // through the state request, which keeps active runs going.
+            return self
+                .automation_state_request(
+                    NO_CLIENT,
+                    &json!({"id": saved.id, "activeRuns": "continue-active"}),
+                    actor,
+                    definition.state,
+                )
+                .await;
+        }
         serde_json::to_value(saved).map_err(|error| HostError::state(error.to_string()))
     }
 }
