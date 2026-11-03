@@ -80,7 +80,7 @@ class const MobileAutomationPropertyRows({
             ),
           ),
         ),
-        if (draft.targetType != AutomationTargetType.existingTab)
+        if (draft.targetType?.usesAgentProfile ?? true)
           MobileAutomationPropertyRow(
             icon: AleraIcons.agent,
             label: 'Agent',

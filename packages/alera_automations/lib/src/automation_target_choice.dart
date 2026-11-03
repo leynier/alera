@@ -39,6 +39,8 @@ enum AutomationTargetChoice(
         },
         AutomationTargetType.projectCheckout => projectCheckout,
         AutomationTargetType.existingTab => existingTab,
+        // Agent chat targets come from chat tools; no choice holds them.
+        AutomationTargetType.agentChat => null,
       };
 
   /// Selects this choice in [draft], dropping every field of the previous one.

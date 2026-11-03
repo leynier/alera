@@ -135,6 +135,7 @@ String agentChatOriginHeading(
   .chatMessage =>
     origin.taskIds.isNotEmpty ? 'Task' : 'Message from another chat',
   .pullRequestWatch => 'Pull request update',
+  .automation => 'Scheduled task',
   .user => 'Message',
 };
 

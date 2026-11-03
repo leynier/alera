@@ -7,6 +7,13 @@ enum AutomationScheduleKind(final String label) {
   everyHours('Every N Hours'),
   once('Once At'),
   custom('Custom Cron'),
+
+  /// A fixed interval (`automationAgentChatTargetV1`). Agents create these
+  /// with `schedule_task`; the composer keeps one but does not offer it.
+  interval('Every N Minutes');
+
+  /// Whether the composer offers this kind for a new schedule.
+  bool get isComposable => this != interval;
 }
 
 /// Weekday numbers follow cron: 0 is Sunday, 1 is Monday.
@@ -21,8 +28,8 @@ const List<(int, String)> automationWeekdays = <(int, String)>[
 ];
 
 /// A schedule as the authoring flow edits it. Every preset compiles to the
-/// runtime's existing `recurring` cron or `oneTime` JSON; nothing new reaches
-/// the wire.
+/// runtime's `recurring` cron or `oneTime` JSON, and an interval read from
+/// the runtime is written back as the same `interval`.
 class const AutomationSchedulePreset({
   required final AutomationScheduleKind kind,
   final int hour = 9,
@@ -31,6 +38,8 @@ class const AutomationSchedulePreset({
   final int everyHours = 4,
   final DateTime? onceAt,
   final String customCron = '',
+  final int everySeconds = 3600,
+  final DateTime? intervalAnchor,
 }) {
   static const AutomationSchedulePreset initial = AutomationSchedulePreset(
     kind: AutomationScheduleKind.weekdays,
@@ -39,6 +48,15 @@ class const AutomationSchedulePreset({
   /// Reads a persisted schedule back into the preset that produced it, or a
   /// custom cron when the expression is not one of ours.
   factory fromSchedule(JsonMap schedule) {
+    final interval = schedule['interval'];
+    if (interval is Map) {
+      final details = automationJsonMap(interval);
+      return AutomationSchedulePreset(
+        kind: AutomationScheduleKind.interval,
+        everySeconds: automationJsonInt(details['everySeconds'], 3600),
+        intervalAnchor: automationJsonDate(details['anchor']),
+      );
+    }
     final oneTime = schedule['oneTime'];
     if (oneTime is Map) {
       final at = automationJsonDate(oneTime['at']);
@@ -64,6 +82,7 @@ class const AutomationSchedulePreset({
     int? everyHours,
     DateTime? onceAt,
     String? customCron,
+    int? everySeconds,
   }) => AutomationSchedulePreset(
     kind: kind ?? this.kind,
     hour: hour ?? this.hour,
@@ -72,6 +91,8 @@ class const AutomationSchedulePreset({
     everyHours: everyHours ?? this.everyHours,
     onceAt: onceAt ?? this.onceAt,
     customCron: customCron ?? this.customCron,
+    everySeconds: everySeconds ?? this.everySeconds,
+    intervalAnchor: intervalAnchor,
   );
 
   bool get isOneTime => kind == AutomationScheduleKind.once;
@@ -83,7 +104,7 @@ class const AutomationSchedulePreset({
       '$minute $hour * * ${(weekdays.toList()..sort()).join(',')}',
     AutomationScheduleKind.everyHours => '$minute */$everyHours * * *',
     AutomationScheduleKind.custom => customCron.trim(),
-    AutomationScheduleKind.once => '',
+    AutomationScheduleKind.once || AutomationScheduleKind.interval => '',
   };
 
   /// Inline problems the user can fix before the runtime validates.
@@ -97,11 +118,23 @@ class const AutomationSchedulePreset({
     AutomationScheduleKind.custom
         when customCron.trim().split(RegExp(r'\s+')).length != 5 =>
       'Use five fields: minute, hour, day of month, month and day of week.',
+    AutomationScheduleKind.interval when everySeconds < 60 =>
+      'Repeat at most once a minute.',
     _ => null,
   };
 
   JsonMap toSchedule({String? timezone, JsonMap bounds = const {}}) {
     final zone = timezone?.trim();
+    if (kind == AutomationScheduleKind.interval) {
+      return <String, Object?>{
+        'interval': <String, Object?>{
+          'everySeconds': everySeconds,
+          'anchor': (intervalAnchor ?? DateTime.now())
+              .toUtc()
+              .toIso8601String(),
+        },
+      };
+    }
     if (isOneTime) {
       return <String, Object?>{
         'oneTime': <String, Object?>{
@@ -133,9 +166,15 @@ class const AutomationSchedulePreset({
       AutomationScheduleKind.once =>
         onceAt == null ? 'Once' : 'Once on ${automationDateTimeLabel(onceAt!)}',
       AutomationScheduleKind.custom => 'Cron $customCron',
+      AutomationScheduleKind.interval => automationIntervalLabel(everySeconds),
     };
     final zone = timezone?.trim();
-    return zone == null || zone.isEmpty || isOneTime ? base : '$base · $zone';
+    return zone == null ||
+            zone.isEmpty ||
+            isOneTime ||
+            kind == AutomationScheduleKind.interval
+        ? base
+        : '$base · $zone';
   }
 }
 
@@ -191,6 +230,15 @@ String automationScheduleDescription(JsonMap schedule) {
   );
   return AutomationSchedulePreset.fromSchedule(schedule)
       .describe(timezone: automationJsonOptionalString(details['timezone']));
+}
+
+/// "Every 15 minutes", "Every hour", "Every 2 hours", "Every 90 seconds".
+String automationIntervalLabel(int seconds) {
+  String unit(int count, String name) =>
+      count == 1 ? 'Every $name' : 'Every $count ${name}s';
+  if (seconds % 3600 == 0) return unit(seconds ~/ 3600, 'hour');
+  if (seconds % 60 == 0) return unit(seconds ~/ 60, 'minute');
+  return unit(seconds, 'second');
 }
 
 String automationClockLabel(int hour, int minute) =>

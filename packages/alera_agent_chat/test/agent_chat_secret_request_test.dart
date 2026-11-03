@@ -82,6 +82,17 @@ void main() {
     expect(origin.automated, isTrue);
     expect(agentChatOriginHeading(origin), 'Pull request update');
   });
+  test('a scheduled task post is an automated origin', () {
+    final origin = AgentChatItemOrigin.fromJson(<String, Object?>{
+      'kind': 'automation',
+      'automationId': 'automation-1',
+      'runId': 'run-1',
+    });
+    expect(origin.kind, AgentChatItemOriginKind.automation);
+    expect(origin.automated, isTrue);
+    expect(agentChatOriginHeading(origin), 'Scheduled task');
+    expect(AgentChatWire.schedulesCapability, 'chatOrchestrationSchedulesV1');
+  });
 }
 
 final class _Legacy extends AgentChatLifecycleRepository {}

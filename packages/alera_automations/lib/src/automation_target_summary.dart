@@ -22,6 +22,15 @@ String automationTargetSummary(
   AutomationNameLookup names,
 ) {
   String? value(AutomationDraftField field) => draft.field(field);
+  if (draft.targetType == AutomationTargetType.agentChat) {
+    final target = draft.agentChatTarget;
+    final workspace = names.workspaceName(
+      target['workspaceId'] is String ? target['workspaceId']! as String : null,
+    );
+    return target['chatId'] is String
+        ? 'Posts into a chat in $workspace'
+        : 'New chat in $workspace for each run';
+  }
   final branch = value(.sourceBranch);
   final where = switch (AutomationTargetChoice.of(draft)) {
     null => 'No target',

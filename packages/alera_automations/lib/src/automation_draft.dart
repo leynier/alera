@@ -52,6 +52,10 @@ class const AutomationDraft({
   final String? slug,
   final List<String> workspaceTagIds = const <String>[],
   final AutomationReusePolicy reusePolicy = AutomationReusePolicy.newEachRun,
+
+  /// The stored details of an agent chat target, which the composer keeps
+  /// as they are (`automationAgentChatTargetV1`).
+  final JsonMap agentChatTarget = const <String, Object?>{},
 }) {
   factory fromRecord(AutomationRecord record) {
     final details = record.targetDetails;
@@ -112,6 +116,9 @@ class const AutomationDraft({
       slug: record.slug,
       workspaceTagIds: automationJsonStringList(placement['tagIds']),
       reusePolicy: record.reusePolicy,
+      agentChatTarget: record.targetType == AutomationTargetType.agentChat
+          ? details
+          : const <String, Object?>{},
     );
   }
 
@@ -161,6 +168,10 @@ class const AutomationDraft({
     slug: slug,
     workspaceTagIds: workspaceTagIds ?? this.workspaceTagIds,
     reusePolicy: reusePolicy ?? this.reusePolicy,
+    agentChatTarget:
+        (targetType ?? this.targetType) == AutomationTargetType.agentChat
+        ? agentChatTarget
+        : const <String, Object?>{},
   );
 
   /// A new definition from this one: same settings and target, its own slug.
@@ -186,6 +197,7 @@ class const AutomationDraft({
     notifyOnSuccess: notifyOnSuccess,
     workspaceTagIds: workspaceTagIds,
     reusePolicy: reusePolicy,
+    agentChatTarget: agentChatTarget,
   );
 
   /// Whether this draft edits a stored definition rather than creating one.
@@ -275,6 +287,7 @@ class const AutomationDraft({
       .tabId,
       .conversationId,
     ],
+    AutomationTargetType.agentChat => const <AutomationDraftField>[],
   };
 
   String? get whatError => promptTemplate.trim().isEmpty
@@ -348,6 +361,7 @@ class const AutomationDraft({
         'tabId': value(.tabId),
         'conversationId': value(.conversationId),
       },
+      AutomationTargetType.agentChat => agentChatTarget,
     };
     return <String, Object?>{
       type.key: <String, Object?>{

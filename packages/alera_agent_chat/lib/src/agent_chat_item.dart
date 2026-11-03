@@ -213,7 +213,10 @@ enum AgentChatItemOriginKind {
   /// A watched pull request changed (`chatOrchestrationPullRequestsV1`):
   /// the host told the chat about failed or passed checks, new comments or
   /// a conflict.
-  pullRequestWatch;
+  pullRequestWatch,
+
+  /// A scheduled task posted its prompt (`chatOrchestrationSchedulesV1`).
+  automation;
 
   static AgentChatItemOriginKind fromJson(Object? value) => agentChatWireEnum(
     value,

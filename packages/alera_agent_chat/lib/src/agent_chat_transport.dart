@@ -72,6 +72,11 @@ abstract final class AgentChatWire {
   /// answers with `agentChat.secret.provide`; the value never enters the
   /// chat, its history or its snapshots.
   static const String secretRequestsCapability = 'agentChatSecretRequestsV1';
+
+  /// Bound agents may schedule tasks that post into their chat
+  /// (`chatOrchestration.scheduleTask` and its family). Those posts arrive
+  /// as messages with `origin.kind = automation`.
+  static const String schedulesCapability = 'chatOrchestrationSchedulesV1';
   static const String tabKind = 'agentChat';
 
   /// Tab payload keys. [legacyChatIdKey] is read but never written.

@@ -65,6 +65,10 @@ class const AutomationRunRecord({
   final String? workspaceId,
   final String? tabId,
   final String? sessionId,
+
+  /// The agent chat an agent chat run posted into
+  /// (`automationAgentChatTargetV1`).
+  final String? chatId,
   final bool takenOver = false,
   final bool ownedWorkspace = false,
   final bool ownerReserved = false,
@@ -105,6 +109,7 @@ class const AutomationRunRecord({
       sessionId:
           automationJsonOptionalString(map['sessionId']) ??
           automationJsonOptionalString(identity['sessionId']),
+      chatId: automationJsonOptionalString(map['chatId']),
       takenOver: map['takenOver'] == true,
       ownedWorkspace: map['ownedWorkspace'] == true,
       ownerReserved: map['ownerReserved'] == true,
@@ -122,6 +127,9 @@ class const AutomationRunRecord({
   bool get isFinal => automationFinalRunStatuses.contains(status);
 
   bool get isActive => !isFinal;
+
+  /// Whether this run posted into an agent chat rather than a terminal tab.
+  bool get isAgentChatRun => chatId != null;
 }
 
 class const AutomationAttemptRecord({

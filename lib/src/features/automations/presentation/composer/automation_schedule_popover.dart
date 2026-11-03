@@ -9,6 +9,7 @@ import 'package:alera/src/features/automations/application/automation_composer_c
 import 'package:alera/src/features/automations/presentation/automation_popover_chip.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const List<int> _everyHoursChoices = <int>[1, 2, 3, 4, 6, 8, 12];
@@ -46,10 +47,14 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
   late final TextEditingController _cron = TextEditingController(
     text: ref.read(widget.provider).draft.schedule.customCron,
   );
+  late final TextEditingController _minutes = TextEditingController(
+    text: '${ref.read(widget.provider).draft.schedule.everySeconds ~/ 60}',
+  );
 
   @override
   void dispose() {
     _cron.dispose();
+    _minutes.dispose();
     super.dispose();
   }
 
@@ -79,7 +84,8 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
         value: schedule.kind,
         entries: <AleraDropdownFieldEntry<AutomationScheduleKind>>[
           for (final kind in AutomationScheduleKind.values)
-            AleraDropdownFieldEntry(value: kind, label: kind.label),
+            if (kind.isComposable || kind == schedule.kind)
+              AleraDropdownFieldEntry(value: kind, label: kind.label),
         ],
         onChanged: (kind) => _change((value) => value.copyWith(kind: kind)),
       ),
@@ -153,8 +159,24 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
                 _change((current) => current.copyWith(customCron: value)),
           ),
         ],
+        AutomationScheduleKind.interval => <Widget>[
+          AleraTextField(
+            controller: _minutes,
+            labelText: 'Every (Minutes)',
+            keyboardType: TextInputType.number,
+            inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            onChanged: (value) => _change(
+              (current) => current.copyWith(
+                everySeconds: (int.tryParse(value) ?? 0) * 60,
+              ),
+            ),
+          ),
+        ],
       },
-      if (!schedule.isOneTime)
+      if (!schedule.isOneTime &&
+          schedule.kind != AutomationScheduleKind.interval)
         AleraDropdownField<String?>(
           labelText: 'Time Zone',
           value: draft.timezone,

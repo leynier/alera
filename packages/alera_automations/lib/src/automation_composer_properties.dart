@@ -28,7 +28,7 @@ AutomationComposerProperty? automationIssueProperty(
   AutomationTargetType? targetType,
 }) {
   if (_profileIssueCodes.contains(issue.code)) {
-    return targetType == AutomationTargetType.existingTab
+    return targetType?.usesAgentProfile == false
         ? AutomationComposerProperty.destination
         : AutomationComposerProperty.agent;
   }
