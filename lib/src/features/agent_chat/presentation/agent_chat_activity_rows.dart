@@ -92,7 +92,7 @@ class const AgentChatItemRowView({
         item: item,
         workspacePath: workspacePath,
         onOpenFile: actions.onOpenFile,
-        steering: true,
+        steer: AgentChatSteerPlacement.single,
       ),
       AgentChatItemType.error => AgentChatNoticeRow(
         icon: AleraIcons.warning,

@@ -88,8 +88,10 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
     final style = Theme.of(context).textTheme.labelSmall
         ?.copyWith(color: AleraTokens.foregroundMuted);
     final segmentLabel = agentChatTurnSegmentHeaderLabel(segment);
+    final placements = agentChatSteerPlacements(segment.steers);
     return <Widget>[
-      for (final steer in segment.steers) AgentChatUserMessage(item: steer),
+      for (final (index, steer) in segment.steers.indexed)
+        AgentChatUserMessage(item: steer, steer: placements[index]),
       if (showDivider)
         _FoldDivider(
           expanded: expanded,

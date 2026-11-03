@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
-import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_disclosure.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_markdown.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_attachments.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_message_meta.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_skill_chips.dart';
@@ -27,7 +27,10 @@ class const AgentChatUserMessageView({
   required final String workspacePath,
   required final ValueChanged<String> onOpenFile,
   final AgentChatExpansion? expansion,
-  final bool steering = false,
+
+  /// Set for a message steered into a running turn: back-to-back steers
+  /// stack tight with joined corners and share one label.
+  final AgentChatSteerPlacement? steer,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -47,7 +50,9 @@ class const AgentChatUserMessageView({
         builder: (context) => Padding(
           padding: EdgeInsets.only(
             left: agentChatUserMessageInset(constraints.maxWidth),
-            top: AleraTokens.space6,
+            top: steer?.joinsPrevious ?? false
+                ? AleraTokens.space2
+                : AleraTokens.space6,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -55,21 +60,11 @@ class const AgentChatUserMessageView({
               if (item.attachments.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: AleraTokens.space6,
-                    runSpacing: AleraTokens.space6,
-                    children: <Widget>[
-                      for (final attachment in item.attachments)
-                        AgentChatAttachmentChip(
-                          attachment: attachment,
-                          onOpen: attachment.path == null
-                              ? null
-                              : () => onOpenFile(
-                                  _resolve(attachment.path!, workspacePath),
-                                ),
-                        ),
-                    ],
+                  child: AgentChatMessageAttachmentsView(
+                    attachments: item.attachments,
+                    workspacePath: workspacePath,
+                    onOpen: (attachment) =>
+                        onOpenFile(_resolve(attachment.path!, workspacePath)),
                   ),
                 ),
               if (item.text.trim().isNotEmpty || item.isPartialContinuation)
@@ -78,8 +73,8 @@ class const AgentChatUserMessageView({
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   decoration: BoxDecoration(
                     color: AleraTokens.accentSubtle,
-                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                    border: steering
+                    borderRadius: agentChatBubbleRadius(steer),
+                    border: steer != null
                         ? Border.all(color: AleraTokens.border)
                         : null,
                   ),
@@ -87,7 +82,7 @@ class const AgentChatUserMessageView({
                       ? AgentChatPartialText(text: item.text)
                       : _CollapsibleText(item: item, expansion: expansion),
                 ),
-              if (steering)
+              if (steer?.labeled ?? false)
                 Padding(
                   padding: const EdgeInsets.only(top: AleraTokens.space4),
                   child: Text(
@@ -363,13 +358,8 @@ class const AgentChatOutgoingMessageView({
             if (message.attachments.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: AleraTokens.space6,
-                  children: <Widget>[
-                    for (final attachment in message.attachments)
-                      AgentChatAttachmentChip(attachment: attachment),
-                  ],
+                child: AgentChatMessageAttachmentsView(
+                  attachments: message.attachments,
                 ),
               ),
             if (message.text.isNotEmpty)
@@ -431,59 +421,15 @@ class const AgentChatOutgoingMessageView({
   }
 }
 
-class const AgentChatAttachmentChip({
-  super.key,
-  required final AgentChatAttachment attachment,
-  final VoidCallback? onOpen,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final name = attachment.displayName;
-    return InkWell(
-      onTap: onOpen,
-      mouseCursor: onOpen == null
-          ? SystemMouseCursors.basic
-          : SystemMouseCursors.click,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-      child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: AleraTokens.contextMenuWidth,
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space8,
-          vertical: AleraTokens.space6,
-        ),
-        decoration: BoxDecoration(
-          color: AleraTokens.surface,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-          border: Border.all(color: AleraTokens.borderSubtle),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (attachment.type.isImage)
-              const Icon(
-                AleraIcons.viewImage,
-                size: AleraTokens.iconMd,
-                color: AleraTokens.foregroundMuted,
-              )
-            else
-              AleraFileIcon(
-                pathOrName: attachment.path ?? name,
-                kind: AleraFileIconKind.file,
-                size: AleraTokens.iconMd,
-              ),
-            const SizedBox(width: AleraTokens.space6),
-            Flexible(
-              child: Text(
-                name,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+/// A user bubble's corners: those joined to the steer above or below are
+/// tighter, so a burst reads as one block.
+BorderRadius agentChatBubbleRadius(AgentChatSteerPlacement? steer) {
+  const round = Radius.circular(AleraTokens.radiusLg);
+  const tight = Radius.circular(AleraTokens.radiusSm);
+  return BorderRadius.only(
+    topLeft: round,
+    bottomLeft: round,
+    topRight: steer?.joinsPrevious ?? false ? tight : round,
+    bottomRight: steer?.joinsNext ?? false ? tight : round,
+  );
 }

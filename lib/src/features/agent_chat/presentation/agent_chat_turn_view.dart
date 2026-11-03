@@ -115,8 +115,9 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
               section.failed ||
               history
         : segment.live || segment.activity.isNotEmpty;
+    final placements = agentChatSteerPlacements(segment.steers);
     return <Widget>[
-      for (final steer in segment.steers)
+      for (final (index, steer) in segment.steers.indexed)
         _target(
           agentChatFindMessageTargetKey(steer.id),
           AgentChatUserMessageView(
@@ -126,7 +127,7 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
             workspacePath: widget.workspacePath,
             onOpenFile: widget.actions.onOpenFile,
             expansion: widget.expansion,
-            steering: true,
+            steer: placements[index],
           ),
         ),
       if (showHeader && first)

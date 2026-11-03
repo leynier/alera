@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_history_actions.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_message_attachments.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_partial_text.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_shimmer.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_skill_chips.dart';
@@ -15,8 +16,14 @@ import 'package:flutter/services.dart';
 /// A prompt the person sent, right-aligned like the desktop transcript.
 /// Input another chat sent, or a wake for finished delegated tasks, reads as
 /// a notice instead, so nobody mistakes it for something they typed.
-class const AgentChatUserMessage({super.key, required final AgentChatItem item})
-    extends StatelessWidget {
+///
+/// [steer] is set for a message steered into a running turn: back-to-back
+/// steers stack tight with joined corners and share one label.
+class const AgentChatUserMessage({
+  super.key,
+  required final AgentChatItem item,
+  final AgentChatSteerPlacement? steer,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final origin = item.origin;
@@ -27,9 +34,8 @@ class const AgentChatUserMessage({super.key, required final AgentChatItem item})
       foldKey: agentChatMessageFoldKey(item.id),
       text: item.text,
       partial: item.isPartialContinuation,
-      attachmentNames: <String>[
-        for (final attachment in item.attachments) attachment.displayName,
-      ],
+      attachments: item.attachments,
+      steer: steer,
       footer: _MessageActions(
         text: item.text,
         time: item.createdAt,
@@ -185,9 +191,7 @@ class const AgentChatOutgoingMessageView({
     return _UserBubble(
       foldKey: agentChatMessageFoldKey(message.clientMessageId),
       text: message.text,
-      attachmentNames: <String>[
-        for (final attachment in message.attachments) attachment.displayName,
-      ],
+      attachments: message.attachments,
       footer: failed
           ? Wrap(
               alignment: .end,
@@ -211,9 +215,10 @@ class const AgentChatOutgoingMessageView({
 class const _UserBubble({
   required final String foldKey,
   required final String text,
-  required final List<String> attachmentNames,
+  required final List<AgentChatAttachment> attachments,
   required final Widget footer,
   final bool partial = false,
+  final AgentChatSteerPlacement? steer,
 }) extends StatefulWidget {
   @override
   State<_UserBubble> createState() => _UserBubbleState();
@@ -234,6 +239,7 @@ class _UserBubbleState extends State<_UserBubble> {
   @override
   Widget build(BuildContext context) {
     final text = widget.text;
+    final steer = widget.steer;
     final collapsible = !widget.partial && agentChatMessageCollapses(text);
     final collapsed = collapsible && !_expanded;
     return LayoutBuilder(
@@ -245,34 +251,26 @@ class _UserBubbleState extends State<_UserBubble> {
                 .clamp(0.0, AleraTokens.chatBubbleMaxWidth),
           ),
           child: Padding(
-            padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+            padding: EdgeInsets.only(
+              bottom: steer?.joinsNext ?? false
+                  ? AleraTokens.space2
+                  : AleraTokens.space12,
+            ),
             child: Column(
               crossAxisAlignment: .end,
               children: <Widget>[
-                if (widget.attachmentNames.isNotEmpty)
+                if (widget.attachments.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                    child: Wrap(
-                      alignment: .end,
-                      spacing: AleraTokens.space6,
-                      runSpacing: AleraTokens.space6,
-                      children: <Widget>[
-                        for (final name in widget.attachmentNames)
-                          Chip(
-                            avatar: const Icon(
-                              AleraIcons.attach,
-                              size: AleraTokens.iconSm,
-                            ),
-                            label: Text(name, overflow: .ellipsis),
-                          ),
-                      ],
+                    child: AgentChatMessageAttachmentsView(
+                      attachments: widget.attachments,
                     ),
                   ),
                 if (text.trim().isNotEmpty || widget.partial)
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: AleraTokens.surfaceVariant,
-                      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                      borderRadius: _bubbleRadius(steer),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(AleraTokens.space12),
@@ -295,6 +293,15 @@ class _UserBubbleState extends State<_UserBubble> {
                             ? agentChatShowLessLabel
                             : agentChatShowFullMessageLabel,
                       ),
+                    ),
+                  ),
+                if (steer?.labeled ?? false)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AleraTokens.space4),
+                    child: Text(
+                      agentChatSteerLabel,
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: AleraTokens.foregroundFaint),
                     ),
                   ),
                 const SizedBox(height: AleraTokens.space4),
@@ -415,4 +422,20 @@ class const _MessageActions({
     await Clipboard.setData(ClipboardData(text: text));
     messenger?.showSnackBar(const SnackBar(content: Text('Message copied')));
   }
+}
+
+/// The caption under the last message of a burst steered into a turn.
+const String agentChatSteerLabel = 'Sent during the turn';
+
+/// A bubble's corners: those joined to the steer above or below are tighter,
+/// so a burst reads as one block.
+BorderRadius _bubbleRadius(AgentChatSteerPlacement? steer) {
+  const round = Radius.circular(AleraTokens.radiusLg);
+  const tight = Radius.circular(AleraTokens.space2);
+  return BorderRadius.only(
+    topLeft: round,
+    bottomLeft: round,
+    topRight: steer?.joinsPrevious ?? false ? tight : round,
+    bottomRight: steer?.joinsNext ?? false ? tight : round,
+  );
 }
