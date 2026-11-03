@@ -172,6 +172,26 @@ class _AgentChatActionRowViewState extends State<AgentChatActionRowView> {
             ),
             child: AgentChatToolDetails(item: item),
           ),
+        // Calls this one made through itself (a codemode script's tools).
+        if (action.nested.isNotEmpty)
+          Container(
+            key: ValueKey<String>('agent-chat-nested-calls-${item.id}'),
+            margin: const EdgeInsets.only(left: AleraTokens.space8),
+            padding: const EdgeInsets.only(left: AleraTokens.space8),
+            decoration: const BoxDecoration(
+              border: Border(left: BorderSide(color: AleraTokens.borderSubtle)),
+            ),
+            child: Column(
+              crossAxisAlignment: .stretch,
+              children: <Widget>[
+                for (final call in action.nested)
+                  AgentChatActionRowView(
+                    key: ValueKey<String>(call.item.id),
+                    action: call,
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }

@@ -388,6 +388,34 @@ class _ActionRowState extends State<_ActionRow> {
               onOpenFile: widget.onOpenFile,
             ),
           ),
+        // Calls this one made through itself (a codemode script's tools).
+        if (action.nested.isNotEmpty)
+          Container(
+            key: ValueKey<String>('agent-chat-nested-calls-${item.id}'),
+            margin: const EdgeInsets.only(left: AleraTokens.space12),
+            padding: const EdgeInsets.only(left: AleraTokens.space8),
+            decoration: const BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: AleraTokens.borderSubtle,
+                  width: AleraTokens.strokeSm,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final call in action.nested)
+                  _ActionRow(
+                    key: ValueKey<String>('agent-chat-action-${call.item.id}'),
+                    action: call,
+                    expansion: widget.expansion,
+                    onOpenFile: widget.onOpenFile,
+                    chat: widget.chat,
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }

@@ -155,6 +155,47 @@ void main() {
     });
   }
 
+  testWidgets('calls a tool made through another tool sit under it', (
+    tester,
+  ) async {
+    final section = _section(
+      <Map<String, Object?>>[
+        _item('u1', 'user_message', text: 'Go'),
+        _item(
+          'code',
+          'dynamic_tool_call',
+          normalized: <String, Object?>{'toolName': 'codemode'},
+        ),
+        _item(
+          'code/1',
+          'dynamic_tool_call',
+          status: 'failed',
+          normalized: <String, Object?>{
+            'toolName': 'read',
+            'input': <String, Object?>{'path': 'a.ts'},
+            'parentItemId': 'code',
+          },
+        ),
+      ],
+      turn: <String, Object?>{
+        'turnId': 'turn-1',
+        'status': 'failed',
+        'startedAt': '2026-10-12T10:00:00Z',
+        'completedAt': '2026-10-12T10:00:03Z',
+      },
+    );
+    await _pump(tester, section);
+    expect(find.text('Used codemode'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('agent-chat-nested-calls-code')),
+        matching: find.text('Read a.ts'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sub-agent'), findsNothing);
+  });
+
   testWidgets('a succeeded turn folds and lists its changed files', (
     tester,
   ) async {

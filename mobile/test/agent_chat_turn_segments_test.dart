@@ -129,6 +129,44 @@ void main() {
     expect(find.textContaining('2 commands'), findsNothing);
   });
 
+  testWidgets('calls a tool made through another tool sit under it', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _section(<Map<String, Object?>>[
+        _item('u1', 'user_message', text: 'Go'),
+        _item(
+          'code',
+          'dynamic_tool_call',
+          normalized: <String, Object?>{'toolName': 'codemode'},
+        ),
+        _item(
+          'code/1',
+          'dynamic_tool_call',
+          status: 'failed',
+          normalized: <String, Object?>{
+            'toolName': 'read',
+            'input': <String, Object?>{'path': 'a.ts'},
+            'parentItemId': 'code',
+          },
+        ),
+        _item('a1', 'assistant_message', text: 'Done'),
+      ]),
+    );
+    await tester.tap(find.textContaining('Worked'));
+    await tester.pump();
+    expect(find.text('Used codemode'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('agent-chat-nested-calls-code')),
+        matching: find.text('Read a.ts'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sub-agent'), findsNothing);
+  });
+
   testWidgets('a handoff draws a divider above its turn', (tester) async {
     await _pump(
       tester,
