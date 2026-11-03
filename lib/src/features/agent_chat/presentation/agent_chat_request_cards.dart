@@ -38,7 +38,7 @@ class const AgentChatApprovalCard({
       title: agentChatRequestTitle(request),
       responding: responding,
       actions: <Widget>[
-        ..._decisionButtons(
+        ...agentChatDecisionButtons(
           request.offeredDecisions,
           enabled: canAct,
           onDecision: onDecision,
@@ -225,7 +225,7 @@ class const AgentChatUnsupportedRequestCard({
     return _RequestCardFrame(
       title: agentChatRequestTitle(request),
       responding: responding,
-      actions: _decisionButtons(
+      actions: agentChatDecisionButtons(
         request.decisions,
         enabled: enabled && !responding,
         onDecision: onDecision,
@@ -265,10 +265,12 @@ bool _isWebUrl(String url) {
 
 /// The decisions as controls: the first decision and Decline (when offered)
 /// as buttons, the rest in an overflow, each group in the runtime's order.
-List<Widget> _decisionButtons(
+/// [inline] draws them as text buttons, for a timeline row.
+List<Widget> agentChatDecisionButtons(
   List<AgentChatApprovalDecision> decisions, {
   required bool enabled,
   required ValueChanged<AgentChatApprovalDecision> onDecision,
+  bool inline = false,
 }) {
   if (decisions.isEmpty) return const <Widget>[];
   final primary = <AgentChatApprovalDecision>{
@@ -285,7 +287,18 @@ List<Widget> _decisionButtons(
   return <Widget>[
     for (final decision in decisions)
       if (primary.contains(decision))
-        if (decision == decisions.first)
+        if (inline)
+          TextButton(
+            key: ValueKey<String>('agent-chat-decision-${decision.wire}'),
+            style: decision == decisions.first
+                ? null
+                : TextButton.styleFrom(
+                    foregroundColor: AleraTokens.foregroundMuted,
+                  ),
+            onPressed: enabled ? () => onDecision(decision) : null,
+            child: Text(agentChatDecisionLabel(decision)),
+          )
+        else if (decision == decisions.first)
           FilledButton(
             key: ValueKey<String>('agent-chat-decision-${decision.wire}'),
             onPressed: enabled ? () => onDecision(decision) : null,

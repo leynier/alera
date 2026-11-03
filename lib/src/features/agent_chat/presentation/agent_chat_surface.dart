@@ -16,6 +16,7 @@ import 'package:alera/src/features/agent_chat/presentation/agent_chat_find_bar.d
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_footer.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_full_data.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_plan_views.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_pending_approval_row.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_skills_binding.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_status_views.dart';
@@ -479,6 +480,10 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
         loadingEarlier: view.loadingEarlier,
         onLoadEarlier: () => unawaited(_controller.loadEarlier()),
         preparingAttachmentIds: view.preparingAttachmentIds,
+        trailing: AgentChatPendingApprovalRows(
+          chatId: widget.chatId,
+          workspaceId: widget.workspace.id,
+        ),
       ),
     );
   }

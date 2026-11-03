@@ -31,6 +31,9 @@ class const AgentChatTimelineView({
 
   /// Client message ids whose attachments are still uploading.
   final Set<String> preparingAttachmentIds = const <String>{},
+
+  /// Rows after the last entry, such as the approvals the agent waits on.
+  final Widget? trailing,
 }) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentChatTimelineView> createState() =>
@@ -353,6 +356,22 @@ class _AgentChatTimelineViewState extends ConsumerState<AgentChatTimelineView>
                     itemBuilder: _buildEntry,
                     findChildIndexCallback: _findIndex,
                   ),
+                  if (widget.trailing case final trailing?)
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: AleraTokens.agentChatConversationMaxWidth,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AleraTokens.space16,
+                            ),
+                            child: trailing,
+                          ),
+                        ),
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: ValueListenableBuilder<double>(
                       valueListenable: anchorSpacer,

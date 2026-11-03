@@ -175,6 +175,11 @@ class const AgentChatFooter({
         settings.hasSelection &&
         !(settings.catalog == AgentChatCatalogState.ready &&
             settings.providerUnavailable);
+    // Approvals wait on their timeline row; the dock keeps the rest.
+    final docked = <AgentChatRequest>[
+      for (final request in view.requests)
+        if (!request.isApproval) request,
+    ];
     final docks = <Widget>[
       if (view.nativeOperation case final AgentChatNativeOperation operation)
         AgentChatNativeOperationNotice(
@@ -206,11 +211,11 @@ class const AgentChatFooter({
               unawaited(controller.recover(AgentChatRecoverMode.restart)),
         ),
       if (!view.live) const AgentChatReconnectingBanner(),
-      if (view.requests.isNotEmpty)
+      if (docked.isNotEmpty)
         AgentChatRequestDock(
           key: ValueKey<String>('agent-chat-requests-$chatId'),
           chatId: chatId,
-          requests: view.requests,
+          requests: docked,
           respondingRequestIds: view.responding,
           enabled: view.live,
           onRespond: controller.respond,
