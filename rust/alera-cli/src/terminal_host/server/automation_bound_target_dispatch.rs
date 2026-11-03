@@ -333,6 +333,12 @@ impl ServerActor {
                     AutomationTarget::ExistingTab { .. } => {
                         return Err(HostError::state("automation existing tab is missing"));
                     }
+                    // Dispatched before a bound target plan is made.
+                    AutomationTarget::AgentChat { .. } => {
+                        return Err(HostError::state(
+                            "agent chat automations do not open terminal tabs",
+                        ));
+                    }
                 };
                 Box::pin(self.dispatch_fresh_tab(
                     run,

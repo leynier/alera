@@ -103,6 +103,8 @@ mod ai_dictation_openai;
 mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod automation_actor;
+mod automation_agent_chat_runs;
+mod automation_agent_chat_turns;
 mod automation_authoring_requests;
 mod automation_binding_requests;
 mod automation_bound_target_dispatch;
@@ -674,6 +676,9 @@ impl ServerActor {
             } => {
                 Box::pin(self.finish_automation_precheck(*definition, *run, host_id, path, result))
                     .await;
+            }
+            ServerCommand::AutomationAgentChat(event) => {
+                Box::pin(self.handle_agent_chat_run_event(event)).await
             }
             ServerCommand::AutomationCheckoutPrepared {
                 definition,

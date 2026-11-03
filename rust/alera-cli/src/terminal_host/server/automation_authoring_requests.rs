@@ -240,70 +240,83 @@ impl ServerActor {
                 }
             }
         }
-        let profile_id = self.target_profile_id(definition).await;
-        let profile_resolvable = matches!(profile_id, Ok(Some(_)));
-        match profile_id {
-            Ok(Some(id)) => match self.runtime_store.find_agent_profile(&id).await {
-                Ok(Some(profile)) => {
-                    if let Err(error) =
-                        super::orchestration_profile_spawn::launch_for_profile(&profile)
-                    {
-                        issues.push(issue(
-                            "invalidProfile",
-                            &error,
-                            "target",
-                            "error",
-                            "OpenAgentProfiles",
-                        ));
-                    } else if self
-                        .automation_target_location(definition)
-                        .await
-                        .ok()
-                        .is_some_and(|location| location.host_id == LOCAL_HOST_ID)
-                    {
-                        let cached = profile_readiness
-                            .as_deref()
-                            .and_then(|cache| cache.get(&profile.id).cloned());
-                        let ready = match cached {
-                            Some(ready) => ready,
-                            None => {
-                                let ready =
-                                    super::automation_profile_readiness::profile_executable_ready(
-                                        &profile,
-                                    )
-                                    .await;
-                                if let Some(cache) = profile_readiness {
-                                    cache.insert(profile.id.clone(), ready.clone());
-                                }
-                                ready
-                            }
-                        };
-                        if let Err(error) = ready {
+        let mut profile_resolvable = false;
+        if let Some(spec) = definition.target.agent_chat() {
+            if let Some(message) = self.agent_chat_target_issue(spec).await {
+                issues.push(issue(
+                    "missingChat",
+                    &message,
+                    "target",
+                    "error",
+                    "ChooseTarget",
+                ));
+            }
+        } else {
+            let profile_id = self.target_profile_id(definition).await;
+            profile_resolvable = matches!(profile_id, Ok(Some(_)));
+            match profile_id {
+                Ok(Some(id)) => match self.runtime_store.find_agent_profile(&id).await {
+                    Ok(Some(profile)) => {
+                        if let Err(error) =
+                            super::orchestration_profile_spawn::launch_for_profile(&profile)
+                        {
                             issues.push(issue(
-                                "profileNotLaunchable",
+                                "invalidProfile",
                                 &error,
                                 "target",
                                 "error",
                                 "OpenAgentProfiles",
                             ));
+                        } else if self
+                            .automation_target_location(definition)
+                            .await
+                            .ok()
+                            .is_some_and(|location| location.host_id == LOCAL_HOST_ID)
+                        {
+                            let cached = profile_readiness
+                                .as_deref()
+                                .and_then(|cache| cache.get(&profile.id).cloned());
+                            let ready = match cached {
+                                Some(ready) => ready,
+                                None => {
+                                    let ready =
+                                        super::automation_profile_readiness::profile_executable_ready(
+                                            &profile,
+                                        )
+                                        .await;
+                                    if let Some(cache) = profile_readiness {
+                                        cache.insert(profile.id.clone(), ready.clone());
+                                    }
+                                    ready
+                                }
+                            };
+                            if let Err(error) = ready {
+                                issues.push(issue(
+                                    "profileNotLaunchable",
+                                    &error,
+                                    "target",
+                                    "error",
+                                    "OpenAgentProfiles",
+                                ));
+                            }
                         }
                     }
-                }
+                    _ => issues.push(issue(
+                        "missingProfile",
+                        "Choose an existing agent profile",
+                        "target",
+                        "error",
+                        "OpenAgentProfiles",
+                    )),
+                },
                 _ => issues.push(issue(
                     "missingProfile",
-                    "Choose an existing agent profile",
+                    "The target must have an agent profile",
                     "target",
                     "error",
                     "OpenAgentProfiles",
                 )),
-            },
-            _ => issues.push(issue(
-                "missingProfile",
-                "The target must have an agent profile",
-                "target",
-                "error",
-                "OpenAgentProfiles",
-            )),
+            }
         }
         if let alera_core::runtime::AutomationTarget::ExistingTab {
             conversation_id,

@@ -43,6 +43,8 @@ pub enum ServerCommand {
         path: String,
         result: Result<bool, String>,
     },
+    /// An agent chat automation run was posted or its chat turn ended.
+    AutomationAgentChat(super::automation_agent_chat_runs::AgentChatRunEvent),
     AutomationCheckoutPrepared {
         definition: Box<alera_core::runtime::AutomationDefinition>,
         run: Box<alera_core::runtime::AutomationRun>,

@@ -334,6 +334,10 @@ pub async fn workspace_has_active_automation_owner(
                 | AutomationTarget::FreshTab {
                     workspace_id: target,
                     ..
+                }
+                | AutomationTarget::AgentChat {
+                    workspace_id: target,
+                    ..
                 } => target == workspace_id,
                 AutomationTarget::Worktree { .. } => {
                     automation.target.source_workspace_id() == Some(workspace_id)

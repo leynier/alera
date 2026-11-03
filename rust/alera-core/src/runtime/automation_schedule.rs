@@ -256,6 +256,15 @@ pub fn next_occurrence(
             }
             Err("cron schedule has no occurrence in the scan window".to_string())
         }
+        AutomationSchedule::Interval {
+            every_seconds,
+            anchor,
+        } => Ok(Some(super::automation_schedule_interval::next_interval(
+            automation_id,
+            *every_seconds,
+            *anchor,
+            after,
+        )?)),
     }
 }
 
@@ -282,6 +291,9 @@ pub fn validate_schedule(schedule: &AutomationSchedule) -> Result<(), String> {
             if max_scheduled_runs.is_some_and(|value| value < 1) {
                 return Err("max scheduled runs must be positive".to_string());
             }
+        }
+        AutomationSchedule::Interval { every_seconds, .. } => {
+            super::automation_schedule_interval::validate_interval(*every_seconds)?;
         }
     }
     Ok(())

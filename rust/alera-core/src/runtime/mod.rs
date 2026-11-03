@@ -144,12 +144,15 @@ pub use automation_overlap::{
     AUTOMATION_OVERLAP_SKIP_REASON, AUTOMATION_OVERLAP_SUPERSEDED_REASON,
     AUTOMATION_QUEUE_LIMIT_REASON,
 };
-pub use automation_target::{AutomationTarget, AutomationWorktreeSpec};
+pub use automation_target::{
+    AutomationAgentChatSpec, AutomationTarget, AutomationWorktreeSpec, AGENT_CHAT_RUNTIME_MODES,
+};
 pub use automation_workspace_placement::AutomationWorkspacePlacement;
 pub use project_automation_dependencies::ProjectAutomationDependency;
 mod automation_authoring;
 mod automation_recovery_store;
 mod automation_schedule;
+mod automation_schedule_interval;
 mod automation_store;
 pub use automation_authoring::{automation_cursor, automation_from_input};
 mod automation_templates;
@@ -427,6 +430,7 @@ pub use automation_models::*;
 #[allow(unused_imports)]
 pub use automation_run_store::*;
 pub use automation_schedule::*;
+pub use automation_schedule_interval::{fixed_time_cron, AUTOMATION_MIN_INTERVAL_SECONDS};
 pub use automation_templates::*;
 pub use checkout_models::*;
 pub use conversation_store::{ConversationFilter, ConversationPage, ConversationThread};

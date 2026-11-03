@@ -137,6 +137,8 @@ impl ServerActor {
             | AutomationTarget::ProjectCheckout {
                 agent_profile_id, ..
             } => Ok(Some(agent_profile_id.clone())),
+            // An agent chat run uses the chat's own agent, not a profile.
+            AutomationTarget::AgentChat { .. } => Ok(None),
         }
     }
 }

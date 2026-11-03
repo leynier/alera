@@ -96,6 +96,10 @@ pub async fn workspace_removal_dependencies(
             | AutomationTarget::FreshTab {
                 workspace_id: target,
                 ..
+            }
+            | AutomationTarget::AgentChat {
+                workspace_id: target,
+                ..
             } => target == workspace_id,
             AutomationTarget::Worktree { .. } => {
                 definition.target.source_workspace_id() == Some(workspace_id)

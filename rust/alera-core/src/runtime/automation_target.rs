@@ -52,6 +52,53 @@ pub enum AutomationTarget {
         #[serde(alias = "agent_profile_id")]
         agent_profile_id: String,
     },
+    /// A message into an agent chat for each run
+    /// (`automationAgentChatTargetV1`). With a chat id every run posts into
+    /// that chat; without one each run opens a new chat in the workspace with
+    /// the stored agent. The run ends when the chat turn the message started
+    /// ends, with no heartbeat.
+    AgentChat {
+        #[serde(default, alias = "chat_id", skip_serializing_if = "Option::is_none")]
+        chat_id: Option<String>,
+        #[serde(alias = "workspace_id")]
+        workspace_id: String,
+        /// The most a run may do: the scheduling chat's runtime mode.
+        #[serde(
+            default,
+            alias = "runtime_mode_ceiling",
+            skip_serializing_if = "Option::is_none"
+        )]
+        runtime_mode_ceiling: Option<String>,
+        /// The agent a new chat starts with, when runs are not bound.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        provider: Option<String>,
+        #[serde(
+            default,
+            alias = "provider_instance_id",
+            skip_serializing_if = "Option::is_none"
+        )]
+        provider_instance_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        model: Option<String>,
+        #[serde(
+            default,
+            alias = "reasoning_effort",
+            skip_serializing_if = "Option::is_none"
+        )]
+        reasoning_effort: Option<String>,
+    },
+}
+
+/// The fields an [`AutomationTarget::AgentChat`] runs with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AutomationAgentChatSpec<'a> {
+    pub chat_id: Option<&'a str>,
+    pub workspace_id: &'a str,
+    pub runtime_mode_ceiling: Option<&'a str>,
+    pub provider: Option<&'a str>,
+    pub provider_instance_id: Option<&'a str>,
+    pub model: Option<&'a str>,
+    pub reasoning_effort: Option<&'a str>,
 }
 
 /// The fields a [`AutomationTarget::Worktree`] runs with, with empty ids
@@ -72,21 +119,22 @@ impl AutomationTarget {
             Self::ExistingTab { .. } => "existingTab",
             Self::FreshTab { .. } => "freshTab",
             Self::Worktree { .. } => "worktree",
+            Self::AgentChat { .. } => "agentChat",
         }
     }
 
     pub fn workspace_id(&self) -> Option<&str> {
         match self {
-            Self::ExistingTab { workspace_id, .. } | Self::FreshTab { workspace_id, .. } => {
-                Some(workspace_id)
-            }
+            Self::ExistingTab { workspace_id, .. }
+            | Self::FreshTab { workspace_id, .. }
+            | Self::AgentChat { workspace_id, .. } => Some(workspace_id),
             Self::Worktree { .. } | Self::ProjectCheckout { .. } => None,
         }
     }
 
     pub fn agent_profile_id(&self) -> Option<&str> {
         match self {
-            Self::ExistingTab { .. } => None,
+            Self::ExistingTab { .. } | Self::AgentChat { .. } => None,
             Self::FreshTab {
                 agent_profile_id, ..
             }
@@ -133,6 +181,29 @@ impl AutomationTarget {
                 source_branch,
                 name_template,
                 agent_profile_id,
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn agent_chat(&self) -> Option<AutomationAgentChatSpec<'_>> {
+        match self {
+            Self::AgentChat {
+                chat_id,
+                workspace_id,
+                runtime_mode_ceiling,
+                provider,
+                provider_instance_id,
+                model,
+                reasoning_effort,
+            } => Some(AutomationAgentChatSpec {
+                chat_id: non_empty(chat_id.as_deref()),
+                workspace_id,
+                runtime_mode_ceiling: non_empty(runtime_mode_ceiling.as_deref()),
+                provider: non_empty(provider.as_deref()),
+                provider_instance_id: non_empty(provider_instance_id.as_deref()),
+                model: non_empty(model.as_deref()),
+                reasoning_effort: non_empty(reasoning_effort.as_deref()),
             }),
             _ => None,
         }
@@ -186,6 +257,22 @@ impl AutomationTarget {
                 };
                 ("worktree", project)
             }
+            Self::AgentChat { workspace_id, .. } => {
+                if workspace_id.trim().is_empty() {
+                    bail!("Agent chat automations require a workspace");
+                }
+                let spec = self.agent_chat().expect("agent chat target");
+                if spec.chat_id.is_none() && spec.provider.is_none() {
+                    bail!("Agent chat automations require a chat or an agent provider");
+                }
+                if spec
+                    .runtime_mode_ceiling
+                    .is_some_and(|mode| !AGENT_CHAT_RUNTIME_MODES.contains(&mode))
+                {
+                    bail!("Agent chat automation runtime mode ceiling is not a runtime mode");
+                }
+                return Ok(());
+            }
             _ => return Ok(()),
         };
         if definition_project.is_some_and(|id| id != project) {
@@ -195,6 +282,14 @@ impl AutomationTarget {
     }
 }
 
+/// Agent chat runtime modes, least to most access.
+pub const AGENT_CHAT_RUNTIME_MODES: [&str; 4] = [
+    "approval-required",
+    "auto-accept-edits",
+    "auto",
+    "full-access",
+];
+
 fn non_empty(value: Option<&str>) -> Option<&str> {
     value.filter(|value| !value.trim().is_empty())
 }
@@ -202,6 +297,10 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
 fn default_name_template() -> String {
     AUTOMATION_DEFAULT_NAME_TEMPLATE.to_string()
 }
+
+#[cfg(test)]
+#[path = "automation_target_agent_chat_tests.rs"]
+mod agent_chat_tests;
 
 #[cfg(test)]
 mod tests {

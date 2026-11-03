@@ -219,6 +219,7 @@ fn command_control_bytes(command: &ServerCommand) -> usize {
             + serialized_bytes(run)
             + serialized_bytes(project)
             + host_result_serialized_bytes(result),
+        ServerCommand::AutomationAgentChat(event) => event.approximate_bytes(),
         ServerCommand::AutomationSharedCleanupFinished { attempt, result } => {
             string_bytes(&attempt.id)
                 + serialized_bytes(&attempt.run)
@@ -446,6 +447,7 @@ fn is_completion_command(command: &ServerCommand) -> bool {
             | ServerCommand::OwnerAutomationPrecheckFinished { .. }
             | ServerCommand::AutomationPrecheckFinished { .. }
             | ServerCommand::AutomationCheckoutPrepared { .. }
+            | ServerCommand::AutomationAgentChat(_)
             | ServerCommand::AutomationSharedCleanupFinished { .. }
             | ServerCommand::WorkflowWorkspaceRecoveryFinished
             | ServerCommand::ProjectCloneFinished { .. }

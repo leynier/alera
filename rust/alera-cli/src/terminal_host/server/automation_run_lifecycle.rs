@@ -102,6 +102,18 @@ impl ServerActor {
                 conversation_id: None,
                 terminal_handle: None,
             }),
+            AutomationTarget::AgentChat {
+                workspace_id,
+                chat_id,
+                ..
+            } => Ok(AutomationTargetIdentity {
+                workspace_id: Some(workspace_id.clone()),
+                tab_id: None,
+                session_id: None,
+                profile_id: None,
+                conversation_id: chat_id.clone(),
+                terminal_handle: None,
+            }),
             AutomationTarget::Worktree {
                 agent_profile_id, ..
             } => Ok(AutomationTargetIdentity {
@@ -282,6 +294,10 @@ impl ServerActor {
             // A precheck reserves its run before any dispatch attempt starts.
             // Its completion owns finalization while the command is in flight.
             if self.automation_precheck_jobs.contains(&run.id) {
+                continue;
+            }
+            // An agent chat run ends with its chat turn, not a heartbeat.
+            if super::super::automation_agent_chat_runs::is_agent_chat_run(&run) {
                 continue;
             }
             if self.resume_remote_automation_precheck(&run).await {
