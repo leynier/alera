@@ -78,6 +78,22 @@ void main() {
     expect(f.runtime.requestsOf('automation.takeOver'), isEmpty);
   });
 
+  testWidgets('an agent chat run offers its chat instead of a terminal', (
+    tester,
+  ) async {
+    await mount(
+      tester,
+      run: <String, Object?>{
+        ...automationRunJson(tabId: null),
+        'chatId': 'chat-1',
+        'clientMessageId': 'automation:run-1:attempt-1',
+      },
+    );
+    expect(find.text('Open Chat'), findsOneWidget);
+    expect(find.text('Watch Terminal'), findsNothing);
+    expect(find.text('Open Workspace'), findsOneWidget);
+  });
+
   testWidgets('Take Over is an explicit action with no extra dialog', (
     tester,
   ) async {

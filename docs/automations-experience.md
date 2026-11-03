@@ -38,6 +38,9 @@ A definition has exactly one target, and its type is always chosen explicitly; c
 | `worktree` (`worktree`) | New Worktree | Creates a Git worktree and branch on this computer for each run, from `projectId`, `parentWorkspaceId` (the project comes from that workspace and the worktree is nested under it), or both. A retried attempt reuses the worktree its run created |
 | `projectCheckout` (`project-checkout`) | Project Folder | Opens a workspace in the registered local or SSH project folder on `hostId` |
 | `existingTab` (`existing-tab`) | Continue An Agent Conversation | Sends the prompt to a live agent conversation captured with its `conversationId` |
+| `agentChat` | Not offered; created by `schedule_task` | Posts the prompt into an agent chat (`chatId`), or into a new chat in `workspaceId` for each run, at most at `runtimeModeCeiling`. The run ends when that chat turn ends, with no heartbeat (`automationAgentChatTargetV1`) |
+
+`agentChat` targets and the `interval` schedule (`{everySeconds, anchor}`, at least 60 seconds, first run one interval after the anchor) are additive under `automationAgentChatTargetV1`, and runs of such a target carry `chatId` and `clientMessageId`. The composers show and keep both but do not offer them, and the run panel and run sheet offer Open Chat for a run that posted into a chat. They have no webhook trigger: Alera has no inbound path for one.
 
 `managedWorkspace` (with `sourceWorkspaceId`) and `projectWorktree` are the older spellings of `worktree`; the runtime and the Dart parser still accept them and write `worktree` back. The CLI keeps `managed-workspace` and `project-worktree` as aliases. An older app attached to a newer host sees `worktree` as an unknown target kind and shows it as unsupported.
 

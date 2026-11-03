@@ -25,6 +25,8 @@ Partial JSON input needs no IDs, revision, timestamps, actors, or slug:
 }
 ```
 
+An `agentChat` target (`{"agentChat": {"chatId": "chat-id", "workspaceId": "workspace-id", "runtimeModeCeiling": "auto"}}`, `automationAgentChatTargetV1`) posts each run into that chat, or into a new chat in the workspace when `chatId` is absent, and ends with the chat turn, with no heartbeat. Agents create it with `schedule_task` (`alera chat schedule save`); it pairs with the `interval` schedule (`{"interval": {"everySeconds": 900, "anchor": "2026-11-03T10:00:00Z"}}`, at least 60 seconds). There are no webhook triggers.
+
 ## Reuse
 
 `--reuse` (JSON `reusePolicy`) decides where runs after the first one go. The default `none` (`newEachRun`) creates the target every run. `workspace` (`reuseWorkspace`) opens a new agent tab in the workspace the first run used. `conversation` (`reuseConversation`) pastes the next run into the first run's agent when it is idle, waits while it is busy, relaunches it in a new tab of the same workspace when its terminal or agent is gone, and opens a fresh tab there when a person took it over. A run that stays busy past the misfire grace window follows `overlapPolicy`: `forceParallel` opens a parallel tab in the bound workspace, anything else skips the run. Reused runs start with a short note naming the previous run's summary and error.

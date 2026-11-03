@@ -25,9 +25,10 @@ const SECRETS_AND_PULL_REQUESTS: &str = "Secrets and pull requests, with the sam
 - A secret: call request_secret yourself, with delivery file (recommended) for a shell command, or ref for alera chat secret read --ref. Never ask for one in chat or invent one; only a person answers it.
 - Link each PR you create, take over, or push to: link_pull_request, full URL, as your next call. Skip PRs you only read or review. If linking fails, say so.
 - Call watch_pull_request when asked to monitor or babysit a PR, or when work you were asked to do still waits on its checks or reviews. Push first, then watch and end your turn. Delegated children never watch. After PR work, a child's last line is: PR <full URL>, head <SHA>, checks and reviews <state>.
-- For PR waits, no sleep, loops, gh --watch, Monitor or ScheduleWakeup. Before handback, call unwatch_pull_request on any PR you watch.";
+- For PR waits, no sleep, loops, gh --watch, Monitor or ScheduleWakeup. Before handback, call unwatch_pull_request on any PR you watch.
+- When asked only to schedule, call schedule_task without running its prompt now, and report its nextRunAt. Alera has no webhook triggers.";
 
-const CLAUDE_TOOLS: &str = "The alera chat tools are deferred. Load them before the first call with ToolSearch select:mcp__alera__chat_capabilities,mcp__alera__chat_delegate,mcp__alera__chat_task_status,mcp__alera__chat_task_cancel,mcp__alera__chat_requests,mcp__alera__chat_respond,mcp__alera__chat_read,mcp__alera__request_secret,mcp__alera__link_pull_request,mcp__alera__watch_pull_request,mcp__alera__unwatch_pull_request.";
+const CLAUDE_TOOLS: &str = "The alera chat tools are deferred. Load them before the first call with ToolSearch select:mcp__alera__chat_capabilities,mcp__alera__chat_delegate,mcp__alera__chat_task_status,mcp__alera__chat_task_cancel,mcp__alera__chat_requests,mcp__alera__chat_respond,mcp__alera__chat_read,mcp__alera__request_secret,mcp__alera__link_pull_request,mcp__alera__watch_pull_request,mcp__alera__unwatch_pull_request,mcp__alera__schedule_task.";
 
 /// The instruction sections for a chat of `provider`.
 pub(crate) fn orchestration_instruction_sections(provider: &str) -> Vec<String> {

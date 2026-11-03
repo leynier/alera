@@ -14,6 +14,7 @@ const CHAT_TOOL_SOURCE = [
   'chat_transfers.rs',
   'chat_secrets.rs',
   'chat_pull_requests.rs',
+  'chat_schedules.rs',
 ]
   .map((name) => readFileSync(new NodeURL(`../../rust/alera-cli/src/mcp_tools/catalog/${name}`, import.meta.url), 'utf8'))
   .join('\n');

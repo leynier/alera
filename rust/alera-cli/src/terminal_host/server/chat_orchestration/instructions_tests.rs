@@ -67,9 +67,11 @@ fn claude_learns_its_native_agent_and_how_to_load_the_tools() {
     assert!(sections[0].contains("Agent with run_in_background:false"));
     assert!(sections[1].contains("request_secret"));
     assert!(sections[1].contains("Delegated children never watch."));
+    assert!(sections[1].contains("call schedule_task without running its prompt"));
     assert!(sections[2].starts_with("The alera chat tools are deferred."));
     assert!(sections[2].contains("ToolSearch select:mcp__alera__chat_capabilities"));
     assert!(sections[2].contains("mcp__alera__watch_pull_request"));
+    assert!(sections[2].contains("mcp__alera__schedule_task"));
     let cursor = orchestration_instruction_sections("cursor");
     assert_eq!(cursor.len(), 2);
     assert!(!cursor[0].contains("spawn_agent"));
