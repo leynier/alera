@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/chat/alera_message_queue.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_queue_sender.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_shortcut_target.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface_history.dart';
@@ -82,6 +83,7 @@ class const AgentChatFooterQueue({
               hasImage: entry.attachments.any(
                 (attachment) => attachment.type.isImage,
               ),
+              sender: agentChatQueueSenderOf(entry),
             ),
         ],
         canSteer: canSteer && steerSupported,

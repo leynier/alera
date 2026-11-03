@@ -28,6 +28,9 @@ class const AgentChatFooter({
   onReorderQueued,
   final String? editingQueueId,
   final VoidCallback? onCancelQueuedEdit,
+
+  /// Who queued an entry the person did not write; null shows no sender.
+  final Widget? Function(AgentChatQueueEntry entry)? queueSender,
   required final Widget composer,
   required final double minimumComposerHeight,
   final List<Widget> notices = const <Widget>[],
@@ -56,6 +59,7 @@ class const AgentChatFooter({
                 hasImage: entry.attachments.any(
                   (attachment) => attachment.type.isImage,
                 ),
+                sender: queueSender?.call(entry),
               ),
           ],
           // Steer is offered only where the runtime moves the entry into the

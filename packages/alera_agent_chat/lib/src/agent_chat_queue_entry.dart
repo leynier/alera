@@ -9,6 +9,10 @@ class const AgentChatQueueEntry({
   required final String text,
   required final DateTime createdAt,
   final List<AgentChatAttachment> attachments = const <AgentChatAttachment>[],
+
+  /// Who queued it when it was not the person: an automation, a watched
+  /// pull request, another chat or a guest.
+  final AgentChatItemOrigin? origin,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -27,6 +31,9 @@ class const AgentChatQueueEntry({
         for (final attachment in agentChatJsonList(json['attachments']))
           AgentChatAttachment.fromJson(attachment),
       ],
+      origin: json['origin'] is Map
+          ? AgentChatItemOrigin.fromJson(json['origin'])
+          : null,
     );
   }
 }

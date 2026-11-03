@@ -14,6 +14,7 @@ class AleraQueuedMessageRow {
     this.hasImage = false,
     this.status = 'queued',
     this.error,
+    this.sender,
   });
   final String id;
   final String text;
@@ -21,6 +22,9 @@ class AleraQueuedMessageRow {
   final bool hasImage;
   final String status;
   final String? error;
+
+  /// Who queued it, above its text, when the person did not.
+  final Widget? sender;
 }
 
 /// Messages waiting behind a running turn. With [onReorder], a long press
@@ -314,6 +318,7 @@ class _AleraMessageQueueState extends State<AleraMessageQueue> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ?row.sender,
           Row(
             children: [
               if (_canLift) _grip(),

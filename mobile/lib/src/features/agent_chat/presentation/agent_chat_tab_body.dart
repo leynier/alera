@@ -31,6 +31,7 @@ import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_tim
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_transition_announcer.dart';
 import 'package:alera_mobile/src/features/chat_tasks/application/mobile_chat_task_providers.dart';
 import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_queued_edit.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_queue_sender.dart';
 import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_notice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -335,6 +336,7 @@ class const AgentChatTabBody({
               ],
               requests: requests,
               queue: view.thread.queue,
+              queueSender: (entry) => agentChatQueueSenderOf(hostId, entry),
               canRespond: canAct,
               respondingRequestIds: view.respondingRequestIds,
               typing: handlers.typing,

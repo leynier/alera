@@ -216,7 +216,11 @@ enum AgentChatItemOriginKind {
   pullRequestWatch,
 
   /// A scheduled task posted its prompt (`chatOrchestrationSchedulesV1`).
-  automation;
+  automation,
+
+  /// A person other than the chat's owner, named by
+  /// [AgentChatItemOrigin.guestName].
+  guest;
 
   static AgentChatItemOriginKind fromJson(Object? value) => agentChatWireEnum(
     value,
@@ -234,6 +238,16 @@ class const AgentChatItemOrigin({
   final String? senderChatId,
   final List<String> taskIds = const <String>[],
   final List<String> requestIds = const <String>[],
+
+  /// The scheduled task that posted an [AgentChatItemOriginKind.automation]
+  /// message.
+  final String? automationName,
+
+  /// The watched pull request of an
+  /// [AgentChatItemOriginKind.pullRequestWatch] message.
+  final int? pullRequestNumber,
+  final String? pullRequestUrl,
+  final String? guestName,
 }) {
   factory fromJson(Object? value) {
     final json = agentChatJsonMap(value);
@@ -242,11 +256,17 @@ class const AgentChatItemOrigin({
       senderChatId: agentChatJsonString(json['senderChatId']),
       taskIds: agentChatJsonStringList(json['taskIds']),
       requestIds: agentChatJsonStringList(json['requestIds']),
+      automationName: agentChatJsonString(json['automationName']),
+      pullRequestNumber: agentChatJsonInt(json['number']),
+      pullRequestUrl: agentChatJsonString(json['url']),
+      guestName: agentChatJsonString(json['guestName'] ?? json['name']),
     );
   }
 
   /// Whether an agent or the runtime, rather than a person, sent it.
-  bool get automated => kind != AgentChatItemOriginKind.user;
+  bool get automated =>
+      kind != AgentChatItemOriginKind.user &&
+      kind != AgentChatItemOriginKind.guest;
 
   /// A delegated task's question routed to this chat, not a finished task.
   bool get asksQuestion =>
