@@ -470,28 +470,6 @@ impl ServerActor {
     }
 }
 
-impl ServerActor {
-    /// Why an agent chat target cannot run: its chat is gone or archived.
-    pub(super) async fn agent_chat_target_issue(
-        &self,
-        spec: alera_core::runtime::AutomationAgentChatSpec<'_>,
-    ) -> Option<String> {
-        if self.agent_chat_runtime.is_none() {
-            return Some("Agent chats are unavailable on this runtime".into());
-        }
-        let chat_id = spec.chat_id?;
-        match self.runtime_store.agent_chat(chat_id).await {
-            Ok(Some(chat)) if chat.archived => Some("The scheduled task's chat is archived".into()),
-            Ok(Some(chat)) if chat.workspace_id != spec.workspace_id => {
-                Some("The scheduled task's chat moved to another workspace".into())
-            }
-            Ok(Some(_)) => None,
-            Ok(None) => Some("The scheduled task's chat no longer exists".into()),
-            Err(error) => Some(error.to_string()),
-        }
-    }
-}
-
 /// Whether the chat refused the post for a reason a retry cannot fix.
 fn refused_by_chat(error: &HostError) -> bool {
     matches!(

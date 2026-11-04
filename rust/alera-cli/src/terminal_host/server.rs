@@ -135,6 +135,7 @@ mod automation_terminal_observation;
 pub(crate) mod chat_orchestration;
 mod chat_orchestration_events;
 mod chat_orchestration_remote;
+mod chat_orchestration_remote_owner;
 mod chat_orchestration_requests;
 mod chat_pull_request_notices;
 #[cfg(test)]
