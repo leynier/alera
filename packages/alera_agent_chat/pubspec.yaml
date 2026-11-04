@@ -1,0 +1,8 @@
+name: alera_agent_chat
+description: Agent chat domain shared by the Alera desktop and mobile apps.
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: ^3.13.2
+dev_dependencies:
+  test: ^1.31.2

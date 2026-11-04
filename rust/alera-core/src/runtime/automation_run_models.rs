@@ -105,6 +105,14 @@ pub struct AutomationRun {
     pub workspace_branch: Option<String>,
     #[serde(default)]
     pub session_id: Option<String>,
+    /// The agent chat an agent chat run posted into
+    /// (`automationAgentChatTargetV1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_id: Option<String>,
+    /// The client message id of that post; the run ends with the chat turn
+    /// that consumed it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_message_id: Option<String>,
     #[serde(default)]
     pub owned_workspace: bool,
     #[serde(default)]

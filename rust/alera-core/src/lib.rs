@@ -3,6 +3,8 @@ pub mod captured_process;
 pub mod child_process;
 pub mod git;
 pub mod git_cli;
+#[cfg(feature = "async-process")]
+pub mod login_shell_environment;
 pub mod reading_diff;
 #[cfg(feature = "runtime")]
 pub mod runtime;

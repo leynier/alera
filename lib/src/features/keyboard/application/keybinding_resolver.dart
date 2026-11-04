@@ -34,12 +34,25 @@ class KeybindingResolver({
     return _parseAll(raw);
   }
 
-  /// Resolves a key event to the first matching action, or null.
-  ResolvedShortcut? resolveAction(KeyEvent event, KeyModifierState modifiers) {
+  /// Resolves a key event to the first matching action, or null. Bindings
+  /// scoped to [focusScope], the surface holding the focus, win over global
+  /// ones; bindings scoped to any other surface never match.
+  ResolvedShortcut? resolveAction(
+    KeyEvent event,
+    KeyModifierState modifiers, {
+    KeyboardActionScope focusScope = KeyboardActionScope.global,
+  }) {
     if (event is! KeyDownEvent) {
       return null;
     }
-    for (final definition in keybindingDefinitions) {
+    final candidates = <KeybindingDefinition>[
+      if (focusScope != KeyboardActionScope.global)
+        ...keybindingDefinitions.where((d) => d.scope == focusScope),
+      ...keybindingDefinitions.where(
+        (d) => d.scope == KeyboardActionScope.global,
+      ),
+    ];
+    for (final definition in candidates) {
       final chords = effectiveChords(definition.id);
       for (final chord in chords) {
         if (chord.matches(event, modifiers, isMacOS: platform.isMacOS)) {
@@ -53,14 +66,16 @@ class KeybindingResolver({
     return null;
   }
 
-  /// The first action (other than [excluding]) whose effective chords already
-  /// include [chord], or null when [chord] is free.
+  /// The first action (other than [excluding]) in the same scope whose
+  /// effective chords already include [chord], or null when [chord] is free.
+  /// A scoped binding sharing a chord with a global one is not a conflict.
   KeyboardActionId? findConflict(
     KeyChord chord, {
     required KeyboardActionId excluding,
   }) {
+    final scope = keybindingDefinitionsById[excluding]?.scope;
     for (final definition in keybindingDefinitions) {
-      if (definition.id == excluding) {
+      if (definition.id == excluding || definition.scope != scope) {
         continue;
       }
       if (effectiveChords(definition.id).contains(chord)) {

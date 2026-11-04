@@ -193,7 +193,21 @@ impl ServerActor {
             .complete_automation_run(&id, status, summary, error, actor)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        if current.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
+        self.after_automation_run_completed(current.trigger, &definition, &run, status)
+            .await;
+        serde_json::to_value(run).map_err(|error| HostError::state(error.to_string()))
+    }
+
+    /// What follows a completed run: the circuit breaker, blocking the
+    /// definition, cleanup, the push and the broadcast.
+    pub(super) async fn after_automation_run_completed(
+        &mut self,
+        trigger: alera_core::runtime::AutomationRunTrigger,
+        definition: &alera_core::runtime::AutomationDefinition,
+        run: &alera_core::runtime::AutomationRun,
+        status: AutomationRunStatus,
+    ) {
+        if trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
             && status.counts_as_failure()
             && self
                 .runtime_store
@@ -216,14 +230,14 @@ impl ServerActor {
             )
             .await;
         }
-        if current.trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
+        if trigger == alera_core::runtime::AutomationRunTrigger::Scheduled
             && status == AutomationRunStatus::Success
         {
             match self
                 .runtime_store
                 .reset_automation_circuit(
                     &run.automation_id,
-                    actor_for_circuit_reset(&run),
+                    actor_for_circuit_reset(run),
                     Some("scheduled success reset the automation circuit breaker"),
                 )
                 .await
@@ -252,11 +266,10 @@ impl ServerActor {
             )
             .await;
         }
-        self.cleanup_automation_owned_target(&run, run.status).await;
-        self.queue_automation_push(&run, &definition, status, run.summary.as_deref())
+        self.cleanup_automation_owned_target(run, run.status).await;
+        self.queue_automation_push(run, definition, status, run.summary.as_deref())
             .await;
-        self.broadcast_automation_run_changed(&run);
-        serde_json::to_value(run).map_err(|error| HostError::state(error.to_string()))
+        self.broadcast_automation_run_changed(run);
     }
 
     pub(super) async fn automation_cancel_request(

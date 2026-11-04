@@ -27,6 +27,11 @@ Widget queuedMessagesPreview() => AleraMessageQueue(
   onEdit: (_) async {},
   onRemove: (_) async {},
   onSteer: (_) async {},
+  onReorder: (_, _) async {},
+  editingId: 'file',
+  onCancelEdit: () {},
+  editShortcutLabel: 'Alt+Up',
+  steerShortcutLabel: 'Ctrl+Alt+Enter',
 );
 
 @AleraPreview(name: 'Edit Message', group: 'Chat')

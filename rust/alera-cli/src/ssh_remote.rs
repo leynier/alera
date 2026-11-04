@@ -123,6 +123,7 @@ pub(crate) fn ssh_terminal_launch(
         ),
     };
     TerminalHostLaunch {
+        provider_setup: None,
         label: "ssh".to_string(),
         shell: "ssh".to_string(),
         arguments: ssh_pty_arguments(target, &remote_command),

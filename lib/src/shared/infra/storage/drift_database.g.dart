@@ -3050,6 +3050,234 @@ class WorkspaceActivityTableCompanion
   }
 }
 
+class $AgentChatDraftsTableTable extends AgentChatDraftsTable
+    with TableInfo<$AgentChatDraftsTableTable, AgentChatDraftsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentChatDraftsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _scopeKeyMeta = const VerificationMeta(
+    'scopeKey',
+  );
+  @override
+  late final GeneratedColumn<String> scopeKey = GeneratedColumn<String>(
+    'scope_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataJsonMeta = const VerificationMeta(
+    'dataJson',
+  );
+  @override
+  late final GeneratedColumn<String> dataJson = GeneratedColumn<String>(
+    'data_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [scopeKey, dataJson];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_chat_drafts_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AgentChatDraftsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('scope_key')) {
+      context.handle(
+        _scopeKeyMeta,
+        scopeKey.isAcceptableOrUnknown(data['scope_key']!, _scopeKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scopeKeyMeta);
+    }
+    if (data.containsKey('data_json')) {
+      context.handle(
+        _dataJsonMeta,
+        dataJson.isAcceptableOrUnknown(data['data_json']!, _dataJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataJsonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {scopeKey};
+  @override
+  AgentChatDraftsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentChatDraftsTableData(
+      scopeKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope_key'],
+      )!,
+      dataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_json'],
+      )!,
+    );
+  }
+
+  @override
+  $AgentChatDraftsTableTable createAlias(String alias) {
+    return $AgentChatDraftsTableTable(attachedDatabase, alias);
+  }
+}
+
+class AgentChatDraftsTableData extends DataClass
+    implements Insertable<AgentChatDraftsTableData> {
+  final String scopeKey;
+  final String dataJson;
+  const AgentChatDraftsTableData({
+    required this.scopeKey,
+    required this.dataJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['scope_key'] = Variable<String>(scopeKey);
+    map['data_json'] = Variable<String>(dataJson);
+    return map;
+  }
+
+  AgentChatDraftsTableCompanion toCompanion(bool nullToAbsent) {
+    return AgentChatDraftsTableCompanion(
+      scopeKey: Value(scopeKey),
+      dataJson: Value(dataJson),
+    );
+  }
+
+  factory AgentChatDraftsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentChatDraftsTableData(
+      scopeKey: serializer.fromJson<String>(json['scopeKey']),
+      dataJson: serializer.fromJson<String>(json['dataJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'scopeKey': serializer.toJson<String>(scopeKey),
+      'dataJson': serializer.toJson<String>(dataJson),
+    };
+  }
+
+  AgentChatDraftsTableData copyWith({String? scopeKey, String? dataJson}) =>
+      AgentChatDraftsTableData(
+        scopeKey: scopeKey ?? this.scopeKey,
+        dataJson: dataJson ?? this.dataJson,
+      );
+  AgentChatDraftsTableData copyWithCompanion(
+    AgentChatDraftsTableCompanion data,
+  ) {
+    return AgentChatDraftsTableData(
+      scopeKey: data.scopeKey.present ? data.scopeKey.value : this.scopeKey,
+      dataJson: data.dataJson.present ? data.dataJson.value : this.dataJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentChatDraftsTableData(')
+          ..write('scopeKey: $scopeKey, ')
+          ..write('dataJson: $dataJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(scopeKey, dataJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentChatDraftsTableData &&
+          other.scopeKey == this.scopeKey &&
+          other.dataJson == this.dataJson);
+}
+
+class AgentChatDraftsTableCompanion
+    extends UpdateCompanion<AgentChatDraftsTableData> {
+  final Value<String> scopeKey;
+  final Value<String> dataJson;
+  final Value<int> rowid;
+  const AgentChatDraftsTableCompanion({
+    this.scopeKey = const Value.absent(),
+    this.dataJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AgentChatDraftsTableCompanion.insert({
+    required String scopeKey,
+    required String dataJson,
+    this.rowid = const Value.absent(),
+  }) : scopeKey = Value(scopeKey),
+       dataJson = Value(dataJson);
+  static Insertable<AgentChatDraftsTableData> custom({
+    Expression<String>? scopeKey,
+    Expression<String>? dataJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (scopeKey != null) 'scope_key': scopeKey,
+      if (dataJson != null) 'data_json': dataJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AgentChatDraftsTableCompanion copyWith({
+    Value<String>? scopeKey,
+    Value<String>? dataJson,
+    Value<int>? rowid,
+  }) {
+    return AgentChatDraftsTableCompanion(
+      scopeKey: scopeKey ?? this.scopeKey,
+      dataJson: dataJson ?? this.dataJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (scopeKey.present) {
+      map['scope_key'] = Variable<String>(scopeKey.value);
+    }
+    if (dataJson.present) {
+      map['data_json'] = Variable<String>(dataJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentChatDraftsTableCompanion(')
+          ..write('scopeKey: $scopeKey, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AleraDatabase extends GeneratedDatabase {
   _$AleraDatabase(QueryExecutor e) : super(e);
   $AleraDatabaseManager get managers => $AleraDatabaseManager(this);
@@ -3072,6 +3300,8 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
       $AppWindowStateTableTable(this);
   late final $WorkspaceActivityTableTable workspaceActivityTable =
       $WorkspaceActivityTableTable(this);
+  late final $AgentChatDraftsTableTable agentChatDraftsTable =
+      $AgentChatDraftsTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3086,6 +3316,7 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
     projectConfigsTable,
     appWindowStateTable,
     workspaceActivityTable,
+    agentChatDraftsTable,
   ];
 }
 
@@ -4905,6 +5136,165 @@ typedef $$WorkspaceActivityTableTableProcessedTableManager =
       WorkspaceActivityTableData,
       PrefetchHooks Function()
     >;
+typedef $$AgentChatDraftsTableTableCreateCompanionBuilder =
+    AgentChatDraftsTableCompanion Function({
+      required String scopeKey,
+      required String dataJson,
+      Value<int> rowid,
+    });
+typedef $$AgentChatDraftsTableTableUpdateCompanionBuilder =
+    AgentChatDraftsTableCompanion Function({
+      Value<String> scopeKey,
+      Value<String> dataJson,
+      Value<int> rowid,
+    });
+
+class $$AgentChatDraftsTableTableFilterComposer
+    extends Composer<_$AleraDatabase, $AgentChatDraftsTableTable> {
+  $$AgentChatDraftsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get scopeKey => $composableBuilder(
+    column: $table.scopeKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AgentChatDraftsTableTableOrderingComposer
+    extends Composer<_$AleraDatabase, $AgentChatDraftsTableTable> {
+  $$AgentChatDraftsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get scopeKey => $composableBuilder(
+    column: $table.scopeKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AgentChatDraftsTableTableAnnotationComposer
+    extends Composer<_$AleraDatabase, $AgentChatDraftsTableTable> {
+  $$AgentChatDraftsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get scopeKey =>
+      $composableBuilder(column: $table.scopeKey, builder: (column) => column);
+
+  GeneratedColumn<String> get dataJson =>
+      $composableBuilder(column: $table.dataJson, builder: (column) => column);
+}
+
+class $$AgentChatDraftsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AleraDatabase,
+          $AgentChatDraftsTableTable,
+          AgentChatDraftsTableData,
+          $$AgentChatDraftsTableTableFilterComposer,
+          $$AgentChatDraftsTableTableOrderingComposer,
+          $$AgentChatDraftsTableTableAnnotationComposer,
+          $$AgentChatDraftsTableTableCreateCompanionBuilder,
+          $$AgentChatDraftsTableTableUpdateCompanionBuilder,
+          (
+            AgentChatDraftsTableData,
+            BaseReferences<
+              _$AleraDatabase,
+              $AgentChatDraftsTableTable,
+              AgentChatDraftsTableData
+            >,
+          ),
+          AgentChatDraftsTableData,
+          PrefetchHooks Function()
+        > {
+  $$AgentChatDraftsTableTableTableManager(
+    _$AleraDatabase db,
+    $AgentChatDraftsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentChatDraftsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentChatDraftsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AgentChatDraftsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> scopeKey = const Value.absent(),
+                Value<String> dataJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AgentChatDraftsTableCompanion(
+                scopeKey: scopeKey,
+                dataJson: dataJson,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String scopeKey,
+                required String dataJson,
+                Value<int> rowid = const Value.absent(),
+              }) => AgentChatDraftsTableCompanion.insert(
+                scopeKey: scopeKey,
+                dataJson: dataJson,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AgentChatDraftsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AleraDatabase,
+      $AgentChatDraftsTableTable,
+      AgentChatDraftsTableData,
+      $$AgentChatDraftsTableTableFilterComposer,
+      $$AgentChatDraftsTableTableOrderingComposer,
+      $$AgentChatDraftsTableTableAnnotationComposer,
+      $$AgentChatDraftsTableTableCreateCompanionBuilder,
+      $$AgentChatDraftsTableTableUpdateCompanionBuilder,
+      (
+        AgentChatDraftsTableData,
+        BaseReferences<
+          _$AleraDatabase,
+          $AgentChatDraftsTableTable,
+          AgentChatDraftsTableData
+        >,
+      ),
+      AgentChatDraftsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AleraDatabaseManager {
   final _$AleraDatabase _db;
@@ -4933,4 +5323,6 @@ class $AleraDatabaseManager {
         _db,
         _db.workspaceActivityTable,
       );
+  $$AgentChatDraftsTableTableTableManager get agentChatDraftsTable =>
+      $$AgentChatDraftsTableTableTableManager(_db, _db.agentChatDraftsTable);
 }

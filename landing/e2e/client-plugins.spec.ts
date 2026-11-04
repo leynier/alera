@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { strFromU8, unzipSync } from 'fflate';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { clientPluginDistributions } from '../config/client-plugin-downloads';
+import { buildPluginBundle } from '../src/lib/plugin-bundle';
+import { buildClaudePluginBundle } from '../src/lib/claude-plugin-bundle';
 
 const guides = [
   { id: 'grokbot-cursor-plugin', label: 'GrokBot Cursor', button: 'Download GrokBot Cursor ZIP', limit: 'this ZIP does not provide a documented Grok Bot installation route' },
@@ -13,14 +16,17 @@ const guides = [
 test('serves all five independent plugin downloads with valid checksums and existing aliases', async ({ page, request }) => {
   await page.goto('/download');
   const previous = [
-    ['Download Plugin ZIP', 'alera-plugin.zip', 'a5edfa4b897f629c148ce8ce06e9f362bacb57039a48151a0e277303d7dfdf0b'],
-    ['Download Claude Plugin ZIP', 'alera-claude-plugin.zip', 'f226d844f235755f577cb4b7b60e270198494d9939b917c1f8ac0f9bdfd76cc4'],
+    ['Download Plugin ZIP', 'alera-plugin.zip', buildPluginBundle(fileURLToPath(new URL('../', import.meta.url))).sha256],
+    ['Download Claude Plugin ZIP', 'alera-claude-plugin.zip', buildClaudePluginBundle(fileURLToPath(new URL('../', import.meta.url))).sha256],
   ] as const;
   for (const [button, archive, checksum] of previous) {
     await expect(page.getByRole('link', { name: button, exact: true })).toHaveAttribute('href', `/downloads/${archive}`);
     const response = await request.get(`/downloads/${archive}`);
     expect(response.status()).toBe(200);
     expect(createHash('sha256').update(await response.body()).digest('hex')).toBe(checksum);
+    const publishedChecksum = await request.get(`/downloads/${archive}.sha256`);
+    expect(publishedChecksum.status()).toBe(200);
+    expect(await publishedChecksum.text()).toBe(`${checksum}  ${archive}\n`);
   }
   for (const distribution of clientPluginDistributions) {
     const guide = guides.find(({ id }) => id.includes(distribution.channel === 'cursor' ? 'cursor' : distribution.channel))!;

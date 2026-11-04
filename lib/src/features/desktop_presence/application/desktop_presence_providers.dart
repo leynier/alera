@@ -4,6 +4,8 @@ import 'package:alera/src/features/agent_status/application/agent_status_control
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/app_window/application/app_window_platform.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/desktop_presence/application/desktop_presence.dart';
 import 'package:alera/src/features/desktop_presence/application/desktop_presence_coordinator.dart';
 import 'package:alera/src/features/desktop_presence/infra/desktop_presence_channel.dart';
@@ -37,10 +39,12 @@ DesktopPresenceCoordinator desktopPresenceCoordinator(Ref ref) {
 int pendingReviewAgentCountFromWorkbench({
   required Map<String, List<WorkspaceTabRecord>> tabsByWorkspace,
   required Map<String, AgentStatusEntry> agentStatuses,
+  Map<String, ChatAttentionEntry> chats = const <String, ChatAttentionEntry>{},
 }) {
   return pendingReviewCountForTabs(
     tabs: tabsByWorkspace.values.expand((tabs) => tabs),
     agentStatuses: agentStatuses,
+    chats: chats,
   );
 }
 
@@ -81,6 +85,7 @@ void desktopPresenceSync(Ref ref) {
     final count = pendingReviewAgentCountFromWorkbench(
       tabsByWorkspace: ref.read(workbenchControllerProvider).tabsByWorkspace,
       agentStatuses: ref.read(agentStatusControllerProvider),
+      chats: ref.read(chatAttentionLiveProvider),
     );
     unawaited(
       coordinator.apply(
@@ -113,6 +118,9 @@ void desktopPresenceSync(Ref ref) {
     },
   );
   ref.listen(agentStatusControllerProvider, (_, _) {
+    push();
+  });
+  ref.listen(chatAttentionLiveProvider, (_, _) {
     push();
   });
   ref.listen(

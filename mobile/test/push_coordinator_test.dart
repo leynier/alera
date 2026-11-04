@@ -71,16 +71,20 @@ void main() {
     });
     await container.read(pushCoordinatorProvider.future);
     final message = PushMessage(
-      title: 'Codex Needs Attention',
+      title: 'Agent Chat needs approval',
       body: 'Workspace App In Alera',
       data: const <String, Object?>{
         'runtimeId': 'runtime-1',
-        'eventType': 'waiting',
+        'kind': 'agentChat',
+        'workspaceId': 'workspace',
+        'tabId': 'tab',
+        'chatId': 'chat',
       },
     );
 
     messaging.foreground.add(message);
     await _waitFor(() => notifications.messages.isNotEmpty);
+    expect(container.read(pendingPushIntentControllerProvider), isNull);
     messaging.opened.add(message.navigationIntent!);
     await _waitFor(
       () => container.read(pendingPushIntentControllerProvider) != null,

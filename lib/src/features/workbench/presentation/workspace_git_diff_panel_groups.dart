@@ -1,6 +1,7 @@
 part of 'workspace_git_diff_panel.dart';
 
 class const _GitDiffGroups({
+  required final String workspaceId,
   required final List<GitChangeGroup> groups,
   required final String workspacePath,
   required final GitDiffViewMode viewMode,
@@ -35,6 +36,7 @@ class const _GitDiffGroups({
       children: <Widget>[
         for (final group in groups)
           _GitDiffGroup(
+            workspaceId: workspaceId,
             group: group,
             workspacePath: workspacePath,
             viewMode: viewMode,
@@ -65,6 +67,7 @@ class const _GitDiffGroups({
 }
 
 class const _GitDiffGroup({
+  required final String workspaceId,
   required final GitChangeGroup group,
   required final String workspacePath,
   required final GitDiffViewMode viewMode,
@@ -129,6 +132,7 @@ class const _GitDiffGroup({
             if (viewMode == GitDiffViewMode.flat)
               for (final entry in group.entries) ...<Widget>[
                 _GitDiffFileRow(
+                  workspaceId: workspaceId,
                   entry: entry,
                   absolutePath: _terminalPathForGitEntry(
                     workspacePath,
@@ -162,6 +166,7 @@ class const _GitDiffGroup({
                 if (entry.isExpandableSubmodule &&
                     expandedSubmodules.contains(entry.id))
                   _SubmoduleChanges(
+                    workspaceId: workspaceId,
                     workspacePath: workspacePath,
                     entry: entry,
                     depth: 1,
@@ -174,6 +179,7 @@ class const _GitDiffGroup({
               ]
             else
               _GitDiffTree(
+                workspaceId: workspaceId,
                 workspacePath: workspacePath,
                 area: group.area,
                 rows: group.treeRows,

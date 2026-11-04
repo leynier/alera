@@ -58,6 +58,8 @@ List<AutomationReusePolicy> applicableReusePolicies(
   AutomationTargetType.existingTab => const <AutomationReusePolicy>[
     .reuseConversation,
   ],
+  // A chat target always posts into its chat; reuse does not apply.
+  AutomationTargetType.agentChat => const <AutomationReusePolicy>[.newEachRun],
 };
 
 /// Whether [type] fixes the policy so the user has nothing to choose.

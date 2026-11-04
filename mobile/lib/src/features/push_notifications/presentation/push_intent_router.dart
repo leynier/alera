@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/runs/domain/activity_section.dart';
 import 'package:alera_mobile/src/features/runs/presentation/activity_screen.dart';
 import 'package:alera_mobile/src/features/push_notifications/domain/push_navigation_intent.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/runtime_workspaces_screen.dart';
 import 'package:flutter/material.dart';
@@ -53,6 +54,9 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
             initialAutomationRunId: section == ActivitySection.automations
                 ? intent.runId
                 : null,
+            initialChatTaskId: section == ActivitySection.chatTasks
+                ? intent.taskId
+                : null,
           ),
         ),
       ),
@@ -82,12 +86,13 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
       _showMessage('The workspace is no longer available');
       return;
     }
-    var terminalExists = false;
-    if (intent.shouldOpenTerminal) {
+    WorkspaceTabSummary? targetTab;
+    final expectsTab =
+        intent.shouldOpenTerminal ||
+        intent.eventKind == PushEventKind.agentChat;
+    if (intent.shouldOpenTerminal || intent.shouldOpenAgentChat) {
       final tabs = await client.listTabs(workspace.id);
-      terminalExists = tabs.any(
-        (tab) => tab.id == intent.tabId && tab.isTerminal,
-      );
+      targetTab = tabForPushIntent(intent, tabs);
     }
     unawaited(
       navigator.push<void>(
@@ -95,14 +100,18 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
           builder: (_) => WorkspaceTabsScreen(
             hostId: host.id,
             workspace: workspace,
-            initialTabId: terminalExists ? intent.tabId : null,
-            selectFallbackTab: !intent.shouldOpenTerminal || terminalExists,
+            initialTabId: targetTab?.id,
+            selectFallbackTab: !expectsTab || targetTab != null,
           ),
         ),
       ),
     );
-    if (intent.shouldOpenTerminal && !terminalExists) {
-      _showMessage('The terminal is no longer available');
+    if (expectsTab && targetTab == null) {
+      _showMessage(
+        intent.eventKind == PushEventKind.agentChat
+            ? 'The agent chat is no longer available'
+            : 'The terminal is no longer available',
+      );
     }
   } on Object {
     _showMessage('Open the host to refresh this notification');
@@ -116,8 +125,29 @@ ActivitySection? activitySectionForPush(PushNavigationIntent intent) =>
       PushEventKind.runGate when intent.opensRun => ActivitySection.runs,
       PushEventKind.inboxReply => ActivitySection.questions,
       PushEventKind.automation => ActivitySection.automations,
+      PushEventKind.chatTask => ActivitySection.chatTasks,
       _ => null,
     };
+
+/// Match the chat identity as well as its tab kind so a stale notification
+/// cannot activate a terminal or another chat that inherited the tab ID.
+WorkspaceTabSummary? tabForPushIntent(
+  PushNavigationIntent intent,
+  Iterable<WorkspaceTabSummary> tabs,
+) {
+  final eligible = tabs.where((tab) => tab.workspaceId == intent.workspaceId);
+  if (intent.shouldOpenAgentChat) {
+    return eligible
+        .where((tab) => tab.isAgentChat && tab.agentChatId == intent.chatId)
+        .firstOrNull;
+  }
+  if (intent.shouldOpenTerminal) {
+    return eligible
+        .where((tab) => tab.isTerminal && tab.id == intent.tabId)
+        .firstOrNull;
+  }
+  return null;
+}
 
 void _showMessage(String message) {
   final context = aleraNavigatorKey.currentContext;

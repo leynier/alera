@@ -19,8 +19,7 @@ class const _WorkspaceAgentRunList({
         for (final run in runs)
           _AgentRunRow(
             key: ValueKey<String>(run.tab.id),
-            tab: run.tab,
-            status: run.status,
+            run: run,
             isActive: workspaceIsActive && activeTabId == run.tab.id,
             onTap: () => onSelectTerminal(workspace, run.tab.id),
             onClose: () => onCloseTerminal(workspace, run.tab.id),

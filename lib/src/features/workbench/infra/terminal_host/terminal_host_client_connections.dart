@@ -222,7 +222,8 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
           'checkoutBufferSaveV1':
               _bufferGuardHandler is RuntimeBufferGuardResolver,
           aleraWorkspaceFocusHelloFlag: true,
-          'supportedTabKinds': const <String>[],
+          'supportedTabKinds': const <String>['agentChat'],
+          'capabilities': const <String>[aleraRuntimeHostAgentChatCapability],
           if (control.supportsBinaryFrames) 'binaryFrames': true,
         },
       });

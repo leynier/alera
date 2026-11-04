@@ -95,6 +95,8 @@ pub(super) fn automation_run() -> AutomationRun {
         setup_tab_id: None,
         workspace_branch: None,
         session_id: None,
+        chat_id: None,
+        client_message_id: None,
         owned_workspace: false,
         owned_tab: false,
         taken_over: false,

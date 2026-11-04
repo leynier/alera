@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
 /// trailing check for the [selected] value, optional leading content, an
-/// optional muted [detail] beside the label, an optional muted [subtitle]
-/// under it, and pop-on-tap semantics. Text stays on one line and ellipsizes
-/// when the menu is narrower than it.
+/// optional short muted [detail] beside the label, and under the label an
+/// optional one-line muted [subtitle] and an optional [description] sentence
+/// of up to two lines, with pop-on-tap semantics. The label, subtitle and
+/// detail stay on one line and ellipsize when the menu is narrower than them.
 class const AleraDropdownEntry<T>({
   super.key,
   required final T value,
@@ -14,11 +15,18 @@ class const AleraDropdownEntry<T>({
   final Widget? leading,
   final String? detail,
   final String? subtitle,
+  final String? description,
   final bool selected = false,
   final bool enabled = true,
 }) extends PopupMenuEntry<T> {
+  // A one-line subtitle adds less height than a description, which may wrap
+  // to a second line.
   @override
-  double get height => subtitle == null ? 36 : 48;
+  double get height =>
+      (description == null
+          ? AleraTokens.menuRowHeight
+          : AleraTokens.menuRowWithDescriptionHeight) +
+      (subtitle == null ? 0 : AleraTokens.space12);
 
   @override
   bool represents(T? value) => enabled && this.value == value;
@@ -74,6 +82,13 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
                       Text(
                         subtitle,
                         maxLines: 1,
+                        overflow: .ellipsis,
+                        style: muted,
+                      ),
+                    if (widget.description case final description?)
+                      Text(
+                        description,
+                        maxLines: 2,
                         overflow: .ellipsis,
                         style: muted,
                       ),

@@ -426,6 +426,7 @@ class const _ExplorerBackgroundMenu({
 class const _ExplorerClipboard(final String relativePath, final bool cut);
 
 class const _ExplorerDragData({
+  @override required final String workspaceId,
   required final String relativePath,
   required final String absolutePath,
 }) implements TerminalPathDragPayload {

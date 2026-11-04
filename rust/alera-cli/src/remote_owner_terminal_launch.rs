@@ -102,6 +102,7 @@ pub(crate) async fn owned_launch(
         RemoteShell::Posix => format!("sh -lc {}", shell.quote(&script)),
     };
     Ok(TerminalHostLaunch {
+        provider_setup: None,
         label: "ssh".into(),
         shell: "ssh".into(),
         arguments: crate::ssh_remote::ssh_pty_arguments(target, &command),

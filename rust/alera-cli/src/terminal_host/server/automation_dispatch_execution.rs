@@ -106,6 +106,10 @@ impl ServerActor {
             self.block_run(&run, &error.wire_message()).await;
             return;
         }
+        if definition.target.agent_chat().is_some() {
+            Box::pin(self.dispatch_agent_chat_run(definition, run)).await;
+            return;
+        }
         // Bind the durable target before a workspace or project lookup can
         // fail, so attention notifications still have a useful location.
         let target_identity = match self

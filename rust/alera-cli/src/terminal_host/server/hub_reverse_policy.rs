@@ -16,6 +16,7 @@ use serde_json::{json, Value};
 /// compromised server type into the user's terminals; the rest configure the
 /// desktop itself, name local folders, or hold credentials.
 const DENIED_PREFIXES: &[&str] = &[
+    "agentChat.",
     "terminal.",
     "hub.",
     "hostLink.",
@@ -186,7 +187,8 @@ pub(super) fn hub_answers(request_type: &str) -> bool {
     {
         return false;
     }
-    ALLOWED_VERBS.contains(&request_type)
+    super::chat_orchestration_remote::is_chat_orchestration_verb(request_type)
+        || ALLOWED_VERBS.contains(&request_type)
         || ALLOWED_PREFIXES
             .iter()
             .any(|prefix| request_type.starts_with(prefix))

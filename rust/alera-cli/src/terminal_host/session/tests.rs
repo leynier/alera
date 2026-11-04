@@ -67,6 +67,8 @@ fn test_session() -> Session {
         workspace_id: "workspace-1".to_string(),
         tab_id: "tab-1".to_string(),
         working_directory: "/repo".to_string(),
+        provider_setup: None,
+        provider_setup_desktop_leases: Default::default(),
         clients: HashSet::new(),
         observer_clients: HashSet::new(),
         driver: SessionDriver::Idle,

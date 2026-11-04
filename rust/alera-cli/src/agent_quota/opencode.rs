@@ -1,5 +1,6 @@
 use crate::opencode_auth::{
-    opencode_auth_key, opencode_data_dirs, OPENCODE_GO_PROVIDER, OPENCODE_ZEN_PROVIDER,
+    opencode_auth_key, opencode_data_dirs, opencode_go_api_keys, OPENCODE_GO_PROVIDER,
+    OPENCODE_ZEN_PROVIDER,
 };
 
 #[cfg(test)]
@@ -99,24 +100,40 @@ async fn fetch_opencode_snapshot(account: &str) -> QuotaSnapshot {
 }
 
 async fn fetch_opencode_go_snapshot(display_name: &str) -> QuotaSnapshot {
-    let Some(api_key) = opencode_auth_key(OPENCODE_GO_PROVIDER).await else {
-        return QuotaSnapshot::unavailable(
-            "opencode",
-            "go",
-            display_name,
-            "OpenCode Go API key was not found",
-        );
-    };
-    let response = match reqwest::Client::new()
-        .get(OPENCODE_GO_USAGE_URL)
-        .header(AUTHORIZATION, format!("Bearer {api_key}"))
-        .header(ACCEPT, "application/json")
-        .timeout(FETCH_TIMEOUT)
-        .send()
-        .await
-    {
-        Ok(response) => response,
-        Err(error) => {
+    let database = opencode_database_path().await;
+    let keys = opencode_go_api_keys(database.as_deref()).await;
+    let client = reqwest::Client::new();
+    let response = send_with_key_fallback(
+        &keys,
+        |api_key| {
+            client
+                .get(OPENCODE_GO_USAGE_URL)
+                .header(AUTHORIZATION, format!("Bearer {api_key}"))
+                .header(ACCEPT, "application/json")
+                .timeout(FETCH_TIMEOUT)
+                .send()
+        },
+        |response| {
+            response.as_ref().is_ok_and(|response| {
+                matches!(
+                    response.status(),
+                    reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN
+                )
+            })
+        },
+    )
+    .await;
+    let response = match response {
+        None => {
+            return QuotaSnapshot::unavailable(
+                "opencode",
+                "go",
+                display_name,
+                "OpenCode Go API key was not found",
+            );
+        }
+        Some(Ok(response)) => response,
+        Some(Err(error)) => {
             return QuotaSnapshot::error(
                 "opencode",
                 "go",
@@ -170,6 +187,28 @@ async fn fetch_opencode_go_snapshot(display_name: &str) -> QuotaSnapshot {
             "OpenCode Go usage response did not include usage windows",
         ),
     }
+}
+
+/// Sends with each key in order while the previous one was rejected; `None`
+/// without keys.
+async fn send_with_key_fallback<T, F, Fut>(
+    keys: &[String],
+    mut send: F,
+    rejected: impl Fn(&T) -> bool,
+) -> Option<T>
+where
+    F: FnMut(&str) -> Fut,
+    Fut: std::future::Future<Output = T>,
+{
+    let (first, rest) = keys.split_first()?;
+    let mut response = send(first).await;
+    for key in rest {
+        if !rejected(&response) {
+            break;
+        }
+        response = send(key).await;
+    }
+    Some(response)
 }
 
 async fn opencode_database_path() -> Option<PathBuf> {

@@ -31,4 +31,6 @@ In ChatGPT on the web, you can connect the existing remote MCP directly: open [P
 
 OAuth credentials are never included in this package. Choose the intended runtime and permission level in the connection flow. Installation does not start a runtime or enable its MCP Control setting.
 
+The bundled skills cover human Agent Chat controls and tasks, write-only provider Settings, and explicit native history recovery. Transcript rewind, native conversation rewind and file rewind are separate capabilities. After an uncertain native result, inspect the stored operation and select an offered recovery action instead of repeating provider I/O. Task acknowledgements preserve supplied retry IDs. Private agent sessions keep their own lineage-bound tools and receive no Settings administration.
+
 For current instructions and troubleshooting, see [Install The Alera Plugin](https://alera.build/docs/plugin). Data handling is described in the [Privacy Policy](https://alera.build/privacy).

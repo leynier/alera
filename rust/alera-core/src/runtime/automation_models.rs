@@ -72,12 +72,20 @@ pub enum AutomationSchedule {
         #[serde(default, alias = "max_scheduled_runs")]
         max_scheduled_runs: Option<i64>,
     },
+    /// Every `every_seconds` (at least 60) counted from `anchor`; the first
+    /// run is one interval after the anchor.
+    Interval {
+        #[serde(alias = "every_seconds")]
+        every_seconds: i64,
+        anchor: DateTime<Utc>,
+    },
 }
 
 impl AutomationSchedule {
     pub fn timezone(&self) -> &str {
         match self {
             Self::OneTime { timezone, .. } | Self::Recurring { timezone, .. } => timezone,
+            Self::Interval { .. } => "UTC",
         }
     }
 
@@ -87,6 +95,7 @@ impl AutomationSchedule {
             Self::Recurring {
                 max_scheduled_runs, ..
             } => *max_scheduled_runs,
+            Self::Interval { .. } => None,
         }
     }
 }

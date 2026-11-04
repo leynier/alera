@@ -9,7 +9,8 @@ enum WorkspaceTabKind(this.key) {
   editor('editor'),
   markdownViewer('markdownViewer'),
   pdf('pdf'),
-  gitDiff('gitDiff');
+  gitDiff('gitDiff'),
+  agentChat('agentChat');
 
   final String key;
 
@@ -206,7 +207,7 @@ class WorkspaceTabRecord({
       WorkspaceTabKind.markdownViewer ||
       WorkspaceTabKind.pdf ||
       WorkspaceTabKind.gitDiff => true,
-      WorkspaceTabKind.terminal => false,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.agentChat => false,
     };
   }
 

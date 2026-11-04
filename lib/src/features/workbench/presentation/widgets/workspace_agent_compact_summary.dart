@@ -1,10 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_run_icon.dart';
 import 'package:flutter/material.dart';
 
 /// Compact tray control for a workspace's agent runs: agents grouped by state,
@@ -103,7 +103,7 @@ class const _GroupCluster({required final WorkspaceAgentRunGroup group})
             children: <Widget>[
               for (final (index, run) in iconRuns.indexed)
                 Positioned(
-                  key: ValueKey<AgentType>(run.status.agentType),
+                  key: ValueKey<String>(run.identityKey),
                   left: index * (iconSize - overlap),
                   child: Container(
                     width: iconSize,
@@ -114,8 +114,8 @@ class const _GroupCluster({required final WorkspaceAgentRunGroup group})
                       border: Border.all(color: AleraTokens.borderSubtle),
                     ),
                     child: Center(
-                      child: AgentIdentityIcon(
-                        agentType: run.status.agentType,
+                      child: WorkspaceAgentRunIcon(
+                        run: run,
                         size: 9,
                         color: AleraTokens.foregroundMuted,
                       ),
@@ -146,13 +146,17 @@ class const _GroupCluster({required final WorkspaceAgentRunGroup group})
 List<WorkspaceAgentRun> _representativeRunsByAgentType(
   List<WorkspaceAgentRun> runs,
 ) {
-  final seen = <AgentType>{};
+  final seen = <String>{};
   final representatives = <WorkspaceAgentRun>[
     for (final run in runs)
-      if (seen.add(run.status.agentType)) run,
+      if (seen.add(run.identityKey)) run,
   ];
-  representatives.sort(
-    (a, b) => a.status.agentType.index.compareTo(b.status.agentType.index),
-  );
+  // Unmarked chat providers sort after every marked agent.
+  int rank(WorkspaceAgentRun run) =>
+      run.agentType?.index ?? AgentType.values.length;
+  representatives.sort((a, b) {
+    final byType = rank(a).compareTo(rank(b));
+    return byType != 0 ? byType : a.identityKey.compareTo(b.identityKey);
+  });
   return representatives;
 }

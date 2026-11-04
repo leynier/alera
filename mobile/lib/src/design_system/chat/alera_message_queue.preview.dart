@@ -27,6 +27,7 @@ Widget queuedMessagesPreview() => AleraMessageQueue(
   onEdit: (_) async {},
   onRemove: (_) async {},
   onSteer: (_) async {},
+  onReorder: (_, _) async {},
 );
 
 @AleraPreview(name: 'Edit Message', group: 'Chat')

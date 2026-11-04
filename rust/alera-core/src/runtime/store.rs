@@ -208,6 +208,14 @@ impl RuntimeStore {
         self.migrate_relocation_setup_processes().await?;
         self.migrate_relocation_setup_cancellations().await?;
         self.migrate_setup_descendants().await?;
+        // Check the orchestration schema stamp before creating any of its
+        // tables. A newer runtime must fail closed without partially touching
+        // this feature's schema.
+        self.migrate_chat_orchestration().await?;
+        self.migrate_agent_chats().await?;
+        for statement in super::pull_request_watch_store::chat::AGENT_CHAT_PULL_REQUEST_SCHEMA {
+            sqlx::query(*statement).execute(&self.pool).await?;
+        }
         self.migrate_agent_native_sessions().await?;
         Ok(())
     }

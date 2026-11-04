@@ -2,7 +2,7 @@
 name: alera-automations
 description: Create, edit, inspect, pause, and run scheduled Alera agent automations through the CLI, and report the lifecycle of an automation run. Use for recurring or one-time agent work in an Alera runtime.
 metadata:
-  version: 5
+  version: 6
 ---
 
 # Alera Automations
@@ -27,7 +27,7 @@ alera automation --json edit --id <id> --reuse conversation
 alera automation --json unbind --id <id> --reason 'Start over'
 ```
 
-Use a stable `--request-key` when retrying creation after an ambiguous response. `--dry-run` checks readiness without saving. `preview-schedule --cron '0 9 * * *' --timezone UTC` previews dates. `clone` copies a definition's settings and target into a new automation. `--reuse workspace|conversation` makes later runs return to what the first run created; `show` prints where the automation is bound and `unbind` forgets it. Read [targets and JSON](references/authoring.md) for other targets, reuse, and advanced settings. Use `alera automation <command> --help` for optional flags.
+Use a stable `--request-key` when retrying creation after an ambiguous response. `--dry-run` checks readiness without saving. `preview-schedule --cron '0 9 * * *' --timezone UTC` previews dates. `clone` copies a definition's settings and target into a new automation. `--reuse workspace|conversation` makes later runs return to what the first run created; `show` prints where the automation is bound and `unbind` forgets it. Read [targets and JSON](references/authoring.md) for other targets, reuse, and advanced settings. Agent chats schedule work with `schedule_task` instead: that creates an automation with an `agentChat` target that posts into the chat, which this CLI shows, runs, pauses and trashes like any other. Use `alera automation <command> --help` for optional flags.
 
 ## Execution
 

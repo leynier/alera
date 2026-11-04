@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 
 /// Header row for dialogs and popovers: a [title] on the left, an optional
 /// [trailing] action, and a trailing close button wired to [onClose].
+///
+/// It has no inset of its own: place it inside the dialog's padding, with the
+/// body, or the title and close button sit against the dialog edge.
 class const AleraDialogHeader({
   super.key,
   required final String title,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:typed_data';
 
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/workbench/domain/terminal_refresh_resize.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -14,6 +15,7 @@ part 'terminal_host_pty_session_lease.dart';
 part 'terminal_host_pty_session_errors.dart';
 part 'terminal_host_pty_session_input.dart';
 part 'terminal_host_pty_session_factory.dart';
+part 'terminal_host_pty_session_setup.dart';
 
 final class TerminalHostPtySession._(
   this._client,
@@ -25,6 +27,7 @@ final class TerminalHostPtySession._(
 ]) with _TerminalPulsePtySessionSupport, _TerminalHostInputQueue
     implements
         ObservableTerminalPtySession,
+        ProviderSetupTerminalPtySession,
         RecoverableTerminalPtySession,
         DeferredEnterTerminalPtySession,
         StartupCommandTerminalPtySession,
@@ -56,6 +59,8 @@ final class TerminalHostPtySession._(
   Future<TerminalHostAttachment>? _reattachFuture;
   Future<void>? _outputResyncFuture;
   GhosttyTerminalShellLaunch? _launch;
+  CommandTerminalProviderSetup? _providerSetup;
+  String? _providerSetupHostId;
   String? _workingDirectory;
   int? _cols;
   int? _rows;
@@ -149,28 +154,18 @@ final class TerminalHostPtySession._(
     return false;
   }
 
-  Future<TerminalHostAttachment> _createOrAttach() async {
-    _observing = await _shouldObserve();
-    final launch = _launch;
-    final workingDirectory = _workingDirectory;
-    final cols = _cols;
-    final rows = _rows;
-    if (launch == null ||
-        workingDirectory == null ||
-        cols == null ||
-        rows == null) {
-      throw StateError('PTY session has not been started.');
+  Future<TerminalHostAttachment> _createOrAttach() => _createOrAttachImpl();
+
+  @override
+  void configureProviderSetup(
+    CommandTerminalProviderSetup setup, {
+    String? hostId,
+  }) {
+    if (_started || _startFuture != null) {
+      throw StateError('Provider setup is already starting.');
     }
-    return _client.createOrAttach(
-      sessionId: _sessionId,
-      workspaceId: _workspaceId,
-      tabId: _tabId,
-      workingDirectory: workingDirectory,
-      launch: launch,
-      cols: cols,
-      rows: rows,
-      observe: _observing,
-    );
+    _providerSetup = setup;
+    _providerSetupHostId = hostId;
   }
 
   Future<void> _applyAttachment(TerminalHostAttachment attachment) async {
@@ -369,36 +364,7 @@ final class TerminalHostPtySession._(
       _enqueueAttachmentOperation<void>(() => _reattach().then((_) {}));
 
   @override
-  Future<void> restartProcess() async {
-    if (_disposed) {
-      throw StateError('PTY session is disposed.');
-    }
-    if (_observing) {
-      throw StateError(
-        'This automation terminal is read-only. Take over the run to restart it.',
-      );
-    }
-    final launch = _launch;
-    final workingDirectory = _workingDirectory;
-    final cols = _cols;
-    final rows = _rows;
-    if (launch == null ||
-        workingDirectory == null ||
-        cols == null ||
-        rows == null) {
-      throw StateError('PTY session has not been started.');
-    }
-    final attachment = await _client.restart(
-      sessionId: _sessionId,
-      workspaceId: _workspaceId,
-      tabId: _tabId,
-      workingDirectory: workingDirectory,
-      launch: launch,
-      cols: cols,
-      rows: rows,
-    );
-    await _applyAttachment(attachment);
-  }
+  Future<void> restartProcess() => _restartProcessImpl();
 
   Future<TerminalHostAttachment> _reattach() {
     if (_disposed) {

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
@@ -376,6 +377,12 @@ const Set<String> runtimeHostEventNames = <String>{
   'mobileGatewayChanged',
   'mcpSettingsChanged',
   'agentPresenceChanged',
+  'agentChatChanged',
+  'agentChatsChanged',
+  'agentChatPreferencesChanged',
+  'agentChatProvidersChanged',
+  'agentChatDeleted',
+  'chatOrchestrationChanged',
   'codexThreadChanged',
   'codexServerChanged',
   'runsChanged',
@@ -391,3 +398,18 @@ const Set<String> runtimeHostEventNames = <String>{
   'voice.audio',
   'voice.audioDone',
 };
+
+abstract interface class TerminalHostProviderSetupClient {
+  Future<TerminalHostAttachment> providerSetupTerminal({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+    required CommandTerminalProviderSetup providerSetup,
+    String? hostId,
+    bool restart = false,
+  });
+}

@@ -309,6 +309,7 @@ fn stored_category(value: &str) -> Result<PushCategory, ApiError> {
 }
 
 fn validate_event(request: &RuntimeEventRequest) -> Result<(), ApiError> {
+    crate::push_chat_data::validate_chat_event(request)?;
     validate_text(&request.runtime_id, 128, "runtimeId")?;
     validate_text(&request.event_id, 160, "eventId")?;
     validate_text(&request.event_type, 80, "eventType")?;

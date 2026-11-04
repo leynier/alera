@@ -5,31 +5,54 @@ part of 'workspace_tabs_screen.dart';
 extension _WorkspaceTabsClose on _WorkspaceTabsScreenState {
   Future<void> _closeTab(WorkspaceTabSummary tab) async {
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Close Tab'),
-        content: Text(tab.displayTitle),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
+    final chat = tab.isAgentChat;
+    final bool confirmed;
+    if (chat) {
+      confirmed = await _confirmChatClose(tab);
+    } else {
+      confirmed =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Close Tab'),
+              content: Text(tab.displayTitle),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ) ==
+          true;
+    }
+    if (!confirmed || !mounted) {
       return;
     }
     final tabsController = ref.read(
       tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
     );
     try {
-      final closed = await tabsController.closeTab(tab);
+      final chatId = tab.agentChatId;
+      final bool closed;
+      if (chat && chatId != null) {
+        final actions = await ref.read(
+          agentChatTabActionsProvider(widget.hostId).future,
+        );
+        await actions.close(workspaceId: tab.workspaceId, chatId: chatId);
+        closed = true;
+        if (mounted) {
+          ref.invalidate(
+            tabsControllerProvider(widget.hostId, widget.workspace.id),
+          );
+        }
+      } else {
+        closed = await tabsController.closeTab(tab);
+      }
       if (!closed) return;
       if (mounted && _selectedTabId == tab.id) {
         setState(() {

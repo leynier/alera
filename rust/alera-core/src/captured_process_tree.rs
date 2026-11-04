@@ -112,6 +112,15 @@ impl WindowsProcessJob {
         let process = child
             .raw_handle()
             .ok_or_else(|| "process did not expose a Windows handle".to_string())?;
+        // A child of a host that already runs in a job, such as a CI runner or
+        // a terminal, is already in that job. Windows 8 and later nest this
+        // new, empty job inside it instead of refusing. The job grants no
+        // breakaway, and breakaway stops at the first job that refuses it, so
+        // a descendant cannot leave this job even through an inner job of its
+        // own that allows breakaway, as libuv's does. Only an outer job with
+        // silent breakaway can keep the child out of every job, and then this
+        // job holds it alone. The handle is not inheritable, so the job dies
+        // with the host process.
         unsafe { AssignProcessToJobObject(HANDLE(handle.as_raw_handle()), HANDLE(process)) }
             .map_err(|error| format!("failed to assign process job: {error}"))?;
         // Tokio exposes the process handle but not CreateProcess's primary

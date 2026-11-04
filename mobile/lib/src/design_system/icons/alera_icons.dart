@@ -40,6 +40,7 @@ abstract final class const AleraIcons._() {
   static const IconData settings = LucideIcons.settings;
   static const IconData add = LucideIcons.plus;
   static const IconData edit = LucideIcons.pencil;
+  static const IconData dragHandle = LucideIcons.gripVertical;
   static const IconData delete = LucideIcons.trash2;
   static const IconData copy = LucideIcons.copy;
   static const IconData paste = LucideIcons.clipboard;
@@ -91,6 +92,20 @@ abstract final class const AleraIcons._() {
   static const IconData fileGeneric = LucideIcons.file;
   static const IconData attach = LucideIcons.paperclip;
   static const IconData agent = LucideIcons.bot;
+  // Back from a native sub-agent to the chat or sub-agent that started it.
+  static const IconData openParent = LucideIcons.cornerLeftUp;
+  // Stops one running sub-agent, as the desktop's square stop glyph.
+  static const IconData stopSubagent = LucideIcons.square;
+  // A provider-native workflow: a script running sub-agents in phases.
+  static const IconData workflow = LucideIcons.workflow;
+  // A slash command the chat agent advertises, in the composer `/` menu.
+  static const IconData agentCommand = LucideIcons.squareSlash;
+  // A skill the chat agent offers, as on the desktop.
+  static const IconData skill = LucideIcons.box;
+  static const IconData plan = LucideIcons.lightbulb;
+  // The objective an agent keeps working toward (Codex `/goal`).
+  static const IconData goal = LucideIcons.goal;
+  static const IconData quota = LucideIcons.gauge;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;
   static const IconData contextCompact = LucideIcons.foldHorizontal;

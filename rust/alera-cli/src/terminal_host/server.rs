@@ -30,7 +30,7 @@ use crate::terminal_host::orchestration::message_formatter::{
     format_messages_for_injection, injected_message_count,
 };
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
-use crate::terminal_host::protocol::{event, TerminalHostConfig};
+use crate::terminal_host::protocol::{error_response, event, ok_response, TerminalHostConfig};
 use crate::terminal_host::runtime_owner;
 use crate::terminal_host::session::{PtyWriteCompletion, Session};
 use crate::terminal_host::sleep_detector::SleepDetector;
@@ -46,6 +46,20 @@ mod account_requests_tests;
 mod account_status_requests;
 #[cfg(test)]
 mod actor_test_harness;
+mod agent_chat_attachment_reads;
+mod agent_chat_attachment_requests;
+mod agent_chat_attachment_store;
+mod agent_chat_deferred;
+pub(crate) mod agent_chat_provider_settings;
+mod agent_chat_provider_settings_requests;
+mod agent_chat_relationship_requests;
+mod agent_chat_remote;
+mod agent_chat_requests;
+mod agent_chat_runtime;
+mod agent_chat_secret_requests;
+mod agent_chat_tab_rename;
+mod agent_chat_title_jobs;
+mod agent_chat_title_prompt;
 mod agent_hook_events;
 mod agent_native_session;
 mod agent_native_session_ledger;
@@ -90,6 +104,8 @@ mod ai_dictation_openai;
 mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod automation_actor;
+mod automation_agent_chat_runs;
+mod automation_agent_chat_turns;
 mod automation_authoring_requests;
 mod automation_binding_requests;
 mod automation_bound_target_dispatch;
@@ -117,6 +133,16 @@ mod automation_tab_relaunch;
 mod automation_target_location;
 mod automation_target_validation;
 mod automation_terminal_observation;
+pub(crate) mod chat_orchestration;
+mod chat_orchestration_events;
+mod chat_orchestration_remote;
+mod chat_orchestration_remote_owner;
+mod chat_orchestration_requests;
+mod chat_pull_request_notices;
+#[cfg(test)]
+mod chat_pull_request_notices_tests;
+mod chat_pull_request_watch;
+mod chat_schedule_host;
 mod chatgpt_credentials;
 mod chatgpt_inference;
 mod chatgpt_oauth;
@@ -275,6 +301,10 @@ mod pull_request_watch_requests;
 mod pull_request_watch_requests_tests;
 mod pull_request_watch_runtime;
 mod push_delivery;
+mod push_delivery_chat;
+#[cfg(test)]
+mod push_delivery_chat_tests;
+pub(crate) mod remote_provider_setup;
 mod remote_relay;
 mod request_payloads;
 mod requests;
@@ -312,6 +342,7 @@ mod server_shutdown;
 mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
+mod session_termination_workspace_effects;
 mod ssh_bootstrap_job_events;
 mod ssh_bootstrap_jobs;
 mod ssh_bootstrap_restart;
@@ -417,6 +448,9 @@ struct ClientState {
     mobile_device_name: Option<String>,
     cloud_device_id: Option<String>,
     relay_client_id: Option<String>,
+    agent_chat_supported: bool,
+    agent_chat_capability: bool,
+    chat_orchestration_binding: Option<chat_orchestration::BoundChat>,
 }
 
 pub use server_runner::{run_terminal_host_server, TerminalHostExit};
@@ -434,6 +468,7 @@ struct ServerActor {
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, ssh_bootstrap_jobs::SshBootstrapJobState>,
     host_links: crate::terminal_host::host_link_registry::HostLinkRegistry,
+    remote_agent_chats: agent_chat_remote::RemoteChatDirectory,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     /// Cancel handles of running New Workspace from Prompt operations.
     prompt_workspace_operations: HashMap<String, tokio::sync::oneshot::Sender<()>>,
@@ -452,7 +487,7 @@ struct ServerActor {
         HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     checkout_buffer_guards: HashMap<String, checkout_buffer_guards::CheckoutBufferGuard>,
     mutation_queue: runtime_mutation_queue::RuntimeMutationQueue,
-    agent_quota_cache: Option<(Instant, u64, Value)>,
+    agent_quota_cache: Option<host_service_agent_quota::AgentQuotaCache>,
     configuration_transfers: configuration_transfers::ConfigurationTransfers,
     account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
@@ -474,6 +509,9 @@ struct ServerActor {
     voice: voice_session::VoiceSessionState,
     codex: Option<codex_app_server::CodexAppServer>,
     codex_starting: Option<codex_server_startup::CodexServerStartup>,
+    agent_chat_runtime: Option<agent_chat_runtime::AgentChatRuntime>,
+    agent_chat_provider_settings: Option<agent_chat_provider_settings::ProviderSettingsService>,
+    chat_orchestration: Option<chat_orchestration::ChatOrchestrationService>,
     inbox: crate::terminal_host::ServerInbox,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -642,6 +680,9 @@ impl ServerActor {
                 Box::pin(self.finish_automation_precheck(*definition, *run, host_id, path, result))
                     .await;
             }
+            ServerCommand::AutomationAgentChat(event) => {
+                Box::pin(self.handle_agent_chat_run_event(event)).await
+            }
             ServerCommand::AutomationCheckoutPrepared {
                 definition,
                 run,
@@ -711,8 +752,32 @@ impl ServerActor {
                         mobile_device_name: None,
                         cloud_device_id: None,
                         relay_client_id: None,
+                        agent_chat_supported: false,
+                        agent_chat_capability: false,
+                        chat_orchestration_binding: None,
                     },
                 );
+            }
+            ServerCommand::AgentChatRuntimeEvent { event } => {
+                self.refresh_agent_quotas_after_usage_limit(&event);
+                self.queue_chat_runtime_push(&event).await;
+                self.handle_agent_chat_runtime_event(event);
+            }
+            ServerCommand::AgentChatRequestFinished {
+                client_id,
+                request_id,
+                result,
+            } => match result {
+                Ok(value) => self.client_write(client_id, ok_response(request_id, value)),
+                Err(error) => self.client_write(client_id, error_response(request_id, &error)),
+            },
+            ServerCommand::AgentChatActivityChanged => self.schedule_shutdown_if_idle(),
+            ServerCommand::AgentChatSettingsChanged { name, payload } => {
+                self.broadcast_agent_chat(event(&name, payload));
+            }
+            ServerCommand::ChatOrchestrationChanged { change } => {
+                self.queue_chat_task_push(&change).await;
+                self.broadcast_authenticated(event("chatOrchestrationChanged", change));
             }
             ServerCommand::ClientLine { id, line } => Box::pin(self.handle_line(id, line)).await,
             ServerCommand::HistoryRequestRetry {

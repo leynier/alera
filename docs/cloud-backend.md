@@ -74,7 +74,7 @@ Push is opt-in per runtime and per mobile device. Default subscriptions enable o
 
 | Category | Runtime Events | Default |
 |---|---|---|
-| `attention` | Agent waiting, agent blocked, orchestration escalation, decision gate, coordinator stall gate | On After Opt-In |
+| `attention` | Agent waiting, agent blocked, Agent Chat approval or question, Chat Task attention, orchestration escalation, decision gate, coordinator stall gate | On After Opt-In |
 | `done` | Agent turn finished | Off |
 | `terminalExit` | Natural or explicit terminal termination | Off |
 
@@ -84,7 +84,9 @@ The runtime emits an idempotent event id. The backend records that event once, s
 
 The service does not maintain a durable delayed retry queue. `delivery_attempts` is a durable per-event/per-device claim and outcome ledger used to recover interrupted requests without unbounded background work. A request-side database or finalization failure releases its current lease as `retryable` when possible, so an immediate duplicate can resume it; if the owner disappears without releasing, the pending claim can be reclaimed after 30 seconds. A process that stops after a provider accepts a notification but before the outcome update can be reclaimed after 30 seconds and may produce one duplicate provider send; this provider acknowledgement window cannot be made exactly-once with the existing FCM API. The correct failure mode after the bounded attempts is a missed non-critical notification rather than unbounded background work. The global `ALERA_PUSH_DELIVERY_ENABLED` circuit breaker defaults to `true`; when false, an authenticated and validated send returns `503 push_delivery_disabled` before the runtime event is inserted or quota is consumed.
 
-FCM `UNREGISTERED` responses remove the stale token so later events do not retry it. Tapping an attention or gate notification opens the associated terminal when the local pairing still resolves; if the runtime or tab is unavailable, the mobile app falls back to its runtime list.
+FCM `UNREGISTERED` responses remove the stale token so later events do not retry it. Tapping a terminal attention or gate notification opens the associated terminal when the local pairing still resolves. Agent Chat attention opens the matching chat by runtime, workspace, and chat identity, including a satellite-owned chat through its paired hub; an archived or removed tab never opens another chat or terminal as a fallback. Chat Task attention opens Activity at that task, including a failed task whose child chat has disappeared. If the runtime is unavailable, the mobile app falls back to its runtime list.
+
+Agent Chat requests and Chat Task attention use the existing attention opt-in and subscription category. Only committed request deltas or authoritative task attention revisions produce events; snapshots and replays stay quiet. Request and task revision identifiers produce stable event ids, while the runtime damper suppresses startup replays and nearby repeats. A child's request and its task's needs-input transition coalesce within the existing burst window. Different chat targets keep distinct batches so a tap preserves the intended chat. Cloud validates these event payloads against an identifier-only allowlist; questions, commands, provider request data, task briefs, results, and credentials remain on the runtime. Receiving a foreground push only presents a local notification; navigation requires selecting it.
 
 The backend defaults to 500 accepted deliveries per UTC day, 60 per hour, and a burst of 10. The Worker adds a short pre-authentication or credential-keyed mutation limit at the edge. Backend account quotas remain authoritative because network addresses are not stable user identities.
 

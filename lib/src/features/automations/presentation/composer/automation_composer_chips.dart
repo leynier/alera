@@ -41,7 +41,7 @@ class const AutomationComposerChips({
           provider: provider,
           hasError: flagged.contains(AutomationComposerProperty.destination),
         ),
-        if (draft.targetType != AutomationTargetType.existingTab)
+        if (draft.targetType?.usesAgentProfile ?? true)
           _AgentChip(
             provider: provider,
             hasError: flagged.contains(AutomationComposerProperty.agent),

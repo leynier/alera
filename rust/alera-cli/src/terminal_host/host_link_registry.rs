@@ -32,6 +32,7 @@ pub(crate) struct HostLinkRegistry {
     /// Satellite-issued session ids (Quick Open) mapped to the host that owns
     /// them, so follow-up requests that carry only the session id still route.
     remote_sessions: Arc<Mutex<HashMap<String, String>>>,
+    pub(crate) provider_setup_sessions: super::server::remote_provider_setup::RemoteSetupSessions,
 }
 
 impl HostLinkRegistry {
@@ -61,6 +62,7 @@ impl HostLinkRegistry {
             wake: Arc::new(Notify::new()),
             hosts: Arc::new(Mutex::new(HashMap::new())),
             remote_sessions: Arc::new(Mutex::new(HashMap::new())),
+            provider_setup_sessions: Default::default(),
         }
     }
 
@@ -244,6 +246,7 @@ impl HostLinkRegistry {
 
     /// Forgets the host entirely (its target was removed).
     pub(crate) async fn drop_host(&self, host_id: &str) {
+        let setup_cleanups = self.provider_setup_sessions.forget_host(host_id);
         let slot = self
             .hosts
             .lock()
@@ -258,6 +261,11 @@ impl HostLinkRegistry {
             state.take_link()
         };
         if let Some(link) = link {
+            super::server::remote_provider_setup::close_removed_host_setups(
+                link.clone(),
+                setup_cleanups,
+            )
+            .await;
             link.close().await;
         }
         self.publish(host_id, false);

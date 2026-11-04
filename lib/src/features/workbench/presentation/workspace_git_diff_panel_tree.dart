@@ -1,6 +1,7 @@
 part of 'workspace_git_diff_panel.dart';
 
 class const _GitDiffTree({
+  required final String workspaceId,
   required final String workspacePath,
   required final GitChangeArea area,
   required final List<GitChangeTreeRow> rows,
@@ -98,6 +99,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
       final expanded = widget.expandedSubmodules.contains(entry.id);
       return <Widget>[
         _GitDiffFileRow(
+          workspaceId: widget.workspaceId,
           entry: entry,
           absolutePath: _terminalPathForGitEntry(
             widget.workspacePath,
@@ -129,6 +131,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
         ),
         if (entry.isExpandableSubmodule && expanded)
           _SubmoduleChanges(
+            workspaceId: widget.workspaceId,
             workspacePath: widget.workspacePath,
             entry: entry,
             depth: row.depth + 1,
@@ -146,6 +149,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
     final capabilities = directoryCapabilities[row.path];
     return <Widget>[
       _GitDiffDirectoryRow(
+        workspaceId: widget.workspaceId,
         row: row,
         absolutePath: _terminalPathForGitEntry(widget.workspacePath, row.path),
         busy: widget.busy,
@@ -204,6 +208,7 @@ class _GitDirectoryCapabilities {
 }
 
 class const _GitDiffDirectoryRow({
+  required final String workspaceId,
   required final GitChangeTreeRow row,
   required final String absolutePath,
   required final bool busy,
@@ -237,6 +242,7 @@ class const _GitDiffDirectoryRow({
           const SizedBox(width: AleraTokens.space2),
           Expanded(
             child: _GitPathDragRegion(
+              workspaceId: workspaceId,
               absolutePath: absolutePath,
               label: row.name,
               isDirectory: true,
@@ -307,6 +313,7 @@ class const _GitDiffDirectoryRow({
 }
 
 class const _GitDiffFileRow({
+  required final String workspaceId,
   required final GitChangeEntry entry,
   required final String absolutePath,
   required final int depth,
@@ -353,6 +360,7 @@ class const _GitDiffFileRow({
             const SizedBox(width: 16),
           Expanded(
             child: _GitPathDragRegion(
+              workspaceId: workspaceId,
               absolutePath: absolutePath,
               label: showRelativePath ? entry.path : entry.path.split('/').last,
               isDirectory: entry.submodule != null,

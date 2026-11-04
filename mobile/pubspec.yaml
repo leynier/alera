@@ -29,6 +29,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  alera_agent_chat:
+    path: ../packages/alera_agent_chat
   alera_automations:
     path: ../packages/alera_automations
   alera_configuration:

@@ -19,6 +19,21 @@ impl ServerActor {
                 "Terminal host client is not authenticated.",
             ));
         }
+        if client.chat_orchestration_binding.is_some()
+            && !matches!(
+                request_type,
+                request if request.starts_with("chatOrchestration.")
+                    || request == "project.list"
+                    || request == "workspace.list"
+                    || request == "status.get"
+            )
+        {
+            return Err(HostError::conflict(
+                "chat_scope_denied",
+                "A chat-bound connection may only call chat orchestration and read-only host discovery requests.",
+                serde_json::json!({}),
+            ));
+        }
         if client.kind == ClientKind::Local || mobile_request_allowed(request_type) {
             return Ok(());
         }

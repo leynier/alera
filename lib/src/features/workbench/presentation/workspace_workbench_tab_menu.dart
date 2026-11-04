@@ -20,6 +20,16 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
         : <String>[
             for (final candidate in groupTabs.skip(tabIndex + 1)) candidate.id,
           ];
+    final chat = switch (tab.agentChatId) {
+      final chatId? when tab.kind == WorkspaceTabKind.agentChat => AgentChatRef(
+        chatId: chatId,
+        workspaceId: tab.workspaceId,
+      ),
+      _ => null,
+    };
+    final canRegenerate =
+        chat != null && await agentChatTitleGenerationAvailable(ref);
+    if (!context.mounted) return;
     final selected = await showMenu<_TabMenuAction>(
       context: context,
       position: .fromRect(
@@ -101,6 +111,15 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
             enabled: !isAgentTitleGenerating(tab.payload),
             leading: const Icon(AleraIcons.ai, size: 16),
           ),
+        if (chat != null && canRegenerate)
+          AleraDropdownEntry<_TabMenuAction>(
+            value: .regenerateTitle,
+            label: agentChatTitleGenerating(ref, chat)
+                ? agentChatRegeneratingTitleLabel
+                : agentChatRegenerateTitleLabel,
+            enabled: !agentChatTitleGenerating(ref, chat),
+            leading: const Icon(AleraIcons.ai, size: 16),
+          ),
       ],
     );
     if (selected == null || !context.mounted) {
@@ -129,6 +148,34 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
         } on Object catch (error, stackTrace) {
           showActionFailure(
             action: 'generate title',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      case _TabMenuAction.regenerateTitle:
+        try {
+          await regenerateAgentChatTitle(ref, chat!);
+        } on Object catch (error, stackTrace) {
+          showActionFailure(
+            action: 'regenerate title',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      case _TabMenuAction.changeTitle when chat != null:
+        final title = await showRenameDialog(
+          context,
+          title: 'Change Chat Title',
+          labelText: 'Chat Title',
+          initialValue: _workspaceTabTitle(tab),
+          confirmLabel: 'Change Title',
+        );
+        if (title == null) return;
+        try {
+          await renameAgentChat(ref, chat, title);
+        } on Object catch (error, stackTrace) {
+          showActionFailure(
+            action: 'change title',
             error: error,
             stackTrace: stackTrace,
           );

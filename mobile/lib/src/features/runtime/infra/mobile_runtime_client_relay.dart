@@ -35,7 +35,7 @@ mixin MobileRuntimeClientRelay {
       'relayClientId': relayClientId,
       'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
-      'supportedTabKinds': const <String>[],
+      'supportedTabKinds': _supportedTabKinds,
     });
     _applyRelayCapabilities(payload);
     return payload;

@@ -11,6 +11,7 @@ import 'package:alera/src/features/automations/application/automation_providers.
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera/src/features/automations/presentation/automation_actions.dart';
 import 'package:alera/src/features/automations/presentation/automation_tone.dart';
+import 'package:alera/src/features/chat_tasks/presentation/chat_task_open_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,6 +51,23 @@ class const AutomationRunPanel({
     final deadline = run.absoluteDeadlineAt;
     final buttons = <Widget>[
       if (run.tabId != null) ..._terminalButtons(actions, observe),
+      // An agent chat run lives in its chat (`automationAgentChatTargetV1`).
+      if ((run.chatId, run.workspaceId) case (
+        final chatId?,
+        final workspaceId?,
+      ))
+        FilledButton.tonal(
+          onPressed: () => unawaited(
+            openChatTaskChat(
+              context,
+              ref,
+              chatId: chatId,
+              workspaceId: workspaceId,
+              reopenArchived: false,
+            ),
+          ),
+          child: const Text('Open Chat'),
+        ),
       if (run.workspaceId != null)
         OutlinedButton(
           onPressed: () => unawaited(actions.openRunWorkspace(run)),

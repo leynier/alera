@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_automations/alera_automations.dart';
 
 import 'dart:async';
@@ -87,6 +88,12 @@ class _ActivityAttentionControlState
             } else {
               navigation.open(section);
             }
+          case ActivitySection.chatTasks:
+            navigation
+              ..open(section)
+              ..filterChatTaskBucket(
+                count > 0 ? AgentChatTaskBucket.attention : null,
+              );
         }
       });
 
@@ -257,6 +264,10 @@ class const _ActivityAttentionCard({
         count == 0
             ? 'No automations need attention'
             : '$label ${count == 1 ? 'automation needs' : 'automations need'} attention',
+      ActivitySection.chatTasks =>
+        count == 0
+            ? 'No chat tasks need attention'
+            : '$label chat ${count == 1 ? 'task needs' : 'tasks need'} attention',
     };
   }
 }

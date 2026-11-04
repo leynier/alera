@@ -1,0 +1,25 @@
+{
+  "cli": [
+    {"output": "1.18.16\n", "generation": "legacy1"},
+    {"output": "1.18.32\n", "generation": "legacy1"},
+    {"output": "opencode v2.0.18\n", "generation": "v2"}
+  ],
+  "servers": [
+    {
+      "generation": "legacy1",
+      "responses": [
+        {"status": 200, "contentType": "text/html", "body": "<!doctype html>\n<html lang=\"en\" style=\"background-color: var(--v2-background-bg-deep, #fafafa)\">\n"},
+        {"status": 200, "contentType": "application/json", "body": "{\"healthy\":true,\"version\":\"1.18.32\"}"}
+      ],
+      "unauthorized": {"status": 401, "body": ""}
+    },
+    {
+      "generation": "v2",
+      "responses": [
+        {"status": 200, "contentType": "application/json", "body": "{\"version\":\"2.0.18\",\"pid\":2393556,\"urls\":[\"http://127.0.0.1:48771\"],\"paths\":{\"tmp\":\"/tmp/opencode\"}}"},
+        {"status": 200, "contentType": "text/html", "body": "<!doctype html>\n<html lang=\"en\" style=\"background-color: var(--v2-background-bg-deep, #fafafa)\">\n"}
+      ],
+      "unauthorized": {"status": 401, "contentType": "application/json", "body": "{\"_tag\":\"UnauthorizedError\",\"message\":\"Authentication required\"}"}
+    }
+  ]
+}

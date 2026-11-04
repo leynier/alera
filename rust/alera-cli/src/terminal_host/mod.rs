@@ -1,3 +1,4 @@
+pub(crate) mod agent_chat_capabilities;
 pub(crate) mod agent_profile_capabilities;
 pub(crate) mod ai_assist_capabilities;
 pub(crate) mod ai_dictation_capabilities;

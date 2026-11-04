@@ -183,6 +183,11 @@ impl ServerActor {
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             client.binary_frames = binary_frames;
+            client.agent_chat_supported = request
+                .supported_tab_kinds
+                .iter()
+                .any(|kind| kind == "agentChat");
+            client.agent_chat_capability = client.agent_chat_supported;
             client.mobile_device_id = Some(device_id);
             client.mobile_device_name = Some(device_name);
             client.cloud_device_id = request

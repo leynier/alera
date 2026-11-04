@@ -296,7 +296,7 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
                 let permits = Arc::clone(&cli_permits);
                 tasks.spawn(async move {
                     let _permit = permits.acquire_owned().await.ok();
-                    fetch_tui_provider("antigravity", "Antigravity", "agy", "/usage").await
+                    fetch_antigravity().await
                 });
             }
             "minimax" => {
@@ -345,6 +345,7 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
 
 include!("agent_quota/claude.rs");
 include!("agent_quota/tui.rs");
+include!("agent_quota/antigravity.rs");
 include!("agent_quota/codex.rs");
 include!("agent_quota/codex_reset_store.rs");
 include!("agent_quota/grok.rs");

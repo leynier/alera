@@ -208,7 +208,7 @@ final class WorkbenchSidebarRowsProvider
 }
 
 String _$workbenchSidebarRowsHash() =>
-    r'5b0436bf68c8effed0872f189263fc9e5d752d94';
+    r'b037bec7fac40099e0ed3883c183d7bebbe7fb6f';
 
 /// Focus handles for the mounted workbench surfaces, so keyboard shortcuts can
 /// move focus between panes without a pointer.

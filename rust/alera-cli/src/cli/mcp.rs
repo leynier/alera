@@ -82,6 +82,9 @@ pub struct McpServeArgs {
     /// Expose only tools that read runtime state. Same as `--access read`.
     #[arg(long)]
     pub read_only: bool,
+    /// Private credential file that binds this server to one live agent chat.
+    #[arg(long = "chat-credential-file", value_name = "path")]
+    pub chat_credential_file: Option<String>,
 }
 
 impl McpServeArgs {

@@ -42,7 +42,9 @@ impl ServerActor {
         };
         let mut busy = HashSet::new();
         for host_id in self.host_links.attached_host_ids() {
-            if !self.sessions_on_host(&host_id).await.is_empty() {
+            if self.host_links.provider_setup_sessions.has_host(&host_id)
+                || !self.sessions_on_host(&host_id).await.is_empty()
+            {
                 busy.insert(host_id);
             }
         }

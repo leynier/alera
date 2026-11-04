@@ -180,7 +180,7 @@ String _agentTrayTooltip({
     return 'Hide Agent Runs';
   }
   if (runs.length == 1) {
-    return _agentRunDescription(runs.single.status);
+    return _agentRunDescription(runs.single);
   }
   return 'Show Agent Runs';
 }

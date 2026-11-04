@@ -4,6 +4,13 @@ use sqlx::Row;
 
 use super::RuntimeStore;
 
+/// Pull requests linked to an agent chat, beside the per-workspace watches.
+#[path = "agent_chat_pull_request_store.rs"]
+pub(super) mod chat;
+#[cfg(test)]
+#[path = "agent_chat_pull_request_store_tests.rs"]
+mod chat_tests;
+
 /// What Watch and Fix already asked the bound agent to fix on one head.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

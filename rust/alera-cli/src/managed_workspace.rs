@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 
 use alera_core::git::{self as core_git, GitErrorKind};
 use alera_core::runtime::{
-    AutomationState, AutomationTarget, Project, ProjectKind, RuntimeStore, Workspace,
-    WorkspaceCreationResult, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
+    AutomationState, Project, ProjectKind, RuntimeStore, Workspace, WorkspaceCreationResult,
+    WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
@@ -326,20 +326,7 @@ pub async fn workspace_has_active_automation_owner(
     let definitions = store.list_automations(false).await?;
     if definitions.iter().any(|automation| {
         automation.state == AutomationState::Active
-            && match &automation.target {
-                AutomationTarget::ExistingTab {
-                    workspace_id: target,
-                    ..
-                }
-                | AutomationTarget::FreshTab {
-                    workspace_id: target,
-                    ..
-                } => target == workspace_id,
-                AutomationTarget::Worktree { .. } => {
-                    automation.target.source_workspace_id() == Some(workspace_id)
-                }
-                AutomationTarget::ProjectCheckout { .. } => false,
-            }
+            && automation.target.source_workspace_id() == Some(workspace_id)
     }) {
         return Ok(true);
     }

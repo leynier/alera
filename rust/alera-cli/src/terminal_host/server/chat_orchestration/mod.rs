@@ -1,0 +1,160 @@
+//! Durable orchestration between agent chats.
+//!
+//! This module deliberately owns only chat orchestration. Terminal
+//! orchestration keeps its existing tables, permissions and lifecycle. The
+//! host server supplies the workspace resolver and event sink when it wires
+//! this service into its request actor.
+
+pub(super) mod authorization;
+mod cancellation;
+mod capability_models;
+mod chat_links;
+mod continuation;
+mod credentials;
+mod delegate_wait;
+mod delegation;
+mod delegation_inheritance;
+mod delegation_options;
+mod followups;
+mod instructions;
+mod job_lifecycle;
+mod lineage;
+mod messages;
+mod models;
+mod monitor;
+mod monitor_hold;
+mod native_operation_guard;
+pub(crate) mod operation_wire;
+mod operations;
+mod owner_routing;
+mod parent;
+pub(crate) mod pull_requests;
+mod queries;
+mod question_wakes;
+mod request_admission;
+mod request_parser;
+mod runtime;
+pub(crate) mod schedule_input;
+mod schedule_views;
+pub(crate) mod schedules;
+mod secret_store;
+pub(crate) mod secrets;
+mod service;
+mod stop;
+mod targets;
+mod task_acknowledgement;
+mod task_next;
+mod tasks;
+mod titles;
+mod transfers;
+mod wake_pump;
+mod wake_text;
+mod wakes;
+
+pub(crate) use authorization::{BoundChat, OrchestrationCaller};
+pub(crate) use credentials::ChatCredentialLaunchHook;
+pub(crate) use owner_routing::{
+    is_owner_scoped_verb, owner_scoped_capability, unsupported_on_host,
+};
+pub(crate) use runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
+pub(crate) use schedules::{ScheduleHost, ScheduleOp};
+pub(crate) use secret_store::SecretVault;
+pub(crate) use secrets::ChatSecretBroker;
+pub(crate) use service::{ChatOrchestrationService, OrchestrationEventSink};
+pub(crate) use stop::DelegatedTasksStop;
+pub(crate) use targets::RuntimeTargetResolver;
+#[cfg(test)]
+pub(crate) use targets::{ChatTargetResolver, ResolvedChatTarget};
+
+pub(crate) const MAX_WAIT_SECONDS: u64 = 50;
+
+#[cfg(test)]
+mod authorization_tests;
+#[cfg(test)]
+mod background_completion_tests;
+#[cfg(test)]
+mod background_wait_tests;
+#[cfg(test)]
+mod cancel_admission_tests;
+#[cfg(test)]
+mod cancellation_tests;
+#[cfg(test)]
+mod capabilities_tests;
+#[cfg(test)]
+mod capability_fixture;
+#[cfg(test)]
+mod continuation_fixture;
+#[cfg(test)]
+mod control_admission_tests;
+#[cfg(test)]
+mod credential_launch_tests;
+#[cfg(test)]
+mod delegate_wait_tests;
+#[cfg(test)]
+mod delegation_tests;
+#[cfg(test)]
+mod effort_configuration_tests;
+#[cfg(test)]
+mod effort_inheritance_tests;
+#[cfg(test)]
+mod frozen_receipt_replay_tests;
+#[cfg(test)]
+pub(crate) mod mock_provider;
+#[cfg(test)]
+mod native_operation_guard_tests;
+#[cfg(test)]
+mod operation_wire_tests;
+#[cfg(test)]
+mod owner_routing_tests;
+#[cfg(test)]
+mod parser_boundary_tests;
+#[cfg(test)]
+mod paused_runtime_fixture;
+#[cfg(test)]
+mod person_parent_tests;
+#[cfg(test)]
+mod preparation_failure_tests;
+#[cfg(test)]
+mod pull_request_tests;
+#[cfg(test)]
+mod question_restart_tests;
+#[cfg(test)]
+mod question_wake_tests;
+#[cfg(test)]
+mod restart_recovery_tests;
+#[cfg(test)]
+mod satellite_fixture;
+#[cfg(test)]
+mod schedule_tests;
+#[cfg(test)]
+mod secret_request_tests;
+#[cfg(test)]
+mod secret_store_tests;
+#[cfg(test)]
+mod shutdown_tests;
+#[cfg(test)]
+mod stop_tests;
+#[cfg(test)]
+mod subagent_projection_tests;
+#[cfg(test)]
+mod task_acknowledgement_tests;
+#[cfg(test)]
+mod task_next_tests;
+#[cfg(test)]
+pub(crate) mod test_support;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod title_update_tests;
+#[cfg(test)]
+mod transfers_tests;
+#[cfg(test)]
+mod turn_lifecycle_tests;
+#[cfg(test)]
+mod wake_content_tests;
+#[cfg(test)]
+mod wake_delivery_tests;
+#[cfg(test)]
+mod wake_pump_tests;
+#[cfg(test)]
+mod wake_text_tests;

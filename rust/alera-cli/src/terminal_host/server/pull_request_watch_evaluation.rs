@@ -20,6 +20,38 @@ pub(super) enum Evaluation {
     },
 }
 
+fn check_bucket(check: &Value) -> String {
+    check["bucket"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .or(check["state"].as_str())
+        .unwrap_or("")
+        .to_lowercase()
+}
+
+/// A check that failed, was cancelled, timed out or needs an action.
+pub(super) fn check_failed(check: &Value) -> bool {
+    matches!(
+        check_bucket(check).as_str(),
+        "fail"
+            | "failure"
+            | "error"
+            | "cancel"
+            | "cancelled"
+            | "timed_out"
+            | "timedout"
+            | "action_required"
+    )
+}
+
+/// A check that passed or does not block.
+pub(super) fn check_passed(check: &Value) -> bool {
+    matches!(
+        check_bucket(check).as_str(),
+        "pass" | "success" | "skipping" | "skipped" | "neutral"
+    )
+}
+
 pub(super) fn evaluate(watch: &PullRequestWatch, snapshot: &Value) -> Evaluation {
     // Missing authentication or partial network results are not evidence that a PR disappeared.
     let supported = snapshot["provider"]
@@ -37,42 +69,8 @@ pub(super) fn evaluate(watch: &PullRequestWatch, snapshot: &Value) -> Evaluation
         return Evaluation::Stop;
     }
     let checks = review["checks"].as_array();
-    let failed = checks.is_some_and(|checks| {
-        checks.iter().any(|check| {
-            matches!(
-                check["bucket"]
-                    .as_str()
-                    .filter(|s| !s.is_empty())
-                    .or(check["state"].as_str())
-                    .unwrap_or("")
-                    .to_lowercase()
-                    .as_str(),
-                "fail"
-                    | "failure"
-                    | "error"
-                    | "cancel"
-                    | "cancelled"
-                    | "timed_out"
-                    | "timedout"
-                    | "action_required"
-            )
-        })
-    });
-    let green = checks.is_some_and(|checks| {
-        !checks.is_empty()
-            && checks.iter().all(|check| {
-                matches!(
-                    check["bucket"]
-                        .as_str()
-                        .filter(|s| !s.is_empty())
-                        .or(check["state"].as_str())
-                        .unwrap_or("")
-                        .to_lowercase()
-                        .as_str(),
-                    "pass" | "success" | "skipping" | "skipped" | "neutral"
-                )
-            })
-    });
+    let failed = checks.is_some_and(|checks| checks.iter().any(check_failed));
+    let green = checks.is_some_and(|checks| !checks.is_empty() && checks.iter().all(check_passed));
     let author = review["author"]
         .as_str()
         .unwrap_or("")

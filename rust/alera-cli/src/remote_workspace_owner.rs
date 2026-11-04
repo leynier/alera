@@ -114,50 +114,13 @@ pub(crate) async fn register(
             owner_repository = repository;
         }
     }
-    if let Some(existing) = store.find_workspace(&workspace.id).await? {
-        if existing.instance_id != workspace.instance_id
-            || existing.project_id != project.id
-            || existing.host_id != LOCAL_HOST_ID
-            || !crate::windows_path_form::same_path(&existing.path, &workspace.path)
-            || existing.kind != workspace.kind
-            || existing.status != WorkspaceStatus::Active
-        {
-            bail!(
-                "Remote task identity already belongs to another workspace; no state was replaced"
-            );
-        }
-        let owner = store
-            .find_project(&project.id)
-            .await?
-            .ok_or_else(|| anyhow!("Remote task project is unavailable"))?;
-        if !crate::windows_path_form::same_path(&owner.repo_path, &project.repo_path)
-            || owner.kind != project.kind
-        {
-            bail!("Remote task repository ownership changed");
-        }
-        if workspace.kind == WorkspaceKind::Linked
-            && store
-                .find_workspace_checkout(&workspace.id)
-                .await?
-                .and_then(|checkout| checkout.repository_path)
-                .as_deref()
-                != Some(owner_repository.as_str())
-        {
-            bail!("Remote linked task repository origin changed; no state was replaced");
-        }
-        return Ok(existing);
-    }
     store
-        .register_owner_project_checkout(project.clone())
-        .await?;
-    match workspace.kind {
-        WorkspaceKind::Main => store.insert_workspace(workspace).await,
-        WorkspaceKind::Linked => {
-            store
-                .insert_workspace_with_repository(workspace, &owner_repository)
-                .await
-        }
-    }
+        .register_owner_workspace(
+            &project,
+            &workspace,
+            (workspace.kind == WorkspaceKind::Linked).then_some(owner_repository.as_str()),
+        )
+        .await
 }
 
 #[cfg(test)]

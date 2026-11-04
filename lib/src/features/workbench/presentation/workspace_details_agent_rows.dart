@@ -7,10 +7,14 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/menus/alera_menu_position.dart';
 import 'package:alera/src/design_system/surfaces/alera_workspace_details_card.dart';
 import 'package:alera/src/design_system/surfaces/workspace_details_density.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
+import 'package:alera/src/features/chat_tasks/application/chat_workspace_attention.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
+import 'package:alera/src/features/workbench/application/workspace_chat_agent_runs.dart';
 import 'package:alera/src/features/workbench/application/workspace_details_agent_groups.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -19,12 +23,14 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_status_badge.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_run_icon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Agents running in the workspace's terminals. Renders nothing when there
-/// are none, so the card keeps its height for workspaces without agents.
+/// Agents running in the workspace's terminals and its agent chats, each
+/// delegated chat under the chat that delegated it. Renders nothing when
+/// there are none, so the card keeps its height for workspaces without agents.
 ///
 /// Starts collapsed to one row of agents grouped by state, like the sidebar.
 /// Expanded, it lists the main panel's agents and then the right panel's,
@@ -51,19 +57,31 @@ class _WorkspaceDetailsAgentRowsState
     final tabs = ref
         .watch(
           workbenchControllerProvider.select(
-            (state) => _TerminalTabs(state.awakeTabsFor(id)),
+            (state) => _AgentTabs(state.awakeTabsFor(id)),
           ),
         )
         .tabs;
     final statuses = <String, AgentStatusEntry>{
       for (final tab in tabs)
-        tab.terminalSessionId: ?ref.watch(
-          agentStatusControllerProvider.select(
-            (statuses) => statuses[tab.terminalSessionId],
+        if (tab.kind == WorkspaceTabKind.terminal)
+          tab.terminalSessionId: ?ref.watch(
+            agentStatusControllerProvider.select(
+              (statuses) => statuses[tab.terminalSessionId],
+            ),
           ),
-        ),
     };
-    final runs = visibleWorkspaceAgentRuns(tabs: tabs, agentStatuses: statuses);
+    final chats = <String, ChatAttentionEntry>{};
+    for (final chatId in tabs.map((tab) => tab.agentChatId).nonNulls) {
+      final entry = ref.watch(
+        chatAttentionLiveProvider.select((chats) => chats[chatId]),
+      );
+      if (entry != null) chats[chatId] = entry;
+    }
+    final runs = visibleWorkspaceAgentRuns(
+      tabs: tabs,
+      agentStatuses: statuses,
+      chats: chats,
+    );
     if (runs.isEmpty) return const SizedBox.shrink();
     final panel = ref.watch(
       workbenchControllerProvider.select(
@@ -119,7 +137,8 @@ class _WorkspaceDetailsAgentRowsState
       workspaceId: widget.workspace.id,
       tabId: run.tab.id,
     );
-    if (!mounted) return;
+    // A chat tab focuses its own composer when it becomes active.
+    if (!mounted || run.chat != null) return;
     ref
         .read(terminalRuntimeProvider)
         .sessionFor(workspace: widget.workspace, tab: run.tab)
@@ -128,13 +147,30 @@ class _WorkspaceDetailsAgentRowsState
 
   String _label(WorkspaceAgentRun run) {
     final title = run.tab.title.trim();
+    if (run.chat case final chat?) {
+      final chatTitle = chat.title.trim();
+      return chatTitle.isNotEmpty
+          ? chatTitle
+          : title.isNotEmpty
+          ? title
+          : agentChatProviderFallbackLabel(chat.provider);
+    }
     return run.tab.hasManualTitle && title.isNotEmpty
         ? title
         : agentDisplayName(run.status.agentType);
   }
 
   /// What the agent is doing or last said; the state itself is on the right.
-  String _detail(AgentStatusEntry status) {
+  String _detail(WorkspaceAgentRun run) {
+    if (run.chat case final chat?) {
+      final tasks = chat.openChildTaskCount;
+      return [
+        agentChatProviderFallbackLabel(chat.provider),
+        workspaceChatRunStateLabel(chat),
+        if (tasks > 0) '$tasks delegated ${tasks == 1 ? 'task' : 'tasks'}',
+      ].join(' · ');
+    }
+    final status = run.status;
     final working = status.state == AgentStatusState.working;
     final candidates = [
       working ? status.toolName : status.lastAssistantMessage,
@@ -151,15 +187,22 @@ class _WorkspaceDetailsAgentRowsState
     final theme = Theme.of(context);
     final status = run.status;
     final full = widget.density == WorkspaceDetailsDensity.full;
+    final chat = run.chat;
+    final state = chat == null
+        ? agentRunStateLabel(status)
+        : workspaceChatRunStateLabel(chat);
     return AleraWorkspaceDetailControl(
       key: ValueKey(run.tab.id),
-      tooltip: '${_label(run)} · ${agentRunStateLabel(status)}',
+      tooltip: '${_label(run)} · $state',
       onPressed: () => unawaited(_focus(run)),
       child: Row(
         children: [
+          // A delegated chat sits under the chat that delegated it.
+          if ((chat?.depth ?? 0) > 0)
+            SizedBox(width: chat!.depth * AleraTokens.space12),
           AleraWorkspaceDetailLeading(
-            child: AgentIdentityIcon(
-              agentType: status.agentType,
+            child: WorkspaceAgentRunIcon(
+              run: run,
               size: AleraTokens.iconMd,
               showTooltip: false,
             ),
@@ -180,7 +223,7 @@ class _WorkspaceDetailsAgentRowsState
                 ),
                 if (full)
                   Text(
-                    _detail(status),
+                    _detail(run),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -310,9 +353,11 @@ class _WorkspaceDetailsAgentRowsState
           AleraDropdownEntry(
             value: run.tab.id,
             label: _label(run),
-            detail: agentRunStateLabel(run.status),
-            leading: AgentIdentityIcon(
-              agentType: run.status.agentType,
+            detail: run.chat == null
+                ? agentRunStateLabel(run.status)
+                : workspaceChatRunStateLabel(run.chat!),
+            leading: WorkspaceAgentRunIcon(
+              run: run,
               size: AleraTokens.iconMd,
               showTooltip: false,
             ),
@@ -325,22 +370,30 @@ class _WorkspaceDetailsAgentRowsState
   }
 }
 
-/// Terminal tabs compared by the fields the agent rows show, so unrelated
-/// workbench changes do not rebuild the section.
-class const _TerminalTabs(final List<WorkspaceTabRecord> all) {
+/// Terminal and agent chat tabs compared by the fields the agent rows show,
+/// so unrelated workbench changes do not rebuild the section.
+class const _AgentTabs(final List<WorkspaceTabRecord> all) {
   List<WorkspaceTabRecord> get tabs => [
     for (final tab in all)
-      if (tab.kind == WorkspaceTabKind.terminal) tab,
+      if (tab.kind == WorkspaceTabKind.terminal ||
+          tab.kind == WorkspaceTabKind.agentChat)
+        tab,
   ];
 
-  List<(String, String, String, bool)> get _key => [
+  List<(String, String, String, bool, String?)> get _key => [
     for (final tab in tabs)
-      (tab.id, tab.terminalSessionId, tab.title, tab.hasManualTitle),
+      (
+        tab.id,
+        tab.terminalSessionId,
+        tab.title,
+        tab.hasManualTitle,
+        tab.agentChatId,
+      ),
   ];
 
   @override
   bool operator ==(Object other) =>
-      other is _TerminalTabs && listEquals(_key, other._key);
+      other is _AgentTabs && listEquals(_key, other._key);
 
   @override
   int get hashCode => Object.hashAll(_key);

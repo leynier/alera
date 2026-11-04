@@ -13,6 +13,7 @@ import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_gate_card.dart';
 import 'package:alera/src/design_system/feedback/alera_progress_steps.dart';
+import 'package:alera/src/design_system/feedback/alera_shimmer_text.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
@@ -34,6 +35,7 @@ import 'package:alera/src/design_system/layout/alera_sectioned_picker.dart';
 import 'package:alera/src/design_system/lists/alera_activity_row.dart';
 import 'package:alera/src/design_system/lists/alera_key_value_list.dart';
 import 'package:alera/src/design_system/lists/alera_timeline.dart';
+import 'package:alera/src/design_system/markdown/alera_markdown_view.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
@@ -157,6 +159,25 @@ Widget galleryFeedback() => Column(
       ],
     ),
   ],
+);
+
+@AleraPreview(name: 'Markdown', group: 'Gallery', size: Size(520, 320))
+Widget galleryMarkdown() => const AleraShimmerScope(
+  child: Column(
+    mainAxisSize: .min,
+    crossAxisAlignment: .stretch,
+    children: <Widget>[
+      AleraShimmerText(text: 'Working for 12s'),
+      SizedBox(height: AleraTokens.space12),
+      AleraMarkdownView(
+        data:
+            '### Plan\n'
+            '- Read `main.dart`\n'
+            '- Run the tests\n\n'
+            '```dart\nvoid main() => runApp(const App());\n```',
+      ),
+    ],
+  ),
 );
 
 @AleraPreview(name: 'Surfaces & layout', group: 'Gallery', size: Size(560, 240))

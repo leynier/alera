@@ -84,6 +84,8 @@ fn registration_hash(registration: &Value) -> u64 {
 /// workspaces so one satellite implementation serves both.
 pub(crate) fn is_host_scoped_workspace_verb(request_type: &str) -> bool {
     request_type.starts_with("workspace.files.")
+        || (request_type.starts_with("agentChat.")
+            && request_type != super::agent_chat_remote::INTERNAL_CHAT_REQUEST)
         || request_type == super::host_process_requests::HOST_PROCESS_RUN
         || request_type.starts_with("git.")
         || request_type.starts_with("mobile.git.")

@@ -60,6 +60,22 @@ mixin _TerminalHostClientSessionEvents {
   }
 
   void _handleEvent(String event, Map<String, Object?> payload) {
+    if (event == 'hostLinkEvent') {
+      final client = this as SocketTerminalHostClient;
+      final nested = payload['payload'];
+      if (nested is Map && nested['sessionId'] is String) {
+        final sessionId = nested['sessionId'] as String;
+        final route = client._remoteProviderSetupSessions[sessionId];
+        if (route != null &&
+            route.$1 == payload['hostId'] &&
+            payload['event'] is String) {
+          _handleEvent(
+            payload['event'] as String,
+            Map<String, Object?>.from(nested),
+          );
+        }
+      }
+    }
     if (runtimeHostEventNames.contains(event) && !_runtimeEventSink.isClosed) {
       _runtimeEventSink.add(RuntimeHostEvent(event, payload));
     }

@@ -130,6 +130,7 @@ pub fn automation_cursor(
             start_at.unwrap_or(definition.created_at)
         }
         super::AutomationSchedule::OneTime { .. } => DateTime::<Utc>::UNIX_EPOCH,
+        super::AutomationSchedule::Interval { anchor, .. } => *anchor,
     };
     let cursor = latest.unwrap_or(start).max(start);
     if matches!(

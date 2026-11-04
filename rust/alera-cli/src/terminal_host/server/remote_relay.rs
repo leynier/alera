@@ -70,6 +70,9 @@ impl ServerActor {
                 mobile_device_name: Some("Remote Mobile".to_string()),
                 cloud_device_id: Some(client_id.clone()),
                 relay_client_id: Some(client_id),
+                agent_chat_supported: false,
+                agent_chat_capability: false,
+                chat_orchestration_binding: None,
             },
         );
     }

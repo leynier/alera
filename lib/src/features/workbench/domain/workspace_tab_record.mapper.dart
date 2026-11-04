@@ -37,6 +37,8 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return WorkspaceTabKind.pdf;
       case r'gitDiff':
         return WorkspaceTabKind.gitDiff;
+      case r'agentChat':
+        return WorkspaceTabKind.agentChat;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -55,6 +57,8 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return r'pdf';
       case WorkspaceTabKind.gitDiff:
         return r'gitDiff';
+      case WorkspaceTabKind.agentChat:
+        return r'agentChat';
     }
   }
 }

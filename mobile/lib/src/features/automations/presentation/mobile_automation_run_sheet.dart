@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/automations/application/mobile_automat
 import 'package:alera_automations/alera_automations.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_actions.dart';
 import 'package:alera_mobile/src/features/automations/presentation/mobile_automation_tone.dart';
+import 'package:alera_mobile/src/features/chat_tasks/presentation/chat_task_open.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -172,6 +173,24 @@ class const MobileAutomationRunSheet({
                   child: const Text('Take Over · Stops Automatic Recovery'),
                 ),
             ],
+            // An agent chat run lives in its chat
+            // (`automationAgentChatTargetV1`).
+            if ((run.chatId, run.workspaceId) case (
+              final chatId?,
+              final workspaceId?,
+            ))
+              FilledButton.tonal(
+                onPressed: () => unawaited(
+                  openMobileChatTaskChat(
+                    context,
+                    ref,
+                    hostId: hostId,
+                    chatId: chatId,
+                    workspaceId: workspaceId,
+                  ),
+                ),
+                child: const Text('Open Chat'),
+              ),
             if (run.workspaceId != null)
               OutlinedButton(
                 onPressed: () => unawaited(

@@ -22,6 +22,7 @@ void main() {
       final settings = db.appSettingsTable;
       final projectConfigs = db.projectConfigsTable;
       final appWindowState = db.appWindowStateTable;
+      final chatDrafts = db.agentChatDraftsTable;
 
       expect(projects.id, isNotNull);
       expect(projects.name, isNotNull);
@@ -75,6 +76,9 @@ void main() {
       expect(appWindowState.dataJson, isNotNull);
       expect(appWindowState.updatedAt, isNotNull);
       expect(appWindowState.primaryKey, hasLength(1));
+      expect(chatDrafts.scopeKey, isNotNull);
+      expect(chatDrafts.dataJson, isNotNull);
+      expect(chatDrafts.primaryKey, hasLength(1));
     });
 
     test('exposes schema version and migration hooks', () async {
@@ -107,6 +111,7 @@ void main() {
           'app_settings_table',
           'project_configs_table',
           'app_window_state_table',
+          'agent_chat_drafts_table',
         ]),
       );
     });

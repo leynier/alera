@@ -8,6 +8,7 @@ String _terminalPathForGitEntry(String workspacePath, String relativePath) {
 }
 
 class const _GitPathDragRegion({
+  required final String workspaceId,
   required final String absolutePath,
   required final String label,
   required final bool isDirectory,
@@ -16,7 +17,10 @@ class const _GitPathDragRegion({
   @override
   Widget build(BuildContext context) {
     return TerminalPathDraggable<TerminalPathDragData>(
-      data: TerminalPathDragData(paths: <String>[absolutePath]),
+      data: TerminalPathDragData(
+        paths: <String>[absolutePath],
+        workspaceId: workspaceId,
+      ),
       feedback: _GitPathDragFeedback(label: label, isDirectory: isDirectory),
       child: child,
     );

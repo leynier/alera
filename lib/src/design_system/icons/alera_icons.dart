@@ -193,6 +193,9 @@ abstract final class const AleraIcons._() {
   static const IconData settings = LucideIcons.settings;
   static const IconData tune = LucideIcons.slidersHorizontal;
   static const IconData agent = LucideIcons.bot;
+
+  /// A provider-native workflow: a script running sub-agents in phases.
+  static const IconData workflow = LucideIcons.workflow;
   static const IconData quota = LucideIcons.gauge;
   static const IconData resources = LucideIcons.activity;
   static const IconData keepAlive = LucideIcons.coffee;
@@ -206,6 +209,11 @@ abstract final class const AleraIcons._() {
   // App-wide commands, e.g. the Global group in the command palette. Not the
   // Mac command glyph, which would read as a shortcut hint on Windows/Linux.
   static const IconData command = LucideIcons.zap;
+  // A slash command the chat agent advertises, in the composer `/` menu.
+  static const IconData agentCommand = LucideIcons.squareSlash;
+  // A skill the chat agent offers, in the composer `$` menu and as the chip
+  // of a skill a message invoked (T3 Code draws the same box).
+  static const IconData skill = LucideIcons.box;
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
   static const IconData comment = LucideIcons.messageSquare;
@@ -213,6 +221,8 @@ abstract final class const AleraIcons._() {
   static const IconData ai = LucideIcons.sparkles;
   static const IconData plan = LucideIcons.lightbulb;
   static const IconData planActive = LucideIcons.lightbulb600;
+  // The objective an agent keeps working toward (Codex `/goal`).
+  static const IconData goal = LucideIcons.goal;
   static const IconData package = LucideIcons.package;
   static const IconData public = LucideIcons.globe;
   static const IconData theme = LucideIcons.moon;

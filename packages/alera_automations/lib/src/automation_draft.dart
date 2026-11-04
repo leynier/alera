@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:alera_automations/src/automation_agent_chat_target.dart';
 import 'package:alera_automations/src/automation_field_bounds.dart';
 import 'package:alera_automations/src/automation_json_fields.dart';
 import 'package:alera_automations/src/automation_models.dart';
@@ -52,6 +53,11 @@ class const AutomationDraft({
   final String? slug,
   final List<String> workspaceTagIds = const <String>[],
   final AutomationReusePolicy reusePolicy = AutomationReusePolicy.newEachRun,
+
+  /// The details of an agent chat target (`automationAgentChatTargetV1`),
+  /// edited through `AutomationAgentChatDraft`; fields this client does not
+  /// know are kept as stored.
+  final JsonMap agentChatTarget = const <String, Object?>{},
 }) {
   factory fromRecord(AutomationRecord record) {
     final details = record.targetDetails;
@@ -112,6 +118,9 @@ class const AutomationDraft({
       slug: record.slug,
       workspaceTagIds: automationJsonStringList(placement['tagIds']),
       reusePolicy: record.reusePolicy,
+      agentChatTarget: record.targetType == AutomationTargetType.agentChat
+          ? details
+          : const <String, Object?>{},
     );
   }
 
@@ -137,6 +146,7 @@ class const AutomationDraft({
     bool? notifyOnSuccess,
     List<String>? workspaceTagIds,
     AutomationReusePolicy? reusePolicy,
+    JsonMap? agentChatTarget,
   }) => AutomationDraft(
     name: name ?? this.name,
     description: description ?? this.description,
@@ -161,6 +171,10 @@ class const AutomationDraft({
     slug: slug,
     workspaceTagIds: workspaceTagIds ?? this.workspaceTagIds,
     reusePolicy: reusePolicy ?? this.reusePolicy,
+    agentChatTarget:
+        (targetType ?? this.targetType) == AutomationTargetType.agentChat
+        ? agentChatTarget ?? this.agentChatTarget
+        : const <String, Object?>{},
   );
 
   /// A new definition from this one: same settings and target, its own slug.
@@ -186,6 +200,7 @@ class const AutomationDraft({
     notifyOnSuccess: notifyOnSuccess,
     workspaceTagIds: workspaceTagIds,
     reusePolicy: reusePolicy,
+    agentChatTarget: agentChatTarget,
   );
 
   /// Whether this draft edits a stored definition rather than creating one.
@@ -275,6 +290,7 @@ class const AutomationDraft({
       .tabId,
       .conversationId,
     ],
+    AutomationTargetType.agentChat => const <AutomationDraftField>[],
   };
 
   String? get whatError => promptTemplate.trim().isEmpty
@@ -285,6 +301,10 @@ class const AutomationDraft({
 
   String? get whereError {
     if (targetType == null) return 'Choose where the automation runs.';
+    if (targetType == AutomationTargetType.agentChat &&
+        !AutomationAgentChatTarget.fromJson(agentChatTarget).isComplete) {
+      return 'Complete the target before continuing.';
+    }
     for (final field in requiredTargetFields) {
       if ((targetFields[field] ?? '').isEmpty) {
         return 'Complete the target before continuing.';
@@ -348,6 +368,7 @@ class const AutomationDraft({
         'tabId': value(.tabId),
         'conversationId': value(.conversationId),
       },
+      AutomationTargetType.agentChat => agentChatTarget,
     };
     return <String, Object?>{
       type.key: <String, Object?>{

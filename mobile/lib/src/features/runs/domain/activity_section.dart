@@ -1,8 +1,9 @@
-/// The three parts of Activity, in the order the segmented control shows them.
+/// The parts of Activity, in the order the segmented control shows them.
 enum ActivitySection {
   runs('Runs'),
   questions('Questions'),
-  automations('Automations');
+  automations('Automations'),
+  chatTasks('Chat Tasks');
 
   ActivitySection(this.label);
 

@@ -12,6 +12,9 @@ class const AleraInlineNotice({
   required final String message,
   final AleraInlineNoticeTone tone = .info,
   final Widget? child,
+
+  /// Clamps [message] to this many lines with an ellipsis; null shows all.
+  final int? maxLines,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -43,6 +46,8 @@ class const AleraInlineNotice({
               Expanded(
                 child: Text(
                   message,
+                  maxLines: maxLines,
+                  overflow: maxLines == null ? null : TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),

@@ -317,7 +317,7 @@ final class AutomationRuntimeCapabilitiesProvider
 }
 
 String _$automationRuntimeCapabilitiesHash() =>
-    r'f153f3d679af7ef64013510f7d7c703cfd4d5697';
+    r'84a8c3401d584e72da63221298846b9974840875';
 
 abstract class _$AutomationRuntimeCapabilities
     extends $AsyncNotifier<AutomationCapabilities> {

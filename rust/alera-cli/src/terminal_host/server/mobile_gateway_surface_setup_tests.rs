@@ -4,6 +4,22 @@ use super::super::actor_test_harness::{mobile_client, test_actor};
 use super::*;
 use crate::terminal_host::client::ClientHandle;
 
+#[test]
+fn phones_can_transfer_chat_attachments_without_running_provider_setup() {
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&"agentChatAttachmentUploadV1"));
+    for verb in [
+        "agentChat.attachment.start",
+        "agentChat.attachment.chunk",
+        "agentChat.attachment.complete",
+        "agentChat.attachment.cancel",
+    ] {
+        assert!(mobile_request_allowed(verb), "{verb}");
+    }
+    assert!(!mobile_request_allowed("hub.providerSetup"));
+    assert!(!mobile_request_allowed("hostLink.request"));
+    assert!(!MOBILE_HELLO_CAPABILITIES.contains(&"agentChatRemoteProviderSetupV1"));
+}
+
 /// Recovery's "Run Saved Setup" on the phone sends `workspace.runSetup`, next
 /// to the relocation setup verbs it already could call.
 #[test]

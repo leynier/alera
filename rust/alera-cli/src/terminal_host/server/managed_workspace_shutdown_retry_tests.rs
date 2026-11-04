@@ -186,6 +186,7 @@ async fn start_terminal(
         "tab-terminal".into(),
         fixture.workspace.path.clone(),
         &crate::terminal_host::protocol::TerminalHostLaunch {
+            provider_setup: None,
             label: "Test".into(),
             shell: "/bin/sh".into(),
             arguments,

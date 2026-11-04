@@ -4,13 +4,14 @@ import 'package:alera/src/features/activity/domain/activity_section.dart';
 import 'package:alera/src/features/activity/presentation/activity_header.dart';
 import 'package:alera/src/features/activity/presentation/activity_rail.dart';
 import 'package:alera/src/features/automations/presentation/automations_section.dart';
+import 'package:alera/src/features/chat_tasks/presentation/chat_tasks_section.dart';
 import 'package:alera/src/features/inbox/presentation/questions_section.dart';
 import 'package:alera/src/features/runs/presentation/runs_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Runs, questions and automations across projects, shown over the retained
+/// Runs, questions, automations and chat tasks across projects, shown over the retained
 /// workbench. Closing it hands focus back to the active pane through the
 /// shell, so this page never selects a workspace on its own.
 class ActivityPage extends ConsumerStatefulWidget {
@@ -49,6 +50,7 @@ class _ActivityPageState extends ConsumerState<ActivityPage> {
       ActivitySection.runs => const RunsSection(),
       ActivitySection.questions => const QuestionsSection(),
       ActivitySection.automations => const AutomationsSection(),
+      ActivitySection.chatTasks => const ChatTasksSection(),
     };
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{

@@ -123,4 +123,58 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     expect(selections, <String>['main', 'worktree', 'main']);
   });
+
+  group('the selected row on open', () {
+    final rows = <AleraPickerRow<int>>[
+      for (var i = 0; i < 60; i++)
+        AleraPickerRow<int>(value: i, title: 'Model $i', subtitle: 'model-$i'),
+    ];
+
+    Future<Rect> pumpSelected(WidgetTester tester, int selected) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 280,
+                child: AleraSectionedPicker<int>(
+                  sections: <AleraPickerSection<int>>[
+                    AleraPickerSection<int>(title: 'Codex', rows: rows),
+                  ],
+                  selectedValue: selected,
+                  maxListHeight: 200,
+                  onSelected: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return tester.getRect(find.byType(ListView));
+    }
+
+    testWidgets('scrolls into view when it starts below the fold', (
+      tester,
+    ) async {
+      // Far enough that the lazily built list has not built it yet.
+      final list = await pumpSelected(tester, 55);
+      final row = tester.getRect(find.text('Model 55'));
+      expect(row.top, greaterThanOrEqualTo(list.top));
+      expect(row.bottom, lessThanOrEqualTo(list.bottom));
+      expect(find.text('Model 0'), findsNothing);
+    });
+
+    testWidgets('leaves the list where it is when already visible', (
+      tester,
+    ) async {
+      await pumpSelected(tester, 1);
+      final position = tester
+          .state<ScrollableState>(find.byType(Scrollable).last)
+          .position;
+      expect(position.pixels, 0);
+      expect(find.text('Model 0'), findsOneWidget);
+    });
+  });
 }

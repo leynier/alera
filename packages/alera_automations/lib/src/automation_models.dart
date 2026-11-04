@@ -4,6 +4,12 @@ import 'package:alera_automations/src/automation_readiness.dart';
 import 'package:alera_automations/src/automation_reuse_policy.dart';
 import 'package:alera_automations/src/automation_run_models.dart';
 
+/// Runtime capability that allows the `agentChat` target, the `interval`
+/// schedule and runs that carry `chatId`. Agents create such automations with
+/// `schedule_task`; clients only show and keep them.
+const String automationAgentChatTargetCapability =
+    'automationAgentChatTargetV1';
+
 /// The execution target families. The user always picks one explicitly.
 ///
 /// The runtime writes every worktree target under `worktree` and still reads
@@ -13,7 +19,11 @@ enum AutomationTargetType(final String key, final String label) {
   freshTab('freshTab', 'New Agent Tab In A Workspace'),
   worktree('worktree', 'New Worktree'),
   projectCheckout('projectCheckout', 'Project Folder On A Host'),
-  existingTab('existingTab', 'Continue An Agent Conversation');
+  existingTab('existingTab', 'Continue An Agent Conversation'),
+
+  /// Posts each run into an agent chat (`automationAgentChatTargetV1`).
+  /// Agents create these with `schedule_task`; the composer only shows them.
+  agentChat('agentChat', 'Post Into An Agent Chat');
 
   static const List<String> legacyWorktreeKeys = <String>[
     'managedWorkspace',
@@ -24,8 +34,19 @@ enum AutomationTargetType(final String key, final String label) {
   /// tags and a section.
   bool get createsWorkspace => switch (this) {
     worktree || projectCheckout => true,
-    freshTab || existingTab => false,
+    freshTab || existingTab || agentChat => false,
   };
+
+  /// Whether the target names an agent profile. A conversation keeps its
+  /// own agent and a chat target uses the chat's agent.
+  bool get usesAgentProfile => switch (this) {
+    freshTab || worktree || projectCheckout => true,
+    existingTab || agentChat => false,
+  };
+
+  /// Whether a runtime must advertise [automationAgentChatTargetCapability]
+  /// before a composer offers this type.
+  bool get needsAgentChatCapability => this == agentChat;
 
   /// The details object of this type inside [target], including the legacy
   /// worktree keys.
@@ -158,11 +179,29 @@ class const AutomationRecord({
     );
   }
 
-  bool get isRecurring => schedule.containsKey('recurring');
+  bool get isRecurring =>
+      schedule.containsKey('recurring') || schedule.containsKey('interval');
+
+  /// Whether the schedule repeats at a fixed interval
+  /// (`automationAgentChatTargetV1`).
+  bool get isInterval => schedule.containsKey('interval');
 
   JsonMap get scheduleDetails => automationJsonMap(
-    schedule['recurring'] ?? schedule['oneTime'] ?? schedule,
+    schedule['recurring'] ??
+        schedule['interval'] ??
+        schedule['oneTime'] ??
+        schedule,
   );
+
+  /// Seconds between runs of an interval schedule.
+  int? get intervalSeconds =>
+      isInterval ? automationJsonInt(scheduleDetails['everySeconds']) : null;
+
+  /// The chat an agent chat target posts into; null when each run opens a
+  /// new chat.
+  String? get targetChatId => targetType == AutomationTargetType.agentChat
+      ? automationJsonOptionalString(targetDetails['chatId'])
+      : null;
 
   AutomationTargetType? get targetType =>
       AutomationTargetType.fromTarget(target);

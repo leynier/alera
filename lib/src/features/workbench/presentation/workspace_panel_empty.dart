@@ -35,6 +35,7 @@ class const _WorkspacePanelEmpty({
 
   @override
   Widget build(BuildContext context) {
+    final chatLauncher = AgentChatLaunchScope.maybeOf(context);
     return Column(
       crossAxisAlignment: .stretch,
       children: <Widget>[
@@ -85,6 +86,11 @@ class const _WorkspacePanelEmpty({
                             description: 'Start a new terminal tab.',
                             onTap: onNewTerminal,
                           ),
+                          if (chatLauncher != null)
+                            _WorkspacePanelEmptyAgentChatChoice(
+                              key: ValueKey<String>(chatLauncher.workspaceId),
+                              onLaunch: () => chatLauncher.launch(),
+                            ),
                           if (onLaunchAgentProfile != null)
                             _WorkspacePanelEmptyChoice(
                               icon: AleraIcons.agent,
@@ -116,11 +122,51 @@ String _descriptionForTool(WorkspaceTool tool) {
   };
 }
 
+/// The Agent Chat card. A cold runtime can take seconds to create a chat, so
+/// until the launch settles the card shows that it is starting and ignores
+/// further presses.
+class const _WorkspacePanelEmptyAgentChatChoice({
+  super.key,
+  required final Future<void> Function() onLaunch,
+}) extends StatefulWidget {
+  @override
+  State<_WorkspacePanelEmptyAgentChatChoice> createState() =>
+      _WorkspacePanelEmptyAgentChatChoiceState();
+}
+
+class _WorkspacePanelEmptyAgentChatChoiceState
+    extends State<_WorkspacePanelEmptyAgentChatChoice> {
+  bool _pending = false;
+
+  Future<void> _launch() async {
+    setState(() => _pending = true);
+    try {
+      await widget.onLaunch();
+    } finally {
+      if (mounted) setState(() => _pending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _WorkspacePanelEmptyChoice(
+      icon: AleraIcons.agent,
+      label: 'Agent Chat',
+      description: _pending
+          ? 'Starting the agent chat.'
+          : 'Start an agent chat in a new tab.',
+      pending: _pending,
+      onTap: _pending ? null : () => unawaited(_launch()),
+    );
+  }
+}
+
 class const _WorkspacePanelEmptyChoice({
   required final IconData icon,
   required final String label,
   required final String description,
-  required final VoidCallback onTap,
+  required final VoidCallback? onTap,
+  final bool pending = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -143,11 +189,20 @@ class const _WorkspacePanelEmptyChoice({
           ),
           child: Row(
             children: <Widget>[
-              Icon(
-                icon,
-                size: AleraTokens.iconLg,
-                color: AleraTokens.foregroundMuted,
-              ),
+              if (pending)
+                const SizedBox.square(
+                  dimension: AleraTokens.iconLg,
+                  child: CircularProgressIndicator(
+                    strokeWidth: AleraTokens.strokeThin,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                )
+              else
+                Icon(
+                  icon,
+                  size: AleraTokens.iconLg,
+                  color: AleraTokens.foregroundMuted,
+                ),
               const SizedBox(width: AleraTokens.space12),
               Expanded(
                 child: Column(

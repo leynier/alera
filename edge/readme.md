@@ -10,6 +10,8 @@ The relay control-plane endpoints, `POST /v1/relay/identity` and `POST /v1/relay
 
 `tool_catalog.json` is generated from the Rust catalog; do not edit it by hand.
 
+Public Agent Chat query/control tools expose independent transcript/native conversation rewind, file rewind, checkpoint configuration, operation reads and explicit reconciliation. An uncertain native result is observed through its durable operation before recovery; the runtime MCP executor marks native rewind, file rewind, and reconciliation failures non-retryable so clients do not repeat provider I/O. Human chat-task controls include receipt-backed acknowledgements when a retry ID is supplied. Injected agent tools remain a separate lineage-bound catalog, with no provider Settings administration. The maintained MCP skills describe exact operation bodies and permissions.
+
 Production deployment is owned by `.github/workflows/cloud-deploy.yml`. Wrangler receives a dedicated `cloud-production` Environment token limited to `Workers Scripts: Edit` on the Leynier account and `Workers Routes: Edit` on `alera.build`. Local `wrangler deploy` is a break-glass operation.
 
 ## Local Validation

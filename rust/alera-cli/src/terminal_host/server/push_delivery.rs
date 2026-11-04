@@ -232,7 +232,24 @@ impl ServerActor {
         ));
     }
 
-    fn enqueue_push_event(&mut self, event: PushEvent) {
+    pub(super) fn enqueue_push_event(&mut self, event: PushEvent) {
+        // A child request and its task's needs-input transition describe the
+        // same attention. Keep the direct chat target within the burst.
+        if let Some(chat_id) = event.data["chatId"].as_str() {
+            if event.data["kind"] == "agentChat" {
+                self.account_push.pending_events.retain(|pending| {
+                    pending.event_type != "chat_task_needs_input"
+                        || pending.data["chatId"].as_str() != Some(chat_id)
+                });
+            } else if event.event_type == "chat_task_needs_input"
+                && self.account_push.pending_events.iter().any(|pending| {
+                    pending.data["kind"] == "agentChat"
+                        && pending.data["chatId"].as_str() == Some(chat_id)
+                })
+            {
+                return;
+            }
+        }
         if self.account_push.pending_events.is_empty() {
             self.account_push.batch_started = Some(Instant::now());
         }
@@ -379,7 +396,7 @@ impl ServerActor {
             .await
     }
 
-    async fn push_location(
+    pub(super) async fn push_location(
         &self,
         terminal_session_id: Option<String>,
         workspace_id: String,

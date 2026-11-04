@@ -6,7 +6,17 @@ import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
 import 'package:alera/src/features/activity/application/activity_navigation.dart';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_close_confirmation.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_composer_commands.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_find_requests.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_shortcut_targets.dart';
+import 'package:alera/src/features/agent_chat/domain/agent_chat_tab.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_launch_scope.dart';
+import 'package:alera_agent_chat/alera_agent_chat.dart'
+    show AgentChatUpdateRequired;
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
@@ -24,6 +34,7 @@ import 'package:alera/src/features/workbench/presentation/workbench_pane_focus_r
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'keyboard_command_dispatcher_agent_chat.dart';
 part 'keyboard_command_dispatcher_navigation.dart';
 
 /// Maps a [KeyboardActionId] to concrete app behavior, reusing existing
@@ -33,15 +44,21 @@ class const KeyboardCommandDispatcher({
   required final WidgetRef ref,
   required final BuildContext context,
   final TerminalSessionHandle? terminalSession,
+
+  /// The instance of the scoped surface that held the focus, such as the
+  /// chat id for a binding scoped to an agent chat.
+  final String? scopeTarget,
 }) {
   /// Restore the active workbench pane after a global surface was dismissed.
   void focusActivePane() => _focusActivePane();
 
-  void dispatch(KeyboardActionId id) {
+  /// Runs [id]. Returns `false` only when a chat action found no focused
+  /// chat that could use it, so the caller can let the key through.
+  bool dispatch(KeyboardActionId id) {
     if (ref.read(activityNavigationProvider).visible &&
         keybindingDefinitions.firstWhere((action) => action.id == id).group !=
             KeyboardActionGroup.global) {
-      return;
+      return _agentChatShortcutFor(id) == null;
     }
     switch (id) {
       case KeyboardActionId.openActivity:
@@ -103,6 +120,19 @@ class const KeyboardCommandDispatcher({
         _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
         _newTerminalTab();
+      case KeyboardActionId.newAgentChatTab:
+        unawaited(_newAgentChat());
+      case KeyboardActionId.chooseAgentChatModel:
+        _chooseAgentChatModel();
+      case KeyboardActionId.findInAgentChat:
+        _findInAgentChat();
+      case KeyboardActionId.increaseAgentChatEffort ||
+          KeyboardActionId.decreaseAgentChatEffort ||
+          KeyboardActionId.cycleAgentChatMode ||
+          KeyboardActionId.stopAgentChatTurn ||
+          KeyboardActionId.editLastQueuedMessage ||
+          KeyboardActionId.steerNextQueuedMessage:
+        return _runAgentChatShortcut(id);
       case KeyboardActionId.closeTab:
         _closeActiveTab();
       case KeyboardActionId.nextTab:
@@ -131,6 +161,7 @@ class const KeyboardCommandDispatcher({
       case KeyboardActionId.focusPreviousPane:
         _focusPane(-1);
     }
+    return true;
   }
 
   Future<void> _handOffActiveWorkspace() async {
@@ -178,6 +209,24 @@ class const KeyboardCommandDispatcher({
       final tab = await controller.createTerminalTab(workspace);
       runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }());
+  }
+
+  Future<void> _newAgentChat() async {
+    final state = ref.read(workbenchControllerProvider);
+    final workspace = state.activeWorkspace;
+    if (workspace == null) return;
+    if (!await ref.read(agentChatSupportedProvider.future)) {
+      AleraToast.publish(message: const AgentChatUpdateRequired().toString());
+      return;
+    }
+    if (!context.mounted) return;
+    final groupId = state.layoutFor(workspace.id)?.activeGroupId;
+    await launchNewAgentChat(
+      context,
+      ref,
+      workspace: workspace,
+      targetGroupId: groupId == null || groupId.isEmpty ? null : groupId,
+    );
   }
 
   void _showContextPanel(WorkbenchContextPanelTab tab) {
@@ -274,6 +323,12 @@ class const KeyboardCommandDispatcher({
         if (confirmed != true) {
           return;
         }
+      }
+      if (!context.mounted) return;
+      if (!await confirmCloseAgentChatTabs(context, ref, <WorkspaceTabRecord>[
+        tab,
+      ])) {
+        return;
       }
       if (!context.mounted) return;
       // The controller disposes the terminal handle and editor document.

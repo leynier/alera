@@ -8,4 +8,5 @@ enum ActivitySection(final String label) {
   runs('Runs'),
   questions('Questions'),
   automations('Automations'),
+  chatTasks('Chat Tasks'),
 }

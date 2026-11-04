@@ -27,16 +27,16 @@ void main() {
       }
     });
 
-    test('no two actions share a default chord on any platform', () {
+    test('no two actions of a scope share a default chord on any platform', () {
       for (final platform in KeyboardPlatform.values) {
         final resolver = KeybindingResolver(
           settings: .defaults,
           platform: platform,
         );
-        final seen = <KeyChord, KeyboardActionId>{};
+        final seen = <(KeyboardActionScope, KeyChord), KeyboardActionId>{};
         for (final definition in keybindingDefinitions) {
           for (final chord in resolver.effectiveChords(definition.id)) {
-            final previous = seen[chord];
+            final previous = seen[(definition.scope, chord)];
             expect(
               previous,
               isNull,
@@ -44,7 +44,7 @@ void main() {
                   'on ${platform.name} ${definition.id.name} and '
                   '${previous?.name} both bind ${chord.toCanonicalString()}',
             );
-            seen[chord] = definition.id;
+            seen[(definition.scope, chord)] = definition.id;
           }
         }
       }
@@ -177,6 +177,31 @@ void main() {
       expect(resolved, isNull);
     });
 
+    test('Mod+F finds in a focused chat and in the terminal elsewhere', () {
+      final resolver = KeybindingResolver(
+        settings: .defaults,
+        platform: .linux,
+      );
+      const control = KeyModifierState(control: true);
+      expect(
+        resolver.resolveAction(_down(.keyF), control)?.id,
+        KeyboardActionId.findInTerminal,
+      );
+      expect(
+        resolver
+            .resolveAction(_down(.keyF), control, focusScope: .agentChat)
+            ?.id,
+        KeyboardActionId.findInAgentChat,
+      );
+      // Global bindings still work inside a chat.
+      expect(
+        resolver
+            .resolveAction(_down(.keyT), control, focusScope: .agentChat)
+            ?.id,
+        KeyboardActionId.newTerminalTab,
+      );
+    });
+
     test('ignores a disabled binding', () {
       final settings = KeyboardShortcutSettings.defaults.copyWithOverride(
         .newTerminalTab,
@@ -212,6 +237,19 @@ void main() {
       );
       final chord = (KeyChord.parse('Mod+T') as KeyChordParseSuccess).chord;
       expect(resolver.findConflict(chord, excluding: .newTerminalTab), isNull);
+    });
+
+    test('a chat binding sharing a global chord is not a conflict', () {
+      final resolver = KeybindingResolver(
+        settings: .defaults,
+        platform: .macos,
+      );
+      final chord = (KeyChord.parse('Mod+F') as KeyChordParseSuccess).chord;
+      expect(resolver.findConflict(chord, excluding: .findInAgentChat), isNull);
+      expect(
+        resolver.findConflict(chord, excluding: .closeTab),
+        KeyboardActionId.findInTerminal,
+      );
     });
 
     test('returns null for a free chord', () {

@@ -111,6 +111,14 @@ pub(super) fn preserve_host_owned_tab_payload(
 }
 
 impl ServerActor {
+    pub(super) fn agent_chat_client_enabled(&self, client_id: u64) -> bool {
+        self.clients.get(&client_id).is_some_and(|client| {
+            client.agent_chat_supported
+                && client.agent_chat_capability
+                && client.chat_orchestration_binding.is_none()
+        })
+    }
+
     pub(super) fn workspace_tab_for_client(
         &self,
         client_id: u64,
@@ -118,6 +126,11 @@ impl ServerActor {
     ) -> Option<WorkspaceTabRecord> {
         let client = self.clients.get(&client_id);
         if tab.kind == "mobileEmulator" || tab.kind == "browser" || tab.kind == "codex" {
+            return None;
+        }
+        if tab.kind == alera_core::runtime::AGENT_CHAT_TAB_KIND
+            && !self.agent_chat_client_enabled(client_id)
+        {
             return None;
         }
         if client.is_some_and(|client| client.kind == ClientKind::Mobile) {

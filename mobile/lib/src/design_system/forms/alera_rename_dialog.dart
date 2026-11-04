@@ -53,14 +53,26 @@ class _AleraRenameDialogState extends State<AleraRenameDialog> {
           mainAxisSize: .min,
           crossAxisAlignment: .start,
           children: <Widget>[
-            Text(widget.title, style: theme.textTheme.titleMedium),
-            const SizedBox(height: AleraTokens.space12),
-            AleraTextField(
-              controller: _controller,
-              autofocus: true,
-              labelText: widget.labelText,
-              helperText: widget.helperText,
-              onSubmitted: (_) => _submit(),
+            // The keyboard leaves little height on a short phone; the field
+            // scrolls into view while Cancel and the action stay reachable.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .start,
+                  children: <Widget>[
+                    Text(widget.title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AleraTokens.space12),
+                    AleraTextField(
+                      controller: _controller,
+                      autofocus: true,
+                      labelText: widget.labelText,
+                      helperText: widget.helperText,
+                      onSubmitted: (_) => _submit(),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(

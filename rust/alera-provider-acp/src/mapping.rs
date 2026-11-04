@@ -1,0 +1,393 @@
+use crate::mapping_turn::{prompt_complete, state_update, turn_completed};
+use crate::mapping_values::{
+    available_commands, content_text, is_mcp_tool_call, item_id, logical_request_id, string,
+    terminal_state, tool_event_kind, tool_payload,
+};
+use crate::permission_payload::approval_payload;
+use crate::questions::classify_request;
+use crate::session_notice::notice_payload;
+use crate::transport::PendingRequest;
+use crate::usage::context_usage;
+use agent_client_protocol::{AcpIncoming, AcpRequestId, RpcRequest};
+use alera_provider_protocol::{
+    EventKind, ProviderError, ProviderEvent, ProviderKind, ProviderRefs, RequestKind,
+    RuntimeRequest, TurnStatus,
+};
+use serde_json::{json, Value};
+
+pub(crate) struct MappedIncoming {
+    pub event: ProviderEvent,
+    pub pending: Option<PendingRequest>,
+}
+
+pub(crate) struct MappingContext<'a> {
+    pub(crate) provider: &'a ProviderKind,
+    pub(crate) instance_id: &'a str,
+    pub(crate) thread_id: &'a str,
+    pub(crate) native_thread_id: &'a str,
+    pub(crate) turn_id: Option<&'a str>,
+    pub(crate) flavor: crate::config::AcpFlavor,
+    pub(crate) prompt_id: Option<&'a AcpRequestId>,
+    pub(crate) prompt_meta_id: Option<&'a str>,
+    /// An idle `state_update` ends the running turn. It is false for an
+    /// idle that predates the prompt's work: before acceptance or running
+    /// when following work state, else one an earlier ACP v2 turn still owes.
+    pub(crate) idle_ends_turn: bool,
+    /// ACP v2: a prompt response with no stop reason only accepts the
+    /// prompt; the turn ends on the idle `state_update`.
+    pub(crate) prompt_acceptance: bool,
+    /// An idle error while no turn runs becomes a runtime error. False right
+    /// after a failed turn, whose failure it would repeat.
+    pub(crate) turnless_error_notice: bool,
+}
+
+pub(crate) fn map_incoming(
+    incoming: AcpIncoming,
+    context: &MappingContext<'_>,
+) -> Result<MappedIncoming, ProviderError> {
+    match incoming {
+        AcpIncoming::Notification {
+            method,
+            params,
+            raw,
+        } => map_notification(&method, params, raw, context),
+        AcpIncoming::Request(request) => map_request(request, context),
+        AcpIncoming::Response(response) => map_response(response, context, context.prompt_id),
+    }
+}
+
+fn map_notification(
+    method: &str,
+    params: Value,
+    raw: Value,
+    context: &MappingContext<'_>,
+) -> Result<MappedIncoming, ProviderError> {
+    if let Some(session_id) = params
+        .get("sessionId")
+        .or_else(|| params.get("session_id"))
+        .and_then(Value::as_str)
+    {
+        if session_id != context.native_thread_id {
+            return Ok(MappedIncoming {
+                event: event(
+                    context,
+                    method,
+                    EventKind::Unknown(format!("acp.foreign-session.{method}")),
+                    params,
+                    raw,
+                    None,
+                ),
+                pending: None,
+            });
+        }
+    }
+    if matches!(
+        method,
+        "x.ai/session/prompt_complete" | "_x.ai/session/prompt_complete"
+    ) {
+        return Ok(prompt_complete(method, params, raw, context));
+    }
+    let is_update = matches!(
+        method,
+        "session/update"
+            | "x.ai/session_notification"
+            | "_x.ai/session_notification"
+            | "_x.ai/session/update"
+    );
+    if !is_update {
+        let event = event(
+            context,
+            method,
+            EventKind::Unknown(format!("acp.{method}")),
+            params,
+            raw,
+            None,
+        );
+        return Ok(MappedIncoming {
+            event,
+            pending: None,
+        });
+    }
+    let update = params.get("update").cloned().unwrap_or(params.clone());
+    let name = update
+        .get("sessionUpdate")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let (kind, payload, item_id) = match name {
+        "agent_message_chunk" => {
+            let text = content_text(update.get("content"));
+            if text.is_empty() {
+                (
+                    EventKind::Unknown("acp.session-update.agent_message_chunk".into()),
+                    update.clone(),
+                    string(update.get("messageId")),
+                )
+            } else {
+                (
+                    EventKind::ContentDelta,
+                    json!({"streamKind":"assistant_text","delta":text}),
+                    string(update.get("messageId")),
+                )
+            }
+        }
+        "agent_thought_chunk" => {
+            let text = content_text(update.get("content"));
+            if text.is_empty() {
+                (
+                    EventKind::Unknown("acp.session-update.agent_thought_chunk".into()),
+                    update.clone(),
+                    string(update.get("messageId")),
+                )
+            } else {
+                (
+                    EventKind::ContentDelta,
+                    json!({"streamKind":"reasoning_text","delta":text}),
+                    string(update.get("messageId")),
+                )
+            }
+        }
+        "terminal_output_chunk" => (
+            EventKind::ContentDelta,
+            json!({
+                "streamKind":"command_output",
+                "delta": update.get("data").and_then(Value::as_str).unwrap_or_default()
+            }),
+            string(update.get("terminalId")),
+        ),
+        "tool_call" | "tool_call_update" => {
+            let kind = tool_event_kind(name, &update);
+            let is_mcp = is_mcp_tool_call(&update) || is_mcp_tool_call(&params);
+            (
+                kind,
+                tool_payload(&update, is_mcp),
+                string(update.get("toolCallId")),
+            )
+        }
+        "state_update" => {
+            let (kind, payload) = state_update(&update, context);
+            (kind, payload, None)
+        }
+        "turn_completed" => {
+            let (kind, payload) = turn_completed(&update, context);
+            (kind, payload, None)
+        }
+        "plan" | "plan_update" | "plan_removed" => {
+            (EventKind::TurnPlanUpdated, json!({"plan": update}), None)
+        }
+        "available_commands_update" => (
+            EventKind::SessionCommandsUpdated,
+            available_commands(&update).payload(),
+            None,
+        ),
+        "config_option_update" | "current_mode_update" => {
+            (EventKind::ThreadMetadataUpdated, update.clone(), None)
+        }
+        "usage_update" => match context_usage(&update) {
+            Some(payload) => (EventKind::ThreadTokenUsageUpdated, payload, None),
+            None => (
+                EventKind::Unknown("acp.session-update.usage_update".into()),
+                update.clone(),
+                None,
+            ),
+        },
+        "notice" => match notice_payload(&update) {
+            Some(payload) => (EventKind::RuntimeWarning, payload, None),
+            None => (
+                EventKind::Unknown("acp.session-update.notice".into()),
+                update.clone(),
+                None,
+            ),
+        },
+        "compaction_update" | "compaction_summary_chunk" => (
+            EventKind::ItemUpdated,
+            json!({"itemType":"context_compaction","data":update}),
+            None,
+        ),
+        _ => (
+            EventKind::Unknown(format!("acp.session-update.{name}")),
+            update.clone(),
+            None,
+        ),
+    };
+    let event = event(context, method, kind, payload, raw, item_id.as_deref());
+    Ok(MappedIncoming {
+        event,
+        pending: None,
+    })
+}
+
+fn map_response(
+    response: agent_client_protocol::AcpResponse,
+    context: &MappingContext<'_>,
+    prompt_id: Option<&AcpRequestId>,
+) -> Result<MappedIncoming, ProviderError> {
+    if !prompt_id.is_some_and(|prompt| prompt == &response.id) {
+        let payload = response
+            .result
+            .clone()
+            .or_else(|| {
+                response.error.as_ref().map(
+                    |error| json!({"error": error.message, "code": error.code, "data": error.data}),
+                )
+            })
+            .unwrap_or(Value::Null);
+        return Ok(MappedIncoming {
+            event: event(
+                context,
+                "session/prompt",
+                EventKind::Unknown("acp.response".into()),
+                payload,
+                response.raw,
+                None,
+            ),
+            pending: None,
+        });
+    }
+    let accepted_only = context.prompt_acceptance
+        && response.error.is_none()
+        && response.result.as_ref().is_none_or(|result| {
+            result.get("stopReason").is_none() && result.get("stop_reason").is_none()
+        });
+    if accepted_only {
+        let payload = response.result.clone().unwrap_or(Value::Null);
+        return Ok(MappedIncoming {
+            event: event(
+                context,
+                "session/prompt",
+                EventKind::Unknown("acp.prompt.accepted".into()),
+                payload,
+                response.raw,
+                None,
+            ),
+            pending: None,
+        });
+    }
+    let payload = if let Some(error) = response.error {
+        json!({
+            "state": TurnStatus::Failed,
+            "errorMessage": error.message,
+            "error": {"code": error.code, "data": error.data},
+        })
+    } else {
+        let result = response.result.unwrap_or(Value::Null);
+        json!({
+            "state": terminal_state(result.get("stopReason").or_else(|| result.get("stop_reason"))),
+            "stopReason": result.get("stopReason").or_else(|| result.get("stop_reason")),
+            "usage": result.get("usage"),
+            "result": result,
+        })
+    };
+    Ok(MappedIncoming {
+        event: event(
+            context,
+            "session/prompt",
+            EventKind::TurnCompleted,
+            payload,
+            response.raw,
+            None,
+        ),
+        pending: None,
+    })
+}
+
+fn map_request(
+    request: RpcRequest,
+    context: &MappingContext<'_>,
+) -> Result<MappedIncoming, ProviderError> {
+    let (kind, questions) = classify_request(&request.method, &request.params, context.flavor);
+    if kind == RequestKind::Unknown {
+        let params = request.params.clone();
+        let raw = request.raw.clone();
+        return Ok(MappedIncoming {
+            event: event(
+                context,
+                &request.method,
+                EventKind::Unknown(format!("acp.request.{}", request.method)),
+                params,
+                raw,
+                None,
+            ),
+            pending: Some(PendingRequest {
+                logical_id: logical_request_id(&request.id).to_string(),
+                rpc_id: request.id,
+                kind,
+                method: request.method,
+                params: request.params.clone(),
+                raw: request.raw.clone(),
+            }),
+        });
+    }
+    let logical = logical_request_id(&request.id);
+    let runtime_request = RuntimeRequest {
+        request_id: logical.clone(),
+        thread_id: context.thread_id.to_owned(),
+        turn_id: context.turn_id.map(ToOwned::to_owned),
+        item_id: item_id(&request.params),
+        kind,
+        questions: questions.clone(),
+        payload: request.params.clone(),
+        supports_feedback: false,
+    };
+    let event_kind = if kind != RequestKind::McpElicitationApproval && !questions.is_empty() {
+        EventKind::UserInputRequested
+    } else {
+        EventKind::RequestOpened
+    };
+    let payload = if event_kind == EventKind::UserInputRequested {
+        json!({"requestType": kind, "questions": questions})
+    } else {
+        approval_payload(kind, &request.params)
+    };
+    let mut event = event(
+        context,
+        &request.method,
+        event_kind,
+        payload,
+        request.raw.clone(),
+        item_id(&request.params).as_deref(),
+    )
+    .with_request(runtime_request);
+    event.provider_refs = Some(ProviderRefs {
+        provider_turn_id: context.turn_id.map(ToOwned::to_owned),
+        provider_item_id: item_id(&request.params),
+        provider_request_id: Some(request.id.to_string()),
+    });
+    event.validate()?;
+    Ok(MappedIncoming {
+        event,
+        pending: Some(PendingRequest {
+            logical_id: logical.to_string(),
+            rpc_id: request.id,
+            kind,
+            method: request.method,
+            params: request.params,
+            raw: request.raw,
+        }),
+    })
+}
+
+pub(crate) fn event(
+    context: &MappingContext<'_>,
+    method: &str,
+    kind: EventKind,
+    payload: Value,
+    raw_payload: Value,
+    item_id: Option<&str>,
+) -> ProviderEvent {
+    let mut event = ProviderEvent::new(
+        context.provider.clone(),
+        context.instance_id,
+        context.thread_id,
+        kind,
+        payload,
+        Some(alera_provider_protocol::RawEvent {
+            source: "acp.jsonrpc".into(),
+            method: Some(method.into()),
+            message_type: Some(method.into()),
+            payload: raw_payload,
+        }),
+    );
+    event.turn_id = context.turn_id.map(ToOwned::to_owned);
+    event.item_id = item_id.map(ToOwned::to_owned);
+    event
+}

@@ -18,7 +18,7 @@ extension _WorkspacePanelTabs on _AleraShellPageBodyState {
     final newTabMenuProfiles =
         ref.watch(agentProfilesProvider).asData?.value ??
         const <AgentProfile>[];
-    return WorkspacePanelView(
+    final view = WorkspacePanelView(
       workspaceId: workspace.id,
       panel: panel,
       tabs: tabs,
@@ -148,6 +148,7 @@ extension _WorkspacePanelTabs on _AleraShellPageBodyState {
       },
       content: const SizedBox.shrink(),
     );
+    return AgentChatLaunchScope(workspace: workspace, child: view);
   }
 
   Widget _buildWorkspaceCenter({

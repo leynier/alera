@@ -15,7 +15,9 @@ use crate::cli::{
     McpCommand,
 };
 use crate::mcp_settings::McpAccess;
-use crate::mcp_tools::{catalog, catalog_json, serve_stdio, ToolExecution};
+use crate::mcp_tools::{
+    catalog, catalog_json, serve_stdio, validate_chat_credential_file, ToolExecution,
+};
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::{print_error, print_value, runtime_dir};
 
@@ -52,11 +54,24 @@ pub(crate) async fn run_mcp(command: McpCommand) -> i32 {
         }
         McpAction::Tools => Ok(catalog_json()),
         McpAction::Serve(args) => {
+            let access = access_level(args.level());
             return match ToolExecution::current(runtime_dir) {
-                Ok(execution) => match serve_stdio(execution, access_level(args.level())).await {
-                    Ok(()) => 0,
-                    Err(error) => print_error(error),
-                },
+                Ok(execution) => {
+                    let execution = match args.chat_credential_file {
+                        Some(path) => {
+                            let path = Path::new(&path).to_path_buf();
+                            if let Err(error) = validate_chat_credential_file(&path) {
+                                return print_error(error);
+                            }
+                            execution.chat_bound(path)
+                        }
+                        None => execution,
+                    };
+                    match serve_stdio(execution, access).await {
+                        Ok(()) => 0,
+                        Err(error) => print_error(error),
+                    }
+                }
                 Err(error) => print_error(error),
             };
         }

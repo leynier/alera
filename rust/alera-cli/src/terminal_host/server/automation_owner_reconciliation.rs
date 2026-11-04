@@ -26,6 +26,10 @@ impl ServerActor {
         self.automation_remote_owner_states
             .retain(|run_id, _| runs.iter().any(|run| &run.id == run_id));
         for mut run in runs {
+            if super::automation_agent_chat_runs::is_agent_chat_run(&run) {
+                self.reconcile_agent_chat_run(run).await;
+                continue;
+            }
             if run.taken_over
                 || (!run.owner_reserved
                     && matches!(

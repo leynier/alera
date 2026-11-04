@@ -69,12 +69,14 @@ pub fn write_control_file(
     if let Some(parent) = path.parent() {
         prepare_private_runtime_directory(parent)?;
     }
-    let body = json!({
+    let mut body = json!({
         "protocolVersion": PROTOCOL_VERSION,
         "pid": std::process::id(),
         "port": port,
         "token": token,
         "runtimeCapabilities": [
+            "agentChatV1",
+            "chatOrchestrationV1",
             "workspaceDetailsV1",
             "gitOperationsProgressV1",
             super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
@@ -164,11 +166,13 @@ pub fn write_control_file(
             RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
             RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
             crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
+            crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_AGENT_CHAT_TARGET_CAPABILITY,
             crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
         ],
         "persistent": persistent,
         "startedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     });
+    super::agent_chat_capabilities::append_agent_chat_capabilities(&mut body);
     write_value(path, &body)
 }
 
@@ -213,6 +217,25 @@ mod tests {
     use super::*;
     use serde_json::Value;
 
+    fn assert_capabilities(actual: &Value, expected: Value) {
+        let names = |value: &Value| -> std::collections::BTreeSet<String> {
+            value
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|entry| entry.as_str().unwrap().to_owned())
+                .collect()
+        };
+        let mut expected = names(&expected);
+        expected.extend(
+            super::super::agent_chat_capabilities::AGENT_CHAT_EXPERIENCE_CAPABILITIES
+                .iter()
+                .map(|name| (*name).to_owned()),
+        );
+        assert_eq!(names(actual), expected);
+        assert_eq!(actual.as_array().unwrap().len(), names(actual).len());
+    }
+
     #[test]
     fn writes_and_reads_back_metadata() {
         let dir = tempfile::tempdir().unwrap();
@@ -224,9 +247,36 @@ mod tests {
         assert_eq!(value["protocolVersion"], json!(PROTOCOL_VERSION));
         assert_eq!(value["port"], json!(54321));
         assert_eq!(value["token"], json!("secret-token"));
-        assert_eq!(
-            value["runtimeCapabilities"],
+        assert_capabilities(
+            &value["runtimeCapabilities"],
             json!([
+                "agentChatV1",
+    "agentChatDeferredStartV1",
+    "agentChatUnselectedDraftV1",
+    "agentChatPreferencesV1",
+    "agentChatProviderSettingsV1",
+    "agentChatEffortV1",
+    "agentChatQueueSteerV1",
+    "agentChatQueueEditV1",
+    "agentChatQueueReorderV1",
+    "agentChatForkV1",
+    "agentChatRewindV1",
+    "agentChatDeleteV1",
+    "agentChatApprovalHistoryV1",
+    "agentChatTurnDiffV1",
+    "agentChatSkillsV1",
+    "agentChatReadCursorV1",
+    "agentChatGoalV1",
+    "agentChatAcpChildSessionsV1",
+    "agentChatWorkflowsV1",
+    "agentChatGeneratedImagesV1",
+    "agentChatTransfersV1",
+    "agentChatForceStopV1",
+    "agentChatTitleGenerationV1",
+    "agentChatSecretRequestsV1",
+    "chatOrchestrationPullRequestsV1",
+    "chatOrchestrationSchedulesV1",
+                "chatOrchestrationV1",
                 "workspaceDetailsV1",
                 "gitOperationsProgressV1",
                 super::super::protocol::RUNTIME_HOST_SAFE_HANDOFF_CAPABILITY,
@@ -318,6 +368,7 @@ mod tests {
                 RUNTIME_HOST_AUTOMATIONS_AUTHORING_CAPABILITY,
                 RUNTIME_HOST_AUTOMATION_TERMINAL_OBSERVE_CAPABILITY,
                 crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_REUSE_CAPABILITY,
+                crate::terminal_host::protocol::RUNTIME_HOST_AUTOMATION_AGENT_CHAT_TARGET_CAPABILITY,
                 crate::terminal_host::protocol::RUNTIME_HOST_VOICE_HOME_AGENT_CAPABILITY,
             ])
         );

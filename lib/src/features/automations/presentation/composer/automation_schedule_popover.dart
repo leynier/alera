@@ -6,9 +6,11 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/forms/alera_time_of_day_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/application/automation_composer_controller.dart';
+import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/presentation/automation_popover_chip.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const List<int> _everyHoursChoices = <int>[1, 2, 3, 4, 6, 8, 12];
@@ -43,13 +45,31 @@ class _ScheduleEditor extends ConsumerStatefulWidget {
 }
 
 class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
-  late final TextEditingController _cron = TextEditingController(
-    text: ref.read(widget.provider).draft.schedule.customCron,
-  );
+  late final TextEditingController _cron;
+  late final TextEditingController _intervalCount;
+
+  /// The unit the person edits the interval in, kept while the count is
+  /// cleared or retyped.
+  late AutomationIntervalUnit _unit;
+
+  @override
+  void initState() {
+    super.initState();
+    final schedule = ref.read(widget.provider).draft.schedule;
+    _cron = TextEditingController(text: schedule.customCron);
+    _intervalCount = TextEditingController();
+    _showInterval(schedule);
+  }
+
+  void _showInterval(AutomationSchedulePreset schedule) {
+    _intervalCount.text = '${schedule.intervalCount}';
+    _unit = schedule.intervalUnit;
+  }
 
   @override
   void dispose() {
     _cron.dispose();
+    _intervalCount.dispose();
     super.dispose();
   }
 
@@ -70,6 +90,9 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
   @override
   Widget build(BuildContext context) {
     final draft = ref.watch(widget.provider.select((state) => state.draft));
+    final interval =
+        ref.watch(automationRuntimeCapabilitiesProvider).value?.agentChat ??
+        false;
     final schedule = draft.schedule;
     final error = schedule.localError;
     final theme = Theme.of(context);
@@ -78,10 +101,18 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
         labelText: 'Repeat',
         value: schedule.kind,
         entries: <AleraDropdownFieldEntry<AutomationScheduleKind>>[
-          for (final kind in AutomationScheduleKind.values)
+          for (final kind in AutomationScheduleKind.offered(
+            interval: interval,
+            current: schedule.kind,
+          ))
             AleraDropdownFieldEntry(value: kind, label: kind.label),
         ],
-        onChanged: (kind) => _change((value) => value.copyWith(kind: kind)),
+        onChanged: (kind) {
+          _change((value) => value.withKind(kind));
+          setState(
+            () => _showInterval(ref.read(widget.provider).draft.schedule),
+          );
+        },
       ),
       ...switch (schedule.kind) {
         AutomationScheduleKind.weekdays ||
@@ -153,8 +184,52 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
                 _change((current) => current.copyWith(customCron: value)),
           ),
         ],
+        AutomationScheduleKind.interval => <Widget>[
+          Row(
+            crossAxisAlignment: .start,
+            children: <Widget>[
+              Expanded(
+                child: AleraTextField(
+                  key: const ValueKey<String>('automation-interval-count'),
+                  controller: _intervalCount,
+                  labelText: 'Every',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: <TextInputFormatter>[
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  onChanged: (value) => _change(
+                    (current) =>
+                        current.withInterval(int.tryParse(value) ?? 0, _unit),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AleraTokens.space8),
+              Expanded(
+                child: AleraDropdownField<AutomationIntervalUnit>(
+                  key: const ValueKey<String>('automation-interval-unit'),
+                  labelText: 'Unit',
+                  value: _unit,
+                  entries: <AleraDropdownFieldEntry<AutomationIntervalUnit>>[
+                    for (final unit in AutomationIntervalUnit.values)
+                      AleraDropdownFieldEntry(value: unit, label: unit.label),
+                  ],
+                  onChanged: (unit) {
+                    setState(() => _unit = unit);
+                    _change(
+                      (current) => current.withInterval(
+                        int.tryParse(_intervalCount.text) ?? 0,
+                        unit,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
       },
-      if (!schedule.isOneTime)
+      if (!schedule.isOneTime &&
+          schedule.kind != AutomationScheduleKind.interval)
         AleraDropdownField<String?>(
           labelText: 'Time Zone',
           value: draft.timezone,

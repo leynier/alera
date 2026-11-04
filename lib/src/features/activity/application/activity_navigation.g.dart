@@ -51,7 +51,7 @@ final class ActivityNavigationProvider
 }
 
 String _$activityNavigationHash() =>
-    r'3214fb49e06341a628ad061f7de1228489316dee';
+    r'53021bd231e2a82a1b8f2e945fca0ba4d048ab3b';
 
 /// Where the Activity page is. Nothing here selects a workspace: Open
 /// Workspace and Open Terminal are explicit actions that close the page.

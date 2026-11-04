@@ -152,6 +152,7 @@ class const _SidebarBody({
           agentRunGroups: groupWorkspaceAgentRuns(secondaryRuns),
           workspaceStatus: row.aggregateStatus,
           primaryStatus: primaryRun?.status,
+          primaryRun: primaryRun,
           hasTerminalTabs: row.hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
           activeTabId: WorkspacePanel.tabId(panel.focusedKey),

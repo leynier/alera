@@ -21,12 +21,15 @@ String terminalAbsolutePath({
 
 abstract interface class TerminalPathDragPayload {
   Iterable<String> get paths;
+  String? get workspaceId;
 }
 
-class const TerminalPathDragData({required this.paths})
+class const TerminalPathDragData({required this.paths, this.workspaceId})
     implements TerminalPathDragPayload {
   @override
   final List<String> paths;
+  @override
+  final String? workspaceId;
 }
 
 /// Path drag source for explorer and source control rows.

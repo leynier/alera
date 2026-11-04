@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/linked_issues/application/linked_issues_controller.dart';
 import 'package:alera_mobile/src/features/pull_requests/application/pull_request_watch_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
+import 'package:alera_mobile/src/features/workbench/application/mobile_chat_agent_presence.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_agent_expansion_controller.dart';
@@ -53,20 +54,30 @@ class const RuntimeWorkspacesListBody({
         .watch(workspaceHostsControllerProvider(hostId))
         .value;
     final searchQuery = ref.watch(workspaceSearchControllerProvider(hostId));
+    final workspaceIds = {for (final w in data.workspaces) w.id};
+    // Agent chats list beside the host's terminal agents, each delegated chat
+    // under the chat that delegated it.
+    final agentPresence = <AgentPresenceSummary>[
+      ...data.agentPresence,
+      for (final chat in chatAgentPresence(
+        ref.watch(mobileChatAttentionEntriesProvider(hostId)).values,
+      ))
+        if (workspaceIds.contains(chat.workspaceId)) chat,
+    ];
     final rows = buildMobileWorkspaceRows(
       sections: data.sections,
       workspaces: data.workspaces,
       projects: data.projects,
       prefs: prefs,
       activity: data.activity,
-      agentPresence: data.agentPresence,
+      agentPresence: agentPresence,
       terminalTabCountByWorkspaceId: data.terminalTabCountByWorkspaceId,
       searchQuery: searchQuery,
     );
     final noSearchMatches =
         searchQuery.trim().isNotEmpty && !rows.any(_rowHasWorkspaces);
     final agentPresenceByWorkspaceId = <String, List<AgentPresenceSummary>>{};
-    for (final status in data.agentPresence) {
+    for (final status in agentPresence) {
       agentPresenceByWorkspaceId
           .putIfAbsent(status.workspaceId, () => <AgentPresenceSummary>[])
           .add(status);

@@ -49,6 +49,7 @@ fn default_terminal_launch_for(
         TerminalPlatform::Windows => DefaultTerminalLaunch {
             interactive_shell: interactive_shell.to_string(),
             launch: TerminalHostLaunch {
+                provider_setup: None,
                 label: "shell".to_string(),
                 shell: interactive_shell.to_string(),
                 arguments: vec![
@@ -75,6 +76,7 @@ fn default_terminal_launch_for(
             DefaultTerminalLaunch {
                 interactive_shell: interactive_shell.to_string(),
                 launch: TerminalHostLaunch {
+                    provider_setup: None,
                     label: "shell".to_string(),
                     shell: "/bin/sh".to_string(),
                     arguments: vec!["-c".to_string(), exec_command],

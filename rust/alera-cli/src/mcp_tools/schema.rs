@@ -45,6 +45,16 @@ pub(super) fn integer(description: &str, minimum: u64, maximum: u64) -> Value {
     })
 }
 
+/// An integer with a floor and a soft ceiling: a larger value uses `maximum`,
+/// so only `minimum` is advertised.
+pub(super) fn clamped_integer(description: &str, minimum: u64, maximum: u64) -> Value {
+    json!({
+        "type": "integer",
+        "minimum": minimum,
+        "description": format!("{description} From {minimum} to {maximum}; larger values use {maximum}."),
+    })
+}
+
 pub(super) fn one_of(description: &str, values: &[&str]) -> Value {
     json!({ "type": "string", "enum": values, "description": description })
 }
