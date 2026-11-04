@@ -90,6 +90,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "agentChatSecretRequestsV1",
     "chatOrchestrationV1",
     "chatOrchestrationSchedulesV1",
+    "chatOrchestrationPullRequestsV1",
     "chatOrchestrationPersonParentV1",
     "chatOrchestrationEffortV1",
     "configurationSyncV1",
@@ -250,6 +251,15 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "chatOrchestration.read"
             | "chatOrchestration.transfers"
             | "chatOrchestration.list"
+            | "chatOrchestration.scheduleTask"
+            | "chatOrchestration.listScheduledTasks"
+            | "chatOrchestration.deleteScheduledTask"
+            | "chatOrchestration.runScheduledTaskNow"
+            | "chatOrchestration.linkPullRequest"
+            | "chatOrchestration.unlinkPullRequest"
+            | "chatOrchestration.listPullRequests"
+            | "chatOrchestration.watchPullRequest"
+            | "chatOrchestration.unwatchPullRequest"
             | "mobile.hosts.list"
             | "hostDirectory.roots"
             | "hostDirectory.list"

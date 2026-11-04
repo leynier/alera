@@ -292,6 +292,86 @@ impl ChatOrchestrationRuntime for RoutedChatRuntime {
     fn subscribe(&self) -> broadcast::Receiver<ChatRuntimeEvent> {
         self.events.sender.subscribe()
     }
+
+    async fn is_remote_chat(&self, chat_id: &str) -> HostResult<bool> {
+        if self
+            .router
+            .store
+            .agent_chat(chat_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .is_some()
+        {
+            return Ok(false);
+        }
+        match self.remote_chat_workspace(chat_id).await {
+            Ok(workspace) => Ok(workspace.is_some()),
+            Err(HostError::Conflict { code, .. }) if code == "chat_not_found" => Ok(false),
+            Err(error) => Err(error),
+        }
+    }
+
+    async fn forward_to_owner(
+        &self,
+        chat_id: &str,
+        verb: &str,
+        payload: Value,
+        caller: CallerCtx,
+    ) -> HostResult<Value> {
+        let workspace_id = self
+            .remote_chat_workspace(chat_id)
+            .await?
+            .ok_or_else(|| HostError::conflict("chat_not_found", "Chat not found.", json!({})))?;
+        self.remote_command(
+            &workspace_id,
+            json!({"operation": OWNER_ORCHESTRATION, "verb": verb, "payload": payload, "caller": caller}),
+        )
+        .await
+    }
+}
+
+/// The internal chat operation that runs an owner-scoped
+/// `chatOrchestration.*` verb on the satellite that owns the chat.
+pub(crate) const OWNER_ORCHESTRATION: &str = "orchestration";
+
+/// Refuses an owner-scoped verb before it reaches a satellite that does not
+/// advertise it, so an older satellite answers clearly instead of
+/// "Unknown internal chat operation".
+pub(crate) fn require_owner_orchestration_capability(
+    payload: &Value,
+    capabilities: &[String],
+) -> HostResult<()> {
+    if payload["operation"] != OWNER_ORCHESTRATION {
+        return Ok(());
+    }
+    let verb = payload["verb"].as_str().unwrap_or_default();
+    match super::chat_orchestration::owner_scoped_capability(verb) {
+        Some((capability, _)) if capabilities.iter().any(|offered| offered == capability) => Ok(()),
+        _ => Err(super::chat_orchestration::unsupported_on_host(verb)),
+    }
+}
+
+/// Satellite side of [OWNER_ORCHESTRATION]: only the hub link sends it, and
+/// only for owner-scoped verbs. The hub already checked what its ledger
+/// knows, so the verb runs here as the person the hub names.
+pub(crate) async fn handle_owner_orchestration(
+    service: Option<ChatOrchestrationService>,
+    payload: &Value,
+) -> HostResult<Value> {
+    let verb = text(payload, "verb")?;
+    if !super::chat_orchestration::is_owner_scoped_verb(&verb) {
+        return Err(HostError::conflict(
+            "chat_scope_denied",
+            "The remote chat verb is not allowed.",
+            json!({}),
+        ));
+    }
+    let service = service.ok_or_else(|| super::chat_orchestration::unsupported_on_host(&verb))?;
+    let caller: CallerCtx = decode(payload, "caller")?;
+    let request = payload.get("payload").cloned().unwrap_or_else(|| json!({}));
+    service
+        .handle(&verb, &request, &OrchestrationCaller::human(caller))
+        .await
 }
 
 pub(crate) async fn handle_internal_runtime(

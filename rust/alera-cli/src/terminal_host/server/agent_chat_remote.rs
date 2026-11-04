@@ -84,6 +84,10 @@ impl RemoteChatTransport for LinkedChatTransport {
             &payload,
             &link.attachment().runtime_capabilities,
         )?;
+        super::chat_orchestration_remote::require_owner_orchestration_capability(
+            &payload,
+            &link.attachment().runtime_capabilities,
+        )?;
         link.request_with_timeout(
             verb,
             payload,
@@ -99,6 +103,10 @@ impl RemoteChatTransport for LinkedChatTransport {
             .await
             .map_err(|_| host_unavailable())?;
         super::agent_chat_attachment_requests::require_remote_upload_capability(
+            &payload,
+            &link.attachment().runtime_capabilities,
+        )?;
+        super::chat_orchestration_remote::require_owner_orchestration_capability(
             &payload,
             &link.attachment().runtime_capabilities,
         )?;

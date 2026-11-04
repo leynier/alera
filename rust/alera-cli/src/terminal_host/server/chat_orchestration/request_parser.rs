@@ -425,9 +425,11 @@ impl OrchestrationRequest {
             }),
             "deleteScheduledTask" => Ok(Self::DeleteScheduledTask {
                 scheduled_task_id: super::schedule_input::scheduled_task_id(payload)?,
+                chat_id: optional_string(payload, "chatId")?,
             }),
             "runScheduledTaskNow" => Ok(Self::RunScheduledTaskNow {
                 scheduled_task_id: super::schedule_input::scheduled_task_id(payload)?,
+                chat_id: optional_string(payload, "chatId")?,
             }),
             "readSecret" => Ok(Self::ReadSecret {
                 secret_ref: required_string(payload, "secretRef")?,

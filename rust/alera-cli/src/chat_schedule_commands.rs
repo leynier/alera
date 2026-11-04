@@ -78,6 +78,9 @@ pub struct ChatScheduleList {
 pub struct ChatScheduleTask {
     #[arg(long = "id")]
     pub id: String,
+    /// The task's chat, for a person reaching a task on another host.
+    #[arg(long = "chat-id")]
+    pub chat_id: Option<String>,
 }
 
 fn trimmed(value: Option<String>) -> Option<String> {
@@ -130,6 +133,14 @@ pub(crate) fn save_payload(args: ChatScheduleSave) -> Result<Value> {
     Ok(payload)
 }
 
+fn task_payload(task: ChatScheduleTask) -> Value {
+    let mut payload = json!({"scheduledTaskId": task.id.trim()});
+    if let Some(chat_id) = trimmed(task.chat_id) {
+        payload["chatId"] = json!(chat_id);
+    }
+    payload
+}
+
 pub(crate) async fn run(runtime: &RuntimeDirArgs, args: ChatScheduleArgs) -> Result<Value> {
     let (verb, payload) = match args.action {
         ChatScheduleAction::Save(save) => ("scheduleTask", save_payload(save)?),
@@ -137,14 +148,8 @@ pub(crate) async fn run(runtime: &RuntimeDirArgs, args: ChatScheduleArgs) -> Res
             "listScheduledTasks",
             json!({"chatId": trimmed(list.chat_id), "projectId": trimmed(list.project_id)}),
         ),
-        ChatScheduleAction::Delete(task) => (
-            "deleteScheduledTask",
-            json!({"scheduledTaskId": task.id.trim()}),
-        ),
-        ChatScheduleAction::Run(task) => (
-            "runScheduledTaskNow",
-            json!({"scheduledTaskId": task.id.trim()}),
-        ),
+        ChatScheduleAction::Delete(task) => ("deleteScheduledTask", task_payload(task)),
+        ChatScheduleAction::Run(task) => ("runScheduledTaskNow", task_payload(task)),
     };
     crate::chat_orchestration_request::request(
         runtime,

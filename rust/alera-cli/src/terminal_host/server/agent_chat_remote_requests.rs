@@ -33,6 +33,19 @@ impl ServerActor {
                     json!({}),
                 ));
             }
+            if payload["operation"]
+                == crate::terminal_host::server::chat_orchestration_remote::OWNER_ORCHESTRATION
+            {
+                let service = self.chat_orchestration.clone();
+                let payload = payload.clone();
+                self.spawn_deferred_request(client_id, request_id, async move {
+                    crate::terminal_host::server::chat_orchestration_remote::handle_owner_orchestration(
+                        service, &payload,
+                    )
+                    .await
+                });
+                return Ok(true);
+            }
             if payload["operation"] != "wire" {
                 let runtime = self
                     .agent_chat_runtime()

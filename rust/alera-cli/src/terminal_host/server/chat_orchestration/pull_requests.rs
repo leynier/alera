@@ -11,7 +11,7 @@ use super::authorization::{require_lineage_for_chat, OrchestrationCaller};
 use super::service::ChatOrchestrationService;
 
 pub(crate) const CHILD_CANNOT_WATCH: &str = "This chat is a delegated child, so it cannot watch pull requests. Its parent chat owns the pull request: finish your task and report back instead.";
-const CHILD_NEXT: &str =
+pub(super) const CHILD_NEXT: &str =
     "End your reply with: PR <full URL>, head <SHA>, checks and reviews <state>.";
 
 /// A pull request named by its web URL.

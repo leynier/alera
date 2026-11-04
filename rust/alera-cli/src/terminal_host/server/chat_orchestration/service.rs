@@ -217,6 +217,12 @@ impl ChatOrchestrationService {
         let current_caller =
             authorize_request(caller, &self.store, self.runtime.as_ref(), &request).await?;
         let caller = &current_caller;
+        if let Some(response) = self
+            .route_to_chat_owner(verb, payload, &request, caller)
+            .await?
+        {
+            return Ok(response);
+        }
         match request {
             OrchestrationRequest::Capabilities {
                 workspace_id,
@@ -354,10 +360,12 @@ impl ChatOrchestrationService {
                 chat_id,
                 project_id,
             } => self.list_scheduled_tasks(chat_id, project_id, caller).await,
-            OrchestrationRequest::DeleteScheduledTask { scheduled_task_id } => {
-                self.delete_scheduled_task(&scheduled_task_id, caller).await
-            }
-            OrchestrationRequest::RunScheduledTaskNow { scheduled_task_id } => {
+            OrchestrationRequest::DeleteScheduledTask {
+                scheduled_task_id, ..
+            } => self.delete_scheduled_task(&scheduled_task_id, caller).await,
+            OrchestrationRequest::RunScheduledTaskNow {
+                scheduled_task_id, ..
+            } => {
                 self.run_scheduled_task_now(&scheduled_task_id, caller)
                     .await
             }

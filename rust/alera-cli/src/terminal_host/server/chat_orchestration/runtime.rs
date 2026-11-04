@@ -65,6 +65,25 @@ pub(crate) trait ChatOrchestrationRuntime: Send + Sync {
         start_turn_id: Option<&str>,
     ) -> HostResult<Option<ChatOrchestrationChildTurn>>;
     fn subscribe(&self) -> broadcast::Receiver<ChatRuntimeEvent>;
+    /// Whether another host owns `chat_id`. An unknown chat is not remote.
+    async fn is_remote_chat(&self, _chat_id: &str) -> HostResult<bool> {
+        Ok(false)
+    }
+    /// Runs a `chatOrchestration.*` verb on the host that owns `chat_id`,
+    /// as a person (`caller`). Only owner-scoped verbs travel this way.
+    async fn forward_to_owner(
+        &self,
+        _chat_id: &str,
+        _verb: &str,
+        _payload: Value,
+        _caller: CallerCtx,
+    ) -> HostResult<Value> {
+        Err(HostError::conflict(
+            "unsupported",
+            "This chat is not on another host.",
+            json!({}),
+        ))
+    }
 }
 
 pub(crate) struct LocalChatOrchestrationRuntime {

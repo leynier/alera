@@ -26,6 +26,7 @@ mod monitor_hold;
 mod native_operation_guard;
 pub(crate) mod operation_wire;
 mod operations;
+mod owner_routing;
 mod parent;
 pub(crate) mod pull_requests;
 mod queries;
@@ -52,6 +53,9 @@ mod wakes;
 
 pub(crate) use authorization::{BoundChat, OrchestrationCaller};
 pub(crate) use credentials::ChatCredentialLaunchHook;
+pub(crate) use owner_routing::{
+    is_owner_scoped_verb, owner_scoped_capability, unsupported_on_host,
+};
 pub(crate) use runtime::{ChatOrchestrationRuntime, LocalChatOrchestrationRuntime};
 pub(crate) use schedules::{ScheduleHost, ScheduleOp};
 pub(crate) use secret_store::SecretVault;
@@ -100,6 +104,8 @@ pub(crate) mod mock_provider;
 mod native_operation_guard_tests;
 #[cfg(test)]
 mod operation_wire_tests;
+#[cfg(test)]
+mod owner_routing_tests;
 #[cfg(test)]
 mod parser_boundary_tests;
 #[cfg(test)]

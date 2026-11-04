@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use alera_core::runtime::{chat_orchestration_request_digest, AgentChatRecord, RuntimeStore};
+use alera_core::runtime::{
+    chat_orchestration_request_digest, AgentChatRecord, AutomationState, RuntimeStore,
+};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
@@ -12,15 +14,61 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::server::agent_chat_remote::{RemoteChatTransport, INTERNAL_CHAT_REQUEST};
 use crate::terminal_host::server::agent_chat_runtime::events::NullSink;
 use crate::terminal_host::server::agent_chat_runtime::{AgentChatRuntime, InstanceDirectory};
-use crate::terminal_host::server::chat_orchestration_remote::handle_internal_runtime;
+use crate::terminal_host::server::chat_orchestration_remote::{
+    handle_internal_runtime, handle_owner_orchestration, require_owner_orchestration_capability,
+    OWNER_ORCHESTRATION,
+};
 
 use super::mock_provider::MockProviderFactory;
-use super::ChatCredentialLaunchHook;
+use super::schedules::{ScheduleHost, ScheduleOp};
+use super::{ChatCredentialLaunchHook, ChatOrchestrationService, RuntimeTargetResolver};
 
 #[derive(Clone)]
 struct Satellite {
     store: RuntimeStore,
     runtime: AgentChatRuntime,
+    service: ChatOrchestrationService,
+}
+
+/// Saves, trashes and runs scheduled tasks in the store, like the actor.
+pub(super) struct StoreScheduleHost {
+    pub store: RuntimeStore,
+}
+
+#[async_trait]
+impl ScheduleHost for StoreScheduleHost {
+    async fn apply(&self, op: ScheduleOp) -> HostResult<Value> {
+        let state_error = |error: anyhow::Error| HostError::state(error.to_string());
+        Ok(match op {
+            ScheduleOp::Save {
+                definition,
+                state,
+                actor,
+            } => {
+                let saved = self
+                    .store
+                    .upsert_automation(*definition, actor.clone())
+                    .await
+                    .map_err(state_error)?;
+                match state.filter(|state| *state != saved.state) {
+                    Some(state) => json!(self
+                        .store
+                        .set_automation_state(&saved.id, state, actor, None)
+                        .await
+                        .map_err(state_error)?),
+                    None => json!(saved),
+                }
+            }
+            ScheduleOp::Trash { id, actor } => json!(self
+                .store
+                .set_automation_state(&id, AutomationState::Trashed, actor, None)
+                .await
+                .map_err(state_error)?),
+            ScheduleOp::RunNow { id, .. } => {
+                json!({"id": format!("run-{id}"), "number": 1, "status": "dispatched"})
+            }
+        })
+    }
 }
 
 pub(super) struct SatelliteTransport {
@@ -28,6 +76,8 @@ pub(super) struct SatelliteTransport {
     directory: PathBuf,
     factory: Arc<MockProviderFactory>,
     satellites: Mutex<HashMap<String, Satellite>>,
+    /// What every satellite advertises; `None` advertises everything.
+    capabilities: std::sync::Mutex<Option<Vec<String>>>,
 }
 
 impl SatelliteTransport {
@@ -41,7 +91,38 @@ impl SatelliteTransport {
             directory,
             factory,
             satellites: Mutex::new(HashMap::new()),
+            capabilities: std::sync::Mutex::new(None),
         })
+    }
+
+    /// Makes every satellite advertise only `capabilities`, like an older one.
+    pub fn advertise(&self, capabilities: &[&str]) {
+        *self.capabilities.lock().unwrap() = Some(
+            capabilities
+                .iter()
+                .map(|capability| capability.to_string())
+                .collect(),
+        );
+    }
+
+    fn advertised(&self) -> Vec<String> {
+        self.capabilities
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_else(|| {
+                [
+                    crate::chat_schedule_commands::SCHEDULES_CAPABILITY,
+                    crate::chat_pull_request_commands::PULL_REQUESTS_CAPABILITY,
+                ]
+                .map(str::to_owned)
+                .to_vec()
+            })
+    }
+
+    /// The store of the satellite that owns `workspace_id`.
+    pub async fn store(&self, workspace_id: &str) -> RuntimeStore {
+        self.satellite(workspace_id).await.unwrap().store
     }
 
     async fn satellite(&self, workspace_id: &str) -> HostResult<Satellite> {
@@ -69,9 +150,22 @@ impl SatelliteTransport {
                 Arc::new(InstanceDirectory::default()),
             )
             .with_flush_delay(Duration::ZERO);
-            runtime
-                .register_launch_hook(ChatCredentialLaunchHook::new(store.clone(), path).unwrap());
-            let satellite = Satellite { store, runtime };
+            let credentials = ChatCredentialLaunchHook::new(store.clone(), path).unwrap();
+            runtime.register_launch_hook(credentials.clone());
+            let service = ChatOrchestrationService::new(
+                store.clone(),
+                runtime.clone(),
+                Arc::new(RuntimeTargetResolver::new(store.clone())),
+                credentials,
+            )
+            .with_schedules(Arc::new(StoreScheduleHost {
+                store: store.clone(),
+            }));
+            let satellite = Satellite {
+                store,
+                runtime,
+                service,
+            };
             satellites.insert(host_id, satellite.clone());
             satellite
         };
@@ -110,6 +204,7 @@ impl SatelliteTransport {
     pub async fn shutdown(&self) {
         let satellites: Vec<_> = self.satellites.lock().await.values().cloned().collect();
         for satellite in satellites {
+            satellite.service.shutdown().await;
             satellite.runtime.shutdown().await;
             satellite.store.pool().close().await;
         }
@@ -119,8 +214,12 @@ impl SatelliteTransport {
 #[async_trait]
 impl RemoteChatTransport for SatelliteTransport {
     async fn request(&self, workspace_id: &str, verb: &str, payload: Value) -> HostResult<Value> {
+        require_owner_orchestration_capability(&payload, &self.advertised())?;
         let satellite = self.satellite(workspace_id).await?;
         match verb {
+            INTERNAL_CHAT_REQUEST if payload["operation"] == OWNER_ORCHESTRATION => {
+                handle_owner_orchestration(Some(satellite.service.clone()), &payload).await
+            }
             INTERNAL_CHAT_REQUEST => handle_internal_runtime(&satellite.runtime, &payload).await,
             "tab.list" => Ok(serde_json::to_value(
                 satellite

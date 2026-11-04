@@ -202,11 +202,14 @@ pub(crate) enum OrchestrationRequest {
         chat_id: Option<String>,
         project_id: Option<String>,
     },
+    /// `chat_id` routes a person's request to the host that owns the chat.
     DeleteScheduledTask {
         scheduled_task_id: String,
+        chat_id: Option<String>,
     },
     RunScheduledTaskNow {
         scheduled_task_id: String,
+        chat_id: Option<String>,
     },
     /// The context transfers recorded in a chat (`agentChatTransfersV1`).
     Transfers {
