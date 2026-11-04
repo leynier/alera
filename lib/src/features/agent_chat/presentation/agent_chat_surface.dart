@@ -483,6 +483,7 @@ class _AgentChatSurfaceState extends ConsumerState<AgentChatSurface>
         trailing: AgentChatPendingApprovalRows(
           chatId: widget.chatId,
           workspaceId: widget.workspace.id,
+          composer: _composer,
         ),
       ),
     );

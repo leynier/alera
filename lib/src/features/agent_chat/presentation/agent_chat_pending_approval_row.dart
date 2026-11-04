@@ -2,19 +2,23 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_inline_notice.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_controller.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_approval_focus.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_decline_feedback_dialog.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_request_cards.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The chat's pending approvals as rows at the end of the timeline, where the
 /// agent stopped, each with its decisions inline. Questions, forms and
-/// secrets stay in the request dock above the composer.
+/// secrets stay in the request dock above the composer. With [composer], a
+/// new approval takes the keyboard as the dock did ([AgentChatApprovalFocus]).
 class const AgentChatPendingApprovalRows({
   super.key,
   required final String chatId,
   required final String workspaceId,
+  final TerminalComposerController? composer,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,9 +36,10 @@ class const AgentChatPendingApprovalRows({
       for (final request in view.requests)
         if (request.isApproval) request,
     ];
-    if (approvals.isEmpty) return const SizedBox.shrink();
+    final composer = this.composer;
+    if (approvals.isEmpty && composer == null) return const SizedBox.shrink();
     final controller = ref.read(provider.notifier);
-    return Column(
+    final rows = Column(
       mainAxisSize: .min,
       crossAxisAlignment: .stretch,
       children: <Widget>[
@@ -48,6 +53,14 @@ class const AgentChatPendingApprovalRows({
           ),
       ],
     );
+    return composer == null
+        ? rows
+        : AgentChatApprovalFocus(
+            chatId: chatId,
+            approvals: approvals,
+            composer: composer,
+            child: rows,
+          );
   }
 }
 

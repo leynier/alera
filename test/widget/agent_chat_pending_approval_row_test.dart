@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_composer_drafts.dart';
 import 'package:alera/src/features/agent_chat/application/agent_chat_providers.dart';
+import 'package:alera/src/features/agent_chat/presentation/agent_chat_approval_focus.dart';
 import 'package:alera/src/features/agent_chat/presentation/agent_chat_surface.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
@@ -88,6 +89,11 @@ void main() {
     final row = find.byKey(_row);
     expect(row, findsOneWidget);
     expect(find.byKey(_dock), findsNothing);
+    // The rows take the keyboard as the dock did.
+    expect(
+      find.ancestor(of: row, matching: find.byType(AgentChatApprovalFocus)),
+      findsOneWidget,
+    );
     expect(
       find.descendant(of: row, matching: find.text('rm -rf build')),
       findsOneWidget,

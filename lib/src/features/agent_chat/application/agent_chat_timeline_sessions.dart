@@ -43,6 +43,10 @@ final class AgentChatTimelineSession {
   /// Requests the request dock has already shown, so a remounted dock does
   /// not take the focus again for a request that was there before.
   final Set<String> seenRequestIds = <String>{};
+
+  /// Approvals the timeline rows have already shown, kept apart from
+  /// [seenRequestIds] because the dock no longer holds approvals.
+  final Set<String> seenApprovalIds = <String>{};
 }
 
 /// Per-chat timeline sessions, most recently used last. Bounded, because a
