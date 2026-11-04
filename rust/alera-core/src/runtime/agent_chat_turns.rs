@@ -200,6 +200,34 @@ impl RuntimeStore {
             .transpose()
     }
 
+    /// The chat that durably holds this client message: in its history, its
+    /// queue, or its cancelled markers. `chat_id` narrows the search when the
+    /// chat is known; without it every chat is searched, which only a
+    /// recovery path should do.
+    pub async fn agent_chat_holding_client_message(
+        &self,
+        chat_id: Option<&str>,
+        client_message_id: &str,
+    ) -> Result<Option<String>> {
+        Ok(sqlx::query_scalar(
+            "SELECT s.chatId FROM agentChatSessions s \
+             WHERE (?1 IS NULL OR s.chatId = ?1) AND ( \
+               EXISTS(SELECT 1 FROM agentChatItems i WHERE i.chatId = s.chatId \
+                 AND json_extract(i.itemJson, '$.clientMessageId') = ?2) \
+               OR EXISTS(SELECT 1 FROM agentChatCancelledMessages c \
+                 WHERE c.chatId = s.chatId AND c.clientMessageId = ?2) \
+               OR EXISTS(SELECT 1 FROM json_each(s.snapshotJson, '$.queue') q \
+                 WHERE json_extract(q.value, '$.clientMessageId') = ?2) \
+               OR EXISTS(SELECT 1 FROM json_each(s.snapshotJson, '$.queuedMessages') q \
+                 WHERE json_extract(q.value, '$.clientMessageId') = ?2)) \
+             LIMIT 1",
+        )
+        .bind(chat_id)
+        .bind(client_message_id)
+        .fetch_optional(self.pool())
+        .await?)
+    }
+
     /// Durable metadata for any turn, including turns outside the snapshot.
     pub async fn agent_chat_turn(&self, chat_id: &str, turn_id: &str) -> Result<Option<Value>> {
         let json: Option<String> = sqlx::query_scalar(

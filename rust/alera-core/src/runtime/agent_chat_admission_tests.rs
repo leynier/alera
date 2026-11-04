@@ -397,3 +397,74 @@ async fn additive_migration_keeps_existing_chats_and_replaces_old_cleanup_trigge
     drop(connection);
     assert_eq!(marker_count(&reopened, &chat_id).await, 0);
 }
+
+#[tokio::test]
+async fn a_client_message_is_found_in_history_queue_or_cancelled_markers() {
+    let (_dir, store) = store_with_workspace("ws").await;
+    let chat_id = new_chat_id();
+    let mut initial = snapshot(&chat_id, "ws", "tab", 0);
+    let mut user_item = item("user", "user_message", "sent prompt");
+    user_item["clientMessageId"] = json!("sent-message");
+    user_item["turnId"] = json!("sent-turn");
+    initial["items"] = json!([user_item]);
+    initial["turns"] = json!([{"turnId": "sent-turn", "status": "completed"}]);
+    store
+        .create_agent_chat(
+            &record(&chat_id, "ws", "tab", initial),
+            &tab(&chat_id, "ws", "tab"),
+            None,
+        )
+        .await
+        .unwrap();
+    let other_chat = create_chat(&store, "ws", "other-tab").await;
+    let (cursor, mut next) = next_snapshot(&store, &chat_id).await;
+    next["queue"] = json!([{"clientMessageId": "queued-message", "text": "later"}]);
+    store
+        .commit_agent_chat(
+            &chat_id,
+            cursor,
+            &next,
+            &json!({"queue": next["queue"]}),
+            None,
+        )
+        .await
+        .unwrap();
+    store
+        .cancel_agent_chat_message(&chat_id, "cancelled-message")
+        .await
+        .unwrap();
+    for message in ["sent-message", "queued-message", "cancelled-message"] {
+        for scope in [Some(chat_id.as_str()), None] {
+            assert_eq!(
+                store
+                    .agent_chat_holding_client_message(scope, message)
+                    .await
+                    .unwrap()
+                    .as_deref(),
+                Some(chat_id.as_str()),
+                "{message}"
+            );
+        }
+        assert_eq!(
+            store
+                .agent_chat_holding_client_message(Some(&other_chat), message)
+                .await
+                .unwrap(),
+            None
+        );
+    }
+    assert_eq!(
+        store
+            .agent_chat_holding_client_message(None, "never-sent")
+            .await
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        store
+            .agent_chat_holding_client_message(Some(&new_chat_id()), "sent-message")
+            .await
+            .unwrap(),
+        None
+    );
+}

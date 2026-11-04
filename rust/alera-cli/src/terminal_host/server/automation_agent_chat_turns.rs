@@ -31,12 +31,10 @@ impl ServerActor {
         else {
             return;
         };
-        if !matches!(
-            run.status,
-            AutomationRunStatus::Dispatched | AutomationRunStatus::Dispatching
-        ) || !watched()
-            .lock()
-            .is_ok_and(|mut set| set.insert(run.id.clone()))
+        if run.status != AutomationRunStatus::Dispatched
+            || !watched()
+                .lock()
+                .is_ok_and(|mut set| set.insert(run.id.clone()))
         {
             return;
         }

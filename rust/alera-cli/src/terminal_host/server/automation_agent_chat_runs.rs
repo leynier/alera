@@ -4,18 +4,57 @@
 //! matched by its client message id. There is no heartbeat: the turn is the
 //! run. The chat runtime is only called away from the actor, so a send never
 //! waits on the actor that handles the chat's events.
+//!
+//! A run whose post never reported back (the runtime stopped between saving
+//! the run and the `Dispatched` event) is recovered on startup and on every
+//! automation tick: once no post for it is in flight in this process and
+//! [STUCK_POST_GRACE_SECONDS] have passed, the chat is searched for its
+//! client message. Found, the run is dispatched and watched; missing, the
+//! run fails through the usual retry policy.
+
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 
 use alera_core::runtime::{
     prompt_value_map, render_prompt_template, AutomationActor, AutomationActorKind,
     AutomationDefinition, AutomationRun, AutomationRunStatus,
 };
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use serde_json::{json, Value};
 
 use super::agent_chat_runtime::commands::{CallerCtx, SendInput};
 use super::agent_chat_runtime::{AgentChatRuntime, CreateChatInput};
 use super::{ServerActor, ServerCommand};
 use crate::terminal_host::host_error::{HostError, HostResult};
+
+/// How long a run may wait for its post to report back before recovery
+/// looks for its message in the chat.
+pub(super) const STUCK_POST_GRACE_SECONDS: i64 = 120;
+
+/// Why recovery fails a run whose message never reached its chat.
+pub(super) const POST_LOST_REASON: &str =
+    "The runtime stopped before the scheduled message reached the chat";
+
+/// Runs whose post is in flight in this process, so recovery never touches a
+/// slow post.
+fn posting() -> &'static Mutex<HashSet<String>> {
+    static POSTING: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    POSTING.get_or_init(Mutex::default)
+}
+
+fn is_posting(run_id: &str) -> bool {
+    posting().lock().is_ok_and(|set| set.contains(run_id))
+}
+
+fn set_posting(run_id: &str, in_flight: bool) {
+    if let Ok(mut set) = posting().lock() {
+        if in_flight {
+            set.insert(run_id.to_owned());
+        } else {
+            set.remove(run_id);
+        }
+    }
+}
 
 /// What a spawned agent chat job reports back to the actor.
 #[derive(Debug)]
@@ -235,6 +274,7 @@ impl ServerActor {
         };
         let inbox = self.inbox.clone();
         let run_id = run.id.clone();
+        set_posting(&run_id, true);
         tokio::spawn(async move {
             let result = post.send(&runtime).await;
             let _ = inbox
@@ -256,6 +296,7 @@ impl ServerActor {
                 client_message_id,
                 result,
             } => {
+                set_posting(&run_id, false);
                 self.finish_agent_chat_dispatch(&run_id, &client_message_id, result)
                     .await
             }
@@ -297,7 +338,7 @@ impl ServerActor {
         client_message_id: &str,
         result: HostResult<String>,
     ) {
-        let Some(mut run) = self.current_agent_chat_run(run_id, client_message_id).await else {
+        let Some(run) = self.current_agent_chat_run(run_id, client_message_id).await else {
             return;
         };
         let chat_id = match result {
@@ -311,6 +352,10 @@ impl ServerActor {
                 return;
             }
         };
+        self.mark_agent_chat_run_dispatched(run, chat_id).await;
+    }
+
+    async fn mark_agent_chat_run_dispatched(&mut self, mut run: AutomationRun, chat_id: String) {
         run.chat_id = Some(chat_id.clone());
         run.status = AutomationRunStatus::Dispatched;
         if let Some(identity) = run.target_identity.as_mut() {
@@ -322,7 +367,51 @@ impl ServerActor {
                 self.broadcast_automation_run_changed(&saved);
                 self.watch_agent_chat_run(&saved);
             }
-            Err(error) => tracing::warn!(run_id, "could not record agent chat dispatch: {error}"),
+            Err(error) => tracing::warn!(
+                run_id = run.id,
+                "could not record agent chat dispatch: {error}"
+            ),
+        }
+    }
+
+    /// Picks an active agent chat run back up on startup and on every tick:
+    /// a dispatched run is watched until its turn ends (also one that ended
+    /// while the runtime was down), and a run whose post never reported back
+    /// is resolved from the chat itself.
+    pub(super) async fn reconcile_agent_chat_run(&mut self, run: AutomationRun) {
+        if run.status.is_final() {
+            return;
+        }
+        if run.status == AutomationRunStatus::Dispatched {
+            self.watch_agent_chat_run(&run);
+            return;
+        }
+        // A pending run, even one with an earlier attempt's message, waits on
+        // the scheduler; only a started attempt has a post to account for.
+        if run.status != AutomationRunStatus::Dispatching
+            || run.started_at.is_none()
+            || is_posting(&run.id)
+            || Utc::now().signed_duration_since(run.updated_at)
+                < Duration::seconds(STUCK_POST_GRACE_SECONDS)
+        {
+            return;
+        }
+        let found = match run.client_message_id.as_deref() {
+            // The attempt began but its message was never recorded.
+            None => Ok(None),
+            Some(client_message_id) => {
+                self.runtime_store
+                    .agent_chat_holding_client_message(run.chat_id.as_deref(), client_message_id)
+                    .await
+            }
+        };
+        match found {
+            Ok(Some(chat_id)) => self.mark_agent_chat_run_dispatched(run, chat_id).await,
+            Ok(None) => self.fail_run(&run, POST_LOST_REASON.into()).await,
+            Err(error) => tracing::warn!(
+                run_id = run.id,
+                "could not look up an agent chat run's message: {error}"
+            ),
         }
     }
 

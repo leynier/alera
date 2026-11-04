@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use alera_core::runtime::{
-    automation_from_input, AutomationActor, AutomationActorKind, AutomationOccurrence,
-    AutomationRunTrigger, AutomationState, RuntimeStore,
+    automation_from_input, decide_overlap, AutomationActor, AutomationActorKind,
+    AutomationOccurrence, AutomationOverlapDecision, AutomationOverlapPolicy, AutomationRunTrigger,
+    AutomationState, RuntimeStore,
 };
 use serde_json::json;
 
@@ -204,4 +205,195 @@ async fn deleting_a_scheduled_task_moves_its_automation_to_the_trash() {
     let trashed = store.find_automation(&saved.id).await.unwrap().unwrap();
     assert_eq!(trashed.state, AutomationState::Trashed);
     assert_eq!(trashed.state_before_trash, Some(AutomationState::Paused));
+}
+
+async fn new_run(
+    store: &RuntimeStore,
+    definition: &AutomationDefinition,
+    key: &str,
+) -> AutomationRun {
+    let occurrence = AutomationOccurrence {
+        automation_id: definition.id.clone(),
+        key: format!("manual|{key}"),
+        scheduled_at: Utc::now(),
+        local_time: Utc::now().to_rfc3339(),
+    };
+    store
+        .create_automation_run(definition, &occurrence, AutomationRunTrigger::Manual)
+        .await
+        .unwrap()
+}
+
+/// A run whose attempt began and whose message was recorded, but whose post
+/// never reported back, last touched past the recovery grace period.
+async fn stuck_run(
+    store: &RuntimeStore,
+    definition: &AutomationDefinition,
+    chat_id: Option<&str>,
+    client_message_id: &str,
+) -> AutomationRun {
+    let run = new_run(store, definition, client_message_id).await;
+    let mut run = store
+        .begin_automation_attempt(&run.id, definition.retry_max_attempts)
+        .await
+        .unwrap();
+    run.chat_id = chat_id.map(str::to_owned);
+    run.client_message_id = Some(client_message_id.into());
+    run.updated_at = Utc::now() - Duration::seconds(STUCK_POST_GRACE_SECONDS + 60);
+    store.save_automation_run(&run).await.unwrap()
+}
+
+async fn single_attempt(store: &RuntimeStore, chat_id: &str) -> AutomationDefinition {
+    let mut definition = definition(chat_id, "paused");
+    definition.retry_max_attempts = 1;
+    definition.overlap_policy = AutomationOverlapPolicy::Skip;
+    store.upsert_automation(definition, actor()).await.unwrap()
+}
+
+async fn overlap_for(
+    store: &RuntimeStore,
+    definition: &AutomationDefinition,
+    run_id: &str,
+) -> AutomationOverlapDecision {
+    let active = store
+        .list_active_automation_runs()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|run| run.automation_id == definition.id)
+        .collect::<Vec<_>>();
+    decide_overlap(
+        definition.overlap_policy,
+        definition.queue_cap,
+        run_id,
+        &active,
+    )
+    .0
+}
+
+#[tokio::test]
+async fn a_stuck_run_whose_message_never_arrived_fails_and_frees_the_overlap() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor_under_test = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let store = actor_under_test.runtime_store.clone();
+    let saved = single_attempt(&store, "chat").await;
+    let stuck = stuck_run(&store, &saved, Some("chat"), "automation:stuck:1").await;
+    let later = new_run(&store, &saved, "later").await;
+    assert!(matches!(
+        overlap_for(&store, &saved, &later.id).await,
+        AutomationOverlapDecision::Skip(_)
+    ));
+    actor_under_test.reconcile_automation_runs().await;
+    let failed = store.find_automation_run(&stuck.id).await.unwrap().unwrap();
+    assert_eq!(failed.status, AutomationRunStatus::Failure);
+    assert_eq!(failed.error.as_deref(), Some(POST_LOST_REASON));
+    assert_eq!(
+        overlap_for(&store, &saved, &later.id).await,
+        AutomationOverlapDecision::Proceed
+    );
+}
+
+#[tokio::test]
+async fn a_stuck_run_with_attempts_left_is_retried() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor_under_test = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let store = actor_under_test.runtime_store.clone();
+    let mut definition = definition("chat", "paused");
+    definition.retry_max_attempts = 3;
+    let saved = store.upsert_automation(definition, actor()).await.unwrap();
+    let stuck = stuck_run(&store, &saved, None, "automation:retry:1").await;
+    actor_under_test.reconcile_automation_runs().await;
+    let retrying = store.find_automation_run(&stuck.id).await.unwrap().unwrap();
+    assert!(!retrying.status.is_final());
+    assert_ne!(retrying.status, AutomationRunStatus::Dispatching);
+    assert!(retrying.retry_after.is_some());
+}
+
+#[tokio::test]
+async fn an_in_flight_or_recent_post_is_left_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor_under_test = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let store = actor_under_test.runtime_store.clone();
+    let saved = single_attempt(&store, "chat").await;
+    let slow = stuck_run(&store, &saved, Some("chat"), "automation:slow:1").await;
+    set_posting(&slow.id, true);
+    actor_under_test.reconcile_automation_runs().await;
+    let untouched = store.find_automation_run(&slow.id).await.unwrap().unwrap();
+    assert_eq!(untouched.status, AutomationRunStatus::Dispatching);
+    set_posting(&slow.id, false);
+    let mut recent = untouched;
+    recent.updated_at = Utc::now();
+    let recent = store.save_automation_run(&recent).await.unwrap();
+    actor_under_test.reconcile_automation_runs().await;
+    assert_eq!(
+        store
+            .find_automation_run(&recent.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        AutomationRunStatus::Dispatching
+    );
+}
+
+#[tokio::test]
+async fn a_stuck_run_whose_message_reached_the_chat_is_dispatched() {
+    let harness = TestHarness::new().await;
+    let chat = harness.create_chat("ws-a", "auto").await;
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor_under_test = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    actor_under_test.runtime_store = harness.store.clone();
+    let saved = single_attempt(&harness.store, &chat).await;
+    // The post created nothing the run recorded: the chat is found by message.
+    let stuck = stuck_run(&harness.store, &saved, None, "automation:arrived:1").await;
+    harness
+        .runtime
+        .send(
+            &chat,
+            SendInput {
+                client_message_id: "automation:arrived:1".into(),
+                text: "Check the deploy.".into(),
+                attachments: Vec::new(),
+                delivery: "queue".into(),
+                model: None,
+                reasoning_effort: None,
+                interaction_mode: None,
+                runtime_mode_ceiling: Some("auto".into()),
+                origin: Some(json!({"kind": "automation", "runId": stuck.id})),
+            },
+            CallerCtx {
+                scope: "automation".into(),
+                actor: "automation:test".into(),
+                mobile: false,
+            },
+        )
+        .await
+        .unwrap();
+    let control = harness.control(&chat).await;
+    control.wait_turns(1).await;
+    actor_under_test.reconcile_automation_runs().await;
+    let dispatched = harness
+        .store
+        .find_automation_run(&stuck.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(dispatched.status, AutomationRunStatus::Dispatched);
+    assert_eq!(dispatched.chat_id.as_deref(), Some(chat.as_str()));
+    // A turn that ends while nobody watches is still found on the next look.
+    control.complete(1, "Deploy is healthy.");
+    let ended = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        wait_for_turn_end(
+            &harness.store,
+            None,
+            &stuck.id,
+            &chat,
+            "automation:arrived:1",
+        ),
+    )
+    .await
+    .unwrap();
+    assert_eq!(ended, Some(("completed".to_owned(), None)));
+    harness.finish().await;
 }
