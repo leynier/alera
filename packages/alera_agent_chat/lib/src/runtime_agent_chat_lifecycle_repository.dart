@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_attachment_bytes.dart';
 import 'package:alera_agent_chat/src/agent_chat_generated_image.dart';
 import 'package:alera_agent_chat/src/agent_chat_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_json.dart';
@@ -342,6 +343,33 @@ final class RuntimeAgentChatLifecycleRepository
         AgentChatWire.generatedImage,
         _scoped(chat, <String, Object?>{
           'itemId': itemId,
+          'offset': offset,
+          'length': ?length,
+        }),
+      ),
+    );
+  }
+
+  @override
+  Future<AgentChatAttachmentChunk> attachment(
+    AgentChatRef chat, {
+    required String attachmentId,
+    int offset = 0,
+    int? length,
+  }) async {
+    if (offset < 0) {
+      throw const FormatException('An attachment offset cannot be negative.');
+    }
+    if (length != null &&
+        (length <= 0 || length > agentChatAttachmentReadChunkBytes)) {
+      throw const FormatException('An attachment piece is 1 byte to 256 KiB.');
+    }
+    return AgentChatAttachmentChunk.fromJson(
+      await _request(
+        AgentChatWire.attachmentReadCapability,
+        AgentChatWire.attachmentRead,
+        _scoped(chat, <String, Object?>{
+          'attachmentId': attachmentId,
           'offset': offset,
           'length': ?length,
         }),

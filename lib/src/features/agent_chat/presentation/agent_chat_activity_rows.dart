@@ -89,6 +89,7 @@ class const AgentChatItemRowView({
       ),
       AgentChatItemType.userMessage => AgentChatUserMessageView(
         chatId: actions.chatId,
+        chat: actions.chat,
         item: item,
         workspacePath: workspacePath,
         onOpenFile: actions.onOpenFile,

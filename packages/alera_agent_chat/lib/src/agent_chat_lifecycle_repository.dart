@@ -1,3 +1,4 @@
+import 'package:alera_agent_chat/src/agent_chat_attachment_bytes.dart';
 import 'package:alera_agent_chat/src/agent_chat_generated_image.dart';
 import 'package:alera_agent_chat/src/agent_chat_inputs.dart';
 import 'package:alera_agent_chat/src/agent_chat_lifecycle_inputs.dart';
@@ -154,6 +155,16 @@ abstract class AgentChatLifecycleRepository {
     int offset = 0,
     int? length,
   }) => Future.error(UnsupportedError('Generated images are unavailable.'));
+
+  /// One piece of the uploaded image or video [attachmentId] of [chat],
+  /// from byte [offset] and at most [length] bytes long
+  /// (`agentChatAttachmentReadV1`). [loadAgentChatAttachment] reads it all.
+  Future<AgentChatAttachmentChunk> attachment(
+    AgentChatRef chat, {
+    required String attachmentId,
+    int offset = 0,
+    int? length,
+  }) => Future.error(UnsupportedError('Attachment previews are unavailable.'));
 
   /// Hands this fork's work since the fork point to the chat it was forked
   /// from, for that chat's next turn (`agentChatMergeBackV1`). Answers the

@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/agent_chat/application/agent_chat_attachment_previews.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 const double _thumbSize = 96;
@@ -14,12 +16,17 @@ const double _cardWidth = 256;
 
 /// A sent message's attachments, above its bubble: images and video as
 /// thumbnails, snapshots whole and smaller, then pasted text and other files
-/// as compact cards. A thumbnail reads the image from this machine: the file
-/// the person picked, or the host's copy when the host is this machine; any
-/// other image shows a placeholder tile with its name.
+/// as compact cards. A thumbnail reads the image from this machine when it
+/// can: the file the person picked, or the host's copy when the host is this
+/// machine. Otherwise an uploaded image of [chat] is read from its host
+/// (`agentChatAttachmentReadV1`); until then, and when that is impossible,
+/// it shows a placeholder tile with its name.
 class const AgentChatMessageAttachmentsView({
   super.key,
   required final List<AgentChatAttachment> attachments,
+
+  /// The chat the attachments were sent to, for reading them from its host.
+  final AgentChatRef? chat,
 
   /// The chat's working directory, for relative host paths.
   final String? workspacePath,
@@ -52,6 +59,7 @@ class const AgentChatMessageAttachmentsView({
                       key: ValueKey<String>('agent-chat-media-$index'),
                       attachment: attachment,
                       file: _localFile(attachment),
+                      chat: chat,
                       single: single,
                     ),
                   ),
@@ -102,6 +110,7 @@ class const _MediaTile({
   super.key,
   required final AgentChatAttachment attachment,
   required final String? file,
+  required final AgentChatRef? chat,
   required final bool single,
 }) extends StatelessWidget {
   @override
@@ -121,12 +130,24 @@ class const _MediaTile({
       height: height,
     );
     final path = file;
+    final fit = snapshot ? BoxFit.contain : BoxFit.cover;
+    final host = chat;
+    final remote = host == null || !agentChatAttachmentHostReadable(attachment)
+        ? placeholder
+        : _HostImage(
+            chat: host,
+            attachmentId: attachment.attachmentId!,
+            width: width,
+            height: height,
+            fit: fit,
+            placeholder: placeholder,
+          );
     return Semantics(
       image: true,
       label: attachment.displayName,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        child: path == null || shape == .video
+        child: shape == .video
             ? placeholder
             : DecoratedBox(
                 decoration: BoxDecoration(
@@ -135,16 +156,63 @@ class const _MediaTile({
                       : null,
                   borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 ),
-                child: Image.file(
-                  File(path),
-                  width: width,
-                  height: height,
-                  fit: snapshot ? BoxFit.contain : BoxFit.cover,
-                  cacheHeight: (height * 2).round(),
-                  errorBuilder: (_, _, _) => placeholder,
-                ),
+                child: path == null
+                    ? remote
+                    : Image.file(
+                        File(path),
+                        width: width,
+                        height: height,
+                        fit: fit,
+                        cacheHeight: (height * 2).round(),
+                        // A host path that is not on this machine.
+                        errorBuilder: (_, _, _) => remote,
+                      ),
               ),
       ),
+    );
+  }
+}
+
+/// An uploaded image read from the chat's host, or [placeholder] while it
+/// loads and when the host cannot serve it.
+class const _HostImage({
+  required final AgentChatRef chat,
+  required final String attachmentId,
+  required final double? width,
+  required final double height,
+  required final BoxFit fit,
+  required final Widget placeholder,
+}) extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final key = agentChatAttachmentCacheKey(
+      chat.workspaceId,
+      chat.chatId,
+      attachmentId,
+    );
+    final image =
+        ref.watch(agentChatAttachmentCacheProvider).peek(key) ??
+        ref
+            .watch(
+              agentChatAttachmentPreviewProvider(
+                chat.chatId,
+                chat.workspaceId,
+                attachmentId,
+              ),
+            )
+            .value;
+    if (image == null) return placeholder;
+    return Image(
+      key: ValueKey<String>('agent-chat-host-image-$attachmentId'),
+      image: ResizeImage(
+        MemoryImage(image.bytes),
+        height: (height * 2).round(),
+        policy: ResizeImagePolicy.fit,
+      ),
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 }

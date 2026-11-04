@@ -28,6 +28,9 @@ class const AgentChatUserMessageView({
   required final ValueChanged<String> onOpenFile,
   final AgentChatExpansion? expansion,
 
+  /// The chat, for reading attachments that are not on this machine.
+  final AgentChatRef? chat,
+
   /// Set for a message steered into a running turn: back-to-back steers
   /// stack tight with joined corners and share one label.
   final AgentChatSteerPlacement? steer,
@@ -62,6 +65,7 @@ class const AgentChatUserMessageView({
                   padding: const EdgeInsets.only(bottom: AleraTokens.space6),
                   child: AgentChatMessageAttachmentsView(
                     attachments: item.attachments,
+                    chat: chat,
                     workspacePath: workspacePath,
                     onOpen: (attachment) =>
                         onOpenFile(_resolve(attachment.path!, workspacePath)),

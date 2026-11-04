@@ -32,6 +32,10 @@ abstract final class AgentChatWire {
   static const String attachmentUploadCapability =
       'agentChatAttachmentUploadV1';
 
+  /// `agentChat.attachment.read` serves an uploaded image or video back, in
+  /// pieces, for thumbnails on devices that do not hold the file.
+  static const String attachmentReadCapability = 'agentChatAttachmentReadV1';
+
   /// `agentChat.subagent` reads a provider-native sub-agent's own transcript
   /// and `agentChat.stopSubagent` stops it.
   static const String subagentThreadsCapability = 'agentChatSubagentThreadsV1';
@@ -115,6 +119,7 @@ abstract final class AgentChatWire {
   static const String attachmentChunk = 'agentChat.attachment.chunk';
   static const String attachmentComplete = 'agentChat.attachment.complete';
   static const String attachmentCancel = 'agentChat.attachment.cancel';
+  static const String attachmentRead = 'agentChat.attachment.read';
   static const String queueCancel = 'agentChat.queueCancel';
   static const String queueEdit = 'agentChat.queueEdit';
   static const String queueReorder = 'agentChat.queueReorder';

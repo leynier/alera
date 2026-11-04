@@ -4,7 +4,10 @@ import 'package:alera_agent_chat/alera_agent_chat.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/agent_chat/application/agent_chat_attachment_previews.dart';
+import 'package:alera_mobile/src/features/agent_chat/presentation/agent_chat_markdown.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const double _thumbSize = 96;
 const double _singleHeight = 192;
@@ -14,8 +17,9 @@ const double _cardWidth = 256;
 /// A sent message's attachments, above its bubble, as on desktop: images
 /// and video as thumbnails, snapshots whole and smaller, then pasted text
 /// and other files as compact cards. A thumbnail shows an image this phone
-/// picked; the host's copy is not readable here, so other images show a
-/// placeholder tile with their name.
+/// picked, or an uploaded image read from the chat's host through the relay
+/// (`agentChatAttachmentReadV1`); until then, and when that is impossible,
+/// it shows a placeholder tile with its name.
 class const AgentChatMessageAttachmentsView({
   super.key,
   required final List<AgentChatAttachment> attachments,
@@ -110,22 +114,82 @@ class const _MediaTile({
       ),
     );
     final path = attachment.localSourcePath;
+    final fit = snapshot ? BoxFit.contain : BoxFit.cover;
+    final scope = AgentChatScope.maybeOf(context);
+    final remote = scope == null || !agentChatAttachmentHostReadable(attachment)
+        ? placeholder
+        : _HostImage(
+            scope: scope,
+            attachmentId: attachment.attachmentId!,
+            width: width,
+            height: height,
+            fit: fit,
+            placeholder: placeholder,
+          );
     return Semantics(
       image: true,
       label: attachment.displayName,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg * 2),
-        child: path == null || shape == .video
+        child: shape == .video
             ? placeholder
+            : path == null
+            ? remote
             : Image.file(
                 File(path),
                 width: width,
                 height: height,
-                fit: snapshot ? BoxFit.contain : BoxFit.cover,
+                fit: fit,
                 cacheHeight: (height * 3).round(),
-                errorBuilder: (_, _, _) => placeholder,
+                errorBuilder: (_, _, _) => remote,
               ),
       ),
+    );
+  }
+}
+
+/// An uploaded image read from the chat's host, or [placeholder] while it
+/// loads and when the host cannot serve it.
+class const _HostImage({
+  required final AgentChatScope scope,
+  required final String attachmentId,
+  required final double? width,
+  required final double height,
+  required final BoxFit fit,
+  required final Widget placeholder,
+}) extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final key = agentChatAttachmentCacheKey(
+      scope.hostId,
+      scope.workspaceId,
+      scope.chatId,
+      attachmentId,
+    );
+    final image =
+        ref.watch(agentChatAttachmentCacheProvider).peek(key) ??
+        ref
+            .watch(
+              agentChatAttachmentPreviewProvider(
+                scope.hostId,
+                scope.workspaceId,
+                scope.chatId,
+                attachmentId,
+              ),
+            )
+            .value;
+    if (image == null) return placeholder;
+    return Image(
+      key: ValueKey<String>('agent-chat-host-image-$attachmentId'),
+      image: ResizeImage(
+        MemoryImage(image.bytes),
+        height: (height * 3).round(),
+        policy: ResizeImagePolicy.fit,
+      ),
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 }

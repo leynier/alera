@@ -74,6 +74,7 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
               agentChatFindMessageTargetKey(prompt.id),
               AgentChatUserMessageView(
                 chatId: widget.actions.chatId,
+                chat: widget.actions.chat,
                 item: prompt,
                 workspacePath: widget.workspacePath,
                 onOpenFile: widget.actions.onOpenFile,
@@ -123,6 +124,7 @@ class _AgentChatTurnViewState extends State<AgentChatTurnView> {
           AgentChatUserMessageView(
             key: ValueKey<String>('agent-chat-steer-${steer.id}'),
             chatId: widget.actions.chatId,
+            chat: widget.actions.chat,
             item: steer,
             workspacePath: widget.workspacePath,
             onOpenFile: widget.actions.onOpenFile,

@@ -2,6 +2,7 @@ export 'src/agent_chat_approval_send.dart';
 export 'src/agent_chat_attention_entry.dart';
 export 'src/agent_chat_attention_tracker.dart';
 export 'src/agent_chat_change.dart';
+export 'src/agent_chat_attachment_bytes.dart';
 export 'src/agent_chat_attachment_uploader.dart';
 export 'src/agent_chat_composer_commands.dart';
 export 'src/agent_chat_composer_labels.dart';
