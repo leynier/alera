@@ -45,12 +45,26 @@ class _ScheduleEditor extends ConsumerStatefulWidget {
 }
 
 class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
-  late final TextEditingController _cron = TextEditingController(
-    text: ref.read(widget.provider).draft.schedule.customCron,
-  );
-  late final TextEditingController _intervalCount = TextEditingController(
-    text: '${ref.read(widget.provider).draft.schedule.intervalCount}',
-  );
+  late final TextEditingController _cron;
+  late final TextEditingController _intervalCount;
+
+  /// The unit the person edits the interval in, kept while the count is
+  /// cleared or retyped.
+  late AutomationIntervalUnit _unit;
+
+  @override
+  void initState() {
+    super.initState();
+    final schedule = ref.read(widget.provider).draft.schedule;
+    _cron = TextEditingController(text: schedule.customCron);
+    _intervalCount = TextEditingController();
+    _showInterval(schedule);
+  }
+
+  void _showInterval(AutomationSchedulePreset schedule) {
+    _intervalCount.text = '${schedule.intervalCount}';
+    _unit = schedule.intervalUnit;
+  }
 
   @override
   void dispose() {
@@ -95,8 +109,9 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
         ],
         onChanged: (kind) {
           _change((value) => value.withKind(kind));
-          _intervalCount.text =
-              '${ref.read(widget.provider).draft.schedule.intervalCount}';
+          setState(
+            () => _showInterval(ref.read(widget.provider).draft.schedule),
+          );
         },
       ),
       ...switch (schedule.kind) {
@@ -183,10 +198,8 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
                     FilteringTextInputFormatter.digitsOnly,
                   ],
                   onChanged: (value) => _change(
-                    (current) => current.withInterval(
-                      int.tryParse(value) ?? 0,
-                      current.intervalUnit,
-                    ),
+                    (current) =>
+                        current.withInterval(int.tryParse(value) ?? 0, _unit),
                   ),
                 ),
               ),
@@ -195,17 +208,20 @@ class _ScheduleEditorState extends ConsumerState<_ScheduleEditor> {
                 child: AleraDropdownField<AutomationIntervalUnit>(
                   key: const ValueKey<String>('automation-interval-unit'),
                   labelText: 'Unit',
-                  value: schedule.intervalUnit,
+                  value: _unit,
                   entries: <AleraDropdownFieldEntry<AutomationIntervalUnit>>[
                     for (final unit in AutomationIntervalUnit.values)
                       AleraDropdownFieldEntry(value: unit, label: unit.label),
                   ],
-                  onChanged: (unit) => _change(
-                    (current) => current.withInterval(
-                      int.tryParse(_intervalCount.text) ?? 0,
-                      unit,
-                    ),
-                  ),
+                  onChanged: (unit) {
+                    setState(() => _unit = unit);
+                    _change(
+                      (current) => current.withInterval(
+                        int.tryParse(_intervalCount.text) ?? 0,
+                        unit,
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
