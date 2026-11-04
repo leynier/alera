@@ -471,7 +471,7 @@ fn io_error(error: std::io::Error) -> HostError {
 
 #[path = "agent_chat_attachment_store_reads.rs"]
 mod reads;
-pub(super) use reads::{AttachmentRead, MAX_READ_BYTES, READ_PIECE_BYTES};
+pub(super) use reads::{AttachmentRead, READ_PIECE_BYTES};
 
 #[cfg(test)]
 #[path = "agent_chat_attachment_store_tests.rs"]

@@ -4,8 +4,6 @@
 //! must be a canonical UUID, the storage directory and every file must be
 //! real (no symlinks), and the file must sit directly in that directory.
 
-use std::io::{Read as _, Seek as _, SeekFrom};
-
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 
