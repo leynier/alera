@@ -19,6 +19,7 @@ pub(crate) const AGENT_CHAT_EXPERIENCE_CAPABILITIES: &[&str] = &[
     "agentChatProviderSetupV1",
     "agentChatRemoteProviderSetupV1",
     "agentChatAttachmentUploadV1",
+    "agentChatAttachmentReadV1",
     "agentChatNativeRewindV1",
     "agentChatRewindFilesV1",
     "agentChatFileCheckpointsV1",

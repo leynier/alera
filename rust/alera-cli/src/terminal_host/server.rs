@@ -46,6 +46,7 @@ mod account_requests_tests;
 mod account_status_requests;
 #[cfg(test)]
 mod actor_test_harness;
+mod agent_chat_attachment_reads;
 mod agent_chat_attachment_requests;
 mod agent_chat_attachment_store;
 mod agent_chat_deferred;

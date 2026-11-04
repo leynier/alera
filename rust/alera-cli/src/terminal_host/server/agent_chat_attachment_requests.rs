@@ -12,6 +12,10 @@ use super::ServerActor;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 pub(super) fn handles(verb: &str) -> bool {
+    is_upload(verb) || verb == super::agent_chat_attachment_reads::READ_VERB
+}
+
+fn is_upload(verb: &str) -> bool {
     matches!(
         verb,
         "agentChat.attachment.start"
@@ -26,7 +30,7 @@ pub(super) fn require_remote_upload_capability(
     capabilities: &[String],
 ) -> HostResult<()> {
     if payload["operation"] == "wire"
-        && payload["verb"].as_str().is_some_and(handles)
+        && payload["verb"].as_str().is_some_and(is_upload)
         && !capabilities
             .iter()
             .any(|capability| capability == "agentChatAttachmentUploadV1")
@@ -51,6 +55,11 @@ impl ServerActor {
     ) -> HostResult<bool> {
         if !handles(verb) {
             return Ok(false);
+        }
+        if verb == super::agent_chat_attachment_reads::READ_VERB {
+            let task = self.chat_attachment_read_task(payload, &caller).await?;
+            self.spawn_agent_chat_request(client_id, request_id, task);
+            return Ok(true);
         }
         let task = self
             .chat_attachment_request_task(client_id, verb, payload, &caller)
@@ -149,6 +158,9 @@ impl ServerActor {
         payload: &Value,
         caller: &CallerCtx,
     ) -> HostResult<Value> {
+        if verb == super::agent_chat_attachment_reads::READ_VERB {
+            return self.chat_attachment_read_task(payload, caller).await?.await;
+        }
         self.chat_attachment_request_task(client_id, verb, payload, caller)
             .await?
             .await
