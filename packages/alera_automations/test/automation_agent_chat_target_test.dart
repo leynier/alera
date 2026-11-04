@@ -51,13 +51,13 @@ void main() {
     expect(record.targetWorkspaceId, 'ws');
     expect(record.isRecurring, isTrue);
     expect(record.intervalSeconds, 900);
-    expect(AutomationTargetType.agentChat.isComposable, isFalse);
+    expect(AutomationTargetType.agentChat.needsAgentChatCapability, isTrue);
     expect(AutomationTargetType.agentChat.usesAgentProfile, isFalse);
     expect(AutomationTargetType.agentChat.createsWorkspace, isFalse);
 
     final draft = AutomationDraft.fromRecord(record);
     expect(draft.whereError, isNull);
-    expect(AutomationTargetChoice.of(draft), isNull);
+    expect(AutomationTargetChoice.of(draft), AutomationTargetChoice.agentChat);
     expect(applicableReusePolicies(draft.targetType), <AutomationReusePolicy>[
       AutomationReusePolicy.newEachRun,
     ]);
@@ -95,12 +95,12 @@ void main() {
     });
   });
 
-  test('interval schedules describe themselves and stay out of the picker', () {
+  test('interval schedules describe themselves', () {
     final preset = AutomationSchedulePreset.fromSchedule(_record().schedule);
     expect(preset.kind, AutomationScheduleKind.interval);
     expect(preset.describe(timezone: 'UTC'), 'Every 15 minutes');
     expect(preset.copyWith(everySeconds: 30).localError, isNotNull);
-    expect(AutomationScheduleKind.interval.isComposable, isFalse);
+    expect(AutomationScheduleKind.interval.needsAgentChatCapability, isTrue);
     expect(automationIntervalLabel(3600), 'Every hour');
     expect(automationIntervalLabel(7200), 'Every 2 hours');
     expect(automationIntervalLabel(90), 'Every 90 seconds');

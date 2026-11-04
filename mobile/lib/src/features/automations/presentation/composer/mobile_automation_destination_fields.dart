@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_composer_controller.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_destinations.dart';
+import 'package:alera_mobile/src/features/automations/presentation/composer/mobile_automation_agent_chat_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,6 +26,7 @@ class const MobileAutomationDestinationFields({
         AutomationTargetChoice.projectCheckout => true,
         AutomationTargetChoice.existingTab =>
           (draft.field(.tabId) ?? '').isEmpty,
+        AutomationTargetChoice.agentChat => true,
         AutomationTargetChoice.freshTab || null => false,
       };
 
@@ -69,6 +71,10 @@ class const MobileAutomationDestinationFields({
               .withTargetField(.tabId, tabId)
               .withTargetField(.conversationId, conversationId),
         ),
+      ),
+      AutomationTargetChoice.agentChat => MobileAutomationAgentChatFields(
+        provider: provider,
+        hostId: hostId,
       ),
       AutomationTargetChoice.freshTab || null => const SizedBox.shrink(),
     };

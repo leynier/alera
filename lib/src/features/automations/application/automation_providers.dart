@@ -59,6 +59,10 @@ class const AutomationCapabilities({
   final bool authoring = false,
   final bool observe = false,
   final bool reuse = false,
+
+  /// Agent chat targets and interval schedules
+  /// (`automationAgentChatTargetV1`).
+  final bool agentChat = false,
 });
 
 @Riverpod(keepAlive: true)
@@ -74,11 +78,13 @@ class AutomationRuntimeCapabilities extends _$AutomationRuntimeCapabilities {
       repository.supports(automationsAuthoringCapability),
       repository.supports(automationTerminalObserveCapability),
       repository.supports(automationReuseCapability),
+      repository.supports(automationAgentChatTargetCapability),
     ]);
     return AutomationCapabilities(
       authoring: results[0],
       observe: results[1],
       reuse: results[2],
+      agentChat: results[3],
     );
   }
 }

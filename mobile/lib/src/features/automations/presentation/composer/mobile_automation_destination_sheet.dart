@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart'
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_composer_controller.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_context.dart';
 import 'package:alera_mobile/src/features/automations/application/mobile_automation_destinations.dart';
+import 'package:alera_mobile/src/features/automations/application/mobile_automation_providers.dart';
 import 'package:alera_mobile/src/features/automations/presentation/composer/mobile_automation_destination_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,7 @@ class const MobileAutomationDestinationOption({
       ),
       AutomationTargetChoice.projectWorktree ||
       AutomationTargetChoice.projectCheckout => draft.field(.projectId),
+      AutomationTargetChoice.agentChat => draft.agentChat.workspaceId,
     };
     return selectedId == id &&
         (choice != AutomationTargetChoice.existingTab ||
@@ -59,18 +61,26 @@ class const MobileAutomationDestinationOption({
       case AutomationTargetChoice.projectWorktree ||
           AutomationTargetChoice.projectCheckout:
         fields[.projectId] = id;
+      case AutomationTargetChoice.agentChat:
+        return applyAutomationDestination(
+          draft,
+          choice,
+          fields,
+        ).withAgentChatWorkspace(id);
     }
     return applyAutomationDestination(draft, choice, fields);
   }
 }
 
 /// The sections of the destination sheet: running agents first, then new
-/// tabs, new worktrees and project folders.
+/// tabs, new worktrees, project folders and, when the runtime runs them,
+/// agent chats.
 List<(String, String?, List<MobileAutomationDestinationOption>)>
 mobileAutomationDestinationSections(
   MobileAutomationContext names,
-  List<MobileAutomationConversation>? conversations,
-) {
+  List<MobileAutomationConversation>? conversations, {
+  bool agentChat = false,
+}) {
   String where(String? projectId, String workspace) =>
       '${names.projectName(projectId)} / $workspace';
   final git = names.projects
@@ -146,6 +156,22 @@ mobileAutomationDestinationSections(
           ),
       ],
     ),
+    if (agentChat)
+      (
+        'Agent Chat',
+        'No workspaces yet.',
+        <MobileAutomationDestinationOption>[
+          for (final workspace in names.workspaces)
+            MobileAutomationDestinationOption(
+              choice: .agentChat,
+              id: workspace.id,
+              title: workspace.name,
+              subtitle:
+                  'An agent chat in ${names.projectName(workspace.projectId)}, existing or new each run',
+              icon: AleraIcons.agent,
+            ),
+        ],
+      ),
   ];
 }
 
@@ -189,6 +215,12 @@ class _MobileAutomationDestinationEditorState
     final conversations = ref
         .watch(mobileAutomationConversationsProvider(widget.hostId))
         .value;
+    final agentChat =
+        ref
+            .watch(mobileAutomationRepositoryProvider(widget.hostId))
+            .value
+            ?.supportsAgentChatTarget ??
+        false;
     final muted = Theme.of(context).textTheme.bodySmall
         ?.copyWith(color: AleraTokens.foregroundMuted);
     final followUp = MobileAutomationDestinationFields.needsFollowUp(draft);
@@ -211,6 +243,7 @@ class _MobileAutomationDestinationEditorState
             in mobileAutomationDestinationSections(
               names,
               conversations,
+              agentChat: agentChat,
             )) ...<Widget>[
           AleraSectionHeader(label: title),
           if (options.where(_matches).isEmpty)

@@ -44,9 +44,9 @@ enum AutomationTargetType(final String key, final String label) {
     existingTab || agentChat => false,
   };
 
-  /// Whether the composer offers this type. Agent chat targets come from
-  /// chat tools, so the composer can show and keep them but not pick them.
-  bool get isComposable => this != agentChat;
+  /// Whether a runtime must advertise [automationAgentChatTargetCapability]
+  /// before a composer offers this type.
+  bool get needsAgentChatCapability => this == agentChat;
 
   /// The details object of this type inside [target], including the legacy
   /// worktree keys.

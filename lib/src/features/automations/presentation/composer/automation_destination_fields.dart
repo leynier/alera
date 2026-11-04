@@ -5,6 +5,7 @@ import 'package:alera/src/features/automations/application/automation_composer_c
 import 'package:alera/src/features/automations/application/automation_project_branches.dart';
 import 'package:alera/src/features/automations/application/automation_project_checkouts.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
+import 'package:alera/src/features/automations/presentation/composer/automation_agent_chat_fields.dart';
 import 'package:alera_automations/alera_automations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +21,8 @@ class const AutomationDestinationFields({
     AutomationTargetChoice.projectWorktree ||
     AutomationTargetChoice.workspaceWorktree ||
     AutomationTargetChoice.projectCheckout ||
-    AutomationTargetChoice.existingTab => true,
+    AutomationTargetChoice.existingTab ||
+    AutomationTargetChoice.agentChat => true,
     AutomationTargetChoice.freshTab || null => false,
   };
 
@@ -73,6 +75,9 @@ class const AutomationDestinationFields({
                 tab == null ? null : automationConversationId(tab),
               );
         }),
+      ),
+      AutomationTargetChoice.agentChat => AutomationAgentChatFields(
+        provider: provider,
       ),
       AutomationTargetChoice.freshTab || null => const SizedBox.shrink(),
     };

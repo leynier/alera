@@ -8,12 +8,44 @@ enum AutomationScheduleKind(final String label) {
   once('Once At'),
   custom('Custom Cron'),
 
-  /// A fixed interval (`automationAgentChatTargetV1`). Agents create these
-  /// with `schedule_task`; the composer keeps one but does not offer it.
-  interval('Every N Minutes');
+  /// A fixed interval counted from an anchor, offered only by a runtime with
+  /// `automationAgentChatTargetV1`.
+  interval('Fixed Interval');
 
-  /// Whether the composer offers this kind for a new schedule.
-  bool get isComposable => this != interval;
+  /// Whether a runtime must advertise `automationAgentChatTargetV1` before a
+  /// composer offers this kind.
+  bool get needsAgentChatCapability => this == interval;
+
+  /// The kinds a composer offers; [current] stays listed so a stored
+  /// schedule always shows what it is.
+  static List<AutomationScheduleKind> offered({
+    required bool interval,
+    AutomationScheduleKind? current,
+  }) => <AutomationScheduleKind>[
+    for (final kind in values)
+      if (interval || !kind.needsAgentChatCapability || kind == current) kind,
+  ];
+}
+
+/// The shortest interval the runtime runs (`AUTOMATION_MIN_INTERVAL_SECONDS`).
+const int automationMinIntervalSeconds = 60;
+
+/// The longest interval the runtime runs: one year.
+const int automationMaxIntervalSeconds = 366 * 24 * 60 * 60;
+
+/// The unit an interval is edited in.
+enum AutomationIntervalUnit(final int seconds, final String label) {
+  minutes(60, 'Minutes'),
+  hours(60 * 60, 'Hours'),
+  days(24 * 60 * 60, 'Days');
+
+  /// The largest unit [seconds] is a whole number of; minutes otherwise.
+  static AutomationIntervalUnit of(int seconds) {
+    for (final unit in values.reversed) {
+      if (seconds > 0 && seconds % unit.seconds == 0) return unit;
+    }
+    return minutes;
+  }
 }
 
 /// Weekday numbers follow cron: 0 is Sunday, 1 is Monday.
@@ -83,6 +115,7 @@ class const AutomationSchedulePreset({
     DateTime? onceAt,
     String? customCron,
     int? everySeconds,
+    DateTime? intervalAnchor,
   }) => AutomationSchedulePreset(
     kind: kind ?? this.kind,
     hour: hour ?? this.hour,
@@ -92,8 +125,39 @@ class const AutomationSchedulePreset({
     onceAt: onceAt ?? this.onceAt,
     customCron: customCron ?? this.customCron,
     everySeconds: everySeconds ?? this.everySeconds,
-    intervalAnchor: intervalAnchor,
+    intervalAnchor: intervalAnchor ?? this.intervalAnchor,
   );
+
+  /// Switches to [kind]. A schedule that becomes an interval counts from
+  /// [now], so its first run is one interval later.
+  AutomationSchedulePreset withKind(
+    AutomationScheduleKind kind, {
+    DateTime? now,
+  }) {
+    if (kind == this.kind) return this;
+    return kind == AutomationScheduleKind.interval
+        ? copyWith(kind: kind, intervalAnchor: _anchorAt(now))
+        : copyWith(kind: kind);
+  }
+
+  /// [count] of [unit] between runs. A changed interval counts from [now];
+  /// an unchanged one keeps its stored anchor.
+  AutomationSchedulePreset withInterval(
+    int count,
+    AutomationIntervalUnit unit, {
+    DateTime? now,
+  }) {
+    final seconds = count * unit.seconds;
+    if (seconds == everySeconds && intervalAnchor != null) return this;
+    return copyWith(everySeconds: seconds, intervalAnchor: _anchorAt(now));
+  }
+
+  /// The unit the interval is shown in.
+  AutomationIntervalUnit get intervalUnit =>
+      AutomationIntervalUnit.of(everySeconds);
+
+  /// How many [intervalUnit]s the interval is.
+  int get intervalCount => everySeconds ~/ intervalUnit.seconds;
 
   bool get isOneTime => kind == AutomationScheduleKind.once;
 
@@ -118,8 +182,12 @@ class const AutomationSchedulePreset({
     AutomationScheduleKind.custom
         when customCron.trim().split(RegExp(r'\s+')).length != 5 =>
       'Use five fields: minute, hour, day of month, month and day of week.',
-    AutomationScheduleKind.interval when everySeconds < 60 =>
+    AutomationScheduleKind.interval
+        when everySeconds < automationMinIntervalSeconds =>
       'Repeat at most once a minute.',
+    AutomationScheduleKind.interval
+        when everySeconds > automationMaxIntervalSeconds =>
+      'Repeat at least once a year.',
     _ => null,
   };
 
@@ -232,10 +300,20 @@ String automationScheduleDescription(JsonMap schedule) {
       .describe(timezone: automationJsonOptionalString(details['timezone']));
 }
 
-/// "Every 15 minutes", "Every hour", "Every 2 hours", "Every 90 seconds".
+/// Whole seconds in UTC, the anchor of an interval chosen at [now].
+DateTime _anchorAt(DateTime? now) {
+  final moment = (now ?? DateTime.now()).toUtc();
+  return DateTime.fromMillisecondsSinceEpoch(
+    moment.millisecondsSinceEpoch - moment.millisecondsSinceEpoch % 1000,
+    isUtc: true,
+  );
+}
+
+/// "Every 15 minutes", "Every hour", "Every 2 days", "Every 90 seconds".
 String automationIntervalLabel(int seconds) {
   String unit(int count, String name) =>
       count == 1 ? 'Every $name' : 'Every $count ${name}s';
+  if (seconds > 0 && seconds % 86400 == 0) return unit(seconds ~/ 86400, 'day');
   if (seconds % 3600 == 0) return unit(seconds ~/ 3600, 'hour');
   if (seconds % 60 == 0) return unit(seconds ~/ 60, 'minute');
   return unit(seconds, 'second');

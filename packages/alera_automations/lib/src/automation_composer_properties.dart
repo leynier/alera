@@ -1,7 +1,9 @@
+import 'package:alera_automations/src/automation_agent_chat_target.dart';
 import 'package:alera_automations/src/automation_draft.dart';
 import 'package:alera_automations/src/automation_field_bounds.dart';
 import 'package:alera_automations/src/automation_models.dart';
 import 'package:alera_automations/src/automation_readiness.dart';
+import 'package:alera_automations/src/automation_schedule_preset.dart';
 
 /// The properties a prompt-first editor shows as separate controls, so a
 /// local problem or a readiness issue can mark the one it is about.
@@ -50,6 +52,9 @@ extension AutomationComposerDraft on AutomationDraft {
   /// reported separately by [agentError].
   String? get destinationError {
     if (targetType == null) return 'Choose where the automation runs.';
+    if (targetType == AutomationTargetType.agentChat) {
+      return agentChat.isComplete ? null : 'Complete the destination.';
+    }
     for (final field in requiredTargetFields) {
       if (field == AutomationDraftField.agentProfileId) continue;
       if ((targetFields[field] ?? '').isEmpty) {
@@ -76,9 +81,10 @@ extension AutomationComposerDraft on AutomationDraft {
           AutomationComposerProperty.options: 'Fix the highlighted options.',
       };
 
-  /// Start, end, run limit and missed schedules only bound a recurring
-  /// schedule.
-  bool get offersScheduleLimits => !schedule.isOneTime;
+  /// Start, end, run limit and missed schedules only bound a recurring cron
+  /// schedule; an interval counts from its anchor.
+  bool get offersScheduleLimits =>
+      !schedule.isOneTime && schedule.kind != AutomationScheduleKind.interval;
 
   /// Name template, section and tags apply to the workspaces runs create.
   bool get offersWorkspaceOptions => targetType?.createsWorkspace ?? false;

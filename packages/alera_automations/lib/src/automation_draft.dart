@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:alera_automations/src/automation_agent_chat_target.dart';
 import 'package:alera_automations/src/automation_field_bounds.dart';
 import 'package:alera_automations/src/automation_json_fields.dart';
 import 'package:alera_automations/src/automation_models.dart';
@@ -53,8 +54,9 @@ class const AutomationDraft({
   final List<String> workspaceTagIds = const <String>[],
   final AutomationReusePolicy reusePolicy = AutomationReusePolicy.newEachRun,
 
-  /// The stored details of an agent chat target, which the composer keeps
-  /// as they are (`automationAgentChatTargetV1`).
+  /// The details of an agent chat target (`automationAgentChatTargetV1`),
+  /// edited through `AutomationAgentChatDraft`; fields this client does not
+  /// know are kept as stored.
   final JsonMap agentChatTarget = const <String, Object?>{},
 }) {
   factory fromRecord(AutomationRecord record) {
@@ -144,6 +146,7 @@ class const AutomationDraft({
     bool? notifyOnSuccess,
     List<String>? workspaceTagIds,
     AutomationReusePolicy? reusePolicy,
+    JsonMap? agentChatTarget,
   }) => AutomationDraft(
     name: name ?? this.name,
     description: description ?? this.description,
@@ -170,7 +173,7 @@ class const AutomationDraft({
     reusePolicy: reusePolicy ?? this.reusePolicy,
     agentChatTarget:
         (targetType ?? this.targetType) == AutomationTargetType.agentChat
-        ? agentChatTarget
+        ? agentChatTarget ?? this.agentChatTarget
         : const <String, Object?>{},
   );
 
@@ -298,6 +301,10 @@ class const AutomationDraft({
 
   String? get whereError {
     if (targetType == null) return 'Choose where the automation runs.';
+    if (targetType == AutomationTargetType.agentChat &&
+        !AutomationAgentChatTarget.fromJson(agentChatTarget).isComplete) {
+      return 'Complete the target before continuing.';
+    }
     for (final field in requiredTargetFields) {
       if ((targetFields[field] ?? '').isEmpty) {
         return 'Complete the target before continuing.';

@@ -44,6 +44,8 @@ String automationTargetSummary(
       'Folder of ${names.projectName(value(.projectId))} on ${names.hostName(value(.hostId))}',
     AutomationTargetChoice.existingTab =>
       'Conversation in ${names.workspaceName(value(.workspaceId))}',
+    // Handled above.
+    AutomationTargetChoice.agentChat => 'Agent chat',
   };
   final profile = value(.agentProfileId);
   return profile == null || draft.targetType == AutomationTargetType.existingTab

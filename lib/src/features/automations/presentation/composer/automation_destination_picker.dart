@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_sectioned_picker.dart';
 import 'package:alera/src/features/automations/application/automation_composer_controller.dart';
 import 'package:alera/src/features/automations/application/automation_project_checkouts.dart';
+import 'package:alera/src/features/automations/application/automation_providers.dart';
 import 'package:alera/src/features/automations/application/automation_workbench_context.dart';
 import 'package:alera/src/features/automations/presentation/automation_popover_chip.dart';
 import 'package:alera/src/features/automations/presentation/composer/automation_destination_fields.dart';
@@ -30,6 +31,7 @@ class const AutomationDestinationOption({
       ),
       AutomationTargetChoice.projectWorktree ||
       AutomationTargetChoice.projectCheckout => draft.field(.projectId),
+      AutomationTargetChoice.agentChat => draft.agentChat.workspaceId,
     };
     if (choice == null || id == null) return null;
     return AutomationDestinationOption(
@@ -92,6 +94,9 @@ class const _DestinationPopover({
   Widget build(BuildContext context, WidgetRef ref) {
     final draft = ref.watch(provider.select((state) => state.draft));
     final names = ref.watch(automationWorkbenchContextProvider);
+    final agentChat =
+        ref.watch(automationRuntimeCapabilitiesProvider).value?.agentChat ??
+        false;
     String? folderBlocker(Project project) {
       final folders = ref.watch(automationProjectCheckoutsProvider(project.id));
       return folders.value?.isEmpty == true
@@ -106,7 +111,11 @@ class const _DestinationPopover({
       children: <Widget>[
         Flexible(
           child: AleraSectionedPicker<AutomationDestinationOption>(
-            sections: automationDestinationSections(names, folderBlocker),
+            sections: automationDestinationSections(
+              names,
+              folderBlocker,
+              agentChat: agentChat,
+            ),
             selectedValue: AutomationDestinationOption.of(draft),
             searchHintText: 'Search Workspaces, Projects And Agents',
             onSelected: (option) {
@@ -159,18 +168,26 @@ AutomationDraft _apply(
     case AutomationTargetChoice.projectWorktree ||
         AutomationTargetChoice.projectCheckout:
       fields[.projectId] = option.id;
+    case AutomationTargetChoice.agentChat:
+      return applyAutomationDestination(
+        draft,
+        option.choice,
+        fields,
+      ).withAgentChatWorkspace(option.id);
   }
   return applyAutomationDestination(draft, option.choice, fields);
 }
 
-/// The picker sections: running agents first, then new tabs, new worktrees
-/// and project folders. [folderBlocker] explains why a project has no folder
-/// to run in, or returns null.
+/// The picker sections: running agents first, then new tabs, new worktrees,
+/// project folders and, when the runtime runs them, agent chats.
+/// [folderBlocker] explains why a project has no folder to run in, or
+/// returns null.
 List<AleraPickerSection<AutomationDestinationOption>>
 automationDestinationSections(
   AutomationWorkbenchContext names,
-  String? Function(Project project) folderBlocker,
-) {
+  String? Function(Project project) folderBlocker, {
+  bool agentChat = false,
+}) {
   String where(String? projectId, String workspace) =>
       '${names.projectName(projectId)} / $workspace';
   final localGit = names.projects
@@ -257,5 +274,22 @@ automationDestinationSections(
           ),
       ],
     ),
+    if (agentChat)
+      AleraPickerSection(
+        title: 'Agent Chat',
+        rows: <AleraPickerRow<AutomationDestinationOption>>[
+          for (final workspace in names.workspaces)
+            AleraPickerRow(
+              value: AutomationDestinationOption(
+                choice: .agentChat,
+                id: workspace.id,
+              ),
+              title: workspace.name,
+              subtitle:
+                  'An agent chat in ${names.projectName(workspace.projectId)}, existing or new each run',
+              leading: const Icon(AleraIcons.agent, size: AleraTokens.iconMd),
+            ),
+        ],
+      ),
   ];
 }

@@ -1,3 +1,4 @@
+import 'package:alera_automations/src/automation_agent_chat_target.dart';
 import 'package:alera_automations/src/automation_draft.dart';
 import 'package:alera_automations/src/automation_models.dart';
 
@@ -26,7 +27,18 @@ enum AutomationTargetChoice(
   existingTab(
     AutomationTargetType.existingTab,
     'Continue An Agent Conversation',
-  );
+  ),
+
+  /// Posts each run into an agent chat, an existing one or a new one per
+  /// run. Offered only by a runtime with `automationAgentChatTargetV1`.
+  agentChat(AutomationTargetType.agentChat, 'Agent Chat');
+
+  /// The choices a runtime offers; agent chat needs its capability.
+  static List<AutomationTargetChoice> offered({required bool agentChat}) =>
+      <AutomationTargetChoice>[
+        for (final choice in values)
+          if (agentChat || choice != AutomationTargetChoice.agentChat) choice,
+      ];
 
   /// The choice [draft] currently holds, or null before the user picks one.
   static AutomationTargetChoice? of(AutomationDraft draft) =>
@@ -39,13 +51,26 @@ enum AutomationTargetChoice(
         },
         AutomationTargetType.projectCheckout => projectCheckout,
         AutomationTargetType.existingTab => existingTab,
-        // Agent chat targets come from chat tools; no choice holds them.
-        AutomationTargetType.agentChat => null,
+        AutomationTargetType.agentChat => agentChat,
       };
 
   /// Selects this choice in [draft], dropping every field of the previous one.
-  AutomationDraft applyTo(AutomationDraft draft) => draft.withTargetType(
-    type,
-    worktreeSource: worktreeSource ?? AutomationWorktreeSource.project,
-  );
+  /// A new agent chat target starts with the most access a chat can have as
+  /// its mode ceiling, which the person may lower.
+  AutomationDraft applyTo(AutomationDraft draft) {
+    if (this == agentChat) {
+      if (draft.targetType == AutomationTargetType.agentChat) return draft;
+      return draft
+          .withTargetType(type)
+          .withAgentChat(
+            const AutomationAgentChatTarget(
+              runtimeModeCeiling: automationDefaultRuntimeModeCeiling,
+            ),
+          );
+    }
+    return draft.withTargetType(
+      type,
+      worktreeSource: worktreeSource ?? AutomationWorktreeSource.project,
+    );
+  }
 }

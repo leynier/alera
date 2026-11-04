@@ -50,8 +50,10 @@ class const MobileAutomationPropertyRows({
             showMobileAutomationComposerSheet(
               context,
               title: 'Schedule',
-              builder: (_, _) =>
-                  MobileAutomationScheduleEditor(provider: provider),
+              builder: (_, _) => MobileAutomationScheduleEditor(
+                provider: provider,
+                hostId: hostId,
+              ),
             ),
           ),
         ),

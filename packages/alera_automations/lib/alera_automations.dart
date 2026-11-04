@@ -1,3 +1,4 @@
+export 'src/automation_agent_chat_target.dart';
 export 'src/automation_binding.dart';
 export 'src/automation_catalog_grouping.dart';
 export 'src/automation_catalog_query.dart';
