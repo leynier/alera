@@ -114,4 +114,84 @@ void main() {
     );
     expect(dismissed, isTrue);
   });
+
+  group('Use the default agent', () {
+    final fallback = AgentChatUsageFallback(
+      selection: const AgentChatSelection(providerInstanceId: 'claude'),
+      fromLabel: 'Codex',
+      toLabel: 'Claude',
+      defaultSelection: const AgentChatSelection(
+        providerInstanceId: 'codex',
+        model: 'gpt-5.5',
+      ),
+      defaultLabel: 'GPT-5.5',
+    );
+
+    Future<(ProviderContainer, List<AgentChatSelection>, List<String>)> pump(
+      WidgetTester tester, {
+      Object? failure,
+    }) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container
+          .read(agentChatUsageFallbacksProvider.notifier)
+          .record('host-1', 'chat-1', fallback);
+      final selected = <AgentChatSelection>[];
+      final failures = <String>[];
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAleraMobileDarkTheme(),
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) =>
+                    agentChatUsageFallbackBannerOf(
+                      ref,
+                      'host-1',
+                      'chat-1',
+                      select: (selection) async {
+                        selected.add(selection);
+                        if (failure != null) throw failure;
+                      },
+                      run: (what, action) async {
+                        try {
+                          await action();
+                        } on Object {
+                          failures.add(what);
+                        }
+                      },
+                    ) ??
+                    const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ),
+      );
+      return (container, selected, failures);
+    }
+
+    testWidgets('switches the chat back and closes the banner', (tester) async {
+      final (container, selected, failures) = await pump(tester);
+      await tester.tap(find.text('Use GPT-5.5'));
+      await tester.pump();
+      expect(selected.single.providerInstanceId, 'codex');
+      expect(selected.single.model, 'gpt-5.5');
+      expect(failures, isEmpty);
+      expect(container.read(agentChatUsageFallbacksProvider), isEmpty);
+      expect(find.text('Use GPT-5.5'), findsNothing);
+    });
+
+    testWidgets('a refused switch keeps the banner', (tester) async {
+      final (container, _, failures) = await pump(
+        tester,
+        failure: StateError('busy'),
+      );
+      await tester.tap(find.text('Use GPT-5.5'));
+      await tester.pump();
+      expect(failures, <String>['Could not change the agent.']);
+      expect(container.read(agentChatUsageFallbacksProvider), isNotEmpty);
+      expect(find.text('Use GPT-5.5'), findsOneWidget);
+    });
+  });
 }

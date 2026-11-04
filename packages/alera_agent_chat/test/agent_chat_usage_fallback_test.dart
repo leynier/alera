@@ -109,6 +109,36 @@ void main() {
     expect(fallback?.selection.providerInstanceId, 'claude');
     expect(fallback?.title, 'Using Claude');
     expect(fallback?.detail, 'Codex is out of usage');
+    // "Use Codex" switches back to the agent the chat would have used.
+    expect(fallback?.defaultSelection?.providerInstanceId, 'codex');
+    expect(fallback?.useDefaultLabel, 'Use Codex');
+  });
+
+  test('Use names the default model when one was resolved', () {
+    final fallback = agentChatUsageFallback(
+      resolved: const AgentChatSelection(
+        providerInstanceId: 'codex',
+        model: 'gpt-5.5',
+      ),
+      providers: <AgentChatProviderInstance>[
+        const AgentChatProviderInstance(
+          id: 'codex',
+          provider: 'codex',
+          label: 'Codex',
+          models: <AgentChatModelOption>[
+            AgentChatModelOption(id: 'gpt-5.5', label: 'GPT-5.5'),
+          ],
+        ),
+        ..._providers.skip(1),
+      ],
+      limitOf: (provider) => agentChatUsageLimit(
+        <AgentChatUsageReading>[_reading('codex', 100)],
+        provider,
+        now: _now,
+      ),
+    );
+    expect(fallback?.defaultSelection?.model, 'gpt-5.5');
+    expect(fallback?.useDefaultLabel, 'Use GPT-5.5');
   });
 
   test('keeps the agent when it was chosen explicitly or data is missing', () {

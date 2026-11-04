@@ -27,9 +27,10 @@ const Key _notice = ValueKey<String>('agent-chat-usage-fallback');
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   List<Map<String, Object?>> items = const <Map<String, Object?>>[],
+  FakeAgentChatRepository? repository,
 }) async {
-  final repository = FakeAgentChatRepository()
-    ..snapshots.add(() => agentChatSnapshotFixture(items: items));
+  repository ??= FakeAgentChatRepository();
+  repository.snapshots.add(() => agentChatSnapshotFixture(items: items));
   var nextId = 0;
   await tester.pumpWidget(
     ProviderScope(
@@ -66,10 +67,15 @@ Future<ProviderContainer> _pump(
       .record(
         'chat-1',
         AgentChatUsageFallback(
-          selection: const AgentChatSelection(providerInstanceId: 'claude'),
-          fromLabel: 'Codex',
-          toLabel: 'Claude',
+          selection: const AgentChatSelection(providerInstanceId: 'codex'),
+          fromLabel: 'Claude',
+          toLabel: 'Codex',
           resetsAt: DateTime(2026, 10, 12, 14, 30),
+          defaultSelection: const AgentChatSelection(
+            providerInstanceId: 'claude',
+            model: 'opus',
+          ),
+          defaultLabel: 'Opus',
         ),
       );
   await tester.pump();
@@ -81,7 +87,7 @@ void main() {
     await _pump(tester);
     expect(find.byKey(_notice), findsOneWidget);
     expect(
-      find.text('Using Claude · Codex is out of usage · resets at 14:30'),
+      find.text('Using Codex · Claude is out of usage · resets at 14:30'),
       findsOneWidget,
     );
   });
@@ -94,6 +100,31 @@ void main() {
     await tester.pump();
     expect(find.byKey(_notice), findsNothing);
     expect(container.read(agentChatUsageFallbacksProvider), isEmpty);
+  });
+
+  testWidgets('Use moves the chat back to the default agent', (tester) async {
+    final repository = FakeAgentChatRepository();
+    final container = await _pump(tester, repository: repository);
+    await tester.tap(find.text('Use Opus'));
+    await tester.pump();
+    final configuration =
+        repository.calls.singleWhere((call) => call.$1 == 'configure').$2!
+            as AgentChatConfiguration;
+    expect(configuration.providerInstanceId, 'claude');
+    expect(configuration.model, 'opus');
+    await tester.pump();
+    expect(find.byKey(_notice), findsNothing);
+    expect(container.read(agentChatUsageFallbacksProvider), isEmpty);
+  });
+
+  testWidgets('a refused switch keeps the notice', (tester) async {
+    final repository = FakeAgentChatRepository()
+      ..configureError = StateError('busy');
+    await _pump(tester, repository: repository);
+    await tester.tap(find.text('Use Opus'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(_notice), findsOneWidget);
   });
 
   testWidgets('a chat with a sent message shows no notice', (tester) async {

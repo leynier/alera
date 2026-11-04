@@ -293,7 +293,13 @@ class const AgentChatTabBody({
                         .dismiss(hostId, chatId, submission.id),
                   ),
                 if (view.neverSent)
-                  ?agentChatUsageFallbackBannerOf(ref, hostId, chatId),
+                  ?agentChatUsageFallbackBannerOf(
+                    ref,
+                    hostId,
+                    chatId,
+                    select: controller.select,
+                    run: handlers.run,
+                  ),
                 if (operation != null)
                   AgentChatNativeOperationBanner(
                     key: ValueKey<String>('native-${operation.operationId}'),

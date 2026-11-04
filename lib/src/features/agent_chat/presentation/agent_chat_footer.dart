@@ -217,7 +217,10 @@ class const AgentChatFooter({
         ),
       if (!view.live) const AgentChatReconnectingBanner(),
       if (usageFallback && view.neverSent)
-        AgentChatUsageFallbackNotice(chatId: chatId),
+        AgentChatUsageFallbackNotice(
+          chatId: chatId,
+          onUseDefault: controller.choose,
+        ),
       if (docked.isNotEmpty)
         AgentChatRequestDock(
           key: ValueKey<String>('agent-chat-requests-$chatId'),

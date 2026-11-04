@@ -21,15 +21,22 @@ final class const AgentChatUsageLimit({final DateTime? resetsAt});
 
 /// A new chat started on [selection] because the default agent, [fromLabel],
 /// was out of usage; [toLabel] names the agent it uses instead.
+/// [defaultSelection] is the agent and model the chat would have started on,
+/// which "Use [defaultLabel]" switches the chat back to.
 final class const AgentChatUsageFallback({
   required final AgentChatSelection selection,
   required final String fromLabel,
   required final String toLabel,
   final DateTime? resetsAt,
+  final AgentChatSelection? defaultSelection,
+  final String? defaultLabel,
 }) {
   String get title => 'Using $toLabel';
 
   String get detail => '$fromLabel is out of usage';
+
+  /// "Use GPT-5.5", the action that switches back to [defaultSelection].
+  String get useDefaultLabel => 'Use ${defaultLabel ?? fromLabel}';
 }
 
 /// The quota provider id for a chat provider kind; the chat's Claude agent
@@ -115,6 +122,10 @@ AgentChatUsageFallback? agentChatUsageFallback({
       fromLabel: from.label,
       toLabel: instance.label,
       resetsAt: limit.resetsAt,
+      defaultSelection: resolved,
+      defaultLabel: resolved.model == null
+          ? from.label
+          : from.modelById(resolved.model)?.label ?? resolved.model,
     );
   }
   return null;

@@ -6,24 +6,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The banner of chat [chatId] on [hostId], or null when its chat did not
-/// fall back or the notice was dismissed.
+/// fall back or the notice was dismissed. "Use Codex" moves the chat back to
+/// the default agent with [select] (which throws when the runtime refuses),
+/// through [run], which reports a failure; the banner closes once it worked.
 Widget? agentChatUsageFallbackBannerOf(
   WidgetRef ref,
   String hostId,
-  String chatId,
-) {
+  String chatId, {
+  Future<void> Function(AgentChatSelection selection)? select,
+  Future<void> Function(String what, Future<void> Function() action)? run,
+}) {
   final fallback = ref.watch(
     agentChatUsageFallbacksProvider.select(
       (all) => all[agentChatUsageFallbackKey(hostId, chatId)],
     ),
   );
   if (fallback == null) return null;
+  final notices = ref.read(agentChatUsageFallbacksProvider.notifier);
+  final target = fallback.defaultSelection;
   return AgentChatUsageFallbackBanner(
     fallback: fallback,
     now: DateTime.now(),
-    onDismiss: () => ref
-        .read(agentChatUsageFallbacksProvider.notifier)
-        .dismiss(hostId, chatId),
+    onDismiss: () => notices.dismiss(hostId, chatId),
+    onUseDefault: target == null || select == null || run == null
+        ? null
+        : () => run('Could not change the agent.', () async {
+            await select(target);
+            notices.dismiss(hostId, chatId);
+          }),
   );
 }
 
@@ -36,6 +46,9 @@ class const AgentChatUsageFallbackBanner({
   required final AgentChatUsageFallback fallback,
   required final DateTime now,
   required final VoidCallback onDismiss,
+
+  /// Switches the chat back to the default agent; null hides the action.
+  final VoidCallback? onUseDefault,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -44,11 +57,24 @@ class const AgentChatUsageFallbackBanner({
       key: const ValueKey<String>('agent-chat-usage-fallback'),
       icon: AleraIcons.info,
       message: <String>[fallback.title, fallback.detail, ?resets].join(' · '),
-      action: IconButton(
-        key: const ValueKey<String>('agent-chat-usage-fallback-dismiss'),
-        tooltip: 'Dismiss',
-        onPressed: onDismiss,
-        icon: const Icon(AleraIcons.close),
+      action: Row(
+        mainAxisSize: .min,
+        children: <Widget>[
+          if (onUseDefault != null)
+            TextButton(
+              key: const ValueKey<String>(
+                'agent-chat-usage-fallback-use-default',
+              ),
+              onPressed: onUseDefault,
+              child: Text(fallback.useDefaultLabel),
+            ),
+          IconButton(
+            key: const ValueKey<String>('agent-chat-usage-fallback-dismiss'),
+            tooltip: 'Dismiss',
+            onPressed: onDismiss,
+            icon: const Icon(AleraIcons.close),
+          ),
+        ],
       ),
     );
   }
