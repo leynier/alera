@@ -143,6 +143,11 @@ fn non_media_attachments_are_refused_by_their_bytes_not_their_name() {
         Some("video/webm")
     );
     assert_eq!(media_mime_type(b"%PDF-1.7"), None);
+    assert_eq!(media_mime_type(b"BM is not an image"), None);
+    let mut bmp = *b"BM\0\0\0\0\0\0\0\0\0\0\0\0\x28\0";
+    assert_eq!(media_mime_type(&bmp), Some("image/bmp"));
+    bmp[14] = b'x';
+    assert_eq!(media_mime_type(&bmp), None);
 }
 
 #[test]

@@ -158,7 +158,10 @@ pub(in crate::terminal_host::server) fn media_mime_type(bytes: &[u8]) -> Option<
         Some("image/webp")
     } else if at(0, b"RIFF") && at(8, b"AVI ") {
         Some("video/x-msvideo")
-    } else if at(0, b"BM") && bytes.len() >= 14 {
+    } else if at(0, b"BM")
+        // A known DIB header size, so text starting "BM" is not an image.
+        && matches!(bytes.get(14..16), Some([12 | 40 | 52 | 56 | 108 | 124, 0]))
+    {
         Some("image/bmp")
     } else if at(0, &[0x1a, 0x45, 0xdf, 0xa3]) {
         Some("video/webm")
